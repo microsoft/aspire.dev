@@ -63,10 +63,15 @@ Suppress the experimental diagnostic in your project file:
 </PropertyGroup>
 ```
 
-Then annotate your extension methods with `[AspireExport]`:
+Then annotate your extension methods with `[AspireExport]` and use XML doc comments to document them for the generated polyglot SDK:
 
 ```csharp title="C# — MyDatabaseBuilderExtensions.cs"
-[AspireExport("addMyDatabase", Description = "Adds a MyDatabase container resource")]
+/// <summary>Adds a MyDatabase container resource.</summary>
+/// <param name="builder">The distributed application builder.</param>
+/// <param name="name">The MyDatabase resource name.</param>
+/// <param name="port">The optional port.</param>
+/// <returns>The MyDatabase resource builder.</returns>
+[AspireExport("addMyDatabase")]
 public static IResourceBuilder<MyDatabaseResource> AddMyDatabase(
     this IDistributedApplicationBuilder builder,
     [ResourceName] string name,
@@ -75,7 +80,12 @@ public static IResourceBuilder<MyDatabaseResource> AddMyDatabase(
     // Your existing implementation...
 }
 
-[AspireExport("addDatabase", Description = "Adds a database to the MyDatabase server")]
+/// <summary>Adds a database to the MyDatabase server.</summary>
+/// <param name="builder">The MyDatabase server resource builder.</param>
+/// <param name="name">The database name.</param>
+/// <param name="databaseName">The optional database name override.</param>
+/// <returns>The database resource builder.</returns>
+[AspireExport("addDatabase")]
 public static IResourceBuilder<MyDatabaseDatabaseResource> AddDatabase(
     this IResourceBuilder<MyDatabaseResource> builder,
     [ResourceName] string name,
@@ -84,7 +94,11 @@ public static IResourceBuilder<MyDatabaseDatabaseResource> AddDatabase(
     // Your existing implementation...
 }
 
-[AspireExport("withDataVolume", Description = "Adds a data volume to the MyDatabase server")]
+/// <summary>Adds a data volume to the MyDatabase server.</summary>
+/// <param name="builder">The MyDatabase server resource builder.</param>
+/// <param name="name">The optional volume name.</param>
+/// <returns>The MyDatabase resource builder.</returns>
+[AspireExport("withDataVolume")]
 public static IResourceBuilder<MyDatabaseResource> WithDataVolume(
     this IResourceBuilder<MyDatabaseResource> builder,
     string? name = null)
@@ -112,6 +126,63 @@ await app.run();
 <Aside type="tip" title="Naming convention">
 The export ID usually becomes the method name in generated SDKs. Use camelCase (e.g., `addMyDatabase`, `withDataVolume`), or set `MethodName` when the runtime capability ID and SDK method name need to differ. For static exports, the full capability ID is computed as `{AssemblyName}/{exportId}` — for example, `MyCompany.Hosting.MyDatabase/addMyDatabase`.
 </Aside>
+
+### Document your exports
+
+XML doc comments are the primary source for generated polyglot SDK API documentation. The ATS scanner reads `<summary>`, `<param>`, `<returns>`, and `<remarks>` tags and includes them in the TypeScript JSDoc and other language-specific documentation generated for your integration.
+
+Use `ats-*` override tags when the standard C# XML documentation doesn't translate well to polyglot SDKs — for example, when a `<summary>` references C#-specific types or language constructs that have no direct equivalent in TypeScript. The supported overrides are:
+
+- `<ats-summary>` — overrides `<summary>` in polyglot docs
+- `<ats-param name="...">` — overrides `<param>` for a specific parameter
+- `<ats-returns>` — overrides `<returns>`
+- `<ats-remarks>` — overrides `<remarks>`
+
+An empty `ats-*` tag intentionally suppresses the matching standard documentation in the generated SDK.
+
+```csharp title="C# — Polyglot-incompatible summary with ats-summary override"
+/// <ats-summary>Adds a Redis container resource.</ats-summary>
+/// <summary>
+/// Adds a <see cref="RedisResource"/> to the <see cref="IDistributedApplicationBuilder"/>.
+/// </summary>
+/// <param name="builder">The distributed application builder.</param>
+/// <param name="name">The Redis resource name.</param>
+/// <returns>The Redis resource builder.</returns>
+[AspireExport("addRedis")]
+public static IResourceBuilder<RedisResource> AddRedis(
+    IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+```
+
+#### Cross-references in ATS docs
+
+Use `<ats-see cref="!:kind:identifier.path" />` and `<ats-seealso cref="!:kind:identifier.path" />` to link to generated SDK elements. The `!:` prefix prevents the C# compiler from validating the custom `cref` format; ATS removes it before parsing. The supported `kind` values are `type`, `method`, and `field`. The reference path uses dot notation over generated polyglot identifiers:
+
+```csharp title="C# — Cross-references using ats-see"
+/// <summary>
+/// Configures <ats-see cref="!:type:RedisResource" />.
+/// </summary>
+/// <remarks>
+/// See also <ats-see cref="!:method:RedisResource.withPersistence" /> and
+/// <ats-seealso cref="!:field:RedisDefaults.Port" />.
+/// </remarks>
+[AspireExport("configureRedis")]
+public static IResourceBuilder<RedisResource> ConfigureRedis(
+    IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+```
+
+TypeScript renders these references as JSDoc `{@link ...}` links.
+
+:::note
+The `Description` property on `[AspireExport]` is still supported as a compatibility fallback, but new exports should use XML doc comments. The analyzer reports `ASPIREEXPORT015` when `Description` is set on a new export.
+:::
 
 ### Keep capability IDs unique
 
@@ -254,7 +325,9 @@ An editor wraps a mutable collection and exposes specific operations — typical
 internal sealed class EnvironmentEditor(Dictionary<string, object> environmentVariables)
 {
     /// <summary>Sets an environment variable.</summary>
-    [AspireExport(Description = "Sets an environment variable")]
+    /// <param name="name">The environment variable name.</param>
+    /// <param name="value">The environment variable value.</param>
+    [AspireExport]
     public void Set(
         string name,
         [AspireUnion(
@@ -282,15 +355,15 @@ public sealed class MyCallbackContext(
     Dictionary<string, object> environmentVariables)
 {
     /// <summary>Gets the resource associated with this callback.</summary>
-    [AspireExport(Description = "Gets the resource associated with this callback")]
+    [AspireExport]
     public IResource Resource => resource;
 
     /// <summary>Gets the execution context.</summary>
-    [AspireExport(Description = "Gets the execution context")]
+    [AspireExport]
     public DistributedApplicationExecutionContext ExecutionContext => executionContext;
 
     /// <summary>Gets the environment variable editor.</summary>
-    [AspireExport(Description = "Gets the environment variable editor")]
+    [AspireExport]
     internal EnvironmentEditor Environment => new(environmentVariables);
 }
 ```
@@ -300,7 +373,11 @@ public sealed class MyCallbackContext(
 Export the extension method that accepts the callback, using `Action<MyCallbackContext>` as the parameter type:
 
 ```csharp title="C# — MyResourceBuilderExtensions.cs"
-[AspireExport("withMyCallback", Description = "Configures the resource using a callback")]
+/// <summary>Configures the resource using a callback.</summary>
+/// <param name="builder">The resource builder.</param>
+/// <param name="configure">The callback to configure the resource.</param>
+/// <returns>The resource builder.</returns>
+[AspireExport("withMyCallback")]
 public static IResourceBuilder<MyResource> WithMyCallback(
     this IResourceBuilder<MyResource> builder,
     Action<MyCallbackContext> configure)
@@ -557,7 +634,11 @@ Some C# overloads use types that can't be represented in TypeScript (e.g., `Acti
 
 ```csharp title="C# — Exclude incompatible overloads"
 // This overload works in TypeScript — simple parameters
-[AspireExport("withConnectionStringLimit", Description = "Sets connection limit")]
+/// <summary>Sets the maximum number of connections.</summary>
+/// <param name="builder">The resource builder.</param>
+/// <param name="maxConnections">The maximum number of connections.</param>
+/// <returns>The resource builder.</returns>
+[AspireExport("withConnectionStringLimit")]
 public static IResourceBuilder<MyDatabaseResource> WithConnectionStringLimit(
     this IResourceBuilder<MyDatabaseResource> builder,
     int maxConnections)
@@ -586,7 +667,12 @@ public static IResourceBuilder<MyDatabaseResource> WithConnectionStringLimit(
 When a parameter accepts multiple types, use `[AspireUnion]` to declare the valid options:
 
 ```csharp title="C# — Union type parameter"
-[AspireExport("withEnvironment", Description = "Sets an environment variable")]
+/// <summary>Sets an environment variable on the resource.</summary>
+/// <param name="builder">The resource builder.</param>
+/// <param name="name">The environment variable name.</param>
+/// <param name="value">The value, which may be a string, reference expression, or endpoint reference.</param>
+/// <returns>The resource builder.</returns>
+[AspireExport("withEnvironment")]
 public static IResourceBuilder<T> WithEnvironment<T>(
     this IResourceBuilder<T> builder,
     string name,
@@ -626,6 +712,7 @@ The `Aspire.Hosting.Integration.Analyzers` package reports these diagnostics:
 | ASPIREEXPORT011 | Warning  | Explicit export ID matches the convention-derived name                                      |
 | ASPIREEXPORT012 | Warning  | Callback context type missing `[AspireExport]`                                              |
 | ASPIREEXPORT013 | Warning  | Duplicate polyglot capability ID across exports in the same assembly                        |
+| ASPIREEXPORT015 | Warning  | `[AspireExport(Description = ...)]` is deprecated — use XML doc comments instead            |
 
 A clean build with zero analyzer warnings means your integration is ready for multi-language use.
 
