@@ -190,6 +190,135 @@ This module configures:
 
 Using the `acaEnv` variable, you can chain a call to the `ConfigureInfrastructure` API to customize the ACA environment to your liking. For more information, see [Configure infrastructure](/integrations/cloud/azure/customize-resources/).
 
+## Use an existing ACA environment
+
+If you've already provisioned an Azure Container Apps environment, chain `AsExisting` (or `asExisting`) on `AddAzureContainerAppEnvironment` to deploy your container apps into it instead of creating a new one:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingEnvName = builder.AddParameter("existingEnvName");
+var existingEnvResourceGroup = builder.AddParameter("existingEnvResourceGroup");
+
+var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env")
+    .AsExisting(existingEnvName, existingEnvResourceGroup);
+
+builder.AddProject<Projects.ApiService>("api");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const existingEnvName = await builder.addParameter("existingEnvName");
+const existingEnvResourceGroup = await builder.addParameter("existingEnvResourceGroup");
+
+const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env")
+    .asExisting(existingEnvName, { resourceGroup: existingEnvResourceGroup });
+
+await builder.addProject("api", "../ApiService/ApiService.csproj");
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+:::caution
+When you call `AsExisting`, you must provide configuration values so that Aspire can locate the resource. The necessary values include **SubscriptionId**, **ResourceGroup**, and **Location**. For more information, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+:::
+
+When the environment is marked as existing, Aspire generates a thin Bicep module that references the existing managed environment by name. It does not emit a new managed environment, Log Analytics workspace, or Aspire dashboard component — the existing environment already owns those.
+
+Some configuration is incompatible with an existing environment and is rejected at publish time:
+
+- `WithDelegatedSubnet` — VNet integration is a property of the managed environment and can't be reconfigured on an existing one.
+- `WithAzureLogAnalyticsWorkspace` — the existing environment already owns its workspace.
+- Volume mounts on container apps targeting the environment — Azure Files storage attaches to the managed environment, which Aspire can't change on an existing environment.
+
+### Bring your own ACR pull identity
+
+By default, even when the environment is existing, Aspire still emits a new user-assigned managed identity and an `AcrPull` role assignment on the container registry so that newly-deployed container apps can pull their images. If your deployment principal can't create identities or role assignments, supply a pre-existing identity with `WithAcrPullIdentity` (or `withAcrPullIdentity`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingEnvName = builder.AddParameter("existingEnvName");
+var existingAcrName = builder.AddParameter("existingAcrName");
+var existingIdentityName = builder.AddParameter("existingIdentityName");
+var existingResourceGroup = builder.AddParameter("existingResourceGroup");
+
+var acr = builder.AddAzureContainerRegistry("acr")
+    .AsExisting(existingAcrName, existingResourceGroup);
+
+var pullIdentity = builder.AddAzureUserAssignedIdentity("acr-pull")
+    .AsExisting(existingIdentityName, existingResourceGroup);
+
+builder.AddAzureContainerAppEnvironment("aca-env")
+    .AsExisting(existingEnvName, existingResourceGroup)
+    .WithAzureContainerRegistry(acr)
+    .WithAcrPullIdentity(pullIdentity);
+
+builder.AddProject<Projects.ApiService>("api");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const existingEnvName = await builder.addParameter("existingEnvName");
+const existingAcrName = await builder.addParameter("existingAcrName");
+const existingIdentityName = await builder.addParameter("existingIdentityName");
+const existingResourceGroup = await builder.addParameter("existingResourceGroup");
+
+const acr = await builder.addAzureContainerRegistry("acr")
+    .asExisting(existingAcrName, { resourceGroup: existingResourceGroup });
+
+const pullIdentity = await builder.addAzureUserAssignedIdentity("acr-pull")
+    .asExisting(existingIdentityName, { resourceGroup: existingResourceGroup });
+
+await builder.addAzureContainerAppEnvironment("aca-env")
+    .asExisting(existingEnvName, { resourceGroup: existingResourceGroup })
+    .withAzureContainerRegistry(acr)
+    .withAcrPullIdentity(pullIdentity);
+
+await builder.addProject("api", "../ApiService/ApiService.csproj");
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The supplied identity must already have the `AcrPull` role on the registry. Aspire does not create that role assignment when you use `WithAcrPullIdentity` — you own the identity's role wiring (for example, by chaining `.WithRoleAssignments(acr, ContainerRegistryBuiltInRole.AcrPull)` when you add the identity in a separate AppHost that does have permission to grant roles).
+
+### Combinations and what gets emitted
+
+The environment, container registry, and ACR pull identity can each independently be new or existing. The combination determines whether Aspire emits new resources alongside the references to existing ones:
+
+| Environment | Container registry | Pull identity (`WithAcrPullIdentity`) | What the env module emits beyond references |
+|-------------|--------------------|---------------------------------------|---------------------------------------------|
+| New | New (default or user-added) | Not supplied | New environment, Log Analytics, dashboard, identity, `AcrPull` role assignment |
+| New | New | Supplied | New environment, Log Analytics, dashboard. No identity or role assignment in the env module — wire the role on the identity yourself |
+| New | Existing | Not supplied | New environment, Log Analytics, dashboard, identity, `AcrPull` role assignment on existing registry |
+| New | Existing | Supplied | New environment, Log Analytics, dashboard. No identity or role assignment in the env module |
+| Existing | New | Not supplied | New identity, new registry, `AcrPull` role assignment |
+| Existing | New | Supplied | New registry. No identity or role assignment in the env module |
+| Existing | Existing | Not supplied | New identity, `AcrPull` role assignment on existing registry |
+| Existing | Existing | Supplied | Nothing — only references to existing resources |
+
+The last row is the only configuration in which the env module emits no new identities, role assignments, or supporting resources. Use it when your deployment principal should not need permission to create identities or grant roles.
+
 ## Use PublishAsAzureContainerApp
 
 The following `PublishAsAzureContainerApp` overloads let you customize the generated Container App resource for a project, container, or executable:
