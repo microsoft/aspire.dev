@@ -286,13 +286,16 @@ private static ResourceCommandState OnUpdateResourceState(
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-<Aside type="caution">
-TypeScript の `UpdateCommandStateContext` は現在 `serviceProvider` のみを公開し、`resourceSnapshot` プロパティは **公開していません**。そのため、`ResourceSnapshot.HealthStatus` でコマンドをゲートする C# パターンに、現時点で直接対応する TypeScript 等価表現はありません。TypeScript コールバックでもプロバイダーからサービス解決はできますが、ライブのリソース スナップショットは検査できません。
-</Aside>
+TypeScript では `CommandOptions` の `updateState` フィールドは非同期コールバックで、`UpdateCommandStateContext` を受け取ります。コンテキストは以下を公開します。
 
-TypeScript では `CommandOptions` の `updateState` フィールドが緩い型（`any`）であり、SDK はまだ `ResourceCommandState` 列挙体をエクスポートしていません。現時点の TypeScript AppHost で最も単純な方法は、`updateState` を完全に省略することです。コマンドは既定で有効になり、リソース到達後にのみコマンド登録します。
+- `serviceProvider` — サービスを解決するために使用します。
+- `resourceSnapshot()` — リソース インスタンスのスナップショット（`healthStatus` とライフサイクル状態の `state` を含む）を返す非同期関数。
+
+次の例では、C# パターンと同様に、リソースが健全な状態のときのみ `clear-cache` コマンドを有効にします。
 
 ```typescript title="apphost.ts"
+import { HealthStatus, ResourceCommandState } from './.modules/aspire.js';
+
 await cache.withCommand(
     "clear-cache",
     "Clear Cache",
@@ -300,11 +303,23 @@ await cache.withCommand(
     {
         commandOptions: {
             iconName: "AnimalRabbitOff",
+            updateState: async (ctx) => {
+                const snapshot = await ctx.resourceSnapshot();
+
+                return snapshot.healthStatus === HealthStatus.Healthy
+                    ? ResourceCommandState.Enabled
+                    : ResourceCommandState.Disabled;
+            },
         },
     });
 ```
 
-TypeScript AppHost でライフサイクル対応のゲーティングが必要な場合は、コールバック内ではなく外側で制御します。たとえば、接続文字列またはエンドポイント イベントを購読した後に、コマンドが依存するデータがリソースから公開されてからコマンドを登録してください。
+上記のコードは以下を行います。
+
+- `ctx.resourceSnapshot()` を呼び出して現在のリソース スナップショットを取得します。
+- リソースが健全であれば `ResourceCommandState.Enabled` を返し、そうでなければ `ResourceCommandState.Disabled` を返します。
+
+`HealthStatus` と `ResourceCommandState` 列挙体は生成された SDK（`aspire.ts`）からエクスポートされており、直接インポートして使用できます。
 
 </TabItem>
 </Tabs>

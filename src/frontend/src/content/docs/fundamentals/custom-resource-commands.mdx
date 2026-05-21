@@ -287,13 +287,16 @@ The preceding code:
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-<Aside type="caution">
-The TypeScript `UpdateCommandStateContext` currently exposes only `serviceProvider` — it does **not** expose a `resourceSnapshot` property. The C# pattern of gating a command on `ResourceSnapshot.HealthStatus` therefore has no direct TypeScript equivalent today. TypeScript callbacks can still resolve services from the provider, but they cannot inspect the live resource snapshot.
-</Aside>
+In TypeScript the `updateState` field on `CommandOptions` is an async callback that receives an `UpdateCommandStateContext`. The context exposes:
 
-In TypeScript the `updateState` field on `CommandOptions` is typed loosely (`any`), and the SDK does not yet export a `ResourceCommandState` enum. The simplest path for TypeScript AppHosts today is to omit `updateState` entirely — commands default to enabled — and only register the command after the resource is reachable:
+- `serviceProvider` — used to resolve services.
+- `resourceSnapshot()` — an async function that returns a curated snapshot of the resource instance, including `healthStatus` and `state` (lifecycle state).
+
+The following example gates the `clear-cache` command on the resource being healthy, mirroring the C# pattern:
 
 ```typescript title="apphost.ts"
+import { HealthStatus, ResourceCommandState } from './.modules/aspire.js';
+
 await cache.withCommand(
     "clear-cache",
     "Clear Cache",
@@ -301,11 +304,23 @@ await cache.withCommand(
     {
         commandOptions: {
             iconName: "AnimalRabbitOff",
+            updateState: async (ctx) => {
+                const snapshot = await ctx.resourceSnapshot();
+
+                return snapshot.healthStatus === HealthStatus.Healthy
+                    ? ResourceCommandState.Enabled
+                    : ResourceCommandState.Disabled;
+            },
         },
     });
 ```
 
-When you need lifecycle-aware gating in a TypeScript AppHost, drive it from outside the callback by registering the command only after the resource exposes the data your command depends on (for example, after subscribing to a connection-string or endpoint event).
+The preceding code:
+
+- Calls `ctx.resourceSnapshot()` to retrieve the current resource snapshot.
+- Returns `ResourceCommandState.Enabled` if the resource is healthy; otherwise, it returns `ResourceCommandState.Disabled`.
+
+The `HealthStatus` and `ResourceCommandState` enums are exported from the generated SDK (`aspire.ts`) and are available to import directly.
 
 </TabItem>
 </Tabs>
