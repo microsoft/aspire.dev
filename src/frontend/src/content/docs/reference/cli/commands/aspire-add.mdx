@@ -62,6 +62,45 @@ The following options are available:
 
 - <Include relativePath="reference/cli/includes/option-wait.md" />
 
+- **`--capture-profile`**
+
+  Capture an OpenTelemetry trace of the `aspire add` command execution and save it as a self-contained ZIP file. Use this to identify which phase of the add flow — package search, package selection, or package installation — is taking the most time.
+
+- **`--capture-profile-output <path>`**
+
+  The output path for the captured profile ZIP file. Defaults to a timestamped file in the current directory when `--capture-profile` is used.
+
+## Profiling spans
+
+When `--capture-profile` is enabled, `aspire add` emits the following OpenTelemetry spans:
+
+| Span | Description |
+|------|-------------|
+| `aspire/cli/add` | Root span for the entire add command. Marked with error status and exit code on all graceful failure paths. |
+| `aspire/cli/add.find_apphost` | AppHost project discovery. |
+| `aspire/cli/add.get_configured_channel` | NuGet channel lookup via MSBuild. |
+| `aspire/cli/add.search_packages` | `dotnet package search` call for Aspire integrations. |
+| `aspire/cli/add.select_package` | Records match count, match kind, and the selected package. Does not include user think time. |
+| `aspire/cli/add.select_package.prompt` | Wraps the interactive package and version prompts so that user think time is distinguishable from tool time. |
+| `aspire/cli/add.stop_existing_instance` | Stopping any running AppHost before installation. |
+| `aspire/cli/add.package` | `dotnet package add` installation step. |
+
+Each span may carry the following tags:
+
+| Tag | Description |
+|-----|-------------|
+| `aspire.cli.add.integration.name` | The integration name passed to `aspire add`. |
+| `version_specified` | Whether a specific version was requested. |
+| `source_specified` | Whether a custom NuGet source was specified. |
+| `configured_channel` | The NuGet channel resolved via MSBuild. |
+| `package.search_result_count` | Total number of packages returned by `dotnet package search`. |
+| `package.match_count` | Number of packages that matched the search term. |
+| `package.match_kind` | How the package was matched: `exact`, `fuzzy`, or `none`. |
+| `package.id` | The NuGet package ID of the selected package. |
+| `package.version` | The version of the selected package. |
+| `package.channel` | The NuGet channel the package was resolved from. |
+| `package.success` | Whether the package installation succeeded. |
+
 ## Examples
 
 - Finds an AppHost project and lists all Aspire integration packages from NuGet:
@@ -74,4 +113,10 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire add kafka --version 13.3.0
+  ```
+
+- Adds the **redis** integration and captures a profiling trace to a ZIP file:
+
+  ```bash title="Aspire CLI"
+  aspire add redis --version 9.5.0 --capture-profile --capture-profile-output add-redis.zip
   ```
