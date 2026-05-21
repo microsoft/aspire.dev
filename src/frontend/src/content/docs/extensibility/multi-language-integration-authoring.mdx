@@ -327,12 +327,12 @@ The `Action<T>` delegate type is ATS-compatible. The TypeScript side receives an
 
 Several ATS callback contexts expose an `IServiceProvider` handle through a `services()` or `serviceProvider()` accessor. For example, resource events expose `event.services()`, command contexts expose `context.serviceProvider()`, and `DistributedApplicationExecutionContext` exposes `executionContext.serviceProvider()`.
 
-In TypeScript, use the ATS-friendly methods on the service provider instead of the C# generic dependency-injection pattern. For example, call `serviceProvider.getLoggerFactory()` instead of `serviceProvider.GetRequiredService<ILoggerFactory>()`.
+In TypeScript, use the ATS-friendly methods on the service provider instead of the C# generic dependency-injection pattern. For example, call `services.getLoggerFactory()` instead of `serviceProvider.GetRequiredService<ILoggerFactory>()`.
 
 ```typescript title="TypeScript — Using a callback service provider"
 await builder.subscribeBeforeStart(async (event) => {
-    const serviceProvider = await event.services();
-    const loggerFactory = serviceProvider.getLoggerFactory();
+    const services = await event.services();
+    const loggerFactory = services.getLoggerFactory();
     const logger = loggerFactory.createLogger("AppHost");
 
     logger.logInformation("The AppHost is starting.");
@@ -357,8 +357,8 @@ Use `getDistributedApplicationModel()` when callback code needs to inspect or lo
 
 ```typescript title="TypeScript — Inspecting AppHost resources"
 await builder.subscribeAfterResourcesCreated(async (event) => {
-    const serviceProvider = await event.services();
-    const model = serviceProvider.getDistributedApplicationModel();
+    const services = await event.services();
+    const model = services.getDistributedApplicationModel();
     const resources = model.getResources();
     const api = model.findResourceByName("api");
 });
@@ -370,8 +370,8 @@ Use `getLoggerFactory()` to create loggers from callbacks that expose a service 
 
 ```typescript title="TypeScript — Writing logs from a callback"
 await builder.subscribeBeforeStart(async (event) => {
-    const serviceProvider = await event.services();
-    const logger = serviceProvider
+    const services = await event.services();
+    const logger = services
         .getLoggerFactory()
         .createLogger("startup");
 
@@ -388,10 +388,10 @@ const cache = await builder.addRedis("cache");
 
 cache.onResourceReady(async (event) => {
     const resource = await event.resource();
-    const serviceProvider = await event.services();
+    const services = await event.services();
     const resourceName = resource.getResourceName();
-    const notifications = serviceProvider.getResourceNotificationService();
-    const resourceLogs = serviceProvider.getResourceLoggerService();
+    const notifications = services.getResourceNotificationService();
+    const resourceLogs = services.getResourceLoggerService();
 
     notifications.waitForResourceHealthy(resourceName);
     resourceLogs.completeLog(resource);
@@ -404,10 +404,10 @@ Use `getUserSecretsManager()` for user secrets and `getAspireStore()` for stable
 
 ```typescript title="TypeScript — Using AppHost services"
 await builder.subscribeBeforeStart(async (event) => {
-    const serviceProvider = await event.services();
-    const secrets = serviceProvider.getUserSecretsManager();
-    const store = serviceProvider.getAspireStore();
-    const model = serviceProvider.getDistributedApplicationModel();
+    const services = await event.services();
+    const secrets = services.getUserSecretsManager();
+    const store = services.getAspireStore();
+    const model = services.getDistributedApplicationModel();
     const api = model.findResourceByName("api");
 
     if (secrets.isAvailable()) {
@@ -426,8 +426,8 @@ Use `getEventing()` when callback code needs the eventing service itself:
 
 ```typescript title="TypeScript — Using eventing from services"
 const subscription = await builder.subscribeBeforeStart(async (event) => {
-    const serviceProvider = await event.services();
-    const eventing = serviceProvider.getEventing();
+    const services = await event.services();
+    const eventing = services.getEventing();
 
     eventing.unsubscribe(subscription);
 });
