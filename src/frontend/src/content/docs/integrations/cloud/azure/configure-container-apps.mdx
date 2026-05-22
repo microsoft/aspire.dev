@@ -229,13 +229,9 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-:::caution
-When you call `AsExisting`, you must provide configuration values so that Aspire can locate the resource. The necessary values include **SubscriptionId**, **ResourceGroup**, and **Location**. For more information, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
-:::
+When the environment is marked as existing, Aspire generates a thin Bicep module that references the existing managed environment by name. It does not emit a new managed environment, Log Analytics workspace, or Aspire Dashboard component — the existing environment already owns those. For background on the `AsExisting` family of APIs, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
-When the environment is marked as existing, Aspire generates a thin Bicep module that references the existing managed environment by name. It does not emit a new managed environment, Log Analytics workspace, or Aspire Dashboard component — the existing environment already owns those.
-
-Some configuration is incompatible with an existing environment and is rejected at publish time:
+Some configurations are incompatible with an existing environment and are rejected at publish time:
 
 - `WithDelegatedSubnet` — VNet integration is a property of the managed environment and can't be reconfigured on an existing one.
 - `WithAzureLogAnalyticsWorkspace` — the existing environment already owns its workspace.
@@ -243,7 +239,7 @@ Some configuration is incompatible with an existing environment and is rejected 
 
 ### Bring your own ACR pull identity
 
-By default, even when the environment is existing, Aspire still emits a new user-assigned managed identity and an `AcrPull` role assignment on the container registry so that newly deployed container apps can pull their images. If your deployment principal can't create identities or role assignments, supply a pre-existing identity with `WithAcrPullIdentity` (or `withAcrPullIdentity`):
+By default, even when the environment is existing, Aspire still emits a new user-assigned managed identity and an `AcrPull` role assignment on the container registry so that newly deployed container apps can pull their images. If your deployment principal can't create identities or role assignments, or if you have an existing identity that you want to reuse, supply a pre-existing identity with `WithAcrPullIdentity` (or `withAcrPullIdentity`):
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -300,7 +296,9 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
+:::caution[You own the role assignment]
 The supplied identity must already have the `AcrPull` role on the registry. Aspire does not create that role assignment when you use `WithAcrPullIdentity` — you own the identity's role wiring (for example, by chaining `.WithRoleAssignments(acr, ContainerRegistryBuiltInRole.AcrPull)` when you add the identity).
+:::
 
 ### Combinations and what gets emitted
 
@@ -317,7 +315,7 @@ The environment, container registry, and ACR pull identity can each independentl
 | Existing | Existing | Not supplied | New identity, `AcrPull` role assignment on existing registry |
 | Existing | Existing | Supplied | Nothing — only references to existing resources |
 
-The last row is the only configuration in which the env module emits no new identities, role assignments, or supporting resources. Use it when your deployment principal should not need permission to create identities or grant roles.
+The last row is the only configuration in which the env module emits no new identities, role assignments, or supporting resources. Use it when you already have all of the necessary resources provisioned.
 
 ## Use PublishAsAzureContainerApp
 
