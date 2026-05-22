@@ -1367,6 +1367,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
           ],
         },
+        { label: 'Perl', slug: 'integrations/frameworks/perl' },
         { label: 'PowerShell', slug: 'integrations/frameworks/powershell' },
         { label: 'Python', slug: 'integrations/frameworks/python' },
         { label: 'Rust', slug: 'integrations/frameworks/rust' },
