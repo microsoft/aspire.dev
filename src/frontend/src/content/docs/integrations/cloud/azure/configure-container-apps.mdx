@@ -219,8 +219,8 @@ const builder = await createBuilder();
 const existingEnvName = await builder.addParameter("existingEnvName");
 const existingEnvResourceGroup = await builder.addParameter("existingEnvResourceGroup");
 
-const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env")
-    .asExisting(existingEnvName, { resourceGroup: existingEnvResourceGroup });
+const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env");
+await acaEnv.asExisting(existingEnvName, { resourceGroup: existingEnvResourceGroup });
 
 await builder.addProject("api", "../ApiService/ApiService.csproj");
 
@@ -282,16 +282,16 @@ const existingAcrName = await builder.addParameter("existingAcrName");
 const existingIdentityName = await builder.addParameter("existingIdentityName");
 const existingResourceGroup = await builder.addParameter("existingResourceGroup");
 
-const acr = await builder.addAzureContainerRegistry("acr")
-    .asExisting(existingAcrName, { resourceGroup: existingResourceGroup });
+const acr = await builder.addAzureContainerRegistry("acr");
+await acr.asExisting(existingAcrName, { resourceGroup: existingResourceGroup });
 
-const pullIdentity = await builder.addAzureUserAssignedIdentity("acr-pull")
-    .asExisting(existingIdentityName, { resourceGroup: existingResourceGroup });
+const pullIdentity = await builder.addAzureUserAssignedIdentity("acr-pull");
+await pullIdentity.asExisting(existingIdentityName, { resourceGroup: existingResourceGroup });
 
-await builder.addAzureContainerAppEnvironment("aca-env")
-    .asExisting(existingEnvName, { resourceGroup: existingResourceGroup })
-    .withAzureContainerRegistry(acr)
-    .withAcrPullIdentity(pullIdentity);
+const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env");
+await acaEnv.asExisting(existingEnvName, { resourceGroup: existingResourceGroup });
+await acaEnv.withAzureContainerRegistry(acr);
+await acaEnv.withAcrPullIdentity(pullIdentity);
 
 await builder.addProject("api", "../ApiService/ApiService.csproj");
 
