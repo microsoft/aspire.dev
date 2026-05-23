@@ -18,7 +18,7 @@ Instead, guest languages only declare resources such as `addRedis`, `addPostgres
 
 When you run a TypeScript AppHost, the Aspire CLI orchestrates two processes:
 
-- **Guest**: your `apphost.ts` process, running in Node.js
+- **Guest**: your `apphost.mts` process, running in Node.js
 - **Host**: the Aspire orchestration server, running on .NET
 
 The guest communicates with the host via JSON-RPC over a local transport: Unix sockets on macOS and Linux, and named pipes on Windows. Your code calls methods such as `addRedis()` or `withReference()`, and the generated SDK translates those calls into RPC requests.
@@ -26,8 +26,8 @@ The guest communicates with the host via JSON-RPC over a local transport: Unix s
 ```mermaid
 flowchart TB
     subgraph Guest["Guest Process (Node.js)"]
-        TS["apphost.ts"]
-        SDK["Generated SDK (.modules/)"]
+        TS["apphost.mts"]
+        SDK["Generated SDK (.aspire/modules/)"]
         Client["JSON-RPC Client"]
         TS --> SDK --> Client
     end
@@ -52,7 +52,7 @@ flowchart TB
 ## Startup sequence
 
 1. The CLI prepares the host process with the required hosting packages.
-2. The ATS scanner inspects assemblies for exports and generates the TypeScript SDK into `.modules/`.
+2. The ATS scanner inspects assemblies for exports and generates the TypeScript SDK into `.aspire/modules/`.
 3. The CLI starts the host process and creates the local socket or pipe endpoint.
 4. The CLI starts the guest process and passes connection details through environment variables.
 5. The guest connects and invokes capabilities such as `createBuilder`, `addRedis`, `build`, and `run`.
@@ -108,7 +108,7 @@ The TypeScript SDK is generated from hosting integration assemblies. When you ad
 1. Loads the integration assembly.
 2. Scans exported methods and types.
 3. Applies ATS rules, including polymorphism flattening.
-4. Emits typed TypeScript wrappers into `.modules/`.
+4. Emits typed TypeScript wrappers into `.aspire/modules/`.
 
 This keeps the SDK in sync with the .NET implementation. Integration authors do not hand-write TypeScript bindings; they export their .NET APIs and the CLI generates the guest surface automatically.
 

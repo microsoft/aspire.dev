@@ -7,19 +7,37 @@ description: Learn the files and configuration that make up a TypeScript AppHost
 import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-When you create a TypeScript AppHost with `aspire new` or `aspire init --language typescript`, the CLI scaffolds a project with the following structure:
+When you create a TypeScript AppHost with `aspire new`, the CLI scaffolds a project with the following structure:
 
 <FileTree>
 
 - my-apphost/
-  - .modules/  Generated TypeScript SDK (do not edit)
-    - aspire.ts
-    - base.ts
-    - transport.ts
-  - apphost.ts  Your AppHost entry point
+  - .aspire/modules/  Generated TypeScript SDK (do not edit)
+    - aspire.mts
+    - base.mts
+    - transport.mts
+  - apphost.mts  Your AppHost entry point
   - aspire.config.json  Aspire configuration
   - package.json
-  - tsconfig.json
+  - tsconfig.apphost.json
+
+</FileTree>
+
+When you run `aspire init --language typescript` in an existing JavaScript or TypeScript app that already has a root `package.json`, Aspire creates the AppHost in a nested `aspire-apphost/` package. The root `aspire.config.json` points to `aspire-apphost/apphost.mts`, and the root `package.json` gets Aspire delegate scripts so the existing app package keeps its own module and toolchain settings:
+
+<FileTree>
+
+- my-existing-app/
+  - aspire-apphost/
+    - .aspire/modules/  Generated TypeScript SDK (do not edit)
+      - aspire.mts
+      - base.mts
+      - transport.mts
+    - apphost.mts  Your AppHost entry point
+    - package.json
+    - tsconfig.apphost.json
+  - aspire.config.json  Aspire configuration
+  - package.json  Existing app package with Aspire delegate scripts
 
 </FileTree>
 
@@ -30,7 +48,7 @@ The `aspire.config.json` file is the central configuration for your AppHost. It 
 ```json title="aspire.config.json"
 {
   "appHost": {
-    "path": "apphost.ts",
+    "path": "apphost.mts",
     "language": "typescript/nodejs"
   },
   "packages": {
@@ -52,7 +70,7 @@ The `aspire.config.json` file is the central configuration for your AppHost. It 
 
 | Section | Description |
 |---------|-------------|
-| `appHost.path` | Path to your AppHost entry point (`apphost.ts`) |
+| `appHost.path` | Path to your AppHost entry point (`apphost.mts`) |
 | `appHost.language` | Language runtime (`typescript/nodejs`) |
 | `packages` | Hosting integration packages and their versions. Added automatically by `aspire add`. |
 | `profiles` | Launch profiles with dashboard URLs and environment variables |
@@ -92,15 +110,15 @@ You can reference a local hosting integration project by using a `.csproj` path 
   See [Multi-language integrations](/extensibility/multi-language-integration-authoring/) for details on building hosting integrations that work with TypeScript AppHosts.
 </LearnMore>
 
-## .modules/ directory
+## .aspire/modules/ directory
 
-The `.modules/` directory contains the generated TypeScript SDK. It's created and updated automatically by the Aspire CLI — **do not edit these files**.
+The `.aspire/modules/` directory under the AppHost root contains the generated TypeScript SDK. It's created and updated automatically by the Aspire CLI — **do not edit these files**.
 
 | File | Purpose |
 |------|---------|
-| `aspire.ts` | Generated typed API for all your installed integrations |
-| `base.ts` | Base types and handle infrastructure |
-| `transport.ts` | JSON-RPC transport layer |
+| `aspire.mts` | Generated typed API for all your installed integrations |
+| `base.mts` | Base types and handle infrastructure |
+| `transport.mts` | JSON-RPC transport layer |
 
 The SDK regenerates when:
 
@@ -108,22 +126,22 @@ The SDK regenerates when:
 - You run `aspire run` or `aspire start` and the package list has changed
 - You run `aspire restore` to manually regenerate
 
-Your `apphost.ts` imports from this SDK:
+Your `apphost.mts` imports from this SDK:
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 ```
 
 <Aside type="tip">
-Add `.modules/` to your `.gitignore` — it's generated and can be recreated from `aspire.config.json` at any time.
+Add `.aspire/` to your `.gitignore` — it contains generated artifacts that can be recreated from `aspire.config.json` at any time.
 </Aside>
 
-## apphost.ts
+## apphost.mts
 
 The entry point for your AppHost. This is where you define your application's resources and their relationships:
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -139,7 +157,7 @@ await builder.build().run();
 
 ## Package managers
 
-The Aspire CLI supports the following package managers at the **AppHost root** — the directory that contains your `apphost.ts` and `aspire.config.json`. The CLI selects between them by inspecting package manager signals, including the `packageManager` field in `package.json`, lock files, and package manager configuration in the AppHost root.
+The Aspire CLI supports the following package managers at the **AppHost root** — the directory that contains your `apphost.mts` and `aspire.config.json`. The CLI selects between them by inspecting package manager signals, including the `packageManager` field in `package.json`, lock files, and package manager configuration in the AppHost root.
 
 | Package manager | Detection signals | Version expectation |
 |---|---|---|
@@ -174,12 +192,17 @@ The scaffolded `package.json` includes convenience scripts and the required Node
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "aspire run",
-    "build": "tsc",
-    "lint": "eslint apphost.ts"
+    "aspire:lint": "eslint apphost.mts",
+    "aspire:start": "aspire run",
+    "aspire:build": "tsc -p tsconfig.apphost.json",
+    "aspire:dev": "tsc --watch -p tsconfig.apphost.json",
+    "lint": "npm run aspire:lint",
+    "dev": "npm run aspire:start",
+    "build": "npm run aspire:build",
+    "watch": "npm run aspire:dev"
   },
   "engines": {
-    "node": "^22.13.0 || ^24.0.0"
+    "node": "^20.19.0 || ^22.13.0 || >=24"
   }
 }
 ```
@@ -188,20 +211,21 @@ The `dev` script means you can also start your AppHost with `npm run dev` (or th
 
 ### Supported Node.js engine
 
-Aspire 13.4 TypeScript AppHosts target the Node.js engine range that `aspire init` writes into the scaffolded `package.json`:
+TypeScript AppHosts target the Node.js engine range that `aspire init` writes into the scaffolded AppHost `package.json`:
 
 ```json title="package.json — supported engines.node"
 {
   "engines": {
-    "node": "^22.13.0 || ^24.0.0"
+    "node": "^20.19.0 || ^22.13.0 || >=24"
   }
 }
 ```
 
 The supported ranges are:
 
+- **Node.js 20.19+** — supported.
 - **Node.js 22.13+** (22.x LTS) — supported.
-- **Node.js 24.x** (LTS) — supported; this is the range the scaffolded `engines.node` constraint allows out of the box.
+- **Node.js 24.x and later** — supported by the scaffolded `engines.node` constraint.
 
 Older Node.js versions are not supported. Package managers may enforce `engines.node` on install (for example, pnpm does by default, while npm only does when `engine-strict` is configured), so unsupported runtimes are best treated as blocked even when a given toolchain only warns.
 
@@ -298,7 +322,7 @@ When a non-npm toolchain is detected, the CLI substitutes the matching commands:
 | Bun | `bun install` | `bun run {appHostFile}` | `bun --watch run {appHostFile}` |
 
 :::note
-Bun has built-in TypeScript support, so it runs `apphost.ts` directly without `tsx`.
+Bun has built-in TypeScript support, so it runs `apphost.mts` directly without `tsx`.
 :::
 
 ### aspire doctor checks
@@ -314,7 +338,7 @@ aspire doctor
 Before starting a TypeScript AppHost, the Aspire CLI runs `tsc --noEmit` to check for type errors to prevent the dashboard and resources from starting in a partially broken state. If your AppHost has TypeScript compile errors, `aspire run` and `aspire publish` stop before the AppHost launches and display the diagnostic output:
 
 ```text
-apphost.ts(22,7): error TS2322: Type 'string' is not assignable to type 'number'.
+apphost.mts(22,7): error TS2322: Type 'string' is not assignable to type 'number'.
 ```
 
 ### Watch mode behavior

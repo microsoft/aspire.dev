@@ -83,8 +83,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -166,8 +166,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -223,7 +223,7 @@ if (builder.ExecutionContext.IsRunMode)
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const frontend = await builder.addViteApp('frontend', './frontend');
 
 const gateway = await builder
@@ -302,8 +302,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 await builder.addDockerComposeEnvironment('compose');
@@ -395,8 +395,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 await builder.addDockerComposeEnvironment('compose');
@@ -458,8 +458,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 await builder.addDockerComposeEnvironment('compose');
@@ -520,8 +520,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 await builder.addDockerComposeEnvironment('compose');
@@ -601,8 +601,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -657,8 +657,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -740,8 +740,8 @@ The SSR examples below assume the AppHost captures the backend endpoint with `ap
 
 The AppHost snippets in this section assume this shared setup:
 
-```typescript title="AppHost — apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="AppHost — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 await builder.addDockerComposeEnvironment('compose');
@@ -761,7 +761,7 @@ const apiEndpoint = await api.getEndpoint('http');
 - **Server API routes**: The recommended pattern for calling external APIs from Nuxt is a [server API route](https://nuxt.com/docs/guide/directory-structure/server) (`server/api/<name>.ts`) that uses `useRuntimeConfig()`, consumed from a page via [`useAsyncData`](https://nuxt.com/docs/api/composables/use-async-data).
 - **Publish method**: Always use `PublishAsNpmScript` for Nuxt. The Nitro `.output/` looks self-contained, but server-side data fetching via `useAsyncData` / `useFetch` fails without the full `node_modules` available at runtime.
 
-```typescript title="AppHost — apphost.ts"
+```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('nuxt', './frameworks/nuxt', { runScriptName: 'dev' })
   .publishAsNpmScript({ startScriptName: 'start' })
@@ -801,7 +801,7 @@ export default defineEventHandler(async () => {
 - **Environment variables**: Use `process.env.API_URL`, not `import.meta.env.API_URL`. `import.meta.env` values are resolved at build time and baked into the output.
 - **Runtime dependencies**: The built `entry.mjs` imports unbundled `@astrojs/*` packages, so SSR Astro must use `PublishAsNpmScript`. The [official Docker recipe](https://docs.astro.build/en/recipes/docker/#multi-stage-build-using-ssr) confirms `node_modules` must be copied into the runtime image.
 
-```typescript title="AppHost — apphost.ts"
+```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('astro-ssr', './frameworks/astro-ssr', { runScriptName: 'dev' })
   .publishAsNpmScript({ startScriptName: 'start' })
@@ -844,7 +844,7 @@ const weather = response.ok ? await response.json() : [];
 - **Server-side data**: Use a [`+page.server.ts`](https://svelte.dev/docs/kit/load) `load` function for server-side fetching. `process.env.API_URL` is available inside the load function.
 - **Output shape**: The `build/` directory is fully self-contained, so no `node_modules` are required at runtime. This makes SvelteKit a good fit for `PublishAsNodeServer`.
 
-```typescript title="AppHost — apphost.ts"
+```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('sveltekit', './frameworks/sveltekit', { runScriptName: 'dev' })
   .publishAsNodeServer('build/index.js', { outputPath: 'build' })
@@ -889,7 +889,7 @@ export const load: PageServerLoad = async ({ fetch }) => {
 - **Copy shape**: The standalone build produces three directories that must be copied separately into the runtime image: `.next/standalone/` (server + bundled deps), `.next/static/` (client assets), and `public/` (static files). `AddNextJsApp` handles this automatically; see the [official with-docker example](https://github.com/vercel/next.js/tree/canary/examples/with-docker) if you need to do it manually.
 - **Server components**: Default App Router components are [server components](https://nextjs.org/docs/app/getting-started/server-and-client-components). Use `async` directly in the component body to fetch data; no special loader pattern is needed.
 
-```typescript title="AppHost — apphost.ts"
+```typescript title="AppHost — apphost.mts"
 await builder
   .addNextJsApp('nextjs', './frameworks/nextjs', { runScriptName: 'dev' })
   .withEnvironment('API_URL', apiEndpoint)
@@ -929,7 +929,7 @@ export default async function Home() {
 - **Server functions**: Use [`createServerFn`](https://tanstack.com/start/latest/docs/framework/react/server-functions) for server-side data loading from route loaders.
 - **Environment variables**: `process.env.API_URL` is available inside server functions at runtime.
 
-```typescript title="AppHost — apphost.ts"
+```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('tanstack-start', './frameworks/tanstack-start', {
     runScriptName: 'dev',
@@ -965,7 +965,7 @@ export const Route = createFileRoute('/')({
 - **Server binary**: `react-router-serve` lives in `node_modules`; it's not bundled into the build output. This is why Remix needs `PublishAsNpmScript` rather than `PublishAsNodeServer`. See the [React Router deployment guide](https://reactrouter.com/start/framework/deploying) and the [`node-custom-server` template](https://github.com/remix-run/react-router-templates/tree/main/node-custom-server) for production server patterns.
 - **Port binding**: Pass `-- --port "$PORT"` as `runScriptArguments` so the server listens on Aspire's assigned port.
 
-```typescript title="AppHost — apphost.ts"
+```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('remix', './frameworks/remix', { runScriptName: 'dev' })
   .publishAsNpmScript({
@@ -1009,7 +1009,7 @@ export async function loader() {
 - **Build steps**: Requires both `npm run build.client` and `npm run build.server`. The default `npm run build` runs both via `qwik build`.
 - **SSR data loading**: Use [`routeLoader$`](https://qwik.dev/docs/route-loader/) for server-side data loading. Read the backend URL via `process.env['API_URL']`.
 
-```typescript title="AppHost — apphost.ts"
+```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('qwik', './frameworks/qwik', { runScriptName: 'dev' })
   .publishAsNpmScript({ startScriptName: 'start' })
@@ -1069,7 +1069,7 @@ export const useWeatherData = routeLoader$(async () => {
 - **Dev proxy**: Angular doesn't expose `vite.config.ts`. Use a [`proxy.conf.js`](https://angular.dev/tools/cli/serve) (not `.json`) that reads `process.env.API_HTTP`, referenced from `angular.json` under `serve.options.proxyConfig`.
 - **Output path**: Set [`outputPath`](https://angular.dev/reference/configs/workspace-config) in `angular.json` to `{ "base": "dist", "browser": "" }` so the production build writes directly to `dist/` for `PublishAsStaticWebsite`.
 
-```typescript title="AppHost — apphost.ts"
+```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('angular', './frameworks/angular', { runScriptName: 'dev' })
   .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
@@ -1124,7 +1124,7 @@ module.exports = {
 - **API calls**: Use the `apiPath` / `apiTarget` options on `PublishAsStaticWebsite` so the backend is reachable through YARP. Don't use `VITE_*` env vars for runtime API URLs; they're baked at build time.
 - **Dev proxy**: Add [`server.proxy`](https://vite.dev/config/server-options.html#server-proxy) in `vite.config.ts` reading `process.env.API_HTTP` to forward `/api/*` to the backend in dev mode.
 
-```typescript title="AppHost — apphost.ts"
+```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('react', './frameworks/react', { runScriptName: 'dev' })
   .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
@@ -1202,8 +1202,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -1249,7 +1249,7 @@ builder
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 await builder
   .addJavaScriptApp('js', './js', { runScriptName: 'migrate' })
   .withBun()

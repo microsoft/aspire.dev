@@ -41,7 +41,8 @@ export const TWOSLASH_ENABLED = true;
  * `typescript` package from `ec.config.mjs`).
  *
  * - `moduleResolution: 100` → `ts.ModuleResolutionKind.Bundler` so
- *   `./.modules/aspire.js` falls through to the virtual `.modules/aspire.ts`.
+ *   `./.aspire/modules/aspire.mjs` falls through to the virtual
+ *   `.aspire/modules/aspire.mts`.
  * - `module: 99` → `ts.ModuleKind.ESNext` (paired with bundler resolution).
  * - `target: 99` → `ts.ScriptTarget.ESNext` so `lib.esnext.full.d.ts` is the
  *   default `lib`, pulling in `Date`, `URL`, DOM, and friends via TS's
@@ -79,12 +80,12 @@ export function readAspireTypes() {
 /**
  * Returns the `extraFiles` map twoslash should mount in its VFS. Returns an
  * empty object when the SDK bundle is missing so twoslash can still compile
- * blocks that don't import from `./.modules/aspire.js` (they'll just see
+ * blocks that don't import from `./.aspire/modules/aspire.mjs` (they'll just see
  * `any` for the missing module — same fallback `ec.config.mjs` had inline).
  */
 export function getTwoslashExtraFiles() {
   const { source } = readAspireTypes();
-  return source ? { '.modules/aspire.ts': source } : {};
+  return source ? { '.aspire/modules/aspire.mts': source } : {};
 }
 
 /**
