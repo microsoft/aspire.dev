@@ -388,38 +388,39 @@ servicebus.ConfigureInfrastructure(infra =>
 
 ### Add Azure resources to the infrastructure
 
-You can inject additional Azure constructs (for example, a private endpoint) into an integration's generated infrastructure:
+For common scenarios, prefer Aspire's higher-level resource builders. For example, to add a private endpoint to a storage account, use `AddPrivateEndpoint` from the `Aspire.Hosting.Azure.Network` package, which automatically wires up the Private DNS Zone, VNet link, and DNS Zone Group:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
-storage.ConfigureInfrastructure(infra =>
-{
-    var privateEndpoint = new PrivateEndpoint("storagepe")
-    {
-        Location = "eastus",
-        Subnet = new SubnetReference
-        {
-            Id = "/subscriptions/.../subnets/mysubnet"
-        }
-    };
+var builder = DistributedApplication.CreateBuilder(args);
 
-    infra.Add(privateEndpoint);
-});
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var peSubnet = vnet.AddSubnet("pe-subnet", "10.0.1.0/24");
+
+var storage = builder.AddAzureStorage("storage");
+var blobs = storage.AddBlobs("blobs");
+
+peSubnet.AddPrivateEndpoint(blobs);
+
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
 <Aside type="note">
-  Adding strongly-typed Azure SDK constructs such as `PrivateEndpoint` is not
-  supported in the TypeScript AppHost. Use the C# AppHost when you need to inject
-  additional Azure resources into the generated infrastructure.
+  `AddPrivateEndpoint` and the supporting `Aspire.Hosting.Azure.Network` resource
+  builders are not currently available in the TypeScript AppHost. Use the C#
+  AppHost when you need to model private endpoints with Aspire's higher-level
+  APIs.
 </Aside>
 
 </TabItem>
 </Tabs>
+
+When no Aspire-native resource builder exists for what you need, fall back to `ConfigureInfrastructure` to add an `Azure.Provisioning` construct directly. See the [Azure.Provisioning API reference](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning) for the available construct types and their properties.
 
 ### Customize naming and provisioning with an infrastructure resolver
 
@@ -512,7 +513,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
 output connectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};...'
 ```
 
-Reference it from the AppHost:
+Reference the file from the AppHost using `AddBicepTemplate` (C#) or `addBicepTemplate` (TypeScript). Use `WithParameter` / `withParameter` to supply input parameters, and `GetOutput` / `getOutput` to consume a named output by passing the resulting reference to another resource:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -520,13 +521,11 @@ Reference it from the AppHost:
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var storage = builder.AddAzureBicepResource(
-    name: "storage",
-    bicepFilePath: "./custom-storage.bicep")
+var storage = builder.AddBicepTemplate("storage", "./custom-storage.bicep")
     .WithParameter("storageAccountName", "mystorageaccount");
 
 builder.AddProject<Projects.WebApp>("webapp")
-       .WithReference(storage);
+       .WithEnvironment("STORAGE_CONNECTION_STRING", storage.GetOutput("connectionString"));
 
 builder.Build().Run();
 ```
@@ -539,12 +538,13 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const storage = await builder.addBicepTemplate(
-    "storage",
-    "./custom-storage.bicep");
+const storage = await builder.addBicepTemplate("storage", "./custom-storage.bicep");
+await storage.withParameter("storageAccountName", { value: "mystorageaccount" });
+
+const connectionString = await storage.getOutput("connectionString");
 
 const webapp = await builder.addProject("webapp", "../WebApp/WebApp.csproj");
-await webapp.withReference(storage);
+await webapp.withEnvironment("STORAGE_CONNECTION_STRING", connectionString);
 
 await builder.build().run();
 ```
@@ -552,13 +552,78 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
+<Aside type="tip">
+For inline Bicep snippets, use `AddBicepTemplateString` (C#) or `addBicepTemplateString` (TypeScript) instead of `AddBicepTemplate`. Both APIs return the same `AzureBicepResource` and support the same `WithParameter` and `GetOutput` patterns.
+</Aside>
+
+### Pass parameters and read outputs
+
+`WithParameter` accepts several kinds of values beyond plain strings, so a custom Bicep template can take values that are computed at deployment time. Common sources include:
+
+- A `ParameterResource` declared with `AddParameter` (including secret parameters).
+- A `BicepOutputReference` from another Bicep resource — useful when one template's output feeds another template's input.
+- A `ReferenceExpression` that composes values from multiple resources.
+- A connection-string-bearing resource via `IResourceBuilder<IResourceWithConnectionString>`.
+- An `EndpointReference` from a resource's endpoint.
+
+The example below adds a secret administrator password as a parameter and then reads the deployed SQL server name back out of the template so that another resource can consume it:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var adminPassword = builder.AddParameter("adminPassword", secret: true);
+
+var sql = builder.AddBicepTemplate("sql", "./custom-sql.bicep")
+    .WithParameter("administratorLoginPassword", adminPassword);
+
+builder.AddProject<Projects.Api>("api")
+       .WithEnvironment("SQL_SERVER_NAME", sql.GetOutput("sqlServerName"));
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const adminPassword = await builder.addParameter("adminPassword", { secret: true });
+
+const sql = await builder.addBicepTemplate("sql", "./custom-sql.bicep");
+await sql.withParameter("administratorLoginPassword", { value: adminPassword });
+
+const sqlServerName = await sql.getOutput("sqlServerName");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withEnvironment("SQL_SERVER_NAME", sqlServerName);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<LearnMore>
+For more end-to-end examples — including chaining outputs between Bicep resources and using the `existing` Bicep keyword to reference resources that Aspire didn't provision — see the [Aspire `playground/bicep` sample](https://github.com/dotnet/aspire/tree/main/playground/bicep).
+</LearnMore>
+
 ### Inspect generated Bicep
 
-After customizing with `ConfigureInfrastructure`, inspect the Bicep that Aspire generates:
+To see the Bicep that Aspire emits after applying your `ConfigureInfrastructure` callbacks, run a publish (or deploy) and read the files from the output folder:
 
-1. Run your AppHost locally.
-2. Open the `./infra` directory inside your AppHost project.
+1. From the AppHost directory, run `aspire publish` (or `aspire deploy`).
+2. Open the `aspire-output` folder next to your AppHost project. To write somewhere else, pass `--output-path` to the publish or deploy command.
 3. Review the generated `.bicep` files to verify your customizations.
+
+<Aside type="note">
+Running the AppHost locally (`aspire run`) doesn't write Bicep into your project — local provisioning compiles Bicep into a temporary directory. Use `aspire publish` or `aspire deploy` to materialize the generated Bicep on disk.
+</Aside>
 
 <Aside type="tip">
 Use the Azure Portal's **Export template** feature to view Bicep for manually configured resources, then adapt it for Aspire.
@@ -570,5 +635,6 @@ Use the Azure Portal's **Export template** feature to view Bicep for manually co
 - [Manage Azure role assignments](/integrations/cloud/azure/role-assignments/)
 - [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/)
 - [Azure.Provisioning API reference](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning)
+- [Aspire `playground/bicep` sample](https://github.com/dotnet/aspire/tree/main/playground/bicep)
 - [Deploy to Azure Container Apps](/deployment/azure/container-apps/)
 - [Deploy to Azure App Service](/deployment/azure/app-service/)
