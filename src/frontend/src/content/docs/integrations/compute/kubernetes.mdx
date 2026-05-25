@@ -166,17 +166,21 @@ await service.publishAsKubernetesService(async (resource) => {
 
 ## Add custom Kubernetes manifests
 
-Within a `PublishAsKubernetesService` callback, use `AddManifest` to attach arbitrary Kubernetes manifests to the generated Helm chart. This is particularly useful for adding custom resources such as [KEDA](https://keda.sh/) `ScaledObject` definitions, `ConfigMap` objects, or any other Kubernetes resource alongside your service.
+Within a `PublishAsKubernetesService` callback, you can attach arbitrary Kubernetes manifests — such as [KEDA](https://keda.sh/) `ScaledObject` definitions, additional `ConfigMap` objects, or any other Kubernetes resource — to the generated Helm chart alongside your service.
 
-`AddManifest` takes the manifest's `apiVersion`, `kind`, and `metadata.name`, and returns a handle that you can use to set labels, annotations, a namespace, and arbitrary field values using dot-notation paths.
+The API surface differs by language:
+
+- **C#**: add subclasses of `BaseKubernetesResource` directly to the `AdditionalResources` collection. Several built-in types (such as `ConfigMap`) are available in the `Aspire.Hosting.Kubernetes.Resources` namespace, and you can subclass `BaseKubernetesResource` to model any custom resource definition (CRD).
+- **TypeScript / Python / Java / Go**: call `addManifest` (or `add_manifest`) on the resource. It takes the manifest's `apiVersion`, `kind`, and `metadata.name`, and returns a handle for setting labels, annotations, a namespace, and arbitrary field values using dot-notation paths.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-In C#, add directly to `AdditionalResources` using the strongly-typed resource types from `Aspire.Hosting.Kubernetes.Resources`:
+Define a class for the custom resource by deriving from `BaseKubernetesResource`, then add an instance to `AdditionalResources`. The example below models a KEDA `ScaledObject` CRD:
 
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
+using YamlDotNet.Serialization;
 
 builder.AddContainer("service", "nginx")
     .PublishAsKubernetesService(resource =>
@@ -184,11 +188,43 @@ builder.AddContainer("service", "nginx")
         var scaler = new ScaledObject
         {
             Metadata = { Name = "service-scaler" },
+            Spec =
+            {
+                ScaleTargetRef = { Kind = "Deployment", Name = "service" },
+                MaxReplicaCount = 3,
+            },
         };
         scaler.Metadata.Labels["example.com/custom"] = "true";
+        scaler.Metadata.Annotations["example.com/source"] = "csharp";
         resource.AdditionalResources.Add(scaler);
     });
+
+public sealed class ScaledObject() : BaseKubernetesResource("keda.sh/v1alpha1", "ScaledObject")
+{
+    [YamlMember(Alias = "spec")]
+    public ScaledObjectSpec Spec { get; set; } = new();
+}
+
+public sealed class ScaledObjectSpec
+{
+    [YamlMember(Alias = "scaleTargetRef")]
+    public ScaleTargetRef ScaleTargetRef { get; set; } = new();
+
+    [YamlMember(Alias = "maxReplicaCount")]
+    public int MaxReplicaCount { get; set; }
+}
+
+public sealed class ScaleTargetRef
+{
+    [YamlMember(Alias = "kind")]
+    public string Kind { get; set; } = "";
+
+    [YamlMember(Alias = "name")]
+    public string Name { get; set; } = "";
+}
 ```
+
+For simple cases that map to a built-in type, instantiate the type directly — for example, `new ConfigMap { Metadata = { Name = "extra-config" }, Data = { ["key"] = "value" } }` — and add it to `AdditionalResources`.
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
@@ -252,19 +288,19 @@ serviceContainer.PublishAsKubernetesService(func(service aspire.KubernetesResour
 </TabItem>
 </Tabs>
 
-The manifest handle supports the following configuration methods:
+The polyglot manifest handle returned by `addManifest` supports the following configuration methods:
 
 | Method | Description |
 |---|---|
-| `WithNamespace(string)` / `with_namespace` | Sets the Kubernetes namespace for the manifest. |
-| `WithLabel(key, value)` / `with_label` | Adds a metadata label to the manifest. |
-| `WithAnnotation(key, value)` / `with_annotation` | Adds a metadata annotation to the manifest. |
-| `WithField(path, value)` / `with_field` | Sets an arbitrary field using dot-notation path (for example, `spec.maxReplicaCount`). |
+| `withNamespace` / `with_namespace` | Sets the Kubernetes namespace for the manifest. |
+| `withLabel` / `with_label` | Adds a metadata label to the manifest. |
+| `withAnnotation` / `with_annotation` | Adds a metadata annotation to the manifest. |
+| `withField` / `with_field` | Sets an arbitrary field using a dot-notation path (for example, `spec.maxReplicaCount`). |
 
 Each manifest is emitted as a separate template file inside the generated Helm chart.
 
 <Aside type="note">
-The `AddManifest` API (and the polyglot `addManifest` / `add_manifest` equivalents) is the recommended way to attach custom Kubernetes resources when using polyglot AppHosts. In C# AppHosts, you can continue to add strongly-typed resource objects directly to `AdditionalResources`.
+`addManifest` (and `add_manifest`) is the recommended way to attach custom Kubernetes resources from polyglot AppHosts, where there is no strongly-typed model for arbitrary CRDs. C# AppHosts have direct access to the resource model, so they add `BaseKubernetesResource` instances to `AdditionalResources` instead.
 </Aside>
 
 ## Publishing and deployment
