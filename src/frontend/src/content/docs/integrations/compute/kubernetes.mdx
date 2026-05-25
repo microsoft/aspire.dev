@@ -166,7 +166,7 @@ await service.publishAsKubernetesService(async (resource) => {
 
 ## Add custom Kubernetes manifests
 
-Within a `PublishAsKubernetesService` callback, you can attach arbitrary Kubernetes manifests — such as [KEDA](https://keda.sh/) `ScaledObject` definitions, additional `ConfigMap` objects, or any other Kubernetes resource — to the generated Helm chart alongside your service.
+Within a `PublishAsKubernetesService` callback, you can attach arbitrary Kubernetes manifests — such as [cert-manager](https://cert-manager.io/) `Certificate` definitions, additional `ConfigMap` objects, or any other Kubernetes resource — to the generated Helm chart alongside your service.
 
 The API surface differs by language:
 
@@ -176,7 +176,7 @@ The API surface differs by language:
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-Define a class for the custom resource by deriving from `BaseKubernetesResource`, then add an instance to `AdditionalResources`. The example below models a KEDA `ScaledObject` CRD:
+Define a class for the custom resource by deriving from `BaseKubernetesResource`, then add an instance to `AdditionalResources`. The example below models a cert-manager `Certificate` CRD:
 
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
@@ -185,42 +185,45 @@ using YamlDotNet.Serialization;
 builder.AddContainer("service", "nginx")
     .PublishAsKubernetesService(resource =>
     {
-        var scaler = new ScaledObject
+        var certificate = new Certificate
         {
-            Metadata = { Name = "service-scaler" },
+            Metadata = { Name = "service-tls" },
             Spec =
             {
-                ScaleTargetRef = { Kind = "Deployment", Name = "service" },
-                MaxReplicaCount = 3,
+                SecretName = "service-tls",
+                DnsNames = { "service.example.com" },
+                IssuerRef = { Name = "letsencrypt-prod", Kind = "ClusterIssuer" },
             },
         };
-        scaler.Metadata.Labels["example.com/custom"] = "true";
-        scaler.Metadata.Annotations["example.com/source"] = "csharp";
-        resource.AdditionalResources.Add(scaler);
+        certificate.Metadata.Labels["example.com/managed-by"] = "aspire";
+        resource.AdditionalResources.Add(certificate);
     });
 
-public sealed class ScaledObject() : BaseKubernetesResource("keda.sh/v1alpha1", "ScaledObject")
+public sealed class Certificate() : BaseKubernetesResource("cert-manager.io/v1", "Certificate")
 {
     [YamlMember(Alias = "spec")]
-    public ScaledObjectSpec Spec { get; set; } = new();
+    public CertificateSpec Spec { get; set; } = new();
 }
 
-public sealed class ScaledObjectSpec
+public sealed class CertificateSpec
 {
-    [YamlMember(Alias = "scaleTargetRef")]
-    public ScaleTargetRef ScaleTargetRef { get; set; } = new();
+    [YamlMember(Alias = "secretName")]
+    public string SecretName { get; set; } = "";
 
-    [YamlMember(Alias = "maxReplicaCount")]
-    public int MaxReplicaCount { get; set; }
+    [YamlMember(Alias = "dnsNames")]
+    public List<string> DnsNames { get; } = [];
+
+    [YamlMember(Alias = "issuerRef")]
+    public IssuerRef IssuerRef { get; set; } = new();
 }
 
-public sealed class ScaleTargetRef
+public sealed class IssuerRef
 {
-    [YamlMember(Alias = "kind")]
-    public string Kind { get; set; } = "";
-
     [YamlMember(Alias = "name")]
     public string Name { get; set; } = "";
+
+    [YamlMember(Alias = "kind")]
+    public string Kind { get; set; } = "Issuer";
 }
 ```
 
@@ -231,13 +234,13 @@ For simple cases that map to a built-in type, instantiate the type directly — 
 ```typescript title="apphost.ts"
 const service = await builder.addContainer('service', 'nginx');
 await service.publishAsKubernetesService(async (resource) => {
-    await resource.addManifest('keda.sh/v1alpha1', 'ScaledObject', 'service-scaler', {
+    await resource.addManifest('cert-manager.io/v1', 'Certificate', 'service-tls', {
         configure: async (manifest) => {
-            await manifest.withLabel('example.com/custom', 'true');
-            await manifest.withAnnotation('example.com/source', 'typescript');
-            await manifest.withField('spec.scaleTargetRef.kind', 'Deployment');
-            await manifest.withField('spec.scaleTargetRef.name', 'service');
-            await manifest.withField('spec.maxReplicaCount', 3);
+            await manifest.withLabel('example.com/managed-by', 'aspire');
+            await manifest.withField('spec.secretName', 'service-tls');
+            await manifest.withField('spec.dnsNames', ['service.example.com']);
+            await manifest.withField('spec.issuerRef.name', 'letsencrypt-prod');
+            await manifest.withField('spec.issuerRef.kind', 'ClusterIssuer');
         },
     });
 });
