@@ -1,0 +1,176 @@
+---
+title: Blazor hosting integration
+description: Learn how to orchestrate Blazor WebAssembly and Blazor Gateway resources in your Aspire app model using AddBlazorGateway, WithBlazorClientApp, and AddBlazorWasmProject.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+The `Aspire.Hosting.Blazor` package provides extension methods for adding Blazor WebAssembly apps and a Blazor Gateway to your Aspire app model. These APIs are available in both C# and polyglot AppHosts (TypeScript, Go, Java, Python).
+
+## Install the package
+
+Add the `Aspire.Hosting.Blazor` package to your AppHost project:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Blazor" Version="13.4.0" />
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```bash title="Add the integration"
+aspire add Aspire.Hosting.Blazor
+```
+
+Or add it directly to `aspire.config.json`:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Blazor": "13.4.0"
+  }
+}
+```
+</TabItem>
+</Tabs>
+
+## Add a Blazor WebAssembly project
+
+Use `AddBlazorWasmProject` to add a Blazor WebAssembly app to the app model. The method references the `.csproj` for the client project:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+var blazorApp = builder.AddBlazorWasmApp("app", "../MyBlazorApp/MyBlazorApp.csproj");
+blazorApp.WithReference(api);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../MyApi');
+
+const blazorApp = await builder.addBlazorWasmProject('app', '../MyBlazorApp/MyBlazorApp.csproj');
+await blazorApp.withReference(await api.getEndpoint('http'));
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## Add a Blazor Gateway
+
+The Blazor Gateway (`AddBlazorGateway`) is a reverse proxy shipped with `Aspire.Hosting.Blazor`. It routes requests between a Blazor WebAssembly frontend and the backing APIs, enabling a unified entry point for the application.
+
+Use `WithBlazorClientApp` to associate a WASM app with the gateway:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var weatherApi = builder.AddProject<Projects.WeatherApi>("weatherapi");
+
+var blazorApp = builder.AddBlazorWasmApp("app", "../MyBlazorApp/MyBlazorApp.csproj");
+blazorApp.WithReference(weatherApi);
+
+var gateway = builder.AddBlazorGateway("gateway")
+    .WithExternalHttpEndpoints();
+
+gateway.WithBlazorClientApp(blazorApp);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const weatherApi = await builder.addProject('weatherapi', '../WeatherApi');
+
+const blazorApp = await builder.addBlazorWasmProject('app', '../MyBlazorApp/MyBlazorApp.csproj');
+await blazorApp.withReference(await weatherApi.getEndpoint('http'));
+
+const gateway = await builder.addBlazorGateway('gateway');
+await gateway.withExternalHttpEndpoints();
+await gateway.withBlazorClientApp(blazorApp);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+:::note
+`WithExternalHttpEndpoints()` marks the gateway's HTTP endpoint as externally accessible. This is required when the gateway is the entry point for browser traffic.
+:::
+
+## Full example
+
+The following example wires together a Blazor WebAssembly frontend, a Weather API backend, and a Blazor Gateway:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var weatherApi = builder.AddProject<Projects.WeatherApi>("weatherapi")
+    .WithHttpEndpoint(name: "http");
+
+var timeApi = builder.AddProject<Projects.TimeApi>("timeapi")
+    .WithHttpsEndpoint(name: "api");
+
+var blazorApp = builder.AddBlazorWasmApp("app", "../Client/Client.csproj");
+blazorApp.WithReference(weatherApi.GetEndpoint("http"));
+blazorApp.WithReference(timeApi.GetEndpoint("api"));
+
+var gateway = builder.AddBlazorGateway("gateway")
+    .WithExternalHttpEndpoints();
+
+gateway.WithBlazorClientApp(blazorApp);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const weatherApi = await builder.addProject('weatherapi', '../WeatherApi', {
+  launchProfileOrOptions: 'http',
+});
+
+const timeApi = await builder.addProject('timeapi', '../TimeApi', {
+  launchProfileOrOptions: 'https',
+});
+await timeApi.withHttpsEndpoint({ name: 'api' });
+
+const blazorApp = await builder.addBlazorWasmProject('app', '../Client/Client.csproj');
+await blazorApp.withReference(await weatherApi.getEndpoint('http'));
+await blazorApp.withReference(await timeApi.getEndpoint('api'));
+
+const gateway = await builder.addBlazorGateway('gateway');
+await gateway.withExternalHttpEndpoints();
+await gateway.withBlazorClientApp(blazorApp);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<LearnMore>
+  For more on how polyglot AppHosts work and how to write integrations that export to TypeScript, see [Multi-language integrations](/extensibility/multi-language-integration-authoring/).
+</LearnMore>

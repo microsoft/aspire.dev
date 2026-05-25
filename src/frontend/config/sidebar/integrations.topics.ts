@@ -1333,6 +1333,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             { label: 'Launch profiles', slug: 'integrations/dotnet/launch-profiles' },
             { label: '.NET tool resources', slug: 'integrations/dotnet/dotnet-tool-resources' },
             { label: '.NET MAUI', slug: 'integrations/dotnet/maui' },
+            { label: 'Blazor hosting', slug: 'integrations/dotnet/blazor-hosting' },
             { label: 'WPF and Windows Forms', slug: 'integrations/frameworks/wpf-winforms' },
             { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
           ],
