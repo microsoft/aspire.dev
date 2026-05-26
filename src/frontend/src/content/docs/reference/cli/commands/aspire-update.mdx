@@ -33,7 +33,7 @@ The command performs the following:
 - Detects outdated Aspire NuGet packages in your project
 - Respects your configured Aspire channel (preview, stable, etc.)
 - Resolves diamond dependencies to avoid duplicate updates
-- Validates package compatibility before applying changes
+- Applies all package version edits before running a single final `dotnet restore`, so channel switches that add NuGet source mappings don't cause restore failures mid-update
 - Provides colorized output with detailed summary of changes
 
 ### Non-interactive usage
@@ -62,7 +62,7 @@ The following options are available:
 
 - **`--channel`**
 
-  Channel to update to (`stable`, `staging`, `daily`).
+  Channel to update to (`stable`, `staging`, `daily`). When switching channels, `aspire update` applies all package version edits to your project first and then runs a single `dotnet restore`, ensuring that NuGet source mappings added for the target channel are in place before any restore is attempted.
 
 - **`-y, --yes`**
 
@@ -108,4 +108,10 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire update --nuget-config-dir './config'
+  ```
+
+- Update packages to the daily preview channel:
+
+  ```bash title="Aspire CLI"
+  aspire update --channel daily
   ```

@@ -1,6 +1,7 @@
 ---
 title: Custom resource commands
-description: Learn how to create custom resource commands in Aspire.
+seoTitle: Aspire custom resource commands in the AppHost dashboard
+description: Create custom resource commands in Aspire to add buttons and actions to the dashboard — refresh data, run scripts, and trigger workflows directly from the resource graph.
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -99,12 +100,12 @@ The preceding code:
 
 In a TypeScript AppHost, register the command inline on the resource builder. Because TypeScript doesn't have extension methods, the closure captures any state the command needs:
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 import {
     createBuilder,
     type ExecuteCommandContext,
     type ExecuteCommandResult,
-} from './.modules/aspire.js';
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -213,11 +214,11 @@ In TypeScript the callback signature is `(context: ExecuteCommandContext) => Pro
 
 The TypeScript callback is typically defined inline as an async arrow function. The example below pulls the resource's HTTP endpoint and forwards the cancellation token to `fetch`:
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 async (context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
     const endpoint = await cache.getEndpoint("http");
     const url = await endpoint.url.get();
-    const cancellation = await context.cancellationToken.get();
+    const cancellation = await context.cancellationToken();
 
     const res = await fetch(`${url}/admin/cache/clear`, {
         method: "POST",
@@ -292,7 +293,7 @@ The TypeScript `UpdateCommandStateContext` currently exposes only `serviceProvid
 
 In TypeScript the `updateState` field on `CommandOptions` is typed loosely (`any`), and the SDK does not yet export a `ResourceCommandState` enum. The simplest path for TypeScript AppHosts today is to omit `updateState` entirely — commands default to enabled — and only register the command after the resource is reachable:
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 await cache.withCommand(
     "clear-cache",
     "Clear Cache",
@@ -339,8 +340,8 @@ The preceding code calls the `WithClearCommand` extension method to add the cust
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts" {5-15}
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" {5-15}
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -352,7 +353,7 @@ await cache.withCommand(
     async (context) => {
         const endpoint = await cache.getEndpoint("http");
         const url = await endpoint.url.get();
-        const cancellation = await context.cancellationToken.get();
+        const cancellation = await context.cancellationToken();
 
         const res = await fetch(`${url}/admin/cache/clear`, {
             method: "POST",
@@ -411,21 +412,20 @@ Select the **Clear cache** command to clear the cache of the Redis resource. The
 
 ## Programmatically execute commands
 
-<Aside type="note">
-Programmatic command execution via `ResourceCommandService` is currently a **C# AppHost feature**. The TypeScript SDK can register custom commands but does not yet expose a service for invoking commands from inside other commands. The next three subsections — _Execute commands from a custom command_, _Execute a command by resource ID_, and _Execute commands on resources with replicas_ — are therefore C#-only. The [_Handle command execution results_](#handle-command-execution-results) subsection that follows applies to commands written in either language.
-</Aside>
-
 In addition to executing commands through the [Aspire dashboard](/dashboard/overview/), you can also execute commands programmatically using the `ResourceCommandService`. This service is useful when you need to:
 
 - Execute commands from within your application code
 - Automate command execution as part of a workflow
 - Build custom tooling that needs to control resources
 
-The most common scenario is to call commands from within other custom command implementations. The `ExecuteCommandContext` provides access to the `IServiceProvider`, which you can use to retrieve the `ResourceCommandService`.
+The most common scenario is to call commands from within other custom command implementations. The `ExecuteCommandContext` provides access to `ServiceProvider` in C# and a `serviceProvider` async accessor in TypeScript, which you can use to retrieve the `ResourceCommandService`.
 
 ### Execute commands from a custom command
 
 The following example shows how to create a custom command that executes other commands. In this case, a "reset-all" command clears the cache and restarts a database:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.ApplicationModel;
@@ -449,24 +449,24 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithCommand("reset-all", "Reset Everything", async (context, ct) =>
     {
         var commandService = context.ServiceProvider.GetRequiredService<ResourceCommandService>();
-        
+
         context.Logger.LogInformation("Starting full system reset...");
-        
+
         var clearResult = await commandService.ExecuteCommandAsync(
             resource: cache.Resource,
             commandName: "clear-cache",
             cancellationToken: ct);
-            
+
         var restartResult = await commandService.ExecuteCommandAsync(
             resource: database.Resource,
             commandName: "restart",
             cancellationToken: ct);
-        
+
         if (!clearResult.Success || !restartResult.Success)
         {
             return CommandResults.Failure("System reset failed");
         }
-        
+
         context.Logger.LogInformation("System reset completed successfully");
         return CommandResults.Success();
     });
@@ -474,19 +474,65 @@ var api = builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+// withClearCommand defines a "clear-cache" command as shown earlier
+
+const database = await builder.addPostgres("postgres");
+await database.withCommand("restart", "Restart Database", async () => {
+    // Restart database implementation
+    return { success: true };
+});
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(cache);
+await api.withReference(database);
+await api.withCommand("reset-all", "Reset Everything", async (ctx) => {
+    const serviceProvider = await ctx.serviceProvider();
+    const commandService = await serviceProvider.getResourceCommandService();
+    const cancellationToken = await ctx.cancellationToken();
+
+    const clearResult = await commandService.executeCommandAsync(
+        "cache", "clear-cache", { cancellationToken });
+
+    const restartResult = await commandService.executeCommandAsync(
+        "postgres", "restart", { cancellationToken });
+
+    if (!clearResult.success || !restartResult.success) {
+        return { success: false, message: "System reset failed" };
+    }
+
+    return { success: true };
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 In this example:
 
-- The `context` parameter provides access to `ServiceProvider` and `Logger`
-- `context.Logger` writes log messages directly to the resource's log stream in the Aspire dashboard — no need to resolve a logger from the service provider
+- The `context` / `ctx` parameter provides access to the service provider and logger
 - The `ResourceCommandService` is retrieved from the service provider
-- Commands are executed on resource instances using `cache.Resource` and `database.Resource`
+- In C#, commands are executed on resource instances using `cache.Resource` and `database.Resource`; in TypeScript, they are executed by resource name string (for example, `"cache"` and `"postgres"`)
 - Each command result is checked for success before proceeding
 
 ### Execute a command by resource ID
 
 You can also execute a command using the resource ID or resource name. The resource ID is the unique identifier for a resource instance, while the resource name is the display name (which must be unique to use this approach):
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var result = await commandService.ExecuteCommandAsync(
     resourceId: "cache", 
     commandName: "clear-cache",
@@ -506,21 +552,47 @@ else
 }
 ```
 
-The `resourceId` parameter can be either:
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const result = await commandService.executeCommandAsync(
+    "cache",
+    "clear-cache",
+    { cancellationToken });
+
+if (result.success) {
+    console.log("Command executed successfully");
+}
+else if (result.canceled) {
+    console.warn("Command was canceled");
+}
+else {
+    console.error(`Command failed: ${result.message}`);
+}
+```
+
+</TabItem>
+</Tabs>
+
+The resource identifier argument (`resourceId` in C#, or the first argument in TypeScript) can be either:
+
 - The unique ID of the resource (e.g., `cache-abcdwxyz` for a resource with replicas)
 - The display name (e.g., `cache`) if there are no duplicate names
 
 ### Execute commands on resources with replicas
 
-When executing a command on a resource with multiple replicas using the `IResource` overload, the command runs in parallel on all instances:
+When executing a command on a resource with multiple replicas using the C# `IResource` overload, the command runs in parallel on all instances:
 
-```csharp
+```csharp title="AppHost.cs"
 // For a resource with replicas, the command executes on all instances
 var result = await commandService.ExecuteCommandAsync(
     resource: cache.Resource,
     commandName: "clear-cache",
     cancellationToken: cancellationToken);
 ```
+
+In TypeScript, use the resource identifier overload shown earlier: pass a specific replica ID to target one instance, or pass a unique resource name when there are no duplicate names.
 
 The behavior when executing on multiple replicas:
 - The command runs in parallel on all instances
@@ -664,13 +736,13 @@ builder.Build().Run();
 
 In TypeScript, return an `ExecuteCommandResult` object literal with a `data` property of type `CommandResultData`:
 
-```typescript title="TypeScript — apphost.ts"
+```typescript title="TypeScript — apphost.mts"
 import {
     createBuilder,
     CommandResultFormat,
     type ExecuteCommandContext,
     type ExecuteCommandResult,
-} from './.modules/aspire.js';
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -695,13 +767,13 @@ await builder.build().run();
 
 To return JSON with the expiry and scopes, switch the format to `CommandResultFormat.Json`:
 
-```typescript title="TypeScript — apphost.ts"
+```typescript title="TypeScript — apphost.mts"
 import {
     createBuilder,
     CommandResultFormat,
     type ExecuteCommandContext,
     type ExecuteCommandResult,
-} from './.modules/aspire.js';
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -761,7 +833,7 @@ return CommandResults.Failure(
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="TypeScript — apphost.ts"
+```typescript title="TypeScript — apphost.mts"
 return {
     success: false,
     message: "Migration failed.",
@@ -793,7 +865,7 @@ return CommandResults.Success(
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="TypeScript — apphost.ts"
+```typescript title="TypeScript — apphost.mts"
 return {
     success: true,
     message: "Access token issued.",
@@ -887,13 +959,13 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 import {
     createBuilder,
     InputType,
     type ExecuteCommandContext,
     type ExecuteCommandResult,
-} from './.modules/aspire.js';
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -1045,13 +1117,13 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 import {
     createBuilder,
     InputType,
     type ExecuteCommandContext,
     type InputsDialogValidationContext,
-} from './.modules/aspire.js';
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -1137,12 +1209,12 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 import {
     createBuilder,
     ResourceCommandVisibility,
     CommandResultFormat,
-} from './.modules/aspire.js';
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -1218,8 +1290,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -1287,12 +1359,12 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 import {
   createBuilder,
   type ExecuteCommandContext,
   InputType,
-} from './.modules/aspire.js';
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 

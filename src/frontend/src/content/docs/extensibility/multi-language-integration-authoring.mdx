@@ -1,6 +1,7 @@
 ---
 title: Multi-language integrations
-description: Learn how to annotate your Aspire hosting integration so it works with TypeScript, Python, Java, and other language AppHosts.
+seoTitle: Author multi-language Aspire integrations for AppHost
+description: Annotate your Aspire hosting integration so it works with TypeScript, Python, Java, and other languages — and learn how the generator emits language-specific SDKs.
 ---
 
 import {
@@ -95,7 +96,7 @@ public static IResourceBuilder<MyDatabaseResource> WithDataVolume(
 This generates the following highlighted TypeScript APIs:
 
 ```typescript title="TypeScript — Generated SDK" {5-8}
-import { createBuilder } from './.modules/aspire.js';
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -322,6 +323,116 @@ await myResource.withMyCallback(async (context) => {
 The `Action<T>` delegate type is ATS-compatible. The TypeScript side receives an async function; the Aspire runtime bridges the async TypeScript call to the synchronous C# delegate on a background thread.
 :::
 
+## Services available from callback service providers
+
+Several ATS callback contexts expose an `IServiceProvider` handle through a `services()` or `serviceProvider()` accessor. These accessors are async `PropertyAccessor` values, so await them before using the returned service provider. For example, resource events expose `await event.services()`, command contexts expose `await context.serviceProvider()`, and `DistributedApplicationExecutionContext` exposes `await executionContext.serviceProvider()`.
+
+In TypeScript, use the ATS-friendly methods on the service provider instead of the C# generic dependency-injection pattern. For example, call `services.getLoggerFactory()` instead of `serviceProvider.GetRequiredService<ILoggerFactory>()`.
+
+```typescript title="TypeScript — Using a callback service provider"
+await builder.subscribeBeforeStart(async (event) => {
+    const services = await event.services();
+    const loggerFactory = services.getLoggerFactory();
+    const logger = loggerFactory.createLogger("AppHost");
+
+    logger.logInformation("The AppHost is starting.");
+});
+```
+
+The generated TypeScript SDK exposes these service-provider methods:
+
+- [`getDistributedApplicationModel()`](/reference/api/typescript/aspire.hosting/getdistributedapplicationmodel/) returns [`DistributedApplicationModel`](/reference/api/typescript/aspire.hosting/distributedapplicationmodel/). Inspect application resources with [`getResources()`](/reference/api/typescript/aspire.hosting/distributedapplicationmodel/getresources/) or locate a resource by name with [`findResourceByName()`](/reference/api/typescript/aspire.hosting/distributedapplicationmodel/findresourcebyname/).
+- [`getLoggerFactory()`](/reference/api/typescript/aspire.hosting/getloggerfactory/) returns [`ILoggerFactory`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.iloggerfactory). Create a named logger with [`createLogger()`](/reference/api/typescript/aspire.hosting/createlogger/), then write messages with [`logInformation()`](/reference/api/typescript/aspire.hosting/loginformation/), [`logWarning()`](/reference/api/typescript/aspire.hosting/logwarning/), [`logError()`](/reference/api/typescript/aspire.hosting/logerror/), or [`logDebug()`](/reference/api/typescript/aspire.hosting/logdebug/).
+- [`getResourceLoggerService()`](/reference/api/typescript/aspire.hosting/getresourceloggerservice/) returns [`ResourceLoggerService`](/reference/api/typescript/aspire.hosting/resourceloggerservice/). Complete resource log streams with [`completeLog()`](/reference/api/typescript/aspire.hosting/resourceloggerservice/completelog/) or [`completeLogByName()`](/reference/api/typescript/aspire.hosting/resourceloggerservice/completelogbyname/).
+- [`getResourceNotificationService()`](/reference/api/typescript/aspire.hosting/getresourcenotificationservice/) returns [`ResourceNotificationService`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/). Publish resource updates, inspect state, or wait for readiness with [`publishResourceUpdate()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/publishresourceupdate/), [`tryGetResourceState()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/trygetresourcestate/), [`waitForDependencies()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/waitfordependencies/), [`waitForResourceHealthy()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/waitforresourcehealthy/), [`waitForResourceState()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/waitforresourcestate/), or [`waitForResourceStates()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/waitforresourcestates/).
+- [`getUserSecretsManager()`](/reference/api/typescript/aspire.hosting/getusersecretsmanager/) returns [`IUserSecretsManager`](/reference/api/typescript/aspire.hosting/iusersecretsmanager/). Read user-secrets availability and path with `await secrets.isAvailable()` and `await secrets.filePath()` (or the `.get()` methods on those property accessors), set or delete secrets, and persist state with [`getOrSetSecret()`](/reference/api/typescript/aspire.hosting/iusersecretsmanager/getorsetsecret/), [`trySetSecret()`](/reference/api/typescript/aspire.hosting/iusersecretsmanager/trysetsecret/), [`tryDeleteSecret()`](/reference/api/typescript/aspire.hosting/iusersecretsmanager/trydeletesecret/), or [`saveStateJson()`](/reference/api/typescript/aspire.hosting/iusersecretsmanager/savestatejson/).
+- [`getAspireStore()`](/reference/api/typescript/aspire.hosting/getaspirestore/) returns [`IAspireStore`](/reference/api/typescript/aspire.hosting/iaspirestore/). Create deterministic file copies with [`getFileNameWithContent()`](/reference/api/typescript/aspire.hosting/iaspirestore/getfilenamewithcontent/) when generated artifacts need stable paths.
+- [`getEventing()`](/reference/api/typescript/aspire.hosting/geteventing/) returns [`IDistributedApplicationEventing`](/reference/api/typescript/aspire.hosting/idistributedapplicationeventing/). Access eventing infrastructure from callbacks, including [`unsubscribe()`](/reference/api/typescript/aspire.hosting/idistributedapplicationeventing/unsubscribe/) for event subscriptions created by builder-level helpers such as `subscribeBeforeStart()` and `subscribeAfterResourcesCreated()`.
+
+### Inspect the application model
+
+Use `getDistributedApplicationModel()` when callback code needs to inspect or locate resources in the AppHost model:
+
+```typescript title="TypeScript — Inspecting AppHost resources"
+await builder.subscribeAfterResourcesCreated(async (event) => {
+    const services = await event.services();
+    const model = services.getDistributedApplicationModel();
+    const resources = model.getResources();
+    const api = model.findResourceByName("api");
+});
+```
+
+### Write logs
+
+Use `getLoggerFactory()` to create loggers from callbacks that expose a service provider:
+
+```typescript title="TypeScript — Writing logs from a callback"
+await builder.subscribeBeforeStart(async (event) => {
+    const services = await event.services();
+    const logger = services
+        .getLoggerFactory()
+        .createLogger("startup");
+
+    logger.logInformation("Preparing resources.");
+});
+```
+
+### Work with resource state and logs
+
+Use `getResourceNotificationService()` for resource state transitions and `getResourceLoggerService()` for resource log streams:
+
+```typescript title="TypeScript — Waiting for resource state"
+const cache = await builder.addRedis("cache");
+
+cache.onResourceReady(async (event) => {
+    const resource = await event.resource();
+    const services = await event.services();
+    const resourceName = resource.getResourceName();
+    const notifications = services.getResourceNotificationService();
+    const resourceLogs = services.getResourceLoggerService();
+
+    notifications.waitForResourceHealthy(resourceName);
+    resourceLogs.completeLog(resource);
+});
+```
+
+### Manage user secrets and generated files
+
+Use `getUserSecretsManager()` for user secrets and `getAspireStore()` for stable files created during AppHost execution:
+
+```typescript title="TypeScript — Using AppHost services"
+await builder.subscribeBeforeStart(async (event) => {
+    const services = await event.services();
+    const secrets = services.getUserSecretsManager();
+    const store = services.getAspireStore();
+    const model = services.getDistributedApplicationModel();
+    const api = model.findResourceByName("api");
+
+    if (await secrets.isAvailable()) {
+        secrets.getOrSetSecret(api, "ApiKey", crypto.randomUUID());
+    }
+
+    const generatedFile = store.getFileNameWithContent(
+        "seed-data.json",
+        "./seed-data.json");
+});
+```
+
+### Eventing and command services
+
+Use `getEventing()` when callback code needs the eventing service itself:
+
+```typescript title="TypeScript — Using eventing from services"
+const subscription = await builder.subscribeBeforeStart(async (event) => {
+    const services = await event.services();
+    const eventing = services.getEventing();
+
+    eventing.unsubscribe(subscription);
+});
+```
+
+`ResourceCommandService` is available in the C# API reference and includes command execution APIs, but the current generated TypeScript API reference data for `Aspire.Hosting` doesn't expose a `getResourceCommandService()` service-provider method or a `ResourceCommandService` handle. Until that API appears in the generated SDK, don't fetch command services directly from TypeScript callbacks; use the exported resource command APIs such as `withCommand()`, `withHttpCommand()`, and command callback contexts instead.
+
 ## Export configuration DTOs
 
 If your integration accepts structured configuration, mark the options class with `[AspireDto]`. DTOs are serialized as JSON between the TypeScript AppHost and the .NET runtime:
@@ -394,9 +505,9 @@ The scanner snaps the values at scan time by serializing each field or property 
 
 After generating the SDK (for example, with `aspire run`), the catalog is available as a nested object in each supported language. The nesting mirrors the static class hierarchy of the C# source:
 
-```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
-import { MyModels } from './.modules/my-integration.js';
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import { MyModels } from './.aspire/modules/my-integration.mjs';
 
 const builder = await createBuilder();
 
@@ -485,6 +596,7 @@ public static IResourceBuilder<T> WithEnvironment<T>(
         typeof(EndpointReference),
         typeof(IResourceBuilder<ParameterResource>),
         typeof(IResourceBuilder<IResourceWithConnectionString>),
+        typeof(IResourceBuilder<ExternalServiceResource>),
         typeof(IExpressionValue))]
     object value)
     where T : IResourceWithEnvironment
@@ -524,7 +636,7 @@ You can test your integration locally without publishing to a NuGet feed. In you
 ```json title="JSON — aspire.config.json"
 {
   "appHost": {
-    "path": "apphost.ts",
+    "path": "apphost.mts",
     "language": "typescript/nodejs"
   },
   "packages": {
@@ -568,12 +680,12 @@ When the CLI detects a `.csproj` path, it builds the project locally and generat
    aspire run
    ```
 
-4. Check the generated `.modules/` directory for your integration's TypeScript types. Verify that your exported methods appear with the correct signatures.
+4. Check the generated `.aspire/modules/` directory for your integration's TypeScript types. Verify that your exported methods appear with the correct signatures.
 
-5. Use the generated API in `apphost.ts`:
+5. Use the generated API in `apphost.mts`:
 
-   ```typescript title="TypeScript — apphost.ts"
-   import { createBuilder } from './.modules/aspire.js';
+   ```typescript title="TypeScript — apphost.mts"
+   import { createBuilder } from './.aspire/modules/aspire.mjs';
 
    const builder = await createBuilder();
 

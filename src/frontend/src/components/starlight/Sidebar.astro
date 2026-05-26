@@ -1066,7 +1066,25 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
      opacity crossfade keyed off `[data-sidebar-collapsed]` /
      `[data-topic-sidebar-collapsed]` on <html>, with `pointer-events`
      ensuring only the active button receives clicks. This keeps the
-     swap synchronised with the sidebar's width transition. */
+     swap synchronised with the sidebar's width transition.
+
+     At widths where the Starlight mobile TOC bar
+     (`#starlight__on-this-page--mobile`) is visible (≥ 50rem and
+     < 100rem with `[data-has-toc]`), the toggle is repositioned
+     into the same row as that bar (see the `(min-width: 50rem) and
+     (max-width: 99.999rem)` override below) so the two controls
+     don't collide.
+
+     Visibility of the toggle is tied to whether the sidebar itself
+     is persistently visible at the current viewport, not to a
+     single global breakpoint:
+
+       - API-ref pages (`#sidebar-*`): the sidebar drops into
+         mobile-overlay mode below 72rem (see the `[data-api-ref]`
+         block in site.css), so the toggle is hidden below 72rem.
+       - Topic-nav pages (`#topic-sidebar-*`): the sidebar stays
+         visible down to Starlight's default 50rem breakpoint, so
+         the toggle is visible from 50rem upward and hidden below. */
   .sidebar-collapse-btn,
   .sidebar-expand-btn {
     position: fixed;
@@ -1078,8 +1096,8 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 3rem;
-    height: 3rem;
+    width: var(--aspire-sidebar-toggle-width, 3rem);
+    height: var(--aspire-sidebar-toggle-width, 3rem);
     padding: 0.7rem;
     background: var(--sl-color-bg);
     border: none;
@@ -1171,11 +1189,70 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     height: 100%;
   }
 
-  /* Hide collapse/expand on mobile-style sidebar (< 72rem for API pages) */
+  /* Hide the toggle when the sidebar isn't persistently visible.
+
+     API-ref pages (`#sidebar-*` ids): at < 72rem the sidebar enters
+     mobile-overlay mode (see `[data-api-ref]` block in site.css and
+     Starlight's < 50rem default). The persistent collapsed/expanded
+     state doesn't apply in overlay mode — there's a hamburger button
+     instead — so hide the toggle below 72rem on these pages.
+
+     Topic-nav pages (`#topic-sidebar-*` ids): the topic sidebar stays
+     visible at Starlight's default sub-desktop sizing down to 50rem;
+     below 50rem Starlight moves it into the mobile menu. Hide the
+     toggle below 50rem so it disappears together with the sidebar. */
   @media (max-width: 71.999rem) {
-    .sidebar-collapse-btn,
-    .sidebar-expand-btn {
+    #sidebar-collapse-btn,
+    #sidebar-expand-btn {
       display: none !important;
+    }
+  }
+
+  @media (max-width: 49.999rem) {
+    #topic-sidebar-collapse-btn,
+    #topic-sidebar-expand-btn {
+      display: none !important;
+    }
+  }
+
+  /* Inline the toggle with the mobile "On this page" TOC bar at every
+     width that shows that bar while the sidebar is also persistently
+     visible — i.e. ≥ 50rem and < 100rem with [data-has-toc].
+
+     The API-ref toggle (#sidebar-*) is hidden below 72rem via the rule
+     above, so this scope visually renders for:
+       - topic-nav at 50–71.999rem (tablet), and
+       - both toggles at 72–99.999rem (desktop with mobile-TOC override).
+
+     Without this override the base calc parks the toggle a row below
+     the TOC bar where it covers the first line of content and crowds
+     the `#starlight__on-this-page--mobile` dropdown trigger. Sliding
+     the toggle up into the TOC bar's row keeps both controls visible
+     while letting the dropdown content shift right (see site.css for
+     the companion `padding-inline-start` on the summary). */
+  @media (min-width: 50rem) and (max-width: 99.999rem) {
+    :global(html[data-has-toc]) .sidebar-collapse-btn,
+    :global(html[data-has-toc]) .sidebar-expand-btn {
+      top: calc(var(--sl-nav-height, 4rem) + var(--aspire-banner-height, 0px) - 1px);
+      height: var(--sl-mobile-toc-height, 3rem);
+      /* Drop the floating-tab treatment — the toggle is part of the
+         TOC bar's row now, not a tab projecting from the sidebar. */
+      border-radius: 0;
+      box-shadow: none;
+      border-inline-end: 1px solid var(--sl-color-gray-5);
+      border-block-end: 1px solid var(--sl-color-hairline-shade);
+      background: var(--sl-color-bg-nav);
+      /* Promote above the mobile TOC's nav bar so the toggle paints on
+         top of the bar's background rather than slipping behind it. */
+      z-index: calc(var(--sl-z-index-toc, 10) + 1);
+    }
+
+    :global(html[data-has-toc]) .sidebar-collapse-btn:hover,
+    :global(html[data-has-toc]) .sidebar-expand-btn:hover {
+      /* Cancel the elevated hover shadow inherited from the base rule —
+         a shadow looks out of place inside the flat TOC bar. */
+      box-shadow: none;
+      background: var(--sl-color-bg);
     }
   }
 

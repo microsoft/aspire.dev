@@ -1,6 +1,7 @@
 ---
 title: Deploy to Azure Kubernetes Service (AKS)
-description: Learn how to deploy your Aspire application to Azure Kubernetes Service with full provisioning of AKS, ACR, and Azure resources.
+seoTitle: Deploy Aspire apps to Azure Kubernetes Service (AKS)
+description: Deploy your Aspire application to Azure Kubernetes Service with full provisioning of AKS clusters, container registries, ingress, identity, and observability.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -53,8 +54,8 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" {5}
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" {5}
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -97,7 +98,7 @@ builder.AddAzureKubernetesEnvironment("aks")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
 await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
 ```
@@ -119,7 +120,7 @@ builder.AddContainer("ml-worker", "my-ml-image")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
 const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
 
@@ -246,7 +247,7 @@ var aks = builder.AddAzureKubernetesEnvironment("aks")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const vnet = await builder.addAzureVirtualNetwork('vnet', '10.100.0.0/16');
 const aksSubnet = await vnet.addSubnet('aks-nodes', '10.100.0.0/22');
 const albSubnet = await vnet.addSubnet('alb-public', '10.100.4.0/24');
@@ -272,7 +273,7 @@ var publicLb = aks.AddLoadBalancer("public", albSubnet);
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const publicLb = await aks.addLoadBalancer('public', albSubnet);
 ```
 </TabItem>
@@ -298,7 +299,7 @@ aks.AddGateway("storefront")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const api = await builder
     .addNodeApp('api', './api', 'src/index.ts')
     .withHttpEndpoint({ env: 'PORT' })
@@ -346,7 +347,7 @@ aks.AddGateway("storefront")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const certManager = await aks.addCertManager('cert-manager');
 
 const letsencrypt = await certManager.addIssuer('letsencrypt-prod');
@@ -384,7 +385,7 @@ aks.AddGateway("storefront")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 await storefront.withTls(letsencrypt, {
     hsts: { includeSubDomains: true, preload: true },
 });
@@ -448,7 +449,7 @@ aks.AddGateway("storefront")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const hostname = builder.addParameter('hostname'); // e.g. "api.contoso.com"
 
 const storefront = await aks.addGateway('storefront');
@@ -543,7 +544,7 @@ builder.AddProject<Projects.MyApi>("api")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const api = await builder
     .addNodeApp('api', './api', 'src/index.ts')
     .withHttpEndpoint({ env: 'PORT' });

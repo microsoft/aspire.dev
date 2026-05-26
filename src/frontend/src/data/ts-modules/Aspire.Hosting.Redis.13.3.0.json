@@ -10,24 +10,29 @@
       "name": "addRedis",
       "capabilityId": "Aspire.Hosting.Redis/addRedis",
       "qualifiedName": "addRedis",
-      "description": "Adds a Redis container resource",
+      "description": "Adds a Redis container to the application model.",
+      "remarks": "This resource includes built-in health checks. When this resource is referenced as a dependency\nusing the `WaitFor``1`\nextension method then the dependent resource will wait until the Redis resource is able to service\nrequests.\nThis version of the package defaults to the tag of the container image.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addRedis(name: string, port?: number, password?: ParameterResource): RedisResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
         },
         {
           "name": "port",
           "type": "number",
           "isOptional": true,
-          "isNullable": true
+          "isNullable": true,
+          "description": "The host port to bind the underlying container to."
         },
         {
           "name": "password",
           "type": "ParameterResource",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The parameter used to provide the password for the Redis resource. If `null` a random password will be generated."
         }
       ],
       "returnType": "RedisResource",
@@ -41,7 +46,7 @@
       "name": "connectionStringExpression",
       "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.connectionStringExpression",
       "qualifiedName": "RedisResource.connectionStringExpression",
-      "description": "Gets the ConnectionStringExpression property",
+      "description": "Gets the connection string expression for the Redis server.",
       "kind": "PropertyGetter",
       "signature": "connectionStringExpression(): ReferenceExpression",
       "parameters": [],
@@ -55,7 +60,7 @@
       "name": "host",
       "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.host",
       "qualifiedName": "RedisResource.host",
-      "description": "Gets the Host property",
+      "description": "Gets the host endpoint reference for this resource.",
       "kind": "PropertyGetter",
       "signature": "host(): EndpointReferenceExpression",
       "parameters": [],
@@ -69,7 +74,7 @@
       "name": "passwordParameter",
       "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.passwordParameter",
       "qualifiedName": "RedisResource.passwordParameter",
-      "description": "Gets the PasswordParameter property",
+      "description": "Gets the parameter that contains the Redis server password.",
       "kind": "PropertyGetter",
       "signature": "passwordParameter(): ParameterResource",
       "parameters": [],
@@ -83,7 +88,7 @@
       "name": "port",
       "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.port",
       "qualifiedName": "RedisResource.port",
-      "description": "Gets the Port property",
+      "description": "Gets the port endpoint reference for this resource.",
       "kind": "PropertyGetter",
       "signature": "port(): EndpointReferenceExpression",
       "parameters": [],
@@ -97,7 +102,7 @@
       "name": "primaryEndpoint",
       "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.primaryEndpoint",
       "qualifiedName": "RedisResource.primaryEndpoint",
-      "description": "Gets the PrimaryEndpoint property",
+      "description": "Gets the primary endpoint for the Redis server.",
       "kind": "PropertyGetter",
       "signature": "primaryEndpoint(): EndpointReference",
       "parameters": [],
@@ -111,7 +116,7 @@
       "name": "setPasswordParameter",
       "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.setPasswordParameter",
       "qualifiedName": "RedisResource.setPasswordParameter",
-      "description": "Sets the PasswordParameter property",
+      "description": "Gets the parameter that contains the Redis server password.",
       "kind": "PropertySetter",
       "signature": "setPasswordParameter(value: ParameterResource): RedisResource",
       "parameters": [
@@ -130,7 +135,8 @@
       "name": "tlsEnabled",
       "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.tlsEnabled",
       "qualifiedName": "RedisResource.tlsEnabled",
-      "description": "Gets the TlsEnabled property",
+      "description": "Indicates whether TLS is enabled for the Redis server.",
+      "remarks": "This property proxies through to `TlsEnabled` on the\n`PrimaryEndpoint`. When set to `true`, the connection string\nexpression dynamically includes `,ssl=true` and the URI expression uses the\n`rediss://` scheme. This value is resolved lazily at expression evaluation time,\navoiding timing issues when TLS is enabled later in the application lifecycle\n(e.g., during the `BeforeStartEvent`).",
       "kind": "PropertyGetter",
       "signature": "tlsEnabled(): boolean",
       "parameters": [],
@@ -144,7 +150,8 @@
       "name": "uriExpression",
       "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.uriExpression",
       "qualifiedName": "RedisResource.uriExpression",
-      "description": "Gets the UriExpression property",
+      "description": "Gets the connection URI expression for the Redis server.",
+      "remarks": "Format: `redis://[:{password}@]{host}:{port}`. The password segment is omitted when no password is configured.",
       "kind": "PropertyGetter",
       "signature": "uriExpression(): ReferenceExpression",
       "parameters": [],
@@ -158,19 +165,23 @@
       "name": "withDataBindMount",
       "capabilityId": "Aspire.Hosting.Redis/withDataBindMount",
       "qualifiedName": "withDataBindMount",
-      "description": "Adds a data bind mount with persistence",
+      "description": "Adds a bind mount for the data folder to a Redis container resource and enables Redis persistence.",
+      "remarks": "Use `WithPersistence` to adjust Redis persistence configuration, e.g.:\n```\nvar cache = builder.AddRedis(\"cache\")\n.WithDataBindMount(\"myredisdata\")\n.WithPersistence(TimeSpan.FromSeconds(10), 5);\n```",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDataBindMount(source: string, isReadOnly?: boolean): RedisResource",
       "parameters": [
         {
           "name": "source",
-          "type": "string"
+          "type": "string",
+          "description": "The source directory on the host to mount into the container."
         },
         {
           "name": "isReadOnly",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "False"
+          "defaultValue": "False",
+          "description": "A flag that indicates if this is a read-only mount. Setting this to `true` will disable Redis persistence. Defaults to `false`."
         }
       ],
       "returnType": "RedisResource",
@@ -184,13 +195,15 @@
       "name": "withDataBindMount",
       "capabilityId": "Aspire.Hosting.Redis/withRedisInsightDataBindMount",
       "qualifiedName": "withDataBindMount",
-      "description": "Adds a data bind mount for Redis Insight",
+      "description": "Adds a bind mount for the data folder to a Redis Insight container resource.",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDataBindMount(source: string): RedisInsightResource",
       "parameters": [
         {
           "name": "source",
-          "type": "string"
+          "type": "string",
+          "description": "The source directory on the host to mount into the container."
         }
       ],
       "returnType": "RedisInsightResource",
@@ -204,20 +217,24 @@
       "name": "withDataVolume",
       "capabilityId": "Aspire.Hosting.Redis/withDataVolume",
       "qualifiedName": "withDataVolume",
-      "description": "Adds a data volume with persistence",
+      "description": "Adds a named volume for the data folder to a Redis container resource and enables Redis persistence.",
+      "remarks": "Use `WithPersistence` to adjust Redis persistence configuration, e.g.:\n```\nvar cache = builder.AddRedis(\"cache\")\n.WithDataVolume()\n.WithPersistence(TimeSpan.FromSeconds(10), 5);\n```",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDataVolume(name?: string, isReadOnly?: boolean): RedisResource",
       "parameters": [
         {
           "name": "name",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
         },
         {
           "name": "isReadOnly",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "False"
+          "defaultValue": "False",
+          "description": "A flag that indicates if this is a read-only volume. Setting this to `true` will disable Redis persistence. Defaults to `false`."
         }
       ],
       "returnType": "RedisResource",
@@ -231,14 +248,16 @@
       "name": "withDataVolume",
       "capabilityId": "Aspire.Hosting.Redis/withRedisInsightDataVolume",
       "qualifiedName": "withDataVolume",
-      "description": "Adds a data volume for Redis Insight",
+      "description": "Adds a named volume for the data folder to a Redis Insight container resource.",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDataVolume(name?: string): RedisInsightResource",
       "parameters": [
         {
           "name": "name",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
         }
       ],
       "returnType": "RedisInsightResource",
@@ -252,14 +271,16 @@
       "name": "withHostPort",
       "capabilityId": "Aspire.Hosting.Redis/withRedisCommanderHostPort",
       "qualifiedName": "withHostPort",
-      "description": "Sets the host port for Redis Commander",
+      "description": "Configures the host port that the Redis Commander resource is exposed on instead of using randomly assigned port.",
+      "returns": "The resource builder for RedisCommander.",
       "kind": "Method",
       "signature": "withHostPort(port: number): RedisCommanderResource",
       "parameters": [
         {
           "name": "port",
           "type": "number",
-          "isNullable": true
+          "isNullable": true,
+          "description": "The port to bind on the host. If `null` is used random port will be assigned."
         }
       ],
       "returnType": "RedisCommanderResource",
@@ -273,14 +294,16 @@
       "name": "withHostPort",
       "capabilityId": "Aspire.Hosting.Redis/withRedisInsightHostPort",
       "qualifiedName": "withHostPort",
-      "description": "Sets the host port for Redis Insight",
+      "description": "Configures the host port that the Redis Insight resource is exposed on instead of using randomly assigned port.",
+      "returns": "The resource builder for RedisInsight.",
       "kind": "Method",
       "signature": "withHostPort(port: number): RedisInsightResource",
       "parameters": [
         {
           "name": "port",
           "type": "number",
-          "isNullable": true
+          "isNullable": true,
+          "description": "The port to bind on the host. If `null` is used random port will be assigned."
         }
       ],
       "returnType": "RedisInsightResource",
@@ -294,14 +317,16 @@
       "name": "withHostPort",
       "capabilityId": "Aspire.Hosting.Redis/withHostPort",
       "qualifiedName": "withHostPort",
-      "description": "Sets the host port for Redis",
+      "description": "Configures the host port that the Redis resource is exposed on instead of using randomly assigned port.",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withHostPort(port: number): RedisResource",
       "parameters": [
         {
           "name": "port",
           "type": "number",
-          "isNullable": true
+          "isNullable": true,
+          "description": "The port to bind on the host. If `null` is used random port will be assigned."
         }
       ],
       "returnType": "RedisResource",
@@ -315,13 +340,15 @@
       "name": "withPassword",
       "capabilityId": "Aspire.Hosting.Redis/withPassword",
       "qualifiedName": "withPassword",
-      "description": "Configures the password for Redis",
+      "description": "Configures the password that the Redis resource is used.",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withPassword(password: ParameterResource): RedisResource",
       "parameters": [
         {
           "name": "password",
-          "type": "ParameterResource"
+          "type": "ParameterResource",
+          "description": "The parameter used to provide the password for the Redis resource. If `null`, no password will be configured."
         }
       ],
       "returnType": "RedisResource",
@@ -335,7 +362,9 @@
       "name": "withPersistence",
       "capabilityId": "Aspire.Hosting.Redis/withPersistence",
       "qualifiedName": "withPersistence",
-      "description": "Configures Redis persistence",
+      "description": "Configures a Redis container resource for persistence.",
+      "remarks": "Use with `WithDataBindMount`\nor `WithDataVolume` to persist Redis data across sessions with custom persistence configuration, e.g.:\n```\nvar cache = builder.AddRedis(\"cache\")\n.WithDataVolume()\n.WithPersistence(TimeSpan.FromSeconds(10), 5);\n```",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withPersistence(interval?: timespan, keysChangedThreshold?: number): RedisResource",
       "parameters": [
@@ -343,13 +372,15 @@
           "name": "interval",
           "type": "timespan",
           "isOptional": true,
-          "isNullable": true
+          "isNullable": true,
+          "description": "The interval between snapshot exports. Defaults to 60 seconds."
         },
         {
           "name": "keysChangedThreshold",
           "type": "number",
           "isOptional": true,
-          "defaultValue": "1"
+          "defaultValue": "1",
+          "description": "The number of key change operations required to trigger a snapshot at the interval. Defaults to 1."
         }
       ],
       "returnType": "RedisResource",
@@ -363,21 +394,24 @@
       "name": "withRedisCommander",
       "capabilityId": "Aspire.Hosting.Redis/withRedisCommander",
       "qualifiedName": "withRedisCommander",
-      "description": "Adds Redis Commander management UI",
+      "description": "Configures a container resource for Redis Commander which is pre-configured to connect to the `RedisResource` that this method is used on.",
+      "remarks": "This version of the package defaults to the tag of the container image.",
       "kind": "Method",
-      "signature": "withRedisCommander(configureContainer?: (obj: RedisCommanderResource) =\u003E Promise\u003Cvoid\u003E, containerName?: string): RedisResource",
+      "signature": "withRedisCommander(configureContainer?: (obj: RedisCommanderResource) => Promise<void>, containerName?: string): RedisResource",
       "parameters": [
         {
           "name": "configureContainer",
           "type": "callback",
           "isOptional": true,
           "isCallback": true,
-          "callbackSignature": "(obj: RedisCommanderResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: RedisCommanderResource) => Promise<void>",
+          "description": "Configuration callback for Redis Commander container resource."
         },
         {
           "name": "containerName",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "Override the container name used for Redis Commander."
         }
       ],
       "returnType": "RedisResource",
@@ -391,21 +425,24 @@
       "name": "withRedisInsight",
       "capabilityId": "Aspire.Hosting.Redis/withRedisInsight",
       "qualifiedName": "withRedisInsight",
-      "description": "Adds Redis Insight management UI",
+      "description": "Configures a container resource for Redis Insight which is pre-configured to connect to the `RedisResource` that this method is used on.",
+      "remarks": "This version of the package defaults to the tag of the container image.",
       "kind": "Method",
-      "signature": "withRedisInsight(configureContainer?: (obj: RedisInsightResource) =\u003E Promise\u003Cvoid\u003E, containerName?: string): RedisResource",
+      "signature": "withRedisInsight(configureContainer?: (obj: RedisInsightResource) => Promise<void>, containerName?: string): RedisResource",
       "parameters": [
         {
           "name": "configureContainer",
           "type": "callback",
           "isOptional": true,
           "isCallback": true,
-          "callbackSignature": "(obj: RedisInsightResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: RedisInsightResource) => Promise<void>",
+          "description": "Configuration callback for Redis Insight container resource."
         },
         {
           "name": "containerName",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "Override the container name used for Redis Insight."
         }
       ],
       "returnType": "RedisResource",
@@ -422,6 +459,8 @@
       "fullName": "Aspire.Hosting.ApplicationModel.RedisResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "A resource that represents a Redis resource independent of the hosting model.",
+      "remarks": "A resource that represents a Redis resource independent of the hosting model.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IComputeResource",
         "Aspire.Hosting.ApplicationModel.IExpressionValue",
@@ -441,7 +480,7 @@
           "name": "connectionStringExpression",
           "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.connectionStringExpression",
           "qualifiedName": "RedisResource.connectionStringExpression",
-          "description": "Gets the ConnectionStringExpression property",
+          "description": "Gets the connection string expression for the Redis server.",
           "kind": "PropertyGetter",
           "signature": "connectionStringExpression(): ReferenceExpression",
           "parameters": [],
@@ -455,7 +494,7 @@
           "name": "host",
           "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.host",
           "qualifiedName": "RedisResource.host",
-          "description": "Gets the Host property",
+          "description": "Gets the host endpoint reference for this resource.",
           "kind": "PropertyGetter",
           "signature": "host(): EndpointReferenceExpression",
           "parameters": [],
@@ -469,7 +508,7 @@
           "name": "passwordParameter",
           "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.passwordParameter",
           "qualifiedName": "RedisResource.passwordParameter",
-          "description": "Gets the PasswordParameter property",
+          "description": "Gets the parameter that contains the Redis server password.",
           "kind": "PropertyGetter",
           "signature": "passwordParameter(): ParameterResource",
           "parameters": [],
@@ -483,7 +522,7 @@
           "name": "port",
           "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.port",
           "qualifiedName": "RedisResource.port",
-          "description": "Gets the Port property",
+          "description": "Gets the port endpoint reference for this resource.",
           "kind": "PropertyGetter",
           "signature": "port(): EndpointReferenceExpression",
           "parameters": [],
@@ -497,7 +536,7 @@
           "name": "primaryEndpoint",
           "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.primaryEndpoint",
           "qualifiedName": "RedisResource.primaryEndpoint",
-          "description": "Gets the PrimaryEndpoint property",
+          "description": "Gets the primary endpoint for the Redis server.",
           "kind": "PropertyGetter",
           "signature": "primaryEndpoint(): EndpointReference",
           "parameters": [],
@@ -511,7 +550,7 @@
           "name": "setPasswordParameter",
           "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.setPasswordParameter",
           "qualifiedName": "RedisResource.setPasswordParameter",
-          "description": "Sets the PasswordParameter property",
+          "description": "Gets the parameter that contains the Redis server password.",
           "kind": "PropertySetter",
           "signature": "setPasswordParameter(value: ParameterResource): RedisResource",
           "parameters": [
@@ -530,7 +569,8 @@
           "name": "tlsEnabled",
           "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.tlsEnabled",
           "qualifiedName": "RedisResource.tlsEnabled",
-          "description": "Gets the TlsEnabled property",
+          "description": "Indicates whether TLS is enabled for the Redis server.",
+          "remarks": "This property proxies through to `TlsEnabled` on the\n`PrimaryEndpoint`. When set to `true`, the connection string\nexpression dynamically includes `,ssl=true` and the URI expression uses the\n`rediss://` scheme. This value is resolved lazily at expression evaluation time,\navoiding timing issues when TLS is enabled later in the application lifecycle\n(e.g., during the `BeforeStartEvent`).",
           "kind": "PropertyGetter",
           "signature": "tlsEnabled(): boolean",
           "parameters": [],
@@ -544,7 +584,8 @@
           "name": "uriExpression",
           "capabilityId": "Aspire.Hosting.ApplicationModel/RedisResource.uriExpression",
           "qualifiedName": "RedisResource.uriExpression",
-          "description": "Gets the UriExpression property",
+          "description": "Gets the connection URI expression for the Redis server.",
+          "remarks": "Format: `redis://[:{password}@]{host}:{port}`. The password segment is omitted when no password is configured.",
           "kind": "PropertyGetter",
           "signature": "uriExpression(): ReferenceExpression",
           "parameters": [],
@@ -558,19 +599,23 @@
           "name": "withDataBindMount",
           "capabilityId": "Aspire.Hosting.Redis/withDataBindMount",
           "qualifiedName": "withDataBindMount",
-          "description": "Adds a data bind mount with persistence",
+          "description": "Adds a bind mount for the data folder to a Redis container resource and enables Redis persistence.",
+          "remarks": "Use `WithPersistence` to adjust Redis persistence configuration, e.g.:\n```\nvar cache = builder.AddRedis(\"cache\")\n.WithDataBindMount(\"myredisdata\")\n.WithPersistence(TimeSpan.FromSeconds(10), 5);\n```",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDataBindMount(source: string, isReadOnly?: boolean): RedisResource",
           "parameters": [
             {
               "name": "source",
-              "type": "string"
+              "type": "string",
+              "description": "The source directory on the host to mount into the container."
             },
             {
               "name": "isReadOnly",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "False"
+              "defaultValue": "False",
+              "description": "A flag that indicates if this is a read-only mount. Setting this to `true` will disable Redis persistence. Defaults to `false`."
             }
           ],
           "returnType": "RedisResource",
@@ -584,20 +629,24 @@
           "name": "withDataVolume",
           "capabilityId": "Aspire.Hosting.Redis/withDataVolume",
           "qualifiedName": "withDataVolume",
-          "description": "Adds a data volume with persistence",
+          "description": "Adds a named volume for the data folder to a Redis container resource and enables Redis persistence.",
+          "remarks": "Use `WithPersistence` to adjust Redis persistence configuration, e.g.:\n```\nvar cache = builder.AddRedis(\"cache\")\n.WithDataVolume()\n.WithPersistence(TimeSpan.FromSeconds(10), 5);\n```",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDataVolume(name?: string, isReadOnly?: boolean): RedisResource",
           "parameters": [
             {
               "name": "name",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
             },
             {
               "name": "isReadOnly",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "False"
+              "defaultValue": "False",
+              "description": "A flag that indicates if this is a read-only volume. Setting this to `true` will disable Redis persistence. Defaults to `false`."
             }
           ],
           "returnType": "RedisResource",
@@ -611,14 +660,16 @@
           "name": "withHostPort",
           "capabilityId": "Aspire.Hosting.Redis/withHostPort",
           "qualifiedName": "withHostPort",
-          "description": "Sets the host port for Redis",
+          "description": "Configures the host port that the Redis resource is exposed on instead of using randomly assigned port.",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withHostPort(port: number): RedisResource",
           "parameters": [
             {
               "name": "port",
               "type": "number",
-              "isNullable": true
+              "isNullable": true,
+              "description": "The port to bind on the host. If `null` is used random port will be assigned."
             }
           ],
           "returnType": "RedisResource",
@@ -632,13 +683,15 @@
           "name": "withPassword",
           "capabilityId": "Aspire.Hosting.Redis/withPassword",
           "qualifiedName": "withPassword",
-          "description": "Configures the password for Redis",
+          "description": "Configures the password that the Redis resource is used.",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withPassword(password: ParameterResource): RedisResource",
           "parameters": [
             {
               "name": "password",
-              "type": "ParameterResource"
+              "type": "ParameterResource",
+              "description": "The parameter used to provide the password for the Redis resource. If `null`, no password will be configured."
             }
           ],
           "returnType": "RedisResource",
@@ -652,7 +705,9 @@
           "name": "withPersistence",
           "capabilityId": "Aspire.Hosting.Redis/withPersistence",
           "qualifiedName": "withPersistence",
-          "description": "Configures Redis persistence",
+          "description": "Configures a Redis container resource for persistence.",
+          "remarks": "Use with `WithDataBindMount`\nor `WithDataVolume` to persist Redis data across sessions with custom persistence configuration, e.g.:\n```\nvar cache = builder.AddRedis(\"cache\")\n.WithDataVolume()\n.WithPersistence(TimeSpan.FromSeconds(10), 5);\n```",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withPersistence(interval?: timespan, keysChangedThreshold?: number): RedisResource",
           "parameters": [
@@ -660,13 +715,15 @@
               "name": "interval",
               "type": "timespan",
               "isOptional": true,
-              "isNullable": true
+              "isNullable": true,
+              "description": "The interval between snapshot exports. Defaults to 60 seconds."
             },
             {
               "name": "keysChangedThreshold",
               "type": "number",
               "isOptional": true,
-              "defaultValue": "1"
+              "defaultValue": "1",
+              "description": "The number of key change operations required to trigger a snapshot at the interval. Defaults to 1."
             }
           ],
           "returnType": "RedisResource",
@@ -680,21 +737,24 @@
           "name": "withRedisCommander",
           "capabilityId": "Aspire.Hosting.Redis/withRedisCommander",
           "qualifiedName": "withRedisCommander",
-          "description": "Adds Redis Commander management UI",
+          "description": "Configures a container resource for Redis Commander which is pre-configured to connect to the `RedisResource` that this method is used on.",
+          "remarks": "This version of the package defaults to the tag of the container image.",
           "kind": "Method",
-          "signature": "withRedisCommander(configureContainer?: (obj: RedisCommanderResource) =\u003E Promise\u003Cvoid\u003E, containerName?: string): RedisResource",
+          "signature": "withRedisCommander(configureContainer?: (obj: RedisCommanderResource) => Promise<void>, containerName?: string): RedisResource",
           "parameters": [
             {
               "name": "configureContainer",
               "type": "callback",
               "isOptional": true,
               "isCallback": true,
-              "callbackSignature": "(obj: RedisCommanderResource) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: RedisCommanderResource) => Promise<void>",
+              "description": "Configuration callback for Redis Commander container resource."
             },
             {
               "name": "containerName",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "Override the container name used for Redis Commander."
             }
           ],
           "returnType": "RedisResource",
@@ -708,21 +768,24 @@
           "name": "withRedisInsight",
           "capabilityId": "Aspire.Hosting.Redis/withRedisInsight",
           "qualifiedName": "withRedisInsight",
-          "description": "Adds Redis Insight management UI",
+          "description": "Configures a container resource for Redis Insight which is pre-configured to connect to the `RedisResource` that this method is used on.",
+          "remarks": "This version of the package defaults to the tag of the container image.",
           "kind": "Method",
-          "signature": "withRedisInsight(configureContainer?: (obj: RedisInsightResource) =\u003E Promise\u003Cvoid\u003E, containerName?: string): RedisResource",
+          "signature": "withRedisInsight(configureContainer?: (obj: RedisInsightResource) => Promise<void>, containerName?: string): RedisResource",
           "parameters": [
             {
               "name": "configureContainer",
               "type": "callback",
               "isOptional": true,
               "isCallback": true,
-              "callbackSignature": "(obj: RedisInsightResource) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: RedisInsightResource) => Promise<void>",
+              "description": "Configuration callback for Redis Insight container resource."
             },
             {
               "name": "containerName",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "Override the container name used for Redis Insight."
             }
           ],
           "returnType": "RedisResource",
@@ -752,14 +815,16 @@
           "name": "withHostPort",
           "capabilityId": "Aspire.Hosting.Redis/withRedisCommanderHostPort",
           "qualifiedName": "withHostPort",
-          "description": "Sets the host port for Redis Commander",
+          "description": "Configures the host port that the Redis Commander resource is exposed on instead of using randomly assigned port.",
+          "returns": "The resource builder for RedisCommander.",
           "kind": "Method",
           "signature": "withHostPort(port: number): RedisCommanderResource",
           "parameters": [
             {
               "name": "port",
               "type": "number",
-              "isNullable": true
+              "isNullable": true,
+              "description": "The port to bind on the host. If `null` is used random port will be assigned."
             }
           ],
           "returnType": "RedisCommanderResource",
@@ -789,13 +854,15 @@
           "name": "withDataBindMount",
           "capabilityId": "Aspire.Hosting.Redis/withRedisInsightDataBindMount",
           "qualifiedName": "withDataBindMount",
-          "description": "Adds a data bind mount for Redis Insight",
+          "description": "Adds a bind mount for the data folder to a Redis Insight container resource.",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDataBindMount(source: string): RedisInsightResource",
           "parameters": [
             {
               "name": "source",
-              "type": "string"
+              "type": "string",
+              "description": "The source directory on the host to mount into the container."
             }
           ],
           "returnType": "RedisInsightResource",
@@ -809,14 +876,16 @@
           "name": "withDataVolume",
           "capabilityId": "Aspire.Hosting.Redis/withRedisInsightDataVolume",
           "qualifiedName": "withDataVolume",
-          "description": "Adds a data volume for Redis Insight",
+          "description": "Adds a named volume for the data folder to a Redis Insight container resource.",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDataVolume(name?: string): RedisInsightResource",
           "parameters": [
             {
               "name": "name",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
             }
           ],
           "returnType": "RedisInsightResource",
@@ -830,14 +899,16 @@
           "name": "withHostPort",
           "capabilityId": "Aspire.Hosting.Redis/withRedisInsightHostPort",
           "qualifiedName": "withHostPort",
-          "description": "Sets the host port for Redis Insight",
+          "description": "Configures the host port that the Redis Insight resource is exposed on instead of using randomly assigned port.",
+          "returns": "The resource builder for RedisInsight.",
           "kind": "Method",
           "signature": "withHostPort(port: number): RedisInsightResource",
           "parameters": [
             {
               "name": "port",
               "type": "number",
-              "isNullable": true
+              "isNullable": true,
+              "description": "The port to bind on the host. If `null` is used random port will be assigned."
             }
           ],
           "returnType": "RedisInsightResource",

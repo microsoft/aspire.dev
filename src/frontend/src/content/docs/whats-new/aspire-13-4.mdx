@@ -1,6 +1,6 @@
 ---
-title: What's new in Aspire 13.4
-description: Aspire 13.4 makes TypeScript AppHost support generally available, adds TypeScript samples and documentation parity with C#, and includes richer Kubernetes and AKS deployment APIs, process-backed resource commands, CLI integration discovery, telemetry search, dashboard AI agent help, and VS Code extension updates.
+title: "What's new in Aspire 13.4"
+description: "Explore Aspire 13.4: GA TypeScript AppHost, richer Kubernetes and AKS deployment APIs, process resource commands, CLI integration discovery, and dashboard updates."
 sidebar:
   label: Aspire 13.4
   order: 0
@@ -51,6 +51,26 @@ This release introduces:
   stable version.
 </Aside>
 
+<Aside type="caution" title="TypeScript AppHost users: run aspire update --self first">
+  If you have a **TypeScript AppHost on Aspire 13.3.x**, you must update the
+  Aspire CLI itself **before** running `aspire update` on your project. Running
+  `aspire update` first will fail mid-update with an error like:
+
+  ```text
+  ❌ An unexpected error occurred: No code generator found for language: TypeScript
+  ```
+
+  The 13.3.x CLI bundles an AppHost server that cannot load the 13.4 TypeScript
+  code generator, so package restore succeeds but TypeScript SDK regeneration
+  crashes. The failure leaves `aspire.config.json` pointing at 13.4 packages
+  while the CLI is still 13.3.x, which also breaks `aspire run` and
+  `aspire restore` until you finish the upgrade with `aspire update --self`.
+
+  Follow the steps below in order — `aspire update --self` first, then
+  `aspire update`. See [microsoft/aspire#17077](https://github.com/microsoft/aspire/issues/17077)
+  for background.
+</Aside>
+
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
 
 The easiest way to upgrade to Aspire 13.4 is using the [`aspire update` command](/reference/cli/commands/aspire-update/):
@@ -97,11 +117,13 @@ Or install the CLI from scratch:
 
 ## 🌐 TypeScript AppHost general availability
 
-TypeScript AppHost support is now generally available. You can author Aspire app models in `apphost.ts` as a first-class AppHost experience, with the same code-first orchestration model used by C# AppHosts and a generated TypeScript SDK for Aspire resources and integrations.
+TypeScript AppHost support is now generally available. You can author Aspire app models in `apphost.mts` as a first-class AppHost experience, with the same code-first orchestration model used by C# AppHosts and a generated TypeScript SDK for Aspire resources and integrations.
 
-Aspire 13.4 strengthens the TypeScript experience by validating TypeScript AppHosts before startup, so type-checking and compile errors fail early instead of surfacing after the application starts. The generated TypeScript SDK also includes fixes for name collisions, inherited resource type exports, Docker service config/secret/ulimit reference exports, exact-target export shadowing across integrations, and builder and callback generation.
+Aspire 13.4 strengthens the TypeScript experience by validating TypeScript AppHosts before startup, so type-checking and compile errors fail early instead of surfacing after the application starts. New TypeScript AppHosts use the explicit ES module entry point `apphost.mts`, generated SDK modules are consolidated under `.aspire/modules/`, and `aspire init --language typescript` creates a nested `aspire-apphost/` package when run in an existing JavaScript or TypeScript app. The generated TypeScript SDK also includes fixes for name collisions, inherited resource type exports, Docker service config/secret/ulimit reference exports, exact-target export shadowing across integrations, and builder and callback generation.
 
-The documentation now treats TypeScript AppHosts as a first-class peer to C# AppHosts: AppHost-focused guides and integration pages include TypeScript examples alongside C# where the API is available. The release also adds a new set of TypeScript samples so you can start from working `apphost.ts` projects instead of translating from C#.
+The documentation now treats TypeScript AppHosts as a first-class peer to C# AppHosts: AppHost-focused guides and integration pages include TypeScript examples alongside C# where the API is available. The release also adds a new set of TypeScript samples so you can start from working `apphost.mts` projects instead of translating from C#.
+
+Existing TypeScript AppHosts scaffolded by earlier CLI versions (using `apphost.ts` and `./.modules/aspire.js`) continue to work on 13.4 without changes — the CLI transparently routes generated SDK files to the legacy `./.modules/` folder and rewrites them to `.ts`/`.js` so existing imports resolve. See [Legacy `apphost.ts` projects (pre-13.4)](/app-host/typescript-apphost/#legacy-apphostts-projects-pre-134) for details and an opt-in migration to the new `apphost.mts` layout.
 
 <LearnMore>
   For setup details, see [TypeScript AppHosts](/app-host/typescript-apphost/).
@@ -211,8 +233,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -374,7 +396,7 @@ Aspire is built in the open, and this release wouldn't be what it is without you
 
 <Steps>
 
-1. **Update the CLI** — run `aspire update --self`.
+1. **Update the CLI** — run `aspire update --self`. This step is **required** for TypeScript AppHosts; running `aspire update` against a 13.3.x TypeScript project before updating the CLI fails with `No code generator found for language: TypeScript` and leaves the project in a partially-upgraded, unrunnable state (see [microsoft/aspire#17077](https://github.com/microsoft/aspire/issues/17077)).
 2. **Update your projects** — run `aspire update` from the root of your repository.
 3. **Run `aspire doctor`** to check your environment setup.
 4. **Audit scripts and CI** for `aspire exec` and non-interactive `aspire update` calls.

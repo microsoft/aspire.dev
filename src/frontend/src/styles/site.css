@@ -1042,6 +1042,12 @@ li a.external-link::after {
 
 :root {
   --sl-content-width: 68rem;
+  /* Width (and height) of the floating sidebar collapse/expand toggle.
+     Shared between Sidebar.astro (button size) and the mobile TOC
+     summary padding shift below so the two stay in lock-step if the
+     toggle is ever resized. The toggle is currently a square button,
+     so the same value drives both axes. */
+  --aspire-sidebar-toggle-width: 3rem;
 }
 
 :root:has(.topics-sidebar[data-topic-nav]) {
@@ -1260,6 +1266,76 @@ li a.external-link::after {
   }
 }
 
+/* Topic-nav rail mode at 50rem–71.999rem.
+   The persistent sidebar (and therefore the collapse/expand toggle) is
+   visible on `[data-topic-nav]` pages from 50rem upward, so clicking
+   the toggle needs to drive the same rail-mode visuals here that the
+   `@media (min-width: 72rem)` block applies higher up. Each rule is
+   the topic-nav half of a comma-separated selector in that block; the
+   `--sl-sidebar-width: 5rem` shrinker is scoped to topic-nav only so
+   it can't bleed onto API-ref pages (which stay in mobile-overlay
+   mode below 72rem and would otherwise get a 5rem-wide overlay). */
+@media (min-width: 50rem) and (max-width: 71.999rem) {
+  :root:has(.topics-sidebar[data-topic-nav])[data-topic-sidebar-collapsed] {
+    --sl-sidebar-width: 5rem;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar {
+    background: var(--sl-color-bg-nav);
+    border-inline-end: 1px solid var(--sl-color-gray-5);
+    scrollbar-gutter: auto;
+    overflow-y: hidden;
+  }
+
+  :root[data-topic-sidebar-collapsed]
+    .topics-sidebar[data-topic-nav]
+    > *:not(.topic-sidebar-sticky):not(.divider):not(.sidebar-bottom) {
+    display: none !important;
+  }
+
+  :root[data-topic-sidebar-collapsed]
+    .topics-sidebar[data-topic-nav]
+    .topic-sidebar-sticky
+    > *:not(.starlight-sidebar-topics) {
+    display: none !important;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .starlight-sidebar-topics
+    a {
+    justify-content: center;
+    gap: 0;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .starlight-sidebar-topics
+    a
+    > div:not(.starlight-sidebar-topics-icon),
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .sidebar-bottom
+    .sl-link-button
+    > span {
+    display: none;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .sidebar-bottom
+    .sl-link-button {
+    justify-content: center;
+    gap: 0;
+  }
+
+  :root[data-topic-sidebar-expanding]:has(.topics-sidebar[data-topic-nav])
+    .topics-sidebar[data-topic-nav]
+    .sidebar-filter,
+  :root[data-topic-sidebar-expanding]:has(.topics-sidebar[data-topic-nav])
+    .topics-sidebar[data-topic-nav]
+    > *:not(.topic-sidebar-sticky):not(.divider):not(.sidebar-bottom) {
+    animation: aspire-sidebar-blur-in 0.28s ease-out both;
+    will-change: filter, opacity;
+  }
+}
+
 /* API reference: keep mobile sidebar until 72rem (40rem sidebar is too wide for 50rem breakpoint) */
 @media (min-width: 50rem) and (max-width: 71.999rem) {
   /* Reset content offset — no fixed sidebar in this range for API ref */
@@ -1358,6 +1434,29 @@ it configures at which point the mobile toc should be replaced with the normal t
 
   :root[data-has-toc] .content-panel > .sl-container {
     margin-inline: 0;
+  }
+
+  /* The sidebar collapse/expand toggle (.sidebar-collapse-btn /
+     .sidebar-expand-btn) is repositioned into this same row by
+     Sidebar.astro at this breakpoint and shares the sidebar's
+     right-edge X coordinate with the mobile TOC summary. Push the
+     dropdown content right by the toggle's width so the
+     "On this page > <current heading>" trigger no longer renders
+     underneath the toggle. */
+  :root[data-has-toc] mobile-starlight-toc summary {
+    padding-inline-start: calc(1rem + var(--aspire-sidebar-toggle-width));
+  }
+}
+
+/* Topic-nav pages only: at 50rem–71.999rem the persistent sidebar (and
+   therefore the toggle) is still visible (see Sidebar.astro), and
+   Starlight's default mobile TOC bar is visible too. Apply the same
+   "shift the summary right by the toggle's width" rule as the
+   72–99.999rem block does, but scoped to `[data-topic-nav]` because
+   API-ref pages have the toggle hidden in this range. */
+@media (min-width: 50rem) and (max-width: 71.999rem) {
+  :root[data-has-toc]:has(.topics-sidebar[data-topic-nav]) mobile-starlight-toc summary {
+    padding-inline-start: calc(1rem + var(--aspire-sidebar-toggle-width));
   }
 }
 
