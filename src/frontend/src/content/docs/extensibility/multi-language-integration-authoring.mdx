@@ -343,66 +343,58 @@ DTOs should only contain properties that can be serialized to and from JSON. Avo
 
 ### Collection properties in DTOs
 
-DTO collection properties (such as `List<T>`, `IList<T>`, `IEnumerable<T>`, arrays, or `Dictionary<string, T>`) are generated as **value-shaped JSON types** in all guest SDKs. This means guest code can supply plain collection literals directly rather than constructing handle-backed wrapper objects.
+DTO collection properties (such as `List<T>`, `IList<T>`, `IEnumerable<T>`, arrays, or `Dictionary<string, T>`) are generated as **value-shaped JSON types** in supported guest SDKs. This means guest code can supply plain collection literals directly rather than constructing handle-backed wrapper objects.
 
-For example, a DTO that accepts a list of address prefixes:
+For example, a DTO that accepts address prefix and fully qualified domain name collections:
 
-```csharp title="C# — AzureNspAccessRule.cs"
+```csharp title="C# — MyAccessRule.cs"
 [AspireDto]
-public sealed class AzureNspAccessRule
+public sealed class MyAccessRule
 {
-    public List<string>? AddressPrefixes { get; set; }
-    public List<string>? FullyQualifiedDomainNames { get; set; }
+    public List<string> AddressPrefixes { get; init; } = [];
+    public List<string> FullyQualifiedDomainNames { get; init; } = [];
 }
 ```
 
-Generates value-shaped types in each language:
+Guest SDKs expose the collection values using each language's ordinary collection shape:
 
 <Tabs>
 <TabItem label="TypeScript">
 
 ```typescript title="TypeScript — apphost.ts"
-addMyResource({
-    accessRules: [
-        {
-            addressPrefixes: ["203.0.113.0/24", "198.51.100.0/24"],
-            fullyQualifiedDomainNames: ["example.com"],
-        }
-    ]
-});
+const rule: MyAccessRule = {
+  addressPrefixes: ['203.0.113.0/24', '198.51.100.0/24'],
+  fullyQualifiedDomainNames: ['example.com'],
+};
 ```
 
 </TabItem>
 <TabItem label="Python">
 
 ```python title="Python — apphost.py"
-add_my_resource(
-    access_rules=[
-        AzureNspAccessRule(
-            address_prefixes=["203.0.113.0/24", "198.51.100.0/24"],
-            fully_qualified_domain_names=["example.com"],
-        )
-    ]
-)
+rule: MyAccessRule = {
+    "AddressPrefixes": ["203.0.113.0/24", "198.51.100.0/24"],
+    "FullyQualifiedDomainNames": ["example.com"],
+}
 ```
 
 </TabItem>
 <TabItem label="Go">
 
 ```go title="Go — apphost.go"
-AddMyResource(AspireNspAccessRule{
+rule := &aspire.MyAccessRule{
     AddressPrefixes:           []string{"203.0.113.0/24", "198.51.100.0/24"},
     FullyQualifiedDomainNames: []string{"example.com"},
-})
+}
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java title="Java — AppHost.java"
-addMyResource(new AzureNspAccessRule()
-    .setAddressPrefixes(List.of("203.0.113.0/24", "198.51.100.0/24"))
-    .setFullyQualifiedDomainNames(List.of("example.com")));
+var rule = new MyAccessRule();
+rule.setAddressPrefixes(java.util.List.of("203.0.113.0/24", "198.51.100.0/24"));
+rule.setFullyQualifiedDomainNames(java.util.List.of("example.com"));
 ```
 
 </TabItem>
