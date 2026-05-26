@@ -3,7 +3,7 @@ title: サービス検出
 description: Aspire における重要なサービス検出の概念を理解します。
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 サービス検出は、サービス同士が互いを見つけるための仕組みです。`http://localhost:5001` のような URL をハードコーディングする代わりに、フロントエンドは `catalog` サービスを名前で参照するだけで、実際のアドレス解決は Aspire が担当します。
 
@@ -26,6 +26,9 @@ import { Aside } from '@astrojs/starlight/components';
 
 サービス検出用の構成は、あるプロジェクトから参照されているサービスに対してのみ追加されます。たとえば、次の AppHost プログラムを見てみましょう。
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -36,6 +39,27 @@ var frontend = builder.AddProject<Projects.MyFrontend>("frontend")
                       .WithReference(basket)
                       .WithReference(catalog);
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addProject("catalog", "./CatalogService/CatalogService.csproj");
+const basket = await builder.addProject("basket", "./BasketService/BasketService.csproj");
+
+const frontend = await builder.addProject("frontend", "./MyFrontend/MyFrontend.csproj")
+    .withReference(basket)
+    .withReference(catalog);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 この例では、_frontend_ プロジェクトが _catalog_ プロジェクトと _basket_ プロジェクトを参照しています。2 つの `WithReference` 呼び出しは、Aspire に次のことを指示します。
 
@@ -50,6 +74,9 @@ var frontend = builder.AddProject<Projects.MyFrontend>("frontend")
 
 一部のサービスは、複数の「名前付きエンドポイント」を公開します。名前付きエンドポイントは、HTTP リクエスト URI のホスト部分にエンドポイント名を指定することで解決できます。形式は `scheme://_endpointName.serviceName` です。たとえば、「basket」という名前のサービスが「dashboard」というエンドポイントを公開している場合、`https+http://_dashboard.basket` という URI でそのエンドポイントを指定できます:
 
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
+
 ```csharp
 builder.Services.AddHttpClient<BasketServiceClient>(
     static client => client.BaseAddress = new("https+http://basket"));
@@ -57,6 +84,69 @@ builder.Services.AddHttpClient<BasketServiceClient>(
 builder.Services.AddHttpClient<BasketServiceDashboardClient>(
     static client => client.BaseAddress = new("https+http://_dashboard.basket"));
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+package main
+
+import (
+    "net/http"
+    "os"
+)
+
+func main() {
+    // Aspire は環境変数としてエンドポイント URL を注入します。
+    // 変数名を組み立てるにはサービス名を使用します。
+    basketURL := os.Getenv("services__basket__https__0")
+    dashboardURL := os.Getenv("services__basket__dashboard__0")
+    _ = dashboardURL
+
+    // 解決された URL を直接使用します
+    resp, err := http.Get(basketURL + "/api/items")
+    if err != nil {
+         panic(err)
+     }
+     defer resp.Body.Close()
+    // ...
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+import asyncio
+import os
+import httpx
+
+async def main():
+    # Aspire は環境変数としてエンドポイント URL を注入します。
+    # 変数名を組み立てるにはサービス名を使用します。
+    basket_url = os.getenv("services__basket__https__0")
+    dashboard_url = os.getenv("services__basket__dashboard__0")
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{basket_url}/api/items")
+
+asyncio.run(main())
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+// Aspire は環境変数としてエンドポイント URL を注入します。
+// 変数名を組み立てるにはサービス名を使用します。
+const basketUrl = process.env.services__basket__https__0;
+const dashboardUrl = process.env.services__basket__dashboard__0;
+
+const response = await fetch(`${basketUrl}/api/items`);
+```
+
+</TabItem>
+</Tabs>
 
 この例では、basket サービス用と、basket サービスのダッシュボード用の 2 つの `HttpClient` クラスが追加されています。
 
@@ -84,10 +174,24 @@ builder.Services.AddHttpClient<BasketServiceDashboardClient>(
 
 名前付きエンドポイントは、AppHost のコードから公開することもできます。たとえば、先ほどの例は次のように表現できます。
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 var basket = builder.AddProject<Projects.BasketService>("basket")
     .WithHttpsEndpoint(port: 9999, name: "dashboard");
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+const basket = await builder.addProject("basket", "./BasketService/BasketService.csproj")
+    .withHttpsEndpoint({ port: 9999, name: "dashboard" });
+```
+
+</TabItem>
+</Tabs>
 
 ### DNS SRV を使用した Kubernetes 上の名前付きエンドポイント
 
@@ -111,10 +215,46 @@ spec:
 
 「basket」サービスの「dashboard」エンドポイントを解決するように構成するには、次のように DNS SRV サービス エンドポイント リゾルバーをホスト ビルダーに追加します。
 
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
+
 ```csharp
 builder.Services.AddServiceDiscoveryCore();
 builder.Services.AddDnsSrvServiceEndpointProvider();
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+// Go では、DNS SRV ルックアップを使用してサービス エンドポイントを解決します
+import "net"
+
+_, addrs, err := net.LookupSRV("default", "tcp", "basket")
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+# Python では、SRV レコードのルックアップに dnspython を使用します
+import dns.resolver
+
+answers = dns.resolver.resolve("_default._tcp.basket", "SRV")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+// Node.js では、SRV ルックアップに dns モジュールを使用します
+import { resolveSrv } from 'node:dns/promises';
+
+const records = await resolveSrv('_default._tcp.basket');
+```
+
+</TabItem>
+</Tabs>
 
 詳しくは、`AddServiceDiscoveryCore` および `AddDnsSrvServiceEndpointProvider` をご参照ください。
 
@@ -122,17 +262,77 @@ builder.Services.AddDnsSrvServiceEndpointProvider();
 
 先ほどと同様に、バスケット サービス用の `HttpClient` にサービス ディスカバリーを追加するには、次のようにします:
 
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
+
 ```csharp
 builder.Services.AddHttpClient<BasketServiceClient>(
     static client => client.BaseAddress = new("https://basket"));
 ```
 
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+basketURL := os.Getenv("services__basket__https__0")
+resp, err := http.Get(basketURL + "/api/items")
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+basket_url = os.getenv("services__basket__https__0")
+response = await client.get(f"{basket_url}/api/items")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+const basketUrl = process.env.services__basket__https__0;
+const response = await fetch(`${basketUrl}/api/items`);
+```
+
+</TabItem>
+</Tabs>
+
 同様に、「dashboard」エンドポイントは次のように指定できます。
+
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
 
 ```csharp
 builder.Services.AddHttpClient<BasketServiceDashboardClient>(
     static client => client.BaseAddress = new("https://_dashboard.basket"));
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+dashboardURL := os.Getenv("services__basket__dashboard__0")
+resp, err := http.Get(dashboardURL + "/api/stats")
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+dashboard_url = os.getenv("services__basket__dashboard__0")
+response = await client.get(f"{dashboard_url}/api/stats")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+const dashboardUrl = process.env.services__basket__dashboard__0;
+const response = await fetch(`${dashboardUrl}/api/stats`);
+```
+
+</TabItem>
+</Tabs>
 
 ## トラブルシューティング
 
@@ -147,11 +347,26 @@ builder.Services.AddHttpClient<BasketServiceDashboardClient>(
 
 **対処方法**: AppHost でサービス同士が接続されていることを確認します。
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 var api = builder.AddProject<Projects.Api>("api");
 var frontend = builder.AddProject<Projects.Frontend>("frontend")
-  .WithReference(api);  // ← これが必要です
+    .WithReference(api);  // ← これが必要です
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+const api = await builder.addProject("api", "./Api/Api.csproj");
+const frontend = await builder.addProject("frontend", "./Frontend/Frontend.csproj")
+    .withReference(api);  // ← これは必須です！
+```
+
+</TabItem>
+</Tabs>
 
 ### 名前付きエンドポイントを解決できない
 
@@ -159,16 +374,57 @@ var frontend = builder.AddProject<Projects.Frontend>("frontend")
 
 **対処方法**: AppHost でそのエンドポイントに名前が設定されていることを確認します。
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 var api = builder.AddProject<Projects.Api>("api")
-  .WithHttpEndpoint(port: 9999, name: "dashboard");  // ← 名前を一致させる
+    .WithHttpEndpoint(port: 9999, name: "dashboard");  // ← 名前を一致させる
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+const api = await builder.addProject("api", "./Api/Api.csproj")
+    .withHttpEndpoint({ port: 9999, name: "dashboard" });  // ← 名前は一致させる必要があります
+```
+
+</TabItem>
+</Tabs>
+
 次に、アンダースコア付きプレフィックスで正確に指定します。
+
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
 
 ```csharp
 client.BaseAddress = new("https://_dashboard.api");
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+dashboardURL := os.Getenv("services__api__dashboard__0")
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+dashboard_url = os.getenv("services__api__dashboard__0")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+const dashboardUrl = process.env.services__api__dashboard__0;
+```
+
+</TabItem>
+</Tabs>
 
 ### URI 形式を理解する
 

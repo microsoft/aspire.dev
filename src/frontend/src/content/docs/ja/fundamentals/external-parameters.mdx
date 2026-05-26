@@ -3,7 +3,7 @@ title: 外部パラメーター
 description: シークレット、接続文字列、その他の環境ごとに異なる可能性のある構成値などのパラメーターを表現する方法を学びます。
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import dashboardUnresolvedParams from '@assets/fundamentals/dashboard-unresolved-parameters-message.png';
 import customizedParameterUi from '@assets/fundamentals/customized-parameter-ui.png';
@@ -16,6 +16,9 @@ import customizedParameterUi from '@assets/fundamentals/customized-parameter-ui.
 
 以下の AppHost の _AppHost.cs_ ファイルの例をご覧ください:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -25,6 +28,26 @@ var parameter = builder.AddParameter("example-parameter-name");
 builder.AddProject<Projects.ApiService>("api")
        .WithEnvironment("ENVIRONMENT_VARIABLE_NAME", parameter);
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// "example-parameter-name" という名前のパラメーターを追加
+const parameter = await builder.addParameter("example-parameter-name");
+
+await builder.addProject("api", "./ApiService/ApiService.csproj")
+    .withEnvironment("ENVIRONMENT_VARIABLE_NAME", parameter);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 上記のコードでは、AppHost に `example-parameter-name` という名前のパラメーターを追加しています。このパラメーターは、`Projects.ApiService` プロジェクトに対して `ENVIRONMENT_VARIABLE_NAME` という名前の環境変数として渡されます。
 
@@ -44,12 +67,30 @@ builder.AddProject<Projects.ApiService>("api")
 
 上記の JSON では、AppHost 構成の `Parameters` セクションにパラメーターを設定しています。つまり、この AppHost は構成済みのパラメーターを参照できます。たとえば、`IDistributedApplicationBuilder.Configuration` にアクセスし、`Parameters:example-parameter-name` キーを使用して値を取得できます:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 var builder = DistributedApplication.CreateBuilder(args);
 
 var key = $"Parameters:example-parameter-name";
 var value = builder.Configuration[key]; // value = "local-value"
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const key = "Parameters:example-parameter-name";
+// 構成へのアクセスは Aspire ランタイムによって内部的に処理されます
+```
+
+</TabItem>
+</Tabs>
 
 <Aside type="caution">
   ただし、AppHost 内でこの構成値を自分で取得する必要はありません。
@@ -70,6 +111,9 @@ var value = builder.Configuration[key]; // value = "local-value"
 
 以下の AppHost の _AppHost.cs_ ファイルの例をご覧ください:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -81,6 +125,26 @@ builder.AddContainerRegistry("container-registry", endpoint, repository);
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// コンテナー レジストリ パラメーターを定義
+const endpoint = await builder.addParameter("registry-endpoint");
+const repository = await builder.addParameter("registry-repository");
+
+await builder.addContainerRegistry("container-registry", endpoint, repository);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 これらのパラメーターは、次の環境変数によって指定できます:
 
@@ -138,20 +202,23 @@ Aspire は、次の順序でパラメーター値を解決します:
 
 以下のコードは、説明を設定し、コールバックを使用する方法を示しています:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 #pragma warning disable ASPIREINTERACTION001 // この型は評価目的のものであり、将来の更新で変更または削除される可能性があります。この診断を抑制して続行してください。
 var externalServiceUrl = builder.AddParameter("external-service-url")
-  .WithDescription("The URL of the external service. See [example.com](https://example.com) for details.", enableMarkdown: true)
+    .WithDescription("The URL of the external service. See [example.com](https://example.com) for details.", enableMarkdown: true)
     .WithCustomInput(p => new()
     {
         InputType = InputType.Text,
         Value = "https://example.com",
         Name = p.Name,
         Placeholder = $"Enter value for {p.Name}",
-    Description = p.Description,
-    EnableDescriptionMarkdown = p.EnableDescriptionMarkdown
+        Description = p.Description,
+        EnableDescriptionMarkdown = p.EnableDescriptionMarkdown
     });
 var externalService = builder.AddExternalService("external-service", externalServiceUrl);
 #pragma warning restore ASPIREINTERACTION001
@@ -165,6 +232,16 @@ builder.Build().Run();
   src={customizedParameterUi}
   alt="カスタマイズされたパラメーター入力ダイアログが表示されている Aspire ダッシュボードのスクリーンショット。"
 />
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+:::note
+`withDescription` と `withCustomInput` API は、TypeScript AppHost SDK ではまだ利用できません。
+:::
+
+</TabItem>
+</Tabs>
 
 <Aside type="caution" title="WithCustomInput は実験的な API です">
   `WithCustomInput` メソッドは実験的な対話サービス API を使用しており、`[Experimental("ASPIREINTERACTION001")]` 属性でマークされています。`TreatWarningsAsErrors` を有効にしている場合 (または警告なしのビルドを維持したい場合)、API を使用する際に `#pragma warning disable ASPIREINTERACTION001` でこの警告を抑制してください。`WithDescription` メソッドは _実験的ではなく_、この pragma は不要です。診断の詳細および他の抑制方法については、[ASPIREINTERACTION001](/ja/diagnostics/aspireinteraction001/) を参照してください。
@@ -187,6 +264,9 @@ builder.Build().Run();
 
 以下の AppHost の _AppHost.cs_ ファイルの例をご覧ください:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -198,6 +278,26 @@ builder.AddProject<Projects.ApiService>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// "secret" という名前のシークレット パラメーターを追加
+const secret = await builder.addParameter("secret", { secret: true });
+
+await builder.addProject("api", "./ApiService/ApiService.csproj")
+    .withEnvironment("SECRET", secret);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 次に、以下の AppHost 構成ファイル _appsettings.json_ をご覧ください:
 
@@ -231,6 +331,10 @@ builder.Build().Run();
 ## 構成からパラメーターを追加する
 
 特定のシナリオでは、標準の `Parameters:*` パターンに従うのではなく、特定の構成キーから直接パラメーター値を読み取りたい場合があります。`AddParameterFromConfiguration` メソッドを使用すると、パラメーターに対してカスタムの構成キーを指定できます。
+
+<Aside type="note">
+`addParameterFromConfiguration` API は、TypeScript AppHost SDK ではまだ利用できません。
+</Aside>
 
 ### API シグネチャ
 
@@ -299,6 +403,9 @@ builder.Build().Run();
 
 以下の AppHost の _AppHost.cs_ ファイルの例をご覧ください:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -310,6 +417,25 @@ builder.AddProject<Projects.WebApplication>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const redis = await builder.addConnectionString("redis");
+
+await builder.addProject("api", "./WebApplication/WebApplication.csproj")
+    .withReference(redis);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <Aside type="note">
   接続文字列に対して `WaitFor` を使用すると、その接続先となるリソースの起動を
@@ -344,6 +470,10 @@ builder.AddProject<Projects.AspireReferenceExpressions_CatalogAPI>("catalogapi")
        .WaitFor(connectionString);
 ```
 
+<Aside type="note">
+`ReferenceExpression` API は、TypeScript AppHost SDK ではまだ利用できません。
+</Aside>
+
 また、Aspire リソースによって作成された接続文字列にテキストを追加するために、参照式を使用することもできます。たとえば、Aspire ソリューションに PostgreSQL リソースを追加すると、データベース サーバーはコンテナー内で実行され、そのための接続文字列が生成されます。次のコードでは、その接続文字列に `Include Error Details` という追加プロパティを付与してから、利用するプロジェクトに渡しています:
 
 ```csharp title="AppHost.cs"
@@ -363,6 +493,9 @@ builder.AddProject<Projects.AspireReferenceExpressions_CustomerAPI>("customerapi
 
 パラメーターを表現する例として、次のコードをご覧ください:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -378,6 +511,29 @@ builder.AddProject<Projects.Parameters_ApiService>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const db = (await builder.addSqlServer("sql"))
+    .addDatabase("db");
+
+const insertionRows = await builder.addParameter("insertionRows");
+
+await builder.addProject("api", "./Parameters.ApiService/Parameters.ApiService.csproj")
+    .withEnvironment("InsertionRows", insertionRows)
+    .withReference(db);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 この例では、次の処理を行っています:
 
@@ -410,6 +566,9 @@ builder.Build().Run();
 ```
 
 `Parameters_ApiService` プロジェクトは `insertionRows` パラメーターを利用します。以下は Program.cs の例です:
+
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
 
 ```csharp title="Program.cs"
 using Microsoft.EntityFrameworkCore;
@@ -449,3 +608,92 @@ app.MapGet("/", async (MyDbContext context) =>
 
 app.Run();
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+package main
+
+import (
+    "database/sql"
+    "fmt"
+    "net/http"
+    "os"
+    "strconv"
+)
+
+func main() {
+    insertionRows, _ := strconv.Atoi(os.Getenv("InsertionRows"))
+    if insertionRows == 0 {
+        insertionRows = 1
+    }
+
+    connStr := os.Getenv("ConnectionStrings__db")
+
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        db, _ := sql.Open("sqlserver", connStr)
+        defer db.Close()
+
+        for i := 0; i < insertionRows; i++ {
+            db.Exec("INSERT INTO Entries DEFAULT VALUES")
+        }
+
+        rows, _ := db.Query("SELECT COUNT(*) FROM Entries")
+        var count int
+        rows.Next()
+        rows.Scan(&count)
+
+        fmt.Fprintf(w, `{"totalEntries": %d}`, count)
+    })
+
+    http.ListenAndServe(":8080", nil)
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+import os
+from fastapi import FastAPI
+
+app = FastAPI()
+
+insertion_rows = int(os.getenv("InsertionRows", "1"))
+conn_str = os.getenv("ConnectionStrings__db")
+
+@app.get("/")
+async def root():
+    # conn_str を使ってデータベースに接続
+    # insertion_rows 件のエントリを挿入
+    # 合計件数を返す
+    return {
+        "totalEntries": insertion_rows,
+    }
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — index.ts"
+import express from 'express';
+
+const app = express();
+const insertionRows = parseInt(process.env.InsertionRows ?? '1', 10);
+const connStr = process.env.ConnectionStrings__db;
+
+app.get('/', async (req, res) => {
+    // connStr を使ってデータベースに接続
+    // insertionRows 件のエントリを挿入
+    // 合計件数を返す
+    res.json({
+        totalEntries: insertionRows,
+    });
+});
+
+app.listen(8080);
+```
+
+</TabItem>
+</Tabs>
