@@ -342,9 +342,19 @@ The helper methods run these commands:
 
 When multiple module helpers are configured, Aspire orders them so dependency-changing steps complete before later module cache or vendor steps.
 
-## Debug Go apps with Delve
+## Debug Go apps
 
-Go app resources enable VS Code Go debugging support by default. Install the [Go extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=golang.go), then use the normal Aspire debugging workflow.
+### VS Code debugging
+
+Go app resources automatically support VS Code debugging when the [Go extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=golang.go) (`golang.go`) is installed.
+
+The Aspire VS Code extension detects the `golang.go` extension and, when you start your AppHost in debug mode, launches the Go debugger via `dlv-dap`. No additional configuration is required beyond `AddGoApp` / `addGoApp`. Any `buildTags`, `ldFlags`, or `gcFlags` configured on the resource are automatically forwarded to Delve as build flags, so the debugger compiles your program with the same flags used during normal development.
+
+:::note
+When `WithDelveServer` / `withDelveServer` is applied to a resource, VS Code debugging is disabled for that resource. The two modes are mutually exclusive: `WithDelveServer` starts a headless Delve server that an IDE attaches to manually, while VS Code debugging hands control of launch and build to the `golang.go` extension.
+:::
+
+### Headless Delve server
 
 For GoLand, VS Code attach mode, or another Delve-compatible client, use `WithDelveServer` / `withDelveServer`. This replaces the application command with a headless Delve server, such as `dlv --headless=true --listen=127.0.0.1:2345 --api-version=2 debug .`.
 
