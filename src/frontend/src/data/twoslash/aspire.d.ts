@@ -797,44 +797,10 @@ export interface YarpWebProxyConfig {
 
 // ---- handle types ----
 /**
- * Handle Aspire.Hosting.Publishing.AfterPublishEvent
- */
-
-export interface AfterPublishEvent extends IDistributedApplicationEvent {
-  /**
-   * Gets the Model property
-   */
-
-  model: PropertyAccessor<DistributedApplicationModel>;
-  /**
-   * Gets the Services property
-   */
-
-  services: PropertyAccessor<IServiceProvider>;
-}
-
-/**
  * Handle Aspire.Hosting.ApplicationModel.AfterResourcesCreatedEvent
  */
 
 export interface AfterResourcesCreatedEvent extends IDistributedApplicationEvent {
-  /**
-   * Gets the Model property
-   */
-
-  model: PropertyAccessor<DistributedApplicationModel>;
-  /**
-   * Gets the Services property
-   */
-
-  services: PropertyAccessor<IServiceProvider>;
-}
-
-/**
- * Handle Aspire.Hosting.Publishing.BeforePublishEvent
- */
-
-export interface BeforePublishEvent extends IDistributedApplicationEvent {
   /**
    * Gets the Model property
    */
@@ -2542,16 +2508,6 @@ export interface EventingSubscriberRegistrationContext {
    */
 
   onAfterResourcesCreated(callback: (arg: AfterResourcesCreatedEvent) => Promise<void>): DistributedApplicationEventSubscription;
-  /**
-   * Subscribes an eventing subscriber to the AfterPublish event
-   */
-
-  onAfterPublish(callback: (arg: AfterPublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
-  /**
-   * Subscribes an eventing subscriber to the BeforePublish event
-   */
-
-  onBeforePublish(callback: (arg: BeforePublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
   /**
    * Subscribes an eventing subscriber to the BeforeStart event
    */
@@ -9451,16 +9407,6 @@ export interface YarpRoute {
 // ---- target-type interfaces (resource/builder APIs) ----
 // augments handle type IDistributedApplicationBuilder with extension methods
 export interface IDistributedApplicationBuilder {
-  /**
-   * Subscribes to the AfterPublish event
-   */
-
-  subscribeAfterPublish(callback: (arg: AfterPublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
-  /**
-   * Subscribes to the BeforePublish event
-   */
-
-  subscribeBeforePublish(callback: (arg: BeforePublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
   /**
    * Adds the shared Azure environment resource to the application model
    */
