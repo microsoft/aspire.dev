@@ -42,6 +42,29 @@ When a `.sln` or `.slnx` is present, the C# option creates a **project-based App
 
 In all cases, the AppHost language does not limit what you can orchestrate — C#, JavaScript, Python, Go, Rust, Java, containers, and more can all be modeled in the same application model.
 
+### Channel persistence in aspire.config.json
+
+When `aspire init` runs with an explicit, non-stable channel (such as `daily`, `staging`, or a `pr-<N>` build), it writes a top-level `channel` key into the generated `aspire.config.json`. This ensures that subsequent commands — `aspire add`, `aspire update`, and others — resolve packages and templates against the same channel the project was initialized with, rather than falling back to the implicit stable default.
+
+For example, running a daily CLI build produces:
+
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.cs"
+  },
+  "channel": "daily",
+  "profiles": {
+    "https": { },
+    "http":  { }
+  }
+}
+```
+
+If `aspire.config.json` already contains a `channel` value (for example, because you edited it manually or migrated from an older project), the value is preserved and not overwritten.
+
+Only channels that are registered as _explicit_ in the packaging service are persisted; the implicit stable default is intentionally not pinned so it remains portable across environments.
+
 ### The aspireify skill
 
 After the skeleton is dropped, `aspire init` has an option to install the `aspireify` skill into your AI agent's skill directory (the same directory used by `aspire agent init`). The skill is a Markdown file with instructions that guide your AI coding agent through completing the Aspire wiring for your specific codebase.
