@@ -194,15 +194,14 @@ When no `password` parameter is provided, Aspire generates a strong password aut
 
 ## Connect to an existing Elasticsearch instance
 
-In C#, call `AsExisting` instead of `AddElasticsearch` to reference an externally managed Elasticsearch instance:
+To reference an externally managed Elasticsearch instance instead of running one as a container, use `AddConnectionString`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var elasticsearch = builder.AddElasticsearch("elasticsearch")
-    .AsExisting(connectionStringParameter: builder.AddParameter("elasticsearch-cs", secret: true));
+var elasticsearch = builder.AddConnectionString("elasticsearch");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(elasticsearch);
@@ -211,7 +210,19 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-The TypeScript AppHost doesn't currently expose an `addElasticsearch(...)` API. To connect to an existing Elasticsearch instance from a TypeScript AppHost, use [`builder.addConnectionString(...)`](/get-started/app-host/) with a parameter and reference that connection string from your consuming apps instead.
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const elasticsearch = await builder.addConnectionString("elasticsearch");
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(elasticsearch);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
 </TabItem>
 </Tabs>
 

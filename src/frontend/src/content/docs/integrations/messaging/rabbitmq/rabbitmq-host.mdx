@@ -350,15 +350,14 @@ await builder.build().run();
 
 ## Connect to an existing RabbitMQ instance
 
-In C#, call `AsExisting` instead of `AddRabbitMQ` to reference an externally managed RabbitMQ instance:
+To reference an externally managed RabbitMQ instance instead of running one as a container, use `AddConnectionString`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var rabbitmq = builder.AddRabbitMQ("messaging")
-    .AsExisting(connectionStringParameter: builder.AddParameter("messaging-cs", secret: true));
+var rabbitmq = builder.AddConnectionString("messaging");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(rabbitmq);
@@ -367,7 +366,19 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-The TypeScript AppHost doesn't currently expose an `asExisting(...)` API for RabbitMQ. To connect to an existing RabbitMQ instance from a TypeScript AppHost, use [`builder.addConnectionString(...)`](/get-started/app-host/) with a parameter and reference that connection string from your consuming apps instead.
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const rabbitmq = await builder.addConnectionString("messaging");
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(rabbitmq);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
 </TabItem>
 </Tabs>
 
