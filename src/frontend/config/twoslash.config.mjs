@@ -85,13 +85,7 @@ export function readAspireTypes() {
  */
 export function getTwoslashExtraFiles() {
   const { source } = readAspireTypes();
-  return source
-    ? {
-        '.aspire/modules/aspire.mts': source,
-        // Keep historical snippets compiling if they import the old generated path.
-        '.modules/aspire.ts': source,
-      }
-    : {};
+  return source ? { '.aspire/modules/aspire.mts': source } : {};
 }
 
 /**
