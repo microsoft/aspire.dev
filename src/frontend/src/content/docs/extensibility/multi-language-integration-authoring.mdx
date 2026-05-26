@@ -45,7 +45,7 @@ Your C# code runs as-is — the TypeScript SDK is a thin client that calls into 
 The [`📦 Aspire.Hosting.Integration.Analyzers`](https://www.nuget.org/packages/Aspire.Hosting.Integration.Analyzers) package provides build-time validation that catches common export mistakes. Add it to your integration project:
 
 ```xml title="XML — MyIntegration.csproj"
-<PackageReference Include="Aspire.Hosting.Integration.Analyzers" Version="13.3.0">
+<PackageReference Include="Aspire.Hosting.Integration.Analyzers" Version="13.4.0">
     <PrivateAssets>all</PrivateAssets>
     <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
 </PackageReference>
@@ -115,16 +115,20 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const db = await builder
-    .addMyDatabase("db", { port: 5432 })
-    .addDatabase("mydata")
-    .withDataVolume();
+  .addMyDatabase('db', { port: 5432 })
+  .addDatabase('mydata')
+  .withDataVolume();
 
 const app = await builder.build();
 await app.run();
 ```
 
 <Aside type="tip" title="Naming convention">
-The export ID usually becomes the method name in generated SDKs. Use camelCase (e.g., `addMyDatabase`, `withDataVolume`), or set `MethodName` when the runtime capability ID and SDK method name need to differ. For static exports, the full capability ID is computed as `{AssemblyName}/{exportId}` — for example, `MyCompany.Hosting.MyDatabase/addMyDatabase`.
+  The export ID usually becomes the method name in generated SDKs. Use camelCase
+  (e.g., `addMyDatabase`, `withDataVolume`), or set `MethodName` when the
+  runtime capability ID and SDK method name need to differ. For static exports,
+  the full capability ID is computed as `{AssemblyName}/{exportId}` — for
+  example, `MyCompany.Hosting.MyDatabase/addMyDatabase`.
 </Aside>
 
 ### Document your exports
@@ -150,7 +154,7 @@ An empty `ats-*` tag intentionally suppresses the matching standard documentatio
 /// <returns>The Redis resource builder.</returns>
 [AspireExport("addRedis")]
 public static IResourceBuilder<RedisResource> AddRedis(
-    IDistributedApplicationBuilder builder,
+    this IDistributedApplicationBuilder builder,
     string name)
 {
     // ...
@@ -171,7 +175,7 @@ Use `<ats-see cref="!:kind:identifier.path" />` and `<ats-seealso cref="!:kind:i
 /// </remarks>
 [AspireExport("configureRedis")]
 public static IResourceBuilder<RedisResource> ConfigureRedis(
-    IDistributedApplicationBuilder builder,
+    this IDistributedApplicationBuilder builder,
     string name)
 {
     // ...
@@ -181,7 +185,7 @@ public static IResourceBuilder<RedisResource> ConfigureRedis(
 TypeScript renders these references as JSDoc `{@link ...}` links.
 
 :::note
-The `Description` property on `[AspireExport]` is still supported as a compatibility fallback, but new exports should use XML doc comments. The analyzer reports `ASPIREEXPORT015` when `Description` is set on a new export.
+The `Description` property on `[AspireExport]` is still supported as a compatibility fallback, but new exports should use XML doc comments. The analyzer reports `ASPIREEXPORT015` as an error when `Description` is set on a new export.
 :::
 
 ### Keep capability IDs unique
@@ -288,9 +292,9 @@ Generates the following TypeScript interface:
 
 ```typescript title="TypeScript — Generated interface"
 export interface MyCallbackContext {
-    toJSON(): MarshalledHandle;
-    resource(): Promise<IResourceHandle>;   // getter-only → async method
-    readonly tags: AspireList<string>;       // mutable collection → readonly getter
+  toJSON(): MarshalledHandle;
+  resource(): Promise<IResourceHandle>; // getter-only → async method
+  readonly tags: AspireList<string>; // mutable collection → readonly getter
 }
 ```
 
@@ -307,11 +311,11 @@ Prefer getter-only properties (`=> value;` or `{ get; }` without a setter) when 
 
 ## Callback context types and the ATS-first editor pattern
 
-When you export a method that accepts a callback (such as `withEnvironmentCallback`, `withArgsCallback`, or `withUrls`), the callback receives a *context* object. For TypeScript compatibility, context types should follow the ATS-first design:
+When you export a method that accepts a callback (such as `withEnvironmentCallback`, `withArgsCallback`, or `withUrls`), the callback receives a _context_ object. For TypeScript compatibility, context types should follow the ATS-first design:
 
 1. Use `[AspireExport]` (not `ExposeProperties = true`) on the context class.
 2. Annotate only the properties that TypeScript callers need with individual `[AspireExport]` attributes.
-3. For mutable state (environment variables, command-line arguments, URL lists), expose a small *editor* class rather than the raw collection.
+3. For mutable state (environment variables, command-line arguments, URL lists), expose a small _editor_ class rather than the raw collection.
 
 ### Defining an editor class
 
@@ -390,9 +394,9 @@ The generated TypeScript API accepts an async arrow function:
 
 ```typescript title="TypeScript — Consuming the callback API"
 await myResource.withMyCallback(async (context) => {
-    const resource = await context.resource();
-    const env = await context.environment();
-    await env.set("MY_KEY", "my-value");
+  const resource = await context.resource();
+  const env = await context.environment();
+  await env.set('MY_KEY', 'my-value');
 });
 ```
 
@@ -712,9 +716,10 @@ The `Aspire.Hosting.Integration.Analyzers` package reports these diagnostics:
 | ASPIREEXPORT011 | Warning  | Explicit export ID matches the convention-derived name                                      |
 | ASPIREEXPORT012 | Warning  | Callback context type missing `[AspireExport]`                                              |
 | ASPIREEXPORT013 | Warning  | Duplicate polyglot capability ID across exports in the same assembly                        |
-| ASPIREEXPORT015 | Warning  | `[AspireExport(Description = ...)]` is deprecated — use XML doc comments instead            |
+| ASPIREEXPORT015 | Error    | `[AspireExport(Description = ...)]` is deprecated — use XML doc comments instead            |
+| ASPIREEXPORT016 | Warning  | DTO property is a get-only mutable collection. Add an init accessor                         |
 
-A clean build with zero analyzer warnings means your integration is ready for multi-language use.
+A clean build with zero analyzer warnings or errors means your integration is ready for multi-language use.
 
 ## Local development with project references
 
@@ -790,19 +795,19 @@ When the CLI detects a `.csproj` path, it builds the project locally and generat
 
 The following types are ATS-compatible and can be used in exported method signatures:
 
-| Category        | Types                                                                                                |
-| --------------- | ---------------------------------------------------------------------------------------------------- |
-| **Primitives**  | `string`, `bool`, `int`, `long`, `float`, `double`, `decimal`                                        |
-| **Value types** | `DateTime`, `TimeSpan`, `Guid`, `Uri`                                                                |
-| **Enums**       | Any enum type                                                                                        |
-| **Handles**     | `IResourceBuilder<T>`, `IDistributedApplicationBuilder`, resource types marked with `[AspireExport]` |
-| **DTOs**        | Classes/structs marked with `[AspireDto]`                                                            |
-| **Exported values** | Static fields/properties marked with `[AspireValue]` (emitted as catalog constants in guest SDKs) |
-| **Collections** | `List<T>`, `Dictionary<string, T>`, arrays — where `T` is ATS-compatible                             |
-| **Delegates**   | `Action<T>`, `Func<T>`, and other delegate types (use `RunSyncOnBackgroundThread = true` for synchronous delegates invoked inline) |
-| **Services**    | `ILogger`, `IServiceProvider`, `IConfiguration` (already exported by the core framework)             |
-| **Special**     | `ParameterResource`, `ReferenceExpression`, `EndpointReference`, `IExpressionValue`, `CancellationToken` |
-| **Nullable**    | Any of the above as nullable (`T?`)                                                                  |
+| Category            | Types                                                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Primitives**      | `string`, `bool`, `int`, `long`, `float`, `double`, `decimal`                                                                      |
+| **Value types**     | `DateTime`, `TimeSpan`, `Guid`, `Uri`                                                                                              |
+| **Enums**           | Any enum type                                                                                                                      |
+| **Handles**         | `IResourceBuilder<T>`, `IDistributedApplicationBuilder`, resource types marked with `[AspireExport]`                               |
+| **DTOs**            | Classes/structs marked with `[AspireDto]`                                                                                          |
+| **Exported values** | Static fields/properties marked with `[AspireValue]` (emitted as catalog constants in guest SDKs)                                  |
+| **Collections**     | `List<T>`, `Dictionary<string, T>`, arrays — where `T` is ATS-compatible                                                           |
+| **Delegates**       | `Action<T>`, `Func<T>`, and other delegate types (use `RunSyncOnBackgroundThread = true` for synchronous delegates invoked inline) |
+| **Services**        | `ILogger`, `IServiceProvider`, `IConfiguration` (already exported by the core framework)                                           |
+| **Special**         | `ParameterResource`, `ReferenceExpression`, `EndpointReference`, `IExpressionValue`, `CancellationToken`                           |
+| **Nullable**        | Any of the above as nullable (`T?`)                                                                                                |
 
 Types that are **not** ATS-compatible include: interpolated string handlers and custom complex types without `[AspireExport]` or `[AspireDto]`.
 

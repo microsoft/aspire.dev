@@ -1,6 +1,7 @@
 ---
-title: Compiler Warning ASPIREEXPORT015
-description: Learn more about compiler Warning ASPIREEXPORT015. The Description property on [AspireExport] is deprecated in favor of XML doc comments.
+title: Compiler Error ASPIREEXPORT015
+seoTitle: 'ASPIREEXPORT015: AspireExport Description should use XML docs'
+description: Learn what causes the Aspire compiler error ASPIREEXPORT015 — AspireExport Description is compatibility metadata — and how to fix it.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -12,9 +13,9 @@ import { Badge } from '@astrojs/starlight/components';
   class:list={'mb-1'}
 />
 
-> `[AspireExport(Description = "...")]` is deprecated. Use XML doc comments (`<summary>`, `<param>`, `<returns>`) instead. The `Description` value is only used as a fallback when the corresponding XML documentation tag is absent.
+> AspireExport Description is compatibility metadata. Use XML documentation with ATS tags such as `<ats-summary>` for generated polyglot SDK documentation.
 
-This diagnostic warning is reported when a new `[AspireExport]` attribute sets the `Description` property. Starting in Aspire 13.4, the ATS scanner uses XML doc comments as the primary source for generated polyglot SDK documentation. The `Description` property is supported only as a compatibility fallback and should not be used on new exports.
+This diagnostic error is reported when a new `[AspireExport]` attribute sets the `Description` property. Starting in Aspire 13.4, the ATS scanner uses XML doc comments as the primary source for generated polyglot SDK documentation. The `Description` property is supported only as a compatibility fallback and should not be used on new exports.
 
 ## Example
 
@@ -23,7 +24,7 @@ The following code generates `ASPIREEXPORT015`:
 ```csharp title="C# — Integration.cs"
 [AspireExport("addRedis", Description = "Adds a Redis container resource")]
 public static IResourceBuilder<RedisResource> AddRedis(
-    IDistributedApplicationBuilder builder,
+    this IDistributedApplicationBuilder builder,
     string name)
 {
     // ...
@@ -41,7 +42,7 @@ Replace the `Description` property with XML doc comments. Use `<ats-summary>`, `
 /// <returns>The Redis resource builder.</returns>
 [AspireExport("addRedis")]
 public static IResourceBuilder<RedisResource> AddRedis(
-    IDistributedApplicationBuilder builder,
+    this IDistributedApplicationBuilder builder,
     string name)
 {
     // ...
@@ -60,7 +61,7 @@ When the standard `<summary>` references C#-specific types, use `<ats-summary>` 
 /// <returns>The Redis resource builder.</returns>
 [AspireExport("addRedis")]
 public static IResourceBuilder<RedisResource> AddRedis(
-    IDistributedApplicationBuilder builder,
+    this IDistributedApplicationBuilder builder,
     string name)
 {
     // ...
@@ -69,9 +70,9 @@ public static IResourceBuilder<RedisResource> AddRedis(
 
 For more details on documenting exports for polyglot SDKs, see [Multi-language integrations](/extensibility/multi-language-integration-authoring/#document-your-exports).
 
-## Suppress the warning
+## Suppress the error
 
-Suppress the warning with either of the following methods:
+Suppress the error with either of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 
