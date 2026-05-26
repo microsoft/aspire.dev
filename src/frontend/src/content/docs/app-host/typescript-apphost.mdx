@@ -339,6 +339,32 @@ The `aspire doctor` command checks that the required JavaScript toolchain execut
 aspire doctor
 ```
 
+## Async chaining
+
+TypeScript AppHosts support fluent chaining for builder methods — for example, `builder.addContainer(...).withReference(...)` — so you can build resource graphs in a compact, readable style. Starting with Aspire 13.4, the generated SDK extends this to **all** generated async methods that return a chainable wrapper type: environment helpers, execution-context queries, and endpoint property accessors.
+
+Previously, using these methods required splitting the chain or using a double `await`:
+
+```typescript title="apphost.ts (before)"
+// Two separate awaits were needed when chaining through async wrapper-returning methods
+const envContext = await builder.environment();
+const isDevelopment = await envContext.isDevelopment();
+```
+
+Now you can chain through them with a **single `await`**:
+
+```typescript title="apphost.ts (after)"
+const isDevelopment = await builder.environment().isDevelopment();
+const isRunMode = await context.executionContext().isRunMode();
+const endpointHost = await container.getEndpoint("http").property(EndpointProperty.Host);
+```
+
+This works because the code generator now emits a thenable wrapper for every generated async method whose return type is itself a chainable wrapper.
+
+<Aside type="note">
+The thenable wrappers are generated automatically — you do not need to change `aspire.config.json` or run any extra commands. Re-running `aspire run` or `aspire restore` after upgrading your `Aspire.Hosting.JavaScript` package version regenerates the `.modules/` SDK with the updated types.
+</Aside>
+
 ## TypeScript validation before startup
 
 Before starting a TypeScript AppHost, the Aspire CLI runs `tsc --noEmit` to check for type errors to prevent the dashboard and resources from starting in a partially broken state. If your AppHost has TypeScript compile errors, `aspire run` and `aspire publish` stop before the AppHost launches and display the diagnostic output:
