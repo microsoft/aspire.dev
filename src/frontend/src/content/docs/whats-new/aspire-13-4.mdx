@@ -51,6 +51,26 @@ This release introduces:
   stable version.
 </Aside>
 
+<Aside type="caution" title="TypeScript AppHost users: run `aspire update --self` first">
+  If you have a **TypeScript AppHost on Aspire 13.3.x**, you must update the
+  Aspire CLI itself **before** running `aspire update` on your project. Running
+  `aspire update` first will fail mid-update with an error like:
+
+  ```text
+  ❌ An unexpected error occurred: No code generator found for language: TypeScript
+  ```
+
+  The 13.3.x CLI bundles an apphost server that cannot load the 13.4 TypeScript
+  code generator, so package restore succeeds but TypeScript SDK regeneration
+  crashes. The failure leaves `aspire.config.json` pointing at 13.4 packages
+  while the CLI is still 13.3.x, which also breaks `aspire run` and
+  `aspire restore` until you finish the upgrade with `aspire update --self`.
+
+  Follow the steps below in order — `aspire update --self` first, then
+  `aspire update`. See [microsoft/aspire#17077](https://github.com/microsoft/aspire/issues/17077)
+  for background.
+</Aside>
+
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
 
 The easiest way to upgrade to Aspire 13.4 is using the [`aspire update` command](/reference/cli/commands/aspire-update/):
@@ -374,7 +394,7 @@ Aspire is built in the open, and this release wouldn't be what it is without you
 
 <Steps>
 
-1. **Update the CLI** — run `aspire update --self`.
+1. **Update the CLI** — run `aspire update --self`. This step is **required** for TypeScript AppHosts; running `aspire update` against a 13.3.x TypeScript project before updating the CLI fails with `No code generator found for language: TypeScript` and leaves the project in a partially-upgraded, unrunnable state (see [microsoft/aspire#17077](https://github.com/microsoft/aspire/issues/17077)).
 2. **Update your projects** — run `aspire update` from the root of your repository.
 3. **Run `aspire doctor`** to check your environment setup.
 4. **Audit scripts and CI** for `aspire exec` and non-interactive `aspire update` calls.
