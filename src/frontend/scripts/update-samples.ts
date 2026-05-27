@@ -54,6 +54,16 @@ interface GitHubContentEntry {
   name: string;
 }
 
+interface GitTreeEntry {
+  path: string;
+  type: string;
+}
+
+interface GitTreeResponse {
+  tree: GitTreeEntry[];
+  truncated?: boolean;
+}
+
 interface SampleResult {
   name: string;
   title: string;
@@ -62,12 +72,19 @@ interface SampleResult {
   readme: string;
   tags: string[];
   thumbnail: string | null;
+  appHost: AppHostKind | null;
 }
+
+type AppHostKind = 'typescript' | 'csproj' | 'file-based';
 
 const TAG_RULES: TagRule[] = [
   { tag: 'csharp', patterns: [/\bC#\b/i, /\.NET\b/i, /\bcsproj\b/i] },
   { tag: 'python', patterns: [/\bPython\b/i, /\.py\b/] },
   { tag: 'javascript', patterns: [/\bJavaScript\b/i, /\bJS\b/, /\.js\b/] },
+  {
+    tag: 'typescript',
+    patterns: [/\bTypeScript\b/i, /\bts-node\b/i, /\bapphost\.ts\b/i, /\.tsx?\b/],
+  },
   { tag: 'node', patterns: [/\bNode\.?js\b/i, /\bnpm\b/i] },
   {
     tag: 'go',
@@ -109,7 +126,7 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function detectTags(name: string, readme: string): string[] {
+function detectTags(name: string, readme: string, appHost: AppHostKind | null): string[] {
   const corpus = `${name} ${readme}`;
   const tags = new Set<string>();
 
@@ -122,7 +139,34 @@ function detectTags(name: string, readme: string): string[] {
     }
   }
 
+  // Knowing the AppHost kind is a stronger signal than README text. The
+  // language used to define the AppHost is always part of the sample's
+  // tech stack, so promote it to a tag if not already present.
+  if (appHost === 'typescript') {
+    tags.add('typescript');
+  } else if (appHost === 'csproj' || appHost === 'file-based') {
+    tags.add('csharp');
+  }
+
   return [...tags].sort();
+}
+
+function detectAppHostKind(paths: readonly string[]): AppHostKind | null {
+  const lowered = paths.map((p) => p.toLowerCase());
+
+  if (lowered.some((p) => /(?:^|\/)apphost\.ts$/.test(p))) {
+    return 'typescript';
+  }
+
+  if (lowered.some((p) => /(?:^|\/)[^/]*apphost\.csproj$/.test(p))) {
+    return 'csproj';
+  }
+
+  if (lowered.some((p) => /(?:^|\/)apphost\.cs$/.test(p))) {
+    return 'file-based';
+  }
+
+  return null;
 }
 
 function extractTitle(readme: string): string | null {
@@ -301,12 +345,56 @@ async function listSampleDirs(): Promise<string[]> {
     .sort();
 }
 
+/**
+ * Fetch every blob path under `samples/` in a single recursive tree call so we
+ * can inspect each sample's file layout (AppHost kind, project shape, etc.)
+ * without making per-sample API requests.
+ */
+async function fetchSamplePaths(): Promise<Map<string, string[]>> {
+  const tree = await fetchJson<GitTreeResponse>(
+    `${GITHUB_API}/repos/${REPO}/git/trees/${BRANCH}?recursive=1`
+  );
+
+  if (tree.truncated) {
+    console.warn(
+      '⚠️  GitHub returned a truncated git tree; AppHost detection may be incomplete.'
+    );
+  }
+
+  const prefix = `${SAMPLES_DIR}/`;
+  const bySample = new Map<string, string[]>();
+
+  for (const entry of tree.tree) {
+    if (entry.type !== 'blob') continue;
+    if (!entry.path.startsWith(prefix)) continue;
+
+    const relative = entry.path.slice(prefix.length);
+    const slashIndex = relative.indexOf('/');
+    if (slashIndex === -1) continue;
+
+    const sampleName = relative.slice(0, slashIndex);
+    const filePath = relative.slice(slashIndex + 1);
+
+    const existing = bySample.get(sampleName);
+    if (existing) {
+      existing.push(filePath);
+    } else {
+      bySample.set(sampleName, [filePath]);
+    }
+  }
+
+  return bySample;
+}
+
 async function fetchReadme(sampleName: string): Promise<string | null> {
   const url = `${RAW_BASE}/${SAMPLES_DIR}/${sampleName}/README.md`;
   return fetchText(url);
 }
 
-async function processSample(name: string): Promise<SampleResult | null> {
+async function processSample(
+  name: string,
+  filePaths: readonly string[]
+): Promise<SampleResult | null> {
   const rawReadme = await fetchReadme(name);
   if (!rawReadme) {
     console.warn(`⚠️  No README.md found for sample: ${name}`);
@@ -316,9 +404,10 @@ async function processSample(name: string): Promise<SampleResult | null> {
   const { readme: imageRewrittenReadme } = await downloadAndRewriteImages(name, rawReadme);
   const readme = rewriteAspireDocLinks(imageRewrittenReadme);
 
+  const appHost = detectAppHostKind(filePaths);
   const title = extractTitle(readme) || name;
   const description = extractDescription(readme);
-  const tags = detectTags(name, readme);
+  const tags = detectTags(name, readme, appHost);
   const thumbnail = extractThumbnail(name, readme);
   const href = `${TREE_BASE}/${SAMPLES_DIR}/${name}`;
 
@@ -330,22 +419,26 @@ async function processSample(name: string): Promise<SampleResult | null> {
     readme,
     tags,
     thumbnail,
+    appHost,
   };
 }
 
 async function main(): Promise<void> {
   console.log(`📦 Fetching sample directories from ${REPO}...`);
-  const dirs = await listSampleDirs();
+  const [dirs, pathsBySample] = await Promise.all([listSampleDirs(), fetchSamplePaths()]);
   console.log(`📂 Found ${dirs.length} sample directories`);
 
   const results: SampleResult[] = [];
   for (let index = 0; index < dirs.length; index += CONCURRENCY) {
     const batch = dirs.slice(index, index + CONCURRENCY);
-    const batchResults = await Promise.all(batch.map((name) => processSample(name)));
+    const batchResults = await Promise.all(
+      batch.map((name) => processSample(name, pathsBySample.get(name) ?? []))
+    );
     for (const result of batchResults) {
       if (result) {
         results.push(result);
-        console.log(`  ✅ ${result.name} — ${result.tags.length} tags`);
+        const appHostLabel = result.appHost ? ` · AppHost: ${result.appHost}` : '';
+        console.log(`  ✅ ${result.name} — ${result.tags.length} tags${appHostLabel}`);
       }
     }
   }

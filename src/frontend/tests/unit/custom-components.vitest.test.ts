@@ -567,12 +567,14 @@ const sampleCardFixture = {
   readme: '# Redis sample\n\nThis sample shows how to connect an API and dashboard to Redis.',
   tags: ['csharp', 'redis', 'docker', 'metrics', 'postgresql', 'kafka'],
   thumbnail: '~/assets/samples/placeholder.png',
+  appHost: 'csproj' as const,
   detailHref: '/reference/samples/redis-sample/',
   resolvedThumbnail: heroImage,
 };
 
 const sampleDetailFixture = {
   ...sampleCardFixture,
+  appHost: 'typescript' as const,
   description: '**This sample** shows how to connect an API and dashboard to Redis.',
   readme: [
     '# Redis sample',
@@ -734,6 +736,8 @@ describe('custom Astro component render coverage', () => {
       'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample"'
     );
     expect(html).toContain('+1');
+    expect(html).toContain('data-apphost="csproj"');
+    expect(html).toContain('C# (csproj) AppHost');
   });
 
   it('renders SampleGrid controls and sample cards', async () => {
@@ -764,6 +768,8 @@ describe('custom Astro component render coverage', () => {
     );
 
     expect(html).toContain('Aspire sample');
+    expect(html).toContain('TypeScript AppHost');
+    expect(html).toContain('data-apphost="typescript"');
     expect(html).toContain('This sample shows how to connect an API and dashboard to Redis.');
     expect(html).not.toContain('**This sample**');
     expect(html).toContain('Running the app');

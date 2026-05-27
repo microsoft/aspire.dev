@@ -1,3 +1,5 @@
+export type AppHostKind = 'typescript' | 'csproj' | 'file-based';
+
 export interface Sample {
   name: string;
   title: string;
@@ -6,11 +8,34 @@ export interface Sample {
   readme: string;
   tags: string[];
   thumbnail: string | null;
+  appHost?: AppHostKind | null;
 }
 
 export interface ResolvedSample extends Sample {
   detailHref: string;
   resolvedThumbnail: ImageMetadata | null;
+}
+
+export function appHostLabel(kind: AppHostKind): string {
+  switch (kind) {
+    case 'typescript':
+      return 'TypeScript AppHost';
+    case 'csproj':
+      return 'C# AppHost';
+    case 'file-based':
+      return 'File-based AppHost';
+  }
+}
+
+export function appHostShortLabel(kind: AppHostKind): string {
+  switch (kind) {
+    case 'typescript':
+      return 'TypeScript';
+    case 'csproj':
+      return 'C# (csproj)';
+    case 'file-based':
+      return 'C# (file-based)';
+  }
 }
 
 export function sampleSlug(name: string): string {

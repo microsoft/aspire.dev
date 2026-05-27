@@ -107,6 +107,7 @@ const sampleCardFixture = {
   readme: '# Redis sample\n\nThis sample shows how to connect an API and dashboard to Redis.',
   tags: ['csharp', 'redis'],
   thumbnail: '~/assets/samples/placeholder.png',
+  appHost: 'csproj' as const,
   detailHref: '/reference/samples/redis-sample/',
   resolvedThumbnail: heroImage,
 };

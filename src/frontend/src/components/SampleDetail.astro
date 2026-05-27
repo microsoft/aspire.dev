@@ -6,7 +6,12 @@ import { marked } from 'marked';
 
 import SampleReadmeBlocks from '@components/SampleReadmeBlocks.astro';
 import { tagLabel } from '@utils/sample-tags';
-import { sampleDescriptionText, type Sample } from '@utils/samples';
+import {
+  appHostLabel,
+  sampleDescriptionText,
+  type AppHostKind,
+  type Sample,
+} from '@utils/samples';
 
 interface Props {
   sample: Sample;
@@ -123,6 +128,13 @@ function hashString(value: string): number {
 }
 
 const heroIcon = pickHeroIcon(visibleTags);
+const appHostKind: AppHostKind | null = sample.appHost ?? null;
+const appHostIcon: StarlightIcon | null =
+  appHostKind === 'typescript'
+    ? 'seti:typescript'
+    : appHostKind
+      ? 'seti:c-sharp'
+      : null;
 // 5 nodes in the resource-graph backdrop; pick which one pulses based on the
 // sample slug so every sample's hero feels subtly different.
 const nodeCount = 5;
@@ -153,9 +165,19 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
     </svg>
 
     <div class="sample-hero-copy">
-      <div class="sample-hero-tag">
-        <Icon name={heroIcon} size="0.95rem" />
-        <span>Aspire sample</span>
+      <div class="sample-hero-tags">
+        <div class="sample-hero-tag">
+          <Icon name={heroIcon} size="0.95rem" />
+          <span>Aspire sample</span>
+        </div>
+        {
+          appHostKind && appHostIcon && (
+            <div class="sample-hero-tag sample-hero-apphost" data-apphost={appHostKind}>
+              <Icon name={appHostIcon} size="0.95rem" />
+              <span>{appHostLabel(appHostKind)}</span>
+            </div>
+          )
+        }
       </div>
       <h2 class="sample-hero-title">Clone, run, and explore this sample</h2>
       {sampleSummary && <p class="sample-summary">{sampleSummary}</p>}
@@ -355,11 +377,17 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
     max-width: 52rem;
   }
 
+  .sample-hero-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-self: flex-start;
+  }
+
   .sample-hero-tag {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    align-self: flex-start;
     padding: 0.3rem 0.7rem 0.3rem 0.5rem;
     border-radius: 999px;
     background: color-mix(in srgb, var(--aspire-color-primary) 18%, var(--sl-color-bg));
@@ -384,6 +412,22 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
 
   :global([data-theme='light']) .sample-hero-tag :global(svg) {
     color: var(--aspire-color-primary);
+  }
+
+  .sample-hero-apphost[data-apphost='typescript'] {
+    background: color-mix(in srgb, var(--color-cyan, #2dd4bf) 16%, var(--sl-color-bg));
+    border-color: color-mix(in srgb, var(--color-cyan, #2dd4bf) 50%, transparent);
+    color: color-mix(in srgb, var(--color-cyan, #2dd4bf) 75%, var(--sl-color-white));
+  }
+
+  .sample-hero-apphost[data-apphost='typescript'] :global(svg) {
+    color: var(--color-cyan, #2dd4bf);
+  }
+
+  :global([data-theme='light']) .sample-hero-apphost[data-apphost='typescript'] {
+    color: color-mix(in srgb, var(--color-cyan, #2dd4bf) 70%, var(--sl-color-black));
+    background: color-mix(in srgb, var(--color-cyan, #2dd4bf) 12%, white);
+    border-color: color-mix(in srgb, var(--color-cyan, #2dd4bf) 55%, transparent);
   }
 
   .sample-hero-title {
