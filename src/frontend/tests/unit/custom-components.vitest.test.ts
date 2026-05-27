@@ -39,6 +39,7 @@ import PivotSelector from '@components/PivotSelector.astro';
 import Placeholder from '@components/Placeholder.astro';
 import QuickStartJourney from '@components/QuickStartJourney.astro';
 import SampleCard from '@components/SampleCard.astro';
+import SampleDetail from '@components/SampleDetail.astro';
 import SampleGrid from '@components/SampleGrid.astro';
 import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
@@ -563,9 +564,27 @@ const sampleCardFixture = {
     'It also demonstrates configuration, diagnostics, and a longer description so the card renders its read-more behavior when a thumbnail is present.',
   ].join('\n\n'),
   href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample',
+  readme: '# Redis sample\n\nThis sample shows how to connect an API and dashboard to Redis.',
   tags: ['csharp', 'redis', 'docker', 'metrics', 'postgresql', 'kafka'],
   thumbnail: '~/assets/samples/placeholder.png',
+  detailHref: '/reference/samples/redis-sample/',
   resolvedThumbnail: heroImage,
+};
+
+const sampleDetailFixture = {
+  ...sampleCardFixture,
+  description: 'This sample shows how to connect an API and dashboard to Redis.',
+  readme: [
+    '# Redis sample',
+    '',
+    'This sample shows how to connect an API and dashboard to Redis.',
+    '',
+    'See the [application project](./src/RedisSample.AppHost) for implementation details.',
+    '',
+    '## Running the app',
+    '',
+    'Run `aspire run` from the sample directory.',
+  ].join('\n'),
 };
 
 const sampleGridSamples = [
@@ -678,8 +697,13 @@ describe('custom Astro component render coverage', () => {
     );
 
     expect(html).toContain('Redis sample');
+    expect(html).toContain('data-sample-detail-href="/reference/samples/redis-sample/"');
+    expect(html).toContain('href="/reference/samples/redis-sample/"');
     expect(html).toContain('data-read-more');
     expect(html).toContain('View on GitHub');
+    expect(html).toContain(
+      'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample"'
+    );
     expect(html).toContain('+1');
   });
 
@@ -690,8 +714,35 @@ describe('custom Astro component render coverage', () => {
 
     expect(html).toContain('data-samples-browser');
     expect(html).toContain('Search samples');
+    expect(html).toContain('data-active-filter-bar');
+    expect(html).toContain('aria-label="1 sample"');
+    expect(html).toContain('Clear filters');
     expect(html).toContain('Orders sample');
     expect(html).toContain('Catalog sample');
+    expect(html).toContain('/reference/samples/orders/');
+    expect(html).toContain('/reference/samples/catalog/');
+    expect(html).toContain('Try removing a filter or adjusting your search.');
+  });
+
+  it('renders SampleDetail with README content and sample actions', async () => {
+    const html = normalizeHtml(
+      await renderComponent(SampleDetail, {
+        props: {
+          sample: sampleDetailFixture,
+          resolvedThumbnail: null,
+          samplesHref: '/reference/samples/',
+        },
+      })
+    );
+
+    expect(html).toContain('Aspire sample');
+    expect(html).toContain('Running the app');
+    expect(html).toContain('View on GitHub');
+    expect(html).toContain('Browse all samples');
+    expect(html).toContain('href="/reference/samples/"');
+    expect(html).toContain(
+      'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample/src/RedisSample.AppHost"'
+    );
   });
 
   it('renders SessionCard speaker metadata and time badge', async () => {
@@ -753,6 +804,7 @@ describe('custom Astro component render coverage', () => {
         props: {
           sample: {
             ...sampleFromRepo,
+            detailHref: `/reference/samples/${sampleFromRepo.name}/`,
             resolvedThumbnail: null,
           },
         },

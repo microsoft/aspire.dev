@@ -1,0 +1,261 @@
+---
+import { Badge, Icon } from '@astrojs/starlight/components';
+import { Image, getImage } from 'astro:assets';
+import { marked } from 'marked';
+
+import { tagLabel } from '@utils/sample-tags';
+import type { Sample } from '@utils/samples';
+
+interface Props {
+  sample: Sample;
+  resolvedThumbnail: ImageMetadata | null;
+  samplesHref: string;
+}
+
+const { sample, resolvedThumbnail, samplesHref } = Astro.props;
+
+const allImages = import.meta.glob<{ default: ImageMetadata }>(
+  '/src/assets/samples/**/*.{png,jpg,jpeg,gif,svg,webp}',
+  { eager: true }
+);
+
+function escapeAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function stripReadmeTitle(readme: string): string {
+  return readme.replace(/^#\s+.+\r?\n+/, '');
+}
+
+function resolveReadmeHref(href: string): string {
+  if (/^(?:https?:|mailto:|tel:|#)/i.test(href)) {
+    return href;
+  }
+
+  const relativeHref = href.replace(/^\.\//, '');
+  return `${sample.href}/${relativeHref}`;
+}
+
+async function rewriteLocalImages(markdown: string): Promise<string> {
+  const imageRefs = [...markdown.matchAll(/!\[([^\]]*)\]\((~\/assets\/samples\/[^)\s]+)\)/g)];
+  let rewritten = markdown;
+
+  for (const match of imageRefs) {
+    const [full, alt, src] = match;
+    const importPath = src.replace('~/assets/', '/src/assets/');
+    const entry = allImages[importPath];
+    if (!entry) {
+      continue;
+    }
+
+    const image = await getImage({ src: entry.default });
+    const width = image.attributes.width ? ` width="${image.attributes.width}"` : '';
+    const height = image.attributes.height ? ` height="${image.attributes.height}"` : '';
+    const replacement = `<img src="${image.src}" alt="${escapeAttribute(alt)}" loading="lazy"${width}${height}>`;
+    rewritten = rewritten.replaceAll(full, replacement);
+  }
+
+  return rewritten;
+}
+
+function renderMarkdown(markdown: string): string {
+  const renderer = new marked.Renderer();
+  renderer.link = function ({ href, title, tokens }) {
+    if (!href) {
+      return '';
+    }
+
+    const resolvedHref = resolveReadmeHref(href);
+    const isExternal = /^(?:https?:)?\/\//i.test(resolvedHref);
+    const text = tokens?.map((token: any) => token.raw || token.text || '').join('') || href;
+    const titleAttr = title ? ` title="${escapeAttribute(title)}"` : '';
+    const targetAttrs = isExternal ? ' target="_blank" rel="noopener noreferrer"' : '';
+
+    return `<a href="${escapeAttribute(resolvedHref)}"${titleAttr}${targetAttrs}>${text}</a>`;
+  };
+
+  return marked.parse(markdown, { breaks: false, gfm: true, renderer }) as string;
+}
+
+const readmeMarkdown = await rewriteLocalImages(stripReadmeTitle(sample.readme));
+const readmeHtml = renderMarkdown(readmeMarkdown);
+const visibleTags = sample.tags;
+---
+
+<article class="sample-detail">
+  <div class="sample-hero not-content">
+    <div class="sample-hero-copy">
+      <div class="sample-eyebrow">Aspire sample</div>
+      {sample.description && <p class="sample-summary">{sample.description.split('\n')[0]}</p>}
+      {
+        visibleTags.length > 0 && (
+          <div class="sample-tags" aria-label="Sample tags">
+            {visibleTags.map((tag) => (
+              <Badge text={tagLabel(tag)} size="small" />
+            ))}
+          </div>
+        )
+      }
+      <div class="sample-actions">
+        <a
+          class="sample-action primary"
+          href={sample.href}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View on GitHub
+          <Icon name="external" size="1rem" />
+        </a>
+        <a class="sample-action secondary" href={samplesHref}>Browse all samples</a>
+      </div>
+    </div>
+    {
+      resolvedThumbnail && (
+        <div class="sample-thumbnail">
+          <Image
+            src={resolvedThumbnail}
+            alt={`Screenshot of the ${sample.title} sample`}
+            widths={[480, 960]}
+            sizes="(min-width: 72rem) 28rem, 100vw"
+          />
+        </div>
+      )
+    }
+  </div>
+
+  <section class="sample-readme" aria-label={`${sample.title} README`} set:html={readmeHtml} />
+</article>
+
+<style>
+  .sample-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .sample-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+    padding: 1.25rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 1rem;
+    background:
+      radial-gradient(
+        circle at top left,
+        color-mix(in srgb, var(--sl-color-accent) 18%, transparent),
+        transparent 45%
+      ),
+      linear-gradient(
+        180deg,
+        var(--sl-color-gray-6),
+        color-mix(in srgb, var(--sl-color-gray-6) 82%, var(--sl-color-black))
+      );
+    box-shadow: var(--sl-shadow-md);
+  }
+
+  @media (min-width: 72rem) {
+    .sample-hero {
+      grid-template-columns: minmax(0, 1fr) minmax(18rem, 28rem);
+      align-items: center;
+    }
+  }
+
+  .sample-hero-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .sample-eyebrow {
+    color: var(--sl-color-accent-high);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .sample-summary {
+    max-width: 60rem;
+    margin: 0;
+    color: var(--sl-color-gray-2);
+    font-size: 1.05rem;
+    line-height: 1.65;
+  }
+
+  .sample-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .sample-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .sample-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .sample-action.primary {
+    background: var(--sl-color-accent);
+    color: var(--sl-color-accent-high);
+  }
+
+  .sample-action.secondary {
+    border: 1px solid var(--sl-color-gray-4);
+    color: var(--sl-color-white);
+  }
+
+  .sample-action:hover {
+    text-decoration: none;
+    filter: brightness(1.08);
+  }
+
+  .sample-thumbnail {
+    overflow: hidden;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    background: var(--sl-color-gray-6);
+    box-shadow: var(--sl-shadow-sm);
+  }
+
+  .sample-thumbnail img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .sample-readme {
+    min-width: 0;
+  }
+
+  .sample-readme :global(img) {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1rem 0;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    box-shadow: var(--sl-shadow-sm);
+  }
+
+  .sample-readme :global(h2:first-child) {
+    margin-top: 0;
+  }
+</style>

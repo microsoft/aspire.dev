@@ -4,22 +4,13 @@ import { Image } from 'astro:assets';
 // marked is used at build-time only (Astro component server code) — no client bundle cost
 import { marked } from 'marked';
 import { tagLabel } from '@utils/sample-tags';
+import type { ResolvedSample } from '@utils/samples';
 
 interface Props {
-  sample: {
-    name: string;
-    title: string;
-    description: string | null;
-    href: string;
-    tags: string[];
-    thumbnail: string | null;
-    resolvedThumbnail: ImageMetadata | null;
-  };
+  sample: ResolvedSample;
 }
 
 const { sample } = Astro.props;
-
-
 
 // Render markdown, stripping relative links (repo-internal) to plain text
 
@@ -104,58 +95,63 @@ const overflowTags = sample.tags.slice(5);
 
 <article
   class="sample-card"
+  data-sample-detail-href={sample.detailHref}
   data-tags={sample.tags.join(',')}
   data-title={sample.title.toLowerCase()}
   data-name={sample.name}
   data-description={(sample.description || '').toLowerCase()}
 >
-  {sample.resolvedThumbnail && (
-    <div class="thumbnail">
-      <Image
-        src={sample.resolvedThumbnail}
-        alt={`Screenshot of the ${sample.title} sample`}
-        loading="lazy"
-        widths={[400, 800]}
-        sizes="(min-width: 768px) 50vw, 100vw"
-      />
-    </div>
-  )}
+  {
+    sample.resolvedThumbnail && (
+      <div class="thumbnail">
+        <Image
+          src={sample.resolvedThumbnail}
+          alt={`Screenshot of the ${sample.title} sample`}
+          loading="lazy"
+          widths={[400, 800]}
+          sizes="(min-width: 768px) 50vw, 100vw"
+        />
+      </div>
+    )
+  }
   <div class="card-body">
     <h3 class="title">
-      <a href={sample.href} target="_blank" rel="noopener noreferrer">
+      <a href={sample.detailHref}>
         {sample.title}
       </a>
     </h3>
-    {previewHtml && (
-      <div class="desc" data-desc>
-        <div set:html={previewHtml} />
-        {restHtml && (
-          <div class="desc-rest" set:html={restHtml} data-desc-rest hidden />
-        )}
-        {restHtml && (
-          <button class="read-more-btn" data-read-more type="button">
-            Read more&hellip;
-          </button>
-        )}
-      </div>
-    )}
-    {sample.tags.length > 0 && (
-      <div class="badges">
-        {visibleTags.map((tag) => (
-          <span data-tag-key={tag}>
-            <Badge text={tagLabel(tag)} size="small" />
-          </span>
-        ))}
-        {remaining > 0 && (
-          <Badge
-            text={`+${remaining}`}
-            size="small"
-            variant="tip"
-            title={overflowTags.map(tagLabel).join(', ')}
-          />
-        )}
-      </div>
-    )}
+    {
+      previewHtml && (
+        <div class="desc" data-desc>
+          <div set:html={previewHtml} />
+          {restHtml && <div class="desc-rest" set:html={restHtml} data-desc-rest hidden />}
+          {restHtml && (
+            <button class="read-more-btn" data-read-more type="button">
+              Read more&hellip;
+            </button>
+          )}
+        </div>
+      )
+    }
+    {
+      sample.tags.length > 0 && (
+        <div class="badges">
+          {visibleTags.map((tag) => (
+            <span data-tag-key={tag}>
+              <Badge text={tagLabel(tag)} size="small" />
+            </span>
+          ))}
+          {remaining > 0 && (
+            <Badge
+              text={`+${remaining}`}
+              size="small"
+              variant="tip"
+              title={overflowTags.map(tagLabel).join(', ')}
+            />
+          )}
+        </div>
+      )
+    }
     <div class="footer">
       <a href={sample.href} target="_blank" rel="noopener noreferrer" class="link">
         View on GitHub
@@ -167,8 +163,10 @@ const overflowTags = sample.tags.slice(5);
 
 <script>
   document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+
     // Read-more toggle with smooth animation
-    const btn = (e.target as HTMLElement).closest('[data-read-more]') as HTMLButtonElement | null;
+    const btn = target.closest('[data-read-more]') as HTMLButtonElement | null;
     if (btn) {
       const desc = btn.closest('[data-desc]');
       if (!desc) return;
@@ -184,7 +182,7 @@ const overflowTags = sample.tags.slice(5);
     // Clickable tag badges — activate the matching filter chip in the grid.
     // Each badge is wrapped in a <span data-tag-key="..."> so we can match by
     // tag key rather than display text, avoiding locale/whitespace mismatches.
-    const badgeWrap = (e.target as HTMLElement).closest('[data-tag-key]') as HTMLElement | null;
+    const badgeWrap = target.closest('[data-tag-key]') as HTMLElement | null;
     if (badgeWrap) {
       const tagKey = badgeWrap.dataset.tagKey;
       if (!tagKey) return;
@@ -194,6 +192,15 @@ const overflowTags = sample.tags.slice(5);
       if (chip) {
         chip.click();
         chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+      return;
+    }
+
+    const card = target.closest('[data-sample-detail-href]') as HTMLElement | null;
+    if (card && !target.closest('a, button')) {
+      const href = card.dataset.sampleDetailHref;
+      if (href) {
+        window.location.href = href;
       }
     }
   });
@@ -213,11 +220,15 @@ const overflowTags = sample.tags.slice(5);
       color-mix(in srgb, var(--sl-color-gray-6) 100%, transparent) 0%,
       color-mix(in srgb, var(--sl-color-gray-6) 85%, var(--sl-color-black)) 100%
     );
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    transition:
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
     break-inside: avoid;
+    cursor: pointer;
   }
 
-  .sample-card:hover {
+  .sample-card:hover,
+  .sample-card:focus-within {
     box-shadow: var(--sl-shadow-md);
     border-color: var(--sl-color-gray-4);
     border-top-color: var(--sl-color-accent);

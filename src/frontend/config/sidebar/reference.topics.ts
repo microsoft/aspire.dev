@@ -1,6 +1,7 @@
 import type { StarlightSidebarTopicsUserConfig } from 'starlight-sidebar-topics';
 
 export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
+  id: 'reference',
   label: {
     en: 'Reference',
     es: 'Referencia',

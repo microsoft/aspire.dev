@@ -1,22 +1,14 @@
 ---
 import SampleCard from '@components/SampleCard.astro';
 import { tagLabel } from '@utils/sample-tags';
-
-interface Sample {
-  name: string;
-  title: string;
-  description: string | null;
-  href: string;
-  readme: string;
-  tags: string[];
-  thumbnail: string | null;
-}
+import { sampleDetailHref, type Sample } from '@utils/samples';
 
 interface Props {
   samples: Sample[];
 }
 
 const { samples } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 // Eagerly import all sample images at build time
 const allImages = import.meta.glob<{ default: ImageMetadata }>(
@@ -35,13 +27,15 @@ function resolveImage(thumbnail: string | null): ImageMetadata | null {
 
 const resolvedSamples = samples.map((s) => ({
   ...s,
+  detailHref: sampleDetailHref(base, s.name),
   resolvedThumbnail: resolveImage(s.thumbnail),
 }));
 
 // Collect all unique tags, sorted alphabetically
 const allTags = [...new Set(samples.flatMap((s) => s.tags))].sort();
-
-
+const tagCounts = new Map(
+  allTags.map((tag) => [tag, samples.filter((s) => s.tags.includes(tag)).length])
+);
 ---
 
 <div class="samples-browser not-content" data-samples-browser>
@@ -77,46 +71,71 @@ const allTags = [...new Set(samples.flatMap((s) => s.tags))].sort();
     </div>
 
     <div class="tag-filters" data-tag-filters>
-      {allTags.map((tag) => (
-        <button
-          class="tag-chip"
-          data-tag={tag}
-          type="button"
-          aria-pressed="false"
-        >
-          {tagLabel(tag)}
-        </button>
-      ))}
+      {
+        allTags.map((tag) => (
+          <button
+            class="tag-chip"
+            data-tag={tag}
+            data-tag-label={tagLabel(tag)}
+            type="button"
+            aria-pressed="false"
+          >
+            <span class="tag-label">{tagLabel(tag)}</span>
+            <span
+              class="tag-count"
+              aria-label={`${tagCounts.get(tag)} ${tagCounts.get(tag) === 1 ? 'sample' : 'samples'}`}
+            >
+              {tagCounts.get(tag)}
+            </span>
+          </button>
+        ))
+      }
+    </div>
+
+    <div class="active-filter-bar" data-active-filter-bar hidden>
+      <span class="active-filter-label">Filtered by</span>
+      <div class="active-filter-list" data-active-filter-list></div>
+      <button class="clear-filters" data-clear-filters type="button">Clear filters</button>
     </div>
   </div>
 
   <!-- Results count -->
   <div class="results-bar">
     <span class="results-count" data-results-count>
-      {samples.length} {samples.length === 1 ? 'sample' : 'samples'}
+      {samples.length}
+      {samples.length === 1 ? 'sample' : 'samples'}
     </span>
-    <button class="clear-filters" data-clear-filters type="button" style="display: none;">
-      Clear filters
-    </button>
   </div>
 
   <!-- Card grid -->
   <div class="card-grid" data-card-grid>
-    {resolvedSamples.map((sample) => (
-      <div class="card-item" data-sample-item>
-        <SampleCard sample={sample} />
-      </div>
-    ))}
+    {
+      resolvedSamples.map((sample) => (
+        <div class="card-item" data-sample-item>
+          <SampleCard sample={sample} />
+        </div>
+      ))
+    }
   </div>
 
   <!-- Empty state -->
   <div class="empty-state" data-empty-state style="display: none;">
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <svg
+      width="48"
+      height="48"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
       <circle cx="11" cy="11" r="8"></circle>
       <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
       <line x1="8" y1="11" x2="14" y2="11"></line>
     </svg>
     <p>No samples match your filters.</p>
+    <p class="empty-state-detail">Try removing a filter or adjusting your search.</p>
     <button class="reset-btn" data-reset-btn type="button">Reset all filters</button>
   </div>
 </div>
@@ -136,11 +155,42 @@ const allTags = [...new Set(samples.flatMap((s) => s.tags))].sort();
     const cardItems = browser.querySelectorAll('[data-sample-item]');
     const resultsCount = browser.querySelector('[data-results-count]');
     const clearFilters = browser.querySelector('[data-clear-filters]');
+    const activeFilterBar = browser.querySelector('[data-active-filter-bar]');
+    const activeFilterList = browser.querySelector('[data-active-filter-list]');
     const emptyState = browser.querySelector('[data-empty-state]');
     const resetBtn = browser.querySelector('[data-reset-btn]');
+    const tagLabels = new Map(
+      [...tagChips].map((chip) => [
+        chip.dataset.tag,
+        chip.dataset.tagLabel || chip.textContent.trim(),
+      ])
+    );
+    if (!activeFilterBar || !activeFilterList) return;
 
     let activeTags = new Set();
     let searchQuery = '';
+
+    function renderActiveFilters(query) {
+      const filters = [];
+      if (query) {
+        filters.push(`Search: "${query}"`);
+      }
+
+      [...activeTags].sort().forEach((tag) => {
+        filters.push(tagLabels.get(tag) || tag);
+      });
+
+      activeFilterList.replaceChildren(
+        ...filters.map((label) => {
+          const chip = document.createElement('span');
+          chip.className = 'active-filter-chip';
+          chip.textContent = label;
+          return chip;
+        })
+      );
+
+      activeFilterBar.hidden = filters.length === 0;
+    }
 
     function applyFilters() {
       let visible = 0;
@@ -180,13 +230,16 @@ const allTags = [...new Set(samples.flatMap((s) => s.tags))].sort();
       });
 
       // Update count
-      resultsCount.textContent = `${visible} ${visible === 1 ? 'sample' : 'samples'}`;
+      const total = cardItems.length;
+      const hasFilters = query || activeTags.size > 0;
+      resultsCount.textContent = hasFilters
+        ? `${visible} of ${total} ${total === 1 ? 'sample' : 'samples'}`
+        : `${visible} ${visible === 1 ? 'sample' : 'samples'}`;
+      renderActiveFilters(query);
 
       // Toggle empty state
-      const hasFilters = query || activeTags.size > 0;
       cardGrid.style.display = visible === 0 ? 'none' : '';
       emptyState.style.display = visible === 0 ? '' : 'none';
-      clearFilters.style.display = hasFilters ? '' : 'none';
       clearBtn.style.display = query ? '' : 'none';
     }
 
@@ -314,6 +367,9 @@ const allTags = [...new Set(samples.flatMap((s) => s.tags))].sort();
   }
 
   .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     padding: 0.3rem 0.65rem;
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 2rem;
@@ -323,6 +379,18 @@ const allTags = [...new Set(samples.flatMap((s) => s.tags))].sort();
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
+  }
+
+  .tag-count {
+    min-width: 1.35rem;
+    padding: 0.05rem 0.35rem;
+    border-radius: 999px;
+    background: var(--sl-color-gray-5);
+    color: var(--sl-color-gray-2);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: center;
   }
 
   .tag-chip:hover {
@@ -335,6 +403,44 @@ const allTags = [...new Set(samples.flatMap((s) => s.tags))].sort();
     border-color: var(--sl-color-accent);
     color: var(--sl-color-accent-high);
     font-weight: 600;
+  }
+
+  .tag-chip.active .tag-count {
+    background: color-mix(in srgb, var(--sl-color-accent-high) 24%, transparent);
+    color: var(--sl-color-white);
+  }
+
+  .active-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--sl-color-gray-6) 92%, var(--sl-color-accent));
+  }
+
+  .active-filter-label {
+    color: var(--sl-color-gray-2);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .active-filter-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .active-filter-chip {
+    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 50%, var(--sl-color-gray-5));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sl-color-accent) 14%, transparent);
+    color: var(--sl-color-white);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
   }
 
   /* ---- Results Bar ---- */
@@ -352,17 +458,20 @@ const allTags = [...new Set(samples.flatMap((s) => s.tags))].sort();
   }
 
   .clear-filters {
-    background: none;
-    border: none;
-    color: var(--sl-color-accent-high);
+    margin-left: auto;
+    border: 1px solid var(--sl-color-gray-4);
+    border-radius: 999px;
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
     font-size: 0.85rem;
+    font-weight: 700;
     cursor: pointer;
-    padding: 0;
-    text-decoration: underline;
+    padding: 0.25rem 0.65rem;
   }
 
   .clear-filters:hover {
-    color: var(--sl-color-white);
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-accent-high);
   }
 
   /* ---- Card Grid (CSS columns for masonry) ---- */
@@ -390,6 +499,9 @@ const allTags = [...new Set(samples.flatMap((s) => s.tags))].sort();
     justify-content: center;
     gap: 0.75rem;
     padding: 3rem 1rem;
+    border: 1px dashed var(--sl-color-gray-4);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--sl-color-gray-6) 88%, var(--sl-color-accent));
     color: var(--sl-color-gray-3);
     text-align: center;
   }
@@ -399,19 +511,27 @@ const allTags = [...new Set(samples.flatMap((s) => s.tags))].sort();
     font-size: 1.1rem;
   }
 
+  .empty-state-detail {
+    color: var(--sl-color-gray-2);
+    font-size: 0.9rem;
+  }
+
   .reset-btn {
-    background: var(--sl-color-accent);
-    border: none;
+    background: var(--sl-color-accent-high);
+    border: 1px solid var(--sl-color-accent-high);
     border-radius: 0.5rem;
-    color: var(--sl-color-accent-high);
+    color: var(--sl-color-black);
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    transition: opacity 0.2s;
+    transition:
+      filter 0.2s,
+      transform 0.2s;
   }
 
   .reset-btn:hover {
-    opacity: 0.85;
+    filter: brightness(1.05);
+    transform: translateY(-1px);
   }
 </style>
