@@ -6,6 +6,7 @@ export interface Sample {
   description: string | null;
   href: string;
   readme: string;
+  readmeRaw?: string;
   tags: string[];
   thumbnail: string | null;
   appHost?: AppHostKind | null;
@@ -72,4 +73,63 @@ export function sampleDescriptionText(description: string | null): string | null
     .trim();
 
   return text.length > 0 ? text : null;
+}
+
+const SAMPLES_RAW_BASE = 'https://raw.githubusercontent.com/dotnet/aspire-samples/main/samples';
+
+interface BuildSampleMarkdownOptions {
+  appHostLabel: (kind: AppHostKind) => string;
+}
+
+/**
+ * Render the markdown payload served at /reference/samples/{slug}.md so the
+ * page-actions plugin's "Copy Markdown" and "View Markdown" actions return a
+ * portable, LLM-friendly document.
+ *
+ * The base content is the original upstream README (readmeRaw); relative image
+ * paths are rewritten to absolute GitHub raw URLs so they resolve when the
+ * markdown is opened in a browser or pasted into another tool.
+ */
+export function buildSampleMarkdown(
+  sample: Sample,
+  options: BuildSampleMarkdownOptions
+): string {
+  const body = rewriteSampleImageUrls(sample.readmeRaw ?? sample.readme, sample.name);
+
+  const metaLines = [
+    `> **Source:** [${sample.name}](${sample.href})`,
+    sample.appHost ? `> **AppHost:** ${options.appHostLabel(sample.appHost)}` : null,
+    sample.tags.length > 0 ? `> **Tags:** ${sample.tags.join(', ')}` : null,
+  ].filter((line): line is string => line !== null);
+
+  const preamble = metaLines.join('\n');
+
+  return `${preamble}\n\n${body.trim()}\n`;
+}
+
+/**
+ * Convert README image references to absolute GitHub raw URLs.
+ *
+ * - `~/assets/samples/<name>/<file>` (already rewritten by the generator) →
+ *   we can't recover the original upstream path here, so leave it alone; the
+ *   rewritten path won't resolve outside the site but the alt text is intact.
+ * - Relative paths inside `readmeRaw` (e.g., `./images/foo.png` or
+ *   `images/foo.png`) → rewritten to `https://raw.githubusercontent.com/.../samples/<name>/...`
+ *   so they render anywhere the markdown is opened.
+ */
+function rewriteSampleImageUrls(markdown: string, sampleName: string): string {
+  const baseUrl = `${SAMPLES_RAW_BASE}/${sampleName}`;
+
+  return markdown.replace(/!\[([^\]]*)\]\(([^)\s]+)(\s+"[^"]*")?\)/g, (_match, alt: string, src: string, title?: string) => {
+    if (/^(?:https?:)?\/\//.test(src) || src.startsWith('data:')) {
+      return `![${alt}](${src}${title ?? ''})`;
+    }
+
+    if (src.startsWith('~/')) {
+      return `![${alt}](${src}${title ?? ''})`;
+    }
+
+    const cleaned = src.replace(/^\.\//, '').replace(/^\//, '');
+    return `![${alt}](${baseUrl}/${cleaned}${title ?? ''})`;
+  });
 }

@@ -797,6 +797,35 @@ describe('custom Astro component render coverage', () => {
     );
   });
 
+  it('builds sample markdown payload with absolute image URLs and metadata preamble', async () => {
+    const { appHostLabel, buildSampleMarkdown } = await import('@utils/samples');
+
+    const markdown = buildSampleMarkdown(
+      {
+        name: 'redis-sample',
+        title: 'Redis sample',
+        description: 'A short description.',
+        href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample',
+        readme: '# Redis sample\n\n![alt](~/assets/samples/redis-sample/foo.png)',
+        readmeRaw:
+          '# Redis sample\n\nIntro paragraph.\n\n![Screenshot](./images/screenshot.png)\n\n![External](https://example.com/x.png)\n',
+        tags: ['csharp', 'redis'],
+        thumbnail: null,
+        appHost: 'csproj',
+      },
+      { appHostLabel }
+    );
+
+    expect(markdown).toContain('**Source:** [redis-sample]');
+    expect(markdown).toContain('**AppHost:** C# AppHost');
+    expect(markdown).toContain('**Tags:** csharp, redis');
+    expect(markdown).toContain(
+      '![Screenshot](https://raw.githubusercontent.com/dotnet/aspire-samples/main/samples/redis-sample/images/screenshot.png)'
+    );
+    expect(markdown).toContain('![External](https://example.com/x.png)');
+    expect(markdown.endsWith('\n')).toBe(true);
+  });
+
   it('renders SessionCard speaker metadata and time badge', async () => {
     const html = normalizeHtml(
       await renderComponent(SessionCard, { props: { ...sessions[0], index: 1 } })

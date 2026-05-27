@@ -70,6 +70,7 @@ interface SampleResult {
   description: string | null;
   href: string;
   readme: string;
+  readmeRaw: string;
   tags: string[];
   thumbnail: string | null;
   appHost: AppHostKind | null;
@@ -417,6 +418,7 @@ async function processSample(
     description,
     href,
     readme,
+    readmeRaw: rawReadme,
     tags,
     thumbnail,
     appHost,
