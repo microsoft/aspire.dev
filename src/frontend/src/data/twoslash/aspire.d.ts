@@ -2256,6 +2256,8 @@ export interface ProjectResource extends IComputeResource, IContainerFilesDestin
    */
 
   withReplicas(replicas: number): this;
+  /** Assigns Microsoft Foundry roles to this project resource. */
+  withRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 /**
@@ -3304,6 +3306,8 @@ export interface AzureProvisioningResource extends AzureBicepResource, IAzureRes
  */
 
 export interface AzureResourceInfrastructure {
+  /** Gets the provisionable Azure resources produced by the infrastructure callback. */
+  getProvisionableResources(): Promise<any[]>;
 }
 
 /**
@@ -9075,7 +9079,7 @@ export interface IYarpConfigurationBuilder {
    * Adds a YARP route for a cluster, endpoint, resource, or string destination target.
    */
 
-  addRoute(path: string, target: ExternalServiceResource|string): YarpRoute;
+  addRoute(path: string, target: ExternalServiceResource | string | EndpointReference): YarpRoute;
 }
 
 /**
@@ -13604,85 +13608,6 @@ export interface IMauiPlatformResource {
    */
 
   withOtlpDevTunnel(): this;
-}
-
-// augments handle type IResource with extension methods
-export interface IResource {
-  /**
-   * Assigns App Configuration roles to a resource
-   */
-
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
-  /**
-   * Assigns Cognitive Services roles to a resource
-   */
-
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
-  /**
-   * Gets the Azure Container Registry associated with a compute environment resource.
-   */
-
-  getAzureContainerRegistry(): AzureContainerRegistryResource;
-  /**
-   * Configures a compute environment resource to use an Azure Container Registry.
-   */
-
-  withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
-  /**
-   * Assigns Azure Container Registry roles to a resource.
-   */
-
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
-  /**
-   * Assigns Event Hubs roles to a resource
-   */
-
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
-  /**
-   * Assigns Key Vault roles to a resource
-   */
-
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
-  /**
-   * Associates an Azure PaaS resource with a Network Security Perimeter.
-   */
-
-  withNetworkSecurityPerimeter(nsp: AzureNetworkSecurityPerimeterResource, options?: { accessMode?: NetworkSecurityPerimeterAssociationAccessMode; associationName?: string }): this;
-  /**
-   * Associates an Azure PaaS resource with a Network Security Perimeter.
-   */
-
-  withNetworkSecurityPerimeter(nsp: AzureNetworkSecurityPerimeterResource, accessMode?: NetworkSecurityPerimeterAssociationAccessMode, associationName?: string): this;
-  /**
-   * Assigns Azure AI Search roles to a resource
-   */
-
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
-  /**
-   * Assigns Service Bus roles to a resource
-   */
-
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
-  /**
-   * Assigns Azure SignalR roles to a resource
-   */
-
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
-  /**
-   * Assigns Azure Storage roles to a resource
-   */
-
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
-  /**
-   * Assigns Azure Web PubSub roles to a resource
-   */
-
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
-  /**
-   * Schedules a workload on a specific Kubernetes node pool
-   */
-
-  withNodePool(nodePool: KubernetesNodePoolResource): this;
 }
 
 // augments handle type IResourceWithEndpoints with extension methods

@@ -184,6 +184,9 @@ const FORCE_OPTIONAL_PARAMS: Record<string, Set<string>> = {
 // Known parameter-type overrides — broaden the declared type to match what the
 // real SDK accepts but the dumped JSON doesn't encode (string overloads, etc).
 const PARAM_TYPE_OVERRIDES: Record<string, Record<string, string>> = {
+  addRoute: {
+    target: 'ExternalServiceResource | string | EndpointReference',
+  },
   withEnvironment: {
     value: 'string | IResourceWithConnectionString | IValueProvider',
   },
@@ -542,6 +545,17 @@ const NON_CONTAINER_HANDLES = new Set([
   'AzurePromptAgentResource',
 ]);
 
+const EXTRA_HANDLE_MEMBERS: Record<string, string[]> = {
+  AzureResourceInfrastructure: [
+    '  /** Gets the provisionable Azure resources produced by the infrastructure callback. */',
+    '  getProvisionableResources(): Promise<any[]>;',
+  ],
+  ProjectResource: [
+    '  /** Assigns Microsoft Foundry roles to this project resource. */',
+    '  withRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;',
+  ],
+};
+
 function isContainerBacked(h: HandleType): boolean {
   if (h.name === 'ContainerResource') return false;
   if (NON_CONTAINER_HANDLES.has(h.name)) return false;
@@ -589,6 +603,7 @@ for (const h of handleTypes) {
   for (const cap of h.capabilities ?? []) {
     emitMember(cap, '  ', parts);
   }
+  parts.push(...(EXTRA_HANDLE_MEMBERS[h.name] ?? []));
   parts.push(`}`);
   parts.push('');
 }
@@ -602,6 +617,12 @@ const targetNames = [...methodsByTarget.keys()].sort((a, b) => {
 });
 
 for (const target of targetNames) {
+  // Extension methods targeting the broad IResource interface include resource-
+  // specific overload groups (for example role assignments). Emitting them on
+  // IResource makes concrete resources with narrower overloads fail structural
+  // assignability back to IResource, which breaks common waitFor/withReference
+  // samples. Concrete expanded targets still receive those methods below.
+  if (target === 'IResource') continue;
   // DTOs and enums collide (different TS shape), so skip those. For handle types
   // we use interface merging — emit an augmentation with the extension methods
   // that live in per-integration packages (e.g. addRedis from Aspire.Hosting.Redis).
