@@ -630,9 +630,9 @@ var apiMigrations = api.AddEFMigrations("api-migrations")
 ```
 
 :::note
-Both `.WithReference(db)` and `.WaitFor(db)` are required when using `publishContainer: true`. `.WithReference(db)` wires up the connection string so the migration container can reach the database, and `.WaitFor(db)` ensures the database is healthy before the container starts.
+When using `publishContainer: true`, declaring both `.WithReference(db)` and `.WaitFor(db)` is the recommended approach. `.WithReference(db)` provides the authoritative connection-string source for the migration container, and `.WaitFor(db)` ensures the database is healthy before the container starts.
 
-When generating the container's Dockerfile or bundle environment variables, Aspire uses the database resource from `.WithReference()` as the authoritative source of the connection string. If no `.WithReference()` is declared, Aspire falls back to inferring the connection string from `.WaitFor()` dependencies. Declaring `.WithReference(db)` explicitly is the recommended approach and takes priority over any wait-based inference.
+When generating the container's Dockerfile or bundle environment variables, Aspire uses the database resource from `.WithReference()` as the authoritative source of the connection string when one is declared. If no `.WithReference()` is declared, Aspire falls back to inferring the connection string from `.WaitFor()` dependencies. Declaring `.WithReference(db)` explicitly is recommended and takes priority over any wait-based inference, while `.WaitFor(db)` is used for readiness and health ordering.
 :::
 
 Key behaviors:
