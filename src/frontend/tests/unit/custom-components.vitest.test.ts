@@ -560,7 +560,7 @@ const sampleCardFixture = {
   name: 'redis-sample',
   title: 'Redis sample',
   description: [
-    'This sample shows how to connect an API and dashboard to Redis for local development.',
+    '**This sample** shows how to connect an API and dashboard to Redis for local development.',
     'It also demonstrates configuration, diagnostics, and a longer description so the card renders its read-more behavior when a thumbnail is present.',
   ].join('\n\n'),
   href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample',
@@ -573,7 +573,7 @@ const sampleCardFixture = {
 
 const sampleDetailFixture = {
   ...sampleCardFixture,
-  description: 'This sample shows how to connect an API and dashboard to Redis.',
+  description: '**This sample** shows how to connect an API and dashboard to Redis.',
   readme: [
     '# Redis sample',
     '',
@@ -723,6 +723,8 @@ describe('custom Astro component render coverage', () => {
     );
 
     expect(html).toContain('Redis sample');
+    expect(html).toContain('This sample shows how to connect an API and dashboard to Redis');
+    expect(html).not.toContain('**This sample**');
     expect(html).toContain('data-sample-detail-href="/reference/samples/redis-sample/"');
     expect(html).toContain('href="/reference/samples/redis-sample/"');
     expect(html).toContain('data-read-more');
@@ -761,6 +763,8 @@ describe('custom Astro component render coverage', () => {
     );
 
     expect(html).toContain('Aspire sample');
+    expect(html).toContain('This sample shows how to connect an API and dashboard to Redis.');
+    expect(html).not.toContain('**This sample**');
     expect(html).toContain('Running the app');
     expect(html).not.toContain('Running The App');
     expect(html).toContain('sl-heading-wrapper level-h2');
