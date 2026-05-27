@@ -16,8 +16,10 @@ interface Props {
 
 const { sample } = Astro.props;
 
-function appHostIcon(kind: AppHostKind): StarlightIcon {
-  return kind === 'typescript' ? 'seti:typescript' : 'seti:c-sharp';
+function appHostIcon(kind: AppHostKind): StarlightIcon | null {
+  if (kind === 'typescript') return 'seti:typescript';
+  if (kind === 'file-based') return 'seti:c-sharp';
+  return null;
 }
 
 /**
@@ -117,7 +119,22 @@ const overflowTags = sample.tags.slice(5);
     {
       sample.appHost && (
         <div class="apphost-pill" data-apphost={sample.appHost}>
-          <Icon name={appHostIcon(sample.appHost)} size="0.85rem" />
+          {appHostIcon(sample.appHost) ? (
+            <Icon name={appHostIcon(sample.appHost)!} size="0.85rem" />
+          ) : (
+            <svg
+              class="apphost-glyph"
+              aria-hidden="true"
+              viewBox="0 0 16 16"
+              width="12"
+              height="12"
+            >
+              <path
+                d="M5.6 4.2 2.2 7.6c-.22.22-.22.58 0 .8L5.6 11.8c.22.22.58.22.8 0a.566.566 0 0 0 0-.8L3.42 8l3-3a.566.566 0 0 0 0-.8.566.566 0 0 0-.82 0Zm4.8 0a.566.566 0 0 0-.8.8l3 3-3 3a.566.566 0 0 0 0 .8c.22.22.58.22.8 0l3.4-3.4a.566.566 0 0 0 0-.8l-3.4-3.4Z"
+                fill="currentColor"
+              />
+            </svg>
+          )}
           <span>{appHostShortLabel(sample.appHost)} AppHost</span>
         </div>
       )
@@ -307,27 +324,43 @@ const overflowTags = sample.tags.slice(5);
     align-self: flex-start;
     padding: 0.18rem 0.5rem;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 38%, transparent);
-    background: color-mix(in srgb, var(--sl-color-accent) 12%, var(--sl-color-bg));
-    color: var(--sl-color-accent-high);
+    border: 1px solid color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 50%, transparent);
+    background: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 14%, var(--sl-color-bg));
+    color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 35%, var(--sl-color-white));
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.02em;
     line-height: 1;
   }
 
-  .apphost-pill :global(svg) {
-    color: var(--sl-color-accent-high);
+  .apphost-pill :global(svg),
+  .apphost-pill .apphost-glyph {
+    color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent-high)) 80%, var(--sl-color-white));
+  }
+
+  .apphost-glyph {
+    display: inline-block;
+    flex-shrink: 0;
   }
 
   .apphost-pill[data-apphost='typescript'] {
-    border-color: color-mix(in srgb, var(--color-cyan, #2dd4bf) 50%, transparent);
-    background: color-mix(in srgb, var(--color-cyan, #2dd4bf) 14%, var(--sl-color-bg));
-    color: color-mix(in srgb, var(--color-cyan, #2dd4bf) 80%, var(--sl-color-white));
+    --apphost-color: #3178c6;
   }
 
-  .apphost-pill[data-apphost='typescript'] :global(svg) {
-    color: var(--color-cyan, #2dd4bf);
+  .apphost-pill[data-apphost='csproj'],
+  .apphost-pill[data-apphost='file-based'] {
+    --apphost-color: #512bd4;
+  }
+
+  :global([data-theme='light']) .apphost-pill {
+    color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 80%, var(--sl-color-black));
+    background: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 12%, white);
+    border-color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 55%, transparent);
+  }
+
+  :global([data-theme='light']) .apphost-pill :global(svg),
+  :global([data-theme='light']) .apphost-pill .apphost-glyph {
+    color: var(--apphost-color, var(--sl-color-accent-high));
   }
 
   /* ---- Description (rendered markdown) ---- */

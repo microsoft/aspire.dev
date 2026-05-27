@@ -85,38 +85,67 @@ function collectStandaloneImages(tokens: marked.Token[]): SampleImage[] {
   return images;
 }
 
-const readmeBlocks = marked.lexer(stripReadmeTitle(sample.readme), { gfm: true });
-const readmeImages = collectStandaloneImages(readmeBlocks);
-const visibleTags = sample.tags;
 const sampleSummary = sampleDescriptionText(sample.description)
   ?.split('\n')
   .find((line) => line.trim().length > 0)
   ?.trim();
 
-const DATABASE_TAGS = new Set([
-  'postgresql',
-  'mysql',
-  'sql-server',
-  'mongodb',
-  'redis',
-  'databases',
-  'ef-core',
-]);
+const rawReadmeBlocks = marked.lexer(stripReadmeTitle(sample.readme), { gfm: true });
+const readmeBlocks = dropLeadingSummaryParagraph(rawReadmeBlocks, sampleSummary);
+const readmeImages = collectStandaloneImages(readmeBlocks);
+const visibleTags = sample.tags;
 
-function pickHeroIcon(tags: readonly string[]): StarlightIcon {
-  for (const tag of tags) {
-    if (tag === 'docker' || tag === 'containers') return 'seti:docker';
-    if (DATABASE_TAGS.has(tag)) return 'seti:db';
-    if (tag === 'azure' || tag.startsWith('azure-')) return 'cloud-download';
-    if (tag === 'dashboard' || tag === 'metrics' || tag === 'health-checks') {
-      return 'magnifier';
+function normalizeForCompare(value: string): string {
+  return value
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function paragraphPlainText(token: marked.Tokens.Paragraph): string {
+  const parts: string[] = [];
+  const walk = (nodes: marked.Token[] | undefined): void => {
+    if (!nodes) return;
+    for (const node of nodes) {
+      switch (node.type) {
+        case 'text':
+        case 'codespan':
+        case 'em':
+        case 'strong':
+        case 'del':
+          parts.push((node as marked.Tokens.Text | marked.Tokens.Codespan).text ?? '');
+          walk((node as any).tokens);
+          break;
+        case 'link':
+          walk((node as marked.Tokens.Link).tokens);
+          break;
+        case 'br':
+          parts.push(' ');
+          break;
+        default:
+          walk((node as any).tokens);
+      }
     }
-    if (tag === 'csharp' || tag === 'blazor' || tag === 'orleans') {
-      return 'seti:c-sharp';
-    }
-    if (tag === 'typescript') return 'seti:typescript';
-  }
-  return 'rocket';
+  };
+  walk(token.tokens);
+  return parts.join('');
+}
+
+function dropLeadingSummaryParagraph(
+  blocks: marked.Token[],
+  summary: string | undefined,
+): marked.Token[] {
+  if (!summary) return blocks;
+  const summaryHead = normalizeForCompare(summary).slice(0, 80);
+  if (summaryHead.length < 20) return blocks;
+  const firstContent = blocks.find((token) => token.type !== 'space');
+  if (!firstContent || firstContent.type !== 'paragraph') return blocks;
+  const paragraphText = normalizeForCompare(
+    paragraphPlainText(firstContent as marked.Tokens.Paragraph),
+  );
+  if (!paragraphText.startsWith(summaryHead)) return blocks;
+  const startIndex = blocks.indexOf(firstContent);
+  return blocks.slice(startIndex + 1);
 }
 
 function hashString(value: string): number {
@@ -127,12 +156,11 @@ function hashString(value: string): number {
   return Math.abs(hash);
 }
 
-const heroIcon = pickHeroIcon(visibleTags);
 const appHostKind: AppHostKind | null = sample.appHost ?? null;
 const appHostIcon: StarlightIcon | null =
   appHostKind === 'typescript'
     ? 'seti:typescript'
-    : appHostKind
+    : appHostKind === 'file-based'
       ? 'seti:c-sharp'
       : null;
 // 5 nodes in the resource-graph backdrop; pick which one pulses based on the
@@ -167,13 +195,28 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
     <div class="sample-hero-copy">
       <div class="sample-hero-tags">
         <div class="sample-hero-tag">
-          <Icon name={heroIcon} size="0.95rem" />
+          <Icon name="rocket" size="0.95rem" />
           <span>Aspire sample</span>
         </div>
         {
-          appHostKind && appHostIcon && (
+          appHostKind && (
             <div class="sample-hero-tag sample-hero-apphost" data-apphost={appHostKind}>
-              <Icon name={appHostIcon} size="0.95rem" />
+              {appHostIcon ? (
+                <Icon name={appHostIcon} size="0.95rem" />
+              ) : (
+                <svg
+                  class="apphost-glyph"
+                  aria-hidden="true"
+                  viewBox="0 0 16 16"
+                  width="14"
+                  height="14"
+                >
+                  <path
+                    d="M5.6 4.2 2.2 7.6c-.22.22-.22.58 0 .8L5.6 11.8c.22.22.58.22.8 0a.566.566 0 0 0 0-.8L3.42 8l3-3a.566.566 0 0 0 0-.8.566.566 0 0 0-.82 0Zm4.8 0a.566.566 0 0 0-.8.8l3 3-3 3a.566.566 0 0 0 0 .8c.22.22.58.22.8 0l3.4-3.4a.566.566 0 0 0 0-.8l-3.4-3.4Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              )}
               <span>{appHostLabel(appHostKind)}</span>
             </div>
           )
@@ -400,8 +443,14 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
     line-height: 1;
   }
 
-  .sample-hero-tag :global(svg) {
+  .sample-hero-tag :global(svg),
+  .sample-hero-tag .apphost-glyph {
     color: var(--aspire-color-secondary);
+  }
+
+  .apphost-glyph {
+    display: inline-block;
+    flex-shrink: 0;
   }
 
   :global([data-theme='light']) .sample-hero-tag {
@@ -410,24 +459,46 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
     border-color: color-mix(in srgb, var(--aspire-color-primary) 45%, transparent);
   }
 
-  :global([data-theme='light']) .sample-hero-tag :global(svg) {
+  :global([data-theme='light']) .sample-hero-tag :global(svg),
+  :global([data-theme='light']) .sample-hero-tag .apphost-glyph {
     color: var(--aspire-color-primary);
   }
 
+  /* AppHost flavour pills follow the canonical C# and TypeScript brand colors so
+     the language signal reads clearly without leaning on the page accent. */
+  .sample-hero-apphost {
+    --apphost-color: var(--aspire-color-primary);
+  }
+
   .sample-hero-apphost[data-apphost='typescript'] {
-    background: color-mix(in srgb, var(--color-cyan, #2dd4bf) 16%, var(--sl-color-bg));
-    border-color: color-mix(in srgb, var(--color-cyan, #2dd4bf) 50%, transparent);
-    color: color-mix(in srgb, var(--color-cyan, #2dd4bf) 75%, var(--sl-color-white));
+    --apphost-color: #3178c6;
   }
 
-  .sample-hero-apphost[data-apphost='typescript'] :global(svg) {
-    color: var(--color-cyan, #2dd4bf);
+  .sample-hero-apphost[data-apphost='csproj'],
+  .sample-hero-apphost[data-apphost='file-based'] {
+    --apphost-color: #512bd4;
   }
 
-  :global([data-theme='light']) .sample-hero-apphost[data-apphost='typescript'] {
-    color: color-mix(in srgb, var(--color-cyan, #2dd4bf) 70%, var(--sl-color-black));
-    background: color-mix(in srgb, var(--color-cyan, #2dd4bf) 12%, white);
-    border-color: color-mix(in srgb, var(--color-cyan, #2dd4bf) 55%, transparent);
+  .sample-hero-apphost {
+    background: color-mix(in srgb, var(--apphost-color) 18%, var(--sl-color-bg));
+    border-color: color-mix(in srgb, var(--apphost-color) 55%, transparent);
+    color: color-mix(in srgb, var(--apphost-color) 35%, var(--sl-color-white));
+  }
+
+  .sample-hero-apphost :global(svg),
+  .sample-hero-apphost .apphost-glyph {
+    color: color-mix(in srgb, var(--apphost-color) 80%, var(--sl-color-white));
+  }
+
+  :global([data-theme='light']) .sample-hero-apphost {
+    color: color-mix(in srgb, var(--apphost-color) 80%, var(--sl-color-black));
+    background: color-mix(in srgb, var(--apphost-color) 14%, white);
+    border-color: color-mix(in srgb, var(--apphost-color) 55%, transparent);
+  }
+
+  :global([data-theme='light']) .sample-hero-apphost :global(svg),
+  :global([data-theme='light']) .sample-hero-apphost .apphost-glyph {
+    color: var(--apphost-color);
   }
 
   .sample-hero-title {

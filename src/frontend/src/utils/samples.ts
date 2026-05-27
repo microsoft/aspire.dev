@@ -35,7 +35,7 @@ export function appHostShortLabel(kind: AppHostKind): string {
     case 'csproj':
       return 'C# (csproj)';
     case 'file-based':
-      return 'C# (file-based)';
+      return 'File-based';
   }
 }
 
