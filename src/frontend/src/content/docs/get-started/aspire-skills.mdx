@@ -1,0 +1,168 @@
+---
+title: Aspire Skills
+description: Learn how to install and use the Aspire Skills plugin pack for AI coding agents.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+[Aspire Skills](https://github.com/microsoft/aspire-skills) is a plugin and skill pack for AI coding agents that work on Aspire distributed applications. The skills help agents detect AppHosts, use the Aspire CLI, route common tasks to focused workflows, and avoid ad hoc `dotnet`, Docker, `curl`, or shell workflows when Aspire already provides the right command.
+
+Use the skills together with [`aspire agent init`](/reference/cli/commands/aspire-agent-init/):
+
+- Run `aspire agent init` inside an Aspire project to install project-local skill files and MCP configuration with app-specific context.
+- Install the Aspire Skills plugin pack in an agent host when you want global Aspire guardrails available before or alongside project-local guidance.
+- Let project-local skill files take precedence when both are present because they can include repository-specific instructions.
+
+:::tip[Recommended setup]
+Start with `aspire agent init` in each Aspire project. Add the Aspire Skills plugin pack for agent hosts where you want the same Aspire-aware routing and guardrails available globally.
+:::
+
+## Included skills
+
+The repository packages six skills that map common Aspire work to the right workflow:
+
+| Skill                                                                                                      | Purpose                                                                                      |
+| ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [`aspire`](https://github.com/microsoft/aspire-skills/tree/main/skills/aspire)                             | Top-level router that detects Aspire context and routes work to focused skills.              |
+| [`aspire-init`](https://github.com/microsoft/aspire-skills/tree/main/skills/aspire-init)                   | Creates a new Aspire project or adds an AppHost skeleton to an existing repository.          |
+| [`aspireify`](https://github.com/microsoft/aspire-skills/tree/main/skills/aspireify)                       | Wires an AppHost after initialization, including C#, file-based C#, and TypeScript AppHosts. |
+| [`aspire-orchestration`](https://github.com/microsoft/aspire-skills/tree/main/skills/aspire-orchestration) | Starts, stops, waits for, and manages Aspire app resources safely.                           |
+| [`aspire-deployment`](https://github.com/microsoft/aspire-skills/tree/main/skills/aspire-deployment)       | Publishes, deploys, and tears down Aspire apps through Aspire deployment workflows.          |
+| [`aspire-monitoring`](https://github.com/microsoft/aspire-skills/tree/main/skills/aspire-monitoring)       | Routes logs, traces, dashboard, telemetry, and diagnostics work to the right tools.          |
+
+## Install with the Aspire CLI
+
+The Aspire CLI is the first-party setup path. It installs Aspire skill files and MCP configuration into detected agent environments.
+
+```bash title="Aspire CLI"
+# Create a new Aspire app and opt into agent guidance when prompted.
+aspire new
+
+# Or add Aspire to an existing repository and opt into agent guidance.
+aspire init
+
+# Add, update, or reconfigure Aspire guidance in an existing workspace.
+aspire agent init
+```
+
+For more information, see the [`aspire agent init` command reference](/reference/cli/commands/aspire-agent-init/).
+
+## Install as an agent plugin or extension
+
+Use the plugin or extension path when you want the Aspire Skills pack installed in a specific agent host.
+
+<Tabs syncKey="aspire-skills-install">
+<TabItem id="copilot-cli" label="Copilot CLI">
+
+```bash title="Copilot CLI"
+copilot plugin marketplace add microsoft/aspire-skills
+copilot plugin install aspire@aspire-skills
+```
+
+</TabItem>
+<TabItem id="claude-code" label="Claude Code">
+
+```bash title="Claude Code CLI"
+claude
+/plugin marketplace add microsoft/aspire-skills
+/plugin install aspire@aspire-skills
+```
+
+</TabItem>
+<TabItem id="codex-cli" label="Codex CLI">
+
+```bash title="Codex CLI"
+codex plugin marketplace add microsoft/aspire-skills
+codex
+```
+
+Then open `/plugins` and install `aspire`.
+
+</TabItem>
+<TabItem id="gemini-cli" label="Gemini CLI">
+
+```bash title="Gemini CLI"
+gemini extensions install https://github.com/microsoft/aspire-skills
+```
+
+</TabItem>
+<TabItem id="cursor-cli" label="Cursor CLI">
+
+```bash title="Cursor CLI"
+mkdir -p ~/.cursor/skills
+git clone https://github.com/microsoft/aspire-skills ~/.cursor/skills/aspire-skills
+agent
+```
+
+</TabItem>
+<TabItem id="opencode" label="OpenCode">
+
+```bash title="OpenCode"
+apm install microsoft/aspire-skills
+opencode
+```
+
+</TabItem>
+<TabItem id="ollama-copilot" label="Ollama + Copilot CLI">
+
+```bash title="Ollama and Copilot CLI"
+ollama launch copilot
+copilot plugin marketplace add microsoft/aspire-skills
+copilot plugin install aspire@aspire-skills
+```
+
+</TabItem>
+</Tabs>
+
+## Install with skills.sh
+
+Use the Skills-compatible installer when your agent host supports skills.sh-managed skill locations.
+
+```bash title="skills.sh"
+npx skills add microsoft/aspire-skills
+```
+
+For hosts that need an explicit skills directory and target agent, install from the repository's `skills/` folder:
+
+```bash title="skills.sh with explicit target"
+npx skills add https://github.com/microsoft/aspire-skills/tree/main/skills \
+  -a github-copilot -g -y
+```
+
+In this command, `-a github-copilot` selects the target agent, `-g` installs globally, and `-y` accepts prompts.
+
+## Project-local guidance and plugin guardrails
+
+Project-local skill files from `aspire agent init` should supply the app-specific context for a repository. When the plugin pack finds local Aspire skill files, it defers to them for deeper AppHost editing, Playwright handoffs, and investigation workflows while keeping the plugin's global Aspire safety guardrails available.
+
+This layering gives agents an Aspire-native path:
+
+1. The agent host loads Aspire Skills from its plugin, extension, or skill location.
+2. The top-level `aspire` skill detects an Aspire workspace and routes the task.
+3. Project-local guidance from `aspire agent init` adds repository-specific context.
+4. The agent uses the Aspire CLI and MCP server to inspect, change, run, and diagnose the app.
+
+## Evaluation coverage
+
+The Aspire Skills repository uses [waza](https://github.com/microsoft/waza) to evaluate skill quality. Evals exercise skill routing, content correctness, and behavior against an LLM-as-judge rubric.
+
+The current public eval coverage includes 54 scenario tasks and 113 trigger prompts across the six skills:
+
+| Skill                  | Tasks | Trigger prompts | Focus                                                                                            |
+| ---------------------- | ----: | --------------: | ------------------------------------------------------------------------------------------------ |
+| `aspire`               |     6 |              16 | Routing precision to sub-skills                                                                  |
+| `aspire-init`          |     5 |              15 | Skeleton drop, `aspire new` / `aspire init` decisions, and `aspireify` handoff                   |
+| `aspireify`            |     8 |              18 | AppHost wiring across C#, file-based C#, and TypeScript; validation; and generated module safety |
+| `aspire-orchestration` |    16 |              24 | Lifecycle, file lock recovery, hidden resources, and CLI self-updates                            |
+| `aspire-deployment`    |     8 |              21 | Multi-target deployment, `aspire destroy`, JavaScript publishing, and pipeline previews          |
+| `aspire-monitoring`    |    11 |              19 | Diagnostics bridge, standalone dashboard, browser logs, and hidden resources                     |
+
+For the live eval details, see the [Aspire Skills eval README](https://github.com/microsoft/aspire-skills/blob/main/evals/README.md).
+
+## See also
+
+- [Aspire Skills public site](https://microsoft.github.io/aspire-skills/)
+- [Aspire Skills repository](https://github.com/microsoft/aspire-skills)
+- [Use AI coding agents](/get-started/ai-coding-agents/)
+- [Aspire MCP server](/get-started/aspire-mcp-server/)
+- [`aspire agent init` command reference](/reference/cli/commands/aspire-agent-init/)
