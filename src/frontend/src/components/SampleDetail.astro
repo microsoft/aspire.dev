@@ -1,6 +1,7 @@
 ---
 import { Badge, Icon } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import type { StarlightIcon } from '@astrojs/starlight/types';
 import { marked } from 'marked';
 
 import SampleReadmeBlocks from '@components/SampleReadmeBlocks.astro';
@@ -86,12 +87,76 @@ const sampleSummary = sampleDescriptionText(sample.description)
   ?.split('\n')
   .find((line) => line.trim().length > 0)
   ?.trim();
+
+const DATABASE_TAGS = new Set([
+  'postgresql',
+  'mysql',
+  'sql-server',
+  'mongodb',
+  'redis',
+  'databases',
+  'ef-core',
+]);
+
+function pickHeroIcon(tags: readonly string[]): StarlightIcon {
+  for (const tag of tags) {
+    if (tag === 'docker' || tag === 'containers') return 'seti:docker';
+    if (DATABASE_TAGS.has(tag)) return 'seti:db';
+    if (tag === 'azure' || tag.startsWith('azure-')) return 'cloud-download';
+    if (tag === 'dashboard' || tag === 'metrics' || tag === 'health-checks') {
+      return 'magnifier';
+    }
+    if (tag === 'csharp' || tag === 'blazor' || tag === 'orleans') {
+      return 'seti:c-sharp';
+    }
+    if (tag === 'typescript') return 'seti:typescript';
+  }
+  return 'rocket';
+}
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index++) {
+    hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+const heroIcon = pickHeroIcon(visibleTags);
+// 5 nodes in the resource-graph backdrop; pick which one pulses based on the
+// sample slug so every sample's hero feels subtly different.
+const nodeCount = 5;
+const primaryNodeIndex = hashString(sample.name) % nodeCount;
 ---
 
 <article class="sample-detail">
   <div class="sample-hero not-content">
+    <div class="sample-hero-glow" aria-hidden="true"></div>
+    <svg
+      class="sample-hero-mesh"
+      aria-hidden="true"
+      viewBox="0 0 480 260"
+      preserveAspectRatio="xMaxYMid slice"
+    >
+      <path class="mesh-edge" d="M 60 80 Q 150 60 230 110" />
+      <path class="mesh-edge mesh-edge-strong" d="M 230 110 Q 320 70 410 130" />
+      <path class="mesh-edge" d="M 60 80 Q 110 160 200 200" />
+      <path class="mesh-edge" d="M 200 200 Q 290 180 410 130" />
+      <path class="mesh-edge mesh-edge-soft" d="M 230 110 Q 220 160 200 200" />
+      <path class="mesh-edge mesh-edge-soft" d="M 410 130 Q 440 200 380 230" />
+
+      <circle class={`mesh-node ${primaryNodeIndex === 0 ? 'is-primary' : ''}`} cx="60" cy="80" r="9" />
+      <circle class={`mesh-node ${primaryNodeIndex === 1 ? 'is-primary' : ''}`} cx="230" cy="110" r="13" />
+      <circle class={`mesh-node ${primaryNodeIndex === 2 ? 'is-primary' : ''}`} cx="410" cy="130" r="10" />
+      <circle class={`mesh-node ${primaryNodeIndex === 3 ? 'is-primary' : ''}`} cx="200" cy="200" r="11" />
+      <circle class={`mesh-node mesh-node-small ${primaryNodeIndex === 4 ? 'is-primary' : ''}`} cx="380" cy="230" r="6" />
+    </svg>
+
     <div class="sample-hero-copy">
-      <div class="sample-kicker">Aspire sample</div>
+      <div class="sample-hero-tag">
+        <Icon name={heroIcon} size="0.95rem" />
+        <span>Aspire sample</span>
+      </div>
       <h2 class="sample-hero-title">Clone, run, and explore this sample</h2>
       {sampleSummary && <p class="sample-summary">{sampleSummary}</p>}
       {
@@ -178,44 +243,107 @@ const sampleSummary = sampleDescriptionText(sample.description)
     overflow: hidden;
     display: flex;
     gap: clamp(1rem, 3vw, 2rem);
-    padding: clamp(1rem, 3vw, 2rem);
-    border: 1px solid var(--sl-color-gray-5);
+    padding: clamp(1.5rem, 3vw, 2.5rem);
     border-radius: 0.5rem;
-    background:
-      radial-gradient(
-        circle at 0% 0%,
-        color-mix(in srgb, var(--sl-color-accent) 24%, transparent),
-        transparent 38%
-      ),
-      linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--sl-color-gray-6) 94%, var(--sl-color-accent)),
-        color-mix(in srgb, var(--sl-color-gray-6) 78%, var(--sl-color-black))
-      );
+    border: 1px solid color-mix(in srgb, var(--aspire-color-primary) 25%, transparent);
+    background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--aspire-color-primary) 10%, transparent),
+      color-mix(in srgb, var(--aspire-color-secondary) 5%, transparent),
+      transparent 70%
+    );
     box-shadow: var(--sl-shadow-md);
+    isolation: isolate;
   }
 
-  .sample-hero::after {
-    content: '';
+  .sample-hero-glow {
     position: absolute;
-    inset: auto -4rem -5rem auto;
-    width: min(28rem, 45vw);
-    aspect-ratio: 1;
-    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
-    border-radius: 999px;
+    inset: 0;
     background:
       radial-gradient(
-        circle,
-        color-mix(in srgb, var(--sl-color-accent) 22%, transparent),
-        transparent 58%
+        ellipse 60% 80% at 100% 50%,
+        color-mix(in srgb, var(--aspire-color-primary) 18%, transparent),
+        transparent 70%
       ),
-      repeating-linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--sl-color-accent) 14%, transparent) 0 1px,
-        transparent 1px 14px
+      radial-gradient(
+        ellipse 50% 70% at 0% 100%,
+        color-mix(in srgb, var(--aspire-color-secondary) 12%, transparent),
+        transparent 65%
       );
-    opacity: 0.55;
     pointer-events: none;
+  }
+
+  .sample-hero-mesh {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: min(72%, 38rem);
+    height: 100%;
+    pointer-events: none;
+    mask-image: linear-gradient(to left, black 35%, transparent 95%);
+    -webkit-mask-image: linear-gradient(to left, black 35%, transparent 95%);
+  }
+
+  .mesh-edge {
+    fill: none;
+    stroke: color-mix(in srgb, var(--aspire-color-primary) 42%, transparent);
+    stroke-width: 1.25;
+    stroke-linecap: round;
+    stroke-dasharray: 3 7;
+    animation: mesh-flow 14s linear infinite;
+  }
+
+  .mesh-edge-strong {
+    stroke: color-mix(in srgb, var(--aspire-color-secondary) 60%, transparent);
+    stroke-width: 1.5;
+    animation-duration: 9s;
+  }
+
+  .mesh-edge-soft {
+    stroke: color-mix(in srgb, var(--aspire-color-primary) 22%, transparent);
+    stroke-dasharray: 2 9;
+    animation-duration: 18s;
+  }
+
+  @keyframes mesh-flow {
+    to {
+      stroke-dashoffset: -120;
+    }
+  }
+
+  .mesh-node {
+    fill: color-mix(in srgb, var(--aspire-color-primary) 22%, var(--sl-color-bg));
+    stroke: color-mix(in srgb, var(--aspire-color-primary) 65%, transparent);
+    stroke-width: 1.5;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .mesh-node-small {
+    fill: color-mix(in srgb, var(--aspire-color-secondary) 18%, var(--sl-color-bg));
+    stroke: color-mix(in srgb, var(--aspire-color-secondary) 50%, transparent);
+    opacity: 0.75;
+  }
+
+  .mesh-node.is-primary {
+    fill: color-mix(in srgb, var(--aspire-color-primary) 38%, var(--sl-color-bg));
+    stroke: var(--aspire-color-secondary);
+    stroke-width: 2;
+    filter: drop-shadow(
+      0 0 6px color-mix(in srgb, var(--aspire-color-primary) 60%, transparent)
+    );
+    animation: mesh-pulse 3.6s ease-in-out infinite;
+  }
+
+  @keyframes mesh-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.18);
+      opacity: 0.82;
+    }
   }
 
   .sample-hero-copy {
@@ -227,12 +355,35 @@ const sampleSummary = sampleDescriptionText(sample.description)
     max-width: 52rem;
   }
 
-  .sample-kicker {
-    color: var(--sl-color-accent-high);
-    font-size: 0.8rem;
+  .sample-hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    align-self: flex-start;
+    padding: 0.3rem 0.7rem 0.3rem 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--aspire-color-primary) 18%, var(--sl-color-bg));
+    border: 1px solid color-mix(in srgb, var(--aspire-color-primary) 40%, transparent);
+    color: color-mix(in srgb, var(--aspire-color-secondary) 80%, var(--sl-color-white));
+    font-size: 0.78rem;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .sample-hero-tag :global(svg) {
+    color: var(--aspire-color-secondary);
+  }
+
+  :global([data-theme='light']) .sample-hero-tag {
+    color: color-mix(in srgb, var(--aspire-color-primary) 75%, var(--sl-color-black));
+    background: color-mix(in srgb, var(--aspire-color-primary) 14%, white);
+    border-color: color-mix(in srgb, var(--aspire-color-primary) 45%, transparent);
+  }
+
+  :global([data-theme='light']) .sample-hero-tag :global(svg) {
+    color: var(--aspire-color-primary);
   }
 
   .sample-hero-title {
@@ -240,7 +391,8 @@ const sampleSummary = sampleDescriptionText(sample.description)
     margin: 0;
     color: var(--sl-color-white);
     font-size: clamp(1.35rem, 4vw, 2.15rem);
-    line-height: 1.08;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
   }
 
   .sample-summary {
@@ -255,6 +407,14 @@ const sampleSummary = sampleDescriptionText(sample.description)
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
+  }
+
+  .sample-kicker {
+    color: var(--sl-color-accent-high);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
   .sample-actions {
@@ -370,14 +530,44 @@ const sampleSummary = sampleDescriptionText(sample.description)
     margin-top: 0;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .mesh-edge {
+      animation: none;
+    }
+
+    .mesh-node.is-primary {
+      animation: none;
+    }
+
+    .sample-action {
+      transition: none;
+    }
+
+    .sample-action:hover {
+      transform: none;
+    }
+  }
+
+  @media (max-width: 48rem) {
+    .sample-hero-mesh {
+      width: 60%;
+      opacity: 0.85;
+    }
+  }
+
   @media (max-width: 36rem) {
     .sample-actions,
     .sample-action {
       width: 100%;
     }
 
-    .sample-hero::after {
-      opacity: 0.35;
+    .sample-hero {
+      padding: clamp(1.25rem, 5vw, 1.75rem);
+    }
+
+    .sample-hero-mesh {
+      width: 72%;
+      opacity: 0.5;
     }
   }
 </style>
