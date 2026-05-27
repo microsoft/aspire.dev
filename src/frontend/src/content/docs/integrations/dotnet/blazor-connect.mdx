@@ -30,14 +30,15 @@ For example, if you reference an API resource named `weatherapi` with an `http` 
 
 Common properties used in Blazor-hosted app models are:
 
-| Property | Description |
-| --- | --- |
-| `services__{resource}__http__0` | The first HTTP endpoint URL for a referenced resource |
-| `services__{resource}__https__0` | The first HTTPS endpoint URL for a referenced resource |
-| `services__{resource}__{endpoint}__0` | A named endpoint URL when the endpoint name is custom |
+| Property                              | Description                                            |
+| ------------------------------------- | ------------------------------------------------------ |
+| `services__{resource}__http__0`       | The first HTTP endpoint URL for a referenced resource  |
+| `services__{resource}__https__0`      | The first HTTPS endpoint URL for a referenced resource |
+| `services__{resource}__{endpoint}__0` | A named endpoint URL when the endpoint name is custom  |
 
-<Aside type='note'>
-For a broader service discovery reference, including multi-language examples, see [Service discovery](/fundamentals/service-discovery/).
+<Aside type="note">
+  For a broader service discovery reference, including multi-language examples,
+  see [Service discovery](/fundamentals/service-discovery/).
 </Aside>
 
 ## Connect from your AppHost
@@ -72,14 +73,18 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const weatherApi = await builder.addProject('weatherapi', '../WeatherApi/WeatherApi.csproj');
+const weatherApi = await builder
+  .addProject('weatherapi', '../WeatherApi/WeatherApi.csproj')
+  .withHttpEndpoint({ name: 'http' });
 
-const blazorApp = await builder.addBlazorWasmProject('app', '../Client/Client.csproj');
-await blazorApp.withReference(await weatherApi.getEndpoint('http'));
+const blazorApp = await builder
+  .addBlazorWasmProject('app', '../Client/Client.csproj')
+  .withReference(await weatherApi.getEndpoint('http'));
 
-const gateway = await builder.addBlazorGateway('gateway');
-await gateway.withExternalHttpEndpoints();
-await gateway.withBlazorClientApp(blazorApp);
+await builder
+  .addBlazorGateway('gateway')
+  .withExternalHttpEndpoints()
+  .withBlazorClientApp(blazorApp);
 
 await builder.build().run();
 ```
