@@ -909,7 +909,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'app-host/resource-lifetimes',
               translations: {
                 en: 'Resource lifetimes',
-                ja: '永続コンテナー',
+                ja: 'リソースのライフタイム',
               },
             },
             {
