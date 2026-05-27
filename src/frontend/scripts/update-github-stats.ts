@@ -7,6 +7,7 @@ const REPOS = [
   'microsoft/aspire-samples',
   'CommunityToolkit/Aspire',
   'microsoft/aspire.dev',
+  'microsoft/aspire-skills',
   'microsoft/dcp',
 ] as const;
 const OUTPUT_PATH = './src/data/github-stats.json';
