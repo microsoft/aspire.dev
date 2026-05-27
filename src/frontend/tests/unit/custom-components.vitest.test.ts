@@ -723,6 +723,7 @@ describe('custom Astro component render coverage', () => {
     );
 
     expect(html).toContain('Redis sample');
+    expect(html).toContain('has-thumbnail');
     expect(html).toContain('This sample shows how to connect an API and dashboard to Redis');
     expect(html).not.toContain('**This sample**');
     expect(html).toContain('data-sample-detail-href="/reference/samples/redis-sample/"');
