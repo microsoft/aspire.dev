@@ -1,0 +1,253 @@
+---
+import { Steps } from '@astrojs/starlight/components';
+import { Code } from 'astro-expressive-code/components';
+import { marked } from 'marked';
+
+interface Props {
+  blocks: marked.Token[];
+  sampleHref: string;
+  headingCounts?: Map<string, number>;
+}
+
+const { blocks, sampleHref, headingCounts = new Map<string, number>() } = Astro.props;
+
+function escapeAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function escapeHtml(value: string): string {
+  return escapeAttribute(value).replace(/'/g, '&#39;');
+}
+
+function resolveReadmeHref(href: string): string {
+  if (/^(?:https?:|mailto:|tel:|#|\/)/i.test(href)) {
+    return href;
+  }
+
+  const relativeHref = href.replace(/^\.\//, '');
+  return `${sampleHref}/${relativeHref}`;
+}
+
+function createRenderer(): marked.Renderer {
+  const renderer = new marked.Renderer();
+
+  renderer.link = function ({ href, title, tokens }) {
+    if (!href) {
+      return '';
+    }
+
+    const resolvedHref = resolveReadmeHref(href);
+    const isExternal = /^(?:https?:)?\/\//i.test(resolvedHref);
+    const text = tokens?.map((token: any) => token.raw || token.text || '').join('') || href;
+    const titleAttr = title ? ` title="${escapeAttribute(title)}"` : '';
+    const targetAttrs = isExternal ? ' target="_blank" rel="noopener noreferrer"' : '';
+
+    return `<a href="${escapeAttribute(resolvedHref)}"${titleAttr}${targetAttrs}>${text}</a>`;
+  };
+
+  renderer.heading = function ({ tokens, depth }) {
+    const text = tokens?.map((token: any) => token.text || token.raw || '').join('') || '';
+    const normalizedText = toSentenceCase(text);
+    const normalizedTokens = normalizeHeadingTokens(tokens ?? []);
+    const innerHtml = marked
+      .parser(
+        [
+          {
+            type: 'paragraph',
+            raw: normalizedText,
+            text: normalizedText,
+            tokens: normalizedTokens,
+          } as marked.Tokens.Paragraph,
+        ],
+        { renderer }
+      )
+      .replace(/^<p>|<\/p>\n?$/g, '');
+    const baseSlug = slugifyHeading(text);
+    const seen = headingCounts.get(baseSlug) ?? 0;
+    headingCounts.set(baseSlug, seen + 1);
+    const slug = seen === 0 ? baseSlug : `${baseSlug}-${seen}`;
+
+    return `<div class="sl-heading-wrapper level-h${depth}"><h${depth} id="${slug}">${innerHtml}</h${depth}><a class="sl-anchor-link" href="#${slug}"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0a2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.48 4.48 0 0 0 0-6.33Zm-6.36 5a1 1 0 0 0-1.41 0l-4.6 4.6a1 1 0 0 0 1.41 1.41l4.6-4.6a1 1 0 0 0 0-1.4Z"/></svg></span><span class="sr-only">Section titled ${escapeHtml(normalizedText)}</span></a></div>`;
+  };
+
+  return renderer;
+}
+
+function slugifyHeading(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .trim()
+    .replace(/<[^>]*>/g, '')
+    .replace(/[^\p{Letter}\p{Number}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return slug || 'section';
+}
+
+function toSentenceCase(value: string): string {
+  const words = value.trim().split(/(\s+)/);
+  let firstWordSeen = false;
+
+  return words
+    .map((word) => {
+      if (/^\s+$/.test(word) || shouldPreserveWord(word)) {
+        if (!firstWordSeen && !/^\s+$/.test(word)) {
+          firstWordSeen = true;
+        }
+        return word;
+      }
+
+      if (!firstWordSeen) {
+        firstWordSeen = true;
+        return word.charAt(0).toLocaleUpperCase() + word.slice(1).toLocaleLowerCase();
+      }
+
+      return word.toLocaleLowerCase();
+    })
+    .join('');
+}
+
+function shouldPreserveWord(word: string): boolean {
+  const trimmed = word.replace(/^[^\p{Letter}\p{Number}]+|[^\p{Letter}\p{Number}]+$/gu, '');
+  return (
+    trimmed.length === 0 ||
+    /[a-z][A-Z]/.test(trimmed) ||
+    /\d/.test(trimmed) ||
+    /^[A-Z]{2,}$/.test(trimmed) ||
+    /[.#/+_-]/.test(trimmed)
+  );
+}
+
+function normalizeHeadingTokens(tokens: marked.Token[] = []): marked.Token[] {
+  let remainingText: string | null = toSentenceCase(
+    tokens.map((token: any) => token.text || token.raw || '').join('')
+  );
+
+  return tokens.map((token: any) => {
+    if (remainingText === null || typeof token.text !== 'string') {
+      return token;
+    }
+
+    const normalized = remainingText.slice(0, token.text.length);
+    remainingText = remainingText.slice(token.text.length);
+    return {
+      ...token,
+      raw: normalized,
+      text: normalized,
+    };
+  });
+}
+
+const markdownRenderer = createRenderer();
+
+function renderBlockHtml(token: marked.Token): string {
+  return marked.parser([token], { renderer: markdownRenderer });
+}
+
+function getStandaloneImage(token: marked.Token): boolean {
+  if (token.type !== 'paragraph') {
+    return false;
+  }
+
+  const paragraph = token as marked.Tokens.Paragraph;
+  const tokens = paragraph.tokens ?? [];
+  const imageTokens = tokens.filter((child) => child.type === 'image');
+  const hasOnlyImageAndWhitespace = tokens.every(
+    (child: any) => child.type === 'image' || (child.type === 'text' && child.text.trim() === '')
+  );
+
+  return imageTokens.length === 1 && hasOnlyImageAndWhitespace;
+}
+
+function getCodeProps(token: marked.Token): { code: string; lang: string; meta: string } {
+  const codeToken = token as marked.Tokens.Code;
+  const [rawLang = 'text', ...meta] = (codeToken.lang || 'text').trim().split(/\s+/);
+  const lang = rawLang.toLowerCase() === 'shell' ? 'bash' : rawLang;
+
+  return {
+    code: codeToken.text,
+    lang,
+    meta: meta.join(' '),
+  };
+}
+
+function getListItems(token: marked.Token): marked.Tokens.ListItem[] {
+  return (token as marked.Tokens.List).items ?? [];
+}
+
+function getListItemBlocks(item: marked.Tokens.ListItem): marked.Token[] {
+  return item.tokens ?? [];
+}
+---
+
+{
+  blocks.map((block) => {
+    if (block.type === 'space') {
+      return null;
+    }
+
+    if (block.type === 'code') {
+      const code = getCodeProps(block);
+      if (code.lang.toLowerCase() === 'mermaid') {
+        return <pre class="mermaid">{code.code}</pre>;
+      }
+
+      return <Code code={code.code} lang={code.lang} meta={code.meta} />;
+    }
+
+    if (getStandaloneImage(block)) {
+      return null;
+    }
+
+    if (block.type === 'list') {
+      const list = block as marked.Tokens.List;
+      return list.ordered ? (
+        <Steps>
+          <ol start={list.start || undefined}>
+            {getListItems(block).map((item) => (
+              <li>
+                <Astro.self
+                  blocks={getListItemBlocks(item)}
+                  sampleHref={sampleHref}
+                  headingCounts={headingCounts}
+                />
+              </li>
+            ))}
+          </ol>
+        </Steps>
+      ) : (
+        <ul>
+          {getListItems(block).map((item) => (
+            <li>
+              <Astro.self
+                blocks={getListItemBlocks(item)}
+                sampleHref={sampleHref}
+                headingCounts={headingCounts}
+              />
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    if (block.type === 'blockquote') {
+      return (
+        <blockquote>
+          <Astro.self
+            blocks={(block as marked.Tokens.Blockquote).tokens}
+            sampleHref={sampleHref}
+            headingCounts={headingCounts}
+          />
+        </blockquote>
+      );
+    }
+
+    return <Fragment set:html={renderBlockHtml(block)} />;
+  })
+}

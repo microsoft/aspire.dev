@@ -583,6 +583,18 @@ const sampleDetailFixture = {
     '',
     'See the [application project](./src/RedisSample.AppHost) for implementation details.',
     '',
+    '1. Open the app.',
+    '',
+    '   ![Screenshot of the sample step](~/assets/samples/volume-mount/volume-mount-frontend-login.png)',
+    '',
+    '1. Check the Docker volume.',
+    '',
+    '   ```shell',
+    '   > docker volume ls -f name=sqlserver',
+    '   DRIVER    VOLUME NAME',
+    '   local     volume-data',
+    '   ```',
+    '',
     '## Architecture',
     '',
     '```mermaid',
@@ -590,7 +602,7 @@ const sampleDetailFixture = {
     '    Browser --> Api',
     '```',
     '',
-    '## Running the app',
+    '## Running The App',
     '',
     'Run `aspire run` from the sample directory.',
     '',
@@ -750,7 +762,11 @@ describe('custom Astro component render coverage', () => {
 
     expect(html).toContain('Aspire sample');
     expect(html).toContain('Running the app');
+    expect(html).not.toContain('Running The App');
     expect(html).toContain('sl-heading-wrapper level-h2');
+    expect(html).toContain('sl-steps');
+    expect(html).toContain('data-language="bash"');
+    expect(html).toContain('volume-data');
     expect(html).toContain('id="architecture"');
     expect(html).toContain('class="mermaid');
     expect(html).toContain('Browser --&gt; Api');
@@ -760,7 +776,8 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('Screenshot of the sample');
     expect(html).toContain('starlight-image-zoom-zoomable');
     expect(html).toContain('Zoom image: Screenshot of the sample');
-    expect(html).toContain('Select the image to zoom in.');
+    expect(html).toContain('Zoom image: Screenshot of the sample step');
+    expect(html).toContain('Select an image to zoom in.');
     expect(html).toContain('View on GitHub');
     expect(html).toContain('Browse all samples');
     expect(html).toContain('href="/reference/samples/"');
