@@ -1,7 +1,9 @@
 ---
 import { Badge, Icon } from '@astrojs/starlight/components';
-import { Image, getImage } from 'astro:assets';
+import { Image } from 'astro:assets';
+import { Code } from 'astro-expressive-code/components';
 import { marked } from 'marked';
+import StarlightImageZoom from 'starlight-image-zoom/components/ImageZoom.astro';
 
 import { tagLabel } from '@utils/sample-tags';
 import type { Sample } from '@utils/samples';
@@ -32,7 +34,7 @@ function stripReadmeTitle(readme: string): string {
 }
 
 function resolveReadmeHref(href: string): string {
-  if (/^(?:https?:|mailto:|tel:|#)/i.test(href)) {
+  if (/^(?:https?:|mailto:|tel:|#|\/)/i.test(href)) {
     return href;
   }
 
@@ -40,29 +42,7 @@ function resolveReadmeHref(href: string): string {
   return `${sample.href}/${relativeHref}`;
 }
 
-async function rewriteLocalImages(markdown: string): Promise<string> {
-  const imageRefs = [...markdown.matchAll(/!\[([^\]]*)\]\((~\/assets\/samples\/[^)\s]+)\)/g)];
-  let rewritten = markdown;
-
-  for (const match of imageRefs) {
-    const [full, alt, src] = match;
-    const importPath = src.replace('~/assets/', '/src/assets/');
-    const entry = allImages[importPath];
-    if (!entry) {
-      continue;
-    }
-
-    const image = await getImage({ src: entry.default });
-    const width = image.attributes.width ? ` width="${image.attributes.width}"` : '';
-    const height = image.attributes.height ? ` height="${image.attributes.height}"` : '';
-    const replacement = `<img src="${image.src}" alt="${escapeAttribute(alt)}" loading="lazy"${width}${height}>`;
-    rewritten = rewritten.replaceAll(full, replacement);
-  }
-
-  return rewritten;
-}
-
-function renderMarkdown(markdown: string): string {
+function createRenderer(): marked.Renderer {
   const renderer = new marked.Renderer();
   renderer.link = function ({ href, title, tokens }) {
     if (!href) {
@@ -78,19 +58,65 @@ function renderMarkdown(markdown: string): string {
     return `<a href="${escapeAttribute(resolvedHref)}"${titleAttr}${targetAttrs}>${text}</a>`;
   };
 
-  return marked.parse(markdown, { breaks: false, gfm: true, renderer }) as string;
+  return renderer;
 }
 
-const readmeMarkdown = await rewriteLocalImages(stripReadmeTitle(sample.readme));
-const readmeHtml = renderMarkdown(readmeMarkdown);
+const markdownRenderer = createRenderer();
+
+function renderBlockHtml(token: marked.Token): string {
+  return marked.parser([token], { renderer: markdownRenderer });
+}
+
+function getStandaloneImage(token: marked.Token): { src: ImageMetadata; alt: string } | null {
+  if (token.type !== 'paragraph') {
+    return null;
+  }
+
+  const paragraph = token as marked.Tokens.Paragraph;
+  const tokens = paragraph.tokens ?? [];
+  if (tokens.length !== 1 || tokens[0]?.type !== 'image') {
+    return null;
+  }
+
+  const imageToken = tokens[0] as marked.Tokens.Image;
+  const importPath = imageToken.href.replace('~/assets/', '/src/assets/');
+  const entry = imageToken.href.startsWith('~/assets/') ? allImages[importPath] : undefined;
+  if (!entry) {
+    return null;
+  }
+
+  return {
+    src: entry.default,
+    alt: imageToken.text || `Screenshot of the ${sample.title} sample`,
+  };
+}
+
+function getCodeProps(token: marked.Token): { code: string; lang: string; meta: string } {
+  const codeToken = token as marked.Tokens.Code;
+  const [lang = 'text', ...meta] = (codeToken.lang || 'text').trim().split(/\s+/);
+
+  return {
+    code: codeToken.text,
+    lang,
+    meta: meta.join(' '),
+  };
+}
+
+const readmeBlocks = marked.lexer(stripReadmeTitle(sample.readme), { gfm: true });
 const visibleTags = sample.tags;
+const sampleSummary = sample.description
+  ?.split('\n')
+  .find((line) => line.trim().length > 0)
+  ?.trim();
 ---
 
+<StarlightImageZoom />
 <article class="sample-detail">
   <div class="sample-hero not-content">
     <div class="sample-hero-copy">
-      <div class="sample-eyebrow">Aspire sample</div>
-      {sample.description && <p class="sample-summary">{sample.description.split('\n')[0]}</p>}
+      <div class="sample-kicker">Aspire sample</div>
+      <h2 class="sample-hero-title">Explore {sample.title}</h2>
+      {sampleSummary && <p class="sample-summary">{sampleSummary}</p>}
       {
         visibleTags.length > 0 && (
           <div class="sample-tags" aria-label="Sample tags">
@@ -112,22 +138,63 @@ const visibleTags = sample.tags;
         </a>
         <a class="sample-action secondary" href={samplesHref}>Browse all samples</a>
       </div>
+      <dl class="sample-meta" aria-label="Sample metadata">
+        <div>
+          <dt>Tags</dt>
+          <dd>{sample.tags.length}</dd>
+        </div>
+        <div>
+          <dt>Source</dt>
+          <dd>GitHub</dd>
+        </div>
+      </dl>
     </div>
     {
       resolvedThumbnail && (
-        <div class="sample-thumbnail">
+        <figure class="sample-thumbnail">
           <Image
             src={resolvedThumbnail}
             alt={`Screenshot of the ${sample.title} sample`}
-            widths={[480, 960]}
-            sizes="(min-width: 72rem) 28rem, 100vw"
+            widths={[480, 720, 960, 1200]}
+            sizes="(min-width: 72rem) 42vw, (min-width: 48rem) 72vw, 100vw"
           />
-        </div>
+        </figure>
       )
     }
   </div>
 
-  <section class="sample-readme" aria-label={`${sample.title} README`} set:html={readmeHtml} />
+  <section class="sample-readme" aria-label={`${sample.title} README`}>
+    {
+      readmeBlocks.map((block) => {
+        if (block.type === 'space') {
+          return null;
+        }
+
+        if (block.type === 'code') {
+          const code = getCodeProps(block);
+          return <Code code={code.code} lang={code.lang} meta={code.meta} />;
+        }
+
+        const image = getStandaloneImage(block);
+        if (image) {
+          return (
+            <figure class="sample-readme-image">
+              <Image
+                src={image.src}
+                alt={image.alt}
+                loading="lazy"
+                widths={[480, 800, 1200]}
+                sizes="(min-width: 72rem) 52rem, 100vw"
+              />
+              {image.alt && <figcaption>{image.alt}</figcaption>}
+            </figure>
+          );
+        }
+
+        return <Fragment set:html={renderBlockHtml(block)} />;
+      })
+    }
+  </section>
 </article>
 
 <style>
@@ -140,27 +207,27 @@ const visibleTags = sample.tags;
   .sample-hero {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 1.25rem;
-    padding: 1.25rem;
+    gap: clamp(1rem, 3vw, 2rem);
+    padding: clamp(1rem, 3vw, 2rem);
     border: 1px solid var(--sl-color-gray-5);
-    border-radius: 1rem;
+    border-radius: 1.1rem;
     background:
       radial-gradient(
-        circle at top left,
-        color-mix(in srgb, var(--sl-color-accent) 18%, transparent),
-        transparent 45%
+        circle at 0% 0%,
+        color-mix(in srgb, var(--sl-color-accent) 24%, transparent),
+        transparent 38%
       ),
       linear-gradient(
-        180deg,
-        var(--sl-color-gray-6),
-        color-mix(in srgb, var(--sl-color-gray-6) 82%, var(--sl-color-black))
+        135deg,
+        color-mix(in srgb, var(--sl-color-gray-6) 94%, var(--sl-color-accent)),
+        color-mix(in srgb, var(--sl-color-gray-6) 78%, var(--sl-color-black))
       );
     box-shadow: var(--sl-shadow-md);
   }
 
-  @media (min-width: 72rem) {
+  @media (min-width: 64rem) {
     .sample-hero {
-      grid-template-columns: minmax(0, 1fr) minmax(18rem, 28rem);
+      grid-template-columns: minmax(18rem, 0.86fr) minmax(24rem, 1.14fr);
       align-items: center;
     }
   }
@@ -171,7 +238,7 @@ const visibleTags = sample.tags;
     gap: 1rem;
   }
 
-  .sample-eyebrow {
+  .sample-kicker {
     color: var(--sl-color-accent-high);
     font-size: 0.8rem;
     font-weight: 700;
@@ -179,11 +246,19 @@ const visibleTags = sample.tags;
     text-transform: uppercase;
   }
 
+  .sample-hero-title {
+    max-width: 42rem;
+    margin: 0;
+    color: var(--sl-color-white);
+    font-size: clamp(1.35rem, 4vw, 2.15rem);
+    line-height: 1.08;
+  }
+
   .sample-summary {
-    max-width: 60rem;
+    max-width: 44rem;
     margin: 0;
     color: var(--sl-color-gray-2);
-    font-size: 1.05rem;
+    font-size: clamp(0.98rem, 2vw, 1.1rem);
     line-height: 1.65;
   }
 
@@ -210,11 +285,15 @@ const visibleTags = sample.tags;
     font-size: 0.9rem;
     font-weight: 700;
     text-decoration: none;
+    transition:
+      filter 0.2s ease,
+      transform 0.2s ease,
+      border-color 0.2s ease;
   }
 
   .sample-action.primary {
-    background: var(--sl-color-accent);
-    color: var(--sl-color-accent-high);
+    background: var(--sl-color-accent-high);
+    color: var(--sl-color-black);
   }
 
   .sample-action.secondary {
@@ -225,14 +304,47 @@ const visibleTags = sample.tags;
   .sample-action:hover {
     text-decoration: none;
     filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+
+  .sample-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    max-width: 24rem;
+    margin: 0;
+  }
+
+  .sample-meta div {
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.65rem;
+    background: color-mix(in srgb, var(--sl-color-gray-6) 76%, transparent);
+  }
+
+  .sample-meta dt {
+    margin: 0 0 0.15rem;
+    color: var(--sl-color-gray-3);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .sample-meta dd {
+    margin: 0;
+    color: var(--sl-color-white);
+    font-size: 0.95rem;
+    font-weight: 700;
   }
 
   .sample-thumbnail {
     overflow: hidden;
     border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.75rem;
+    border-radius: 0.95rem;
     background: var(--sl-color-gray-6);
     box-shadow: var(--sl-shadow-sm);
+    margin: 0;
   }
 
   .sample-thumbnail img {
@@ -243,19 +355,47 @@ const visibleTags = sample.tags;
 
   .sample-readme {
     min-width: 0;
+    max-width: 56rem;
   }
 
-  .sample-readme :global(img) {
+  .sample-readme :global(.expressive-code) {
+    margin: 1.25rem 0;
+  }
+
+  .sample-readme-image {
+    display: block;
+    margin: 1.25rem 0;
+  }
+
+  .sample-readme-image img {
     display: block;
     max-width: 100%;
     height: auto;
-    margin: 1rem 0;
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 0.75rem;
     box-shadow: var(--sl-shadow-sm);
   }
 
+  .sample-readme-image figcaption {
+    margin-top: 0.45rem;
+    color: var(--sl-color-gray-3);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+
   .sample-readme :global(h2:first-child) {
     margin-top: 0;
+  }
+
+  @media (max-width: 36rem) {
+    .sample-actions,
+    .sample-action {
+      width: 100%;
+    }
+
+    .sample-meta {
+      grid-template-columns: 1fr;
+      max-width: none;
+    }
   }
 </style>

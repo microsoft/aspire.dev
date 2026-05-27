@@ -1,5 +1,6 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { getImage } from 'astro:assets';
 
 import Breadcrumb from '@components/Breadcrumb.astro';
 import SampleDetail from '@components/SampleDetail.astro';
@@ -29,6 +30,9 @@ function resolveImage(thumbnail: string | null): ImageMetadata | null {
 }
 
 const resolvedThumbnail = resolveImage(sample.thumbnail);
+const sampleOgImage = resolvedThumbnail
+  ? (await getImage({ src: resolvedThumbnail, width: 1200 })).src
+  : undefined;
 const description =
   sample.description
     ?.split('\n')
@@ -40,6 +44,7 @@ const description =
   frontmatter={{
     title: sample.title,
     description,
+    ...(sampleOgImage ? { ogImage: sampleOgImage } : {}),
     topic: 'reference',
     category: 'sample',
     prev: false,

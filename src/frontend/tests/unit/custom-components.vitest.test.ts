@@ -579,11 +579,18 @@ const sampleDetailFixture = {
     '',
     'This sample shows how to connect an API and dashboard to Redis.',
     '',
+    '![Screenshot of the sample](~/assets/samples/aspire-shop/aspireshop-frontend-complete.png)',
+    '',
     'See the [application project](./src/RedisSample.AppHost) for implementation details.',
     '',
     '## Running the app',
     '',
     'Run `aspire run` from the sample directory.',
+    '',
+    '```csharp title="AppHost.cs"',
+    'var builder = DistributedApplication.CreateBuilder(args);',
+    'builder.Build().Run();',
+    '```',
   ].join('\n'),
 };
 
@@ -737,6 +744,9 @@ describe('custom Astro component render coverage', () => {
 
     expect(html).toContain('Aspire sample');
     expect(html).toContain('Running the app');
+    expect(html).toContain('expressive-code');
+    expect(html).toContain('AppHost.cs');
+    expect(html).toContain('Screenshot of the sample');
     expect(html).toContain('View on GitHub');
     expect(html).toContain('Browse all samples');
     expect(html).toContain('href="/reference/samples/"');
