@@ -54,13 +54,12 @@ var builder = DistributedApplication.CreateBuilder(args);
 var weatherApi = builder.AddProject<Projects.WeatherApi>("weatherapi")
     .WithHttpEndpoint(name: "http");
 
-var blazorApp = builder.AddBlazorWasmProject("app", "../Client/Client.csproj");
-blazorApp.WithReference(weatherApi.GetEndpoint("http"));
+var blazorApp = builder.AddBlazorWasmProject("app", "../Client/Client.csproj")
+    .WithReference(weatherApi.GetEndpoint("http"));
 
-var gateway = builder.AddBlazorGateway("gateway")
-    .WithExternalHttpEndpoints();
-
-gateway.WithBlazorClientApp(blazorApp);
+builder.AddBlazorGateway("gateway")
+    .WithExternalHttpEndpoints()
+    .WithBlazorClientApp(blazorApp);
 
 builder.Build().Run();
 ```
