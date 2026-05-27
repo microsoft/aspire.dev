@@ -29,6 +29,16 @@ The `aspire agent init` command initializes skill files and MCP (Model Context P
 
 The command also removes skill files from any locations that were deselected, keeping your workspace clean.
 
+### Aspire skills bundle acquisition
+
+When installing the Aspire skill, the command resolves the skills bundle using the following priority order:
+
+1. **Existing validated cache** — if a previously downloaded bundle is present and its integrity is valid, it's used immediately without a network request.
+2. **GitHub release asset** — downloads the latest verified bundle from the `microsoft/aspire-skills` GitHub release and validates its artifact attestation before use.
+3. **Embedded snapshot** — if the cache and the GitHub release asset are both unavailable or invalid (for example, in air-gapped or restricted-network environments), the command falls back to a checked-in release snapshot embedded in the CLI itself.
+
+If all three sources fail, the command emits a warning and skips only bundle-backed skills instead of returning a non-zero exit code. All other selected agent-environment configuration (MCP server connection, non-bundle skills) still completes normally. The `aspire new` and `aspire init` commands that chain into `aspire agent init` follow the same best-effort behavior.
+
 ## Options
 
 The following options are available:
