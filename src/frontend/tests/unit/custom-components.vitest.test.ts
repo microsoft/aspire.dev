@@ -583,6 +583,13 @@ const sampleDetailFixture = {
     '',
     'See the [application project](./src/RedisSample.AppHost) for implementation details.',
     '',
+    '## Architecture',
+    '',
+    '```mermaid',
+    'flowchart LR',
+    '    Browser --> Api',
+    '```',
+    '',
     '## Running the app',
     '',
     'Run `aspire run` from the sample directory.',
@@ -736,7 +743,6 @@ describe('custom Astro component render coverage', () => {
       await renderComponent(SampleDetail, {
         props: {
           sample: sampleDetailFixture,
-          resolvedThumbnail: null,
           samplesHref: '/reference/samples/',
         },
       })
@@ -744,9 +750,17 @@ describe('custom Astro component render coverage', () => {
 
     expect(html).toContain('Aspire sample');
     expect(html).toContain('Running the app');
+    expect(html).toContain('sl-heading-wrapper level-h2');
+    expect(html).toContain('id="architecture"');
+    expect(html).toContain('class="mermaid');
+    expect(html).toContain('Browser --&gt; Api');
     expect(html).toContain('expressive-code');
     expect(html).toContain('AppHost.cs');
+    expect(html).toContain('Sample screenshots');
     expect(html).toContain('Screenshot of the sample');
+    expect(html).toContain('starlight-image-zoom-zoomable');
+    expect(html).toContain('Zoom image: Screenshot of the sample');
+    expect(html).toContain('Select the image to zoom in.');
     expect(html).toContain('View on GitHub');
     expect(html).toContain('Browse all samples');
     expect(html).toContain('href="/reference/samples/"');

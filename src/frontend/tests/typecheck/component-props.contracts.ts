@@ -522,13 +522,11 @@ const invalidSampleGridProps: PropsOf<typeof SampleGrid> = {
 
 const validSampleDetailProps = {
   sample: sampleCardFixture,
-  resolvedThumbnail: heroImage,
   samplesHref: '/reference/samples/',
 } satisfies PropsOf<typeof SampleDetail>;
 // @ts-expect-error SampleDetail should reject unknown props.
 const invalidSampleDetailProps: PropsOf<typeof SampleDetail> = {
   sample: sampleCardFixture,
-  resolvedThumbnail: heroImage,
   samplesHref: '/reference/samples/',
   unexpected: true,
 };

@@ -3,23 +3,26 @@ import { Badge, Icon } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import { Code } from 'astro-expressive-code/components';
 import { marked } from 'marked';
-import StarlightImageZoom from 'starlight-image-zoom/components/ImageZoom.astro';
 
 import { tagLabel } from '@utils/sample-tags';
 import type { Sample } from '@utils/samples';
 
 interface Props {
   sample: Sample;
-  resolvedThumbnail: ImageMetadata | null;
   samplesHref: string;
 }
 
-const { sample, resolvedThumbnail, samplesHref } = Astro.props;
+const { sample, samplesHref } = Astro.props;
 
 const allImages = import.meta.glob<{ default: ImageMetadata }>(
   '/src/assets/samples/**/*.{png,jpg,jpeg,gif,svg,webp}',
   { eager: true }
 );
+
+type SampleImage = {
+  src: ImageMetadata;
+  alt: string;
+};
 
 function escapeAttribute(value: string): string {
   return value
@@ -27,6 +30,10 @@ function escapeAttribute(value: string): string {
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+function escapeHtml(value: string): string {
+  return escapeAttribute(value).replace(/'/g, '&#39;');
 }
 
 function stripReadmeTitle(readme: string): string {
@@ -44,6 +51,8 @@ function resolveReadmeHref(href: string): string {
 
 function createRenderer(): marked.Renderer {
   const renderer = new marked.Renderer();
+  const headingCounts = new Map<string, number>();
+
   renderer.link = function ({ href, title, tokens }) {
     if (!href) {
       return '';
@@ -58,7 +67,35 @@ function createRenderer(): marked.Renderer {
     return `<a href="${escapeAttribute(resolvedHref)}"${titleAttr}${targetAttrs}>${text}</a>`;
   };
 
+  renderer.heading = function ({ tokens, depth }) {
+    const text = tokens?.map((token: any) => token.text || token.raw || '').join('') || '';
+    const innerHtml = marked
+      .parser([{ type: 'paragraph', raw: text, text, tokens } as marked.Tokens.Paragraph], {
+        renderer,
+      })
+      .replace(/^<p>|<\/p>\n?$/g, '');
+    const baseSlug = slugifyHeading(text);
+    const seen = headingCounts.get(baseSlug) ?? 0;
+    headingCounts.set(baseSlug, seen + 1);
+    const slug = seen === 0 ? baseSlug : `${baseSlug}-${seen}`;
+
+    return `<div class="sl-heading-wrapper level-h${depth}"><h${depth} id="${slug}">${innerHtml}</h${depth}><a class="sl-anchor-link" href="#${slug}"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0a2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.48 4.48 0 0 0 0-6.33Zm-6.36 5a1 1 0 0 0-1.41 0l-4.6 4.6a1 1 0 0 0 1.41 1.41l4.6-4.6a1 1 0 0 0 0-1.4Z"/></svg></span><span class="sr-only">Section titled ${escapeHtml(text)}</span></a></div>`;
+  };
+
   return renderer;
+}
+
+function slugifyHeading(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .trim()
+    .replace(/<[^>]*>/g, '')
+    .replace(/[^\p{Letter}\p{Number}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return slug || 'section';
 }
 
 const markdownRenderer = createRenderer();
@@ -67,7 +104,7 @@ function renderBlockHtml(token: marked.Token): string {
   return marked.parser([token], { renderer: markdownRenderer });
 }
 
-function getStandaloneImage(token: marked.Token): { src: ImageMetadata; alt: string } | null {
+function getStandaloneImage(token: marked.Token): SampleImage | null {
   if (token.type !== 'paragraph') {
     return null;
   }
@@ -103,6 +140,9 @@ function getCodeProps(token: marked.Token): { code: string; lang: string; meta: 
 }
 
 const readmeBlocks = marked.lexer(stripReadmeTitle(sample.readme), { gfm: true });
+const readmeImages = readmeBlocks
+  .map((block) => getStandaloneImage(block))
+  .filter((image): image is SampleImage => image !== null);
 const visibleTags = sample.tags;
 const sampleSummary = sample.description
   ?.split('\n')
@@ -110,12 +150,11 @@ const sampleSummary = sample.description
   ?.trim();
 ---
 
-<StarlightImageZoom />
 <article class="sample-detail">
   <div class="sample-hero not-content">
     <div class="sample-hero-copy">
       <div class="sample-kicker">Aspire sample</div>
-      <h2 class="sample-hero-title">Explore {sample.title}</h2>
+      <h2 class="sample-hero-title">Clone, run, and explore this sample</h2>
       {sampleSummary && <p class="sample-summary">{sampleSummary}</p>}
       {
         visibleTags.length > 0 && (
@@ -138,29 +177,7 @@ const sampleSummary = sample.description
         </a>
         <a class="sample-action secondary" href={samplesHref}>Browse all samples</a>
       </div>
-      <dl class="sample-meta" aria-label="Sample metadata">
-        <div>
-          <dt>Tags</dt>
-          <dd>{sample.tags.length}</dd>
-        </div>
-        <div>
-          <dt>Source</dt>
-          <dd>GitHub</dd>
-        </div>
-      </dl>
     </div>
-    {
-      resolvedThumbnail && (
-        <figure class="sample-thumbnail">
-          <Image
-            src={resolvedThumbnail}
-            alt={`Screenshot of the ${sample.title} sample`}
-            widths={[480, 720, 960, 1200]}
-            sizes="(min-width: 72rem) 42vw, (min-width: 48rem) 72vw, 100vw"
-          />
-        </figure>
-      )
-    }
   </div>
 
   <section class="sample-readme" aria-label={`${sample.title} README`}>
@@ -172,29 +189,65 @@ const sampleSummary = sample.description
 
         if (block.type === 'code') {
           const code = getCodeProps(block);
+          if (code.lang.toLowerCase() === 'mermaid') {
+            return <pre class="mermaid">{code.code}</pre>;
+          }
+
           return <Code code={code.code} lang={code.lang} meta={code.meta} />;
         }
 
         const image = getStandaloneImage(block);
         if (image) {
-          return (
-            <figure class="sample-readme-image">
-              <Image
-                src={image.src}
-                alt={image.alt}
-                loading="lazy"
-                widths={[480, 800, 1200]}
-                sizes="(min-width: 72rem) 52rem, 100vw"
-              />
-              {image.alt && <figcaption>{image.alt}</figcaption>}
-            </figure>
-          );
+          return null;
         }
 
         return <Fragment set:html={renderBlockHtml(block)} />;
       })
     }
   </section>
+
+  {
+    readmeImages.length > 0 && (
+      <section class="sample-media not-content" aria-labelledby="sample-media-heading">
+        <div class="sample-media-header">
+          <div>
+            <div class="sample-kicker">Preview</div>
+            <h2 id="sample-media-heading">Sample screenshots</h2>
+          </div>
+          <p>
+            {readmeImages.length === 1
+              ? 'Select the image to zoom in.'
+              : 'Select an image to zoom in.'}
+          </p>
+        </div>
+        <div class="sample-media-grid">
+          {readmeImages.map((image) => (
+            <figure class="sample-readme-image">
+              <starlight-image-zoom-zoomable>
+                <Image
+                  src={image.src}
+                  alt={image.alt}
+                  loading="lazy"
+                  widths={[480, 800, 1200]}
+                  sizes="(min-width: 72rem) 52rem, 100vw"
+                />
+                <button
+                  aria-label={`Zoom image${image.alt ? `: ${image.alt}` : ''}`}
+                  class="starlight-image-zoom-control"
+                  type="button"
+                >
+                  <svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+                    <use href="#starlight-image-zoom-icon-zoom" />
+                  </svg>
+                </button>
+              </starlight-image-zoom-zoomable>
+              {image.alt && <figcaption>{image.alt}</figcaption>}
+            </figure>
+          ))}
+        </div>
+      </section>
+    )
+  }
 </article>
 
 <style>
@@ -205,8 +258,9 @@ const sampleSummary = sample.description
   }
 
   .sample-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    position: relative;
+    overflow: hidden;
+    display: flex;
     gap: clamp(1rem, 3vw, 2rem);
     padding: clamp(1rem, 3vw, 2rem);
     border: 1px solid var(--sl-color-gray-5);
@@ -225,17 +279,36 @@ const sampleSummary = sample.description
     box-shadow: var(--sl-shadow-md);
   }
 
-  @media (min-width: 64rem) {
-    .sample-hero {
-      grid-template-columns: minmax(18rem, 0.86fr) minmax(24rem, 1.14fr);
-      align-items: center;
-    }
+  .sample-hero::after {
+    content: '';
+    position: absolute;
+    inset: auto -4rem -5rem auto;
+    width: min(28rem, 45vw);
+    aspect-ratio: 1;
+    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
+    border-radius: 999px;
+    background:
+      radial-gradient(
+        circle,
+        color-mix(in srgb, var(--sl-color-accent) 22%, transparent),
+        transparent 58%
+      ),
+      repeating-linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--sl-color-accent) 14%, transparent) 0 1px,
+        transparent 1px 14px
+      );
+    opacity: 0.55;
+    pointer-events: none;
   }
 
   .sample-hero-copy {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    max-width: 52rem;
   }
 
   .sample-kicker {
@@ -255,7 +328,7 @@ const sampleSummary = sample.description
   }
 
   .sample-summary {
-    max-width: 44rem;
+    max-width: 48rem;
     margin: 0;
     color: var(--sl-color-gray-2);
     font-size: clamp(0.98rem, 2vw, 1.1rem);
@@ -307,52 +380,6 @@ const sampleSummary = sample.description
     transform: translateY(-1px);
   }
 
-  .sample-meta {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-    max-width: 24rem;
-    margin: 0;
-  }
-
-  .sample-meta div {
-    padding: 0.65rem 0.75rem;
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.65rem;
-    background: color-mix(in srgb, var(--sl-color-gray-6) 76%, transparent);
-  }
-
-  .sample-meta dt {
-    margin: 0 0 0.15rem;
-    color: var(--sl-color-gray-3);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .sample-meta dd {
-    margin: 0;
-    color: var(--sl-color-white);
-    font-size: 0.95rem;
-    font-weight: 700;
-  }
-
-  .sample-thumbnail {
-    overflow: hidden;
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.95rem;
-    background: var(--sl-color-gray-6);
-    box-shadow: var(--sl-shadow-sm);
-    margin: 0;
-  }
-
-  .sample-thumbnail img {
-    display: block;
-    width: 100%;
-    height: auto;
-  }
-
   .sample-readme {
     min-width: 0;
     max-width: 56rem;
@@ -362,9 +389,45 @@ const sampleSummary = sample.description
     margin: 1.25rem 0;
   }
 
+  .sample-media {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: clamp(1rem, 3vw, 1.5rem);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--sl-color-gray-6) 90%, var(--sl-color-black));
+  }
+
+  .sample-media-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    align-items: end;
+  }
+
+  .sample-media-header h2 {
+    margin: 0.25rem 0 0;
+    color: var(--sl-color-white);
+    font-size: clamp(1.2rem, 3vw, 1.55rem);
+  }
+
+  .sample-media-header p {
+    max-width: 18rem;
+    margin: 0;
+    color: var(--sl-color-gray-2);
+    font-size: 0.9rem;
+  }
+
+  .sample-media-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
   .sample-readme-image {
     display: block;
-    margin: 1.25rem 0;
+    margin: 0;
   }
 
   .sample-readme-image img {
@@ -374,6 +437,10 @@ const sampleSummary = sample.description
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 0.75rem;
     box-shadow: var(--sl-shadow-sm);
+  }
+
+  .sample-readme-image :global(starlight-image-zoom-zoomable) {
+    display: block;
   }
 
   .sample-readme-image figcaption {
@@ -393,9 +460,8 @@ const sampleSummary = sample.description
       width: 100%;
     }
 
-    .sample-meta {
-      grid-template-columns: 1fr;
-      max-width: none;
+    .sample-hero::after {
+      opacity: 0.35;
     }
   }
 </style>
