@@ -1332,6 +1332,15 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             { label: 'C# file-based apps', slug: 'integrations/dotnet/csharp-file-based-apps' },
             { label: 'Launch profiles', slug: 'integrations/dotnet/launch-profiles' },
             { label: '.NET tool resources', slug: 'integrations/dotnet/dotnet-tool-resources' },
+            {
+              label: 'Blazor',
+              collapsed: true,
+              items: [
+                { label: 'Get started', slug: 'integrations/dotnet/blazor-get-started' },
+                { label: 'Set up Blazor hosting in the AppHost', slug: 'integrations/dotnet/blazor-hosting' },
+                { label: 'Connect Blazor apps and APIs', slug: 'integrations/dotnet/blazor-connect' },
+              ],
+            },
             { label: '.NET MAUI', slug: 'integrations/dotnet/maui' },
             { label: 'WPF and Windows Forms', slug: 'integrations/frameworks/wpf-winforms' },
             { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
