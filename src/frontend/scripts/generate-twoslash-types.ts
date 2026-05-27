@@ -423,6 +423,22 @@ const POST_SNAPSHOT_AUGMENTATIONS = [
    * Assigns Microsoft Foundry roles for this resource
    */
   withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+  /**
+   * Configures a resource to use a session lifetime
+   */
+  withSessionLifetime(): this;
+  /**
+   * Configures a resource to use a persistent lifetime
+   */
+  withPersistentLifetime(): this;
+  /**
+   * Configures a resource to match the lifetime of another resource
+   */
+  withLifetimeOf(source: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits
+   */
+  withParentProcessLifetime(parentProcessId: number): this;
 }`,
   `export interface ParameterResource {
   /**
