@@ -7,9 +7,23 @@ interface Props {
   blocks: marked.Token[];
   sampleHref: string;
   headingCounts?: Map<string, number>;
+  /**
+   * Set to true when the component is recursing into a list item, blockquote,
+   * or other nested block container. While nested, ordered lists render as
+   * plain `<ol>` instead of being wrapped in `<Steps>` — Starlight's `<Steps>`
+   * is intended for top-level numbered procedures, not for sub-steps inside a
+   * step. Wrapping nested ordered lists in `<Steps>` produces double indents,
+   * double numbering chrome, and breaks the visual rhythm of the parent.
+   */
+  nested?: boolean;
 }
 
-const { blocks, sampleHref, headingCounts = new Map<string, number>() } = Astro.props;
+const {
+  blocks,
+  sampleHref,
+  headingCounts = new Map<string, number>(),
+  nested = false,
+} = Astro.props;
 
 function escapeAttribute(value: string): string {
   return value
@@ -207,8 +221,8 @@ function getListItemBlocks(item: marked.Tokens.ListItem): marked.Token[] {
 
     if (block.type === 'list') {
       const list = block as marked.Tokens.List;
-      return list.ordered ? (
-        <Steps>
+      if (list.ordered) {
+        const orderedList = (
           <ol start={list.start || undefined}>
             {getListItems(block).map((item) => (
               <li>
@@ -216,12 +230,17 @@ function getListItemBlocks(item: marked.Tokens.ListItem): marked.Token[] {
                   blocks={getListItemBlocks(item)}
                   sampleHref={sampleHref}
                   headingCounts={headingCounts}
+                  nested={true}
                 />
               </li>
             ))}
           </ol>
-        </Steps>
-      ) : (
+        );
+
+        return nested ? orderedList : <Steps>{orderedList}</Steps>;
+      }
+
+      return (
         <ul>
           {getListItems(block).map((item) => (
             <li>
@@ -229,6 +248,7 @@ function getListItemBlocks(item: marked.Tokens.ListItem): marked.Token[] {
                 blocks={getListItemBlocks(item)}
                 sampleHref={sampleHref}
                 headingCounts={headingCounts}
+                nested={true}
               />
             </li>
           ))}
@@ -243,6 +263,7 @@ function getListItemBlocks(item: marked.Tokens.ListItem): marked.Token[] {
             blocks={(block as marked.Tokens.Blockquote).tokens}
             sampleHref={sampleHref}
             headingCounts={headingCounts}
+            nested={nested}
           />
         </blockquote>
       );

@@ -607,6 +607,11 @@ const sampleDetailFixture = {
     '   local     volume-data',
     '   ```',
     '',
+    '1. Play around inside the dashboard:',
+    '',
+    '   1. Change the time range.',
+    '   1. Enable auto-refresh.',
+    '',
     '## Architecture',
     '',
     '```mermaid',
@@ -786,6 +791,16 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('Running The App');
     expect(html).toContain('sl-heading-wrapper level-h2');
     expect(html).toContain('sl-steps');
+    // Nested ordered lists must NOT be wrapped in another `<Steps>` —
+    // Starlight's `<Steps>` is meant for top-level numbered procedures, and
+    // nesting it produces double-numbered chrome and a broken visual rhythm.
+    // `<Steps>` adds the `sl-steps` class to the inner `<ol>`, so a nested
+    // `<Steps>` would produce a second `class="sl-steps"` (or `sl-steps `)
+    // occurrence in the rendered output.
+    const stepsWrapperCount = (html.match(/class="[^"]*\bsl-steps\b/g) || []).length;
+    expect(stepsWrapperCount).toBe(1);
+    expect(html).toContain('Change the time range.');
+    expect(html).toContain('Enable auto-refresh.');
     expect(html).toContain('data-language="bash"');
     expect(html).toContain('volume-data');
     expect(html).toContain('id="architecture"');
