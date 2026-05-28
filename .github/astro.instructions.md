@@ -230,7 +230,7 @@ Bad:
 ```md
 <!-- DON'T: bold the colon, use title case, or omit the period -->
 - **AppHost Project:** the orchestrator project
-- **integration**: A NuGet package that configures a service or client for use with .NET Aspire
+- **integration**: A NuGet package that configures a service or client for use with Aspire
 ```
 
 ### Parentheses
