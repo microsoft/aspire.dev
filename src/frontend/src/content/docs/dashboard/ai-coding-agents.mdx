@@ -1,21 +1,20 @@
 ---
 title: Dashboard and AI coding agents
 seoTitle: Aspire dashboard and AI coding agents for distributed apps
-description: Learn how AI coding agents use the Aspire CLI and optional agent integrations to read dashboard telemetry, diagnose failures, and propose code changes.
+description: Learn how AI coding agents use the Aspire CLI to read dashboard telemetry, diagnose failures, and propose code changes.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
 
-AI coding agents can use the [Aspire CLI](/reference/cli/overview/) to fetch logs and telemetry from the Aspire dashboard. Agents can also use the [Aspire MCP server](/get-started/aspire-mcp-server/) when their host supports MCP. This gives agents the same observability data that developers see in the dashboard UI — structured logs, distributed traces, resource status, and console output — so they can diagnose issues, verify fixes, and add new features with full context.
+AI coding agents can use the [Aspire CLI](/reference/cli/overview/) to fetch logs and telemetry from the Aspire dashboard. This gives agents the same observability data that developers see in the dashboard UI — structured logs, distributed traces, resource status, and console output — so they can diagnose issues, verify fixes, and add new features with full context.
 
 ## How agents use dashboard data
 
-When an Aspire app is running, the dashboard collects OpenTelemetry data from all resources. AI coding agents primarily access this data through the Aspire CLI:
+When an Aspire app is running, the dashboard collects OpenTelemetry data from all resources. AI coding agents access this data through the Aspire CLI:
 
 - **Aspire CLI** — Commands like [`aspire logs`](/reference/cli/commands/aspire-logs/), [`aspire otel logs`](/reference/cli/commands/aspire-otel-logs/), [`aspire otel traces`](/reference/cli/commands/aspire-otel-traces/), and [`aspire describe`](/reference/cli/commands/aspire-describe/) retrieve resource status, console logs, and telemetry directly from the terminal. All commands support `--format Json` for structured output that agents can parse.
-- **Optional Aspire MCP server** — The [MCP server](/get-started/aspire-mcp-server/) exposes tools such as `list_resources`, `list_structured_logs`, `list_traces`, and `list_console_logs` for agent hosts that support the Model Context Protocol.
 
-Both channels draw from the same underlying dashboard data. Whether an agent reads logs via the CLI or through configured MCP tools, it sees the same information as the dashboard UI.
+The CLI draws from the same underlying dashboard data. Whether an agent reads logs from the terminal or a developer views them in the dashboard UI, they see the same information.
 
 ### Typical agent workflow
 
@@ -66,18 +65,6 @@ aspire otel logs --dashboard-url "http://localhost:18888"
 aspire otel traces --dashboard-url "http://localhost:18888"
 aspire otel spans --dashboard-url "http://localhost:18888"
 ```
-
-### Use Aspire MCP with the standalone dashboard
-
-Start the MCP server in dashboard-only mode using `--dashboard-url`:
-
-```bash title="Aspire CLI"
-aspire agent mcp --dashboard-url "http://localhost:18888"
-```
-
-This exposes the dashboard's telemetry tools (structured logs, traces, and resource data) to any MCP-compatible AI assistant.
-
-Configuration is required in the agent to use the MCP server. For configuration details, see [Aspire MCP server configuration](/get-started/aspire-mcp-server/#configuration). The `--dashboard-url` must be passed as a command line argument when configuring the MCP server for standalone use.
 
 ### Sample skill for standalone dashboard
 
@@ -132,6 +119,5 @@ aspire otel spans --dashboard-url http://localhost:18888
 
 - [Use AI coding agents](/get-started/ai-coding-agents/) — full setup guide with `aspire agent init`
 - [Aspire Skills](/get-started/aspire-skills/) — plugin installation and included skills
-- [Aspire MCP server](/get-started/aspire-mcp-server/) — optional runtime data access for MCP-compatible tools
 - [Standalone Aspire dashboard](/dashboard/standalone/) — running the dashboard without an AppHost
 - [Aspire CLI reference](/reference/cli/overview/)
