@@ -74,9 +74,16 @@ interface SampleResult {
   tags: string[];
   thumbnail: string | null;
   appHost: AppHostKind | null;
+  appHostPath: string | null;
+  appHostCode: string | null;
 }
 
 type AppHostKind = 'typescript' | 'csproj' | 'file-based';
+
+interface AppHostInfo {
+  kind: AppHostKind;
+  entryPath: string;
+}
 
 const TAG_RULES: TagRule[] = [
   { tag: 'csharp', patterns: [/\bC#\b/i, /\.NET\b/i, /\bcsproj\b/i] },
@@ -152,19 +159,35 @@ function detectTags(name: string, readme: string, appHost: AppHostKind | null): 
   return [...tags].sort();
 }
 
-function detectAppHostKind(paths: readonly string[]): AppHostKind | null {
-  const lowered = paths.map((p) => p.toLowerCase());
-
-  if (lowered.some((p) => /(?:^|\/)apphost\.ts$/.test(p))) {
-    return 'typescript';
+function detectAppHost(paths: readonly string[]): AppHostInfo | null {
+  // Priority: TypeScript apphost.ts wins because the file-based AppHost.cs
+  // detection would otherwise catch sample mirrors that include both shapes.
+  for (const p of paths) {
+    if (/(?:^|\/)apphost\.ts$/i.test(p)) {
+      return { kind: 'typescript', entryPath: p };
+    }
   }
 
-  if (lowered.some((p) => /(?:^|\/)[^/]*apphost\.csproj$/.test(p))) {
-    return 'csproj';
+  // csproj: locate the *AppHost.csproj and prefer its sibling entry-point .cs
+  // file (AppHost.cs > Program.cs) because that's the code authors care about.
+  // The .csproj XML itself is mostly boilerplate.
+  for (const p of paths) {
+    if (/(?:^|\/)[^/]*apphost\.csproj$/i.test(p)) {
+      const dir = p.slice(0, p.lastIndexOf('/') + 1);
+      const siblings = paths.filter(
+        (q) => q.startsWith(dir) && !q.slice(dir.length).includes('/')
+      );
+      const appHostCs = siblings.find((q) => /(?:^|\/)apphost\.cs$/i.test(q));
+      const programCs = siblings.find((q) => /(?:^|\/)program\.cs$/i.test(q));
+      return { kind: 'csproj', entryPath: appHostCs ?? programCs ?? p };
+    }
   }
 
-  if (lowered.some((p) => /(?:^|\/)apphost\.cs$/.test(p))) {
-    return 'file-based';
+  // file-based: a standalone AppHost.cs not paired with a *.AppHost.csproj.
+  for (const p of paths) {
+    if (/(?:^|\/)apphost\.cs$/i.test(p)) {
+      return { kind: 'file-based', entryPath: p };
+    }
   }
 
   return null;
@@ -392,6 +415,18 @@ async function fetchReadme(sampleName: string): Promise<string | null> {
   return fetchText(url);
 }
 
+async function fetchAppHostCode(
+  sampleName: string,
+  entryPath: string
+): Promise<string | null> {
+  const url = `${RAW_BASE}/${SAMPLES_DIR}/${sampleName}/${entryPath}`;
+  const content = await fetchText(url);
+  if (!content) return null;
+  // Normalize line endings and trim trailing whitespace per line so the
+  // rendered code block is stable across runs.
+  return content.replace(/\r\n/g, '\n').replace(/[ \t]+\n/g, '\n').trimEnd();
+}
+
 async function processSample(
   name: string,
   filePaths: readonly string[]
@@ -405,10 +440,14 @@ async function processSample(
   const { readme: imageRewrittenReadme } = await downloadAndRewriteImages(name, rawReadme);
   const readme = rewriteAspireDocLinks(imageRewrittenReadme);
 
-  const appHost = detectAppHostKind(filePaths);
+  const appHostInfo = detectAppHost(filePaths);
+  const appHostCode = appHostInfo
+    ? await fetchAppHostCode(name, appHostInfo.entryPath)
+    : null;
+
   const title = extractTitle(readme) || name;
   const description = extractDescription(readme);
-  const tags = detectTags(name, readme, appHost);
+  const tags = detectTags(name, readme, appHostInfo?.kind ?? null);
   const thumbnail = extractThumbnail(name, readme);
   const href = `${TREE_BASE}/${SAMPLES_DIR}/${name}`;
 
@@ -421,7 +460,9 @@ async function processSample(
     readmeRaw: rawReadme,
     tags,
     thumbnail,
-    appHost,
+    appHost: appHostInfo?.kind ?? null,
+    appHostPath: appHostInfo?.entryPath ?? null,
+    appHostCode,
   };
 }
 

@@ -15,7 +15,9 @@
       "redis"
     ],
     "thumbnail": "~/assets/samples/aspire-shop/aspireshop-frontend-complete.png",
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "AspireShop.AppHost/AppHost.cs",
+    "appHostCode": "var builder = DistributedApplication.CreateBuilder(args);\n\nvar postgres = builder.AddPostgres(\"postgres\")\n    .WithPgAdmin()\n    .WithLifetime(ContainerLifetime.Persistent);\n\nif (builder.ExecutionContext.IsRunMode)\n{\n    // Data volumes don't work on ACA for Postgres so only add when running\n    postgres.WithDataVolume();\n}\n\nvar catalogDb = postgres.AddDatabase(\"catalogdb\");\n\nvar basketCache = builder.AddRedis(\"basketcache\")\n    .WithDataVolume()\n    .WithRedisCommander();\n\nvar catalogDbManager = builder.AddProject<Projects.AspireShop_CatalogDbManager>(\"catalogdbmanager\")\n    .WithReference(catalogDb)\n    .WaitFor(catalogDb)\n    .WithHttpHealthCheck(\"/health\")\n    .WithHttpCommand(\"/reset-db\", \"Reset Database\", commandOptions: new() { IconName = \"DatabaseLightning\" });\n\nvar catalogService = builder.AddProject<Projects.AspireShop_CatalogService>(\"catalogservice\")\n    .WithReference(catalogDb)\n    .WaitFor(catalogDbManager)\n    .WithHttpHealthCheck(\"/health\");\n\nvar basketService = builder.AddProject<Projects.AspireShop_BasketService>(\"basketservice\")\n    .WithReference(basketCache)\n    .WaitFor(basketCache);\n\nbuilder.AddProject<Projects.AspireShop_Frontend>(\"frontend\")\n    .WithExternalHttpEndpoints()\n    .WithUrlForEndpoint(\"https\", url => url.DisplayText = \"Online Store (HTTPS)\")\n    .WithUrlForEndpoint(\"http\", url => url.DisplayText = \"Online Store (HTTP)\")\n    .WithHttpHealthCheck(\"/health\")\n    .WithReference(basketService)\n    .WithReference(catalogService)\n    .WaitFor(catalogService);\n\nbuilder.Build().Run();"
   },
   {
     "name": "aspire-with-azure-functions",
@@ -31,7 +33,9 @@
       "csharp"
     ],
     "thumbnail": "~/assets/samples/aspire-with-azure-functions/aspire-with-functions.png",
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "ImageGallery.AppHost/AppHost.cs",
+    "appHostCode": "using Azure.Provisioning.Storage;\n\nvar builder = DistributedApplication.CreateBuilder(args);\n\nbuilder.AddAzureContainerAppEnvironment(\"env\");\n\nvar storage = builder.AddAzureStorage(\"storage\").RunAsEmulator()\n    .ConfigureInfrastructure((infrastructure) =>\n    {\n        var storageAccount = infrastructure.GetProvisionableResources().OfType<StorageAccount>().FirstOrDefault(r => r.BicepIdentifier == \"storage\")\n            ?? throw new InvalidOperationException($\"Could not find configured storage account with name 'storage'\");\n\n        // Ensure that public access to blobs is disabled\n        storageAccount.AllowBlobPublicAccess = false;\n    })\n    .WithUrls(c =>\n    {\n        // None of the URLs are usable in the browser so hide them from the summary page\n        foreach (var url in c.Urls)\n        {\n            url.DisplayLocation = UrlDisplayLocation.DetailsOnly;\n        }\n    });\nvar blobs = storage.AddBlobs(\"blobs\");\nvar queues = storage.AddQueues(\"queues\");\n\nvar functions = builder.AddAzureFunctionsProject<Projects.ImageGallery_Functions>(\"functions\")\n                       .WithReference(queues)\n                       .WithReference(blobs)\n                       .WaitFor(storage)\n                       .WithRoleAssignments(storage,\n                            // Storage Account Contributor and Storage Blob Data Owner roles are required by the Azure Functions host\n                            StorageBuiltInRole.StorageAccountContributor, StorageBuiltInRole.StorageBlobDataOwner,\n                            // Queue Data Contributor role is required to send messages to the queue\n                            StorageBuiltInRole.StorageQueueDataContributor)\n                       .WithHostStorage(storage)\n                       .WithUrlForEndpoint(\"http\", u => u.DisplayText = \"Functions App\");\n\nbuilder.AddProject<Projects.ImageGallery_FrontEnd>(\"frontend\")\n       .WithReference(queues)\n       .WithReference(blobs)\n       .WaitFor(functions)\n       .WithExternalHttpEndpoints()\n       .WithUrlForEndpoint(\"https\", u => u.DisplayText = \"Frontend App\")\n       .WithUrlForEndpoint(\"http\", u => u.DisplayLocation = UrlDisplayLocation.DetailsOnly);\n\nbuilder.Build().Run();"
   },
   {
     "name": "aspire-with-javascript",
@@ -47,7 +51,9 @@
       "node"
     ],
     "thumbnail": "~/assets/samples/aspire-with-javascript/aspire-dashboard.png",
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "AspireJavaScript.AppHost/AppHost.cs",
+    "appHostCode": "var builder = DistributedApplication.CreateBuilder(args);\n\nvar weatherApi = builder.AddProject<Projects.AspireJavaScript_MinimalApi>(\"weatherapi\")\n    .WithExternalHttpEndpoints();\n\nbuilder.AddJavaScriptApp(\"angular\", \"../AspireJavaScript.Angular\", runScriptName: \"start\")\n    .WithReference(weatherApi)\n    .WaitFor(weatherApi)\n    .WithHttpEndpoint(env: \"PORT\")\n    .WithExternalHttpEndpoints()\n    .PublishAsDockerFile();\n\nbuilder.AddJavaScriptApp(\"react\", \"../AspireJavaScript.React\", runScriptName: \"start\")\n    .WithReference(weatherApi)\n    .WaitFor(weatherApi)\n    .WithEnvironment(\"BROWSER\", \"none\") // Disable opening browser on npm start\n    .WithHttpEndpoint(env: \"PORT\")\n    .WithExternalHttpEndpoints()\n    .PublishAsDockerFile();\n\nbuilder.AddJavaScriptApp(\"vue\", \"../AspireJavaScript.Vue\")\n    .WithRunScript(\"start\")\n    .WithNpm(installCommand: \"ci\")\n    .WithReference(weatherApi)\n    .WaitFor(weatherApi)\n    .WithHttpEndpoint(env: \"PORT\")\n    .WithExternalHttpEndpoints()\n    .PublishAsDockerFile();\n\nvar reactVite = builder.AddViteApp(\"reactvite\", \"../AspireJavaScript.Vite\")\n    .WithReference(weatherApi)\n    .WithEnvironment(\"BROWSER\", \"none\");\n\n// Bundle the output of the Vite app into the wwwroot of the weather API\nweatherApi.PublishWithContainerFiles(reactVite, \"./wwwroot\");\n\nbuilder.Build().Run();"
   },
   {
     "name": "aspire-with-node",
@@ -63,7 +69,9 @@
       "redis"
     ],
     "thumbnail": null,
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "AspireWithNode.AppHost/AppHost.cs",
+    "appHostCode": "var builder = DistributedApplication.CreateBuilder(args);\n\nvar cache = builder.AddRedis(\"cache\")\n    .WithRedisInsight();\n\nvar weatherapi = builder.AddProject<Projects.AspireWithNode_AspNetCoreApi>(\"weatherapi\")\n    .WithHttpHealthCheck(\"/health\");\n\nbuilder.AddNodeApp(\"frontend\", \"../NodeFrontend\", \"./app.js\")\n    .WithNpm()\n    .WithRunScript(\"dev\")\n    .WithHttpEndpoint(port: 5223, env: \"PORT\")\n    .WithExternalHttpEndpoints()\n    .WithHttpHealthCheck(\"/health\")\n    .WithReference(weatherapi).WaitFor(weatherapi)\n    .WithReference(cache).WaitFor(cache);\n\nbuilder.Build().Run();"
   },
   {
     "name": "aspire-with-python",
@@ -79,7 +87,9 @@
       "python"
     ],
     "thumbnail": null,
-    "appHost": "file-based"
+    "appHost": "file-based",
+    "appHostPath": "apphost.cs",
+    "appHostCode": "#:sdk Aspire.AppHost.Sdk@13.3.3\n#:package Aspire.Hosting.JavaScript@13.3.3\n#:package Aspire.Hosting.Python@13.3.3\n#:package Aspire.Hosting.Redis@13.3.3\n\nvar builder = DistributedApplication.CreateBuilder(args);\n\nvar cache = builder.AddRedis(\"cache\");\n\nvar app = builder.AddUvicornApp(\"app\", \"./app\", \"main:app\")\n    .WithUv()\n    .WithExternalHttpEndpoints()\n    .WithReference(cache)\n    .WaitFor(cache)\n    .WithHttpHealthCheck(\"/health\");\n\nvar frontend = builder.AddViteApp(\"frontend\", \"./frontend\")\n    .WithReference(app)\n    .WaitFor(app);\n\napp.PublishWithContainerFiles(frontend, \"./static\");\n\nbuilder.Build().Run();"
   },
   {
     "name": "client-apps-integration",
@@ -94,7 +104,9 @@
       "metrics"
     ],
     "thumbnail": "~/assets/samples/client-apps-integration/client-apps-dashboard-winforms.png",
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "ClientAppsIntegration.AppHost/AppHost.cs",
+    "appHostCode": "var builder = DistributedApplication.CreateBuilder(args);\n\nvar apiService = builder.AddProject<Projects.ClientAppsIntegration_ApiService>(\"apiservice\");\n\nif (OperatingSystem.IsWindows())\n{\n    builder.AddProject<Projects.ClientAppsIntegration_WinForms>(\"winformsclient\")\n        .WithReference(apiService)\n        .WaitFor(apiService)\n        .WithExplicitStart()\n        .ExcludeFromManifest();\n\n    builder.AddProject<Projects.ClientAppsIntegration_WPF>(\"wpfclient\")\n        .WithReference(apiService)\n        .WaitFor(apiService)\n        .WithExplicitStart()\n        .ExcludeFromManifest();\n}\n\nbuilder.Build().Run();"
   },
   {
     "name": "container-build",
@@ -111,7 +123,9 @@
       "metrics"
     ],
     "thumbnail": "~/assets/samples/container-build/aspire-dashboard-container-build.png",
-    "appHost": "file-based"
+    "appHost": "file-based",
+    "appHostPath": "apphost.cs",
+    "appHostCode": "#:sdk Aspire.AppHost.Sdk@13.3.3\n\nusing Microsoft.Extensions.Hosting;\n\nvar builder = DistributedApplication.CreateBuilder(args);\n\nvar goVersion = builder.AddParameter(\"goversion\", \"1.25.4\", publishValueAsDefault: true);\n\nIResourceBuilder<ContainerResource> ginapp;\n\nif (builder.ExecutionContext.IsPublishMode)\n{\n    // Production build: multi-stage Dockerfile for optimized image\n    ginapp = builder.AddDockerfile(\"ginapp\", \"./ginapp\")\n        .WithBuildArg(\"GO_VERSION\", goVersion);\n}\nelse\n{\n    // Development build: use Air for hot reload with bind mount\n    ginapp = builder.AddDockerfile(\"ginapp\", \"./ginapp\", \"Dockerfile.dev\")\n        .WithBuildArg(\"GO_VERSION\", goVersion)\n        .WithBindMount(\"./ginapp\", \"/app\");\n}\n\nginapp\n    .WithHttpEndpoint(targetPort: 5555, env: \"PORT\")\n    .WithHttpHealthCheck(\"/\")\n    .WithExternalHttpEndpoints()\n    .WithOtlpExporter()\n    .WithDeveloperCertificateTrust(trust: true);\n\nif (builder.ExecutionContext.IsPublishMode)\n{\n    ginapp\n        .WithEnvironment(\"GIN_MODE\", \"release\")\n        // Trust all proxies when running behind a reverse proxy. If deploying to an environment\n        // without a reverse proxy that ensures X-Forwarded-* headers are not forwarded from clients,\n        // this should be removed.\n        .WithEnvironment(\"TRUSTED_PROXIES\", \"all\");\n}\n\nbuilder.Build().Run();"
   },
   {
     "name": "custom-resources",
@@ -125,7 +139,9 @@
       "dashboard"
     ],
     "thumbnail": null,
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "CustomResources.AppHost/AppHost.cs",
+    "appHostCode": "using CustomResources.AppHost;\n\nvar builder = DistributedApplication.CreateBuilder(args);\n\nbuilder.AddTalkingClock(\"talking-clock\");\n\nbuilder.AddTestResource(\"test\");\n\nbuilder.Build().Run();"
   },
   {
     "name": "database-containers",
@@ -146,7 +162,9 @@
       "sql-server"
     ],
     "thumbnail": "~/assets/samples/database-containers/db-containers-apiservice-swagger-ui.png",
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "DatabaseContainers.AppHost/AppHost.cs",
+    "appHostCode": "var builder = DistributedApplication.CreateBuilder(args);\n\n// PostgreSQL container is configured with an auto-generated password by default\n// and supports setting the default database name via an environment variable & running *.sql/*.sh scripts in a bind mount.\nvar todosDbName = \"Todos\";\n\nvar postgres = builder.AddPostgres(\"postgres\")\n    // Set the name of the default database to auto-create on container startup.\n    .WithEnvironment(\"POSTGRES_DB\", todosDbName)\n    // Mount the SQL scripts directory into the container so that the init scripts run.\n    .WithBindMount(\"../DatabaseContainers.ApiService/data/postgres\", \"/docker-entrypoint-initdb.d\")\n    // Configure the container to store data in a volume so that it persists across instances.\n    .WithDataVolume()\n    .WithPgWeb()\n    // Keep the container running between app host sessions.\n    .WithLifetime(ContainerLifetime.Persistent);\n\n// Add the default database to the application model so that it can be referenced by other resources.\nvar todosDb = postgres.AddDatabase(todosDbName);\n\n// MySql container is configured with an auto-generated password by default\n// and supports setting the default database name via an environment variable & running *.sql/*.sh scripts in a bind mount.\nvar catalogDbName = \"catalog\"; // MySql database & table names are case-sensitive on non-Windows.\n\nvar mysql = builder.AddMySql(\"mysql\")\n    // Set the name of the database to auto-create on container startup.\n    .WithEnvironment(\"MYSQL_DATABASE\", catalogDbName)\n    // Mount the SQL scripts directory into the container so that the init scripts run.\n    .WithBindMount(\"../DatabaseContainers.ApiService/data/mysql\", \"/docker-entrypoint-initdb.d\")\n    // Configure the container to store data in a volume so that it persists across instances.\n    .WithDataVolume()\n    // Keep the container running between app host sessions.\n    .WithLifetime(ContainerLifetime.Persistent);\n\n// Add the database to the application model so that it can be referenced by other resources.\nvar catalogDb = mysql.AddDatabase(catalogDbName);\n\n// SQL Server container is configured with an auto-generated password by default\n// but doesn't support any auto-creation of databases or running scripts on startup so we have to do it manually.\nvar sqlserver = builder.AddSqlServer(\"sqlserver\")\n    // Configure the container to store data in a volume so that it persists across instances.\n    .WithDataVolume()\n    // Keep the container running between app host sessions.\n    .WithLifetime(ContainerLifetime.Persistent);\n\n// Add the database to the application model so that it can be referenced by other resources.\nvar initScriptPath = Path.Join(Path.GetDirectoryName(typeof(Program).Assembly.Location), \"init.sql\");\nvar addressBookDb = sqlserver.AddDatabase(\"AddressBook\")\n    .WithCreationScript(File.ReadAllText(initScriptPath));\n\nbuilder.AddProject<Projects.DatabaseContainers_ApiService>(\"apiservice\")\n    .WithReference(todosDb)\n    .WaitFor(todosDb)\n    .WithReference(catalogDb)\n    .WaitFor(catalogDb)\n    .WithReference(addressBookDb)\n    .WaitFor(addressBookDb)\n    .WithHttpHealthCheck(\"/alive\")\n    .WithHttpHealthCheck(\"/health\");\n\nbuilder.Build().Run();"
   },
   {
     "name": "database-migrations",
@@ -164,7 +182,9 @@
       "sql-server"
     ],
     "thumbnail": null,
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "DatabaseMigrations.AppHost/AppHost.cs",
+    "appHostCode": "var builder = DistributedApplication.CreateBuilder(args);\n\nvar sqlserver = builder.AddSqlServer(\"sqlserver\")\n    .WithDataVolume()\n    .WithLifetime(ContainerLifetime.Persistent);\n\nvar db1 = sqlserver.AddDatabase(\"db1\");\n\nvar migrationService = builder.AddProject<Projects.DatabaseMigrations_MigrationService>(\"migration\")\n    .WithReference(db1)\n    .WaitFor(db1);\n\nbuilder.AddProject<Projects.DatabaseMigrations_ApiService>(\"api\")\n    .WithReference(db1)\n    .WaitForCompletion(migrationService);\n\nbuilder.Build().Run();"
   },
   {
     "name": "golang-api",
@@ -180,7 +200,9 @@
       "typescript"
     ],
     "thumbnail": null,
-    "appHost": "typescript"
+    "appHost": "typescript",
+    "appHostPath": "apphost.ts",
+    "appHostCode": "import { createBuilder } from \"./.modules/aspire.js\";\n\nconst builder = await createBuilder();\nconst executionContext = await builder.executionContext();\n\nawait builder.addDockerComposeEnvironment(\"env\")\n    .configureDashboard(async (dashboard) =>\n    {\n        await dashboard.withHostPort({ port: 9003 });\n    });\n\nif (await executionContext.isPublishMode())\n{\n    await builder.addDockerfile(\"api\", \"./api\")\n        .withHttpEndpoint({ env: \"PORT\" })\n        .withHttpHealthCheck({ path: \"/health\" })\n        .withExternalHttpEndpoints();\n}\nelse\n{\n    const api = await builder.addExecutable(\"api\", \"go\", \"./api\", [\"run\", \"main.go\"])\n        .withHttpEndpoint({ env: \"PORT\" })\n        .withHttpHealthCheck({ path: \"/health\" })\n        .withExternalHttpEndpoints();\n\n    const goModInstaller = await builder.addExecutable(\"api-go-mod-installer\", \"go\", \"./api\", [\"mod\", \"tidy\"])\n        .withParentRelationship(api);\n\n    await api.waitForCompletion(goModInstaller);\n}\n\nawait builder.build().run();"
   },
   {
     "name": "health-checks-ui",
@@ -200,7 +222,9 @@
       "redis"
     ],
     "thumbnail": "~/assets/samples/health-checks-ui/healthchecksui.png",
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "HealthChecksUI.AppHost/AppHost.cs",
+    "appHostCode": "var builder = DistributedApplication.CreateBuilder(args);\n\nbuilder.AddDockerComposeEnvironment(\"compose\");\n\nvar cache = builder.AddRedis(\"cache\");\n\nvar apiService = builder.AddProject<Projects.HealthChecksUI_ApiService>(\"apiservice\")\n    .WithHttpHealthCheck(\"/health\")\n    .WithHttpProbe(ProbeType.Liveness, \"/alive\")\n    .WithFriendlyUrls(displayText: \"API\");\n\nvar webFrontend = builder.AddProject<Projects.HealthChecksUI_Web>(\"webfrontend\")\n    .WithReference(cache)\n    .WaitFor(cache)\n    .WithReference(apiService)\n    .WaitFor(apiService)\n    .WithHttpProbe(ProbeType.Liveness, \"/alive\")\n    .WithHttpHealthCheck(\"/health\")\n    .WithFriendlyUrls(\"Web Frontend\")\n    .WithExternalHttpEndpoints();\n\nvar healthChecksUI = builder.AddHealthChecksUI(\"healthchecksui\")\n    .WithReference(apiService)\n    .WithReference(webFrontend)\n    .WithFriendlyUrls(\"HealthChecksUI Dashboard\", \"http\")\n    .WithHttpProbe(ProbeType.Liveness, \"/\")\n    // This will make the HealthChecksUI dashboard available from external networks when deployed.\n    // In a production environment, you should consider adding authentication to the ingress layer\n    // to restrict access to the dashboard.\n    .WithExternalHttpEndpoints();\n\nif (builder.ExecutionContext.IsRunMode)\n{\n    healthChecksUI.WithHostPort(7230);\n}\n\nbuilder.Build().Run();\n\n\nstatic class UrlHelpers\n{\n    extension<T>(IResourceBuilder<T> builder) where T : IResource\n    {\n        public IResourceBuilder<T> WithFriendlyUrls(string? displayText = null, string? endpointName = null, string? path = null)\n        {\n            return builder.WithUrls(c =>\n            {\n                List<string?> endpointNames = [endpointName, \"https\", \"http\"];\n                var endpoint = endpointNames\n                    .Where(n => n is not null)\n                    .Select(n => c.GetEndpoint(n!))\n                    .FirstOrDefault(e => e?.Exists ?? false);\n\n                if (endpoint is null) return;\n\n                displayText ??= builder.Resource.Name;\n                foreach (var url in c.Urls)\n                {\n                    url.DisplayLocation = UrlDisplayLocation.DetailsOnly;\n                }\n\n                c.Urls.Add(new()\n                {\n                    Endpoint = endpoint,\n                    DisplayText = displayText,\n                    DisplayLocation = UrlDisplayLocation.SummaryAndDetails,\n                    Url = path ?? \"/\"\n                });\n\n            });\n        }\n    }\n}"
   },
   {
     "name": "image-gallery",
@@ -218,7 +242,9 @@
       "sql-server"
     ],
     "thumbnail": null,
-    "appHost": "file-based"
+    "appHost": "file-based",
+    "appHostPath": "apphost.cs",
+    "appHostCode": "#pragma warning disable ASPIRECSHARPAPPS001\n#pragma warning disable ASPIREAZURE002\n\n#:sdk Aspire.AppHost.Sdk@13.3.3\n#:package Aspire.Hosting.Azure.Storage@13.3.3\n#:package Aspire.Hosting.Azure.Sql@13.3.3\n#:package Aspire.Hosting.JavaScript@13.3.3\n#:package Aspire.Hosting.Azure.AppContainers@13.3.3\n\nusing Aspire.Hosting.Azure;\nusing Azure.Provisioning.AppContainers;\nusing Azure.Provisioning.Expressions;\n\nvar builder = DistributedApplication.CreateBuilder(args);\n\nbuilder.AddAzureContainerAppEnvironment(\"env\");\n\n// Storage: Use Azurite emulator in run mode, real Azure in publish mode\nvar storage = builder.AddAzureStorage(\"storage\")\n                .RunAsEmulator();\n\nvar blobs = storage.AddBlobContainer(\"images\");\nvar queues = storage.AddQueues(\"queues\");\n\n// Azure SQL Database\nvar sql = builder.AddAzureSqlServer(\"sql\")\n    .RunAsContainer(c => c.WithLifetime(ContainerLifetime.Persistent))\n    .AddDatabase(\"imagedb\");\n\n// API: Upload images, queue thumbnail jobs, serve metadata\nvar api = builder.AddCSharpApp(\"api\", \"./api\")\n    .WithHttpHealthCheck(\"/health\")\n    .WithExternalHttpEndpoints()\n    .WaitFor(sql)\n    .WithReference(blobs)\n    .WithReference(queues)\n    .WithReference(sql)\n    .WithUrls(context =>\n    {\n        foreach (var u in context.Urls)\n        {\n            u.DisplayLocation = UrlDisplayLocation.DetailsOnly;\n        }\n\n        context.Urls.Add(new()\n        {\n            Url = \"/scalar\",\n            DisplayText = \"API Reference\",\n            Endpoint = context.GetEndpoint(\"https\")\n        });\n    })\n    .PublishAsAzureContainerApp((infra, app) =>\n    {\n        // Scale to zero when idle\n        app.Template.Scale.MinReplicas = 0;\n    });\n\n// Worker: Container Apps Job for queue-triggered thumbnail generation\n// Event-driven: starts when messages arrive, exits within ~5 seconds when queue is empty\nvar worker = builder.AddCSharpApp(\"worker\", \"./worker\")\n    .WithReference(blobs)\n    .WithReference(queues)\n    .WithReference(sql)\n    .WaitFor(sql)\n    .WaitFor(queues);\n\nif (builder.ExecutionContext.IsRunMode)\n{\n    // In run mode, keep worker running continuously for fast local development\n    worker = worker.WithEnvironment(\"WORKER_RUN_CONTINUOUSLY\", \"true\");\n}\nelse\n{\n    // In publish mode, use event-driven scaling based on queue depth\n    worker.PublishAsAzureContainerAppJob((infra, job) =>\n    {\n        var accountNameParameter = queues.Resource.Parent.NameOutputReference.AsProvisioningParameter(infra);\n\n        // Resolve the identity annotation added to the worker app\n        if (!worker.Resource.TryGetLastAnnotation<AppIdentityAnnotation>(out var identityAnnotation))\n        {\n            throw new InvalidOperationException(\"Identity annotation not found.\");\n        }\n\n        job.Configuration.TriggerType = ContainerAppJobTriggerType.Event;\n        job.Configuration.EventTriggerConfig.Scale.PollingIntervalInSeconds = 1;\n        job.Configuration.EventTriggerConfig.Scale.Rules.Add(new ContainerAppJobScaleRule\n        {\n            Name = \"queue-rule\",\n            JobScaleRuleType = \"azure-queue\",\n            Metadata = new ObjectExpression(\n                new PropertyExpression(\"accountName\", new IdentifierExpression(accountNameParameter.BicepIdentifier)),\n                new PropertyExpression(\"queueName\", new StringLiteralExpression(\"thumbnails\")),\n                new PropertyExpression(\"queueLength\", new IntLiteralExpression(1))\n            ),\n            Identity = identityAnnotation.IdentityResource.Id.AsProvisioningParameter(infra)\n        });\n    });\n}\n\n// Frontend: Vite+React for upload and gallery UI\nvar frontend = builder.AddViteApp(\"frontend\", \"./frontend\")\n    .WithEndpoint(\"http\", e => e.Port = 9080)\n    .WithReference(api)\n    .WithUrl(\"\", \"Image Gallery\");\n\n// Publish: Embed frontend build output in API container\napi.PublishWithContainerFiles(frontend, \"wwwroot\");\n\nbuilder.Build().Run();"
   },
   {
     "name": "Metrics",
@@ -235,7 +261,9 @@
       "prometheus"
     ],
     "thumbnail": "~/assets/samples/Metrics/dashboard-screenshot.png",
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "MetricsApp.AppHost/AppHost.cs",
+    "appHostCode": "using MetricsApp.AppHost.OpenTelemetryCollector;\n\nvar builder = DistributedApplication.CreateBuilder(args);\n\nvar prometheus = builder.AddContainer(\"prometheus\", \"prom/prometheus\", \"v3.2.1\")\n    .WithBindMount(\"../prometheus\", \"/etc/prometheus\", isReadOnly: true)\n    .WithArgs(\"--web.enable-otlp-receiver\", \"--config.file=/etc/prometheus/prometheus.yml\")\n    .WithHttpEndpoint(targetPort: 9090)\n    .WithUrlForEndpoint(\"http\", u => u.DisplayText = \"Prometheus Dashboard\");\n\nvar grafana = builder.AddContainer(\"grafana\", \"grafana/grafana\")\n    .WithBindMount(\"../grafana/config\", \"/etc/grafana\", isReadOnly: true)\n    .WithBindMount(\"../grafana/dashboards\", \"/var/lib/grafana/dashboards\", isReadOnly: true)\n    .WithEnvironment(\"PROMETHEUS_ENDPOINT\", prometheus.GetEndpoint(\"http\"))\n    .WithHttpEndpoint(targetPort: 3000)\n    .WithUrlForEndpoint(\"http\", u => u.DisplayText = \"Grafana Dashboard\");\n\nbuilder.AddOpenTelemetryCollector(\"otelcollector\", \"../otelcollector/config.yaml\")\n    .WithEnvironment(\"PROMETHEUS_ENDPOINT\", $\"{prometheus.GetEndpoint(\"http\")}/api/v1/otlp\");\n\nbuilder.AddProject<Projects.MetricsApp>(\"app\")\n    .WithEnvironment(\"GRAFANA_URL\", grafana.GetEndpoint(\"http\"))\n    .WithUrlForEndpoint(\"https\", u => u.DisplayText = \"Instrumented App\")\n    .WithUrlForEndpoint(\"http\", u => u.DisplayLocation = UrlDisplayLocation.DetailsOnly);\n\nbuilder.Build().Run();"
   },
   {
     "name": "node-express-redis",
@@ -252,7 +280,9 @@
       "typescript"
     ],
     "thumbnail": "~/assets/samples/node-express-redis/node-express-redis-primary-page.png",
-    "appHost": "typescript"
+    "appHost": "typescript",
+    "appHostPath": "apphost.ts",
+    "appHostCode": "import { createBuilder } from \"./.modules/aspire.js\";\n\nconst builder = await createBuilder();\nconst executionContext = await builder.executionContext();\n\nawait builder.addDockerComposeEnvironment(\"dc\");\n\nconst redis = await builder.addRedis(\"redis\")\n    .withRedisInsight();\n\nconst api = await builder.addNodeApp(\"api\", \"./api\", \"index.js\")\n    .withHttpEndpoint({ env: \"PORT\" })\n    .withHttpHealthCheck({ path: \"/health\" })\n    .waitFor(redis)\n    .withReference(redis);\n\nconst frontend = await builder.addViteApp(\"frontend\", \"./frontend\")\n    .withReference(api);\n\nawait builder.addYarp(\"app\")\n    .withConfiguration(async (yarp) =>\n    {\n        const apiCluster = await yarp.addClusterFromResource(api);\n        await (await yarp.addRoute(\"api/{**catch-all}\", apiCluster))\n            .withTransformPathRemovePrefix(\"/api\");\n\n        if (await executionContext.isRunMode())\n        {\n            const frontendCluster = await yarp.addClusterFromResource(frontend);\n            await yarp.addRoute(\"{**catch-all}\", frontendCluster);\n        }\n    })\n    .withExternalHttpEndpoints()\n    .publishWithStaticFiles(frontend)\n    .withExplicitStart();\n\nawait builder.build().run();"
   },
   {
     "name": "orleans-voting",
@@ -266,7 +296,9 @@
       "orleans"
     ],
     "thumbnail": null,
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "OrleansVoting.AppHost/AppHost.cs",
+    "appHostCode": "var builder = DistributedApplication.CreateBuilder(args);\n\nvar redis = builder.AddRedis(\"voting-redis\");\n\nvar orleans = builder.AddOrleans(\"voting-cluster\")\n    .WithClustering(redis)\n    .WithGrainStorage(\"votes\", redis);\n\nbuilder.AddProject<Projects.OrleansVoting_Service>(\"voting-fe\")\n    .WithReference(orleans)\n    .WaitFor(redis)\n    .WithReplicas(3)\n    .WithExternalHttpEndpoints()\n    .WithUrlForEndpoint(\"https\", u => u.DisplayText = \"Voting App\")\n    .WithUrlForEndpoint(\"http\", u => u.DisplayLocation = UrlDisplayLocation.DetailsOnly)\n    .WithUrlForEndpoint(\"orleans-gateway\", u => u.DisplayLocation = UrlDisplayLocation.DetailsOnly)\n    .WithUrlForEndpoint(\"orleans-silo\", u => u.DisplayLocation = UrlDisplayLocation.DetailsOnly);\n\nbuilder.Build().Run();"
   },
   {
     "name": "polyglot-task-queue",
@@ -286,7 +318,9 @@
       "typescript"
     ],
     "thumbnail": "~/assets/samples/polyglot-task-queue/polyglot-task-queue-primary-page.png",
-    "appHost": "typescript"
+    "appHost": "typescript",
+    "appHostPath": "apphost.ts",
+    "appHostCode": "import { ContainerLifetime, UrlDisplayLocation, createBuilder } from \"./.modules/aspire.js\";\n\nconst builder = await createBuilder();\n\nawait builder.addDockerComposeEnvironment(\"dc\");\n\nconst rabbitmq = await builder.addRabbitMQ(\"messaging\")\n    .withManagementPlugin()\n    .withLifetime(ContainerLifetime.Persistent)\n    .withUrlForEndpoint(\"tcp\", async (url) =>\n    {\n        url.displayLocation = UrlDisplayLocation.DetailsOnly;\n    })\n    .withUrlForEndpoint(\"management\", async (url) =>\n    {\n        url.displayText = \"RabbitMQ Management UI\";\n    });\n\nconst api = await builder.addNodeApp(\"api\", \"./api\", \"index.js\")\n    .withHttpEndpoint({ env: \"PORT\" })\n    .withHttpHealthCheck({ path: \"/health\" })\n    .waitFor(rabbitmq)\n    .withReference(rabbitmq);\n\nconst frontend = await builder.addViteApp(\"frontend\", \"./frontend\")\n    .withReference(api)\n    .withUrl(\"\", { displayText: \"Task Queue UI\" });\n\nawait builder.addPythonApp(\"worker-python\", \"./worker-python\", \"main.py\")\n    .withUv()\n    .waitFor(rabbitmq)\n    .withReference(rabbitmq);\n\nawait builder.addCSharpApp(\"worker-csharp\", \"./worker-csharp\")\n    .waitFor(rabbitmq)\n    .withReference(rabbitmq);\n\nawait api.publishWithContainerFiles(frontend, \"public\");\n\nawait builder.build().run();"
   },
   {
     "name": "python-fastapi-postgres",
@@ -307,7 +341,9 @@
       "typescript"
     ],
     "thumbnail": null,
-    "appHost": "typescript"
+    "appHost": "typescript",
+    "appHostPath": "apphost.ts",
+    "appHostCode": "import { createBuilder } from \"./.modules/aspire.js\";\n\nconst builder = await createBuilder();\n\nawait builder.addDockerComposeEnvironment(\"dc\");\n\nconst postgres = await builder.addPostgres(\"postgres\")\n    .withPgAdmin();\nconst db = await postgres.addDatabase(\"db\");\n\nawait builder.addUvicornApp(\"api\", \"./api\", \"main:app\")\n    .withExternalHttpEndpoints()\n    .waitFor(db)\n    .withReference(db)\n    .withReference(postgres);\n\nawait builder.build().run();"
   },
   {
     "name": "python-openai-agent",
@@ -325,7 +361,9 @@
       "typescript"
     ],
     "thumbnail": "~/assets/samples/python-openai-agent/python-openai-agent-primary-page.png",
-    "appHost": "typescript"
+    "appHost": "typescript",
+    "appHostPath": "apphost.ts",
+    "appHostCode": "import { createBuilder } from \"./.modules/aspire.js\";\n\nconst builder = await createBuilder();\n\nawait builder.addDockerComposeEnvironment(\"dc\");\n\nconst openAiApiKey = await builder.addParameter(\"openai-api-key\", { secret: true });\n\nawait builder.addOpenAI(\"openai\")\n    .withApiKey(openAiApiKey);\n\nawait builder.addUvicornApp(\"ai-agent\", \"./agent\", \"main:app\")\n    .withUv()\n    .withExternalHttpEndpoints()\n    .withEnvironment(\"OPENAI_API_KEY\", openAiApiKey);\n\nawait builder.build().run();"
   },
   {
     "name": "python-script",
@@ -341,7 +379,9 @@
       "typescript"
     ],
     "thumbnail": null,
-    "appHost": "typescript"
+    "appHost": "typescript",
+    "appHostPath": "apphost.ts",
+    "appHostCode": "import { createBuilder } from \"./.modules/aspire.js\";\n\nconst builder = await createBuilder();\n\nawait builder.addPythonApp(\"script\", \"./script\", \"main.py\");\n\nawait builder.build().run();"
   },
   {
     "name": "rag-document-qa-svelte",
@@ -358,7 +398,9 @@
       "typescript"
     ],
     "thumbnail": "~/assets/samples/rag-document-qa-svelte/rag-document-qa-svelte-primary-page.png",
-    "appHost": "typescript"
+    "appHost": "typescript",
+    "appHostPath": "apphost.ts",
+    "appHostCode": "import { createBuilder } from \"./.modules/aspire.js\";\n\nconst builder = await createBuilder();\n\nconst openAiApiKey = await builder.addParameter(\"openai-api-key\", { secret: true });\n\nconst qdrant = await builder.addQdrant(\"qdrant\");\n\nawait builder.addOpenAI(\"openai\")\n    .withApiKey(openAiApiKey);\n\nconst api = await builder.addUvicornApp(\"api\", \"./api\", \"main:app\")\n    .withUv()\n    .withHttpHealthCheck({ path: \"/health\" })\n    .waitFor(qdrant)\n    .withReference(qdrant)\n    .withEnvironment(\"OPENAI_APIKEY\", openAiApiKey)\n    .withExternalHttpEndpoints();\n\nconst frontend = await builder.addViteApp(\"frontend\", \"./frontend\")\n    .withReference(api)\n    .withUrl(\"\", { displayText: \"RAG UI\" });\n\nawait api.publishWithContainerFiles(frontend, \"public\");\n\nawait builder.build().run();"
   },
   {
     "name": "standalone-dashboard",
@@ -375,7 +417,9 @@
       "metrics"
     ],
     "thumbnail": "~/assets/samples/standalone-dashboard/aspire-dashboard-screenshot.png",
-    "appHost": null
+    "appHost": null,
+    "appHostPath": null,
+    "appHostCode": null
   },
   {
     "name": "vite-csharp-postgres",
@@ -395,7 +439,9 @@
       "typescript"
     ],
     "thumbnail": "~/assets/samples/vite-csharp-postgres/vite-csharp-postgres-primary-page.png",
-    "appHost": "typescript"
+    "appHost": "typescript",
+    "appHostPath": "apphost.ts",
+    "appHostCode": "import { ContainerLifetime, UrlDisplayLocation, createBuilder } from \"./.modules/aspire.js\";\n\nconst builder = await createBuilder();\n\nawait builder.addDockerComposeEnvironment(\"dc\");\n\nconst postgres = await builder.addPostgres(\"postgres\")\n    .withDataVolume()\n    .withLifetime(ContainerLifetime.Persistent)\n    .withPgAdmin({\n        configureContainer: async (pgAdmin) =>\n        {\n            await pgAdmin.withLifetime(ContainerLifetime.Persistent);\n        }\n    });\n\nconst db = await postgres.addDatabase(\"db\");\n\nconst api = await builder.addCSharpApp(\"api\", \"./api\")\n    .withHttpHealthCheck({ path: \"/health\" })\n    .withExternalHttpEndpoints()\n    .waitFor(db)\n    .withReference(db)\n    .withUrlForEndpoint(\"http\", async (url) =>\n    {\n        url.displayLocation = UrlDisplayLocation.DetailsOnly;\n    })\n    .withUrlForEndpoint(\"https\", async (url) =>\n    {\n        url.displayLocation = UrlDisplayLocation.DetailsOnly;\n    })\n    .withUrls(async (ctx) =>\n    {\n        const endpoint = ctx.getEndpoint(\"https\");\n        const urls = await ctx.urls();\n        await urls.addForEndpoint(endpoint, `${await endpoint.url()}/scalar`, { displayText: \"API Reference\" });\n    })\n    .publishAsDockerComposeService(async (_, service) =>\n    {\n        await service.restart.set(\"always\");\n    });\n\nconst frontend = await builder.addViteApp(\"frontend\", \"./frontend\")\n    .withReference(api)\n    .withUrl(\"\", { displayText: \"Todo UI\" });\n\nawait api.publishWithContainerFiles(frontend, \"wwwroot\");\n\nawait builder.build().run();"
   },
   {
     "name": "vite-react-fastapi",
@@ -412,7 +458,9 @@
       "typescript"
     ],
     "thumbnail": "~/assets/samples/vite-react-fastapi/vite-react-fastapi-primary-page.png",
-    "appHost": "typescript"
+    "appHost": "typescript",
+    "appHostPath": "apphost.ts",
+    "appHostCode": "import { createBuilder } from \"./.modules/aspire.js\";\n\nconst builder = await createBuilder();\nconst executionContext = await builder.executionContext();\n\nawait builder.addDockerComposeEnvironment(\"dc\");\n\nconst api = await builder.addUvicornApp(\"api\", \"./api\", \"main:app\")\n    .withHttpHealthCheck({ path: \"/health\" });\n\nconst frontend = await builder.addViteApp(\"frontend\", \"./frontend\")\n    .withReference(api);\n\nawait builder.addYarp(\"app\")\n    .withConfiguration(async (yarp) =>\n    {\n        const apiCluster = await (await yarp.addClusterWithDestination(\"api\", \"https://api\"))\n            .withHttpClientConfig({ dangerousAcceptAnyServerCertificate: true });\n        await (await yarp.addRoute(\"api/{**catch-all}\", apiCluster))\n            .withTransformPathRemovePrefix(\"/api\");\n\n        if (await executionContext.isRunMode())\n        {\n            const frontendCluster = await yarp.addClusterFromResource(frontend);\n            await yarp.addRoute(\"{**catch-all}\", frontendCluster);\n        }\n    })\n    .withReference(api)\n    .withExternalHttpEndpoints()\n    .publishWithStaticFiles(frontend)\n    .withExplicitStart();\n\nawait builder.build().run();"
   },
   {
     "name": "vite-yarp-static",
@@ -428,7 +476,9 @@
       "typescript"
     ],
     "thumbnail": "~/assets/samples/vite-yarp-static/vite-yarp-static-primary-page.png",
-    "appHost": "typescript"
+    "appHost": "typescript",
+    "appHostPath": "apphost.ts",
+    "appHostCode": "import { createBuilder } from \"./.modules/aspire.js\";\n\nconst builder = await createBuilder();\nconst executionContext = await builder.executionContext();\n\nawait builder.addDockerComposeEnvironment(\"dc\");\n\nconst frontend = await builder.addViteApp(\"frontend\", \"./frontend\");\n\nawait builder.addYarp(\"app\")\n    .withConfiguration(async (yarp) =>\n    {\n        if (await executionContext.isRunMode())\n        {\n            const frontendCluster = await yarp.addClusterFromResource(frontend);\n            await yarp.addRoute(\"{**catch-all}\", frontendCluster);\n        }\n    })\n    .withExternalHttpEndpoints()\n    .publishWithStaticFiles(frontend);\n\nawait builder.build().run();"
   },
   {
     "name": "volume-mount",
@@ -453,6 +503,8 @@
       "volumes"
     ],
     "thumbnail": "~/assets/samples/volume-mount/volume-mount-frontend-login.png",
-    "appHost": "csproj"
+    "appHost": "csproj",
+    "appHostPath": "VolumeMount.AppHost/AppHost.cs",
+    "appHostCode": "var builder = DistributedApplication.CreateBuilder(args);\n\nvar sqlserver = builder.AddSqlServer(\"sqlserver\")\n    .WithDataVolume()\n    .WithLifetime(ContainerLifetime.Persistent);\n\nvar sqlDatabase = sqlserver.AddDatabase(\"sqldb\");\n\nvar blobs = builder.AddAzureStorage(\"Storage\")\n    // Use the Azurite storage emulator for local development\n    .RunAsEmulator(emulator => emulator.WithDataVolume())\n    .AddBlobs(\"BlobConnection\");\n\nbuilder.AddProject<Projects.VolumeMount_BlazorWeb>(\"blazorweb\")\n    .WithReference(sqlDatabase)\n    .WaitFor(sqlDatabase)\n    .WithReference(blobs)\n    .WaitFor(blobs);\n\nbuilder.Build().Run();"
   }
 ]

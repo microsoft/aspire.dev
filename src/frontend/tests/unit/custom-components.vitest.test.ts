@@ -575,6 +575,16 @@ const sampleCardFixture = {
 const sampleDetailFixture = {
   ...sampleCardFixture,
   appHost: 'typescript' as const,
+  appHostPath: 'apphost.ts',
+  appHostCode: [
+    'import { createBuilder } from "./.modules/aspire.js";',
+    '',
+    'const builder = await createBuilder();',
+    '',
+    'await builder.addRedis("cache");',
+    '',
+    'await builder.build().run();',
+  ].join('\n'),
   description: '**This sample** shows how to connect an API and dashboard to Redis.',
   readme: [
     '# Redis sample',
@@ -794,6 +804,16 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('href="/reference/samples/"');
     expect(html).toContain(
       'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample/src/RedisSample.AppHost"'
+    );
+
+    // The AppHost code section renders above the README with the filename and
+    // a "View on GitHub" link to the raw source.
+    expect(html).toContain('id="sample-apphost-heading"');
+    expect(html).toContain('The apphost.ts entry point');
+    expect(html).toContain('data-language="typescript"');
+    expect(html).toContain('createBuilder()');
+    expect(html).toContain(
+      'href="https://github.com/dotnet/aspire-samples/blob/main/samples/redis-sample/apphost.ts"'
     );
   });
 

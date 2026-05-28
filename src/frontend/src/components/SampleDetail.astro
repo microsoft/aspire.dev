@@ -1,12 +1,15 @@
 ---
 import { Badge, Icon } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import { Code } from 'astro-expressive-code/components';
 import type { StarlightIcon } from '@astrojs/starlight/types';
 import { marked } from 'marked';
 
 import SampleReadmeBlocks from '@components/SampleReadmeBlocks.astro';
 import { tagLabel } from '@utils/sample-tags';
 import {
+  appHostCodeLang,
+  appHostCodeTitle,
   appHostLabel,
   sampleDescriptionText,
   type AppHostKind,
@@ -163,6 +166,13 @@ const appHostIcon: StarlightIcon | null =
     : appHostKind === 'file-based'
       ? 'seti:c-sharp'
       : null;
+const appHostCode = sample.appHostCode ?? null;
+const appHostCodeFilename = appHostCodeTitle(sample.appHostPath);
+const appHostCodeLanguage = appHostCodeLang(sample.appHostPath);
+const appHostSourceUrl =
+  appHostCode && sample.appHostPath
+    ? `${sample.href.replace('/tree/', '/blob/')}/${sample.appHostPath}`
+    : null;
 // 5 nodes in the resource-graph backdrop; pick which one pulses based on the
 // sample slug so every sample's hero feels subtly different.
 const nodeCount = 5;
@@ -247,6 +257,41 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
       </div>
     </div>
   </div>
+
+  {
+    appHostCode && appHostCodeFilename && (
+      <section
+        class="sample-apphost not-content"
+        aria-labelledby="sample-apphost-heading"
+      >
+        <header class="sample-apphost-header">
+          <div>
+            <div class="sample-kicker">AppHost</div>
+            <h2 id="sample-apphost-heading">
+              The {appHostCodeFilename} entry point
+            </h2>
+          </div>
+          {appHostSourceUrl && (
+            <a
+              class="sample-apphost-source"
+              href={appHostSourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`View ${appHostCodeFilename} on GitHub`}
+            >
+              View on GitHub
+              <Icon name="external" size="0.9rem" />
+            </a>
+          )}
+        </header>
+        <Code
+          code={appHostCode}
+          lang={appHostCodeLanguage}
+          meta={`title="${appHostCodeFilename}"`}
+        />
+      </section>
+    )
+  }
 
   <section class="sample-readme" aria-label={`${sample.title} README`}>
     <SampleReadmeBlocks blocks={readmeBlocks} sampleHref={sample.href} />
@@ -578,6 +623,62 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
 
   .sample-readme :global(.expressive-code) {
     margin: 1.25rem 0;
+  }
+
+  /* AppHost source block — shown above the README so the first thing visitors
+     see after the hero is the entry-point code for the sample. */
+  .sample-apphost {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    max-width: 56rem;
+    padding: clamp(1rem, 3vw, 1.5rem);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--sl-color-gray-6) 85%, var(--sl-color-black));
+  }
+
+  .sample-apphost-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: end;
+    gap: 0.5rem 1rem;
+  }
+
+  .sample-apphost-header h2 {
+    margin: 0.25rem 0 0;
+    color: var(--sl-color-white);
+    font-size: clamp(1.05rem, 2.6vw, 1.35rem);
+    letter-spacing: -0.005em;
+  }
+
+  .sample-apphost-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--sl-color-gray-4);
+    color: var(--sl-color-white);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      border-color 0.2s ease,
+      transform 0.2s ease,
+      background-color 0.2s ease;
+  }
+
+  .sample-apphost-source:hover {
+    text-decoration: none;
+    border-color: var(--sl-color-accent);
+    background: color-mix(in srgb, var(--sl-color-accent) 14%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .sample-apphost :global(.expressive-code) {
+    margin: 0;
   }
 
   .sample-media {

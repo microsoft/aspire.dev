@@ -10,6 +10,8 @@ export interface Sample {
   tags: string[];
   thumbnail: string | null;
   appHost?: AppHostKind | null;
+  appHostPath?: string | null;
+  appHostCode?: string | null;
 }
 
 export interface ResolvedSample extends Sample {
@@ -37,6 +39,29 @@ export function appHostShortLabel(kind: AppHostKind): string {
     case 'file-based':
       return 'File-based';
   }
+}
+
+/**
+ * Map the AppHost entry-point file extension to an expressive-code language
+ * identifier so syntax highlighting matches the file.
+ */
+export function appHostCodeLang(path: string | null | undefined): string {
+  if (!path) return 'text';
+  const lower = path.toLowerCase();
+  if (lower.endsWith('.ts')) return 'typescript';
+  if (lower.endsWith('.cs')) return 'csharp';
+  if (lower.endsWith('.csproj')) return 'xml';
+  return 'text';
+}
+
+/**
+ * Extract the basename of the AppHost entry-point path. This is used as the
+ * rendered title of the code block (e.g., "AppHost.cs", "apphost.ts").
+ */
+export function appHostCodeTitle(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const slash = path.lastIndexOf('/');
+  return slash >= 0 ? path.slice(slash + 1) : path;
 }
 
 export function sampleSlug(name: string): string {
