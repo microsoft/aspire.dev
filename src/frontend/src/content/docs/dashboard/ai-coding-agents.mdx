@@ -1,21 +1,21 @@
 ---
 title: Dashboard and AI coding agents
 seoTitle: Aspire dashboard and AI coding agents for distributed apps
-description: Learn how AI coding agents use the Aspire CLI and MCP server to read logs and telemetry from the Aspire dashboard, diagnose failures, and propose code changes.
+description: Learn how AI coding agents use the Aspire CLI and optional agent integrations to read dashboard telemetry, diagnose failures, and propose code changes.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
-AI coding agents can use the [Aspire CLI](/reference/cli/overview/) and [Aspire MCP server](/get-started/aspire-mcp-server/) to fetch logs and telemetry from the Aspire dashboard. This gives agents the same observability data that developers see in the dashboard UI — structured logs, distributed traces, resource status, and console output — so they can diagnose issues, verify fixes, and add new features with full context.
+AI coding agents can use the [Aspire CLI](/reference/cli/overview/) to fetch logs and telemetry from the Aspire dashboard. Agents can also use the [Aspire MCP server](/get-started/aspire-mcp-server/) when their host supports MCP. This gives agents the same observability data that developers see in the dashboard UI — structured logs, distributed traces, resource status, and console output — so they can diagnose issues, verify fixes, and add new features with full context.
 
 ## How agents use dashboard data
 
-When an Aspire app is running, the dashboard collects OpenTelemetry data from all resources. AI coding agents access this data through two channels:
+When an Aspire app is running, the dashboard collects OpenTelemetry data from all resources. AI coding agents primarily access this data through the Aspire CLI:
 
 - **Aspire CLI** — Commands like [`aspire logs`](/reference/cli/commands/aspire-logs/), [`aspire otel logs`](/reference/cli/commands/aspire-otel-logs/), [`aspire otel traces`](/reference/cli/commands/aspire-otel-traces/), and [`aspire describe`](/reference/cli/commands/aspire-describe/) retrieve resource status, console logs, and telemetry directly from the terminal. All commands support `--format Json` for structured output that agents can parse.
-- **Aspire MCP server** — The [MCP server](/get-started/aspire-mcp-server/) exposes tools such as `list_resources`, `list_structured_logs`, `list_traces`, and `list_console_logs` that agents call directly through the Model Context Protocol.
+- **Optional Aspire MCP server** — The [MCP server](/get-started/aspire-mcp-server/) exposes tools such as `list_resources`, `list_structured_logs`, `list_traces`, and `list_console_logs` for agent hosts that support the Model Context Protocol.
 
-Both channels draw from the same underlying dashboard data. Whether an agent reads logs via the CLI or through MCP tools, it sees the same information as the dashboard UI.
+Both channels draw from the same underlying dashboard data. Whether an agent reads logs via the CLI or through configured MCP tools, it sees the same information as the dashboard UI.
 
 ### Typical agent workflow
 
@@ -25,7 +25,7 @@ The following workflow is an example — [Aspire skill files](/get-started/ai-co
 
 1. The agent starts the Aspire app with `aspire start` and waits for resources to become healthy with `aspire wait`.
 1. The agent runs `aspire describe` to check resource status and identify any unhealthy services.
-1. The agent fetches structured logs with `aspire otel logs` or the `list_structured_logs` MCP tool, filtering by resource name to find errors.
+1. The agent fetches structured logs with `aspire otel logs`, filtering by resource name to find errors.
 1. The agent retrieves distributed traces with `aspire otel traces` to understand cross-service request flow and identify latency issues.
 1. Using the collected data, the agent makes code changes, restarts the affected resource, and verifies the fix by checking logs and traces again.
 
@@ -33,11 +33,11 @@ The following workflow is an example — [Aspire skill files](/get-started/ai-co
 
 ## Get started
 
-The fastest way to set up AI coding agents with Aspire is the `aspire agent init` command. See [Use AI coding agents](/get-started/ai-coding-agents/) for the full setup guide, including skill files, MCP server configuration, and supported AI assistants. For global plugin installation, included skills, and eval coverage, see [Aspire Skills](/get-started/aspire-skills/).
+The fastest way to set up AI coding agents with Aspire is the `aspire agent init` command. See [Use AI coding agents](/get-started/ai-coding-agents/) for the full setup guide, including skill files and supported AI assistants. For global plugin installation and included skills, see [Aspire Skills](/get-started/aspire-skills/).
 
 ## Standalone mode
 
-The Aspire CLI and MCP server work with the [standalone dashboard](/dashboard/standalone/) — you don't need an Aspire AppHost project. This is useful when monitoring any application that sends OpenTelemetry data to the dashboard.
+The Aspire CLI works with the [standalone dashboard](/dashboard/standalone/) — you don't need an Aspire AppHost project. This is useful when monitoring any application that sends OpenTelemetry data to the dashboard.
 
 ### Start the standalone dashboard
 
@@ -131,7 +131,7 @@ aspire otel spans --dashboard-url http://localhost:18888
 ## See also
 
 - [Use AI coding agents](/get-started/ai-coding-agents/) — full setup guide with `aspire agent init`
-- [Aspire Skills](/get-started/aspire-skills/) — plugin installation, included skills, and eval coverage
-- [Aspire MCP server](/get-started/aspire-mcp-server/) — MCP tools, security, and troubleshooting
+- [Aspire Skills](/get-started/aspire-skills/) — plugin installation and included skills
+- [Aspire MCP server](/get-started/aspire-mcp-server/) — optional runtime data access for MCP-compatible tools
 - [Standalone Aspire dashboard](/dashboard/standalone/) — running the dashboard without an AppHost
 - [Aspire CLI reference](/reference/cli/overview/)
