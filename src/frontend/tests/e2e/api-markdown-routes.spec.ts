@@ -56,6 +56,16 @@ const markdownRoutes = [
     name: 'TypeScript member route',
     path: '/reference/api/typescript/aspire.hosting/idistributedapplicationbuilder/addconnectionstring.md',
   },
+  {
+    // Samples reuse the same shared `markdownResponse` helper as the API
+    // routes and have the same trailing-slash redirect treatment from
+    // `src/middleware.ts`. The picked sample is stable in
+    // `src/data/samples.json` and serves a markdown body that includes the
+    // sample title as an `<h1>`.
+    expectedText: '# Aspire Shop',
+    name: 'Sample route',
+    path: '/reference/samples/aspire-shop.md',
+  },
 ] as const;
 
 for (const route of markdownRoutes) {
@@ -63,7 +73,11 @@ for (const route of markdownRoutes) {
     const response = await request.get(route.path);
 
     expect(response.ok(), `${route.path} should return 200.`).toBe(true);
-    expect(response.headers()['content-type']).toContain('text/markdown');
+    // The shared `markdownResponse` helper serves raw markdown as
+    // `text/plain` so the browser displays it inline in a new tab rather
+    // than triggering a download. The page-actions plugin's Copy Markdown
+    // fetch and the "View markdown" link both rely on this behavior.
+    expect(response.headers()['content-type']).toContain('text/plain');
 
     const body = await response.text();
 

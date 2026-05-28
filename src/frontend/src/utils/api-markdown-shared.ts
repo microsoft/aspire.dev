@@ -113,9 +113,13 @@ export function inlineCode(value: string): string {
 }
 
 export function markdownResponse(content: string): Response {
+  // `text/plain` (instead of `text/markdown`) lets the browser display the
+  // raw markdown source inline in a new tab when the user clicks "View
+  // markdown", matching GitHub's raw-file convention. Most browsers treat
+  // `text/markdown` as a download type, which is not what we want here.
   return new Response(content, {
     headers: {
-      'Content-Type': 'text/markdown; charset=utf-8',
+      'Content-Type': 'text/plain; charset=utf-8',
     },
   });
 }
