@@ -148,3 +148,48 @@ test('os aware tabs default first-time Windows visitors to PowerShell', async ({
     await context.close();
   }
 });
+
+test('samples grid hydrates filters from the URL and syncs them back on change', async ({
+  page,
+}) => {
+  // Land directly on a pre-filtered URL. The browse view should:
+  //   - prefill the search box with the `q` value,
+  //   - mark each `tags` slug as active (silently dropping unknown slugs).
+  await page.goto('/reference/samples/?q=redis&tags=databases,not-a-real-tag');
+  await dismissCookieConsentIfVisible(page);
+
+  const searchInput = page.locator('[data-search-input]');
+  await expect(searchInput).toHaveValue('redis');
+
+  const databasesChip = page.locator('[data-tag="databases"]');
+  await expect(databasesChip).toHaveClass(/\bactive\b/);
+  await expect(databasesChip).toHaveAttribute('aria-pressed', 'true');
+
+  // The "Clear all" text link shows up once any filter is active and acts as
+  // the single reset point — there is no separate "Filtered by" bar anymore.
+  const clearAll = page.locator('[data-clear-all]');
+  await expect(clearAll).toBeVisible();
+
+  // Unknown slugs are dropped on hydrate, so the URL gets rewritten to a
+  // canonical form that only contains tags the page actually knows about.
+  await expect.poll(() => page.url()).toMatch(/[?&]tags=databases(?:&|$)/);
+  await expect.poll(() => page.url()).not.toMatch(/not-a-real-tag/);
+
+  // Toggling another tag updates `location.search` without pushing to the
+  // back/forward stack, so a shared link reflects current state but
+  // browser history stays clean.
+  const redisChip = page.locator('[data-tag="redis"]');
+  await redisChip.click();
+  await expect
+    .poll(() => page.url())
+    .toMatch(/tags=databases%2Credis|tags=databases,redis/);
+
+  // The "Clear all" link resets every filter at once (search + tags) and
+  // hides itself when there is nothing left to clear.
+  await clearAll.click();
+  await expect(searchInput).toHaveValue('');
+  await expect(databasesChip).not.toHaveClass(/\bactive\b/);
+  await expect(redisChip).not.toHaveClass(/\bactive\b/);
+  await expect(clearAll).toBeHidden();
+  await expect.poll(() => page.url()).not.toMatch(/[?&](q|tags)=/);
+});

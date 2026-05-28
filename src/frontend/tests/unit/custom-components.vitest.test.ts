@@ -623,6 +623,20 @@ const sampleDetailFixture = {
     '',
     'Run `aspire run` from the sample directory.',
     '',
+    '**Angular**',
+    '',
+    '![Angular app](~/assets/samples/aspire-with-javascript/angular-app.png)',
+    '',
+    '**React**',
+    '',
+    '![React app](~/assets/samples/aspire-with-javascript/react-app.png)',
+    '',
+    '> [!NOTE]',
+    '> Run with `--watch` for hot reload during development.',
+    '',
+    '> [!WARNING]',
+    '> Stop the app before deleting the docker volume.',
+    '',
     '```csharp title="AppHost.cs"',
     'var builder = DistributedApplication.CreateBuilder(args);',
     'builder.Build().Run();',
@@ -753,6 +767,16 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('+1');
     expect(html).toContain('data-apphost="csproj"');
     expect(html).toContain('C# (csproj) AppHost');
+
+    // The AppHost pill must live in the footer next to the "View on GitHub"
+    // link rather than higher up in the card body, so the badge sits on the
+    // bottom-left opposite the GitHub link on the bottom-right.
+    const footerOpen = html.search(/class="footer\b/);
+    const apphostInFooter = html.indexOf('apphost-pill');
+    const githubLinkInFooter = html.indexOf('View on GitHub');
+    expect(footerOpen).toBeGreaterThan(-1);
+    expect(apphostInFooter).toBeGreaterThan(footerOpen);
+    expect(githubLinkInFooter).toBeGreaterThan(apphostInFooter);
   });
 
   it('renders SampleGrid controls and sample cards', async () => {
@@ -762,14 +786,31 @@ describe('custom Astro component render coverage', () => {
 
     expect(html).toContain('data-samples-browser');
     expect(html).toContain('Search samples');
-    expect(html).toContain('data-active-filter-bar');
     expect(html).toContain('aria-label="1 sample"');
-    expect(html).toContain('Clear filters');
     expect(html).toContain('Orders sample');
     expect(html).toContain('Catalog sample');
     expect(html).toContain('/reference/samples/orders/');
     expect(html).toContain('/reference/samples/catalog/');
     expect(html).toContain('Try removing a filter or adjusting your search.');
+
+    // The redesigned filter UI replaces the boxy "Filtered by" bar with a
+    // single subtle "Clear all" text link in the results header, and an
+    // embedded `X` icon button inside the search input — the same compact
+    // pattern used by the in-page API search component.
+    expect(html).not.toContain('data-active-filter-bar');
+    expect(html).not.toContain('Clear filters');
+    expect(html).toContain('data-clear-all');
+    expect(html).toContain('Clear all');
+    expect(html).toContain('aria-label="Clear search"');
+
+    // The browse view persists the active search and tag filters in the
+    // URL so a link like `/reference/samples/?q=redis&tags=cache` lands on a
+    // pre-filtered view. The inline script must wire up both directions of
+    // that sync — reading the query string on load and rewriting it via
+    // `history.replaceState` whenever the filters change.
+    expect(html).toContain('readFiltersFromUrl');
+    expect(html).toContain('URLSearchParams');
+    expect(html).toContain('history.replaceState');
   });
 
   it('renders SampleDetail with README content and sample actions', async () => {
@@ -821,15 +862,52 @@ describe('custom Astro component render coverage', () => {
       'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample/src/RedisSample.AppHost"'
     );
 
-    // The AppHost code section renders above the README with the filename and
-    // a "View on GitHub" link to the raw source.
-    expect(html).toContain('id="sample-apphost-heading"');
-    expect(html).toContain('The apphost.ts entry point');
+    // The AppHost code section renders above the README with the kicker,
+    // a short blurb (no <h2>), and a "View on GitHub" link to the raw source.
+    expect(html).toContain('id="sample-apphost-kicker"');
+    expect(html).toContain('sample-apphost-blurb');
+    expect(html).not.toContain('The apphost.ts entry point');
+    expect(html).not.toContain('id="sample-apphost-heading"');
     expect(html).toContain('data-language="typescript"');
     expect(html).toContain('createBuilder()');
     expect(html).toContain(
       'href="https://github.com/dotnet/aspire-samples/blob/main/samples/redis-sample/apphost.ts"'
     );
+
+    // GitHub-style alerts (`> [!NOTE]`, `> [!WARNING]`, etc.) in the README
+    // must render as Starlight Asides instead of leaking through as plain
+    // <blockquote> elements, and the `[!KIND]` marker must be stripped from
+    // the rendered body so it never appears as literal text.
+    expect(html).toContain('starlight-aside starlight-aside--note');
+    expect(html).toContain('starlight-aside starlight-aside--caution');
+    expect(html).toContain('Run with');
+    expect(html).toContain('hot reload during development');
+    expect(html).toContain('Stop the app before deleting the docker volume.');
+    expect(html).not.toContain('[!NOTE]');
+    expect(html).not.toContain('[!WARNING]');
+
+    // Short label paragraphs like `**Angular**` and `**React**` immediately
+    // before a standalone image must be suppressed in the README body so they
+    // don't appear as dangling text after the image is extracted into the
+    // gallery. The images themselves still surface in the screenshots grid.
+    expect(html).toContain('Zoom image: Angular app');
+    expect(html).toContain('Zoom image: React app');
+    expect(html).not.toMatch(/<p>\s*<strong>\s*Angular\s*<\/strong>\s*<\/p>/);
+    expect(html).not.toMatch(/<p>\s*<strong>\s*React\s*<\/strong>\s*<\/p>/);
+
+    // The primary "View on GitHub" CTA in the hero uses the Starlight `github`
+    // icon on the left of the label and no longer ships the external-link
+    // icon on the right. Match the unique github SVG path fragment.
+    const githubIconPath = 'M12 .3a12 12 0 0 0-3.8 23.38';
+    expect(html).toContain(githubIconPath);
+    const primaryCtaStart = html.search(/class="sample-action primary\b/);
+    const primaryCtaEnd = html.indexOf('</a>', primaryCtaStart);
+    expect(primaryCtaStart).toBeGreaterThan(-1);
+    const primaryCtaHtml = html.slice(primaryCtaStart, primaryCtaEnd);
+    expect(primaryCtaHtml).toContain(githubIconPath);
+    const ctaIconIndex = primaryCtaHtml.indexOf(githubIconPath);
+    const ctaLabelIndex = primaryCtaHtml.indexOf('View on GitHub');
+    expect(ctaIconIndex).toBeLessThan(ctaLabelIndex);
   });
 
   it('builds sample markdown payload with absolute image URLs and metadata preamble', async () => {
