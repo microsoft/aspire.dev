@@ -28,9 +28,9 @@ aspire cache clear [options]
 
 ## Description
 
-The `aspire cache clear` command removes all cached data stored by the Aspire CLI. This includes downloaded templates, NuGet package metadata, and other temporary files used to improve CLI performance.
+The `aspire cache clear` command removes all cached data stored by the Aspire CLI. This includes downloaded templates, NuGet package metadata, staging NuGet package caches, and other temporary files used to improve CLI performance.
 
-Clearing the cache forces the CLI to re-download templates and refresh package information on the next operation, which can help resolve issues related to stale or corrupted cache data.
+Clearing the cache forces the CLI to re-download templates and refresh package information on the next operation, which can help resolve issues related to stale or corrupted cache data. For staging channel builds, it also removes the per-build NuGet package cache, which can recover from a wedged staging restore without manual filesystem intervention.
 
 ## Options
 
@@ -63,6 +63,7 @@ The `aspire cache clear` command removes:
 - Downloaded project templates
 - NuGet package metadata and search results
 - Integration package information
+- Staging NuGet package caches (per-build caches under `<ASPIRE_HOME>/.nugetpackages/`)
 - Temporary build artifacts
 - Other CLI operation caches
 
@@ -79,6 +80,17 @@ After clearing the cache:
 - The first `aspire new` command may take longer as templates are re-downloaded
 - The first `aspire add` command may be slower as package information is refreshed
 - Subsequent operations will benefit from the rebuilt cache
+
+## When to clear cache
+
+You may want to clear the cache in the following scenarios:
+
+- After updating the Aspire CLI to ensure fresh data
+- When experiencing issues with template installation
+- To free up disk space
+- When NuGet package information appears outdated
+- When a staging channel restore is wedged (clearing removes the stale per-build package cache so the next operation starts fresh)
+- When troubleshooting CLI behavior
 
 ## See also
 
