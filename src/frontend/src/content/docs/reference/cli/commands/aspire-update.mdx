@@ -33,7 +33,7 @@ The command performs the following:
 - Detects outdated Aspire NuGet packages in your project
 - Respects your configured Aspire channel (preview, stable, etc.)
 - Resolves diamond dependencies to avoid duplicate updates
-- Validates package compatibility before applying changes
+- Applies all package version edits before running a single final `dotnet restore`, so channel switches that add NuGet source mappings don't cause restore failures mid-update
 - Provides colorized output with detailed summary of changes
 
 ### Non-interactive usage
@@ -50,6 +50,26 @@ If you specify `--non-interactive` without `--yes`, the command exits with an er
 The update command requires --yes when the --non-interactive option is specified.
 ```
 
+### Updating guest AppHost projects
+
+When updating a guest AppHost project, such as a TypeScript AppHost, `aspire update` checks the selected Aspire SDK version before modifying files. If the selected SDK is newer than the running Aspire CLI, the command prompts you to update the CLI first:
+
+```text title="Output"
+The selected Aspire SDK is newer than this Aspire CLI. Update the Aspire CLI now and re-run `aspire update` to update this project?
+```
+
+If you confirm, the CLI updates itself and skips the project update. When the CLI is installed as a .NET tool, the command prints the `dotnet tool update` command to run manually instead:
+
+```text title="Output"
+Project update skipped. Update the Aspire CLI, then re-run `aspire update`.
+```
+
+After updating the CLI, re-run `aspire update` to complete the project update. This check helps prevent a guest AppHost project from being left in a broken state when the CLI's bundled code generator doesn't support the selected SDK version.
+
+:::tip
+To update the CLI without being prompted, run `aspire update --self` before running `aspire update` on a guest AppHost project.
+:::
+
 ## Options
 
 The following options are available:
@@ -62,7 +82,7 @@ The following options are available:
 
 - **`--channel`**
 
-  Channel to update to (`stable`, `staging`, `daily`).
+  Channel to update to (`stable`, `staging`, `daily`). When switching channels, `aspire update` applies all package version edits to your project first and then runs a single `dotnet restore`, ensuring that NuGet source mappings added for the target channel are in place before any restore is attempted.
 
 - **`-y, --yes`**
 
@@ -108,4 +128,10 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire update --nuget-config-dir './config'
+  ```
+
+- Update packages to the daily preview channel:
+
+  ```bash title="Aspire CLI"
+  aspire update --channel daily
   ```

@@ -905,11 +905,11 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           collapsed: true,
           items: [
             {
-              label: 'Persistent containers',
-              slug: 'app-host/persistent-containers',
+              label: 'Resource lifetimes',
+              slug: 'app-host/resource-lifetimes',
               translations: {
-                en: 'Persistent containers',
-                ja: '永続コンテナー',
+                en: 'Resource lifetimes',
+                ja: 'リソースのライフタイム',
               },
             },
             {

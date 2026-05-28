@@ -396,8 +396,8 @@ builder.Build().Run();
 ````
 
 ````mdx
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
@@ -435,7 +435,7 @@ For client/library packages:
 
 ## AppHost Language Parity (C# and TypeScript)
 
-Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** (`apphost.ts`). Documentation must treat both languages as first-class citizens. **Always show both C# and TypeScript code samples for AppHost code unless the feature is genuinely language-specific or TypeScript support does not exist yet.** Never write AppHost or hosting-integration documentation with a C#-only bias.
+Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** (`apphost.mts`). Documentation must treat both languages as first-class citizens. **Always show both C# and TypeScript code samples for AppHost code unless the feature is genuinely language-specific or TypeScript support does not exist yet.** Never write AppHost or hosting-integration documentation with a C#-only bias.
 
 ### Core Principles
 
@@ -468,8 +468,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
@@ -495,10 +495,10 @@ If a section heading should appear in the **On this page** table of contents, ke
 
 | Aspect           | C#                                              | TypeScript                                                                                                          |
 | ---------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| File title       | `title="AppHost.cs"`                            | `title="apphost.ts"`                                                                                                |
+| File title       | `title="AppHost.cs"`                            | `title="apphost.mts"`                                                                                                |
 | Tab wrapper      | Shared `<Tabs syncKey='aspire-lang'>` container | Shared `<Tabs syncKey='aspire-lang'>` container                                                                     |
 | Tab item         | `<TabItem id='csharp' label='C#'>`              | `<TabItem id='typescript' label='TypeScript'>`                                                                      |
-| Builder creation | `DistributedApplication.CreateBuilder(args)`    | `import { createBuilder } from './.modules/aspire.js';` then newline for space followed by `await createBuilder();` |
+| Builder creation | `DistributedApplication.CreateBuilder(args)`    | `import { createBuilder } from './.aspire/modules/aspire.mjs';` then newline for space followed by `await createBuilder();` |
 | Method casing    | PascalCase (`AddRedis`)                         | camelCase (`addRedis`)                                                                                              |
 | Async pattern    | Synchronous fluent calls                        | `await` each builder call                                                                                           |
 | Build & run      | `builder.Build().Run()`                         | `await builder.build().run()`                                                                                       |
@@ -593,8 +593,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
@@ -644,8 +644,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 

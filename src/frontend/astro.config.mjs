@@ -125,7 +125,7 @@ export default defineConfig({
         starlightLinksValidator({
           errorOnRelativeLinks: false,
           errorOnFallbackPages: false,
-          exclude: ['/i18n/'],
+          exclude: ['/i18n/', '/reference/api', '/reference/api/**'],
         }),
         starlightScrollToTop({
           // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/

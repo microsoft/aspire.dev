@@ -1,0 +1,92 @@
+---
+title: Compiler Error ASPIREEXPORT015
+seoTitle: 'ASPIREEXPORT015: AspireExport Description should use XML docs'
+description: Learn what causes the Aspire compiler error ASPIREEXPORT015 — AspireExport Description is compatibility metadata — and how to fix it.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.4"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> AspireExport Description is compatibility metadata. Use XML documentation with ATS tags such as `<ats-summary>` for generated polyglot SDK documentation.
+
+This diagnostic error is reported when a new `[AspireExport]` attribute sets the `Description` property. Starting in Aspire 13.4, the ATS scanner uses XML doc comments as the primary source for generated polyglot SDK documentation. The `Description` property is supported only as a compatibility fallback and should not be used on new exports.
+
+## Example
+
+The following code generates `ASPIREEXPORT015`:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("addRedis", Description = "Adds a Redis container resource")]
+public static IResourceBuilder<RedisResource> AddRedis(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+```
+
+## To correct this warning
+
+Replace the `Description` property with XML doc comments. Use `<ats-summary>`, `<ats-param>`, and `<ats-returns>` override tags when the standard C# documentation contains C#-specific constructs (such as `<see cref="..."/>` links to C# types) that don't translate well to polyglot SDKs:
+
+```csharp title="C# — Integration.cs (corrected)"
+/// <summary>Adds a Redis container resource.</summary>
+/// <param name="builder">The distributed application builder.</param>
+/// <param name="name">The Redis resource name.</param>
+/// <returns>The Redis resource builder.</returns>
+[AspireExport("addRedis")]
+public static IResourceBuilder<RedisResource> AddRedis(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+```
+
+When the standard `<summary>` references C#-specific types, use `<ats-summary>` to provide a language-neutral description for the generated SDK while keeping the original `<summary>` for C# tooling:
+
+```csharp title="C# — Using ats-summary override"
+/// <ats-summary>Adds a Redis container resource.</ats-summary>
+/// <summary>
+/// Adds a <see cref="RedisResource"/> to the <see cref="IDistributedApplicationBuilder"/>.
+/// </summary>
+/// <param name="builder">The distributed application builder.</param>
+/// <param name="name">The Redis resource name.</param>
+/// <returns>The Redis resource builder.</returns>
+[AspireExport("addRedis")]
+public static IResourceBuilder<RedisResource> AddRedis(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+```
+
+For more details on documenting exports for polyglot SDKs, see [Multi-language integrations](/extensibility/multi-language-integration-authoring/#document-your-exports).
+
+## Suppress the error
+
+Suppress the error with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREEXPORT015.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREEXPORT015</NoWarn>
+  </PropertyGroup>
+  ```

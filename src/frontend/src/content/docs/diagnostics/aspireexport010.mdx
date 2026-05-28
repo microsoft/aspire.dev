@@ -71,6 +71,24 @@ public static IResourceBuilder<RedisResource> WithConfiguration(
 }
 ```
 
+**Option 3:** Set `RunSyncOnBackgroundThread = true` on the export to run the method invocation on a background thread, allowing the JSON-RPC dispatcher to continue processing nested callback responses:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("withConfiguration", RunSyncOnBackgroundThread = true)]
+public static IResourceBuilder<RedisResource> WithConfiguration(
+    IResourceBuilder<RedisResource> builder,
+    Action<RedisConfiguration> configure)
+{
+    var config = new RedisConfiguration();
+    configure(config);  // Safe — invocation runs off the JSON-RPC synchronization context
+    return builder.WithEnvironment("REDIS_CONFIG", config.ToConnectionString());
+}
+```
+
+:::note
+`RunSyncOnBackgroundThread = true` applies to both synchronous and async-returning exports. For async exports, it offloads the entire synchronous invocation path — including any work done before the first `await` — to a background thread. This prevents deadlocks when an async export calls a synchronous callback before yielding.
+:::
+
 ## Suppress the warning
 
 Suppress the warning with either of the following methods:

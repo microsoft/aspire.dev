@@ -1,0 +1,181 @@
+---
+title: Docker Compose から Aspire AppHost への変換
+description: Docker Compose の YAML 構文を Aspire AppHost API 呼び出しに変換するためのクイックリファレンス。
+---
+
+import LearnMore from '@components/LearnMore.astro';
+
+このリファレンスは、Docker Compose の YAML 構文から同等の Aspire AppHost API 呼び出しへの体系的なマッピングを提供します。既存の Docker Compose ファイルを Aspire アプリケーション ホスト構成に変換する場合のクイックリファレンスとして、これらのテーブルを使用してください。
+
+## サービス定義
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `services:` | `var builder = DistributedApplication.CreateBuilder(args)` | リソースの追加と表現に使用されるルート アプリケーション ビルダー |
+| `service_name:` | `builder.Add*("service_name")` | サービス名がリソース名になります |
+
+<LearnMore>
+詳細については、[Docker Compose サービス](https://docs.docker.com/compose/compose-file/05-services/) をご覧ください。
+</LearnMore>
+
+## イメージとビルド
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `image: nginx:latest` | `builder.AddContainer("name", "nginx", "latest")` | 直接イメージ参照 |
+| `build: .` | `builder.AddDockerfile("name", ".")` | Dockerfile からビルドします |
+| `build: ./path` | `builder.AddDockerfile("name", "./path")` | 特定のパスからビルドします |
+| `build.context: ./app` | `builder.AddDockerfile("name", "./app")` | ビルド コンテキスト |
+| `build.dockerfile: Custom.dockerfile` | `builder.Add*("name").WithDockerfile("Custom.dockerfile")` | カスタム Dockerfile 名 |
+| 生成された Dockerfile | `builder.AddDockerfileBuilder("name", "./app", callback, stage: "runtime")` | AppHost コードから Dockerfile を生成します |
+
+<LearnMore>
+詳細については、[Docker Compose ビルド リファレンス](https://docs.docker.com/compose/compose-file/build/) および [WithDockerfile](/ja/app-host/withdockerfile/) をご覧ください。
+</LearnMore>
+
+## プル ポリシー
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `pull_policy: always` | `.WithImagePullPolicy(ImagePullPolicy.Always)` | 常にイメージをプルします |
+| `pull_policy: missing` | `.WithImagePullPolicy(ImagePullPolicy.Missing)` | ローカルに存在しない場合のみプルします |
+| `pull_policy: never` | `.WithImagePullPolicy(ImagePullPolicy.Never)` | レジストリからプルしません |
+
+<LearnMore>
+詳細については、[Docker Compose pull_policy](https://docs.docker.com/reference/compose-file/services/#pull_policy) および [イメージ プル ポリシー](/ja/integrations/compute/docker/#configure-image-pull-policy) をご覧ください。
+</LearnMore>
+
+## .NET プロジェクト
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `build: ./MyApi` （.NET の場合） | `builder.AddProject<Projects.MyApi>("myapi")` | 直接 .NET プロジェクト参照 |
+
+<LearnMore>
+詳細については、[.NET プロジェクトの追加](/ja/get-started/app-host/) をご覧ください。
+</LearnMore>
+
+## ポート マッピング
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `ports: ["8080:80"]` | `.WithHttpEndpoint(port: 8080, targetPort: 80)` | HTTP エンドポイント マッピング。ポートはオプションです。省略した場合は動的ポートが使用されます |
+| `ports: ["443:443"]` | `.WithHttpsEndpoint(port: 443, targetPort: 443)` | HTTPS エンドポイント マッピング。ポートはオプションです。省略した場合は動的ポートが使用されます |
+| `expose: ["8080"]` | `.WithEndpoint(port: 8080)` | 内部ポート公開。ポートはオプションです。省略した場合は動的ポートが使用されます |
+
+<LearnMore>
+詳細については、[Docker Compose ポート](https://docs.docker.com/compose/compose-file/05-services/#ports) および [エンドポイント構成](/ja/fundamentals/networking-overview/) をご覧ください。
+</LearnMore>
+
+## 環境変数
+
+| Docker Compose | Aspire / 注記 |
+|----------------|-------------|
+| `environment: KEY=value` | `.WithEnvironment("KEY", "value")` <br/> 静的環境変数 |
+| `environment: KEY=${HOST_VAR}` | `.WithEnvironment(context => context.EnvironmentVariables["KEY"] = hostVar)` <br/> コールバック コンテキスト付き環境変数 |
+| `environment: KEY=${PARAM}` | `.AsEnvironmentPlaceholder(resource)` inside `.PublishAsDockerComposeService(...)` <br/> Compose 環境変数プレースホルダー |
+| `env_file: .env` | `.ConfigureEnvFile(env => { ... })` <br/> 環境ファイルのカスタマイズ（13.1 以降で利用可能） |
+
+<LearnMore>
+詳細については、[Docker Compose 環境](https://docs.docker.com/compose/compose-file/05-services/#environment) および [外部パラメータ](/ja/fundamentals/external-parameters/) をご覧ください。
+</LearnMore>
+
+## ボリュームとストレージ
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `volumes: ["data:/app/data"]` | `.WithVolume("data", "/app/data")` | 名前付きボリューム |
+| `volumes: ["./host:/container"]` | `.WithBindMount("./host", "/container")` | バインド マウント |
+| `volumes: ["./config:/app:ro"]` | `.WithBindMount("./config", "/app", isReadOnly: true)` | 読み取り専用バインド マウント |
+
+<LearnMore>
+詳細については、[Docker Compose ボリューム](https://docs.docker.com/compose/compose-file/05-services/#volumes) および [コンテナ データの永続化](/ja/fundamentals/persist-data-volumes/) をご覧ください。
+</LearnMore>
+
+## 依存関係と順序付け
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `depends_on: [db]` | `.WithReference(db)` | 接続文字列インジェクション付きサービス依存関係 |
+| `depends_on: db: condition: service_started` | `.WaitFor(db)` | サービス開始を待機します |
+| `depends_on: db: condition: service_healthy` | `.WaitForCompletion(db)` | 正常性チェックの成功を待機します |
+
+<LearnMore>
+詳細については、[Docker Compose depends_on](https://docs.docker.com/compose/compose-file/05-services/#depends_on) および [起動プロファイル](/ja/integrations/dotnet/launch-profiles/) をご覧ください。
+</LearnMore>
+
+## ネットワーク
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `networks: [backend]` | 自動 | Aspire がネットワークを自動的に処理します |
+| Compose ネットワーク上のサービス ホスト名 | `.GetHostAddressExpression(endpoint)` | エンドポイントに対して生成された Docker Compose サービス ホスト名を生成します |
+| カスタム ネットワーク | `.ConfigureComposeFile(file => { ... })` | 自動ネットワーキングが不十分な場合は、生成された Compose ファイルをカスタマイズします |
+
+<LearnMore>
+詳細については、[Docker Compose ネットワーク](https://docs.docker.com/compose/compose-file/05-services/#networks) および [サービス検出](/ja/fundamentals/service-discovery/) をご覧ください。
+</LearnMore>
+
+## リソース制限
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `deploy.resources.limits.memory: 512m` | サポートされていません | リソース制限は Aspire でサポートされていません |
+| `deploy.resources.limits.cpus: 0.5` | サポートされていません | リソース制限は Aspire でサポートされていません |
+
+<LearnMore>
+詳細については、[Docker Compose デプロイ リファレンス](https://docs.docker.com/compose/compose-file/deploy/) をご覧ください。
+</LearnMore>
+
+## 正常性チェック
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `healthcheck.test: ["CMD", "curl", "http://localhost/health"]` | 統合に組み込まれている | Aspire 統合には正常性チェックが含まれています |
+| `healthcheck.interval: 30s` | 統合で設定可能 | 正常性チェック構成はリソースの種類によって異なります |
+
+<LearnMore>
+詳細については、[Docker Compose healthcheck](https://docs.docker.com/compose/compose-file/05-services/#healthcheck) および [正常性チェック](/ja/fundamentals/health-checks/) をご覧ください。
+</LearnMore>
+
+## 再起動ポリシー
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `restart: unless-stopped` | `.PublishAsDockerComposeService((resource, service) => service.Restart = "unless-stopped")` | 生成された Docker Compose サービスをカスタマイズします |
+| `restart: always` | `.PublishAsDockerComposeService((resource, service) => service.Restart = "always")` | 生成された Docker Compose サービスをカスタマイズします |
+| `restart: no` | デフォルト | 再起動ポリシーなし |
+
+<LearnMore>
+詳細については、[Docker Compose 再起動](https://docs.docker.com/compose/compose-file/05-services/#restart) をご覧ください。
+</LearnMore>
+
+## ログ
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `logging.driver: json-file` | 組み込み | Aspire は統合ログを提供します |
+| `logging.options.max-size: 10m` | ダッシュボード構成 | Aspire ダッシュボード経由で管理されます |
+
+<LearnMore>
+詳細については、[Docker Compose ログ](https://docs.docker.com/compose/compose-file/05-services/#logging) および [テレメトリ](/ja/fundamentals/telemetry/) をご覧ください。
+</LearnMore>
+
+## データベース サービス
+
+| Docker Compose | Aspire | 注記 |
+|----------------|-------------|-------|
+| `image: postgres:15` | `builder.AddPostgres("name")` | 自動構成を使用した PostgreSQL |
+| `image: mysql:8` | `builder.AddMySql("name")` | 自動構成を使用した MySQL |
+| `image: redis:7` | `builder.AddRedis("name")` | 自動構成を使用した Redis |
+| `image: mongo:latest` | `builder.AddMongoDB("name")` | 自動構成を使用した MongoDB |
+
+<LearnMore>
+詳細については、[Docker Compose サービス](https://docs.docker.com/compose/compose-file/05-services/) および [データベース統合](/ja/integrations/gallery/?search=database) をご覧ください。
+</LearnMore>
+
+## 関連項目
+
+- [Docker Compose から Aspire への移行](/ja/app-host/migrate-from-docker-compose/)
+- [AppHost の概要](/ja/get-started/app-host/)
+- [WithDockerfile](/ja/app-host/withdockerfile/)
