@@ -42,6 +42,24 @@ export function appHostShortLabel(kind: AppHostKind): string {
 }
 
 /**
+ * Map an AppHost kind to a Starlight icon name where one is a clean fit.
+ * Returns `null` for `'csproj'` so callers can render their own custom glyph
+ * (an XML-style angle-bracket mark) instead of a misleading C# letterform.
+ *
+ * The return type is a subset of `StarlightIcon` so consumers can pass it
+ * straight into `<Icon name={...}>` without a cast.
+ */
+export type SampleAppHostIcon = 'seti:typescript' | 'seti:c-sharp';
+
+export function appHostIconName(
+  kind: AppHostKind | null | undefined,
+): SampleAppHostIcon | null {
+  if (kind === 'typescript') return 'seti:typescript';
+  if (kind === 'file-based') return 'seti:c-sharp';
+  return null;
+}
+
+/**
  * Map the AppHost entry-point file extension to an expressive-code language
  * identifier so syntax highlighting matches the file.
  */

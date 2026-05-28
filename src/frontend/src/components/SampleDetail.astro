@@ -2,7 +2,6 @@
 import { Badge, Icon } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import { Code } from 'astro-expressive-code/components';
-import type { StarlightIcon } from '@astrojs/starlight/types';
 import { marked } from 'marked';
 
 import SampleReadmeBlocks from '@components/SampleReadmeBlocks.astro';
@@ -10,9 +9,9 @@ import { tagLabel } from '@utils/sample-tags';
 import {
   appHostCodeLang,
   appHostCodeTitle,
+  appHostIconName,
   appHostLabel,
   sampleDescriptionText,
-  type AppHostKind,
   type Sample,
 } from '@utils/samples';
 
@@ -88,16 +87,6 @@ function collectStandaloneImages(tokens: marked.Token[]): SampleImage[] {
   return images;
 }
 
-const sampleSummary = sampleDescriptionText(sample.description)
-  ?.split('\n')
-  .find((line) => line.trim().length > 0)
-  ?.trim();
-
-const rawReadmeBlocks = marked.lexer(stripReadmeTitle(sample.readme), { gfm: true });
-const readmeBlocks = dropLeadingSummaryParagraph(rawReadmeBlocks, sampleSummary);
-const readmeImages = collectStandaloneImages(readmeBlocks);
-const visibleTags = sample.tags;
-
 function normalizeForCompare(value: string): string {
   return value
     .replace(/\s+/g, ' ')
@@ -151,6 +140,73 @@ function dropLeadingSummaryParagraph(
   return blocks.slice(startIndex + 1);
 }
 
+function paragraphIsShortLabel(token: marked.Token): boolean {
+  if (token.type !== 'paragraph') return false;
+  const paragraph = token as marked.Tokens.Paragraph;
+  const tokens = paragraph.tokens ?? [];
+  // Only allow short inline content — no images, no links, no breaks.
+  for (const child of tokens) {
+    if (
+      child.type !== 'text' &&
+      child.type !== 'strong' &&
+      child.type !== 'em' &&
+      child.type !== 'codespan' &&
+      child.type !== 'del'
+    ) {
+      return false;
+    }
+  }
+  const text = paragraphPlainText(paragraph).trim();
+  if (text.length === 0 || text.length > 60) return false;
+  // Treat a paragraph as a label when it has emphasis (most labels do) OR
+  // when it lacks trailing sentence punctuation. This avoids stripping a
+  // full sentence that happens to precede an extracted screenshot.
+  const hasEmphasis = tokens.some(
+    (child) =>
+      child.type === 'strong' || child.type === 'em' || child.type === 'codespan',
+  );
+  if (hasEmphasis) return true;
+  return !/[.!?:]$/.test(text);
+}
+
+// Drop short label-style paragraphs that immediately precede a standalone
+// image. After `getStandaloneImage` extracts the image into the gallery, the
+// orphaned label paragraph is left behind in the README body as dangling
+// text with no associated image, which looks broken.
+function filterDanglingLabels(tokens: marked.Token[]): marked.Token[] {
+  const out: marked.Token[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+
+    if (paragraphIsShortLabel(token)) {
+      let next = i + 1;
+      while (next < tokens.length && tokens[next].type === 'space') next++;
+      if (next < tokens.length && getStandaloneImage(tokens[next])) {
+        continue;
+      }
+    }
+
+    if (token.type === 'list') {
+      const list = token as marked.Tokens.List;
+      const filteredItems = list.items.map((item) => ({
+        ...item,
+        tokens: filterDanglingLabels(item.tokens ?? []),
+      }));
+      out.push({ ...list, items: filteredItems });
+      continue;
+    }
+
+    if (token.type === 'blockquote') {
+      const bq = token as marked.Tokens.Blockquote;
+      out.push({ ...bq, tokens: filterDanglingLabels(bq.tokens ?? []) });
+      continue;
+    }
+
+    out.push(token);
+  }
+  return out;
+}
+
 function hashString(value: string): number {
   let hash = 0;
   for (let index = 0; index < value.length; index++) {
@@ -159,13 +215,20 @@ function hashString(value: string): number {
   return Math.abs(hash);
 }
 
-const appHostKind: AppHostKind | null = sample.appHost ?? null;
-const appHostIcon: StarlightIcon | null =
-  appHostKind === 'typescript'
-    ? 'seti:typescript'
-    : appHostKind === 'file-based'
-      ? 'seti:c-sharp'
-      : null;
+const sampleSummary = sampleDescriptionText(sample.description)
+  ?.split('\n')
+  .find((line) => line.trim().length > 0)
+  ?.trim();
+
+const rawReadmeBlocks = marked.lexer(stripReadmeTitle(sample.readme), { gfm: true });
+const readmeBlocks = filterDanglingLabels(
+  dropLeadingSummaryParagraph(rawReadmeBlocks, sampleSummary),
+);
+const readmeImages = collectStandaloneImages(readmeBlocks);
+const visibleTags = sample.tags;
+
+const appHostKind = sample.appHost ?? null;
+const appHostIcon = appHostIconName(appHostKind);
 const appHostCode = sample.appHostCode ?? null;
 const appHostCodeFilename = appHostCodeTitle(sample.appHostPath);
 const appHostCodeLanguage = appHostCodeLang(sample.appHostPath);
@@ -250,8 +313,8 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
           target="_blank"
           rel="noopener noreferrer"
         >
+          <Icon name="github" size="1rem" />
           View on GitHub
-          <Icon name="external" size="1rem" />
         </a>
         <a class="sample-action secondary" href={samplesHref}>Browse all samples</a>
       </div>
@@ -262,14 +325,17 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
     appHostCode && appHostCodeFilename && (
       <section
         class="sample-apphost not-content"
-        aria-labelledby="sample-apphost-heading"
+        aria-labelledby="sample-apphost-kicker"
       >
         <header class="sample-apphost-header">
-          <div>
-            <div class="sample-kicker">AppHost</div>
-            <h2 id="sample-apphost-heading">
-              The {appHostCodeFilename} entry point
-            </h2>
+          <div class="sample-apphost-heading">
+            <div id="sample-apphost-kicker" class="sample-kicker">
+              AppHost
+            </div>
+            <p class="sample-apphost-blurb">
+              The entry point that composes every resource and dependency in
+              this sample's distributed application.
+            </p>
           </div>
           {appHostSourceUrl && (
             <a
@@ -279,8 +345,8 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
               rel="noopener noreferrer"
               aria-label={`View ${appHostCodeFilename} on GitHub`}
             >
+              <Icon name="github" size="0.9rem" />
               View on GitHub
-              <Icon name="external" size="0.9rem" />
             </a>
           )}
         </header>
@@ -346,12 +412,6 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
     display: flex;
     flex-direction: column;
     gap: 2rem;
-    /* Constrain the whole sample article so the hero, AppHost source, and
-       README all share the same column width. Without this, the hero stretches
-       to fill the Starlight content area while the README (capped for
-       readability) renders noticeably narrower, producing a stepped right edge
-       between the hero and the code block below it. */
-    max-width: 56rem;
   }
 
   .sample-hero {
@@ -650,11 +710,18 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
     gap: 0.5rem 1rem;
   }
 
-  .sample-apphost-header h2 {
-    margin: 0.25rem 0 0;
-    color: var(--sl-color-white);
-    font-size: clamp(1.05rem, 2.6vw, 1.35rem);
-    letter-spacing: -0.005em;
+  .sample-apphost-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    max-width: 48rem;
+  }
+
+  .sample-apphost-blurb {
+    margin: 0;
+    color: var(--sl-color-gray-2);
+    font-size: 0.95rem;
+    line-height: 1.5;
   }
 
   .sample-apphost-source {

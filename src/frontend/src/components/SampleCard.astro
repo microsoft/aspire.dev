@@ -1,12 +1,11 @@
 ---
 import { Badge, Icon } from '@astrojs/starlight/components';
-import type { StarlightIcon } from '@astrojs/starlight/types';
 import { Image } from 'astro:assets';
 import { tagLabel } from '@utils/sample-tags';
 import {
+  appHostIconName,
   appHostShortLabel,
   sampleDescriptionText,
-  type AppHostKind,
   type ResolvedSample,
 } from '@utils/samples';
 
@@ -15,12 +14,6 @@ interface Props {
 }
 
 const { sample } = Astro.props;
-
-function appHostIcon(kind: AppHostKind): StarlightIcon | null {
-  if (kind === 'typescript') return 'seti:typescript';
-  if (kind === 'file-based') return 'seti:c-sharp';
-  return null;
-}
 
 /**
  * Split a plain text description into a preview (first paragraph or intro before
@@ -86,6 +79,8 @@ if (descriptionText) {
 const visibleTags = sample.tags.slice(0, 5);
 const remaining = Math.max(sample.tags.length - 5, 0);
 const overflowTags = sample.tags.slice(5);
+
+const appHostIcon = appHostIconName(sample.appHost);
 ---
 
 <article
@@ -116,29 +111,6 @@ const overflowTags = sample.tags.slice(5);
         {sample.title}
       </a>
     </h3>
-    {
-      sample.appHost && (
-        <div class="apphost-pill" data-apphost={sample.appHost}>
-          {appHostIcon(sample.appHost) ? (
-            <Icon name={appHostIcon(sample.appHost)!} size="0.85rem" />
-          ) : (
-            <svg
-              class="apphost-glyph"
-              aria-hidden="true"
-              viewBox="0 0 16 16"
-              width="12"
-              height="12"
-            >
-              <path
-                d="M5.6 4.2 2.2 7.6c-.22.22-.22.58 0 .8L5.6 11.8c.22.22.58.22.8 0a.566.566 0 0 0 0-.8L3.42 8l3-3a.566.566 0 0 0 0-.8.566.566 0 0 0-.82 0Zm4.8 0a.566.566 0 0 0-.8.8l3 3-3 3a.566.566 0 0 0 0 .8c.22.22.58.22.8 0l3.4-3.4a.566.566 0 0 0 0-.8l-3.4-3.4Z"
-                fill="currentColor"
-              />
-            </svg>
-          )}
-          <span>{appHostShortLabel(sample.appHost)} AppHost</span>
-        </div>
-      )
-    }
     {
       previewText && (
         <div class="desc" data-desc>
@@ -176,9 +148,32 @@ const overflowTags = sample.tags.slice(5);
       )
     }
     <div class="footer">
+      {
+        sample.appHost && (
+          <div class="apphost-pill" data-apphost={sample.appHost}>
+            {appHostIcon ? (
+              <Icon name={appHostIcon} size="0.85rem" />
+            ) : (
+              <svg
+                class="apphost-glyph"
+                aria-hidden="true"
+                viewBox="0 0 16 16"
+                width="12"
+                height="12"
+              >
+                <path
+                  d="M5.6 4.2 2.2 7.6c-.22.22-.22.58 0 .8L5.6 11.8c.22.22.58.22.8 0a.566.566 0 0 0 0-.8L3.42 8l3-3a.566.566 0 0 0 0-.8.566.566 0 0 0-.82 0Zm4.8 0a.566.566 0 0 0-.8.8l3 3-3 3a.566.566 0 0 0 0 .8c.22.22.58.22.8 0l3.4-3.4a.566.566 0 0 0 0-.8l-3.4-3.4Z"
+                  fill="currentColor"
+                />
+              </svg>
+            )}
+            <span>{appHostShortLabel(sample.appHost)} AppHost</span>
+          </div>
+        )
+      }
       <a href={sample.href} target="_blank" rel="noopener noreferrer" class="link">
+        <Icon name="github" size="1rem" />
         View on GitHub
-        <Icon name="external" size="1rem" />
       </a>
     </div>
   </div>
@@ -321,7 +316,6 @@ const overflowTags = sample.tags.slice(5);
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    align-self: flex-start;
     padding: 0.18rem 0.5rem;
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 50%, transparent);
@@ -451,7 +445,7 @@ const overflowTags = sample.tags.slice(5);
   .footer {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    gap: 0.75rem;
     padding-top: 0.625rem;
     border-top: 1px solid var(--sl-color-gray-5);
   }
@@ -460,6 +454,7 @@ const overflowTags = sample.tags.slice(5);
     display: flex;
     align-items: center;
     gap: 0.35rem;
+    margin-left: auto;
     color: var(--sl-color-accent-high);
     font-size: 0.85rem;
     font-weight: 500;
