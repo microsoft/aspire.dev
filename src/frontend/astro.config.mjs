@@ -117,8 +117,10 @@ export default defineConfig({
         starlightSidebarTopics(sidebarTopics, {
           exclude: [
             '**/includes/**/*',
-            '/support', 
-            '/reference/api', 
+            '/support',
+            '/diagnostics/aspireats001',
+            '/**/diagnostics/aspireats001',
+            '/reference/api',
             '/reference/api/**'
           ],
         }),
