@@ -44,7 +44,7 @@ In all cases, the AppHost language does not limit what you can orchestrate — C
 
 ### Channel persistence in aspire.config.json
 
-When `aspire init` runs with an explicit, non-stable channel (such as `daily`, `staging`, or a `pr-<N>` build), it writes a top-level `channel` key into the generated `aspire.config.json`. This ensures that subsequent commands — `aspire add`, `aspire update`, and others — resolve packages and templates against the same channel the project was initialized with, rather than falling back to the implicit stable default.
+When `aspire init` runs with an explicit, non-stable channel (such as `daily` or `staging`), it writes a top-level `channel` key into the generated `aspire.config.json`. This ensures that subsequent commands — `aspire add`, `aspire update`, and others — resolve packages and templates against the same channel the project was initialized with, rather than falling back to the implicit stable default.
 
 For example, running a daily CLI build produces:
 
@@ -55,15 +55,28 @@ For example, running a daily CLI build produces:
   },
   "channel": "daily",
   "profiles": {
-    "https": { },
-    "http":  { }
+    "https": {
+      "applicationUrl": "https://localhost:17055;http://localhost:15013",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_GRPC_ENDPOINT_URL": "https://localhost:16168",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22043"
+      }
+    },
+    "http": {
+      "applicationUrl": "http://localhost:15013",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_GRPC_ENDPOINT_URL": "http://localhost:19147",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20216",
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true"
+      }
+    }
   }
 }
 ```
 
 If `aspire.config.json` already contains a `channel` value (for example, because you edited it manually or migrated from an older project), the value is preserved and not overwritten.
 
-Only channels that are registered as _explicit_ in the packaging service are persisted; the implicit stable default is intentionally not pinned so it remains portable across environments.
+Only channels that are registered as _explicit_ in the packaging service are persisted, with one exception: the `stable` channel is treated as the portable default and is intentionally not pinned.
 
 ### The aspireify skill
 
