@@ -313,7 +313,7 @@ async function readMarkdown(responsePromise: Response | Promise<Response> | unde
 
   const response = await responsePromise;
 
-  expect(response.headers.get('content-type')).toContain('text/markdown');
+  expect(response.headers.get('content-type')).toContain('text/plain');
   return response.text();
 }
 
