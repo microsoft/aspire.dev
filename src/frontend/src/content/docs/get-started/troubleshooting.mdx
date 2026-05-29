@@ -203,6 +203,22 @@ Aspire CLI logs are stored at:
   <Code slot="windows" lang="powershell" code="$HOME\.aspire\cli\logs\" />
 </OsAwareTabs>
 
+## Building from source
+
+### "Failed to copy CLI files" error on macOS or Linux
+
+**Symptoms**: When running `localhive.sh` to install a locally built Aspire CLI, the script exits with:
+
+```
+Failed to copy CLI files from <publish_dir> to <bin_dir>
+```
+
+On macOS/BSD, this appears as `cp: .../fr is a directory (not copied)`. On Linux/GNU, it appears as `cp: -r not specified; omitting directory '...'`.
+
+**Cause**: The `dotnet publish` output for the CLI includes culture-specific resource subdirectories (for example, `fr/`, `de/`). The plain `cp` invocation without `-R` cannot copy directories.
+
+**Solution**: Update to the latest version of `localhive.sh` from the [microsoft/aspire](https://github.com/microsoft/aspire) repository. The script was updated to use `cp -Rf "$CLI_PUBLISH_DIR"/. "$CLI_BIN_DIR"/` which correctly copies both files and subdirectories.
+
 ## See also
 
 - [Create your first Aspire app](/get-started/first-app/)
