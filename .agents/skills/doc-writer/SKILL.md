@@ -832,6 +832,7 @@ Use the smallest set of checks that proves the change is correct:
 - For custom component usage changes, run the component render tests that cover the affected behavior.
 - For component prop surface changes, update and run the prop-contract coverage so editor completions and consumer typings stay intact.
 - For interactive behavior changes, run targeted Playwright coverage for the scenario you changed rather than relying on unrelated broad suites.
+- For browser-based local verification, use `playwright-cli` (`playwright-cli open <frontend-url>`, `playwright-cli snapshot`, `playwright-cli click <ref>`) instead of Playwright MCP tools.
 - For accessibility-sensitive changes, validate both the rendered page and any focused accessibility tests that exercise the affected interaction.
 
 ### Custom Component and Test Expectations
@@ -929,13 +930,14 @@ aspire run
 When testing code examples that add integration packages, use `aspire add <package-name>` rather than `dotnet add package`. The Aspire CLI automatically adds packages to the correct project.
 </Aside>
 
-Use the Aspire MCP tools to check the status of resources:
+Use the Aspire CLI output or dashboard resource list to find the `frontend` endpoint, then open it with `playwright-cli`:
 
-```
-mcp_aspire_list_resources
+```bash
+playwright-cli open <frontend-url>
+playwright-cli snapshot
 ```
 
-Navigate to the `frontend` resource endpoint to view the documentation site.
+Use snapshot refs with `playwright-cli click <ref>` for page interactions.
 
 ## Cross-Referencing
 
