@@ -176,16 +176,16 @@ aspire resource cache --help
   resource`](/reference/cli/commands/aspire-resource/).
 </LearnMore>
 
-### Aspire workflow skills from external bundle
+### Aspire workflow skills bundle
 
-The `aspire`, `aspireify`, and `aspire-deployment` skills installed by `aspire agent init` are now fetched from the external `@microsoft/aspire-skills` npm bundle instead of being embedded in the CLI binary. The skill content now lives in a single, independently-updatable package at [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills), while the install flow remains unchanged.
+The `aspire`, `aspireify`, and `aspire-deployment` skills installed by `aspire agent init` are now packaged as the Aspire skills bundle from [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills). Aspire 13.4 includes an embedded snapshot for default installs, and the optional remote fetch path can download matching GitHub release assets instead of relying only on skill content baked directly into the CLI binary. The install flow remains unchanged.
 
-The CLI resolves and verifies the pinned bundle on first use — checking npm provenance and tarball integrity, validating manifest file hashes, and rejecting unsafe paths — then caches the extracted bundle locally:
+When remote fetching is enabled, the CLI verifies the GitHub release asset with GitHub artifact attestation (Sigstore-backed SLSA provenance), validates manifest file hashes, rejects unsafe paths, and caches the extracted bundle locally:
 
 - **Windows**: `%USERPROFILE%\.aspire\cache\aspire-skills\`
-- **Linux / macOS**: `~/.aspire/cache/aspire-skills\`
+- **Linux / macOS**: `~/.aspire/cache/aspire-skills/`
 
-Subsequent installs reuse the cached bundle without network access.
+Subsequent installs reuse the cached bundle when present.
 
 ```bash title="Aspire CLI — Install Aspire workflow skills"
 aspire agent init --skill-locations standard --skills aspire,aspireify,aspire-deployment
