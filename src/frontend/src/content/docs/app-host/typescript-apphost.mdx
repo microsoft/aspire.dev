@@ -513,19 +513,19 @@ aspire certs trust
 
 ## Troubleshooting codegen failures
 
-When the Aspire CLI runs a TypeScript (Node.js) AppHost, it contacts a managed server to generate the TypeScript SDK. That server loads NuGet-restored packages (`Aspire.Hosting.JavaScript`, `Aspire.TypeSystem`, and related assemblies). If the CLI version and the SDK version in `aspire.config.json` do not match on major, minor, or patch (excluding build metadata), code generation can fail.
+When the Aspire CLI runs a TypeScript (Node.js) AppHost, it contacts a managed server to generate the TypeScript SDK. That server loads NuGet-restored packages (`Aspire.Hosting.JavaScript`, `Aspire.TypeSystem`, and related assemblies). If the CLI version and the SDK version in `aspire.config.json` differ in major, minor, patch, or prerelease identifiers (excluding build metadata), code generation can fail.
 
 ### CLI/SDK version mismatch warning
 
-Before starting the AppHost, the CLI compares its built-in version against the `Aspire.Hosting.JavaScript` version declared in `aspire.config.json`. When the two differ, the CLI prints a yellow warning:
+Before starting the AppHost, the CLI compares its built-in SDK version against the `sdk.version` value in `aspire.config.json`. When the two differ, the CLI prints a warning:
 
 ```text
-⚠  The installed Aspire CLI version (13.4.0-preview.1.26218.1) differs from the configured
-   Aspire SDK version (13.4.0-preview.1.26227.1). If you run into errors, run 'aspire update'
+⚠  The installed Aspire CLI version (<CLI_VERSION>) differs from the configured
+   Aspire SDK version (<SDK_VERSION>). If you run into errors, run 'aspire update'
    to align them.
 ```
 
-The AppHost still starts. If codegen succeeds despite the mismatch (for example, when the difference is only in the build number), the warning can be safely ignored. If codegen fails, run `aspire update` to realign the CLI and SDK to the same version.
+The AppHost still starts after the warning. If codegen succeeds, no further action is required. If codegen fails, run `aspire update` to realign the CLI and SDK to the same version.
 
 ### Codegen failure output
 
@@ -535,6 +535,8 @@ When code generation fails, the CLI exits immediately and prints:
 ❌ TypeScript (Node.js) SDK code generation failed because the installed Aspire CLI appears
    to be incompatible with the configured Aspire SDK. Run 'aspire update' to align the CLI
    and SDK and try again.
+ℹ  Run 'aspire update' to align the installed Aspire CLI with the configured SDK version,
+   then retry.
 ℹ  Run with '--debug' for full diagnostic details.
 ```
 
@@ -554,11 +556,11 @@ In addition to the standard failure message, the CLI prints a diagnostic block:
 
 ```text
 🔬 Diagnostic details:
-🔬   Exception: System.TypeLoadException
-🔬   Type: Aspire.Hosting.SomeType
-🔬   Runtime Aspire.Hosting: 13.4.0-preview.1.26218.1+abc123
-🔬   • Aspire.Hosting.CodeGeneration.TypeScript 13.4.0-preview.1.26227.1+def456
-🔬   • Aspire.TypeSystem 13.4.0-preview.1.26227.1+def456
+   Exception: System.TypeLoadException
+   Type: Aspire.Hosting.SomeType
+   Runtime Aspire.Hosting: <CLI_VERSION>+<COMMIT_SHA>
+   • Aspire.Hosting.CodeGeneration.TypeScript <SDK_VERSION>+<COMMIT_SHA>
+   • Aspire.TypeSystem <SDK_VERSION>+<COMMIT_SHA>
 ```
 
 The same information is always written to the CLI log file at `~/.aspire/logs/cli_*.log`, even when `--debug` is not passed.
