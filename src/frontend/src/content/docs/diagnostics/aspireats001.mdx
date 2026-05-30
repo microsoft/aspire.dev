@@ -1,10 +1,11 @@
 ---
-title: Compiler Warning ASPIREATS001
-seoTitle: "ASPIREATS001: ATS (Aspire Type Specification) types are for"
-description: Learn what causes the Aspire compiler warning ASPIREATS001 and how to fix it so your AppHost builds cleanly. Resolve or suppress it to keep your Aspire build.
+title: Retired compiler warning ASPIREATS001
+seoTitle: "ASPIREATS001 retired in Aspire 13.4"
+description: ASPIREATS001 was removed in Aspire 13.4 when TypeScript AppHosts became generally available. Learn what to do if you still see this warning.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 
 <Badge
   text="Version introduced: 13.2"
@@ -13,76 +14,20 @@ import { Badge } from '@astrojs/starlight/components';
   class:list={'mb-1'}
 />
 
-> ATS (Aspire Type Specification) types are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+<Badge
+  text="Retired in: 13.4"
+  variant="tip"
+  size="large"
+  class:list={'mb-1'}
+/>
 
-This diagnostic warning is reported when using the experimental Aspire Type Specification (ATS) types and related APIs. These types enable multi-language AppHost support by defining runtime execution configurations for different languages.
+`ASPIREATS001` was emitted by Aspire 13.2 and 13.3 when code used Aspire Type System (ATS) types and attributes while TypeScript AppHost support was still in preview. This diagnostic no longer applies in Aspire 13.4 and later because TypeScript AppHosts are generally available.
 
-The following types and attributes are protected by this diagnostic:
+## If you still see this warning
 
-- `RuntimeSpec` — specifies the runtime execution configuration for a language.
-- `CommandSpec` — specifies a command to execute.
-- `AtsCapabilityInfo` — capability information for ATS.
-- `AtsConstants` — constants used by ATS.
-- `AtsContext` — context for ATS operations.
-- `ICodeGenerator` — interface for code generation.
-- `ILanguageSupport` — interface for language support.
-- `[AspireValue]` — marks a static field or property as an exported value catalog entry.
+Upgrade the Aspire CLI, AppHost SDK, and hosting integration packages to Aspire 13.4 or later. After upgrading, remove any `ASPIREATS001` suppressions from _.editorconfig_ files, project files, and `#pragma warning` blocks.
 
-## Example
-
-The following code generates `ASPIREATS001`:
-
-```csharp title="C# — Using RuntimeSpec"
-var spec = new RuntimeSpec
-{
-    Language = "TypeScript",
-    DisplayName = "TypeScript (Node.js)",
-    CodeGenLanguage = "typescript",
-    DetectionPatterns = ["apphost.ts"],
-    Execute = new CommandSpec
-    {
-        Command = "npx",
-        Args = ["tsx", "{appHostFile}", "{args}"]
-    }
-};
-```
-
-## To correct this warning
-
-Suppress the warning with either of the following methods:
-
-- Set the severity of the rule in the _.editorconfig_ file.
-
-  ```ini title=".editorconfig"
-  [*.{cs,vb}]
-  dotnet_diagnostic.ASPIREATS001.severity = none
-  ```
-
-  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
-
-- Add the following `PropertyGroup` to your project file:
-
-  ```xml title="C# project file"
-  <PropertyGroup>
-      <NoWarn>$(NoWarn);ASPIREATS001</NoWarn>
-  </PropertyGroup>
-  ```
-
-- Suppress in code with the `#pragma warning disable ASPIREATS001` directive:
-
-  ```csharp title="C# — Suppressing the warning"
-  #pragma warning disable ASPIREATS001
-  var spec = new RuntimeSpec
-  {
-      Language = "TypeScript",
-      DisplayName = "TypeScript (Node.js)",
-      CodeGenLanguage = "typescript",
-      DetectionPatterns = ["apphost.ts"],
-      Execute = new CommandSpec
-      {
-          Command = "npx",
-          Args = ["tsx", "{appHostFile}", "{args}"]
-      }
-  };
-  #pragma warning restore ASPIREATS001
-  ```
+<LearnMore>
+  For more information, see [What's new in Aspire 13.4](/whats-new/aspire-13-4/)
+  and [TypeScript AppHosts](/app-host/typescript-apphost/).
+</LearnMore>

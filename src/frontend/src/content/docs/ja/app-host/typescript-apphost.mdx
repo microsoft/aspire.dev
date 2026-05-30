@@ -6,19 +6,37 @@ description: TypeScript AppHost プロジェクトを構成するファイルと
 import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-`aspire new` または `aspire init --language typescript` で TypeScript AppHost を作成すると、CLI は以下の構造でプロジェクトをスキャフォルドします：
+`aspire new` で TypeScript AppHost を作成すると、CLI は以下の構造でプロジェクトをスキャフォルドします：
 
 <FileTree>
 
 - my-apphost/
-  - .modules/  生成された TypeScript SDK（編集しないでください）
-    - aspire.ts
-    - base.ts
-    - transport.ts
-  - apphost.ts  AppHost エントリポイント
+  - .aspire/modules/  生成された TypeScript SDK（編集しないでください）
+    - aspire.mts
+    - base.mts
+    - transport.mts
+  - apphost.mts  AppHost エントリポイント
   - aspire.config.json  Aspire 設定
   - package.json
-  - tsconfig.json
+  - tsconfig.apphost.json
+
+</FileTree>
+
+ルートに既存の `package.json` がある JavaScript または TypeScript アプリで `aspire init --language typescript` を実行すると、Aspire は AppHost をネストされた `aspire-apphost/` パッケージに作成します。ルートの `aspire.config.json` は `aspire-apphost/apphost.mts` を指し、ルートの `package.json` には Aspire 委譲スクリプトが追加されます：
+
+<FileTree>
+
+- my-existing-app/
+  - aspire-apphost/
+    - .aspire/modules/  生成された TypeScript SDK（編集しないでください）
+      - aspire.mts
+      - base.mts
+      - transport.mts
+    - apphost.mts  AppHost エントリポイント
+    - package.json
+    - tsconfig.apphost.json
+  - aspire.config.json  Aspire 設定
+  - package.json  Aspire 委譲スクリプトを含む既存アプリ パッケージ
 
 </FileTree>
 
@@ -29,7 +47,7 @@ import LearnMore from '@components/LearnMore.astro';
 ```json title="aspire.config.json"
 {
   "appHost": {
-    "path": "apphost.ts",
+    "path": "apphost.mts",
     "language": "typescript/nodejs"
   },
   "packages": {
@@ -51,7 +69,7 @@ import LearnMore from '@components/LearnMore.astro';
 
 | セクション | 説明 |
 |---------|-------------|
-| `appHost.path` | AppHost エントリポイント（`apphost.ts`）へのパス |
+| `appHost.path` | AppHost エントリポイント（`apphost.mts`）へのパス |
 | `appHost.language` | 言語ランタイム（`typescript/nodejs`） |
 | `packages` | ホスティング統合パッケージとそのバージョン。`aspire add` で自動的に追加されます。 |
 | `profiles` | ダッシュボード URL と環境変数を含むローンチプロファイル |
@@ -91,15 +109,15 @@ aspire add redis
   詳細については、[マルチ言語統合](/ja/extensibility/multi-language-integration-authoring/)を参照してください。
 </LearnMore>
 
-## .modules/ ディレクトリ
+## .aspire/modules/ ディレクトリ
 
-`.modules/` ディレクトリには、生成された TypeScript SDK が含まれます。Aspire CLI によって自動的に作成および更新されます。**これらのファイルは編集しないでください**。
+AppHost ルートの `.aspire/modules/` ディレクトリには、生成された TypeScript SDK が含まれます。Aspire CLI によって自動的に作成および更新されます。**これらのファイルは編集しないでください**。
 
 | ファイル | 目的 |
 |------|---------|
-| `aspire.ts` | インストール済みのすべての統合用に生成された型付け API |
-| `base.ts` | 基本型とハンドルインフラストラクチャ |
-| `transport.ts` | JSON-RPC トランスポート層 |
+| `aspire.mts` | インストール済みのすべての統合用に生成された型付け API |
+| `base.mts` | 基本型とハンドルインフラストラクチャ |
+| `transport.mts` | JSON-RPC トランスポート層 |
 
 SDK は以下の場合に再生成されます：
 
@@ -107,22 +125,22 @@ SDK は以下の場合に再生成されます：
 - `aspire run` または `aspire start` を実行し、パッケージリストが変更されている場合
 - `aspire restore` を実行して手動で再生成した場合
 
-`apphost.ts` はこの SDK からインポートします：
+`apphost.mts` はこの SDK からインポートします：
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 ```
 
 <Aside type="tip">
-`.modules/` を `.gitignore` に追加してください。生成されており、`aspire.config.json` からいつでも再作成できます。
+`.aspire/` を `.gitignore` に追加してください。生成された成果物を含み、`aspire.config.json` からいつでも再作成できます。
 </Aside>
 
-## apphost.ts
+## apphost.mts
 
 AppHost のエントリポイント。ここでアプリケーションのリソースとそれらの関係を定義します：
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -168,9 +186,14 @@ corepack use yarn@stable
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "aspire run",
-    "build": "tsc",
-    "lint": "eslint apphost.ts"
+    "aspire:lint": "eslint apphost.mts",
+    "aspire:start": "aspire run",
+    "aspire:build": "tsc -p tsconfig.apphost.json",
+    "aspire:dev": "tsc --watch -p tsconfig.apphost.json",
+    "lint": "npm run aspire:lint",
+    "dev": "npm run aspire:start",
+    "build": "npm run aspire:build",
+    "watch": "npm run aspire:dev"
   },
   "engines": {
     "node": "^20.19.0 || ^22.13.0 || >=24"
@@ -260,7 +283,7 @@ npm 以外のツールチェーンが検出されると、CLI は一致するコ
 | Bun | `bun install` | `bun run {appHostFile}` | `bun --watch run {appHostFile}` |
 
 :::note
-Bun には組み込み TypeScript サポートがあるため、`tsx` なしで `apphost.ts` を直接実行します。
+Bun には組み込み TypeScript サポートがあるため、`tsx` なしで `apphost.mts` を直接実行します。
 :::
 
 ### aspire doctor チェック
@@ -276,7 +299,7 @@ aspire doctor
 TypeScript AppHost を開始する前に、Aspire CLI は `tsc --noEmit` を実行して型エラーをチェックし、ダッシュボードとリソースが部分的に壊れた状態で開始されるのを防ぎます。AppHost に TypeScript コンパイル エラーがある場合、`aspire run` と `aspire publish` は AppHost が起動する前に停止し、診断出力を表示します：
 
 ```text
-apphost.ts(22,7): error TS2322: Type 'string' is not assignable to type 'number'.
+apphost.mts(22,7): error TS2322: Type 'string' is not assignable to type 'number'.
 ```
 
 ### ウォッチモード動作

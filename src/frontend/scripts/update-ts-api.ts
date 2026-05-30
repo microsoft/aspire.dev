@@ -3,6 +3,7 @@
  *
  * Runs the AtsJsonGenerator tool against the aspire sdk dump output.
  * Requires: dotnet SDK and aspire CLI.
+ * Set ASPIRE_CLI_PATH to use an installed Aspire CLI that is not on PATH.
  *
  * By default, reads the generated C# package JSON files and generates
  * data for the matching Aspire.Hosting.* package/version set.
@@ -47,11 +48,12 @@ function checkPrerequisite(cmd: string, args: string[], name: string): boolean {
 
 function main(): void {
   const aspireRepoPath = process.argv[2] ?? process.env.ASPIRE_REPO_PATH;
+  const aspireCliPath = process.env.ASPIRE_CLI_PATH?.trim() || 'aspire';
 
   if (!checkPrerequisite('dotnet', ['--version'], 'dotnet SDK')) {
     process.exit(1);
   }
-  if (!checkPrerequisite('aspire', ['--version'], 'Aspire CLI')) {
+  if (!checkPrerequisite(aspireCliPath, ['--version'], 'Aspire CLI')) {
     process.exit(1);
   }
 

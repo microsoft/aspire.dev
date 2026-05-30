@@ -35,6 +35,10 @@
     `aspire` CLI. Useful for testing local CLI changes. When set, the script
     invokes `dotnet run --no-launch-profile --project <path> --` instead of `aspire`.
 
+.ENVIRONMENT_VARIABLE ASPIRE_CLI_PATH
+    Path to the installed Aspire CLI executable. Used when -AspireCliProject is
+    not set; defaults to resolving `aspire` from PATH.
+
 .EXAMPLE
     # From a local Aspire repo clone (uses global CLI)
     ./generate-ts-api-json.ps1 -AspireRepoPath D:\GitHub\aspire
@@ -72,6 +76,7 @@ $AspireRepoCandidates = @(
 $ScriptDir = $PSScriptRoot
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..\..")).Path
 $ToolProject = Join-Path $ScriptDir "AtsJsonGenerator.csproj"
+$AspireCliPath = if ([string]::IsNullOrWhiteSpace($env:ASPIRE_CLI_PATH)) { "aspire" } else { $env:ASPIRE_CLI_PATH }
 
 if (-not $OutputDir) {
     $OutputDir = Join-Path $RepoRoot "src\frontend\src\data\ts-modules"
@@ -398,8 +403,8 @@ function Invoke-AspireCli {
         $proc = Start-Process -FilePath "dotnet" -ArgumentList $allArgs -WorkingDirectory $WorkingDirectory `
             -Wait -NoNewWindow -PassThru -RedirectStandardError $StderrFile
     } else {
-        # Use the globally installed aspire CLI
-        $proc = Start-Process -FilePath "aspire" -ArgumentList $Arguments -WorkingDirectory $WorkingDirectory `
+        # Use the installed aspire CLI
+        $proc = Start-Process -FilePath $AspireCliPath -ArgumentList $Arguments -WorkingDirectory $WorkingDirectory `
             -Wait -NoNewWindow -PassThru -RedirectStandardError $StderrFile
     }
 
@@ -530,6 +535,8 @@ if (-not $AspireRepoPath) {
 Write-Host "Found $($Packages.Count) packages to process"
 if ($AspireCliProject) {
     Write-Host "Using local CLI: $AspireCliProject" -ForegroundColor DarkGray
+} else {
+    Write-Host "Using Aspire CLI: $AspireCliPath" -ForegroundColor DarkGray
 }
 
 # ── Build the tool ─────────────────────────────────────────────────────────────

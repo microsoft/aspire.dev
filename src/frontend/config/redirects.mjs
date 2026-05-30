@@ -58,6 +58,8 @@ export const redirects = {
   '/install-aspire-cli/': '/get-started/install-cli/',
   '/get-started/welcome/': '/docs/',
   '/get-started/installation/': '/get-started/install-cli/',
+  '/app-host/persistent-containers/': '/app-host/resource-lifetimes/',
+  '/ja/app-host/persistent-containers/': '/ja/app-host/resource-lifetimes/',
   // Integration -client → -connect rename
   '/integrations/ai/github-models/github-models-client/': '/integrations/ai/github-models/github-models-connect/',
   '/integrations/ai/ollama/ollama-client/': '/integrations/ai/ollama/ollama-connect/',
@@ -177,6 +179,7 @@ export const redirects = {
   '/integrations/devtools/mailpit/': '/integrations/devtools/mailpit/mailpit-get-started/',
   '/integrations/frameworks/go/': '/integrations/frameworks/go/go-get-started/',
   '/integrations/frameworks/go-apps/': '/integrations/frameworks/go/go-get-started/',
+  '/ja/integrations/frameworks/go-apps/': '/integrations/frameworks/go/go-get-started/',
   '/integrations/frameworks/csharp-file-based-apps/': '/integrations/dotnet/csharp-file-based-apps/',
   '/integrations/frameworks/maui/': '/integrations/dotnet/maui/',
   '/fundamentals/service-defaults/': '/get-started/csharp-service-defaults/',

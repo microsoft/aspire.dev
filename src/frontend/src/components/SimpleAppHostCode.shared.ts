@@ -184,7 +184,7 @@ builder.Build().Run();
 `;
 
 const csharpTypeScript = `
-import { createBuilder } from './.modules/aspire.js';
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -207,7 +207,7 @@ await builder.build().run();
 `;
 
 const pythonTypeScript = `
-import { createBuilder } from './.modules/aspire.js';
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -231,7 +231,7 @@ await builder.build().run();
 `;
 
 const nodejsTypeScript = `
-import { createBuilder } from './.modules/aspire.js';
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 

@@ -29,7 +29,7 @@ aspire otel logs [resource] [options]
 
 ## Description
 
-The `aspire otel logs` command retrieves and displays structured logs collected by the Aspire Dashboard. You can filter logs by resource name, trace ID, or severity level. Use `--follow` to stream logs in real-time as they arrive.
+The `aspire otel logs` command retrieves and displays structured logs collected by the Aspire Dashboard. You can filter logs by resource name, trace ID, severity level, or a full-text search expression. Use `--follow` to stream logs in real-time as they arrive.
 
 ## Arguments
 
@@ -73,6 +73,20 @@ The following options are available:
 
   Filter logs by minimum severity (Trace, Debug, Information, Warning, Error, Critical).
 
+- **`--search <search>`**
+
+  Full-text search across log text fields, such as log messages, attribute values, scope, and IDs. Supports plain free-text fragments and structured `field:value` qualifiers.
+
+  | Syntax | Meaning |
+  |--------|---------|
+  | `word` | Free-text fragment — matches any searchable field |
+  | `"quoted phrase"` | Single fragment containing spaces |
+  | `field:value` | Field qualifier — value must match the named field |
+  | `-field:value` | Negated qualifier — excludes matches |
+  | `@attr:value` | Attribute qualifier — matches custom log attributes |
+
+  Supported fields for structured logs: `severity`, `resource`, `scope`, `message`, `trace-id`, `span-id`, `event`.
+
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
 - <Include relativePath="reference/cli/includes/option-log-level.md" />
@@ -115,6 +129,18 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire otel logs apiservice --limit 50
+  ```
+
+- Search logs by message text:
+
+  ```bash title="Aspire CLI"
+  aspire otel logs --search "connection refused"
+  ```
+
+- Search logs by scope and severity:
+
+  ```bash title="Aspire CLI"
+  aspire otel logs --search "scope:Microsoft.EntityFrameworkCore severity:Warning"
   ```
 
 - View logs from a standalone dashboard using the login URL (token is automatically exchanged for an API key):

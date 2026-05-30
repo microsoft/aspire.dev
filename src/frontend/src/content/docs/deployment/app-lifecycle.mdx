@@ -4,7 +4,13 @@ seoTitle: Aspire deployment lifecycle workflow from dev to prod
 description: Follow a worked example that uses GitHub Actions to publish Aspire artifacts and Docker Compose to deploy — a complete deployment lifecycle from commit to production.
 ---
 
-import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import {
+  Aside,
+  FileTree,
+  Steps,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 This guide is a worked example of one CI/CD workflow for Aspire. It uses GitHub Actions to build and publish release artifacts, GitHub Container Registry to store container images, and Docker Compose to run the published output later.
@@ -38,6 +44,9 @@ The following example uses a C# AppHost, but the same workflow shape applies to 
 
 Consider [this example](https://github.com/BethMassi/VolumeMount/). You have a distributed application that consists of a Blazor web project that relies on a SQL Server database with a persistent data volume as well as a persistent writable file volume to capture user file uploads.
 You want to distribute your Blazor app as a Docker container image via the GitHub Container Registry. You need the [Aspire.Hosting.Docker](/integrations/compute/docker/) and [Aspire.Hosting.SqlServer](/integrations/databases/sql-server/sql-server-get-started/) integrations.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -103,6 +112,74 @@ var blazorweb = builder.AddProject<Projects.VolumeMount_BlazorWeb>("blazorweb")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { ContainerLifetime, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const compose = await builder.addDockerComposeEnvironment('volumemount-env');
+await compose
+  .withProperties(async (env) => {
+    env.setDashboardEnabled(true);
+  })
+  .configureComposeFile(async (composeFile) => {
+    await composeFile.addVolume('volumemount-blazor-uploads', {
+      driver: 'local',
+    });
+  });
+
+const endpoint = await builder.addParameter('registry-endpoint');
+const repository = await builder.addParameter('registry-repository');
+await builder.addContainerRegistry('container-registry', endpoint, {
+  repository,
+});
+
+const sqlPassword = await builder.addParameter('sqlserver-password', {
+  secret: true,
+});
+const sqlServer = await builder
+  .addSqlServer('sqlserver', { password: sqlPassword })
+  .withDataVolume('volumemount-sqlserver-data')
+  .withLifetime(ContainerLifetime.Persistent);
+
+const sqlDatabase = await sqlServer.addDatabase('sqldb');
+
+const blazorWeb = await builder.addProject(
+  'blazorweb',
+  '../VolumeMount.BlazorWeb/VolumeMount.BlazorWeb.csproj'
+);
+await blazorWeb
+  .withExternalHttpEndpoints()
+  .withReference(sqlDatabase)
+  .waitFor(sqlDatabase)
+  .publishAsDockerComposeService(async (_resource, service) => {
+    await service.addVolume(
+      'volumemount-blazor-uploads',
+      '/app/wwwroot/uploads'
+    );
+    await service.user.set('root');
+    await service.command.set([
+      '/bin/sh',
+      '-c',
+      "chown -R app:app /app/wwwroot/uploads && chmod -R 755 /app/wwwroot/uploads && exec su app -c 'dotnet /app/VolumeMount.BlazorWeb.dll'",
+    ]);
+  });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+  The TypeScript Docker Compose APIs use helper methods such as
+  `composeFile.addVolume(...)` and `service.addVolume(...)` instead of
+  constructing `Volume` objects directly.
+</Aside>
 
 ## Phase 1: Develop locally
 
@@ -299,9 +376,8 @@ The `aspire publish` command does the following:
 - Outputs artifacts to `./aspire-output/` directory
 
 <FileTree>
-  - aspire-output/
-    - docker-compose.yaml Service definitions for all containers
-    - .env Template for required environment variables
+  - aspire-output/ - docker-compose.yaml Service definitions for all containers
+  - .env Template for required environment variables
 </FileTree>
 
 <LearnMore>
@@ -364,7 +440,7 @@ After the workflow completes, you have everything needed for production deployme
 
 <Aside type="tip">
   This example uses a C# AppHost, but the same workflow shape applies to
-  TypeScript AppHosts. Replace `.csproj` references with your `apphost.ts` path
+  TypeScript AppHosts. Replace `.csproj` references with your `apphost.mts` path
   as needed.
 </Aside>
 

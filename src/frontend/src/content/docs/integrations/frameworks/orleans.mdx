@@ -19,7 +19,7 @@ import orleansIcon from '@assets/icons/microsoft-orleans.png';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Orleans Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model an Orleans cluster in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Orleans Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Orleans cluster in your [`AppHost`](/get-started/app-host/) project.
 
 [Orleans](https://github.com/dotnet/orleans) is a cross-platform framework for building distributed applications that are elastically scalable and fault-tolerant. Unlike other Aspire integrations, the Orleans integration doesn't create a container. Instead, the Orleans service is modeled as a resource in the AppHost and its configuration is propagated to any project that references it.
 
@@ -95,8 +95,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
@@ -141,8 +141,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
@@ -164,7 +164,7 @@ Any project that references the Orleans resource also inherits a reference to th
 
 ### Add an Orleans server project
 
-Add a project to your solution as an Orleans server (a silo). Reference the Orleans resource from the server project so that it receives the clustering and storage configuration:
+Add a project to your solution as an Orleans server (a silo). Reference the Orleans resource from the server project so that it receives the clustering and storage configuration. In TypeScript AppHosts, use `withOrleansReference` to configure a project as a silo:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -190,8 +190,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
@@ -204,7 +204,7 @@ const orleans = await builder.addOrleans("default")
     .withGrainStorage("Default", grainStorage);
 
 const server = await builder.addProject("orleans-server", "../OrleansServer/OrleansServer.csproj")
-    .withReference(orleans);
+    .withOrleansReference(orleans);
 
 await builder.build().run();
 ```
@@ -216,7 +216,7 @@ When you reference the Orleans resource from a project, the dependent storage re
 
 ### Add an Orleans client project
 
-Orleans clients communicate with grains hosted in an Orleans cluster. For example, a frontend web app calls grains running on Orleans servers. Reference the Orleans resource using `asClient()` (or `AsClient()`) so the project is configured as a client rather than a silo:
+Orleans clients communicate with grains hosted in an Orleans cluster. For example, a frontend web app calls grains running on Orleans servers. Reference the Orleans resource using `asClient()` (or `AsClient()`) so the project is configured as a client rather than a silo. In TypeScript AppHosts, use `withOrleansClientReference` for Orleans client references:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -242,8 +242,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
@@ -256,7 +256,7 @@ const orleans = await builder.addOrleans("default")
     .withGrainStorage("Default", grainStorage);
 
 const client = await builder.addProject("orleans-client", "../OrleansClient/OrleansClient.csproj")
-    .withReference(await orleans.asClient());
+    .withOrleansClientReference(orleans.asClient());
 
 await builder.build().run();
 ```

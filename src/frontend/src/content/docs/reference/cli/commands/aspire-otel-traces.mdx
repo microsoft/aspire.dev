@@ -31,7 +31,7 @@ aspire otel traces [resource] [options]
 
 The `aspire otel traces` command retrieves and displays distributed traces collected by the Aspire Dashboard. A trace represents a complete request as it flows through your distributed application. The command shows trace summaries including timestamp, name, span count, duration, and status.
 
-You can view a summary of all traces, or provide a specific trace ID with `--trace-id` to view a detailed span tree for that trace.
+You can view a summary of all traces, or provide a specific trace ID with `--trace-id` to view a detailed span tree for that trace. Use `--search` to filter traces by a full-text search expression.
 
 ## Arguments
 
@@ -70,6 +70,21 @@ The following options are available:
 - **`--has-error <true|false>`**
 
   Filter by error status (true to show only errors, false to exclude errors).
+
+- **`--search <search>`**
+
+  Full-text search across trace and span text fields, such as names, attribute values, source, and IDs. Supports plain free-text fragments and structured `field:value` qualifiers.
+
+  | Syntax | Meaning |
+  |--------|---------|
+  | `word` | Free-text fragment — matches any searchable field |
+  | `"quoted phrase"` | Single fragment containing spaces |
+  | `field:value` | Field qualifier — value must match the named field |
+  | `-field:value` | Negated qualifier — excludes matches |
+  | `field:>N` / `field:>=N` / `field:<N` / `field:<=N` | Comparison for numeric fields |
+  | `@attr:value` | Attribute qualifier — matches custom span attributes |
+
+  Supported fields for traces: `resource`, `name`, `trace-id`, `status`, `duration`.
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
@@ -113,6 +128,18 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire otel traces --limit 20 --format Json
+  ```
+
+- Search traces by text:
+
+  ```bash title="Aspire CLI"
+  aspire otel traces --search "checkout"
+  ```
+
+- Filter traces by attribute on any constituent span:
+
+  ```bash title="Aspire CLI"
+  aspire otel traces --search "@http.status_code:500"
   ```
 
 - View traces from a standalone dashboard using the login URL (token is automatically exchanged for an API key):

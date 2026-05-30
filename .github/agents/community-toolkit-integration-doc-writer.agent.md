@@ -162,7 +162,7 @@ This step ensures that the documentation you've created is properly indexed and 
 ### AppHost language parity
 
 - Follow the `doc-writer` skill's AppHost language parity guidance for all AppHost and hosting-integration examples.
-- Always show both C# AppHost (`AppHost.cs`) and TypeScript AppHost (`apphost.ts`) variants inside synced `Tabs` (with `syncKey='aspire-lang'`) unless the feature is genuinely language-specific or TypeScript AppHost support does not exist yet.
+- Always show both C# AppHost (`AppHost.cs`) and TypeScript AppHost (`apphost.mts`) variants inside synced `Tabs` (with `syncKey='aspire-lang'`) unless the feature is genuinely language-specific or TypeScript AppHost support does not exist yet.
 - Before writing a TypeScript AppHost example, verify the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples.
 - If TypeScript AppHost support is not available, show only the C# example without language tabs and add a note that TypeScript AppHost support for the integration is not yet available.
 - Use language-neutral prose around AppHost examples, such as "Add a resource to your AppHost" instead of C#-specific method instructions.
