@@ -208,19 +208,6 @@ export declare const DistributedApplicationOperation: {
 };
 
 /**
- * Enum Aspire.Hosting.InputType
- */
-
-export type InputType = "Text" | "SecretText" | "Choice" | "Boolean" | "Number";
-export declare const InputType: {
-  readonly Text: "Text";
-  readonly SecretText: "SecretText";
-  readonly Choice: "Choice";
-  readonly Boolean: "Boolean";
-  readonly Number: "Number";
-};
-
-/**
  * Enum Aspire.Hosting.OtlpProtocol
  */
 
@@ -711,23 +698,6 @@ export interface HttpsCertificateInfo {
   subject: string;
   issuer: string;
   thumbprint: string;
-}
-
-/**
- * DTO Aspire.Hosting.Ats.ParameterCustomInputOptions
- */
-
-export interface ParameterCustomInputOptions {
-  inputType: InputType;
-  label: string;
-  description: string;
-  enableDescriptionMarkdown: boolean;
-  options: Dict<string,string>;
-  value: string;
-  placeholder: string;
-  allowCustomChoice: boolean;
-  disabled: boolean;
-  maxLength: number;
 }
 
 /**
