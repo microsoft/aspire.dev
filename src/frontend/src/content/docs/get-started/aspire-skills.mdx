@@ -1,9 +1,10 @@
 ---
 title: Aspire skills
+seoTitle: Aspire skills for AI coding agents and AppHost projects
 description: Learn how Aspire skills teach AI coding agents to initialize, operate, observe, deploy, and wire Aspire apps.
 ---
 
-import { FileTree, Steps } from '@astrojs/starlight/components';
+import { FileTree, TabItem, Tabs } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Aspire skills are Markdown instruction bundles for AI coding agents. Each skill lives in a folder with a `SKILL.md` file that describes when the skill applies and what workflow the agent should follow. Skills don't run services or expose application data; they teach the agent how to use Aspire tools correctly.
@@ -17,15 +18,24 @@ Aspire ships multiple skills for different parts of the app lifecycle. The exact
 
 ## Install Aspire guidance
 
-When you create a new Aspire project with [`aspire new`](/reference/cli/commands/aspire-new/) or add Aspire to an existing codebase with [`aspire init`](/reference/cli/commands/aspire-init/), answer **yes** when the CLI asks whether to configure AI agent environments. Aspire installs the selected skills and MCP configuration as part of that flow.
+Choose the tab that matches your coding agent or installer path. The Aspire CLI path is recommended for project-local setup because it installs Aspire skill files into detected agent environments.
 
-To add or update Aspire guidance later, run [`aspire agent init`](/reference/cli/commands/aspire-agent-init/) from your project directory:
+<Tabs syncKey='agent-install'>
+<TabItem id='aspire-cli' label='Aspire CLI'>
+
+Use Aspire's first-party agent setup when creating a new app, adding Aspire to an existing repo, or refreshing agent guidance later.
 
 ```bash title="Aspire CLI"
+aspire new
+# select y when prompted to configure AI agent environments
+
+aspire init
+# select y when prompted to install Aspire agent guidance
+
 aspire agent init
 ```
 
-For non-interactive setup, pass the skill and location options explicitly. To install the available skills and tools into all supported locations, use `all`:
+For non-interactive setup, pass the skill and location options explicitly. To install the available skills into all supported locations, use `all`:
 
 ```bash title="Aspire CLI"
 aspire agent init --skills all --skill-locations all
@@ -36,6 +46,76 @@ To install a subset, pass a comma-separated list of skill names:
 ```bash title="Aspire CLI"
 aspire agent init --skills aspire,aspire-init,aspire-orchestration,aspire-monitoring,aspire-deployment,aspireify,playwright-cli --skill-locations all
 ```
+
+</TabItem>
+<TabItem id='copilot-cli' label='Copilot CLI'>
+
+Add the Aspire skills marketplace once, then install the Aspire plugin by name.
+
+```bash title="GitHub Copilot CLI"
+copilot plugin marketplace add microsoft/aspire-skills
+copilot plugin install aspire@aspire-skills
+```
+
+Use this path for terminal workflows where GitHub Copilot needs Aspire-specific guidance for AppHost, lifecycle, deployment, and diagnostics tasks.
+
+</TabItem>
+<TabItem id='claude-code' label='Claude Code'>
+
+Start Claude Code in your terminal, add the Aspire marketplace, then install the Aspire plugin.
+
+```bash title="Claude Code CLI"
+claude
+/plugin marketplace add microsoft/aspire-skills
+/plugin install aspire@aspire-skills
+```
+
+Run the slash commands inside the Claude Code CLI session.
+
+</TabItem>
+<TabItem id='codex-cli' label='Codex CLI'>
+
+Add the Aspire marketplace, then install Aspire from the Codex plugins UI.
+
+```bash title="Codex CLI"
+codex plugin marketplace add microsoft/aspire-skills
+# then open /plugins and install aspire
+```
+
+Use this path for terminal-first Codex work that needs repeatable Aspire setup, orchestration, and diagnostics guidance.
+
+</TabItem>
+<TabItem id='opencode' label='OpenCode'>
+
+Use APM to install Aspire skills into agent hosts that support OpenCode-compatible skill locations.
+
+```bash title="OpenCode"
+apm install microsoft/aspire-skills
+opencode
+```
+
+Use this path when APM is your preferred way to manage agent skills.
+
+</TabItem>
+<TabItem id='npx' label='skills.sh'>
+
+Use the Skills-compatible installer when your agent host supports skills.sh-managed skill locations.
+
+```bash title="skills.sh NPX"
+npx skills add microsoft/aspire-skills
+```
+
+For hosts that need an explicit skills directory and target agent, install from the `skills/` folder:
+
+```bash title="skills.sh NPX with explicit target"
+npx skills add https://github.com/microsoft/aspire-skills/tree/main/skills \
+  -a github-copilot -g -y
+```
+
+In that command, `-a github-copilot` selects the target agent, `-g` installs globally, and `-y` accepts prompts.
+
+</TabItem>
+</Tabs>
 
 ## Available skills
 
@@ -88,42 +168,8 @@ Other supported locations use the same skill folder names:
 | **GitHub Skills** | `.github/skills/`  | VS Code / GitHub Copilot specific                  |
 | **OpenCode**      | `.opencode/skill/` | OpenCode specific                                  |
 
-## Prefer skills for workflow guidance
-
-Aspire skills and the [Aspire MCP server](/get-started/aspire-mcp-server/) solve different parts of the AI agent workflow:
-
-| Capability               | Purpose                                                                                                   |
-| ------------------------ | --------------------------------------------------------------------------------------------------------- |
-| **Aspire skills**        | Teach the agent which Aspire workflows, commands, and AppHost conventions to follow                       |
-| **Aspire MCP server**    | Gives the agent direct runtime access to resource status, logs, traces, commands, and documentation tools |
-| **Resource MCP servers** | Expose resource-specific tools, such as database query tools, through Aspire resources                    |
-
-Start with Aspire skills for workflow guidance. Add the Aspire MCP server when the agent also needs live application data to act on.
-
-## Migrate from AGENTS.md
-
-If your project has an `AGENTS.md` file from a previous version of Aspire, migrate to Aspire skills. Skill files are structured for AI coding tools and can be installed into the locations those tools read automatically.
-
-<Steps>
-
-1. Run `aspire agent init` and select the Aspire skills.
-
-1. Review the generated `SKILL.md` files in the skill locations you selected.
-
-1. Move any project-specific instructions from `AGENTS.md` into the appropriate generated skill file or another agent instruction file used by your team.
-
-1. Delete `AGENTS.md` after the new skill-based instructions cover the same guidance.
-
-</Steps>
-
-## Customize skills
-
-Generated skill files can be customized for project-specific conventions, such as preferred resource names, deployment targets, testing commands, or local environment setup. Review custom changes when rerunning `aspire agent init`, `aspire init`, or `aspire new`, because those commands may update generated skill content as Aspire evolves.
-
 ## See also
 
 - [Use AI coding agents](/get-started/ai-coding-agents/) — set up your project for AI agents
-- [Aspire MCP server](/get-started/aspire-mcp-server/) — runtime tools, security, and troubleshooting for MCP
-- [Resource MCP servers](/get-started/resource-mcp-servers/) — expose MCP tools from Aspire resources
 - [aspire agent init command](/reference/cli/commands/aspire-agent-init/)
 - [aspire init command](/reference/cli/commands/aspire-init/)
