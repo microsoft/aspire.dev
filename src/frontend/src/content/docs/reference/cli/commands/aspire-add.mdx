@@ -38,7 +38,10 @@ The following arguments are available:
 
   The name of the integration to add (for example: redis, postgres).
 
-  If a partial name or invalid name is provided, the CLI searches NuGet for approximate matches and prints them in the terminal for the user to select. If no results are found, all packages are listed.
+  The value must exactly match either the friendly name or the full package ID (for example, `redis` or `Aspire.Hosting.Redis`). Partial or misspelled names are handled differently depending on the mode:
+
+  - **Interactive mode** (default): If the name doesn't exactly match, the CLI searches NuGet for approximate matches and prompts you to select from the results before adding. This prompt is also shown when only a single fuzzy or no-match fallback candidate is found, so a package is never silently added without your confirmation.
+  - **Non-interactive mode** (`--non-interactive`): The command fails immediately if the name does not exactly match a friendly name or package ID. Use the exact name or full package ID to avoid errors.
 
 ## Options
 
@@ -84,4 +87,10 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire add redis --apphost './apphost.mts'
+  ```
+
+- Add the **kubernetes** integration in a CI script (non-interactive mode requires the exact friendly name or package ID; partial names such as `kube` produce an error):
+
+  ```bash title="Aspire CLI"
+  aspire add kubernetes --non-interactive
   ```
