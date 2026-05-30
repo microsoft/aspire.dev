@@ -1,0 +1,129 @@
+---
+title: Aspire skills
+description: Learn how Aspire skills teach AI coding agents to initialize, operate, observe, deploy, and wire Aspire apps.
+---
+
+import { FileTree, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Aspire skills are Markdown instruction bundles for AI coding agents. Each skill lives in a folder with a `SKILL.md` file that describes when the skill applies and what workflow the agent should follow. Skills don't run services or expose application data; they teach the agent how to use Aspire tools correctly.
+
+Aspire ships multiple skills for different parts of the app lifecycle. The exact list can vary by Aspire CLI version and project type, but Aspire skills are organized around workflows such as initialization, orchestration, monitoring, deployment, and AppHost wiring.
+
+<LearnMore>
+  To configure AI coding agents end to end, see [Use AI coding
+  agents](/get-started/ai-coding-agents/).
+</LearnMore>
+
+## Install Aspire guidance
+
+When you create a new Aspire project with [`aspire new`](/reference/cli/commands/aspire-new/) or add Aspire to an existing codebase with [`aspire init`](/reference/cli/commands/aspire-init/), answer **yes** when the CLI asks whether to configure AI agent environments. Aspire installs the selected skills and MCP configuration as part of that flow.
+
+To add or update Aspire guidance later, run [`aspire agent init`](/reference/cli/commands/aspire-agent-init/) from your project directory:
+
+```bash title="Aspire CLI"
+aspire agent init
+```
+
+For non-interactive setup, pass the skill and location options explicitly. To install the available skills and tools into all supported locations, use `all`:
+
+```bash title="Aspire CLI"
+aspire agent init --skills all --skill-locations all
+```
+
+To install a subset, pass a comma-separated list of skill names:
+
+```bash title="Aspire CLI"
+aspire agent init --skills aspire,aspire-init,aspire-orchestration,aspire-monitoring,aspire-deployment,aspireify,playwright-cli --skill-locations all
+```
+
+## Available skills
+
+| Skill                  | Use it for                                                                                             | What it teaches                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `aspire`               | Routing Aspire tasks to the right workflow                                                             | Detect the AppHost, apply Aspire safety guardrails, and choose the appropriate workflow for the user's request                                                           |
+| `aspire-init`          | Starting a new Aspire app or adding Aspire to an existing repo                                         | Choose `aspire new` or `aspire init`, create the AppHost skeleton, and hand off existing-codebase wiring to `aspireify`                                                  |
+| `aspire-orchestration` | Managing the local AppHost lifecycle                                                                   | Start, stop, restart, wait for, and inspect Aspire resources, including recovery from port conflicts and orphaned processes                                              |
+| `aspire-monitoring`    | Observing running Aspire apps                                                                          | Inspect resource state, logs, traces, metrics, browser telemetry, and dashboard data before making changes                                                               |
+| `aspire-deployment`    | Publishing, deploying, and tearing down Aspire apps                                                    | Use AppHost-modeled deployments for targets such as Docker Compose, Kubernetes, Azure, and AWS                                                                           |
+| `aspireify`            | Completing Aspire initialization in an existing codebase after `aspire init` drops an AppHost skeleton | Scan the repo, propose a resource graph, wire projects and containers into the AppHost, connect resources, configure telemetry when appropriate, and validate the wiring |
+| `playwright-cli`       | Testing running web resources in a browser                                                             | Use Playwright CLI for browser automation, including navigation, form interaction, screenshots, and visual checks                                                        |
+
+Use the top-level `aspire` skill when the user request is about an Aspire app and the right workflow isn't obvious. Use a workflow-specific skill directly when the task is clear, such as `aspire-orchestration` for local lifecycle work, `aspire-monitoring` for telemetry investigation, `aspire-deployment` for publish and deploy workflows, or `aspireify` for existing-codebase AppHost wiring. Use `playwright-cli` when an agent needs to test or inspect a running frontend.
+
+## Playwright handoff
+
+The `playwright-cli` skill works best alongside the `aspire` skill. The agent should first use Aspire to discover the running app and the correct frontend endpoint, especially when multiple web resources exist. After it has the target URL, it can use Playwright CLI to automate browser testing.
+
+## Skill locations
+
+Aspire installs each selected skill into the selected skill locations. For example, a standard location can contain:
+
+<FileTree>
+
+- .agents/skills/
+  - aspire/
+    - SKILL.md
+  - aspire-init/
+    - SKILL.md
+  - aspire-orchestration/
+    - SKILL.md
+  - aspire-monitoring/
+    - SKILL.md
+  - aspire-deployment/
+    - SKILL.md
+  - aspireify/
+    - SKILL.md
+  - playwright-cli/
+    - SKILL.md
+
+</FileTree>
+
+Other supported locations use the same skill folder names:
+
+| Location          | Directory          | Notes                                              |
+| ----------------- | ------------------ | -------------------------------------------------- |
+| **Standard**      | `.agents/skills/`  | Supported by VS Code, GitHub Copilot, and OpenCode |
+| **Claude Code**   | `.claude/skills/`  | Claude Code specific                               |
+| **GitHub Skills** | `.github/skills/`  | VS Code / GitHub Copilot specific                  |
+| **OpenCode**      | `.opencode/skill/` | OpenCode specific                                  |
+
+## Prefer skills for workflow guidance
+
+Aspire skills and the [Aspire MCP server](/get-started/aspire-mcp-server/) solve different parts of the AI agent workflow:
+
+| Capability               | Purpose                                                                                                   |
+| ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| **Aspire skills**        | Teach the agent which Aspire workflows, commands, and AppHost conventions to follow                       |
+| **Aspire MCP server**    | Gives the agent direct runtime access to resource status, logs, traces, commands, and documentation tools |
+| **Resource MCP servers** | Expose resource-specific tools, such as database query tools, through Aspire resources                    |
+
+Start with Aspire skills for workflow guidance. Add the Aspire MCP server when the agent also needs live application data to act on.
+
+## Migrate from AGENTS.md
+
+If your project has an `AGENTS.md` file from a previous version of Aspire, migrate to Aspire skills. Skill files are structured for AI coding tools and can be installed into the locations those tools read automatically.
+
+<Steps>
+
+1. Run `aspire agent init` and select the Aspire skills.
+
+1. Review the generated `SKILL.md` files in the skill locations you selected.
+
+1. Move any project-specific instructions from `AGENTS.md` into the appropriate generated skill file or another agent instruction file used by your team.
+
+1. Delete `AGENTS.md` after the new skill-based instructions cover the same guidance.
+
+</Steps>
+
+## Customize skills
+
+Generated skill files can be customized for project-specific conventions, such as preferred resource names, deployment targets, testing commands, or local environment setup. Review custom changes when rerunning `aspire agent init`, `aspire init`, or `aspire new`, because those commands may update generated skill content as Aspire evolves.
+
+## See also
+
+- [Use AI coding agents](/get-started/ai-coding-agents/) — set up your project for AI agents
+- [Aspire MCP server](/get-started/aspire-mcp-server/) — runtime tools, security, and troubleshooting for MCP
+- [Resource MCP servers](/get-started/resource-mcp-servers/) — expose MCP tools from Aspire resources
+- [aspire agent init command](/reference/cli/commands/aspire-agent-init/)
+- [aspire init command](/reference/cli/commands/aspire-init/)
