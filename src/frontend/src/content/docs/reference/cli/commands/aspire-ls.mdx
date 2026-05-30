@@ -1,0 +1,139 @@
+---
+title: aspire ls command
+description: Learn about the aspire ls command which discovers and lists AppHost project candidates in the current directory and its subdirectories.
+---
+
+import Include from '@components/Include.astro';
+
+## Name
+
+`aspire ls` - List AppHost project candidates.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire ls [options]
+```
+
+## Description
+
+The `aspire ls` command discovers and lists AppHost project candidates in the current working directory and its subdirectories. It performs parallel discovery and reports results along with each candidate's programming language and build status.
+
+The default output is a human-readable table with the following columns:
+
+| Column     | Description                                      |
+| ---------- | ------------------------------------------------ |
+| `PATH`     | The file path to the AppHost project             |
+| `LANGUAGE` | The programming language of the AppHost          |
+| `STATUS`   | Build status of the AppHost candidate            |
+
+### Discovery and configuration
+
+If a configuration file (for example `aspire.config.json` with `appHost.path` or a legacy `aspireSettings.json` with `appHostPath`) points to an AppHost project, that path is included as a candidate. When the configured file path is absent, contains invalid characters, or is not a JSON string, a warning is displayed.
+
+### Output ordering
+
+**Non-streaming mode** (`--format json` without `--stream`): results are sorted by path before output.
+
+**Streaming mode** (`--format json --stream`): results are emitted in arrival order from parallel discovery and are **not sorted**. If you need a deterministic order for streamed output, pipe through a sort step. For example:
+
+```bash title="Aspire CLI"
+aspire ls --format json --stream | jq -s 'sort_by(.path)'
+```
+
+## Options
+
+The following options are available:
+
+- **`--format <Json|Table>`**
+
+  Output result format. Use `Json` for machine-readable output suitable for scripting and automation. Defaults to `Table`.
+
+- **`--stream`**
+
+  Output discovered AppHosts as newline-delimited JSON (NDJSON), emitting each candidate as soon as it is discovered. Requires `--format json`.
+
+- **`--all`**
+
+  Include all candidate AppHosts, ignoring `.gitignore` and built-in directory filters.
+
+- <Include relativePath="reference/cli/includes/option-help.md" />
+
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
+
+- <Include relativePath="reference/cli/includes/option-wait.md" />
+
+## Examples
+
+- List all discovered AppHost candidates in table format:
+
+  ```bash title="Aspire CLI"
+  aspire ls
+  ```
+
+  Example output:
+
+  ```text title="Output"
+  PATH                                                  LANGUAGE  STATUS
+  ./src/MyApp.AppHost/MyApp.AppHost.csproj              C#        buildable
+  ./src/OtherApp.AppHost/OtherApp.AppHost.csproj        C#        buildable
+  ```
+
+- Output discovered AppHosts as JSON for scripting:
+
+  ```bash title="Aspire CLI"
+  aspire ls --format json
+  ```
+
+  Example output:
+
+  ```json title="Output"
+  [
+    {
+      "path": "./src/MyApp.AppHost/MyApp.AppHost.csproj",
+      "language": "C#",
+      "status": "buildable"
+    },
+    {
+      "path": "./src/OtherApp.AppHost/OtherApp.AppHost.csproj",
+      "language": "C#",
+      "status": "buildable"
+    }
+  ]
+  ```
+
+- Stream discovered AppHosts as newline-delimited JSON:
+
+  ```bash title="Aspire CLI"
+  aspire ls --format json --stream
+  ```
+
+  Example output (each line is a JSON object emitted as candidates are discovered):
+
+  ```text title="Output"
+  {"path":"./src/OtherApp.AppHost/OtherApp.AppHost.csproj","language":"C#","status":"buildable"}
+  {"path":"./src/MyApp.AppHost/MyApp.AppHost.csproj","language":"C#","status":"buildable"}
+  ```
+
+  Note: lines are emitted in discovery arrival order and are not sorted. To sort streamed output by path:
+
+  ```bash title="Aspire CLI"
+  aspire ls --format json --stream | jq -s 'sort_by(.path)'
+  ```
+
+- Include all AppHost candidates, ignoring `.gitignore` and directory filters:
+
+  ```bash title="Aspire CLI"
+  aspire ls --all
+  ```
+
+## See also
+
+- [aspire run](/reference/cli/commands/aspire-run/)
+- [aspire ps](/reference/cli/commands/aspire-ps/)
