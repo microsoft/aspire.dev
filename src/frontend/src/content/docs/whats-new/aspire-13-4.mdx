@@ -1,6 +1,6 @@
 ---
 title: "What's new in Aspire 13.4"
-description: "Explore Aspire 13.4: GA TypeScript AppHost, richer Kubernetes and AKS deployment APIs, process resource commands, CLI integration discovery, and dashboard updates."
+description: 'Explore Aspire 13.4: GA TypeScript AppHost, richer Kubernetes and AKS deployment APIs, AI agent readiness, process resource commands, CLI integration discovery, and dashboard updates.'
 sidebar:
   label: Aspire 13.4
   order: 0
@@ -19,7 +19,7 @@ import {
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 
-Aspire 13.4 is here, with a release focused on broadening the app model and smoothing day-to-day operations — led by **TypeScript AppHost support reaching general availability**, a new set of **TypeScript samples**, **TypeScript documentation parity with C#**, expanded **Kubernetes and AKS deployment APIs**, **process-backed resource commands**, **integration discovery** from the CLI, server-side **log and telemetry search**, a dashboard **AI Agents** entry point, and a more capable Aspire extension for Visual Studio Code.
+Aspire 13.4 is here, with a release focused on broadening the app model and smoothing day-to-day operations — led by **TypeScript AppHost support reaching general availability**, a new set of **TypeScript samples**, **TypeScript documentation parity with C#**, expanded **Kubernetes and AKS deployment APIs**, **AI agent readiness** through the new Aspire Skills bundle, **process-backed resource commands**, **integration discovery** from the CLI, server-side **log and telemetry search**, a dashboard **AI Agents** entry point, and a more capable Aspire extension for Visual Studio Code.
 
 We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and the community, or file feedback and issues on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/microsoft/aspire/issues).
 
@@ -27,6 +27,7 @@ This release introduces:
 
 - **TypeScript AppHost general availability** with stronger startup validation, more complete TypeScript SDK generation, new TypeScript samples, and documentation parity with C# AppHost examples.
 - **Kubernetes and AKS deployment improvements** including [cert-manager integration, Gateway API and Azure Application Gateway for Containers (AGC) support](/deployment/kubernetes/aks/#expose-your-app-to-the-internet), Kubernetes manifest resources, external Helm charts, and consolidated Helm chart configuration.
+- **AI agent readiness** with Aspire workflow skills moving into the new [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) bundle, a clearer separation between first-run setup, lifecycle orchestration, monitoring, AppHost wiring, and deployment guidance, and eval-driven iteration on agent routing.
 - **Richer resource commands** with typed arguments, visibility controls, immediate result display, named CLI options, resource-scoped help, and the experimental `WithProcessCommand` API.
 - **CLI discoverability and diagnostics** with `aspire integration list`, `aspire integration search`, `--search` for logs and telemetry, version checks in `aspire doctor`, better logs output, and more consistent command error handling.
 - **Dashboard and editor updates** including the AI Agents dialog, resource state fixes, CodeLens actions that appear without opening the Aspire panel, and improved VS Code terminal/debug output integration.
@@ -56,19 +57,20 @@ This release introduces:
   Aspire CLI itself **before** running `aspire update` on your project. Running
   `aspire update` first will fail mid-update with an error like:
 
-  ```text
-  ❌ An unexpected error occurred: No code generator found for language: TypeScript
-  ```
+```text
+❌ An unexpected error occurred: No code generator found for language: TypeScript
+```
 
-  The 13.3.x CLI bundles an AppHost server that cannot load the 13.4 TypeScript
-  code generator, so package restore succeeds but TypeScript SDK regeneration
-  crashes. The failure leaves `aspire.config.json` pointing at 13.4 packages
-  while the CLI is still 13.3.x, which also breaks `aspire run` and
-  `aspire restore` until you finish the upgrade with `aspire update --self`.
+The 13.3.x CLI bundles an AppHost server that cannot load the 13.4 TypeScript
+code generator, so package restore succeeds but TypeScript SDK regeneration
+crashes. The failure leaves `aspire.config.json` pointing at 13.4 packages
+while the CLI is still 13.3.x, which also breaks `aspire run` and
+`aspire restore` until you finish the upgrade with `aspire update --self`.
 
-  Follow the steps below in order — `aspire update --self` first, then
-  `aspire update`. See [microsoft/aspire#17077](https://github.com/microsoft/aspire/issues/17077)
-  for background.
+Follow the steps below in order — `aspire update --self` first, then
+`aspire update`. See [microsoft/aspire#17077](https://github.com/microsoft/aspire/issues/17077)
+for background.
+
 </Aside>
 
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
@@ -188,6 +190,31 @@ Aspire 13.4 includes a set of smaller CLI improvements and fixes:
 - `aspire stop --all` output includes the AppHost name and, when needed, the PID for clearer multi-instance shutdown output.
 - `aspire new`, `aspire init`, `aspire run`, and `aspire update` include fixes for NuGet feed errors, output paths, generated files, disabled dashboards, detached shutdown, and AppHost package-reference cleanup.
 
+## 🤖 AI agent readiness with Aspire Skills
+
+Aspire 13.4 advances the AI coding agent experience by moving Aspire skill content into the new [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) repository and bundle. The CLI still owns the `aspire agent init` setup flow, but the skills themselves can now evolve from a dedicated repo with release assets, manifests, hash validation, cached installs, and targeted evals instead of being maintained only as embedded CLI resources.
+
+The first external bundle preserved the three workflow skills that were already part of `aspire agent init`: `aspire`, `aspireify`, and `aspire-deployment`. Follow-up work then made the bundle manifest the source of truth for skill discovery and added three more focused Aspire skills so agents can route work to the right instructions instead of loading one broad playbook for every task.
+
+| Skill                  | Good at                                                                                                                                                                                         | Why it's separate                                                                                                                                                                                        |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `aspire-init`          | First-run setup for a new or existing repository: choosing `aspire new` or `aspire init`, dropping the AppHost skeleton, and handing off to `aspireify` when resources need wiring.             | Init is a one-time bootstrap flow. Keeping it separate helps agents avoid re-running `aspire init` in repositories that already have an AppHost.                                                         |
+| `aspire-orchestration` | Day-to-day lifecycle work: `aspire start`, `aspire stop`, `aspire wait`, `aspire describe`, resource commands, hot reload/watch guidance, update flows, port conflicts, and file-lock recovery. | Running an Aspire app safely has different guardrails than editing one. This skill keeps agents from using `dotnet run`, leaving orphaned processes, or rebuilding while Aspire is holding output files. |
+| `aspire-monitoring`    | Observability and diagnostics: console logs, structured logs, traces, metrics, telemetry export, dashboard inspection, browser telemetry, and local-versus-deployed diagnostics routing.        | Investigation should start with evidence. This skill keeps read-only telemetry workflows distinct from code edits and deployment changes.                                                                |
+
+The remaining skills keep their narrower responsibilities: `aspire` acts as the top-level router, `aspireify` wires AppHost resources and service defaults after a skeleton exists, and `aspire-deployment` owns publish, deploy, and tear-down workflows for Docker Compose, Kubernetes, Azure, and AWS.
+
+This split applies lessons from other skills libraries: short routing descriptions matter, trigger phrases should be explicit, each skill needs clear `USE FOR` / `DO NOT USE FOR` boundaries, and handoff rules prevent one skill from guessing outside its lane. It also keeps single-command cases lightweight — agents can still run a direct CLI command when that's enough — while reserving full skill context for multi-step workflows.
+
+The new repo also makes Aspire skills eval-driven. Trigger tests and scenario evals can verify that prompts activate the intended skill, that stale instructions are removed, and that updated guidance reflects current Aspire behavior. The 13.4 follow-up PRs used that loop to sync TypeScript AppHost guidance, deployment routing, monitoring search/filtering, bundle manifest discovery, install output, attestation handling, fallback behavior, and localized metadata errors.
+
+<LearnMore>
+  To configure Aspire for your agent, see [Use AI coding
+  agents](/get-started/ai-coding-agents/). To follow skill bundle development,
+  see the [`microsoft/aspire-skills`
+  repository](https://github.com/microsoft/aspire-skills).
+</LearnMore>
+
 ## 🧩 App model and AppHost
 
 ### Resource command arguments, visibility, and results
@@ -287,7 +314,9 @@ Kubernetes and AKS deployment continue to expand in 13.4. Kubernetes environment
 For AKS, `AddAzureKubernetesEnvironment` now wires Azure Application Gateway for Containers (AGC) into the deployment flow. When `AddLoadBalancer(...)` is used, Aspire provisions the AGC ingress profile on AKS, assigns the required Network Contributor role to the controller identity, and exposes Gateway API routing for the application.
 
 <LearnMore>
-  For a complete walkthrough including custom domains, see [Deploy to AKS — Expose your app to the internet](/deployment/kubernetes/aks/#expose-your-app-to-the-internet).
+  For a complete walkthrough including custom domains, see [Deploy to AKS —
+  Expose your app to the
+  internet](/deployment/kubernetes/aks/#expose-your-app-to-the-internet).
 </LearnMore>
 
 ### Kubernetes manifests and external Helm charts
