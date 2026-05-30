@@ -76,6 +76,8 @@ if (-not (Test-Path $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 }
 
+$usingDefaultPackageList = -not $Packages -or $Packages.Count -eq 0
+
 function Remove-StalePackageJsonFiles {
     [CmdletBinding()]
     param(
@@ -178,6 +180,38 @@ function Test-IsOfficialAspirePackage {
     param([string]$PackageId)
 
     return $PackageId.StartsWith("Aspire.", [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Remove-NonOfficialPackageJsonFiles {
+    [CmdletBinding()]
+    param([string]$OutputDirectory)
+
+    if (-not (Test-Path $OutputDirectory)) {
+        return 0
+    }
+
+    $removedCount = 0
+    $jsonFiles = @(Get-ChildItem -Path $OutputDirectory -File -Filter '*.json')
+    foreach ($jsonFile in $jsonFiles) {
+        try {
+            $packageJson = Get-Content $jsonFile.FullName -Raw | ConvertFrom-Json
+            $packageName = [string]$packageJson.package.name
+        }
+        catch {
+            throw "Failed to read package metadata from '$($jsonFile.FullName)' while cleaning release API data: $_"
+        }
+
+        if ([string]::IsNullOrWhiteSpace($packageName)) {
+            throw "Package metadata in '$($jsonFile.FullName)' does not include package.name."
+        }
+
+        if (-not (Test-IsOfficialAspirePackage -PackageId $packageName)) {
+            Remove-Item $jsonFile.FullName -Force
+            $removedCount++
+        }
+    }
+
+    return $removedCount
 }
 
 function Get-ReleaseFeedNameFromCommit {
@@ -696,6 +730,21 @@ else {
 
 if ($officialFeed.IsRelease) {
     Write-Host "Release branch detected ($($officialFeed.BranchName)). Official Aspire packages will resolve from $($officialFeed.DisplayName)." -ForegroundColor Cyan
+
+    if ($usingDefaultPackageList) {
+        $originalPackageCount = $Packages.Count
+        $Packages = @($Packages | Where-Object { Test-IsOfficialAspirePackage -PackageId $_ })
+        $skippedNonOfficialCount = $originalPackageCount - $Packages.Count
+
+        if ($skippedNonOfficialCount -gt 0) {
+            Write-Host "Skipping $skippedNonOfficialCount non-official package(s) from the default release API package set." -ForegroundColor Yellow
+        }
+
+        $removedNonOfficialCount = Remove-NonOfficialPackageJsonFiles -OutputDirectory $OutputDir
+        if ($removedNonOfficialCount -gt 0) {
+            Write-Host "Removed $removedNonOfficialCount non-official package JSON file(s) from $OutputDir." -ForegroundColor Yellow
+        }
+    }
 }
 
 Write-Host "Building PackageJsonGenerator..." -ForegroundColor Cyan

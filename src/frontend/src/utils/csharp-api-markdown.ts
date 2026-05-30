@@ -179,6 +179,12 @@ export function renderCSharpDocMarkdown(content: any, context: CSharpDocContext)
 
 export function renderCSharpIndexMarkdown(packages: any[], base: string): string {
   const sorted = [...packages].sort((left, right) => left.package.name.localeCompare(right.package.name));
+  const hasCommunityToolkitPackages = sorted.some((pkg) =>
+    pkg.package.name.startsWith('CommunityToolkit.Aspire')
+  );
+  const intro = hasCommunityToolkitPackages
+    ? 'Browse the C# API reference for Aspire packages, including hosting integrations, client integrations, and the Community Toolkit.'
+    : 'Browse the C# API reference for Aspire packages, including hosting integrations and client integrations.';
 
   const packageLines = sorted.map((pkg) => {
     const typeCount = pkg.types?.length ?? 0;
@@ -200,7 +206,7 @@ export function renderCSharpIndexMarkdown(packages: any[], base: string): string
 
   return finalizeMarkdown([
     '# C# API Reference',
-    'Browse the C# API reference for Aspire packages, including hosting integrations, client integrations, and the Community Toolkit.',
+    intro,
     section('Packages', bulletList(packageLines)),
   ]);
 }
