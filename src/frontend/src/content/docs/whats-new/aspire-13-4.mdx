@@ -27,45 +27,11 @@ This release introduces:
 
 - **TypeScript AppHost general availability** with stronger startup validation, more complete TypeScript SDK generation, new TypeScript samples, and documentation parity with C# AppHost examples.
 - **Kubernetes and AKS deployment improvements** including [cert-manager integration, Gateway API and Azure Application Gateway for Containers (AGC) support](/deployment/kubernetes/aks/#expose-your-app-to-the-internet), Kubernetes manifest resources, external Helm charts, and consolidated Helm chart configuration.
-- **Richer resource commands** with typed arguments, visibility controls, immediate result display, named CLI options, resource-scoped help, and the experimental `WithProcessCommand` API.
-- **Argument-based built-in resource commands** — the `set-parameter` and `delete-parameter` commands now accept named options, enabling non-interactive parameter management from the CLI or automated tooling.
+- **Richer resource commands** with typed arguments, visibility controls, immediate result display, named CLI options, resource-scoped help, built-in parameter command options, and the experimental `WithProcessCommand` API.
 - **CLI discoverability and diagnostics** with `aspire integration list`, `aspire integration search`, `--search` for logs and telemetry, version checks in `aspire doctor`, better logs output, and more consistent command error handling.
 - **Dashboard and editor updates** including the AI Agents dialog, resource state fixes, CodeLens actions that appear without opening the Aspire panel, and improved VS Code terminal/debug output integration.
 - **Integration updates** for NATS, Azure Front Door, Foundry hosted agents, and more.
 - …and much more.
-
-## Argument-based built-in resource commands
-
-Built-in resource commands for managing parameter resources now declare structured arguments. Instead of being prompted interactively for input, you can supply values directly as named options on the command line:
-
-```bash title="Aspire CLI — set a parameter value"
-aspire resource mydb-password set-parameter --value "MyStr0ngP@ssword"
-```
-
-```bash title="Aspire CLI — delete a parameter value"
-aspire resource mydb-password delete-parameter --delete-from-user-secrets true
-```
-
-This makes it straightforward to manage parameter values from scripts, CI/CD pipelines, and AI coding agents without requiring interactive prompts. Pass `--help` after the command name to see the available options for any argument-based command:
-
-```bash title="Aspire CLI — show argument help"
-aspire resource mydb-password set-parameter --help
-```
-
-### Command name changes
-
-As part of this improvement, two built-in parameter commands were renamed for consistency with other Aspire CLI commands:
-
-| Old name (still accepted) | New canonical name |
-| --- | --- |
-| `parameter-set` | `set-parameter` |
-| `parameter-delete` | `delete-parameter` |
-
-<Aside type="note">
-The old names (`parameter-set` and `parameter-delete`) are retained as aliases and continue to work. No action is required for existing scripts.
-</Aside>
-
-<LearnMore link="/reference/cli/commands/aspire-resource/#built-in-parameter-commands">Built-in parameter commands</LearnMore>
 
 ## 🆙 Upgrade to Aspire 13.4
 
@@ -208,14 +174,21 @@ aspire otel traces --search "POST /orders"
 
 Resource command inputs are now passed as named CLI options instead of positional arguments. This makes optional inputs easier to skip and lets users supply values in any order. Running `aspire resource <resource> --help` also shows the commands available for that specific resource.
 
+The built-in `set-parameter` and `delete-parameter` commands now use named options too, so scripts can manage parameter resources without interactive prompts. The examples below assume an AppHost parameter resource named `mydb-password`; for details on defining parameter resources, see [External parameters](/fundamentals/external-parameters/).
+
 ```bash title="Aspire CLI — Resource command arguments"
 aspire resource cache seed-data --dataset small --force
+aspire resource mydb-password set-parameter --value "MyStr0ngP@ssword"
+aspire resource mydb-password delete-parameter --delete-from-user-secrets true
 aspire resource cache --help
+aspire resource mydb-password set-parameter --help
 ```
+
+Boolean resource command options require explicit `true` or `false` values. For example, `--delete-from-user-secrets true` requests deletion from user secrets.
 
 <LearnMore>
   For more information, see [`aspire
-  resource`](/reference/cli/commands/aspire-resource/).
+  resource`](/reference/cli/commands/aspire-resource/#built-in-parameter-commands).
 </LearnMore>
 
 ### CLI quality-of-life
