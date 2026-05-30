@@ -24,26 +24,26 @@ aspire agent init [options]
 The `aspire agent init` command initializes skill files and MCP (Model Context Protocol) server configuration for your development environment. It presents an interactive multi-step flow to configure AI coding agent support:
 
 1. **Select skill locations** — choose where skill files are installed (Standard `.agents/skills/`, Claude Code `.claude/skills/`, GitHub Skills `.github/skills/`, OpenCode `.opencode/skill/`). The **Standard** location is the only option that defaults as pre-selected.
-2. **Select skills and tools** — choose which skills to install. The available skills are loaded from the Aspire skills bundle manifest (`skill-manifest.json`), so the catalog automatically reflects the current set of bundle-provided skills alongside CLI-defined skills such as `playwright-cli` and `dotnet-inspect`. All skills are pre-selected by default.
+2. **Select skills and tools** — choose which skills to install. The available skills are loaded from the Aspire skills bundle manifest (`skill-manifest.json`), so the catalog automatically reflects the current set of bundle-provided skills alongside CLI-defined skills such as `playwright-cli` and `dotnet-inspect`. Standalone `aspire agent init` pre-selects `aspire`, `aspire-deployment`, `aspire-init`, `aspire-monitoring`, and `aspire-orchestration`; `aspireify`, `playwright-cli`, and `dotnet-inspect` remain available but opt-in.
 3. **Apply selections** — installs the chosen skills into each selected location and sets up the MCP server connection.
 
 The command also removes skill files from any locations that were deselected, keeping your workspace clean.
 
 ### Skills catalog
 
-The list of available skills is driven by the resolved Aspire skills bundle. Bundle-provided skills currently include `aspire`, `aspireify`, `aspire-init`, `aspire-monitoring`, and `aspire-orchestration`. The CLI also contributes `playwright-cli` and `dotnet-inspect`, which are not part of the bundle. CLI-defined skills take precedence when their name matches a bundle skill name.
+The list of available skills is driven by the resolved Aspire skills bundle. Bundle-provided skills currently include `aspire`, `aspire-deployment`, `aspire-init`, `aspire-monitoring`, `aspire-orchestration`, and `aspireify`. The CLI also contributes `playwright-cli` and `dotnet-inspect`, which are not part of the bundle. CLI-defined skills take precedence when their name matches a bundle skill name.
 
-When running `aspire init`, the `aspireify` skill is pre-selected alongside the bundle defaults because the workspace was just created. When running `aspire new` (which already produced the project skeleton), `aspireify` is not pre-selected to avoid redundant scaffolding.
+Standalone `aspire agent init` and `aspire new` do not pre-select `aspireify` because they normally run after a project or template already exists. When `aspire init` chains into agent setup, it pre-selects `aspireify` alongside the bundle defaults because `aspire init` adds a new AppHost to an existing repository and `aspireify` is the natural follow-up wiring skill.
 
 ### Bundle resolution and remote fetch
 
-By default, the CLI resolves the skills bundle from a local cache or the embedded snapshot baked into the CLI build — no network call is made to `github.com/microsoft/aspire-skills`. To enable fetching the latest bundle release from GitHub, opt in with:
+By default, the CLI resolves the skills bundle from a local cache or the embedded snapshot baked into the CLI build — no network call is made to `github.com/microsoft/aspire-skills`. To enable fetching the latest bundle release from GitHub, opt in with [`aspire config set`](/reference/cli/commands/aspire-config-set/):
 
 ```bash title="Aspire CLI"
 aspire config set features:aspireSkillsRemoteFetchEnabled true
 ```
 
-When remote fetch is enabled, resolution follows the order: **versioned cache → GitHub release → embedded snapshot**. When disabled (the default), the order is: **versioned cache → embedded snapshot**. Cached bundles from a previous successful fetch continue to work in either mode.
+When remote fetch is enabled, resolution follows the order: **versioned cache → GitHub release → embedded snapshot**. When disabled (the default), the order is: **versioned cache → embedded snapshot**. The versioned cache lives under the Aspire home cache directory at `.aspire/cache/aspire-skills/<bundle-version>` by default, or `<ASPIRE_HOME>/cache/aspire-skills/<bundle-version>` when `ASPIRE_HOME` is set. A successful GitHub fetch or embedded fallback writes the bundle into that cache; later runs reuse it before falling back to GitHub (when enabled) or the embedded snapshot. Stale cache entries for other bundle versions are cleaned up after seven days of inactivity, and [`aspire cache clear`](/reference/cli/commands/aspire-cache-clear/) purges the Aspire CLI caches if you need to force a fresh resolution.
 
 ## Options
 
@@ -59,7 +59,7 @@ The following options are available:
 
 - **`--skills <skills>`**
 
-  Comma-separated list of skills to enable. Bundle-provided skill names (such as `aspire`, `aspireify`, `aspire-init`, `aspire-monitoring`, `aspire-orchestration`) and CLI-defined skills (`playwright-cli`, `dotnet-inspect`) are all valid values. Use `all` to enable all available skills or `none` to skip skill installation. When not specified, the command prompts interactively.
+  Comma-separated list of skills to enable. Bundle-provided skill names (such as `aspire`, `aspire-deployment`, `aspire-init`, `aspire-monitoring`, `aspire-orchestration`, and `aspireify`) and CLI-defined skills (`playwright-cli`, `dotnet-inspect`) are all valid values. Use `all` to enable all available skills or `none` to skip skill installation. When not specified, the command prompts interactively.
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
@@ -96,7 +96,7 @@ The following options are available:
 - Install specific bundle skills non-interactively:
 
   ```bash title="Aspire CLI"
-  aspire agent init --skills aspire,aspire-monitoring,aspire-orchestration --skill-locations standard
+  aspire agent init --skills aspire,aspire-deployment,aspire-monitoring,aspire-orchestration --skill-locations standard
   ```
 
 - Enable remote bundle fetching so the CLI picks up the latest skills release from GitHub:
