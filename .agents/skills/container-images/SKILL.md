@@ -11,7 +11,7 @@ This skill extracts **every** container image reference from the [`microsoft/asp
 src/frontend/src/data/container-images.json
 ```
 
-This JSON is consumed by Astro components on the aspire.dev site to render a browsable catalog of all container images used by .NET Aspire hosting integrations.
+This JSON is consumed by Astro components on the aspire.dev site to render a browsable catalog of all container images used by Aspire hosting integrations.
 
 ---
 

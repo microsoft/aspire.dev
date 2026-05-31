@@ -73,7 +73,35 @@ description: A brief summary of the page content (required for SEO)
 Optional frontmatter fields:
 
 - `next: false` - Disable "Next page" link for terminal pages
+- `seoTitle` - Override the page's `og:title` / `twitter:title` only,
+  without touching the visible H1 or sidebar label. Use this **only**
+  when the natural H1 must stay short (commands, terse labels). When
+  set, the value is emitted verbatim — no `· Aspire` suffix is appended.
 - Custom metadata as needed by Starlight theme
+
+#### SEO length targets
+
+The site uses Open Graph metadata to render social cards and feed SEO
+tooling. To keep previews scannable on every social network and to
+avoid the "title too short / description too long" lints that surface
+on Yoast, LinkedIn, and the search-console reports, follow these
+length targets when authoring frontmatter:
+
+| Field         | Composed length target | Hard limit |
+| ------------- | ---------------------: | ---------: |
+| `title`       | 41-51 characters       | 70 characters |
+| `seoTitle`    | 50-60 characters       | 70 characters |
+| `description` | 110-160 characters     | 200 characters (auto-truncated) |
+
+`title` becomes `og:title` composed as `${title} · Aspire`, so the
+target window leaves room for the 9-character suffix. `seoTitle`
+overrides the composition outright — write the full string yourself.
+
+Surface keywords from the article body itself in the description
+(verbs, integration names, API surfaces). The CI guard at
+`tests/unit/seo-lengths.vitest.test.ts` fails when any English page
+strays outside the wider 30-65 / 80-200 character guard ranges, so a
+draft can land slightly off-target and tighten in follow-ups.
 
 ### Required Imports
 
@@ -368,8 +396,8 @@ builder.Build().Run();
 ````
 
 ````mdx
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
@@ -407,7 +435,7 @@ For client/library packages:
 
 ## AppHost Language Parity (C# and TypeScript)
 
-Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** (`apphost.ts`). Documentation must treat both languages as first-class citizens. **Always show both C# and TypeScript code samples for AppHost code unless the feature is genuinely language-specific or TypeScript support does not exist yet.** Never write AppHost or hosting-integration documentation with a C#-only bias.
+Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** (`apphost.mts`). Documentation must treat both languages as first-class citizens. **Always show both C# and TypeScript code samples for AppHost code unless the feature is genuinely language-specific or TypeScript support does not exist yet.** Never write AppHost or hosting-integration documentation with a C#-only bias.
 
 ### Core Principles
 
@@ -440,8 +468,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
@@ -467,10 +495,10 @@ If a section heading should appear in the **On this page** table of contents, ke
 
 | Aspect           | C#                                              | TypeScript                                                                                                          |
 | ---------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| File title       | `title="AppHost.cs"`                            | `title="apphost.ts"`                                                                                                |
+| File title       | `title="AppHost.cs"`                            | `title="apphost.mts"`                                                                                                |
 | Tab wrapper      | Shared `<Tabs syncKey='aspire-lang'>` container | Shared `<Tabs syncKey='aspire-lang'>` container                                                                     |
 | Tab item         | `<TabItem id='csharp' label='C#'>`              | `<TabItem id='typescript' label='TypeScript'>`                                                                      |
-| Builder creation | `DistributedApplication.CreateBuilder(args)`    | `import { createBuilder } from './.modules/aspire.js';` then newline for space followed by `await createBuilder();` |
+| Builder creation | `DistributedApplication.CreateBuilder(args)`    | `import { createBuilder } from './.aspire/modules/aspire.mjs';` then newline for space followed by `await createBuilder();` |
 | Method casing    | PascalCase (`AddRedis`)                         | camelCase (`addRedis`)                                                                                              |
 | Async pattern    | Synchronous fluent calls                        | `await` each builder call                                                                                           |
 | Build & run      | `builder.Build().Run()`                         | `await builder.build().run()`                                                                                       |
@@ -565,8 +593,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
@@ -616,8 +644,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from "./.modules/aspire.js";
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 

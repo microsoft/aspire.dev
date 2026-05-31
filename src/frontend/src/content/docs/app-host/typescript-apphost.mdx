@@ -1,24 +1,43 @@
 ---
 title: TypeScript AppHost project structure
-description: Learn about the files and configuration that make up a TypeScript AppHost project.
+seoTitle: Aspire TypeScript AppHost project structure overview
+description: Learn the files and configuration that make up a TypeScript AppHost project — entry point, package manifest, dependencies, and how the AppHost runs Aspire resources.
 ---
 
 import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-When you create a TypeScript AppHost with `aspire new` or `aspire init --language typescript`, the CLI scaffolds a project with the following structure:
+When you create a TypeScript AppHost with `aspire new`, the CLI scaffolds a project with the following structure:
 
 <FileTree>
 
 - my-apphost/
-  - .modules/  Generated TypeScript SDK (do not edit)
-    - aspire.ts
-    - base.ts
-    - transport.ts
-  - apphost.ts  Your AppHost entry point
+  - .aspire/modules/  Generated TypeScript SDK (do not edit)
+    - aspire.mts
+    - base.mts
+    - transport.mts
+  - apphost.mts  Your AppHost entry point
   - aspire.config.json  Aspire configuration
   - package.json
-  - tsconfig.json
+  - tsconfig.apphost.json
+
+</FileTree>
+
+When you run `aspire init --language typescript` in an existing JavaScript or TypeScript app that already has a root `package.json`, Aspire creates the AppHost in a nested `aspire-apphost/` package. The root `aspire.config.json` points to `aspire-apphost/apphost.mts`, and the root `package.json` gets Aspire delegate scripts so the existing app package keeps its own module and toolchain settings:
+
+<FileTree>
+
+- my-existing-app/
+  - aspire-apphost/
+    - .aspire/modules/  Generated TypeScript SDK (do not edit)
+      - aspire.mts
+      - base.mts
+      - transport.mts
+    - apphost.mts  Your AppHost entry point
+    - package.json
+    - tsconfig.apphost.json
+  - aspire.config.json  Aspire configuration
+  - package.json  Existing app package with Aspire delegate scripts
 
 </FileTree>
 
@@ -29,7 +48,7 @@ The `aspire.config.json` file is the central configuration for your AppHost. It 
 ```json title="aspire.config.json"
 {
   "appHost": {
-    "path": "apphost.ts",
+    "path": "apphost.mts",
     "language": "typescript/nodejs"
   },
   "packages": {
@@ -51,20 +70,20 @@ The `aspire.config.json` file is the central configuration for your AppHost. It 
 
 | Section | Description |
 |---------|-------------|
-| `appHost.path` | Path to your AppHost entry point (`apphost.ts`) |
+| `appHost.path` | Path to your AppHost entry point (`apphost.mts`) |
 | `appHost.language` | Language runtime (`typescript/nodejs`) |
 | `packages` | Hosting integration packages and their versions. Added automatically by `aspire add`. |
 | `profiles` | Launch profiles with dashboard URLs and environment variables |
 
-### Adding integrations
+### Add and restore integrations
 
-When you run `aspire add`, the CLI adds the package to the `packages` section and regenerates the TypeScript SDK:
+Use `aspire add` from the AppHost root to add hosting integrations. The CLI adds the package to the `packages` section, restores AppHost dependencies, and regenerates the TypeScript SDK in `.aspire/modules/`:
 
 ```bash title="Add an integration"
 aspire add redis
 ```
 
-This updates `aspire.config.json`:
+This updates `aspire.config.json` so the package is restored the next time the AppHost runs:
 
 ```json title="aspire.config.json" ins={4}
 {
@@ -73,6 +92,12 @@ This updates `aspire.config.json`:
     "Aspire.Hosting.Redis": "13.3.0"
   }
 }
+```
+
+Run `aspire restore` when you want to regenerate `.aspire/modules/` without starting the AppHost, such as after switching branches, updating package versions, or preparing a CI job:
+
+```bash title="Restore a TypeScript AppHost"
+aspire restore
 ```
 
 ### Project references for local development
@@ -91,15 +116,15 @@ You can reference a local hosting integration project by using a `.csproj` path 
   See [Multi-language integrations](/extensibility/multi-language-integration-authoring/) for details on building hosting integrations that work with TypeScript AppHosts.
 </LearnMore>
 
-## .modules/ directory
+## .aspire/modules/ directory
 
-The `.modules/` directory contains the generated TypeScript SDK. It's created and updated automatically by the Aspire CLI — **do not edit these files**.
+The `.aspire/modules/` directory under the AppHost root contains the generated TypeScript SDK. It's created and updated automatically by the Aspire CLI — **do not edit these files**.
 
 | File | Purpose |
 |------|---------|
-| `aspire.ts` | Generated typed API for all your installed integrations |
-| `base.ts` | Base types and handle infrastructure |
-| `transport.ts` | JSON-RPC transport layer |
+| `aspire.mts` | Generated typed API for all your installed integrations |
+| `base.mts` | Base types and handle infrastructure |
+| `transport.mts` | JSON-RPC transport layer |
 
 The SDK regenerates when:
 
@@ -107,22 +132,22 @@ The SDK regenerates when:
 - You run `aspire run` or `aspire start` and the package list has changed
 - You run `aspire restore` to manually regenerate
 
-Your `apphost.ts` imports from this SDK:
+Your `apphost.mts` imports from this SDK:
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 ```
 
 <Aside type="tip">
-Add `.modules/` to your `.gitignore` — it's generated and can be recreated from `aspire.config.json` at any time.
+Add `.aspire/` to your `.gitignore` — it contains generated artifacts that can be recreated from `aspire.config.json` at any time.
 </Aside>
 
-## apphost.ts
+## apphost.mts
 
 The entry point for your AppHost. This is where you define your application's resources and their relationships:
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -136,23 +161,124 @@ const api = await builder
 await builder.build().run();
 ```
 
+## Legacy `apphost.ts` projects (pre-13.4)
+
+TypeScript AppHosts scaffolded by Aspire CLI versions earlier than 13.4 use a slightly different layout: the entry point was `apphost.ts` (not `apphost.mts`), and the generated TypeScript SDK lives in `./.modules/` (not `./.aspire/modules/`):
+
+<FileTree>
+
+- my-apphost/
+  - .modules/  Generated TypeScript SDK (do not edit)
+    - aspire.ts
+    - base.ts
+    - transport.ts
+  - apphost.ts  Your AppHost entry point
+  - aspire.config.json  Aspire configuration
+  - package.json
+  - tsconfig.apphost.json
+
+</FileTree>
+
+The pre-13.4 entry point imports the SDK with the `.js` extension:
+
+```typescript title="apphost.ts (pre-13.4)"
+import { createBuilder } from './.modules/aspire.js';
+```
+
+### Compatibility in 13.4
+
+The 13.4 Aspire CLI keeps these projects working without any changes:
+
+- When the CLI sees an `apphost.ts` file with no `apphost.mts` alongside it — either because `aspire.config.json` sets `appHost.path` to `apphost.ts`, or because a disk scan finds `apphost.ts` and no `apphost.mts` — it switches to the legacy output layout for that project.
+- Generated SDK files are written to `./.modules/` instead of `./.aspire/modules/`.
+- Generated files are rewritten from `.mts`/`.mjs` to `.ts`/`.js`, including the inter-module import specifiers inside the SDK, so the existing `./.modules/aspire.js` import in your `apphost.ts` continues to resolve.
+
+`aspire add`, `aspire restore`, `aspire run`, and `aspire start` all continue to work against an existing `apphost.ts` project with no edits required.
+
+<Aside type="tip">
+You don't need to migrate to keep your existing TypeScript AppHost running on Aspire 13.4. The compatibility path is automatic. Migrate only if you want the new default layout — for example, to match the file tree shown in newer documentation and samples.
+</Aside>
+
+### Migrating to the new `apphost.mts` layout
+
+If you'd like to move an existing project to the new default layout, the migration is mechanical. The steps below assume an AppHost root with `apphost.ts`, `./.modules/`, and the legacy `appHost.path` value:
+
+<Steps>
+
+1. **Rename the entry point file.**
+
+   ```bash
+   git mv apphost.ts apphost.mts
+   ```
+
+2. **Update the SDK import** in `apphost.mts` to use the new folder and the `.mjs` extension:
+
+   ```typescript title="apphost.mts" del={1} ins={2}
+   import { createBuilder } from './.modules/aspire.js';
+   import { createBuilder } from './.aspire/modules/aspire.mjs';
+   ```
+
+3. **Update `appHost.path`** in `aspire.config.json`:
+
+   ```json title="aspire.config.json" del={3} ins={4}
+   {
+     "appHost": {
+       "path": "apphost.ts",
+       "path": "apphost.mts",
+       "language": "typescript/nodejs"
+     }
+   }
+   ```
+
+4. **Update `tsconfig.apphost.json`** so its `include` (and any related glob) entries point at the new file and folder. Replace references to `apphost.ts` with `apphost.mts`, and references to `.modules/` with `.aspire/modules/`. For example:
+
+   ```json title="tsconfig.apphost.json" del={4,5} ins={6,7}
+   {
+     "compilerOptions": { /* ... */ },
+     "include": [
+       "apphost.ts",
+       ".modules/**/*.ts",
+       "apphost.mts",
+       ".aspire/modules/**/*.mts"
+     ]
+   }
+   ```
+
+5. **Delete the old generated SDK folder and regenerate.** The CLI now writes the SDK under `./.aspire/modules/`, so the old folder is no longer used:
+
+   ```bash
+   rm -rf .modules
+   aspire restore
+   ```
+
+   If your `.gitignore` ignores `.modules/`, replace that entry with `.aspire/` (or `.aspire/modules/`) to match the new location.
+
+</Steps>
+
+After migrating, `aspire run` behaves exactly the same as before — the CLI now uses the modern output path because `apphost.mts` is present.
+
 ## Package managers
 
-The Aspire CLI automatically detects which package manager your TypeScript AppHost uses by inspecting lock files and the `packageManager` field in `package.json`. The following package managers are supported:
+The Aspire CLI supports the following package managers at the **AppHost root** — the directory that contains your `apphost.mts` and `aspire.config.json`. The CLI selects between them by inspecting package manager signals, including the `packageManager` field in `package.json`, lock files, and package manager configuration in the AppHost root.
 
-| Package manager | Lock file detected | Notes |
+| Package manager | Detection signals | Version expectation |
 |---|---|---|
-| npm | `package-lock.json` | Default; no extra setup required |
-| pnpm | `pnpm-lock.yaml` | |
-| Yarn (v4+) | `yarn.lock` | Must be Yarn 4 or later (Berry) |
-| Bun | `bun.lock` / `bun.lockb` | |
+| npm | `packageManager`, `package-lock.json`, or no other signal | npm 10 or later; npm is the default |
+| pnpm | `packageManager` or `pnpm-lock.yaml` | pnpm 10 or later |
+| Yarn | `packageManager`, `yarn.lock`, `.yarnrc.yml`, or `.yarn/` | Yarn 4 or later (Berry) |
+| Bun | `packageManager`, `bun.lock`, or `bun.lockb` | Bun 1.2 or later |
+| Yarn Classic (v1) | `yarn.lock` with `# yarn lockfile v1` or `packageManager` with `yarn@1.x` | Not supported |
+
+This policy governs the **AppHost root only**. Apps the AppHost orchestrates — for example, a Node.js service added with `addNodeApp`, a Bun guest app, or a workspace package — can use any package manager their own tooling requires; they are independent of the AppHost-root toolchain.
+
+Aspire end-to-end tests cover TypeScript AppHosts with representative `packageManager` pins such as `npm@10.0.0`, `pnpm@10.0.0`, `yarn@4.14.1`, and `bun@1.2.0`. These tested versions are representative points within the supported ranges, not the only versions you can use.
 
 <Aside type="caution">
 **Yarn Classic (v1) is not supported.** If the Aspire CLI detects a Yarn Classic lock file (`# yarn lockfile v1`) or a `packageManager` field such as `"yarn@1.x"` in `package.json`, it throws an error and stops. Upgrade to Yarn 4 or later, or switch to npm, pnpm, or Bun.
 
 To upgrade to Yarn 4, run:
 
-```bash
+```bash title="Upgrade to Yarn 4"
 corepack enable yarn
 corepack use yarn@stable
 ```
@@ -168,9 +294,14 @@ The scaffolded `package.json` includes convenience scripts and the required Node
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "aspire run",
-    "build": "tsc",
-    "lint": "eslint apphost.ts"
+    "aspire:lint": "eslint apphost.mts",
+    "aspire:start": "aspire run",
+    "aspire:build": "tsc -p tsconfig.apphost.json",
+    "aspire:dev": "tsc --watch -p tsconfig.apphost.json",
+    "lint": "npm run aspire:lint",
+    "dev": "npm run aspire:start",
+    "build": "npm run aspire:build",
+    "watch": "npm run aspire:dev"
   },
   "engines": {
     "node": "^20.19.0 || ^22.13.0 || >=24"
@@ -180,17 +311,41 @@ The scaffolded `package.json` includes convenience scripts and the required Node
 
 The `dev` script means you can also start your AppHost with `npm run dev` (or the equivalent for your toolchain, for example `bun run dev` or `pnpm run dev`).
 
+### Supported Node.js engine
+
+TypeScript AppHosts target the Node.js engine range that `aspire init` writes into the scaffolded AppHost `package.json`:
+
+```json title="package.json — supported engines.node"
+{
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  }
+}
+```
+
+The supported ranges are:
+
+- **Node.js 20.19+** — supported.
+- **Node.js 22.13+** (22.x LTS) — supported.
+- **Node.js 24.x and later** — supported by the scaffolded `engines.node` constraint.
+
+Older Node.js versions are not supported. Package managers may enforce `engines.node` on install (for example, pnpm does by default, while npm only does when `engine-strict` is configured), so unsupported runtimes are best treated as blocked even when a given toolchain only warns.
+
+<Aside type="note">
+If you widen `engines.node` beyond the scaffolded constraint, you take on responsibility for compatibility. Aspire CLI behavior, TypeScript SDK generation, and the `tsc --noEmit` startup validation are tested against the ranges listed above.
+</Aside>
+
 ## Package manager toolchain
 
 The Aspire CLI automatically detects which Node-compatible package manager your project uses and adjusts install and run commands accordingly. The following toolchains are supported: **npm** (default), **Bun**, **Yarn**, and **pnpm**.
 
 ### Toolchain detection
 
-The CLI resolves the toolchain by inspecting the AppHost directory and its parent directories (up to eight levels). It checks, in order:
+Detection follows the [supported AppHost-root package managers](#package-managers) policy. The CLI resolves the toolchain by inspecting the AppHost directory and its parent directories (up to eight levels). It checks, in order:
 
 <Steps>
 
-1. The `packageManager` field in `package.json` — for example, `"packageManager": "pnpm@9.0.0"`.
+1. The `packageManager` field in `package.json` — for example, `"packageManager": "pnpm@10.0.0"`.
 2. Lockfiles: `bun.lock` or `bun.lockb` → Bun; `pnpm-lock.yaml` → pnpm; `yarn.lock`, `.yarnrc.yml`, or a `.yarn/` directory → Yarn.
 3. If nothing is found, npm is used as the default.
 
@@ -205,14 +360,23 @@ The recommended way to pin the toolchain is with the `packageManager` field in `
 <Tabs syncKey="toolchain">
 <TabItem label="npm (default)" icon="npm">
 
-No extra configuration is required — npm is the default.
+No extra configuration is required — npm is the default. If you want to pin npm explicitly, set the `packageManager` field:
+
+```json title="package.json" ins={2}
+{
+  "packageManager": "npm@10.0.0",
+  "name": "my-apphost",
+  "private": true,
+  "type": "module"
+}
+```
 
 </TabItem>
 <TabItem label="pnpm" icon="pnpm">
 
 ```json title="package.json" ins={2}
 {
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.0.0",
   "name": "my-apphost",
   "private": true,
   "type": "module"
@@ -224,7 +388,7 @@ No extra configuration is required — npm is the default.
 
 ```json title="package.json" ins={2}
 {
-  "packageManager": "yarn@4.0.0",
+  "packageManager": "yarn@4.14.1",
   "name": "my-apphost",
   "private": true,
   "type": "module"
@@ -236,7 +400,7 @@ No extra configuration is required — npm is the default.
 
 ```json title="package.json" ins={2}
 {
-  "packageManager": "bun@1.1.0",
+  "packageManager": "bun@1.2.0",
   "name": "my-apphost",
   "private": true,
   "type": "module"
@@ -260,7 +424,7 @@ When a non-npm toolchain is detected, the CLI substitutes the matching commands:
 | Bun | `bun install` | `bun run {appHostFile}` | `bun --watch run {appHostFile}` |
 
 :::note
-Bun has built-in TypeScript support, so it runs `apphost.ts` directly without `tsx`.
+Bun has built-in TypeScript support, so it runs `apphost.mts` directly without `tsx`.
 :::
 
 ### aspire doctor checks
@@ -271,17 +435,81 @@ The `aspire doctor` command checks that the required JavaScript toolchain execut
 aspire doctor
 ```
 
+## Async chaining
+
+TypeScript AppHosts support fluent chaining for builder methods — for example, `builder.addContainer(...).withReference(...)` — so you can build resource graphs in a compact, readable style. Starting with Aspire 13.4, the generated SDK extends this to **all** generated async methods that return a chainable wrapper type: environment helpers, execution-context queries, and endpoint property accessors.
+
+Previously, using these methods required splitting the chain or using a double `await`:
+
+```typescript title="apphost.ts (before)"
+// Two separate awaits were needed when chaining through async wrapper-returning methods
+const envContext = await builder.environment();
+const isDevelopment = await envContext.isDevelopment();
+```
+
+Now you can chain through them with a **single `await`**:
+
+```typescript title="apphost.ts (after)"
+const isDevelopment = await builder.environment().isDevelopment();
+const isRunMode = await context.executionContext().isRunMode();
+const endpointHost = await container.getEndpoint("http").property(EndpointProperty.Host);
+```
+
+This works because the code generator now emits a thenable wrapper for every generated async method whose return type is itself a chainable wrapper.
+
+<Aside type="note">
+The thenable wrappers are generated automatically — you do not need to change `aspire.config.json` or run any extra commands. Re-running `aspire run` or `aspire restore` after upgrading your `Aspire.Hosting.JavaScript` package version regenerates the `.modules/` SDK with the updated types.
+</Aside>
+
 ## TypeScript validation before startup
 
 Before starting a TypeScript AppHost, the Aspire CLI runs `tsc --noEmit` to check for type errors to prevent the dashboard and resources from starting in a partially broken state. If your AppHost has TypeScript compile errors, `aspire run` and `aspire publish` stop before the AppHost launches and display the diagnostic output:
 
 ```text
-apphost.ts(22,7): error TS2322: Type 'string' is not assignable to type 'number'.
+apphost.mts(22,7): error TS2322: Type 'string' is not assignable to type 'number'.
 ```
 
 ### Watch mode behavior
 
 When you use `aspire run` in watch mode, the TypeScript validation is embedded in the nodemon restart command. The watcher **can still start** even if there are initial type errors — it will recover automatically as you edit and save files that fix the errors.
+
+## HTTPS development certificates
+
+When you run a TypeScript AppHost with an HTTPS launch profile, the Aspire CLI
+needs a trusted HTTPS development certificate to be present on your machine.
+Unlike .NET AppHost users who typically have the .NET SDK on their `PATH`, TypeScript
+AppHost users may not have `dotnet` available, so the Aspire CLI provides its own
+certificate management commands.
+
+If you see an error similar to the following when running `aspire run`:
+
+```text
+Unable to configure HTTPS endpoint. No server certificate was specified, and the default
+developer certificate could not be found or is out of date. To generate and trust a
+developer certificate run 'aspire certs trust'. For more information on configuring
+HTTPS see https://aspire.dev/docs/.
+```
+
+Run the following command to create and trust the development certificate:
+
+```bash title="Aspire CLI"
+aspire certs trust
+```
+
+<Aside type="tip">
+  If you continue to see certificate errors after running `aspire certs trust`, try
+  cleaning existing certificates first:
+
+  ```bash title="Aspire CLI"
+  aspire certs clean
+  aspire certs trust
+  ```
+</Aside>
+
+<LearnMore>
+  See [Certificate configuration](/app-host/certificate-configuration/) for details
+  on HTTPS certificate management in Aspire, including Linux-specific setup.
+</LearnMore>
 
 ## See also
 
@@ -289,3 +517,5 @@ When you use `aspire run` in watch mode, the TypeScript validation is embedded i
 - [AppHost overview](/get-started/app-host/)
 - [Multi-language architecture](/architecture/multi-language-architecture/)
 - [aspire doctor command](/reference/cli/commands/aspire-doctor/)
+- [aspire certs trust command](/reference/cli/commands/aspire-certs-trust/)
+- [Certificate configuration](/app-host/certificate-configuration/)

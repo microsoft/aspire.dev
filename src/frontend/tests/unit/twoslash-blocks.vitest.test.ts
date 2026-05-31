@@ -111,6 +111,17 @@ describe.skipIf(!TWOSLASH_ENABLED)('twoslash code blocks', () => {
     });
     expect(matched).toBe(sample);
 
+    // Localized page names should fall back to the base docs page.
+    const localizedPage = `pt-br/${sample.page}`;
+    const localizedMatch = findKnownBug(localizedPage, sample.blockIndex, {
+      code: sample.code,
+      message: sample.messageContains,
+      mdxLine: 0,
+      column: 0,
+      blockLine: 0,
+    });
+    expect(localizedMatch).toBe(sample);
+
     // Wrong page → no match.
     const wrongPage = findKnownBug('definitely/not/a/page.mdx', sample.blockIndex, {
       code: sample.code,

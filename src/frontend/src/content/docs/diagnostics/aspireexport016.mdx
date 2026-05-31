@@ -1,0 +1,63 @@
+---
+title: Compiler Warning ASPIREEXPORT016
+seoTitle: 'ASPIREEXPORT016: AspireDto collections need init setters'
+description: Learn what causes the Aspire compiler warning ASPIREEXPORT016 — a get-only mutable collection on an AspireDto — and how to fix it.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.4"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> DTO property '{0}' is a get-only mutable collection. Add an init accessor so System.Text.Json replaces the collection during DTO deserialization; otherwise collection values can be merged with initializer defaults.
+
+This diagnostic warning is reported when an `[AspireDto]` type exposes a mutable collection property with only a getter. During DTO deserialization, `System.Text.Json` can populate the existing collection instead of replacing it. If the collection has initializer defaults, deserialized values can be merged with those defaults and produce unexpected DTO state.
+
+## Example
+
+The following code generates `ASPIREEXPORT016`:
+
+```csharp title="C# — MyDto.cs"
+[AspireDto]
+public class MyDto
+{
+    public List<string> Items { get; } = new();
+}
+```
+
+## To correct this warning
+
+Add an `init` accessor so `System.Text.Json` can replace the mutable collection during deserialization:
+
+```csharp title="C# — MyDto.cs"
+[AspireDto]
+public class MyDto
+{
+    public List<string> Items { get; init; } = new();
+}
+```
+
+## Suppress the warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREEXPORT016.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREEXPORT016</NoWarn>
+  </PropertyGroup>
+  ```

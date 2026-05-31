@@ -5,7 +5,7 @@ description: "Orchestrates Aspire distributed applications using the Aspire CLI 
 
 # Aspire Skill
 
-This repository uses Aspire to orchestrate its distributed application. Resources are defined in the AppHost project (`apphost.cs` or `apphost.ts`).
+This repository uses Aspire to orchestrate its distributed application. Resources are defined in the AppHost project (`apphost.cs` or `apphost.mts`).
 
 ## CLI command reference
 

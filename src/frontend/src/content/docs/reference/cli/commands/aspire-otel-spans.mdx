@@ -29,7 +29,7 @@ aspire otel spans [resource] [options]
 
 ## Description
 
-The `aspire otel spans` command retrieves and displays distributed trace spans collected by the Aspire Dashboard. Spans represent individual units of work within a distributed trace, such as HTTP requests or database calls. You can filter spans by resource name, trace ID, or error status. Use `--follow` to stream spans in real-time as they arrive.
+The `aspire otel spans` command retrieves and displays distributed trace spans collected by the Aspire Dashboard. Spans represent individual units of work within a distributed trace, such as HTTP requests or database calls. You can filter spans by resource name, trace ID, error status, or a full-text search expression. Use `--follow` to stream spans in real-time as they arrive.
 
 ## Arguments
 
@@ -73,6 +73,21 @@ The following options are available:
 
   Filter by error status (true to show only errors, false to exclude errors).
 
+- **`--search <search>`**
+
+  Full-text search across span text fields, such as names, attribute values, source, and IDs. Supports plain free-text fragments and structured `field:value` qualifiers.
+
+  | Syntax | Meaning |
+  |--------|---------|
+  | `word` | Free-text fragment — matches any searchable field |
+  | `"quoted phrase"` | Single fragment containing spaces |
+  | `field:value` | Field qualifier — value must match the named field |
+  | `-field:value` | Negated qualifier — excludes matches |
+  | `field:>N` / `field:>=N` / `field:<N` / `field:<=N` | Comparison for numeric fields |
+  | `@attr:value` | Attribute qualifier — matches custom span attributes |
+
+  Supported fields for spans: `resource`, `name`, `span-id`, `trace-id`, `status`, `kind`, `duration`.
+
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
 - <Include relativePath="reference/cli/includes/option-log-level.md" />
@@ -115,6 +130,18 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire otel spans --trace-id abc123 --format Json
+  ```
+
+- Search spans by text:
+
+  ```bash title="Aspire CLI"
+  aspire otel spans --search "/api/orders"
+  ```
+
+- Filter spans by attribute value:
+
+  ```bash title="Aspire CLI"
+  aspire otel spans --search "@db.system:postgresql"
   ```
 
 - View spans from a standalone dashboard using the login URL (token is automatically exchanged for an API key):

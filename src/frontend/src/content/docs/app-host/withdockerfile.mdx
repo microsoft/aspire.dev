@@ -1,6 +1,7 @@
 ---
 title: Add Dockerfiles to your app model
-description: Learn how to add Dockerfiles to your app model.
+seoTitle: Add Dockerfiles to your Aspire AppHost project app model
+description: Add Dockerfiles to your Aspire app model with WithDockerfile — build local container images, layer arguments, and pin context paths for project and executable resources.
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -12,7 +13,7 @@ These two methods serve different purposes:
 - **`AddDockerfile`**: Creates a new container resource from an existing Dockerfile. Use this when you want to add a custom containerized service to your app model.
 - **`WithDockerfile`**: Customizes an existing container resource (like a database or cache) to use a different Dockerfile. Use this when you want to modify the default container image for an Aspire component.
 
-Both methods expect an existing Dockerfile in the specified context path—neither method creates a Dockerfile for you. To generate a Dockerfile from AppHost code instead, use the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically).
+Both methods expect an existing Dockerfile in the specified context path—neither method creates a Dockerfile for you. To generate a Dockerfile from AppHost code instead, use the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically) or the [Dockerfile factory APIs](#generate-a-dockerfile-with-a-factory-function).
 
 ## When to use AddDockerfile vs WithDockerfile
 
@@ -45,8 +46,8 @@ var container = builder.AddDockerfile(
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -75,8 +76,8 @@ var container = builder.ExecutionContext.IsRunMode
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -108,8 +109,8 @@ var pgsql = builder.AddPostgres("pgsql")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -164,9 +165,9 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
-import type { DockerfileBuilderCallbackContext } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import type { DockerfileBuilderCallbackContext } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -221,9 +222,9 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
-import type { DockerfileBuilderCallbackContext } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import type { DockerfileBuilderCallbackContext } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -246,6 +247,73 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
+## Generate a Dockerfile with a factory function
+
+Use `AddDockerfileFactory` or `WithDockerfileFactory` when you need to generate a Dockerfile as a string from AppHost code. Unlike the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically) that use a fluent API to compose Dockerfile instructions, the factory APIs let you return Dockerfile content directly as a string — useful when you already have string-based Dockerfile generation logic or want to construct content conditionally.
+
+The factory callback receives a `DockerfileFactoryContext` parameter that provides access to the resource and DI services when needed.
+
+`AddDockerfileFactory` creates a new container resource and configures the generated Dockerfile in one step:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var container = builder.AddDockerfileFactory("myapp", "../myapp", async context =>
+{
+    // Return Dockerfile content as a string.
+    return """
+        FROM node:22-alpine
+        WORKDIR /app
+        COPY . .
+        RUN npm ci
+        EXPOSE 3000
+        CMD ["node", "server.js"]
+        """;
+});
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+TypeScript AppHost support for Dockerfile factory APIs isn't available because `DockerfileFactoryContext` exposes .NET runtime types that aren't part of the polyglot SDK surface. Use the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically) for TypeScript AppHosts.
+
+</TabItem>
+</Tabs>
+
+`WithDockerfileFactory` applies a factory-generated Dockerfile to an existing container resource:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("myapp", "placeholder")
+    .WithDockerfileFactory("../myapp", async context =>
+    {
+        return """
+            FROM nginx:alpine
+            COPY dist/ /usr/share/nginx/html
+            EXPOSE 80
+            """;
+    });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+TypeScript AppHost support for Dockerfile factory APIs isn't available because `DockerfileFactoryContext` exposes .NET runtime types that aren't part of the polyglot SDK surface. Use the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically) for TypeScript AppHosts.
+
+</TabItem>
+</Tabs>
+
 ## Pass build arguments
 
 The `WithBuildArg` method can be used to pass arguments into the container image build.
@@ -260,8 +328,8 @@ var container = builder.AddDockerfile("mygoapp", "relative/context/path")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -285,8 +353,8 @@ var container = builder.AddDockerfile("mygoapp", "relative/context/path")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -337,8 +405,8 @@ var container = builder.AddDockerfile("myapp", "relative/context/path")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 

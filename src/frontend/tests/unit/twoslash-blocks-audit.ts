@@ -27,6 +27,7 @@ import {
   getTwoslashOptions,
   readAspireTypes,
 } from '../../config/twoslash.config.mjs';
+import { locales } from '../../config/locales.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FRONTEND_ROOT = resolve(__dirname, '..', '..');
@@ -125,110 +126,77 @@ export interface KnownTypeBug {
 }
 
 export const KNOWN_TYPE_BUGS: ReadonlyArray<KnownTypeBug> = [
-  // 1. IResource merged-interface identity mismatch — ~10 sites
-  {
-    page: 'app-host/container-registry.mdx',
-    blockIndex: 7,
-    code: 2345,
-    messageContains: "'AzureContainerRegistryResource' is not assignable to parameter of type 'IResource'",
-    label: 'IResource identity (withReference + ACR)',
-  },
-  {
-    page: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host.mdx',
-    blockIndex: 5,
-    code: 2345,
-    messageContains: "'AzureContainerRegistryResource' is not assignable to parameter of type 'IResource'",
-    label: 'IResource identity (withContainerRegistry + ACR)',
-  },
-  {
-    page: 'integrations/cloud/azure/azure-openai/azure-openai-host.mdx',
-    blockIndex: 1,
-    code: 2345,
-    messageContains: "'AzureOpenAIDeploymentResource' is not assignable to parameter of type 'IResource'",
-    label: 'IResource identity (withReference + AOAI deployment)',
-  },
-  {
-    page: 'integrations/cloud/azure/azure-openai/azure-openai-host.mdx',
-    blockIndex: 2,
-    code: 2345,
-    messageContains: "'AzureOpenAIDeploymentResource' is not assignable to parameter of type 'IResource'",
-    expectedOccurrences: 2,
-    label: 'IResource identity (withReference + AOAI deployment)',
-  },
-  {
-    page: 'integrations/cloud/azure/azure-openai/azure-openai-host.mdx',
-    blockIndex: 3,
-    code: 2345,
-    messageContains: "'AzureOpenAIDeploymentResource' is not assignable to parameter of type 'IResource'",
-    label: 'IResource identity (withReference + AOAI deployment)',
-  },
-  {
-    page: 'integrations/cloud/azure/azure-openai/azure-openai-host.mdx',
-    blockIndex: 5,
-    code: 2345,
-    messageContains: "'AzureOpenAIDeploymentResource' is not assignable to parameter of type 'IResource'",
-    label: 'IResource identity (withReference + AOAI deployment)',
-  },
-  {
-    page: 'whats-new/aspire-13-2.mdx',
-    blockIndex: 6,
-    code: 2345,
-    messageContains: "is not assignable to parameter of type 'IResource'",
-    expectedOccurrences: 2,
-    label: 'IResource identity (waitFor + ADLS)',
-  },
-  {
-    page: 'ja/whats-new/aspire-13-2.mdx',
-    blockIndex: 6,
-    code: 2345,
-    messageContains: "is not assignable to parameter of type 'IResource'",
-    expectedOccurrences: 2,
-    label: 'IResource identity (waitFor + ADLS)',
-  },
-
-  // 2. AzureResourceInfrastructure.getProvisionableResources() missing
+  // 1. AzureResourceInfrastructure.getProvisionableResources() missing
   {
     page: 'integrations/cloud/azure/azure-openai/azure-openai-host.mdx',
     blockIndex: 6,
     code: 2339,
-    messageContains: "Property 'getProvisionableResources' does not exist on type 'AzureResourceInfrastructure'",
+    messageContains:
+      "Property 'getProvisionableResources' does not exist on type 'AzureResourceInfrastructure'",
     label: 'getProvisionableResources missing',
   },
   {
     page: 'integrations/cloud/azure/customize-resources.mdx',
     blockIndex: 4,
     code: 2339,
-    messageContains: "Property 'getProvisionableResources' does not exist on type 'AzureResourceInfrastructure'",
+    messageContains:
+      "Property 'getProvisionableResources' does not exist on type 'AzureResourceInfrastructure'",
     label: 'getProvisionableResources missing',
   },
 
-  // 3. YarpResource.addRoute(path, EndpointReference) overload missing
+  // 2. YarpResource.addRoute(path, EndpointReference) overload missing
   {
     page: 'deployment/javascript-apps.mdx',
     blockIndex: 2,
     code: 2345,
-    messageContains: "'EndpointReference' is not assignable to parameter of type 'string | ExternalServiceResource'",
+    messageContains:
+      "'EndpointReference' is not assignable to parameter of type 'string | ExternalServiceResource'",
     label: 'addRoute(path, EndpointReference) overload missing',
   },
 
-  // 4. GitHubModelName literal union outdated
+  // 3. GitHubModelName literal union outdated
   {
     page: 'integrations/cloud/azure/ai-compatibility-matrix.mdx',
     blockIndex: 4,
     code: 2769,
-    messageContains: "'\"openai/gpt-4o-mini\"' is not assignable to parameter of type 'GitHubModelName'",
+    messageContains:
+      "'\"openai/gpt-4o-mini\"' is not assignable to parameter of type 'GitHubModelName'",
     label: 'GitHubModelName literal union outdated',
   },
-
-  // 5. Foundry role-assignment helper missing from generated TypeScript declarations
-  {
-    page: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host.mdx',
-    blockIndex: 9,
-    code: 2551,
-    messageContains: "Property 'withFoundryRoleAssignments' does not exist on type 'ProjectResource'",
-    label: 'withFoundryRoleAssignments missing',
-  },
 ];
+
+const NON_ROOT_LOCALE_PREFIXES = Object.keys(locales)
+  .filter((key) => key !== 'root')
+  // Ensure compound locale prefixes like `pt-br/` are checked before `pt/`.
+  .sort((a, b) => b.length - a.length);
+
+function stripLocalePrefix(page: string): string {
+  for (const locale of NON_ROOT_LOCALE_PREFIXES) {
+    const prefix = `${locale}/`;
+    if (page.startsWith(prefix)) {
+      return page.slice(prefix.length);
+    }
+  }
+  return page;
+}
+
+function getApplicableKnownBugs(page: string, blockIndex: number): KnownTypeBug[] {
+  const exact = KNOWN_TYPE_BUGS.filter(
+    (kb) => kb.page === page && kb.blockIndex === blockIndex
+  );
+  if (exact.length > 0) {
+    return exact;
+  }
+
+  const basePage = stripLocalePrefix(page);
+  if (basePage === page) {
+    return [];
+  }
+
+  return KNOWN_TYPE_BUGS.filter(
+    (kb) => kb.page === basePage && kb.blockIndex === blockIndex
+  );
+}
 
 /** Match a diagnostic against the allowlist. */
 export function findKnownBug(
@@ -236,10 +204,8 @@ export function findKnownBug(
   blockIndex: number,
   diagnostic: BlockDiagnostic
 ): KnownTypeBug | undefined {
-  return KNOWN_TYPE_BUGS.find(
+  return getApplicableKnownBugs(page, blockIndex).find(
     (kb) =>
-      kb.page === page &&
-      kb.blockIndex === blockIndex &&
       kb.code === diagnostic.code &&
       diagnostic.message.includes(kb.messageContains)
   );
@@ -263,25 +229,20 @@ export function filterUnexpectedDiagnostics(report: AuditReport): BlockResult[] 
       continue;
     }
 
+    const applicableKnownBugs = getApplicableKnownBugs(
+      r.location.page,
+      r.location.blockIndex
+    );
     const budget = new Map<KnownTypeBug, number>();
-    for (const kb of KNOWN_TYPE_BUGS) {
-      if (
-        kb.page === r.location.page &&
-        kb.blockIndex === r.location.blockIndex
-      ) {
-        budget.set(kb, kb.expectedOccurrences ?? 1);
-      }
+    for (const kb of applicableKnownBugs) {
+      budget.set(kb, kb.expectedOccurrences ?? 1);
     }
 
     const unexpected: BlockDiagnostic[] = [];
     for (const d of r.diagnostics) {
       let consumed = false;
       for (const [kb, remaining] of budget) {
-        if (
-          remaining > 0 &&
-          kb.code === d.code &&
-          d.message.includes(kb.messageContains)
-        ) {
+        if (remaining > 0 && kb.code === d.code && d.message.includes(kb.messageContains)) {
           budget.set(kb, remaining - 1);
           consumed = true;
           break;
@@ -305,9 +266,7 @@ export function filterUnexpectedDiagnostics(report: AuditReport): BlockResult[] 
  * detect both stale entries (count of zero) AND silently-swallowed new
  * errors (count greater than `expectedOccurrences`).
  */
-export function countKnownBugOccurrences(
-  report: AuditReport
-): Map<KnownTypeBug, number> {
+export function countKnownBugOccurrences(report: AuditReport): Map<KnownTypeBug, number> {
   const counts = new Map<KnownTypeBug, number>();
   for (const kb of KNOWN_TYPE_BUGS) counts.set(kb, 0);
   for (const r of report.results) {
@@ -423,9 +382,10 @@ function compileBlock(source: string, lang: string): BlockDiagnostic[] {
       code: e.code,
       // `@ec-ts/twoslash` puts the rendered diagnostic on `.text` (the
       // older `@typescript/twoslash` shape used `.renderedMessage`).
-      message: (e as { text?: string; renderedMessage?: string }).text
-        ?? (e as { renderedMessage?: string }).renderedMessage
-        ?? `(unknown ts(${e.code}) diagnostic)`,
+      message:
+        (e as { text?: string; renderedMessage?: string }).text ??
+        (e as { renderedMessage?: string }).renderedMessage ??
+        `(unknown ts(${e.code}) diagnostic)`,
       // Will be remapped to mdx coordinates by the caller.
       mdxLine: 0,
       column: ((e.character as number | undefined) ?? 0) + 1,
@@ -454,9 +414,7 @@ export function runAudit(): AuditReport {
 
   const { exists } = readAspireTypes();
   if (!exists) {
-    throw new Error(
-      'aspire.d.ts is missing — run `pnpm twoslash-types` before auditing.'
-    );
+    throw new Error('aspire.d.ts is missing — run `pnpm twoslash-types` before auditing.');
   }
 
   const filesAbs = walkMdx(DOCS_ROOT);
@@ -492,9 +450,7 @@ export function runAudit(): AuditReport {
     }
   }
 
-  const blocksWithErrors = results.filter(
-    (r) => r.diagnostics.length > 0 || r.crashed
-  ).length;
+  const blocksWithErrors = results.filter((r) => r.diagnostics.length > 0 || r.crashed).length;
   const totalDiagnostics = results.reduce((sum, r) => sum + r.diagnostics.length, 0);
 
   return {

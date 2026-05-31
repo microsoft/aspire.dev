@@ -32,6 +32,18 @@ export const collections = {
            */
           og: z.boolean().optional(),
           /**
+           * SEO-only title override. Used **verbatim** as the page's
+           * `og:title` and `twitter:title` (no `· Aspire` suffix is
+           * appended) so authors can tune the social-card title to the
+           * 50–60 character optimal range without bloating the visible
+           * `<h1>` or sidebar label. Falls back to `title` when unset.
+           *
+           * Prefer rewriting the visible `title` when the natural H1 can
+           * accommodate the longer string. Use `seoTitle` only when the
+           * sidebar/H1 must stay short (commands, terse labels, etc.).
+           */
+          seoTitle: z.string().optional(),
+          /**
            * The date the release was published to NuGet. Used on What's New
            * pages to display the release date near the top of the page.
            * Accepts values that can be coerced to a JavaScript Date; use
