@@ -30,8 +30,8 @@ If you're new to the Azure AI Foundry integration, start with the [Get started w
 
 To start building an Aspire app that uses Azure AI Foundry, install the [📦 Aspire.Hosting.Foundry](https://www.nuget.org/packages/Aspire.Hosting.Foundry) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```bash title="Terminal"
 aspire add azure-ai-foundry
@@ -61,7 +61,7 @@ Or, choose a manual installation approach:
 </Aside>
 
 </TabItem>
-<TabItem id="typescript" label="TypeScript">
+<TabItem id='typescript' label='TypeScript'>
 
 ```bash title="Terminal"
 aspire add azure-ai-foundry
@@ -466,9 +466,12 @@ If you omit the `project` argument, Aspire uses an existing Foundry project from
 
 ### Select the hosted agent protocol
 
-By default, Aspire configures a hosted agent for the `responses` protocol. If your agent implements the `invocations` protocol, configure the protocol versions when calling `AsHostedAgent` from a C# AppHost. The selected protocol affects both run mode (dashboard URLs and the **Send Message** command) and publish mode (the `container_protocol_versions` field in the Foundry hosted agent definition).
+By default, Aspire configures a hosted agent for the `responses` protocol. If your agent implements the `invocations` protocol, configure the protocol versions when configuring the hosted agent in your AppHost. The selected protocol affects both run mode (dashboard URLs and the **Send Message** command) and publish mode (the `container_protocol_versions` field in the Foundry hosted agent definition).
 
-```csharp title="AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var foundry = builder.AddFoundry("foundry");
@@ -488,17 +491,44 @@ builder.AddProject<Projects.Agent>("agent-dotnet")
 builder.Build().Run();
 ```
 
-When the first `ContainerProtocolVersions` entry uses the `invocations` protocol, Aspire:
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry('foundry');
+const project = await foundry.addProject('my-project');
+const chat = await project.addModelDeployment('chat', {
+  name: 'gpt-5-mini',
+  version: '2025-06-01',
+  format: 'OpenAI',
+});
+
+const agent = await builder
+  .addProject('agent-dotnet', '../Agent/Agent.csproj')
+  .withReference(project)
+  .withReference(chat);
+
+await agent.asHostedAgent(project, {
+  protocols: [{ protocol: 'invocations', version: '1.0.0' }],
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+When the first configured protocol version uses the `invocations` protocol, Aspire:
 
 - Labels the run-mode dashboard endpoint as **Invocations Endpoint** and routes dashboard URLs to `/invocations` instead of `/responses`.
 - Configures the **Send Message** dashboard command to POST to `/invocations`.
 - Emits the selected protocol versions in the `container_protocol_versions` field of the Foundry hosted agent definition at publish time.
 
 Multiple protocol versions can be listed. In run mode only the first entry is used to select the endpoint path; in publish mode all entries are forwarded to the hosted agent definition.
-
-:::note
-TypeScript AppHost support for selecting hosted-agent protocol versions is not yet available. The exported hosted-agent options object does not currently expose `ContainerProtocolVersions`.
-:::
 
 ### Add and publish a prompt agent
 

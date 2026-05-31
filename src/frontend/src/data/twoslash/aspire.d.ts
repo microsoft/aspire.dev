@@ -492,7 +492,7 @@ export interface CertificateTrustExecutionConfigurationContext {
   certificateBundlePath: ReferenceExpression;
   certificateDirectoriesPath: ReferenceExpression;
   rootCertificatesPath: string;
-  isContainer: boolean;
+  isContainer?: boolean;
 }
 
 /**
@@ -507,7 +507,7 @@ export interface CommandOptions {
   visibility: ResourceCommandVisibility;
   confirmationMessage: string;
   iconName: string;
-  iconVariant: IconVariant;
+  iconVariant?: IconVariant;
   isHighlighted: boolean;
   updateState: callback;
 }
@@ -518,8 +518,8 @@ export interface CommandOptions {
 
 export interface CommandResultData {
   value: string;
-  format: CommandResultFormat;
-  displayImmediately: boolean;
+  format?: CommandResultFormat;
+  displayImmediately?: boolean;
 }
 
 /**
@@ -528,10 +528,10 @@ export interface CommandResultData {
 
 export interface ExecuteCommandResult {
   success: boolean;
-  canceled: boolean;
-  errorMessage: string;
-  message: string;
-  data: CommandResultData;
+  canceled?: boolean;
+  errorMessage?: string;
+  message?: string;
+  data?: CommandResultData;
 }
 
 /**
@@ -558,7 +558,7 @@ export interface HttpCommandExportOptions {
   description: string;
   confirmationMessage: string;
   iconName: string;
-  iconVariant: IconVariant;
+  iconVariant?: IconVariant;
   isHighlighted: boolean;
   commandName: string;
   endpointName: string;
@@ -585,12 +585,12 @@ export interface ProcessCommandExportOptions {
   arguments: string[];
   workingDirectory: string;
   environmentVariables: Dict<string,string>;
-  inheritEnvironmentVariables: boolean;
+  inheritEnvironmentVariables?: boolean;
   standardInputContent: string;
-  killEntireProcessTree: boolean;
+  killEntireProcessTree?: boolean;
   commandOptions: CommandOptions;
-  maxOutputLineCount: number;
-  displayImmediately: boolean;
+  maxOutputLineCount?: number;
+  displayImmediately?: boolean;
   successExitCodes: number[];
 }
 
@@ -600,8 +600,8 @@ export interface ProcessCommandExportOptions {
 
 export interface ProcessCommandResultExportOptions {
   commandOptions: CommandOptions;
-  maxOutputLineCount: number;
-  displayImmediately: boolean;
+  maxOutputLineCount?: number;
+  displayImmediately?: boolean;
   successExitCodes: number[];
 }
 
@@ -614,9 +614,9 @@ export interface ProcessCommandSpecExportData {
   arguments: string[];
   workingDirectory: string;
   environmentVariables: Dict<string,string>;
-  inheritEnvironmentVariables: boolean;
+  inheritEnvironmentVariables?: boolean;
   standardInputContent: string;
-  killEntireProcessTree: boolean;
+  killEntireProcessTree?: boolean;
 }
 
 /**
@@ -626,7 +626,7 @@ export interface ProcessCommandSpecExportData {
 export interface ResourceUrlAnnotation {
   url: string;
   displayText: string;
-  endpoint: EndpointReference;
+  endpoint?: EndpointReference;
   displayLocation: UrlDisplayLocation;
 }
 
@@ -636,10 +636,10 @@ export interface ResourceUrlAnnotation {
 
 export interface UpdateCommandStateResourceSnapshot {
   resourceType: string;
-  state: string;
-  stateStyle: string;
-  healthStatus: HealthStatus;
-  exitCode: number;
+  state?: string;
+  stateStyle?: string;
+  healthStatus?: HealthStatus;
+  exitCode?: number;
 }
 
 /**
@@ -648,7 +648,7 @@ export interface UpdateCommandStateResourceSnapshot {
 
 export interface AddContainerOptions {
   image: string;
-  tag: string;
+  tag?: string;
 }
 
 /**
@@ -682,12 +682,12 @@ export interface CreateBuilderOptions {
 
 export interface HttpsCertificateExecutionConfigurationExportData {
   subject: string;
-  thumbprint: string;
+  thumbprint?: string;
   keyPathExpression: string;
   pfxPathExpression: string;
   isKeyPathReferenced: boolean;
   isPfxPathReferenced: boolean;
-  password: string;
+  password?: string;
 }
 
 /**
@@ -697,7 +697,7 @@ export interface HttpsCertificateExecutionConfigurationExportData {
 export interface HttpsCertificateInfo {
   subject: string;
   issuer: string;
-  thumbprint: string;
+  thumbprint?: string;
 }
 
 /**
@@ -718,10 +718,10 @@ export interface ReferenceEnvironmentInjectionOptions {
 export interface ResourceEventDto {
   resourceName: string;
   resourceId: string;
-  state: string;
-  stateStyle: string;
-  healthStatus: string;
-  exitCode: number;
+  state?: string;
+  stateStyle?: string;
+  healthStatus?: string;
+  exitCode?: number;
 }
 
 /**
@@ -730,18 +730,18 @@ export interface ResourceEventDto {
 
 export interface InteractionInput {
   name: string;
-  label: string;
-  description: string;
-  enableDescriptionMarkdown: boolean;
+  label?: string;
+  description?: string;
+  enableDescriptionMarkdown?: boolean;
   inputType: InputType;
-  required: boolean;
+  required?: boolean;
   options: String[];
-  dynamicLoading: InputLoadOptions;
+  dynamicLoading?: InputLoadOptions;
   value: string;
-  placeholder: string;
-  allowCustomChoice: boolean;
+  placeholder?: string;
+  allowCustomChoice?: boolean;
   disabled: boolean;
-  maxLength: number;
+  maxLength?: number;
 }
 
 /**
@@ -749,7 +749,7 @@ export interface InteractionInput {
  */
 
 export interface AzureContainerAppScaleConfig {
-  minReplicas: number;
+  minReplicas?: number;
 }
 
 /**
@@ -757,7 +757,7 @@ export interface AzureContainerAppScaleConfig {
  */
 
 export interface AzureAppServiceSiteConfig {
-  isAlwaysOn: boolean;
+  isAlwaysOn?: boolean;
 }
 
 /**
@@ -767,12 +767,12 @@ export interface AzureAppServiceSiteConfig {
 export interface AzureNspAccessRule {
   name: string;
   direction: NetworkSecurityPerimeterAccessRuleDirection;
-  addressPrefixes: List<string>;
-  addressPrefixReferences: List<ReferenceExpression>;
-  subscriptions: List<string>;
-  subscriptionReferences: List<ReferenceExpression>;
-  fullyQualifiedDomainNames: List<string>;
-  fullyQualifiedDomainNameReferences: List<ReferenceExpression>;
+  addressPrefixes?: List<string>;
+  addressPrefixReferences?: List<ReferenceExpression>;
+  subscriptions?: List<string>;
+  subscriptionReferences?: List<ReferenceExpression>;
+  fullyQualifiedDomainNames?: List<string>;
+  fullyQualifiedDomainNameReferences?: List<ReferenceExpression>;
 }
 
 /**
@@ -808,7 +808,7 @@ export interface AzureServiceBusCorrelationFilter {
   sessionId: string;
   replyToSessionId: string;
   contentType: string;
-  requiresPreprocessing: boolean;
+  requiresPreprocessing?: boolean;
 }
 
 /**
@@ -819,6 +819,28 @@ export interface AzureServiceBusRule {
   name: string;
   correlationFilter: AzureServiceBusCorrelationFilter;
   filterType: AzureServiceBusFilterType;
+}
+
+/**
+ * DTO Aspire.Hosting.Foundry.HostedAgentOptions
+ */
+
+export interface HostedAgentOptions {
+  description?: string | null;
+  environmentVariables?: Dict<string,string>;
+  cpu?: number;
+  memory?: number;
+  metadata?: Dict<string,string>;
+  protocols?: HostedAgentProtocolVersion[];
+}
+
+/**
+ * DTO Aspire.Hosting.Foundry.HostedAgentProtocolVersion
+ */
+
+export interface HostedAgentProtocolVersion {
+  protocol: string;
+  version: string;
 }
 
 /**
@@ -836,12 +858,12 @@ export interface FoundryModel {
  */
 
 export interface YarpActiveHealthCheckConfig {
-  enabled: boolean;
-  interval: timespan;
+  enabled?: boolean;
+  interval?: timespan;
   path: string;
   policy: string;
   query: string;
-  timeout: timespan;
+  timeout?: timespan;
 }
 
 /**
@@ -849,10 +871,10 @@ export interface YarpActiveHealthCheckConfig {
  */
 
 export interface YarpForwarderRequestConfig {
-  activityTimeout: timespan;
-  allowResponseBuffering: boolean;
+  activityTimeout?: timespan;
+  allowResponseBuffering?: boolean;
   version: string;
-  versionPolicy: HttpVersionPolicy;
+  versionPolicy?: HttpVersionPolicy;
 }
 
 /**
@@ -870,9 +892,9 @@ export interface YarpHealthCheckConfig {
  */
 
 export interface YarpHttpClientConfig {
-  dangerousAcceptAnyServerCertificate: boolean;
-  enableMultipleHttp2Connections: boolean;
-  maxConnectionsPerServer: number;
+  dangerousAcceptAnyServerCertificate?: boolean;
+  enableMultipleHttp2Connections?: boolean;
+  maxConnectionsPerServer?: number;
   requestHeaderEncoding: string;
   responseHeaderEncoding: string;
   sslProtocols: YarpSslProtocol[];
@@ -884,9 +906,9 @@ export interface YarpHttpClientConfig {
  */
 
 export interface YarpPassiveHealthCheckConfig {
-  enabled: boolean;
+  enabled?: boolean;
   policy: string;
-  reactivationPeriod: timespan;
+  reactivationPeriod?: timespan;
 }
 
 /**
@@ -930,7 +952,7 @@ export interface YarpRouteQueryParameterMatch {
 export interface YarpSessionAffinityConfig {
   affinityKeyName: string;
   cookie: YarpSessionAffinityCookieConfig;
-  enabled: boolean;
+  enabled?: boolean;
   failurePolicy: string;
   policy: string;
 }
@@ -941,13 +963,13 @@ export interface YarpSessionAffinityConfig {
 
 export interface YarpSessionAffinityCookieConfig {
   domain: string;
-  expiration: timespan;
-  httpOnly: boolean;
-  isEssential: boolean;
-  maxAge: timespan;
+  expiration?: timespan;
+  httpOnly?: boolean;
+  isEssential?: boolean;
+  maxAge?: timespan;
   path: string;
-  sameSite: SameSiteMode;
-  securePolicy: CookieSecurePolicy;
+  sameSite?: SameSiteMode;
+  securePolicy?: CookieSecurePolicy;
 }
 
 /**
@@ -956,8 +978,8 @@ export interface YarpSessionAffinityCookieConfig {
 
 export interface YarpWebProxyConfig {
   address: uri;
-  bypassOnLocal: boolean;
-  useDefaultCredentials: boolean;
+  bypassOnLocal?: boolean;
+  useDefaultCredentials?: boolean;
 }
 
 // ---- handle types ----
@@ -12788,6 +12810,11 @@ export interface ContainerResource {
 
   withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
   /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   */
+
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IComputeResource;
+  /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
 
@@ -13427,6 +13454,11 @@ export interface CSharpAppResource {
 
   withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
   /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   */
+
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IComputeResource;
+  /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
 
@@ -14045,6 +14077,11 @@ export interface DotnetToolResource {
 
   withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
   /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   */
+
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IComputeResource;
+  /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
 
@@ -14639,6 +14676,11 @@ export interface ExecutableResource {
 
   withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
   /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   */
+
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IComputeResource;
+  /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
 
@@ -15082,6 +15124,11 @@ export interface IComputeResource {
    */
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   */
+
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IComputeResource;
   /**
    * Publishes the specified resource as a Kubernetes service.
    */
@@ -16582,6 +16629,11 @@ export interface ProjectResource {
    */
 
   withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   */
+
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IComputeResource;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */

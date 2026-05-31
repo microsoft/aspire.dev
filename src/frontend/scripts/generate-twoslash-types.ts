@@ -43,6 +43,8 @@ interface FunctionEntry {
 interface DtoField {
   name: string;
   type: string;
+  isOptional?: boolean;
+  isNullable?: boolean;
 }
 
 interface DtoType {
@@ -687,9 +689,11 @@ for (const dto of dtoTypes) {
   parts.push(`export interface ${dto.name} {`);
   for (const f of dto.fields) {
     const t = cleanType(f.type);
+    const optional = f.isOptional ? '?' : '';
+    const nullable = f.isNullable ? ' | null' : '';
     extractTypeIdentifiers(t, referencedTypes);
     scanExprForGenerics(t);
-    parts.push(`  ${camelCase(f.name)}: ${t};`);
+    parts.push(`  ${camelCase(f.name)}${optional}: ${t}${nullable};`);
   }
   parts.push(`}`);
   parts.push('');
