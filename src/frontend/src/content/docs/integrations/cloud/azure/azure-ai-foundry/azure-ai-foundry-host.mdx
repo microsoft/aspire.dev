@@ -351,7 +351,7 @@ await foundry
 
 ## Add a hosted agent to Azure AI Foundry
 
-Use `AsHostedAgent` to configure an executable or containerized app as a hosted agent in a Foundry project:
+Use `AsHostedAgent` in C# or `asHostedAgent` in TypeScript to configure an executable or containerized app as a hosted agent in a Foundry project:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -397,14 +397,14 @@ await builder
   .addPythonApp('agent-python', '../agent', 'main:app')
   .withReference(project)
   .withReference(chat)
-  .asHostedAgent({ project });
+  .asHostedAgent(project);
 
 await builder
   .addProject('agent-dotnet', '../Agent/Agent.csproj')
   .withHttpEndpoint({ targetPort: 9000 })
   .withReference(project)
   .withReference(chat)
-  .asHostedAgent({ project });
+  .asHostedAgent(project);
 
 await builder.build().run();
 ```
@@ -450,19 +450,19 @@ const dotnetWeatherAgent = await builder
   .withReference(chat)
   .waitFor(chat);
 
-await dotnetWeatherAgent.asHostedAgent({ project });
+await dotnetWeatherAgent.asHostedAgent(project);
 ```
 
 </TabItem>
 </Tabs>
 
-In run mode, Aspire also adds dashboard URLs for `/responses`, `/liveness`, and `/readiness`, configures `/liveness` as an HTTP health check, adds a dashboard command for sending a message to `/responses`, and enables OpenTelemetry environment variables for agent instrumentation.
+In run mode, Aspire also opens the agent's dashboard URL at the selected protocol path, defaults that path to `/responses`, adds a dashboard command for sending a message to the selected path, and enables OpenTelemetry environment variables for agent instrumentation.
 
 For .NET hosted agents, add your Service Defaults project reference and call `builder.AddServiceDefaults()` in the hosted-agent app so logs, metrics, traces, HTTP instrumentation, and OTLP export flow into the Aspire dashboard. Then enable telemetry on the Foundry Responses chat client that backs the Microsoft Agent Framework (MAF) agent.
 
 In publish mode, Aspire creates an `AzureHostedAgentResource` and publishes the container to the project-associated registry.
 
-If you omit the `project` argument, Aspire uses an existing Foundry project from the app model or creates one automatically.
+For C# AppHosts, the parameterless `AsHostedAgent()` overload reuses an existing Foundry project from the app model or creates one automatically. TypeScript AppHosts pass the project resource explicitly.
 
 ### Add and publish a prompt agent
 
@@ -509,12 +509,14 @@ const webSearch = await project.addWebSearchTool('web-search');
 
 await project
   .addPromptAgent(
-    chat,
     'web-researcher',
-    `
+    chat,
+    {
+      instructions: `
     You are the Web Researcher. Use web search for current information,
     cite sources, summarize tradeoffs, and keep answers concise and practical.
-  `
+  `,
+    }
   )
   .withTool(webSearch);
 
@@ -537,7 +539,7 @@ Prompt agents are deployed to Azure AI Foundry even during local development. Lo
 
 ## Invoke agents from the Aspire dashboard
 
-Aspire also makes the declared agents easy to try from the dashboard. Prompt agents get a **Send Message** command from `AddPromptAgent(...)`. Hosted agents configured with `AsHostedAgent(...)` get a highlighted **Send Message** command that posts to the local `/responses` endpoint, plus dashboard links for `/responses`, `/liveness`, and `/readiness`.
+Aspire also makes the declared agents easy to try from the dashboard. Prompt agents get a **Send Message** command from `AddPromptAgent(...)`. Hosted agents configured with `AsHostedAgent(...)` get a highlighted **Send Message** command that posts to the selected protocol path, which defaults to the local `/responses` endpoint.
 
 <ThemeAwareImage
   dark={agentSendMessage}

@@ -55,4 +55,11 @@ describe('generate-twoslash-types', () => {
     // params are primitives — generator pairs it with a positional overload.
     expect(output).toMatch(/withDataVolume\(options\?: \{/);
   });
+
+  test('does not merge post-snapshot declarations with generated DTOs', () => {
+    const declarations = output.match(/export interface ParameterCustomInputOptions\b/g) ?? [];
+
+    expect(declarations).toHaveLength(1);
+    expect(output).toMatch(/inputType\?: InputType/);
+  });
 });
