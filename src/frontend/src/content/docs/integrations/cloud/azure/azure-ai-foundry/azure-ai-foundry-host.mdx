@@ -466,12 +466,9 @@ If you omit the `project` argument, Aspire uses an existing Foundry project from
 
 ### Select the hosted agent protocol
 
-By default, Aspire configures a hosted agent for the `responses` protocol. If your agent implements the `invocations` protocol, configure the protocol versions when calling `AsHostedAgent`. The selected protocol affects both run mode (dashboard URLs and the **Send Message** command) and publish mode (the `container_protocol_versions` field in the Foundry hosted agent definition).
+By default, Aspire configures a hosted agent for the `responses` protocol. If your agent implements the `invocations` protocol, configure the protocol versions when calling `AsHostedAgent` from a C# AppHost. The selected protocol affects both run mode (dashboard URLs and the **Send Message** command) and publish mode (the `container_protocol_versions` field in the Foundry hosted agent definition).
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var foundry = builder.AddFoundry("foundry");
@@ -491,36 +488,7 @@ builder.AddProject<Projects.Agent>("agent-dotnet")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="TypeScript — apphost.mts" twoslash
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-const foundry = await builder.addFoundry('foundry');
-const project = await foundry.addProject('my-project');
-const chat = await project.addModelDeployment('chat', 'gpt-5-mini', {
-  modelVersion: '2025-06-01',
-  format: 'OpenAI',
-});
-
-await builder
-  .addProject('agent-dotnet', '../Agent/Agent.csproj')
-  .withReference(project)
-  .withReference(chat)
-  .asHostedAgent(project, {
-    protocols: [{ protocol: 'invocations', version: '1.0.0' }],
-  });
-
-await builder.build().run();
-```
-
-</TabItem>
-</Tabs>
-
-When the first `ContainerProtocolVersions` entry (C#) or the first `protocols` entry (TypeScript) uses the `invocations` protocol, Aspire:
+When the first `ContainerProtocolVersions` entry uses the `invocations` protocol, Aspire:
 
 - Labels the run-mode dashboard endpoint as **Invocations Endpoint** and routes dashboard URLs to `/invocations` instead of `/responses`.
 - Configures the **Send Message** dashboard command to POST to `/invocations`.
@@ -529,7 +497,7 @@ When the first `ContainerProtocolVersions` entry (C#) or the first `protocols` e
 Multiple protocol versions can be listed. In run mode only the first entry is used to select the endpoint path; in publish mode all entries are forwarded to the hosted agent definition.
 
 :::note
-C# AppHosts use `AsHostedAgent` with an `Action<HostedAgentConfiguration>` callback to access the full Azure SDK configuration surface, including `ContainerProtocolVersions`. TypeScript and other polyglot AppHosts use the `protocols` property on the hosted agent options object.
+TypeScript AppHost support for selecting hosted-agent protocol versions is not yet available. The exported hosted-agent options object does not currently expose `ContainerProtocolVersions`.
 :::
 
 ### Add and publish a prompt agent
