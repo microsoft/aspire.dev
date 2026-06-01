@@ -12,6 +12,7 @@ tableOfContents:
 import {
   Steps,
   Aside,
+  FileTree,
   Icon,
   Tabs,
   TabItem,
@@ -131,7 +132,7 @@ Aspire 13.4 strengthens the TypeScript experience by validating TypeScript AppHo
 
 The documentation now treats TypeScript AppHosts as a first-class peer to C# AppHosts: AppHost-focused guides and integration pages include TypeScript examples alongside C# where the API is available. The release also adds a new set of TypeScript samples so you can start from working `apphost.mts` projects instead of translating from C#.
 
-Existing TypeScript AppHosts scaffolded by earlier CLI versions (using `apphost.ts` and `./.modules/aspire.js`) continue to work on 13.4 without changes — the CLI transparently routes generated SDK files to the legacy `./.modules/` folder and rewrites them to `.ts`/`.js` so existing imports resolve. See [Legacy `apphost.ts` projects (pre-13.4)](/app-host/typescript-apphost/#legacy-apphostts-projects-pre-134) for details and an opt-in migration to the new `apphost.mts` layout.
+Existing TypeScript AppHosts scaffolded by earlier CLI versions continue to work on 13.4 without changes. If your project uses `apphost.ts` and `./.modules/aspire.js`, see [Legacy `apphost.ts` projects (pre-13.4)](#legacy-apphostts-projects-pre-134) for compatibility details and an opt-in migration to the new `apphost.mts` layout.
 
 <LearnMore>
   For setup details, see [TypeScript AppHosts](/app-host/typescript-apphost/).
@@ -395,6 +396,102 @@ For the complete list of bug fixes and smaller changes in this release, see the 
 ## 🙏 Community contributions
 
 Aspire is built in the open, and this release wouldn't be what it is without you. A huge thank you to all community contributors who helped make Aspire 13.4 possible — including [@mtmk](https://github.com/mtmk) for the NATS client update, [@ellahathaway](https://github.com/ellahathaway) for friendlier `aspire new` NuGet feed errors, [@Bertolossi](https://github.com/Bertolossi) for fixing an `aspire run` watch-mode hang, and [@arpitjain099](https://github.com/arpitjain099) for CI permission hardening. We're always excited to [see community contributions](/community/contributors/)! If you'd like to get involved, check out our [contributing guide](/community/contributor-guide/).
+
+## Legacy `apphost.ts` projects (pre-13.4)
+
+TypeScript AppHosts scaffolded by Aspire CLI versions earlier than 13.4 use a slightly different layout: the entry point was `apphost.ts` (not `apphost.mts`), and the generated TypeScript SDK lives in `./.modules/` (not `./.aspire/modules/`):
+
+<FileTree>
+
+- my-apphost/
+  - .modules/  Generated TypeScript SDK (do not edit)
+    - aspire.ts
+    - base.ts
+    - transport.ts
+  - apphost.ts  Your AppHost entry point
+  - aspire.config.json  Aspire configuration
+  - package.json
+  - tsconfig.apphost.json
+
+</FileTree>
+
+The pre-13.4 entry point imports the SDK with the `.js` extension:
+
+```typescript title="apphost.ts (pre-13.4)"
+import { createBuilder } from './.modules/aspire.js';
+```
+
+### Compatibility in 13.4
+
+The 13.4 Aspire CLI keeps these projects working without any changes:
+
+- When the CLI sees an `apphost.ts` file with no `apphost.mts` alongside it — either because `aspire.config.json` sets `appHost.path` to `apphost.ts`, or because a disk scan finds `apphost.ts` and no `apphost.mts` — it switches to the legacy output layout for that project.
+- Generated SDK files are written to `./.modules/` instead of `./.aspire/modules/`.
+- Generated files are rewritten from `.mts`/`.mjs` to `.ts`/`.js`, including the inter-module import specifiers inside the SDK, so the existing `./.modules/aspire.js` import in your `apphost.ts` continues to resolve.
+
+`aspire add`, `aspire restore`, `aspire run`, and `aspire start` all continue to work against an existing `apphost.ts` project with no edits required.
+
+<Aside type="tip">
+You don't need to migrate to keep your existing TypeScript AppHost running on Aspire 13.4. The compatibility path is automatic. Migrate only if you want the new default layout — for example, to match the file tree shown in newer documentation and samples.
+</Aside>
+
+### Migrating to the new `apphost.mts` layout
+
+If you'd like to move an existing project to the new default layout, the migration is mechanical. The steps below assume an AppHost root with `apphost.ts`, `./.modules/`, and the legacy `appHost.path` value:
+
+<Steps>
+
+1. **Rename the entry point file.**
+
+   ```bash title="Rename the AppHost entry point"
+   git mv apphost.ts apphost.mts
+   ```
+
+2. **Update the SDK import** in `apphost.mts` to use the new folder and the `.mjs` extension:
+
+   ```typescript title="apphost.mts" del={1} ins={2}
+   import { createBuilder } from './.modules/aspire.js';
+   import { createBuilder } from './.aspire/modules/aspire.mjs';
+   ```
+
+3. **Update `appHost.path`** in `aspire.config.json`:
+
+   ```json title="aspire.config.json" del={3} ins={4}
+   {
+     "appHost": {
+       "path": "apphost.ts",
+       "path": "apphost.mts",
+       "language": "typescript/nodejs"
+     }
+   }
+   ```
+
+4. **Update `tsconfig.apphost.json`** so its `include` (and any related glob) entries point at the new file and folder. Replace references to `apphost.ts` with `apphost.mts`, and references to `.modules/` with `.aspire/modules/`. For example:
+
+   ```json title="tsconfig.apphost.json" del={4,5} ins={6,7}
+   {
+     "compilerOptions": { /* ... */ },
+     "include": [
+       "apphost.ts",
+       ".modules/**/*.ts",
+       "apphost.mts",
+       ".aspire/modules/**/*.mts"
+     ]
+   }
+   ```
+
+5. **Delete the old generated SDK folder and regenerate.** The CLI now writes the SDK under `./.aspire/modules/`, so the old folder is no longer used:
+
+   ```bash title="Regenerate the TypeScript SDK"
+   rm -rf .modules
+   aspire restore
+   ```
+
+   If your `.gitignore` ignores `.modules/`, replace that entry with `.aspire/` or `.aspire/modules/` to match the new location.
+
+</Steps>
+
+After migrating, `aspire run` behaves exactly the same as before — the CLI now uses the modern output path because `apphost.mts` is present.
 
 ## ⚠️ Breaking changes
 
