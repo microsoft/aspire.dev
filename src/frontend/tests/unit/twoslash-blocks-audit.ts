@@ -126,24 +126,7 @@ export interface KnownTypeBug {
 }
 
 export const KNOWN_TYPE_BUGS: ReadonlyArray<KnownTypeBug> = [
-  // 1. IResource merged-interface identity mismatch — ~10 sites
-  {
-    page: 'app-host/container-registry.mdx',
-    blockIndex: 7,
-    code: 2345,
-    messageContains:
-      "'AzureContainerRegistryResource' is not assignable to parameter of type 'IResource'",
-    label: 'IResource identity (withReference + ACR)',
-  },
-  {
-    page: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host.mdx',
-    blockIndex: 5,
-    code: 2345,
-    messageContains:
-      "'AzureContainerRegistryResource' is not assignable to parameter of type 'IResource'",
-    label: 'IResource identity (withContainerRegistry + ACR)',
-  },
-  // 2. AzureResourceInfrastructure.getProvisionableResources() missing
+  // 1. AzureResourceInfrastructure.getProvisionableResources() missing
   {
     page: 'integrations/cloud/azure/azure-openai/azure-openai-host.mdx',
     blockIndex: 6,
@@ -161,7 +144,7 @@ export const KNOWN_TYPE_BUGS: ReadonlyArray<KnownTypeBug> = [
     label: 'getProvisionableResources missing',
   },
 
-  // 3. YarpResource.addRoute(path, EndpointReference) overload missing
+  // 2. YarpResource.addRoute(path, EndpointReference) overload missing
   {
     page: 'deployment/javascript-apps.mdx',
     blockIndex: 2,
@@ -171,7 +154,7 @@ export const KNOWN_TYPE_BUGS: ReadonlyArray<KnownTypeBug> = [
     label: 'addRoute(path, EndpointReference) overload missing',
   },
 
-  // 4. GitHubModelName literal union outdated
+  // 3. GitHubModelName literal union outdated
   {
     page: 'integrations/cloud/azure/ai-compatibility-matrix.mdx',
     blockIndex: 4,

@@ -63,7 +63,7 @@ This updates your `aspire.config.json` with the RabbitMQ hosting integration pac
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.RabbitMQ": "13.3.0"
+    "Aspire.Hosting.RabbitMQ": "13.4.0"
   }
 }
 ```
@@ -375,6 +375,24 @@ The TypeScript AppHost doesn't currently expose an `asExisting(...)` API for Rab
 ## Connection properties
 
 For the full reference of RabbitMQ connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to RabbitMQ](../rabbitmq-connect/).
+
+<span id="rabbitmq-4-3-queue-declaration-requirements" aria-hidden="true"></span>
+
+## RabbitMQ 4.3 queue declaration requirements
+
+Starting with Aspire 13.4, the default RabbitMQ container image used by `AddRabbitMQ` is **4.3**. RabbitMQ 4.3 disables the deprecated `transient_nonexcl_queues` feature by default. Declaring a queue that is simultaneously non-durable (transient) and non-exclusive is rejected by the broker with AMQP error 541 (`INTERNAL_ERROR - Feature 'transient_nonexcl_queues' is deprecated.`).
+
+If your application declares such queues, switch to one of the supported patterns:
+
+- **Durable** (`durable: true`) — the queue definition survives broker restarts.
+- **Transient exclusive** (`exclusive: true`) — the queue is auto-deleted when the declaring connection closes.
+- **Durable with a queue TTL** — for short-lived queues whose definition survives a restart but whose contents expire on a schedule.
+
+For upstream details, see the [RabbitMQ 4.3.0 release notes](https://github.com/rabbitmq/rabbitmq-server/releases/tag/v4.3.0).
+
+<Aside type="note">
+  Neither the Aspire RabbitMQ hosting integration (`Aspire.Hosting.RabbitMQ`) nor the client integration (`Aspire.RabbitMQ.Client`) declares queues for you. The hosting integration models and runs the RabbitMQ broker as a resource and exposes a connection string; the client integration registers an `IConnection` and wires up DI, configuration, telemetry, and health checks. Queue topology is entirely owned by your application code, so any queue declarations your app makes must comply with the RabbitMQ 4.3 requirements above.
+</Aside>
 
 ## Hosting integration health checks
 
