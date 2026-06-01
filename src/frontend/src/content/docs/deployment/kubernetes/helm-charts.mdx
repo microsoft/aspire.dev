@@ -3,16 +3,18 @@ title: Install external Helm charts
 description: Learn how to install external Helm charts alongside your Aspire application during Kubernetes deployment using AddHelmChart.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Install pre-existing Helm charts — such as cert-manager, NGINX ingress controller, or monitoring tools — as part of your Aspire Kubernetes deployment. Aspire runs `helm upgrade --install` for each configured external chart after deploying your application's own generated Helm chart.
 
 <LearnMore>
-For the core Kubernetes deployment setup, see [Deploy to Kubernetes clusters](/deployment/kubernetes/kubernetes/) or [Deploy to AKS](/deployment/kubernetes/aks/).
+  For the core Kubernetes deployment setup, see [Deploy to Kubernetes
+  clusters](/deployment/kubernetes/kubernetes/) or [Deploy to
+  AKS](/deployment/kubernetes/aks/).
 </LearnMore>
 
-## Overview
+## Deployment order
 
 When you use `aspire deploy`, Aspire deploys your application as a Helm chart and then runs any additional install steps you have defined. `AddHelmChart` registers one of these post-deploy pipeline steps. The install order is:
 
@@ -25,10 +27,11 @@ When you use `aspire deploy`, Aspire deploys your application as a Helm chart an
 
 ## Add an external Helm chart
 
-Call `AddHelmChart` on a Kubernetes or AKS environment resource, passing the chart name (used as both the resource name and the default Helm release name), a chart reference, and a chart version:
+Add the chart to a Kubernetes or AKS environment resource, passing the chart name (used as both the resource name and the default Helm release name), a chart reference, and a chart version:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -40,11 +43,28 @@ var api = builder.AddProject<Projects.MyApi>("api");
 
 builder.Build().Run();
 ```
+
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-<Aside type="note">
-  `AddHelmChart` support isn't available for TypeScript AppHosts (`apphost.ts`/`apphost.mts`) yet.
-</Aside>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+await k8s.addHelmChart(
+  'cert-manager',
+  'oci://quay.io/jetstack/charts/cert-manager',
+  '1.17.0'
+);
+
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
+
+await builder.build().run();
+```
+
 </TabItem>
 </Tabs>
 
@@ -56,76 +76,109 @@ The `chartReference` parameter accepts:
 - Packaged `.tgz` filenames — `my-chart-1.0.0.tgz`
 - Repository-qualified names — `stable/nginx-ingress`
 
-The `chartVersion` must be a valid semantic version (for example, `1.17.0`).
+Pass the chart version string expected by the chart repository, such as `1.17.0` or `v1.18.2`.
 
 ## Configure Helm values
 
-Use `WithHelmValue` to pass `--set key=value` arguments to the Helm install command:
+Set Helm values to pass `--set key=value` arguments to the Helm install command:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 k8s.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "1.17.0")
     .WithHelmValue("crds.enabled", "true")
     .WithHelmValue("config.enableGatewayAPI", "true");
 ```
+
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-<Aside type="note">
-  `AddHelmChart` support isn't available for TypeScript AppHosts (`apphost.ts`/`apphost.mts`) yet.
-</Aside>
+
+```typescript title="apphost.mts"
+const certManager = await k8s.addHelmChart(
+  'cert-manager',
+  'oci://quay.io/jetstack/charts/cert-manager',
+  '1.17.0'
+);
+
+await certManager.withHelmValue('crds.enabled', 'true');
+await certManager.withHelmValue('config.enableGatewayAPI', 'true');
+```
+
 </TabItem>
 </Tabs>
 
-Value keys support dot-notation (`config.enableGatewayAPI`) and indexed array paths (`args[0]`). Both key and value are validated to prevent shell metacharacters from being passed to Helm.
+Value keys support dot-notation (`config.enableGatewayAPI`) and indexed array paths (`args[0]`). Values are passed to Helm with `--set` flags.
 
 ## Configure the namespace and release name
 
-By default, the chart is installed using the environment's namespace and the chart's resource name as the release name. Use `WithNamespace` and `WithReleaseName` to override these:
+By default, the chart is installed in a namespace named after the chart resource and uses the chart resource name as the Helm release name. Override these in your AppHost when you need a different namespace or release name:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 k8s.AddHelmChart("ingress-nginx", "oci://ghcr.io/nginx/helm/nginx-ingress", "2.0.0")
     .WithNamespace("ingress-nginx")
     .WithReleaseName("ingress-nginx");
 ```
+
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-<Aside type="note">
-  `AddHelmChart` support isn't available for TypeScript AppHosts (`apphost.ts`/`apphost.mts`) yet.
-</Aside>
+
+```typescript title="apphost.mts"
+const ingressNginx = await k8s.addHelmChart(
+  'ingress-nginx',
+  'oci://ghcr.io/nginx/helm/nginx-ingress',
+  '2.0.0'
+);
+
+await ingressNginx.withHelmChartNamespace('ingress-nginx');
+await ingressNginx.withHelmChartReleaseName('ingress-nginx');
+```
+
 </TabItem>
 </Tabs>
 
-- `WithNamespace` accepts a string that follows [RFC 1123 DNS label](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names) rules (lowercase alphanumerics and hyphens, max 63 characters).
-- `WithReleaseName` follows Helm's release-name rules (DNS label format, max 53 characters).
+- Namespace overrides must follow [RFC 1123 DNS label](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names) rules (lowercase alphanumerics and hyphens, max 63 characters).
+- Release name overrides must follow Helm's release-name rules (DNS label format, max 53 characters).
 
 ## Uninstall on destroy
 
 By default, external charts are not uninstalled when you run `aspire destroy`. This is intentional: cluster-wide tools such as cert-manager or monitoring agents are often shared by multiple workloads and shouldn't be torn down when a single application is removed.
 
-To opt in to uninstall-on-destroy, call `WithDestroy()`:
+To opt in to uninstall-on-destroy, enable destroy-time uninstall in your AppHost:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 k8s.AddHelmChart("podinfo", "oci://ghcr.io/stefanprodan/charts/podinfo", "6.7.1")
     .WithHelmValue("replicaCount", "2")
     .WithDestroy();
 ```
+
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-<Aside type="note">
-  `AddHelmChart` support isn't available for TypeScript AppHosts (`apphost.ts`/`apphost.mts`) yet.
-</Aside>
+
+```typescript title="apphost.mts"
+const podinfo = await k8s.addHelmChart(
+  'podinfo',
+  'oci://ghcr.io/stefanprodan/charts/podinfo',
+  '6.7.1'
+);
+
+await podinfo.withHelmValue('replicaCount', '2');
+await podinfo.withHelmChartDestroy();
+```
+
 </TabItem>
 </Tabs>
 
-When `WithDestroy()` is set, `aspire destroy` runs `helm uninstall` for the chart in addition to removing your application's resources.
+When destroy-time uninstall is enabled, `aspire destroy` runs `helm uninstall` for the chart in addition to removing your application's resources.
 
 :::tip
-Use `WithDestroy()` for charts that are tightly coupled to the specific application — for example, a sidecar chart that has no value without the app — and omit it for shared infrastructure (cert-manager, observability stacks, etc.).
+Enable destroy-time uninstall for charts that are tightly coupled to the specific application — for example, a sidecar chart that has no value without the app — and omit it for shared infrastructure (cert-manager, observability stacks, etc.).
 :::
 
 ## Deploy to AKS
@@ -134,6 +187,7 @@ The same `AddHelmChart` API is available on AKS environments through the `Aspire
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -147,15 +201,34 @@ var api = builder.AddProject<Projects.MyApi>("api");
 
 builder.Build().Run();
 ```
+
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-<Aside type="note">
-  `AddHelmChart` support isn't available for TypeScript AppHosts (`apphost.ts`/`apphost.mts`) yet.
-</Aside>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+
+const podinfo = await aks.addHelmChart(
+  'podinfo',
+  'oci://ghcr.io/stefanprodan/charts/podinfo',
+  '6.7.1'
+);
+await podinfo.withHelmValue('replicaCount', '2');
+await podinfo.withHelmChartDestroy();
+
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
+
+await builder.build().run();
+```
+
 </TabItem>
 </Tabs>
 
-The AKS overload delegates to the inner Kubernetes environment, so all the same `WithHelmValue`, `WithNamespace`, `WithReleaseName`, and `WithDestroy` options apply.
+The AKS environment delegates external chart installation to its inner Kubernetes environment, so the same Helm value, namespace, release name, and destroy-time uninstall options apply.
 
 ## Complete example
 
@@ -163,6 +236,7 @@ The following example installs cert-manager and a custom podinfo chart alongside
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -182,11 +256,40 @@ var api = builder.AddProject<Projects.MyApi>("api");
 
 builder.Build().Run();
 ```
+
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-<Aside type="note">
-  `AddHelmChart` support isn't available for TypeScript AppHosts (`apphost.ts`/`apphost.mts`) yet.
-</Aside>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+// cert-manager is a cluster-wide tool — don't uninstall it when the app is destroyed
+const certManager = await k8s.addHelmChart(
+  'cert-manager',
+  'oci://quay.io/jetstack/charts/cert-manager',
+  '1.17.0'
+);
+await certManager.withHelmValue('crds.enabled', 'true');
+
+// podinfo is specific to this app — uninstall it on destroy
+const podinfo = await k8s.addHelmChart(
+  'podinfo',
+  'oci://ghcr.io/stefanprodan/charts/podinfo',
+  '6.7.1'
+);
+await podinfo.withHelmChartNamespace('podinfo');
+await podinfo.withHelmValue('replicaCount', '2');
+await podinfo.withHelmChartDestroy();
+
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
+
+await builder.build().run();
+```
+
 </TabItem>
 </Tabs>
 
