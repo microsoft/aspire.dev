@@ -1,6 +1,6 @@
 ---
 title: Compiler Error ASPIREAZURE003
-seoTitle: "ASPIREAZURE003: Azure Virtual Network types and members are"
+seoTitle: "ASPIREAZURE003: Azure experimental types and members are"
 description: Learn what causes the Aspire compiler error ASPIREAZURE003 and how to fix it so your AppHost builds cleanly. Resolve or suppress it to keep your Aspire build.
 ---
 
@@ -13,11 +13,16 @@ import { Badge } from '@astrojs/starlight/components';
   class:list={'mb-1'}
 />
 
-> Azure Virtual Network types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+> Azure experimental types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-The Aspire Azure hosting integration now ships with support for Azure Virtual Networks. If you're using any of the `Aspire.Hosting.Azure.Network` APIs such as `AddAzureVirtualNetwork`, you might see a compiler error/warning indicating that the API is experimental. This behavior is expected, as the API is still in preview and the shape of this API is expected to change in the future.
+The `ASPIREAZURE003` diagnostic is emitted when your AppHost uses an experimental Azure hosting API. The following APIs currently carry this diagnostic:
 
-## Example
+- **Azure Virtual Networks** (`Aspire.Hosting.Azure.Network`): APIs such as `AddAzureVirtualNetwork` for modeling private networking in your app model.
+- **`ReferenceRoleAssignmentAnnotation`** (`Aspire.Hosting.Azure`): An annotation that expresses implied role assignments when one resource references another across compute environments. Used internally when a resource references a Foundry hosted agent from a different compute environment to auto-wire the **Azure AI User** RBAC grant.
+
+## Examples
+
+### Azure Virtual Networks
 
 The following code generates `ASPIREAZURE003`:
 
@@ -25,6 +30,30 @@ The following code generates `ASPIREAZURE003`:
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 var subnet = vnet.AddSubnet("pe-subnet", "10.0.1.0/24");
 ```
+
+### Cross-compute-environment hosted agent reference
+
+The following code generates `ASPIREAZURE003` because `ReferenceRoleAssignmentAnnotation` (used internally by `PublishAsHostedAgent`) is experimental:
+
+```csharp title="C# — AppHost.cs"
+var aks = builder.AddAzureKubernetesEnvironment("aks");
+
+var foundry = builder.AddFoundry("foundry");
+var project = foundry.AddProject("project");
+
+var agent = builder.AddProject<Projects.Agent>("agent")
+    .WithHttpEndpoint()
+    .WithExternalHttpEndpoints()
+    .PublishAsHostedAgent(project);
+
+// Referencing the hosted agent from a different compute environment
+// triggers ASPIREAZURE003 via ReferenceRoleAssignmentAnnotation.
+builder.AddProject<Projects.Web>("web")
+    .WithComputeEnvironment(aks)
+    .WithReference(agent);
+```
+
+For more information, see [Reference a hosted agent across compute environments](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/#reference-a-hosted-agent-across-compute-environments).
 
 ## To correct this error
 

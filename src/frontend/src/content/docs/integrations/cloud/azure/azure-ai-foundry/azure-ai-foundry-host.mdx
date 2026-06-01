@@ -537,6 +537,98 @@ Parameter details:
 
 Prompt agents are deployed to Azure AI Foundry even during local development. Local apps call the cloud-provisioned agent through the injected project endpoint and agent name.
 
+## Reference a hosted agent across compute environments
+
+When your application spans multiple compute environments — for example, a web app deployed to Azure Kubernetes Service (AKS) calling a hosted agent deployed to a Foundry project environment — Aspire automatically resolves the cross-environment endpoint reference and wires the required Azure RBAC grant.
+
+<Aside type="note">
+  Cross-compute-environment endpoint resolution requires the
+  `ReferenceRoleAssignmentAnnotation` type, which is marked
+  `[Experimental("ASPIREAZURE003")]`. Suppress this diagnostic to use the
+  feature. For details, see [ASPIREAZURE003](/diagnostics/aspireazure003/).
+</Aside>
+
+Before this fix, `aspire deploy` threw a "context not found" error when a
+resource resolved an endpoint whose owning resource lived in a different compute
+environment. The fix affects the Azure Container Apps, Azure App Service, and
+Kubernetes publishers.
+
+In addition, Aspire now auto-wires the consumer's managed identity and grants
+the **Azure AI User** role on the owning Foundry account. Previously, developers
+had to run `az role assignment create` manually after every deploy.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREAZURE003
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var aks = builder.AddAzureKubernetesEnvironment("aks");
+
+var foundry = builder.AddFoundry("foundry");
+var project = foundry.AddProject("project");
+
+// The agent is published to the Foundry project compute environment.
+var agent = builder.AddProject<Projects.Agent>("agent")
+    .WithHttpEndpoint()
+    .WithExternalHttpEndpoints()
+    .PublishAsHostedAgent(project);
+
+// The web app is deployed to AKS and references the cross-environment agent.
+// Aspire resolves the endpoint and auto-provisions the Azure AI User role
+// on the Foundry account — no manual `az role assignment create` required.
+builder.AddProject<Projects.Web>("web")
+    .WithHttpEndpoint()
+    .WithExternalHttpEndpoints()
+    .WithComputeEnvironment(aks)
+    .WithReference(agent);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+
+const foundry = await builder.addFoundry('foundry');
+const project = await foundry.addProject('project');
+
+// The agent is published to the Foundry project compute environment.
+const agent = await builder
+    .addProject('agent', '../Agent/Agent.csproj')
+    .withHttpEndpoint()
+    .withExternalHttpEndpoints();
+await agent.asHostedAgent(project);
+
+// The web app is deployed to AKS and references the cross-environment agent.
+// Aspire resolves the endpoint and auto-provisions the Azure AI User role
+// on the Foundry account — no manual `az role assignment create` required.
+await builder
+    .addProject('web', '../Web/Web.csproj')
+    .withHttpEndpoint()
+    .withExternalHttpEndpoints()
+    .withComputeEnvironment(aks)
+    .withReference(agent);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The preceding code demonstrates the two behaviors Aspire provides automatically:
+
+- **Cross-environment endpoint resolution**: The `web` resource deployed to AKS can reference the `agent` endpoint even though the agent lives in the Foundry project compute environment. Same-environment references are unaffected and continue to resolve locally.
+- **RBAC auto-wiring**: Because `web` references a hosted agent, Aspire stamps the consumer's managed identity with the **Azure AI User** role on the owning Foundry account. This is the least-privilege grant required to invoke a Foundry hosted agent. It is only emitted when the reference is present, and it is suppressible via an explicit `WithRoleAssignments(...)` call.
+
 ## Invoke agents from the Aspire dashboard
 
 Aspire also makes the declared agents easy to try from the dashboard. Prompt agents get a **Send Message** command from `AddPromptAgent(...)`. Hosted agents published with `PublishAsHostedAgent(...)` get a highlighted **Send Message** command that posts to the local `/responses` endpoint, plus dashboard links for `/responses`, `/liveness`, and `/readiness`.
