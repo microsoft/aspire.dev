@@ -155,13 +155,13 @@ The `WithCommand` API adds the appropriate annotations to the resource, which ar
 - `name`: The name of the command to invoke.
 - `displayName`: The name of the command to display in the dashboard.
 - `executeCommand`: The callback that runs when the command is invoked. In C# the type is `Func<ExecuteCommandContext, Task<ExecuteCommandResult>>`; in TypeScript it's `(context: ExecuteCommandContext) => Promise<ExecuteCommandResult>`.
-- `updateState`: A callback that decides the command's enabled state in the dashboard. In C# it's `Func<UpdateCommandStateContext, ResourceCommandState>` and supplied via `CommandOptions.UpdateState`; in TypeScript it's the `updateState` field on `CommandOptions` (currently typed as `any`).
+- `updateState`: A callback that decides the command's enabled state in the dashboard. In C# it's `Func<UpdateCommandStateContext, ResourceCommandState>` and supplied via `CommandOptions.UpdateState`; in TypeScript it's `(context: UpdateCommandStateContext) => Promise<ResourceCommandState>` and supplied through the `updateState` field on `CommandOptions`.
 - `iconName`: The name of the icon to display in the dashboard. The icon is optional, but when you do provide it, it should be a valid [Fluent UI Blazor icon name](https://www.fluentui-blazor.net/Icon#explorer).
 - `iconVariant`: The variant of the icon to display in the dashboard, valid options are `Regular` (default) or `Filled`.
 
 ## Execute command logic
 
-The `executeCommand` callback is where the command logic is implemented. The `ExecuteCommandContext` it receives gives you access to the service provider, the resource being acted on, and a cancellation token.
+The `executeCommand` callback is where the command logic is implemented. The `ExecuteCommandContext` it receives gives you access to command-specific data such as the resource being acted on, cancellation, and logging.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -205,12 +205,12 @@ The preceding code:
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-In TypeScript the callback signature is `(context: ExecuteCommandContext) => Promise<ExecuteCommandResult>`. `ExecuteCommandContext` exposes the same surface in camelCase, plus a `logger` accessor as a shortcut:
+In TypeScript the callback signature is `(context: ExecuteCommandContext) => Promise<ExecuteCommandResult>`. `ExecuteCommandContext` exposes async accessors for command-specific data:
 
-- `serviceProvider` — async accessor for the dependency-injection container.
-- `resourceName` — async accessor for the resource instance name.
-- `cancellationToken` — async accessor returning a `CancellationToken` that you can `await` and forward to APIs that accept an `AbortSignal`.
-- `logger` — async accessor for the resource logger; equivalent to resolving a logger from `serviceProvider`.
+- `resourceName()` — the resource instance name.
+- `cancellationToken()` — a `CancellationToken` that you can forward to APIs that accept an `AbortSignal`.
+- `logger()` — the resource logger.
+- `arguments()` — invocation arguments supplied when the command is executed.
 
 The TypeScript callback is typically defined inline as an async arrow function. The example below pulls the resource's HTTP endpoint and forwards the cancellation token to `fetch`:
 
@@ -287,13 +287,13 @@ The preceding code:
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-<Aside type="caution">
-The TypeScript `UpdateCommandStateContext` currently exposes only `serviceProvider` — it does **not** expose a `resourceSnapshot` property. The C# pattern of gating a command on `ResourceSnapshot.HealthStatus` therefore has no direct TypeScript equivalent today. TypeScript callbacks can still resolve services from the provider, but they cannot inspect the live resource snapshot.
-</Aside>
+In TypeScript the `updateState` field on `CommandOptions` is an async callback that receives an `UpdateCommandStateContext`. The context exposes `resourceSnapshot()`, an async function that returns a curated snapshot of the resource instance, including `healthStatus` and `state` (lifecycle state).
 
-In TypeScript the `updateState` field on `CommandOptions` is typed loosely (`any`), and the SDK does not yet export a `ResourceCommandState` enum. The simplest path for TypeScript AppHosts today is to omit `updateState` entirely — commands default to enabled — and only register the command after the resource is reachable:
+The following example gates the `clear-cache` command on the resource being healthy, mirroring the C# pattern:
 
 ```typescript title="apphost.mts"
+import { HealthStatus, ResourceCommandState } from './.modules/aspire.js';
+
 await cache.withCommand(
     "clear-cache",
     "Clear Cache",
@@ -301,11 +301,23 @@ await cache.withCommand(
     {
         commandOptions: {
             iconName: "AnimalRabbitOff",
+            updateState: async (ctx) => {
+                const snapshot = await ctx.resourceSnapshot();
+
+                return snapshot.healthStatus === HealthStatus.Healthy
+                    ? ResourceCommandState.Enabled
+                    : ResourceCommandState.Disabled;
+            },
         },
     });
 ```
 
-When you need lifecycle-aware gating in a TypeScript AppHost, drive it from outside the callback by registering the command only after the resource exposes the data your command depends on (for example, after subscribing to a connection-string or endpoint event).
+The preceding code:
+
+- Calls `ctx.resourceSnapshot()` to retrieve the current resource snapshot.
+- Returns `ResourceCommandState.Enabled` if the resource is healthy; otherwise, it returns `ResourceCommandState.Disabled`.
+
+The `HealthStatus` and `ResourceCommandState` enums are exported from the generated SDK (`aspire.ts`) and are available to import directly.
 
 </TabItem>
 </Tabs>
@@ -418,7 +430,7 @@ In addition to executing commands through the [Aspire dashboard](/dashboard/over
 - Automate command execution as part of a workflow
 - Build custom tooling that needs to control resources
 
-The most common scenario is to call commands from within other custom command implementations. The `ExecuteCommandContext` provides access to `ServiceProvider` in C# and a `serviceProvider` async accessor in TypeScript, which you can use to retrieve the `ResourceCommandService`.
+The most common scenario is to call commands from within other custom command implementations. In C#, use `ExecuteCommandContext.ServiceProvider` to retrieve the `ResourceCommandService`. In TypeScript, resolve the service from the AppHost execution context before registering the command, then capture it in the callback.
 
 ### Execute commands from a custom command
 
@@ -482,8 +494,15 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
+const executionContext = await builder.executionContext();
+const serviceProvider = await executionContext.serviceProvider();
+const commandService = await serviceProvider.getResourceCommandService();
+
 const cache = await builder.addRedis("cache");
-// withClearCommand defines a "clear-cache" command as shown earlier
+await cache.withCommand("clear-cache", "Clear Cache", async () => {
+    // Clear cache implementation
+    return { success: true };
+});
 
 const database = await builder.addPostgres("postgres");
 await database.withCommand("restart", "Restart Database", async () => {
@@ -495,9 +514,10 @@ const api = await builder.addProject("api", "../Api/Api.csproj");
 await api.withReference(cache);
 await api.withReference(database);
 await api.withCommand("reset-all", "Reset Everything", async (ctx) => {
-    const serviceProvider = await ctx.serviceProvider();
-    const commandService = await serviceProvider.getResourceCommandService();
+    const logger = await ctx.logger();
     const cancellationToken = await ctx.cancellationToken();
+
+    await logger.logInformation("Starting full system reset...");
 
     const clearResult = await commandService.executeCommandAsync(
         "cache", "clear-cache", { cancellationToken });
@@ -509,6 +529,7 @@ await api.withCommand("reset-all", "Reset Everything", async (ctx) => {
         return { success: false, message: "System reset failed" };
     }
 
+    await logger.logInformation("System reset completed successfully");
     return { success: true };
 });
 
@@ -520,8 +541,8 @@ await builder.build().run();
 
 In this example:
 
-- The `context` / `ctx` parameter provides access to the service provider and logger
-- The `ResourceCommandService` is retrieved from the service provider
+- In C#, the `context` parameter provides access to the service provider and logger
+- In TypeScript, `ResourceCommandService` is retrieved from the AppHost execution context's service provider before registering the command
 - In C#, commands are executed on resource instances using `cache.Resource` and `database.Resource`; in TypeScript, they are executed by resource name string (for example, `"cache"` and `"postgres"`)
 - Each command result is checked for success before proceeding
 
@@ -575,7 +596,7 @@ else {
 </TabItem>
 </Tabs>
 
-The resource identifier argument (`resourceId` in C#, or the first argument in TypeScript) can be either:
+The resource identifier argument (`resourceId` in C#, or the first argument in TypeScript when passing a string) can be either:
 
 - The unique ID of the resource (e.g., `cache-abcdwxyz` for a resource with replicas)
 - The display name (e.g., `cache`) if there are no duplicate names
@@ -595,6 +616,7 @@ var result = await commandService.ExecuteCommandAsync(
 In TypeScript, use the resource identifier overload shown earlier: pass a specific replica ID to target one instance, or pass a unique resource name when there are no duplicate names.
 
 The behavior when executing on multiple replicas:
+
 - The command runs in parallel on all instances
 - If all commands succeed, the result indicates success
 - If any commands fail, the result includes details about the failures

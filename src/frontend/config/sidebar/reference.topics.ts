@@ -438,6 +438,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-export',
             },
             { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
+            { label: 'aspire ls', slug: 'reference/cli/commands/aspire-ls' },
             {
               label: 'aspire logs',
               slug: 'reference/cli/commands/aspire-logs',

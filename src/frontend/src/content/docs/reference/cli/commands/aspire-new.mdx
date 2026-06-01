@@ -182,3 +182,41 @@ The `aspire-py-starter` template accepts the following additional options:
   ```bash title="Aspire CLI"
   aspire new aspire-starter --channel daily
   ```
+
+## Troubleshooting
+
+### Language support not found
+
+When `aspire new` runs a template that requires code generation (for example, a TypeScript or Python AppHost template), it uses language support and code generator assemblies loaded by the apphost server. If those assemblies cannot load their types, the command may fail with an error such as:
+
+```
+No language support found for: typescript/nodejs. Available languages: go, java, python, rust.
+```
+
+Or, when no language support implementations are discovered at all:
+
+```
+No language support found for: typescript/nodejs. No language support implementations were discovered in any loaded assembly.
+This usually indicates a binary mismatch between the bundled apphost server and the integration assemblies on disk;
+check the apphost server log for 'LoaderExceptions' Warnings.
+```
+
+These errors mean the integration assemblies on disk are not compatible with the bundled apphost server. This typically happens after a partial NuGet cache update, a version skew between the CLI and the integration packages, or an interrupted restore.
+
+**To resolve:**
+
+1. Clear the Aspire CLI cache to remove stale cached assemblies:
+
+   ```bash title="Aspire CLI"
+   aspire cache clear
+   ```
+
+2. Re-run `aspire new` to trigger a fresh restore of the integration packages.
+
+If the error persists, check the apphost server log for `Warning` entries that include `LoaderExceptions` or mention a shared assembly version mismatch (for example, `Aspire.TypeSystem` bundled version vs. the version on disk). These log entries name the offending assembly and describe the mismatch, making it easier to identify which package version is out of sync.
+
+<Aside type="tip">
+  Run `aspire new` with `--log-level Debug` (or `--log-level Trace`) to write a
+  detailed log file. Open the log and search for `LoaderExceptions` or
+  `version mismatch` to identify the conflicting assembly.
+</Aside>
