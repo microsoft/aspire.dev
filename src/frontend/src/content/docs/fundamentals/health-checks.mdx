@@ -271,18 +271,18 @@ app.Run();
 
 ```go title="Go — main.go"
 import (
- 	"context"
- 	"net/http"
- 	"time"
- )
+    "context"
+    "net/http"
+    "time"
+)
 
 // In Go, use context timeouts for request timeout control
 func healthHandler(w http.ResponseWriter, r *http.Request) {
- 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
- 	defer cancel()
- 	// Use the ctx for your health check logic
- 	_ = ctx
- }
+    ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+    defer cancel()
+    // Use the ctx for your health check logic
+    _ = ctx
+}
 ```
 
 </TabItem>
@@ -432,7 +432,7 @@ For resources that expose HTTP endpoints, you can add health checks that poll sp
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var catalogApi = builder.AddContainer("catalog-api", "catalog-api")
@@ -447,22 +447,21 @@ builder.AddProject<Projects.WebApp>("webapp")
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="TypeScript — apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const catalogApi = await builder
-  .addContainer('catalog-api', { image: 'catalog-api', tag: 'latest' })
-  .withHttpEndpoint({ targetPort: 8080 })
-  .withHttpHealthCheck('/health');
+const catalogApi = await builder.addContainer('catalog-api', {
+  image: 'catalog-api',
+  tag: 'latest',
+});
+await catalogApi.withHttpEndpoint({ targetPort: 8080 });
+await catalogApi.withHttpHealthCheck('/health');
 
-await builder
-  .addProject('webapp', './WebApp/WebApp.csproj')
-  .withReference(catalogApi)
-  .waitFor(catalogApi);
-
-await builder.build().run();
+const webapp = await builder.addNodeApp('webapp', './webapp', 'index.js');
+await webapp.withReference(catalogApi);
+await webapp.waitFor(catalogApi); // Waits for /health to return HTTP 200
 ```
 
 </TabItem>
@@ -473,7 +472,7 @@ The `WithHttpHealthCheck` method can also be applied to project resources:
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var backend = builder.AddProject<Projects.Backend>("backend")
                      .WithHttpHealthCheck("/health");
 
@@ -485,21 +484,17 @@ builder.AddProject<Projects.Frontend>("frontend")
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="TypeScript — apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const backend = await builder
-  .addProject('backend', './Backend/Backend.csproj')
-  .withHttpHealthCheck('/health');
+const backend = await builder.addNodeApp('backend', './backend', 'index.js');
+await backend.withHttpHealthCheck('/health');
 
-await builder
-  .addProject('frontend', './Frontend/Frontend.csproj')
-  .withReference(backend)
-  .waitFor(backend);
-
-await builder.build().run();
+const frontend = await builder.addNodeApp('frontend', './frontend', 'index.js');
+await frontend.withReference(backend);
+await frontend.waitFor(backend);
 ```
 
 </TabItem>
@@ -512,7 +507,7 @@ You can create custom health checks for more complex readiness scenarios. Start 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var startAfter = DateTime.Now.AddSeconds(30);
@@ -534,31 +529,12 @@ builder.AddProject<Projects.MyApp>("myapp")
 ```
 
 </TabItem>
-<TabItem id="typescript" label="TypeScript">
-
-:::note
-Custom health check registration via `builder.services.addHealthChecks()` is not yet available in the TypeScript AppHost SDK. Use `withHttpHealthCheck` for HTTP-based health checks instead.
-:::
-
-```typescript title="TypeScript — apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
-
-const builder = await createBuilder();
-
-const pg = await builder
-  .addPostgres('pg')
-  .withHttpHealthCheck('/health');
-
-await builder
-  .addProject('myapp', './MyApp/MyApp.csproj')
-  .withReference(pg)
-  .waitFor(pg);
-
-await builder.build().run();
-```
-
-</TabItem>
 </Tabs>
+
+<Aside type="note">
+  TypeScript AppHost support for registering custom health checks with
+  `builder.Services.AddHealthChecks()` is not yet available.
+</Aside>
 
 The `AddCheck` method registers the health check, and `WithHealthCheck` associates it with specific resources. For more details about creating and registering custom health checks, see [Create health checks](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks#create-health-checks).
 

@@ -18,7 +18,7 @@ For hosting integration setup and configuration, see [Kubernetes integration](/i
 - [Aspire prerequisites](/get-started/prerequisites/)
 - [Aspire CLI](/get-started/install-cli/) installed
 - [kubectl](https://kubernetes.io/docs/tasks/tools/) installed with a configured cluster context
-- [Helm](https://helm.sh/docs/intro/install/) installed and available on your `PATH`
+- [Helm](https://helm.sh/docs/intro/install/) **v4.2.0 or later** installed and available on your `PATH`
 - An existing Kubernetes cluster (local or remote)
 
 ## Configure your AppHost
@@ -46,8 +46,8 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" {5}
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" {5}
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -83,8 +83,8 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" {5-6}
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" {5-6}
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -225,7 +225,7 @@ builder.AddKubernetesEnvironment("k8s")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const k8s = await builder.addKubernetesEnvironment('k8s');
 await k8s.withHelm(async (helm) => {
   await helm.withNamespace('my-namespace');
@@ -253,7 +253,7 @@ builder.AddContainer("ml-worker", "my-ml-image")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const k8s = await builder.addKubernetesEnvironment('k8s');
 const gpuPool = await k8s.addNodePool('gpu');
 
@@ -289,7 +289,7 @@ builder.AddContainer("service", "nginx")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const service = await builder.addContainer('service', 'nginx');
 await service.withEnvironment('MY_ENV', 'value');
 await service.publishAsKubernetesService(async (resource) => {
@@ -336,10 +336,19 @@ If your application can't find connection strings at runtime, verify that the ge
 
 Kubernetes Secrets store values as base64-encoded strings. Verify that your Secrets are properly encoded and that the generated templates reference them correctly. Use `kubectl get secret <name> -o yaml` to inspect Secret contents.
 
+## Install external Helm charts
+
+Use `AddHelmChart` on the Kubernetes environment to install pre-existing Helm charts — such as cert-manager, NGINX ingress, or monitoring tools — as post-deploy pipeline steps alongside your application's own chart.
+
+<LearnMore>
+See [Install external Helm charts](/deployment/kubernetes/helm-charts/) for a full walkthrough of adding external charts, configuring Helm values, overriding namespaces and release names, and choosing destroy-time uninstall behavior.
+</LearnMore>
+
 ## See also
 
 - [Kubernetes integration](/integrations/compute/kubernetes/)
 - [Deploy to AKS](/deployment/kubernetes/aks/)
+- [Install external Helm charts](/deployment/kubernetes/helm-charts/)
 - [Pipelines and app topology](/deployment/pipelines/)
 - [Publishing and deployment overview](/deployment/deploy-with-aspire/)
 - [Kubernetes documentation](https://kubernetes.io/docs/)

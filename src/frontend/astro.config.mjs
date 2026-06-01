@@ -117,15 +117,17 @@ export default defineConfig({
         starlightSidebarTopics(sidebarTopics, {
           exclude: [
             '**/includes/**/*',
-            '/support', 
-            '/reference/api', 
+            '/support',
+            '/diagnostics/aspireats001',
+            '/**/diagnostics/aspireats001',
+            '/reference/api',
             '/reference/api/**'
           ],
         }),
         starlightLinksValidator({
           errorOnRelativeLinks: false,
           errorOnFallbackPages: false,
-          exclude: ['/i18n/'],
+          exclude: ['/i18n/', '/reference/api', '/reference/api/**'],
         }),
         starlightScrollToTop({
           // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/

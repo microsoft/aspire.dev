@@ -18,9 +18,13 @@ import kubernetesIcon from '@assets/icons/kubernetes.svg';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Kubernetes hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model Kubernetes environment resources in your [`AppHost`](/get-started/app-host/) project. The integration enables you to publish and deploy your Aspire application to any Kubernetes cluster, generating Helm charts from your application model or deploying directly to a cluster using your current `kubectl` context.
+This article is the reference for the Aspire Kubernetes hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Kubernetes environment resources in your [`AppHost`](/get-started/app-host/) project. The integration enables you to publish and deploy your Aspire application to any Kubernetes cluster, generating Helm charts from your application model or deploying directly to a cluster using your current `kubectl` context.
 
 ## Installation
+
+:::note[Prerequisite: Helm v4.2.0 or later]
+Aspire's Kubernetes deployment pipeline shells out to `helm upgrade --install` and validates the installed Helm version before executing. **[Helm](https://helm.sh/docs/intro/install/) v4.2.0 or later** must be on your `PATH`. If Helm is missing or too old, Aspire reports a clear, actionable error instead of cryptic flag failures.
+:::
 
 To start building an Aspire app with Kubernetes deployment support, install the [📦 Aspire.Hosting.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Kubernetes) NuGet package:
 
@@ -89,8 +93,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -108,9 +112,29 @@ await builder.build().run();
 </Tabs>
 
 <Aside type="tip">
-  With the `k8s` variable assigned, you can pass that to the
-  `WithComputeEnvironment` API to disambiguate compute resources for solutions
-  that define more than one. Otherwise, the `k8s` variable isn't required.
+  With the `k8s` variable assigned, you can pass it to the compute environment API to
+  disambiguate compute resources for solutions that define more than one. Otherwise, the `k8s`
+  variable isn't required. This API is named `WithComputeEnvironment` in C# AppHosts and
+  `withComputeEnvironment` in TypeScript AppHosts.
+
+  <Tabs syncKey="aspire-lang">
+  <TabItem id="csharp" label="C#">
+  ```csharp title="C# — AppHost.cs"
+  var k8s = builder.AddKubernetesEnvironment("k8s");
+
+  builder.AddProject<Projects.MyApi>("api")
+      .WithComputeEnvironment(k8s);
+  ```
+  </TabItem>
+  <TabItem id="typescript" label="TypeScript">
+  ```typescript title="apphost.ts"
+  const k8s = await builder.addKubernetesEnvironment('k8s');
+
+  const api = await builder.addNodeApp('api', './api', 'src/index.ts');
+  await api.withComputeEnvironment(k8s);
+  ```
+  </TabItem>
+  </Tabs>
 </Aside>
 
 ## Configure Helm chart options
@@ -135,7 +159,7 @@ builder.AddKubernetesEnvironment("k8s")
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const k8s = await builder.addKubernetesEnvironment('k8s');
 await k8s.withHelm(async (helm) => {
   await helm.withNamespace('my-namespace');
@@ -176,7 +200,7 @@ builder.AddKubernetesEnvironment("k8s").WithContainerRegistry(registry);
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const registry = await builder.addContainerRegistry('registry', 'myregistry.example.com:5000');
 const k8s = await builder.addKubernetesEnvironment('k8s');
 await k8s.withContainerRegistry(registry);
@@ -213,7 +237,7 @@ builder.AddContainer("service", "nginx")
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const service = await builder.addContainer('service', 'nginx');
 await service.publishAsKubernetesService(async (resource) => {
   // Scale to 3 replicas
@@ -223,6 +247,105 @@ await service.publishAsKubernetesService(async (resource) => {
 
 </TabItem>
 </Tabs>
+
+## Add custom Kubernetes manifests
+
+Within a `PublishAsKubernetesService` callback, you can attach arbitrary Kubernetes manifests — such as [cert-manager](https://cert-manager.io/) `Certificate` definitions, additional `ConfigMap` objects, or any other Kubernetes resource — to the generated Helm chart alongside your service.
+
+The API surface differs by language:
+
+- **C#**: add subclasses of `BaseKubernetesResource` directly to the `AdditionalResources` collection. Several built-in types (such as `ConfigMap`) are available in the `Aspire.Hosting.Kubernetes.Resources` namespace, and you can subclass `BaseKubernetesResource` to model any custom resource definition (CRD).
+- **TypeScript**: call `addManifest` on the resource. It takes the manifest's `apiVersion`, `kind`, and `metadata.name`, and returns a handle for setting labels, annotations, a namespace, and arbitrary field values using dot-notation paths.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+Define a class for the custom resource by deriving from `BaseKubernetesResource`, then add an instance to `AdditionalResources`. The example below models a cert-manager `Certificate` CRD:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+using YamlDotNet.Serialization;
+
+builder.AddContainer("service", "nginx")
+    .PublishAsKubernetesService(resource =>
+    {
+        var certificate = new Certificate
+        {
+            Metadata = { Name = "service-tls" },
+            Spec =
+            {
+                SecretName = "service-tls",
+                DnsNames = { "service.example.com" },
+                IssuerRef = { Name = "letsencrypt-prod", Kind = "ClusterIssuer" },
+            },
+        };
+        certificate.Metadata.Labels["example.com/managed-by"] = "aspire";
+        resource.AdditionalResources.Add(certificate);
+    });
+
+public sealed class Certificate() : BaseKubernetesResource("cert-manager.io/v1", "Certificate")
+{
+    [YamlMember(Alias = "spec")]
+    public CertificateSpec Spec { get; set; } = new();
+}
+
+public sealed class CertificateSpec
+{
+    [YamlMember(Alias = "secretName")]
+    public string SecretName { get; set; } = "";
+
+    [YamlMember(Alias = "dnsNames")]
+    public List<string> DnsNames { get; } = [];
+
+    [YamlMember(Alias = "issuerRef")]
+    public IssuerRef IssuerRef { get; set; } = new();
+}
+
+public sealed class IssuerRef
+{
+    [YamlMember(Alias = "name")]
+    public string Name { get; set; } = "";
+
+    [YamlMember(Alias = "kind")]
+    public string Kind { get; set; } = "Issuer";
+}
+```
+
+For simple cases that map to a built-in type, instantiate the type directly — for example, `new ConfigMap { Metadata = { Name = "extra-config" }, Data = { ["key"] = "value" } }` — and add it to `AdditionalResources`.
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const service = await builder.addContainer('service', 'nginx');
+await service.publishAsKubernetesService(async (resource) => {
+    await resource.addManifest('cert-manager.io/v1', 'Certificate', 'service-tls', {
+        configure: async (manifest) => {
+            await manifest.withLabel('example.com/managed-by', 'aspire');
+            await manifest.withField('spec.secretName', 'service-tls');
+            await manifest.withField('spec.dnsNames', ['service.example.com']);
+            await manifest.withField('spec.issuerRef.name', 'letsencrypt-prod');
+            await manifest.withField('spec.issuerRef.kind', 'ClusterIssuer');
+        },
+    });
+});
+```
+</TabItem>
+</Tabs>
+
+The manifest handle returned by `addManifest` supports the following configuration methods:
+
+| Method | Description |
+|---|---|
+| `withNamespace` | Sets the Kubernetes namespace for the manifest. |
+| `withLabel` | Adds a metadata label to the manifest. |
+| `withAnnotation` | Adds a metadata annotation to the manifest. |
+| `withField` | Sets an arbitrary field using a dot-notation path (for example, `spec.maxReplicaCount`). |
+
+Each manifest is emitted as a separate template file inside the generated Helm chart.
+
+<Aside type="note">
+`addManifest` is the recommended way to attach custom Kubernetes resources from TypeScript AppHosts, where there is no strongly-typed model for arbitrary CRDs. C# AppHosts have direct access to the resource model, so they add `BaseKubernetesResource` instances to `AdditionalResources` instead.
+</Aside>
 
 ## Publishing and deployment
 
