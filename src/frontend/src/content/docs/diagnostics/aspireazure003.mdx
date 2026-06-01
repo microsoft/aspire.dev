@@ -33,25 +33,7 @@ var subnet = vnet.AddSubnet("pe-subnet", "10.0.1.0/24");
 
 ### Cross-compute-environment hosted agent reference
 
-The following code generates `ASPIREAZURE003` because `ReferenceRoleAssignmentAnnotation` (used internally by `PublishAsHostedAgent`) is experimental:
-
-```csharp title="C# — AppHost.cs"
-var aks = builder.AddAzureKubernetesEnvironment("aks");
-
-var foundry = builder.AddFoundry("foundry");
-var project = foundry.AddProject("project");
-
-var agent = builder.AddProject<Projects.Agent>("agent")
-    .WithHttpEndpoint()
-    .WithExternalHttpEndpoints()
-    .PublishAsHostedAgent(project);
-
-// Referencing the hosted agent from a different compute environment
-// triggers ASPIREAZURE003 via ReferenceRoleAssignmentAnnotation.
-builder.AddProject<Projects.Web>("web")
-    .WithComputeEnvironment(aks)
-    .WithReference(agent);
-```
+Aspire uses `ReferenceRoleAssignmentAnnotation` internally when a resource references a Foundry hosted agent from a different compute environment. That annotation lets Azure publishing auto-wire the **Azure AI User** RBAC grant on the owning Foundry account. Public AppHost APIs such as `AsHostedAgent`, `WithReference`, and `WithComputeEnvironment` don't require you to suppress `ASPIREAZURE003`.
 
 For more information, see [Reference a hosted agent across compute environments](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/#reference-a-hosted-agent-across-compute-environments).
 

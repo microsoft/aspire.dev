@@ -542,27 +542,27 @@ Prompt agents are deployed to Azure AI Foundry even during local development. Lo
 When your application spans multiple compute environments — for example, a web app deployed to Azure Kubernetes Service (AKS) calling a hosted agent deployed to a Foundry project environment — Aspire automatically resolves the cross-environment endpoint reference and wires the required Azure RBAC grant.
 
 <Aside type="note">
-  Cross-compute-environment endpoint resolution requires the
-  `ReferenceRoleAssignmentAnnotation` type, which is marked
-  `[Experimental("ASPIREAZURE003")]`. Suppress this diagnostic to use the
-  feature. For details, see [ASPIREAZURE003](/diagnostics/aspireazure003/).
+  The RBAC auto-wiring described in this section uses
+  `ReferenceRoleAssignmentAnnotation` internally. The public AppHost APIs shown
+  here don't require you to suppress `ASPIREAZURE003`; endpoint resolution is
+  handled separately by the compute-environment publishers. For details, see
+  [ASPIREAZURE003](/diagnostics/aspireazure003/).
 </Aside>
 
-Before this fix, `aspire deploy` threw a "context not found" error when a
-resource resolved an endpoint whose owning resource lived in a different compute
-environment. The fix affects the Azure Container Apps, Azure App Service, and
-Kubernetes publishers.
+This support applies when publishing to Azure Container Apps, Azure App Service,
+and Kubernetes. Endpoint references whose owning resource lives in a different
+compute environment are resolved through that owning environment.
 
 In addition, Aspire now auto-wires the consumer's managed identity and grants
 the **Azure AI User** role on the owning Foundry account. Previously, developers
 had to run `az role assignment create` manually after every deploy.
 
+The AKS example below requires the [📦 Aspire.Hosting.Azure.Kubernetes](/integrations/cloud/azure/aks/) integration in addition to [📦 Aspire.Hosting.Foundry](https://www.nuget.org/packages/Aspire.Hosting.Foundry).
+
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
-#pragma warning disable ASPIREAZURE003 // ReferenceRoleAssignmentAnnotation is experimental and required for cross-environment RBAC wiring.
-
 var builder = DistributedApplication.CreateBuilder(args);
 
 var aks = builder.AddAzureKubernetesEnvironment("aks");
@@ -574,7 +574,7 @@ var project = foundry.AddProject("project");
 var agent = builder.AddProject<Projects.Agent>("agent")
     .WithHttpEndpoint()
     .WithExternalHttpEndpoints()
-    .PublishAsHostedAgent(project);
+    .AsHostedAgent(project);
 
 // The web app is deployed to AKS and references the cross-environment agent.
 // Aspire resolves the endpoint and auto-provisions the Azure AI User role
