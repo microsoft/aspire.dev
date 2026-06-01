@@ -1,9 +1,41 @@
----
-name: hex1b
-description: CLI tool for automating any terminal application — TUI apps, shells, CLI tools, REPLs, and more. Use when you need to launch a process in a virtual terminal, capture its screen output, inject keystrokes or mouse input, take screenshots, record sessions, or assert on what's visible.
----
+# Terminal Recordings (Asciinema)
 
-# Hex1b CLI Skill
+For CLI demonstrations, use asciinema recordings (`.cast` files) instead of static code blocks. These provide an interactive, playable terminal experience that better demonstrates command output and timing.
+
+## Existing Recordings
+
+Recordings are stored in `src/frontend/public/casts/`. Check for existing recordings before creating new ones:
+
+- `aspire-version.cast` - Shows `aspire --version` command
+- `aspire-new.cast` - Shows project creation with `aspire new`
+- `aspire-run.cast` - Shows running an Aspire app
+- `aspire-help.cast` - Shows CLI help output
+- `agent-init.cast` - Shows agent init command
+
+## Using AsciinemaPlayer
+
+```mdx
+import AsciinemaPlayer from "@components/AsciinemaPlayer.astro";
+
+<AsciinemaPlayer
+  src="/casts/aspire-new.cast"
+  poster="npt:0:01"
+  rows={15}
+  autoPlay={false}
+/>
+```
+
+**Common props**:
+
+- `src`: Path to the `.cast` file (relative to `public/`)
+- `rows`: Terminal height in rows (default: 15)
+- `poster`: Frame to show before playback (e.g., `"npt:0:01"` = 1 second in)
+- `autoPlay`: Whether to auto-play (default: false)
+- `loop`: Whether to loop playback (default: true)
+- `speed`: Playback speed multiplier (default: 1.5)
+- `idleTimeLimit`: Max idle time between commands (default: 1.5s)
+
+## Creating New Recordings with Hex1b CLI
 
 The `dotnet hex1b` CLI tool lets you automate **any terminal application** — TUI apps,
 interactive CLIs, shells, REPLs, curses programs, or anything else that runs in a terminal.
@@ -274,7 +306,7 @@ dotnet hex1b terminal attach <id>
 Generate this skill file for a repository so AI agents know how to use the CLI.
 
 ```bash
-# Write skill file to .github/skills/hex1b/SKILL.md
+# Write skill file to .agents/skills/hex1b/SKILL.md
 dotnet hex1b agent init
 
 # Specify a different repo root
@@ -341,3 +373,13 @@ dotnet hex1b capture recording playback --file demo.cast --player
 - Always use `assert` before interacting — never assume the app has rendered
 - For PNG screenshots, `--output` is required since PNG is a binary format
 - Recordings use the asciinema v2 `.cast` format and can be played with any compatible player
+
+## When to Use Recordings vs Code Blocks
+
+| Content Type                      | Recommendation      |
+| --------------------------------- | ------------------- |
+| CLI command with dynamic output   | Asciinema recording |
+| Simple one-liner command          | Code block          |
+| Interactive terminal session      | Asciinema recording |
+| Configuration files               | Code block          |
+| Long-running process (aspire run) | Asciinema recording |
