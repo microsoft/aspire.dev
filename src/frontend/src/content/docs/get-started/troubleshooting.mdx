@@ -239,6 +239,43 @@ Aspire CLI logs are stored at:
   <Code slot="windows" lang="powershell" code="$HOME\.aspire\cli\logs\" />
 </OsAwareTabs>
 
+## Building from source
+
+### "Failed to copy CLI files" error on macOS or Linux
+
+This section applies to contributors building Aspire from source with the
+`localhive.sh` script in the
+[microsoft/aspire](https://github.com/microsoft/aspire) repository. The script
+installs a locally built Aspire CLI into a local hive.
+
+**Symptoms**: When running `localhive.sh`, the script exits with:
+
+```text title="Error output"
+Failed to copy CLI files from <publish_dir> to <bin_dir>
+```
+
+Here, `<publish_dir>` is the CLI `dotnet publish` output directory, and
+`<bin_dir>` is the CLI installation directory. By default, `<bin_dir>` is
+`$HOME/.aspire/bin`; if you pass `-o` or `--output`, it is the `bin` directory
+under that output path.
+
+On macOS/BSD, this appears as `cp: .../fr is a directory (not copied)`. On Linux/GNU, it appears as `cp: -r not specified; omitting directory '...'`.
+
+**Cause**: The `dotnet publish` output for the CLI includes culture-specific resource subdirectories (for example, `fr/`, `de/`). The plain `cp` invocation without `-R` cannot copy directories.
+
+**Solution**: If you're working from the `release/13.4` branch, apply the
+one-line copy command fix in `localhive.sh`:
+
+```diff title="localhive.sh"
+-    if ! cp -f "$CLI_PUBLISH_DIR"/* "$CLI_BIN_DIR"/; then
++    if ! cp -Rf "$CLI_PUBLISH_DIR"/. "$CLI_BIN_DIR"/; then
+```
+
+Alternatively, update `localhive.sh` from the
+[`main` branch of microsoft/aspire](https://github.com/microsoft/aspire/blob/main/localhive.sh)
+or cherry-pick [microsoft/aspire#17670](https://github.com/microsoft/aspire/pull/17670)
+if you are pinned to a release branch.
+
 ## See also
 
 - [Create your first Aspire app](/get-started/first-app/)

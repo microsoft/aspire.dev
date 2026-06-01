@@ -9,7 +9,7 @@ import LearnMore from '@components/LearnMore.astro';
 
 Aspire skills are Markdown instruction bundles for AI coding agents. Each skill lives in a folder with a `SKILL.md` file that describes when the skill applies and what workflow the agent should follow. Skills don't run services or expose application data; they teach the agent how to use Aspire tools correctly.
 
-Aspire ships multiple skills for different parts of the app lifecycle. The exact list can vary by Aspire CLI version and project type, but Aspire skills are organized around workflows such as initialization, orchestration, monitoring, deployment, and AppHost wiring.
+Aspire ships multiple skills for different parts of the app lifecycle. The exact list can vary by Aspire CLI version and project type, but the [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) bundle includes six workflow skills: `aspire`, `aspire-init`, `aspire-orchestration`, `aspire-monitoring`, `aspire-deployment`, and `aspireify`.
 
 <LearnMore>
   To configure AI coding agents end to end, see [Use AI coding
@@ -35,13 +35,13 @@ aspire init
 aspire agent init
 ```
 
-For non-interactive setup, pass the skill and location options explicitly. To install the available skills into all supported locations, use `all`:
+For non-interactive setup, pass the skill and location options explicitly. To install all available skills and companion options into all supported locations, use `all`:
 
 ```bash title="Aspire CLI"
 aspire agent init --skills all --skill-locations all
 ```
 
-To install a subset, pass a comma-separated list of skill names:
+To install a subset, pass a comma-separated list of skill names. This example installs every Aspire workflow skill from the bundle and the optional Playwright CLI companion skill:
 
 ```bash title="Aspire CLI"
 aspire agent init --skills aspire,aspire-init,aspire-orchestration,aspire-monitoring,aspire-deployment,aspireify,playwright-cli --skill-locations all
@@ -117,7 +117,7 @@ In that command, `-a github-copilot` selects the target agent, `-g` installs glo
 </TabItem>
 </Tabs>
 
-## Available skills
+## Aspire workflow skills
 
 | Skill                  | Use it for                                                                                             | What it teaches                                                                                                                                                          |
 | ---------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -127,9 +127,19 @@ In that command, `-a github-copilot` selects the target agent, `-g` installs glo
 | `aspire-monitoring`    | Observing running Aspire apps                                                                          | Inspect resource state, logs, traces, metrics, browser telemetry, and dashboard data before making changes                                                               |
 | `aspire-deployment`    | Publishing, deploying, and tearing down Aspire apps                                                    | Use AppHost-modeled deployments for targets such as Docker Compose, Kubernetes, Azure, and AWS                                                                           |
 | `aspireify`            | Completing Aspire initialization in an existing codebase after `aspire init` drops an AppHost skeleton | Scan the repo, propose a resource graph, wire projects and containers into the AppHost, connect resources, configure telemetry when appropriate, and validate the wiring |
-| `playwright-cli`       | Testing running web resources in a browser                                                             | Use Playwright CLI for browser automation, including navigation, form interaction, screenshots, and visual checks                                                        |
 
-Use the top-level `aspire` skill when the request is about an Aspire app and the right workflow isn't obvious. Use a workflow-specific skill directly when the task is clear, such as `aspire-orchestration` for local lifecycle work, `aspire-monitoring` for telemetry investigation, `aspire-deployment` for publish and deploy workflows, or `aspireify` for existing-codebase AppHost wiring. Use `playwright-cli` when an agent needs to test or inspect a running frontend.
+Use the top-level `aspire` skill when the request is about an Aspire app and the right workflow isn't obvious. Use a workflow-specific skill directly when the task is clear, such as `aspire-orchestration` for local lifecycle work, `aspire-monitoring` for telemetry investigation, `aspire-deployment` for publish and deploy workflows, or `aspireify` for existing-codebase AppHost wiring.
+
+## Companion skills and tools
+
+Companion options can be offered by `aspire agent init`, but they aren't part of the `microsoft/aspire-skills` workflow bundle.
+
+| Skill            | Use it for                                 | What it teaches                                                                                                   |
+| ---------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `playwright-cli` | Testing running web resources in a browser | Use Playwright CLI for browser automation, including navigation, form interaction, screenshots, and visual checks |
+| `dotnet-inspect` | Querying .NET API surfaces                 | Inspect available .NET APIs when the workspace contains a .NET AppHost                                            |
+
+Use `playwright-cli` when an agent needs to test or inspect a running frontend. Use `dotnet-inspect` when an agent needs API-surface details for .NET AppHost work.
 
 ## Playwright handoff
 
@@ -137,7 +147,7 @@ The `playwright-cli` skill works best alongside the `aspire` skill. The agent wi
 
 ## Skill locations
 
-Aspire installs each selected skill into the selected skill locations. For example, a standard location can contain:
+Aspire installs each selected skill into the selected skill locations. For example, a standard location can contain every Aspire workflow skill and selected companion skills:
 
 <FileTree>
 
@@ -156,6 +166,8 @@ Aspire installs each selected skill into the selected skill locations. For examp
     - SKILL.md
   - playwright-cli/
     - SKILL.md
+  - dotnet-inspect/
+    - SKILL.md
 
 </FileTree>
 
@@ -167,6 +179,22 @@ Other supported locations use the same skill folder names:
 | **Claude Code**   | `.claude/skills/`  | Claude Code specific                               |
 | **GitHub Skills** | `.github/skills/`  | VS Code / GitHub Copilot specific                  |
 | **OpenCode**      | `.opencode/skill/` | OpenCode specific                                  |
+
+## Troubleshoot skill bundle errors
+
+When `aspire agent init` installs Aspire workflow skills, it validates the Aspire skills bundle before copying files. If the embedded bundle that ships with the CLI is corrupted or inconsistent, you might see errors such as:
+
+- `Embedded Aspire skills bundle metadata is invalid: <reason>`
+- `Embedded Aspire skills metadata must specify a version.`
+- `Embedded Aspire skills archive failed SHA-256 verification. Expected '<expected>', got '<actual>'.`
+
+These errors indicate a problem with the Aspire CLI installation itself, not your project configuration. To resolve the issue, update the CLI:
+
+```bash title="Aspire CLI"
+aspire update --self
+```
+
+The update replaces the embedded bundle. If your installation method doesn't support self-updating, follow the [Install the Aspire CLI](/get-started/install-cli/) instructions to reinstall or update the CLI. If the problem persists after updating or reinstalling, [open an issue on GitHub](https://github.com/microsoft/aspire/issues).
 
 ## See also
 
