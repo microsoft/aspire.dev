@@ -1,29 +1,19 @@
 ---
 title: Multi-language integrations
 seoTitle: Author multi-language Aspire integrations for AppHost
-description: Annotate your Aspire hosting integration so it works with TypeScript, Python, Java, and other languages — and learn how the generator emits language-specific SDKs.
+description: Annotate Aspire hosting integrations so they work with TypeScript AppHosts and the generated SDK, while preparing exports for future AppHost languages.
 ---
 
 import {
   Aside,
-  Badge,
-  Code,
   Steps,
   Tabs,
   TabItem,
 } from '@astrojs/starlight/components';
-import LearnMore from '@components/LearnMore.astro';
-
-<Badge
-  text="Preview feature"
-  variant="danger"
-  size="large"
-  class:list={'mb-4'}
-/>
 
 Aspire hosting integrations are C# libraries that extend the AppHost with new resource types. By default, these integrations are only available in C# AppHosts. To make them available in TypeScript AppHosts, you annotate your APIs with ATS (Aspire Type System) attributes.
 
-This guide walks you through the process of exporting your integration for multi-language use.
+This guide walks you through the process of exporting your integration for TypeScript AppHost use. The same ATS metadata can support additional AppHost languages as they become available in future Aspire releases.
 
 ## How it works
 
@@ -55,15 +45,7 @@ The analyzer reports diagnostics that help you get your exports right before use
 
 ## Export extension methods
 
-Suppress the experimental diagnostic in your project file:
-
-```xml title="XML — MyIntegration.csproj"
-<PropertyGroup>
-    <NoWarn>$(NoWarn);ASPIREATS001</NoWarn>
-</PropertyGroup>
-```
-
-Then annotate your extension methods with `[AspireExport]` and use XML doc comments to document them for the generated polyglot SDK:
+Annotate your extension methods with `[AspireExport]` and use XML doc comments to document them for the generated TypeScript SDK:
 
 ```csharp title="C# — MyDatabaseBuilderExtensions.cs"
 /// <summary>Adds a MyDatabase container resource.</summary>
@@ -133,9 +115,9 @@ await app.run();
 
 ### Document your exports
 
-XML doc comments are the primary source for generated polyglot SDK API documentation. The ATS scanner reads `<summary>`, `<param>`, `<returns>`, and `<remarks>` tags and includes them in the TypeScript JSDoc and other language-specific documentation generated for your integration.
+XML doc comments are the primary source for generated SDK API documentation. The ATS scanner reads `<summary>`, `<param>`, `<returns>`, and `<remarks>` tags and includes them in the TypeScript JSDoc generated for your integration.
 
-Use `ats-*` override tags when the standard C# XML documentation doesn't translate well to polyglot SDKs — for example, when a `<summary>` references C#-specific types or language constructs that have no direct equivalent in TypeScript. The supported overrides are:
+Use `ats-*` override tags when the standard C# XML documentation doesn't translate well to generated SDK docs — for example, when a `<summary>` references C#-specific types or language constructs that have no direct equivalent in TypeScript. The supported overrides are:
 
 - `<ats-summary>` — overrides `<summary>` in polyglot docs
 - `<ats-param name="...">` — overrides `<param>` for a specific parameter
@@ -163,7 +145,7 @@ public static IResourceBuilder<RedisResource> AddRedis(
 
 #### Cross-references in ATS docs
 
-Use `<ats-see cref="!:kind:identifier.path" />` and `<ats-seealso cref="!:kind:identifier.path" />` to link to generated SDK elements. The `!:` prefix prevents the C# compiler from validating the custom `cref` format; ATS removes it before parsing. The supported `kind` values are `type`, `method`, and `field`. The reference path uses dot notation over generated polyglot identifiers:
+Use `<ats-see cref="!:kind:identifier.path" />` and `<ats-seealso cref="!:kind:identifier.path" />` to link to generated SDK elements. The `!:` prefix prevents the C# compiler from validating the custom `cref` format; ATS removes it before parsing. The supported `kind` values are `type`, `method`, and `field`. The reference path uses dot notation over generated SDK identifiers:
 
 ```csharp title="C# — Cross-references using ats-see"
 /// <summary>
@@ -190,7 +172,7 @@ The `Description` property on `[AspireExport]` is still supported as a compatibi
 
 ### Keep capability IDs unique
 
-The runtime dispatches multi-language calls by **capability ID**. A capability ID is more restrictive than a C# method signature: it doesn't include the C# receiver type, parameter list, or overload signature. Starting in Aspire 13.3, the analyzer reports `ASPIREEXPORT013` when two exports in the same assembly generate the same capability ID.
+The runtime dispatches TypeScript AppHost calls by **capability ID**. A capability ID is more restrictive than a C# method signature: it doesn't include the C# receiver type, parameter list, or overload signature. Starting in Aspire 13.3, the analyzer reports `ASPIREEXPORT013` when two exports in the same assembly generate the same capability ID.
 
 For static exports, the generated capability ID uses the assembly name and effective export ID. The following methods collide even though they target different C# types:
 
@@ -533,7 +515,7 @@ DTOs should only contain properties that can be serialized to and from JSON. Avo
 
 ### Collection properties in DTOs
 
-DTO collection properties (such as `List<T>`, `IList<T>`, `IEnumerable<T>`, arrays, or `Dictionary<string, T>`) are generated as **value-shaped JSON types** in supported guest SDKs. This means guest code can supply plain collection literals directly rather than constructing handle-backed wrapper objects.
+DTO collection properties (such as `List<T>`, `IList<T>`, `IEnumerable<T>`, arrays, or `Dictionary<string, T>`) are generated as **value-shaped JSON types** in the TypeScript SDK. This means AppHost code can supply plain collection literals directly rather than constructing handle-backed wrapper objects.
 
 For example, a DTO that accepts address prefix and fully qualified domain name collections:
 
@@ -546,49 +528,14 @@ public sealed class MyAccessRule
 }
 ```
 
-Guest SDKs expose the collection values using each language's ordinary collection shape:
+The TypeScript SDK exposes collection values using ordinary TypeScript collection shapes:
 
-<Tabs>
-<TabItem label="TypeScript">
-
-```typescript title="TypeScript — apphost.ts"
+```typescript title="TypeScript — apphost.mts"
 const rule: MyAccessRule = {
   addressPrefixes: ['203.0.113.0/24', '198.51.100.0/24'],
   fullyQualifiedDomainNames: ['example.com'],
 };
 ```
-
-</TabItem>
-<TabItem label="Python">
-
-```python title="Python — apphost.py"
-rule: MyAccessRule = {
-    "AddressPrefixes": ["203.0.113.0/24", "198.51.100.0/24"],
-    "FullyQualifiedDomainNames": ["example.com"],
-}
-```
-
-</TabItem>
-<TabItem label="Go">
-
-```go title="Go — apphost.go"
-rule := &aspire.MyAccessRule{
-    AddressPrefixes:           []string{"203.0.113.0/24", "198.51.100.0/24"},
-    FullyQualifiedDomainNames: []string{"example.com"},
-}
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java title="Java — AppHost.java"
-var rule = new MyAccessRule();
-rule.setAddressPrefixes(java.util.List.of("203.0.113.0/24", "198.51.100.0/24"));
-rule.setFullyQualifiedDomainNames(java.util.List.of("example.com"));
-```
-
-</TabItem>
-</Tabs>
 
 :::note
 This behavior applies to DTOs only. Mutable collection properties on **exported resource types** (classes annotated with `[AspireExport]`) continue to use handle-backed wrappers such as `AspireList<T>` so that guest code can add or remove values imperatively. DTOs use value-shaped types because they are consumed as JSON input objects, not as live handles.
@@ -596,15 +543,7 @@ This behavior applies to DTOs only. Mutable collection properties on **exported 
 
 ## Export value catalogs
 
-Use `[AspireValue]` to export immutable predefined values from your integration into guest SDKs as typed catalog objects. This is useful when your integration ships well-known constants or configuration presets—such as a list of supported model names or region identifiers—that polyglot AppHost authors should be able to reference without reconstructing them manually.
-
-`[AspireValue]` is an experimental API protected by the `ASPIREATS001` diagnostic. Suppress it in your project file along with the other ATS attributes:
-
-```xml title="XML — MyIntegration.csproj"
-<PropertyGroup>
-    <NoWarn>$(NoWarn);ASPIREATS001</NoWarn>
-</PropertyGroup>
-```
+Use `[AspireValue]` to export immutable predefined values from your integration into guest SDKs as typed catalog objects. This is useful when your integration ships well-known constants or configuration presets—such as a list of supported model names or region identifiers—that TypeScript AppHost authors should be able to reference without reconstructing them manually.
 
 ### Define a value catalog
 
@@ -646,7 +585,7 @@ The scanner snaps the values at scan time by serializing each field or property 
 
 ### Use catalog values in guest SDKs
 
-After generating the SDK (for example, with `aspire run`), the catalog is available as a nested object in each supported language. The nesting mirrors the static class hierarchy of the C# source:
+After generating the SDK (for example, with `aspire run`), the catalog is available as a nested object in the TypeScript SDK. The nesting mirrors the static class hierarchy of the C# source:
 
 ```typescript title="TypeScript — apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -659,19 +598,6 @@ await builder
   .addMyService('svc', { model: MyModels.FastModels.Lite })
   .build()
   .run();
-```
-
-```python title="Python — apphost.py"
-from modules.my_integration import MyModels
-
-builder = await create_builder()
-
-await (
-    builder
-    .add_my_service("svc", model=MyModels.FastModels.Lite)
-    .build()
-    .run()
-)
 ```
 
 ### Override the exported name
@@ -781,7 +707,7 @@ The `Aspire.Hosting.Integration.Analyzers` package reports these diagnostics:
 | ASPIREEXPORT015 | Error    | `[AspireExport(Description = ...)]` is deprecated — use XML doc comments instead            |
 | ASPIREEXPORT016 | Warning  | DTO property is a get-only mutable collection. Add an init accessor                         |
 
-A clean build with zero analyzer warnings or errors means your integration is ready for multi-language use.
+A clean build with zero analyzer warnings or errors means your integration is ready for TypeScript AppHost use.
 
 ## Local development with project references
 

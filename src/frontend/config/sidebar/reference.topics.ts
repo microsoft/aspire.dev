@@ -214,6 +214,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
           slug: 'reference/cli/install-script',
         },
         {
+          label: 'Search and filter',
+          slug: 'reference/cli/search-filter',
+        },
+        {
           label: 'Configuration',
           translations: {
             da: 'Konfiguration',
@@ -570,10 +574,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE002', link: '/diagnostics/aspire002' },
             { label: 'ASPIRE003', link: '/diagnostics/aspire003' },
             { label: 'ASPIRE004', link: '/diagnostics/aspire004' },
-            {
-              label: 'ASPIREATS001',
-              link: '/diagnostics/aspireats001',
-            },
             {
               label: 'ASPIREEXPORT005',
               link: '/diagnostics/aspireexport005',

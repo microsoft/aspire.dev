@@ -1,0 +1,85 @@
+---
+title: Search and filter telemetry data in the Aspire CLI
+description: Learn how to use the --search option to filter logs, traces, and spans in the Aspire CLI.
+---
+
+The `--search` option filters output by matching against text and attributes on returned data. Search is supported by these commands:
+
+- [`aspire logs`](../commands/aspire-logs/)
+- [`aspire otel logs`](../commands/aspire-otel-logs/)
+- [`aspire otel spans`](../commands/aspire-otel-spans/)
+- [`aspire otel traces`](../commands/aspire-otel-traces/)
+
+For example, to filter console logs for a specific resource by text:
+
+```bash title="Aspire CLI"
+aspire logs redis --search "timeout"
+```
+
+## Search syntax
+
+Search queries support free-text fragments, field qualifiers, attribute qualifiers, negation, and comparison operators.
+
+| Syntax | Meaning | Example |
+|--------|---------|---------|
+| `word` | Free-text fragment — must appear in at least one searchable field | `timeout` |
+| `"quoted phrase"` | Single fragment containing spaces | `"connection refused"` |
+| `field:value` | Field qualifier — value must match the named field | `severity:error` |
+| `field:"value with spaces"` | Quoted field qualifier value | `message:"connection failed"` |
+| `@attr:value` | Attribute qualifier — matches custom span/log attributes | `@http.method:GET` |
+| `-field:value` / `-@attr:value` | Negated qualifier — excludes matches | `-severity:debug` |
+| `field:>N` / `field:>=N` / `field:<N` / `field:<=N` | Numeric comparison | `duration:>100` |
+
+All terms are AND'd: every fragment and qualifier must independently match.
+
+## Console logs
+
+Matches against log line text content and resource name. Only free-text is supported (no structured qualifiers).
+
+```bash title="Aspire CLI"
+aspire logs redis --search "timeout"
+aspire logs --follow --search "\"connection error\""
+```
+
+## Structured logs
+
+Supports free-text and structured qualifiers. Free-text matches against message, resource name, scope, trace/span IDs, severity, and all attribute keys/values.
+
+Available field qualifiers: `severity`, `resource`, `scope`, `message`, `trace-id`, `span-id`, `event`.
+
+```bash title="Aspire CLI"
+aspire otel logs --search "severity:error \"connection failed\""
+aspire otel logs --search "resource:api -severity:debug"
+aspire otel logs --search "scope:Microsoft.EntityFrameworkCore"
+```
+
+## Traces
+
+Supports free-text and structured qualifiers. Free-text matches against trace name, resource name, and all span fields within the trace.
+
+Available field qualifiers: `name`, `resource`, `trace-id`, `status`, `duration`.
+
+```bash title="Aspire CLI"
+aspire otel traces --search "checkout"
+aspire otel traces --search "status:error duration:>500"
+aspire otel traces --search "@http.status_code:500"
+```
+
+## Spans
+
+Supports free-text and structured qualifiers. Free-text matches against span name, resource name, scope, trace/span IDs, status, kind, and all attribute keys/values.
+
+Available field qualifiers: `name`, `resource`, `scope`, `status`, `kind`, `trace-id`, `span-id`, `duration`.
+
+```bash title="Aspire CLI"
+aspire otel spans --search "@http.method:GET duration:>100 status:error"
+aspire otel spans --search "@db.system:postgresql"
+aspire otel spans --search "-kind:internal"
+```
+
+## See also
+
+- [Command reference: `aspire logs`](../commands/aspire-logs/)
+- [Command reference: `aspire otel logs`](../commands/aspire-otel-logs/)
+- [Command reference: `aspire otel spans`](../commands/aspire-otel-spans/)
+- [Command reference: `aspire otel traces`](../commands/aspire-otel-traces/)

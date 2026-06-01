@@ -17,7 +17,7 @@ Use this table as the starting point:
 | Static frontend served by a gateway or BFF            | Reverse proxy               | `PublishWithStaticFiles`    |
 | Static frontend served by its own JavaScript resource | JavaScript app resource     | `PublishAsStaticWebsite`    |
 | SSR or Node.js app with a built server artifact       | JavaScript app resource     | `PublishAsNodeServer`       |
-| SSR or Node.js app started by a package script        | JavaScript app resource     | `PublishAsNpmScript`        |
+| SSR or Node.js app started by a package script        | JavaScript app resource     | `PublishAsPackageScript`    |
 | Next.js standalone app                                | Next.js app resource        | `AddNextJsApp`              |
 | Static frontend hosted separately from the backend    | Static host + separate API  | Custom topology             |
 
@@ -359,13 +359,13 @@ Use this shape when the JavaScript framework output should become the deployed w
 There are two common runtime shapes:
 
 - Use `PublishAsNodeServer` when the build produces a self-contained server artifact that can run directly with `node`.
-- Use `PublishAsNpmScript` when the production server starts through a package-manager script and needs production dependencies from `node_modules`.
+- Use `PublishAsPackageScript` when the production server starts through a package-manager script and needs production dependencies from `node_modules`.
 
 ### Built Node.js server artifact
 
 Use `PublishAsNodeServer` for frameworks that produce a self-contained Node.js server artifact during build, such as SvelteKit and TanStack Start. Aspire generates a runtime container that runs the built artifact directly with `node`.
 
-Choose this method instead of `PublishAsNpmScript` when the build output does not need a production `node_modules` install at runtime. The resulting image can be smaller because it copies the server artifact rather than the full application with production dependencies.
+Choose this method instead of `PublishAsPackageScript` when the build output does not need a production `node_modules` install at runtime. The resulting image can be smaller because it copies the server artifact rather than the full application with production dependencies.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -425,9 +425,9 @@ The generated container sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the Node.j
 
 ### Package-script server
 
-Use `PublishAsNpmScript` for SSR frameworks that start production by running an npm-compatible script, such as Nuxt, Astro SSR, and Remix. Aspire generates a multi-stage Dockerfile that installs production dependencies and uses the package manager script as the container entrypoint.
+Use `PublishAsPackageScript` for SSR frameworks that start production by running a package-manager script, such as Nuxt, Astro SSR, and Remix. Aspire generates a multi-stage Dockerfile that installs production dependencies and uses the package manager script as the container entrypoint.
 
-Choose this method instead of `PublishAsNodeServer` when the production server imports packages from `node_modules` at runtime or the framework's recommended production command is an npm script.
+Choose this method instead of `PublishAsNodeServer` when the production server imports packages from `node_modules` at runtime or the framework's recommended production command is a package script.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -447,7 +447,7 @@ var apiEndpoint = api.GetEndpoint("http");
 
 var nuxtApp = builder
     .AddViteApp("nuxt", "./frameworks/nuxt", runScriptName: "dev")
-    .PublishAsNpmScript(startScriptName: "start")
+    .PublishAsPackageScript(scriptName: "start")
     .WithEnvironment("API_URL", apiEndpoint)
     .WithEnvironment("NUXT_API_URL", apiEndpoint)
     .WithExternalHttpEndpoints();
@@ -473,7 +473,7 @@ const apiEndpoint = await api.getEndpoint('http');
 
 await builder
   .addViteApp('nuxt', './frameworks/nuxt', { runScriptName: 'dev' })
-  .publishAsNpmScript({ startScriptName: 'start' })
+  .publishAsPackageScript({ scriptName: 'start' })
   .withEnvironment('API_URL', apiEndpoint)
   .withEnvironment('NUXT_API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
@@ -487,11 +487,40 @@ await builder.build().run();
 
 The generated container sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the server binds to all interfaces inside the container network.
 
+### pnpm and Bun with PublishAsPackageScript
+
+`PublishAsPackageScript` works with pnpm and Bun in addition to npm and Yarn. The generated runtime Dockerfile stage is tailored to the package manager:
+
+- **pnpm**: The runtime stage runs `corepack enable pnpm && pnpm --version` before the entrypoint, so pnpm is available when the start script executes. Without this step, the container fails at startup with exit code 127 because pnpm is not included in the base `node:alpine` image.
+- **Bun**: The runtime stage reuses the Bun build image rather than switching to a Node.js image, because `bun run <script>` requires the Bun runtime at startup.
+
+```csharp title="AppHost.cs — pnpm package-script publish"
+#pragma warning disable ASPIREJAVASCRIPT001
+
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddDockerComposeEnvironment("compose");
+
+var frontend = builder
+    .AddJavaScriptApp("frontend", "../NodeFrontend")
+    .WithPnpm()
+    .PublishAsPackageScript("start")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+The generated Dockerfile for the pnpm case includes:
+
+```dockerfile
+RUN corepack enable pnpm && pnpm --version
+ENTRYPOINT ["sh", "-c", "exec pnpm run start"]
+```
+
 ## Next.js standalone apps
 
 Use `AddNextJsApp` for Next.js apps that use [standalone output](https://nextjs.org/docs/pages/api-reference/next-config-js/output). It is more specific than `AddJavaScriptApp` because it configures the Next.js development server port argument and publish-time standalone container shape, and it validates that the Next.js configuration enables `output: "standalone"`.
 
-Choose this method instead of `AddJavaScriptApp(...).PublishAsNpmScript(...)` for Next.js standalone deployments. Use the more general npm-script publish method for frameworks where the production server should be started through the package manager and the framework does not have a dedicated Aspire resource.
+Choose this method instead of `AddJavaScriptApp(...).PublishAsPackageScript(...)` for Next.js standalone deployments. Use the more general package-script publish method for frameworks where the production server should be started through the package manager and the framework does not have a dedicated Aspire resource.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -722,10 +751,10 @@ The following table summarizes common framework outputs and the Aspire patterns 
 | SvelteKit             | `PublishAsNodeServer`    | `build/index.js`                                 | `@sveltejs/adapter-node`                                               |
 | TanStack Start        | `PublishAsNodeServer`    | `.output/server/index.mjs`                       | None (Nitro `node-server` preset by default)                           |
 | Next.js               | `AddNextJsApp`           | `server.js` (in `.next/standalone/`)             | `output: "standalone"` in `next.config.*`                              |
-| Nuxt                  | `PublishAsNpmScript`     | `node .output/server/index.mjs` (via `start`)    | `NUXT_` prefix on `runtimeConfig` env vars                             |
-| Astro SSR             | `PublishAsNpmScript`     | `node ./dist/server/entry.mjs` (via `start`)     | `@astrojs/node`, `prerender: false` per page                           |
-| Remix / React Router  | `PublishAsNpmScript`     | `react-router-serve` (via `start`)               | None                                                                   |
-| Qwik City             | `PublishAsNpmScript`     | `node server/entry.node-server.js` (via `start`) | Node server adapter, Node 22.x or 24.x LTS                             |
+| Nuxt                  | `PublishAsPackageScript` | `node .output/server/index.mjs` (via `start`)    | `NUXT_` prefix on `runtimeConfig` env vars                             |
+| Astro SSR             | `PublishAsPackageScript` | `node ./dist/server/entry.mjs` (via `start`)     | `@astrojs/node`, `prerender: false` per page                           |
+| Remix / React Router  | `PublishAsPackageScript` | `react-router-serve` (via `start`)               | None                                                                   |
+| Qwik City             | `PublishAsPackageScript` | `node server/entry.node-server.js` (via `start`) | Node server adapter, Node 22.x or 24.x LTS                             |
 
 <LearnMore>
   For per-framework AppHost snippets, see [JavaScript integration — Framework
@@ -759,12 +788,12 @@ const apiEndpoint = await api.getEndpoint('http');
 - **Directory structure**: Nuxt 4 places pages in `app/pages/`, not a root `pages/` directory.
 - **Environment variables**: Nuxt maps [`runtimeConfig`](https://nuxt.com/docs/getting-started/configuration#runtime-config) keys to env vars with a `NUXT_` prefix. To pass the backend URL, set `NUXT_API_URL` on the resource so Nuxt sees it as `runtimeConfig.apiUrl`. You can also set `API_URL` for code that reads `process.env.API_URL` directly.
 - **Server API routes**: The recommended pattern for calling external APIs from Nuxt is a [server API route](https://nuxt.com/docs/guide/directory-structure/server) (`server/api/<name>.ts`) that uses `useRuntimeConfig()`, consumed from a page via [`useAsyncData`](https://nuxt.com/docs/api/composables/use-async-data).
-- **Publish method**: Always use `PublishAsNpmScript` for Nuxt. The Nitro `.output/` looks self-contained, but server-side data fetching via `useAsyncData` / `useFetch` fails without the full `node_modules` available at runtime.
+- **Publish method**: Always use `PublishAsPackageScript` for Nuxt. The Nitro `.output/` looks self-contained, but server-side data fetching via `useAsyncData` / `useFetch` fails without the full `node_modules` available at runtime.
 
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('nuxt', './frameworks/nuxt', { runScriptName: 'dev' })
-  .publishAsNpmScript({ startScriptName: 'start' })
+  .publishAsPackageScript({ scriptName: 'start' })
   .withEnvironment('API_URL', apiEndpoint)
   .withEnvironment('NUXT_API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
@@ -799,12 +828,12 @@ export default defineEventHandler(async () => {
 - **Adapter**: Use [`@astrojs/node`](https://docs.astro.build/en/guides/integrations-guide/node/) so Astro produces a Node SSR build.
 - **Pre-rendering**: Astro [pre-renders pages](https://docs.astro.build/en/guides/on-demand-rendering/) at build time by default, even with the Node adapter. Add `export const prerender = false` to any page that needs to run at request time.
 - **Environment variables**: Use `process.env.API_URL`, not `import.meta.env.API_URL`. `import.meta.env` values are resolved at build time and baked into the output.
-- **Runtime dependencies**: The built `entry.mjs` imports unbundled `@astrojs/*` packages, so SSR Astro must use `PublishAsNpmScript`. The [official Docker recipe](https://docs.astro.build/en/recipes/docker/#multi-stage-build-using-ssr) confirms `node_modules` must be copied into the runtime image.
+- **Runtime dependencies**: The built `entry.mjs` imports unbundled `@astrojs/*` packages, so SSR Astro must use `PublishAsPackageScript`. The [official Docker recipe](https://docs.astro.build/en/recipes/docker/#multi-stage-build-using-ssr) confirms `node_modules` must be copied into the runtime image.
 
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('astro-ssr', './frameworks/astro-ssr', { runScriptName: 'dev' })
-  .publishAsNpmScript({ startScriptName: 'start' })
+  .publishAsPackageScript({ scriptName: 'start' })
   .withEnvironment('API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 ```
@@ -962,14 +991,14 @@ export const Route = createFileRoute('/')({
 
 #### Remix / React Router
 
-- **Server binary**: `react-router-serve` lives in `node_modules`; it's not bundled into the build output. This is why Remix needs `PublishAsNpmScript` rather than `PublishAsNodeServer`. See the [React Router deployment guide](https://reactrouter.com/start/framework/deploying) and the [`node-custom-server` template](https://github.com/remix-run/react-router-templates/tree/main/node-custom-server) for production server patterns.
+- **Server binary**: `react-router-serve` lives in `node_modules`; it's not bundled into the build output. This is why Remix needs `PublishAsPackageScript` rather than `PublishAsNodeServer`. See the [React Router deployment guide](https://reactrouter.com/start/framework/deploying) and the [`node-custom-server` template](https://github.com/remix-run/react-router-templates/tree/main/node-custom-server) for production server patterns.
 - **Port binding**: Pass `-- --port "$PORT"` as `runScriptArguments` so the server listens on Aspire's assigned port.
 
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('remix', './frameworks/remix', { runScriptName: 'dev' })
-  .publishAsNpmScript({
-    startScriptName: 'start',
+  .publishAsPackageScript({
+    scriptName: 'start',
     runScriptArguments: '-- --port "$PORT"',
   })
   .withEnvironment('API_URL', apiEndpoint)
@@ -1012,7 +1041,7 @@ export async function loader() {
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('qwik', './frameworks/qwik', { runScriptName: 'dev' })
-  .publishAsNpmScript({ startScriptName: 'start' })
+  .publishAsPackageScript({ scriptName: 'start' })
   .withEnvironment('API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 ```
@@ -1219,7 +1248,7 @@ await builder.build().run();
 
 The `DisableBuildOnlyContainerValidation` method is marked experimental with the `ASPIREPIPELINES001` diagnostic.
 
-`AddNextJsApp` is different because it represents the Next.js standalone-server publish model directly. Use it when the app is a Next.js app with `output: "standalone"` rather than modeling the app with `AddJavaScriptApp` and choosing a generic npm-script publish method.
+`AddNextJsApp` is different because it represents the Next.js standalone-server publish model directly. Use it when the app is a Next.js app with `output: "standalone"` rather than modeling the app with `AddJavaScriptApp` and choosing a generic package-script publish method.
 
 ### Run script and existing Dockerfile conflict
 
@@ -1253,7 +1282,7 @@ builder
 await builder
   .addJavaScriptApp('js', './js', { runScriptName: 'migrate' })
   .withBun()
-  .publishAsDockerFile(async container => {
+  .publishAsDockerFile(async (container) => {
     container.withEntrypoint('bun');
     container.withArgs(['src/migrate.ts']);
   });
@@ -1267,7 +1296,7 @@ Using the implicit default `runScriptName` (`"dev"`) without any custom argument
 ## Common mistakes
 
 - Expecting `AddViteApp` or `AddJavaScriptApp` to be the deployed production web server without choosing a publish method.
-- Modeling a Next.js standalone deployment with generic npm-script publishing instead of `AddNextJsApp`.
+- Modeling a Next.js standalone deployment with generic package-script publishing instead of `AddNextJsApp`.
 - Exposing the Vite resource instead of the backend, reverse proxy, or JavaScript publish resource that serves production requests.
 - Adding `AddViteApp` plus `.WithReference(...)` and assuming that is enough to deploy the frontend.
 - Using `.WithEnvironment(...)` on `AddViteApp` to pass the API URL to the deployed SPA.
