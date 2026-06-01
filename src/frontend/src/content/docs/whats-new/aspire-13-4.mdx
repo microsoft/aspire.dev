@@ -46,29 +46,7 @@ Aspire 13.4 includes breaking changes. Please review the [Breaking changes](#bre
 </Aside>
 
 <Aside type="note">
-  If you are on a version of the Aspire CLI less than 13, please use the
-  [installation instructions](/get-started/install-cli/) to install the latest
-  stable version.
-</Aside>
-
-<Aside type="caution" title="TypeScript AppHost users: run aspire update --self first">
-  If you have a **TypeScript AppHost on Aspire 13.3.x**, you must update the
-  Aspire CLI itself **before** running `aspire update` on your project. Running
-  `aspire update` first will fail mid-update with an error like:
-
-  ```text
-  ❌ An unexpected error occurred: No code generator found for language: TypeScript
-  ```
-
-  The 13.3.x CLI bundles an AppHost server that cannot load the 13.4 TypeScript
-  code generator, so package restore succeeds but TypeScript SDK regeneration
-  crashes. The failure leaves `aspire.config.json` pointing at 13.4 packages
-  while the CLI is still 13.3.x, which also breaks `aspire run` and
-  `aspire restore` until you finish the upgrade with `aspire update --self`.
-
-  Follow the steps below in order — `aspire update --self` first, then
-  `aspire update`. See [microsoft/aspire#17077](https://github.com/microsoft/aspire/issues/17077)
-  for background.
+  If you are on a version of the Aspire CLI less than 13, please use the [installation instructions](/get-started/install-cli/) to install the latest stable version.
 </Aside>
 
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
@@ -111,8 +89,7 @@ Or install the CLI from scratch:
 </OsAwareTabs>
 
 <LearnMore>
-  For more details on installing the Aspire CLI, see [Install the
-  CLI](/get-started/install-cli/).
+  For more details on installing the Aspire CLI, see [Install the CLI](/get-started/install-cli/).
 </LearnMore>
 
 ## 📦 More ways to acquire Aspire
@@ -143,7 +120,7 @@ Aspire 13.4 expands package-manager distribution so you can install the Aspire C
   </TabItem>
 </Tabs>
 
-## 🛸 Aspire skills for AI coding agents
+## 🛸 New Aspire skills for AI coding agents
 
 `aspire agent init` can configure AI agent environments for an Aspire repo and install focused skills for the work an agent needs to do:
 
@@ -156,7 +133,11 @@ Aspire 13.4 expands package-manager distribution so you can install the Aspire C
 | `aspire-orchestration` | Manages AppHost lifecycle tasks such as start, stop, wait, restart, and recovery from file locks, port conflicts, or orphaned processes. |
 | `aspireify` | Wires an AppHost after `aspire init` by scanning the repo, proposing a resource graph, editing the AppHost, adding service defaults, and validating with `aspire start`. |
 
-The skills are distributed through the external [`@microsoft/aspire-skills`](https://www.npmjs.com/package/@microsoft/aspire-skills) npm package, verified with npm provenance and cached locally, so they can be updated independently of the CLI.
+The skills are distributed through the external [`@microsoft/aspire-skills`](https://www.npmjs.com/package/@microsoft/aspire-skills) npm package and cached locally, so they can be updated independently of the CLI.
+
+If you want to add or refresh the skills directly, you can also run `npx skills add microsoft/aspire-skills`.
+
+We're continuously evaluating skill behavior across models and improving guidance based on real usage. If agents do something suboptimal, please open an issue in [microsoft/aspire](https://github.com/microsoft/aspire/issues).
 
 ## 🌐 TypeScript AppHosts
 
@@ -177,15 +158,16 @@ const api = await builder
 await builder.build().run();
 ```
 
-Aspire 13.4 validates TypeScript AppHosts before startup, so type-checking and compile errors fail early. New TypeScript projects use `.aspire/modules/` for generated SDK files, and `aspire init --language typescript` creates a nested `aspire-apphost/` package when run in an existing JavaScript or TypeScript app.
+Aspire 13.4 validates TypeScript AppHosts before startup, so type-checking and compile errors fail early. New TypeScript projects use `.aspire/modules/` for generated SDK files, and `aspire init --language typescript` creates a nested `aspire-apphost/` folder and package when run in an existing JavaScript or TypeScript app.
 
-Docs now include TypeScript examples alongside C# where the API is available, and the release adds TypeScript samples you can start from instead of translating C# projects.
+Docs now include TypeScript examples alongside C# where the API is available, and the release adds TypeScript samples you can start from.
 
-The Aspire Type System (ATS) APIs that power polyglot AppHost authoring are now generally available, so projects can remove `ASPIREATS001` suppressions. The generated TypeScript SDK also adds C# XML-doc JSDoc, fluent async method chaining, `ExternalServiceResource` support in `withEnvironment`, and fixes for generated names and exports.
+The [Aspire Type System (ATS)](/extensibility/multi-language-integration-authoring/) APIs that power polyglot AppHost authoring are now generally available, so projects can remove `ASPIREATS001` suppressions. The generated TypeScript SDK also adds C# XML-doc JSDoc, fluent async method chaining, `ExternalServiceResource` support in `withEnvironment`, and fixes for generated names and exports.
 
 Existing TypeScript AppHosts scaffolded by earlier CLI versions (using `apphost.ts` and `./.modules/aspire.js`) continue to work on 13.4 without changes — the CLI transparently routes generated SDK files to the legacy `./.modules/` folder and rewrites them to `.ts`/`.js` so existing imports resolve. See [Legacy `apphost.ts` projects (pre-13.4)](/app-host/typescript-apphost/#legacy-apphostts-projects-pre-134) for details and an opt-in migration to the new `apphost.mts` layout.
 
 <LearnMore>
+  For preview polyglot AppHosts behind feature flags, see [`aspire config set`](/reference/cli/commands/aspire-config-set/).
   For setup details, see [TypeScript AppHosts](/app-host/typescript-apphost/).
   To explore working examples, browse the [Aspire samples](/reference/samples/).
 </LearnMore>
@@ -205,7 +187,8 @@ Go application hosting has graduated into core Aspire as the `Aspire.Hosting.Go`
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddGoApp("api", "./api")
-    .WithHttpEndpoint(env: "PORT");
+  .WithHttpEndpoint(port: 8080, env: "PORT")
+  .WithExternalHttpEndpoints();
 
 builder.Build().Run();
 ```
@@ -219,6 +202,8 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const api = await builder.addGoApp('api', './api');
+await api.withHttpEndpoint({ port: 8080, env: 'PORT' });
+await api.withExternalHttpEndpoints();
 
 await builder.build().run();
 ```
@@ -233,14 +218,27 @@ await builder.build().run();
 </Aside>
 
 <LearnMore>
-  For setup details, see [Get started with the Go
-  integration](/integrations/frameworks/go/go-get-started/) and [Set up Go apps
-  in the AppHost](/integrations/frameworks/go/go-host/).
+  For setup details, see [Get started with the Go integration](/integrations/frameworks/go/go-get-started/) and [Set up Go apps in the AppHost](/integrations/frameworks/go/go-host/).
 </LearnMore>
 
-### 🐰 Bun apps
+### 🥟 Bun apps
 
 Aspire 13.4 adds `AddBunApp` for orchestrating [Bun](https://bun.sh/) applications alongside the rest of your resources, so JavaScript and TypeScript apps that run on the Bun runtime can participate in the app model just like Node.js apps.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var bunApi = builder.AddBunApp("bun-api", "../bun-app")
+  .WithHttpEndpoint(port: 3000, env: "PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
 import { createBuilder } from "./.aspire/modules/aspire.mjs";
@@ -250,11 +248,11 @@ const builder = await createBuilder();
 const bunApi = await builder.addBunApp("bun-api", "../bun-app");
 await bunApi.withHttpEndpoint({ port: 3000, env: "PORT" });
 
-const web = await builder.addProject("web", "../web/web.csproj");
-await web.withReference(bunApi);
-
 await builder.build().run();
 ```
+
+</TabItem>
+</Tabs>
 
 <LearnMore>
   For setup details, see the [Bun integration](/integrations/frameworks/bun-apps/).
@@ -262,7 +260,7 @@ await builder.build().run();
 
 ## 🌐 Blazor WebAssembly hosting preview
 
-The new preview `Aspire.Hosting.Blazor` integration models standalone Blazor WebAssembly projects in your AppHost. Use `AddBlazorWasmProject` / `addBlazorWasmProject` to add a Blazor WebAssembly project and `AddBlazorGateway` / `addBlazorGateway` to add a browser-facing gateway that serves the hosted app and routes API calls to your backend resources.
+The new preview `Aspire.Hosting.Blazor` integration models standalone Blazor WebAssembly projects in your AppHost. Use `AddBlazorWasmProject` / `addBlazorWasmProject` to add a Blazor WebAssembly project and `AddBlazorGateway` / `addBlazorGateway` to add a browser-facing gateway, then associate the hosted client with `WithBlazorClientApp` / `withBlazorClientApp`.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -273,7 +271,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 var blazorApp = builder.AddBlazorWasmProject("app", "../MyBlazorApp/MyBlazorApp.csproj");
 
 var gateway = builder.AddBlazorGateway("gateway")
-    .WithReference(blazorApp);
+  .WithExternalHttpEndpoints()
+  .WithBlazorClientApp(blazorApp);
 
 builder.Build().Run();
 ```
@@ -282,26 +281,20 @@ builder.Build().Run();
 </Tabs>
 
 <LearnMore>
-  For setup details, see [Set up Blazor hosting in the
-  AppHost](/integrations/dotnet/blazor-hosting/).
+  For setup details, see [Set up Blazor hosting in the AppHost](/integrations/dotnet/blazor-hosting/).
 </LearnMore>
 
 ## 🛠️ CLI enhancements
 
-### Discover integrations from the CLI
-
-The new `aspire integration` command group helps you find available Aspire hosting integrations without modifying an AppHost project. Use `aspire integration list` to browse all integrations or `aspire integration search` to search by keyword.
-
-```bash title="Aspire CLI — Search integrations"
-aspire integration list
-aspire integration search redis
-```
-
-After you find the integration you need, use [`aspire add`](/reference/cli/commands/aspire-add/) to add it to your AppHost.
-
 ### Search logs and telemetry
 
-`aspire logs` and the `aspire otel` commands now support `--search`, so you can filter logs and telemetry by keyword directly from the CLI. For console logs, Aspire searches the log message text and resource prefix. For structured logs, Aspire searches the message, attributes, scope name, event name, trace and span IDs, severity, and resource name. For spans and traces, Aspire searches span names, trace and span IDs, attributes, status, kind, scope, events, resource names, and trace names. Search, tail, and resource filters are applied before data is streamed back to the CLI, which keeps large log streams responsive.
+`aspire logs` and the `aspire otel` commands now support `--search`, so you can filter logs and telemetry by keyword directly from the CLI. 
+
+- For console logs, Aspire searches the log message text and resource prefix.
+- For structured logs, Aspire searches the message, attributes, scope name, event name, trace and span IDs, severity, and resource name.
+- For spans and traces, Aspire searches span names, trace and span IDs, attributes, status, kind, scope, events, resource names, and trace names.
+
+Search, tail, and resource filters are applied **before** data is streamed back to the CLI, which keeps large log streams responsive. It also means your coding agent no longer has to load all the output into context and `grep`, speeding up the diagnostic process while using less tokens.
 
 ```bash title="Aspire CLI — Search logs"
 aspire logs --search "failed"
@@ -313,17 +306,17 @@ aspire otel traces --search "@http.status_code:500"
 Search now also supports field filters, so you can narrow telemetry results by matching attributes, names, sources, IDs, and other telemetry fields.
 
 <LearnMore>
-  See [`aspire logs`](/reference/cli/commands/aspire-logs/) and [`aspire otel
-  logs`](/reference/cli/commands/aspire-otel-logs/) for telemetry CLI usage.
+  See [`aspire logs`](/reference/cli/commands/aspire-logs/) and [`aspire otel logs`](/reference/cli/commands/aspire-otel-logs/) for telemetry CLI usage.
 </LearnMore>
 
 ### Better environment diagnostics
 
-[`aspire doctor`](/reference/cli/commands/aspire-doctor/) now reports the current Aspire CLI version, shows an update notice when a newer version is available, and reports the AppHost SDK version when an AppHost is detected. This makes CLI/SDK version mismatches easier to spot before they become restore or runtime issues. It also lists every Aspire CLI installation discovered on the machine — the active binary, peer installs, shadowed binaries, and `dotnet tool` store installs — so conflicting installs are easy to find.
+[`aspire doctor`](/reference/cli/commands/aspire-doctor/) now reports the current Aspire CLI version, shows an update notice when a newer version is available, and reports the AppHost SDK version when an AppHost is detected. This makes CLI/SDK version mismatches easier to spot before they become restore or runtime issues.
+
+It also lists every Aspire CLI installation discovered on the machine — the active binary, peer installs, shadowed binaries, and `dotnet tool` store installs — so conflicting installs are easy to find.
 
 ```text title="Aspire CLI — Environment diagnostics"
 Aspire Environment Check
-========================
 Aspire
   ✅ Aspire CLI version 13.4.0 (channel: stable)
 AppHost
@@ -337,7 +330,6 @@ Environment
 Summary: 5 passed, 0 warnings, 0 failed
 
 Aspire CLI Installations
-========================
 Path                                      Version  Channel  Route      PATH status
 C:\Users\you\.aspire\bin\aspire.exe       13.4.0   stable   installer  active
 C:\Users\you\.dotnet\tools\aspire.exe     13.3.0   stable   dotnet     shadowed
@@ -353,13 +345,23 @@ aspire resource cache --help
 ```
 
 <LearnMore>
-  For more information, see [`aspire
-  resource`](/reference/cli/commands/aspire-resource/).
+  For more information, see [`aspire resource`](/reference/cli/commands/aspire-resource/).
 </LearnMore>
 
 ### Deployment commands are generally available
 
 The Aspire CLI deployment commands — [`aspire publish`](/reference/cli/commands/aspire-publish/) and [`aspire deploy`](/reference/cli/commands/aspire-deploy/) — are now generally available, so you can generate deployment artifacts and deploy your app from the CLI as a supported workflow.
+
+### Discover integrations from the CLI
+
+The new `aspire integration` command group helps you and your coding agent quickly search available Aspire hosting integrations without modifying an AppHost project. Use `aspire integration list` to browse all integrations or `aspire integration search` to search by keyword.
+
+```bash title="Aspire CLI — Search integrations"
+aspire integration list
+aspire integration search redis
+```
+
+After you find the integration you need, use [`aspire add`](/reference/cli/commands/aspire-add/) to add it to your AppHost.
 
 ### CLI quality-of-life
 
@@ -385,8 +387,7 @@ Custom resource commands can now declare typed input arguments with labels, desc
 Command results can be configured to display immediately in the dashboard, making interactive commands easier to use when they return structured output or captured text.
 
 <LearnMore>
-  For the full API surface, see [Custom resource
-  commands](/fundamentals/custom-resource-commands/).
+  For the full API surface, see [Custom resource commands](/fundamentals/custom-resource-commands/).
 </LearnMore>
 
 ### Hide implementation-detail resources
@@ -398,10 +399,7 @@ AppHost authors can keep resource views focused with `WithHidden()` and `WithHid
 Aspire 13.4 adds the experimental `WithProcessCommand` API for exposing local tools, scripts, and CLIs as resource commands. The helper starts a process on the AppHost machine, passes arguments without going through a shell, streams stdout and stderr to the command logger, captures bounded output, and maps process exit codes to resource command results.
 
 <Aside type="caution">
-  `WithProcessCommand`, `ProcessCommandSpec`, and `ProcessCommandOptions` are
-  experimental APIs. C# callers must suppress
-  [`ASPIREPROCESSCOMMAND001`](/diagnostics/aspireprocesscommand001/) to use
-  them.
+  `WithProcessCommand`, `ProcessCommandSpec`, and `ProcessCommandOptions` are experimental APIs. C# callers must suppress [`ASPIREPROCESSCOMMAND001`](/diagnostics/aspireprocesscommand001/) to use them.
 </Aside>
 
 <Tabs syncKey='aspire-lang'>
@@ -444,9 +442,7 @@ await builder.build().run();
 </Tabs>
 
 <LearnMore>
-  For static commands, dynamic process specs, stdin, environment variables, and
-  result options, see [Process-backed resource
-  commands](/fundamentals/custom-resource-commands/#process-backed-resource-commands).
+  For static commands, dynamic process specs, stdin, environment variables, and result options, see [Process-backed resource commands](/fundamentals/custom-resource-commands/#process-backed-resource-commands).
 </LearnMore>
 
 ### 🔄 Persistent executable and project lifetimes
@@ -463,8 +459,7 @@ Persistent lifetimes now extend beyond containers to executables and projects. C
 </Aside>
 
 <LearnMore>
-  For the full lifetime model, see [Configure resource
-  lifetimes](/app-host/resource-lifetimes/).
+  For the full lifetime model, see [Configure resource lifetimes](/app-host/resource-lifetimes/).
 </LearnMore>
 
 ### AppHost and runtime reliability
@@ -485,16 +480,14 @@ Aspire 13.4 also improves the AppHost runtime:
 C# AppHost projects can opt in to using the installed Aspire CLI bundle as the source for DCP and Dashboard orchestration dependencies by setting `<AspireUseCliBundle>true</AspireUseCliBundle>`. This is a preview transition path for the upcoming shift where AppHost orchestration dependencies come from the CLI bundle by default, instead of being restored from platform-specific NuGet packages per AppHost project.
 
 <LearnMore>
-  For setup details, see [Use the Aspire CLI bundle for orchestration
-  dependencies](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies)
-  in the Aspire SDK documentation.
+  For setup details, see [Use the Aspire CLI bundle for orchestration dependencies](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies) in the Aspire SDK documentation.
 </LearnMore>
 
 ## 🚢 Kubernetes, AKS, and Azure deployment
 
 ### Cert-manager, Gateway API, and AGC support
 
-Kubernetes and AKS deployment continue to expand in 13.4. Kubernetes environments can now model cert-manager resources through typed APIs, including cert-manager installation, ClusterIssuers backed by Let's Encrypt or custom ACME servers, and TLS wiring for gateways.
+Kubernetes and Azure Kubernetes Service (AKS) deployment continue to expand in 13.4. Kubernetes environments can now model cert-manager resources through typed APIs, including cert-manager installation, ClusterIssuers backed by Let's Encrypt or custom ACME servers, and TLS wiring for gateways.
 
 For AKS, `AddAzureKubernetesEnvironment` now wires Azure Application Gateway for Containers (AGC) into the deployment flow. When `AddLoadBalancer(...)` is used, Aspire provisions the AGC ingress profile on AKS, assigns the required Network Contributor role to the controller identity, and exposes Gateway API routing for the application.
 
@@ -511,8 +504,7 @@ Aspire 13.4 adds a Kubernetes manifest resource API for arbitrary manifests and 
 Helm chart name, version, description, release name, and namespace are now configured through the `WithHelm(...)` extension method. This replaces the previous parallel property-based configuration surface on `KubernetesEnvironmentResource` with one fluent entry point.
 
 <LearnMore>
-  For examples of `WithHelm(...)`, see the [Kubernetes
-  integration](/integrations/compute/kubernetes/#configure-helm-chart-options).
+  For examples of `WithHelm(...)`, see the [Kubernetes integration](/integrations/compute/kubernetes/#configure-helm-chart-options).
 </LearnMore>
 
 ### Reuse an existing ACR pull identity
@@ -520,8 +512,7 @@ Helm chart name, version, description, release name, and namespace are now confi
 When deploying to Azure Container Apps, Aspire normally emits a new user-assigned managed identity and an `AcrPull` role assignment so container apps can pull their images. If your deployment principal can't create identities or role assignments, or you want to reuse an existing identity, supply one with `WithAcrPullIdentity` / `withAcrPullIdentity`. The same API is available for both Azure Container App Environments and Azure App Service Environments.
 
 <LearnMore>
-  For details, see [Configure Azure Container
-  Apps](/integrations/cloud/azure/configure-container-apps/).
+  For details, see [Configure Azure Container Apps](/integrations/cloud/azure/configure-container-apps/).
 </LearnMore>
 
 ### Azure Container Apps jobs are stable
@@ -529,8 +520,7 @@ When deploying to Azure Container Apps, Aspire normally emits a new user-assigne
 The Azure Container Apps jobs APIs — `PublishAsAzureContainerAppJob` and `PublishAsScheduledAzureContainerAppJob` — have graduated to stable. You can declare any project, container, or executable resource as a finite-duration job for batch processing, scheduled tasks, and event-driven workloads directly from your AppHost, without suppressing an experimental diagnostic.
 
 <LearnMore>
-  For trigger types and scheduling, see [Azure Container Apps
-  jobs](/integrations/cloud/azure/container-app-jobs/).
+  For trigger types and scheduling, see [Azure Container Apps jobs](/integrations/cloud/azure/container-app-jobs/).
 </LearnMore>
 
 ## 📊 Dashboard improvements
@@ -544,9 +534,7 @@ Administrators can hide the header button with the `Dashboard:UI:DisableAgentHel
 The MCP AI tools also return more telemetry context this release — trace and structured-log limits increased from 200 to 800 entries, and console logs from 500 to 2000 — so agents get a fuller picture when they query your app.
 
 <LearnMore>
-  For the agent workflow, see [Dashboard and AI coding
-  agents](/dashboard/ai-coding-agents/). For the dashboard setting, see
-  [Dashboard configuration](/dashboard/configuration/).
+  For the agent workflow, see [Dashboard and AI coding agents](/dashboard/ai-coding-agents/). For the dashboard setting, see [Dashboard configuration](/dashboard/configuration/).
 </LearnMore>
 
 ### Structured search and trace filtering
@@ -576,8 +564,7 @@ The extension also uses VS Code terminal shell integration when sending Aspire C
 The [Go hosting integration](#go-hosting-integration) section covers the new Go debugging flow. This release also expands what the extension can do across workspaces: it adds live support for workspaces that contain multiple AppHosts, an AppHost logs viewer, resource command argument inputs collected through QuickInput, and faster, parser-backed AppHost and resource detection.
 
 <LearnMore>
-  Learn more about the [Aspire Visual Studio Code
-  extension](/get-started/aspire-vscode-extension/).
+  Learn more about the [Aspire Visual Studio Code extension](/get-started/aspire-vscode-extension/).
 </LearnMore>
 
 ## 📦 Integration updates
@@ -587,15 +574,11 @@ The [Go hosting integration](#go-hosting-integration) section covers the new Go 
 Azure Front Door CDN resources now use Azure.Provisioning's built-in name-generation algorithm instead of Aspire's custom logic. This removes Aspire's manual name-length cap and aligns generated resource names with Azure.Provisioning behavior.
 
 <Aside type="caution">
-  Upgrading from Aspire 13.3 can produce duplicate Front Door endpoint, origin
-  group, or route names in existing deployments. Remove and re-add the affected
-  resource, or set the resource `Name` explicitly with
-  `ConfigureInfrastructure`, to avoid conflicts.
+  Upgrading from Aspire 13.3 can produce duplicate Front Door endpoint, origin group, or route names in existing deployments. Remove and re-add the affected resource, or set the resource `Name` explicitly with `ConfigureInfrastructure`, to avoid conflicts.
 </Aside>
 
 <LearnMore>
-  For Front Door setup, see the [Azure Front Door
-  integration](/integrations/cloud/azure/azure-front-door/).
+  For Front Door setup, see the [Azure Front Door integration](/integrations/cloud/azure/azure-front-door/).
 </LearnMore>
 
 ### NATS client updates
@@ -603,21 +586,45 @@ Azure Front Door CDN resources now use Azure.Provisioning's built-in name-genera
 `AddNatsClient` now also registers `INatsClient` and defaults the serializer registry to `NatsClientDefaultSerializerRegistry`. This enables typed publish/subscribe scenarios without requiring explicit serializer configuration. User-provided serializer registries still take precedence, and primitive/raw byte scenarios are unaffected.
 
 <LearnMore>
-  For client setup, see [Connect to
-  NATS](/integrations/messaging/nats/nats-connect/).
+  For client setup, see [Connect to NATS](/integrations/messaging/nats/nats-connect/).
 </LearnMore>
 
-### Foundry fixes
+### Foundry hosted agent commands and fixes
 
-Azure AI Foundry hosted agents also include deployment fixes: project endpoints now use the correct `customSubDomainName` format, the Foundry-created agent identity receives the Cognitive Services User role automatically, and the app identity is no longer incorrectly injected into the hosted-agent environment. Foundry references also expose more environment variables, including a dedicated `ENDPOINT_AI_INFERENCE` value for the AI inference endpoint.
+You can now turn any project or app resource into a Microsoft Foundry hosted agent, interact directly with it via the Aspire dashboard, and deploy it with Aspire. 
+
+The [Foundry Hosted Agent Service](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents) is a way to write code as runnable, debuggable, containerized AI agents with streamlined deployment and management as part of your app. If your code implements the Foundry Hosted Agents responses or invocations protocols, tell Aspire to treat it as a hosted agent in the apphost:
+
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+builder.AddPythonApp("hostedagent", "./agent-code", "main.py")
+  .WithUv()
+  .AsHostedAgent();
+```
+
+</TabItem>
+<TabItem id='typescript' label="TypeScript">
+
+```typescript title="apphost.mts"
+builder.addPythonApp("hostedagent", "./agent-code", "main.py")
+  .withUv()
+  .asHostedAgent();
+```
+
+</TabItem>
+</Tabs>
+
+Microsoft Foundry hosted agents also include deployment fixes: project endpoints now use the correct `customSubDomainName` format, the Foundry-created agent identity receives the Cognitive Services User role automatically, and the app identity is no longer incorrectly injected into the hosted-agent environment. Foundry references also expose more environment variables, including a dedicated `ENDPOINT_AI_INFERENCE` value for the AI inference endpoint.
 
 ### RabbitMQ default image
 
 The default RabbitMQ container image has been bumped from 4.2 to 4.3. Existing AppHosts pick up the new image automatically on the next run; pin a specific tag with `WithImageTag(...)` if you need to stay on a particular version.
 
 <LearnMore>
-  For RabbitMQ hosting setup, see the [RabbitMQ
-  integration](/integrations/messaging/rabbitmq/rabbitmq-host/).
+  For RabbitMQ hosting setup, see the [RabbitMQ integration](/integrations/messaging/rabbitmq/rabbitmq-host/).
 </LearnMore>
 
 ## 🐛 Bug fixes and full changelog
