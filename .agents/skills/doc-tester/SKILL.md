@@ -13,7 +13,7 @@ This skill provides guidelines for AI agents to systematically validate the aspi
 
 ### Core Principles
 
-1. **Use Playwright exclusively** to browse and interact with the documentation site
+1. **Use `playwright-cli` exclusively** to browse and interact with the documentation site
 2. **Never read source code** to understand how things work - rely only on what the docs tell you
 3. **Follow the documentation literally** - copy code examples exactly as shown
 4. **Evaluate teaching effectiveness** - can you learn from this documentation?
@@ -28,7 +28,7 @@ This skill provides guidelines for AI agents to systematically validate the aspi
 - Silently fill gaps with your built-in knowledge - flag them instead
 
 ✅ **DO:**
-- Use Playwright MCP tools to navigate the documentation site
+- Use `playwright-cli` commands to navigate the documentation site
 - Read documentation content as displayed in the browser
 - Copy code examples and run them in test projects
 - Evaluate if explanations make sense without prior knowledge
@@ -185,7 +185,7 @@ iex "& { $(irm https://aspire.dev/install.ps1) } -Quality 'staging'"
 
 ### Aspire App Model
 
-The aspire.dev workspace uses Aspire to orchestrate local services. The app model in `apphost.cs` defines the documentation site resources. Use `mcp_aspire_list_resources` to get the current resource states and URLs.
+The aspire.dev workspace uses Aspire to orchestrate local services. The app model in `apphost.cs` defines the documentation site resources. Use the Aspire CLI output or dashboard resource list to get the current resource states and URLs.
 
 ### Starting the Local Environment
 
@@ -200,15 +200,7 @@ cd /path/to/aspire.dev
 aspire run
 ```
 
-Use the Aspire MCP tools to get the content URL:
-
-```
-# Call the MCP tool
-mcp_aspire_list_resources
-
-# Look for the frontend resource endpoint_urls
-# Example output: http://frontend.dev.localhost:5000
-```
+Use the Aspire CLI output or dashboard resource list to get the content URL. Look for the `frontend` resource endpoint URL, for example `http://frontend.dev.localhost:5000`.
 
 **IMPORTANT**: Use the local frontend URL for all testing, not https://aspire.dev
 
@@ -299,27 +291,30 @@ The documentation site includes:
 
 ## Testing Workflow
 
-**All testing uses Playwright MCP tools to interact with the documentation site.**
+**All browser-based testing uses `playwright-cli` to interact with the documentation site.**
 
 ### Phase 0: Environment Preparation
 
 1. **Start Aspire**: Run `aspire run` from the repository root
-2. **Get frontend URL**: Use `mcp_aspire_list_resources` to find the `frontend` endpoint
+2. **Get frontend URL**: Use the Aspire CLI output or dashboard resource list to find the `frontend` endpoint
 3. **Note the URL**: The script outputs the local development URL
 
 ### Phase 1: Navigate and Read Documentation (Playwright)
 
-Use Playwright MCP tools to browse the documentation:
+Use `playwright-cli` to browse the documentation:
 
-```
+```bash
+# Open the local docs site
+playwright-cli open http://frontend.dev.localhost:5000
+
 # Take an accessibility snapshot to read page content
-mcp_playwright_browser_snapshot
+playwright-cli snapshot
 
-# Navigate to a page
-mcp_playwright_browser_click with element="Getting Started link"
+# Navigate to a page by clicking a ref from the snapshot
+playwright-cli click e42
 
 # Read page content
-mcp_playwright_browser_snapshot
+playwright-cli snapshot
 ```
 
 For each documentation page:
@@ -652,28 +647,29 @@ Keep the workspace directory but remove contents to avoid cluttering the reposit
 4. Document any place where you got stuck
 5. Verify final result matches what's promised
 
-## Using MCP Tools
+## Using CLI Tools
 
-### Aspire MCP Tools
+### Aspire CLI
 
 Use for checking resource status:
 
-```
-mcp_aspire_list_resources        # Get all resources and URLs
-mcp_aspire_list_console_logs     # Check resource logs
-mcp_aspire_list_structured_logs  # Check structured logs
+```bash
+aspire run                 # Start the app and print resource URLs
+aspire ps --include-hidden # List running resources and URLs when using aspire start
+aspire describe            # Inspect AppHost resources and endpoints
 ```
 
-### Playwright MCP Tools
+### `playwright-cli`
 
 Use for navigating and reading documentation:
 
-```
-mcp_playwright_browser_navigate   # Go to a URL
-mcp_playwright_browser_snapshot   # Read page content
-mcp_playwright_browser_click      # Click elements
-mcp_playwright_browser_type       # Type text
-mcp_playwright_browser_screenshot # Capture screenshot
+```bash
+playwright-cli open <url>          # Open a browser at a URL
+playwright-cli goto <url>          # Navigate to a URL
+playwright-cli snapshot            # Read page content
+playwright-cli click <ref>         # Click an element from the snapshot
+playwright-cli type "text"         # Type text into the active element
+playwright-cli screenshot          # Capture a screenshot
 ```
 
 ### Hex1b CLI Tools

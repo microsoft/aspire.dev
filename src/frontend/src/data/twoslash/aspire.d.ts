@@ -2510,6 +2510,8 @@ export interface ProjectResource extends IComputeResource, IContainerFilesDestin
    */
 
   withReplicas(replicas: number): this;
+  /** Assigns Microsoft Foundry roles to this project resource. */
+  withRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 /**
@@ -3658,6 +3660,8 @@ export interface AzureProvisioningResource extends AzureBicepResource, IAzureRes
  */
 
 export interface AzureResourceInfrastructure {
+  /** Gets the provisionable Azure resources produced by the infrastructure callback. */
+  getProvisionableResources(): Promise<any[]>;
 }
 
 /**
@@ -9853,7 +9857,7 @@ export interface IYarpConfigurationBuilder {
    * Adds a route for a cluster, endpoint, resource, or string destination target.
    */
 
-  addRoute(path: string, target: ExternalServiceResource|string): YarpRoute;
+  addRoute(path: string, target: ExternalServiceResource | string | EndpointReference): YarpRoute;
 }
 
 /**
