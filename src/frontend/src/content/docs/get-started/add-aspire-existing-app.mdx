@@ -332,6 +332,61 @@ After setup, a typical workspace layout looks like this:
 Let the Aspire CLI manage `aspire-apphost/.aspire/` rather than editing generated SDK files manually. Run `aspire restore` to regenerate the TypeScript SDK after switching branches or changing AppHost packages.
 :::
 
+#### Workspace subdirectory layout
+
+When your app already lives inside a subdirectory of a larger workspace (for example, `apps/my-app/`), run `aspire init` from that subdirectory. The CLI places the AppHost under `aspire-apphost/` relative to where you run the command:
+
+```bash title="Initialize from a workspace subdirectory"
+cd apps/my-app
+aspire init --language typescript --non-interactive
+```
+
+The resulting layout looks like this:
+
+<FileTree>
+    - apps/
+        - my-app/
+            - aspire-apphost/ (new)
+                - apphost.mts (new)
+                - package.json (new)
+                - tsconfig.apphost.json (new)
+                - .aspire/ (new)
+                    - modules/ (new)
+            - aspire.config.json (new)
+            - package.json (updated with delegate scripts)
+            - src/
+</FileTree>
+
+#### Root package.json delegate scripts
+
+`aspire init` adds delegate scripts to the root `package.json` so you can run the AppHost from the workspace root without `cd`-ing into `aspire-apphost/`:
+
+| Script | What it does |
+|---|---|
+| `aspire:start` | Starts the Aspire dashboard and all orchestrated services |
+| `aspire:build` | Compiles the TypeScript AppHost |
+| `aspire:dev` | Watches the AppHost for changes |
+
+These scripts delegate to the AppHost subdirectory using your package manager. For example, with pnpm and an AppHost at `aspire-apphost/`:
+
+```json title="package.json — delegate scripts added by aspire init"
+{
+  "scripts": {
+    "aspire:start": "pnpm --dir aspire-apphost run aspire:start",
+    "aspire:build": "pnpm --dir aspire-apphost run aspire:build",
+    "aspire:dev":   "pnpm --dir aspire-apphost run aspire:dev"
+  }
+}
+```
+
+:::note[Existing scripts are preserved]
+If your root `package.json` already contains any `aspire:`-prefixed scripts (for example, a custom `aspire:start`), `aspire init` leaves them unchanged and prints a warning. To regenerate the delegate, remove the existing script and rerun `aspire init`.
+:::
+
+#### Package-manager isolation
+
+The AppHost package and your guest apps can use different package managers. The AppHost directory takes precedence for running AppHost scripts — if the AppHost's `package.json` declares `"packageManager": "pnpm@..."` or contains a `pnpm-lock.yaml`, pnpm is used for AppHost operations regardless of the toolchain in the parent workspace.
+
 </TabItem>
 </Tabs>
 

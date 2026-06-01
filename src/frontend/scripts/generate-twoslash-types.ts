@@ -397,6 +397,13 @@ export declare const InputType: {
 }`,
 ];
 
+const POST_SNAPSHOT_DECLARATION_TYPE_NAMES = new Set([
+  'BeforePublishEvent',
+  'AfterPublishEvent',
+  'InputType',
+  'ParameterCustomInputOptions',
+]);
+
 const POST_SNAPSHOT_AUGMENTATIONS = [
   `export interface IDistributedApplicationBuilder {
   /**
@@ -423,6 +430,22 @@ const POST_SNAPSHOT_AUGMENTATIONS = [
    * Assigns Microsoft Foundry roles for this resource
    */
   withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+  /**
+   * Configures a resource to use a session lifetime
+   */
+  withSessionLifetime(): this;
+  /**
+   * Configures a resource to use a persistent lifetime
+   */
+  withPersistentLifetime(): this;
+  /**
+   * Configures a resource to match the lifetime of another resource
+   */
+  withLifetimeOf(source: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits
+   */
+  withParentProcessLifetime(parentProcessId: number): this;
 }`,
   `export interface ParameterResource {
   /**
@@ -598,10 +621,15 @@ const BUILT_IN = new Set([
 ]);
 
 const declaredTypes = new Set<string>([
-  ...dtoTypes.map((d) => d.name),
-  ...enumTypes.map((e) => e.name),
+  ...dtoTypes
+    .filter((d) => !POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(d.name))
+    .map((d) => d.name),
+  ...enumTypes
+    .filter((e) => !POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(e.name))
+    .map((e) => e.name),
   ...handleTypes.map((h) => h.name),
   ...methodsByTarget.keys(),
+  ...POST_SNAPSHOT_DECLARATION_TYPE_NAMES,
 ]);
 
 const parts: string[] = [];
@@ -637,6 +665,7 @@ for (const declaration of POST_SNAPSHOT_DECLARATIONS) {
   parts.push('');
 }
 for (const en of enumTypes) {
+  if (POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(en.name)) continue;
   parts.push(jsdoc([`Enum ${en.fullName}`]));
   const members = en.members.map((m) => JSON.stringify(m)).join(' | ') || 'string';
   parts.push(`export type ${en.name} = ${members};`);
@@ -653,6 +682,7 @@ for (const en of enumTypes) {
 
 parts.push(`// ---- DTOs ----`);
 for (const dto of dtoTypes) {
+  if (POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(dto.name)) continue;
   parts.push(jsdoc([`DTO ${dto.fullName}`]));
   parts.push(`export interface ${dto.name} {`);
   for (const f of dto.fields) {

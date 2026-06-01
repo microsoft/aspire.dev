@@ -53,7 +53,8 @@ flowchart LR
 The inner loop is the process of developing and testing your app locally before deploying it to a target environment. Aspire provides several tools and features to simplify and enhance the networking experience in the inner loop, such as:
 
 - **Endpoints/Endpoint configurations**: Endpoints are the connections between your app and the services it depends on, such as databases, message queues, or APIs. Endpoints provide information such as the service name, host port, scheme, and environment variable. Aspire can create endpoints automatically from resource configuration, and you can also add them explicitly by calling `WithEndpoint`.
-- **Proxies**: Aspire automatically launches a proxy for each service binding you add to your app, and assigns a port for the proxy to listen on. The proxy then forwards the requests to the port that your app listens on, which might be different from the proxy port. This way, you can avoid port conflicts and access your app and services using consistent and predictable URLs.
+- **Proxies**: Aspire automatically launches a proxy for each proxied service binding you add to your app, and assigns a port for the proxy to listen on. The proxy then forwards the requests to the port that your app listens on, which might be different from the proxy port. This way, you can avoid port conflicts and access your app and services using consistent and predictable URLs.
+- **Proxyless endpoints**: Endpoints with `IsProxied` set to `false` connect directly to the resource instead of routing through an Aspire-managed proxy. Starting in Aspire 13.4, endpoints on persistent resources are proxyless by default. Proxyless endpoints must specify a target port so Aspire knows which port the resource listens on.
 - **Container networks**: Aspire creates and manages dedicated networks for container resources so containers can discover and communicate with each other during local development.
 
 ## How endpoints work
@@ -62,7 +63,7 @@ A service binding in Aspire involves two integrations: a **service** representin
 
 Aspire can create service bindings automatically from resource configuration, and you can create additional bindings explicitly by using `WithEndpoint`.
 
-Upon creating a binding, whether implicit or explicit, Aspire launches a lightweight reverse proxy on a specified port, handling routing and load balancing for requests from your app to the service. The proxy is an Aspire implementation detail, requiring no configuration or management concern.
+Upon creating a proxied binding, whether implicit or explicit, Aspire launches a lightweight reverse proxy on a specified port, handling routing and load balancing for requests from your app to the service. The proxy is an Aspire implementation detail, requiring no configuration or management concern.
 
 To help visualize how endpoints work, consider the Aspire starter templates inner-loop networking diagram:
 
@@ -80,7 +81,7 @@ The network's lifetime depends on the container resources:
 - If all containers have a session lifetime, the network is also session-based and is cleaned up when the AppHost process ends.
 - If any container has a persistent lifetime, the network is persistent and remains running after the AppHost process terminates. Aspire reuses this network on subsequent runs, allowing persistent containers to keep communicating even when the AppHost isn't running.
 
-For more information on container lifetimes, see [Persistent container lifetimes](/app-host/persistent-containers/).
+For more information on resource lifetimes, see [Resource lifetimes](/app-host/resource-lifetimes/).
 
 Here are the naming conventions for container networks:
 
@@ -154,7 +155,7 @@ Some endpoint behavior depends on the resource type. Keep those details with the
 
 ## Ports and proxies
 
-When defining a service binding, the host port is _always_ given to the proxy that sits in front of the service. This allows single or multiple replicas of a service to behave similarly. Additionally, all resource dependencies that use the `WithReference` API rely of the proxy endpoint from the environment variable.
+When defining a proxied service binding, the host port is given to the proxy that sits in front of the service. This allows single or multiple replicas of a service to behave similarly. Additionally, resource dependencies that use the `WithReference` API rely on the proxied endpoint from the environment variable unless the endpoint is configured as proxyless.
 
 The same proxy pattern applies when a service runs multiple replicas. The browser still connects to one stable host port while the proxy fans out traffic to whichever replica is available:
 
@@ -219,13 +220,48 @@ The underlying service still listens on its own port, and Aspire makes that allo
 
 <Aside type="tip">
   To avoid an endpoint being proxied, set the `IsProxied` property to `false`
-  when calling the `WithEndpoint` extension method. For more information, see
-  [Endpoint extensions: additional considerations](#additional-considerations).
+  when calling the `WithEndpoint` extension method. Proxyless endpoints require
+  a target port. For more information, see [Proxyless
+  endpoints](#proxyless-endpoints).
 </Aside>
+
+### Proxyless endpoints
+
+Most endpoints are proxied by default. A proxyless endpoint skips the Aspire-managed proxy and exposes the resource's listener directly. Use a proxyless endpoint when a proxy would interfere with the resource's lifetime or networking behavior.
+
+Starting in Aspire 13.4, endpoints on persistent resources are proxyless by default. This lets the persistent resource keep using its direct endpoint across AppHost runs instead of depending on a new proxy instance each time. This also ensures that the ports your service is reachable on stay stable whether the AppHost is running or not.
+
+Because there's no proxy to listen on one port and forward to another, every proxyless endpoint must include a target port. The target port tells Aspire which port the resource listens on. You can also set `port` when you need a specific host port, but `targetPort` is still required for proxyless endpoints.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+builder.AddContainer("web", "nginx")
+    .WithHttpEndpoint(targetPort: 80, isProxied: false);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const web = await builder.addContainer('web', {
+  image: 'nginx',
+  tag: 'latest',
+});
+await web.withHttpEndpoint({ targetPort: 80, isProxied: false });
+```
+
+</TabItem>
+</Tabs>
 
 ## Omit the host port
 
-When you omit the host port, Aspire generates a random port for both host and service port. This is useful when you want to avoid port conflicts and don't care about the host or service port. Consider the following code:
+For proxied endpoints, when you omit the host port, Aspire generates a random port for both host and service port. This is useful when you want to avoid port conflicts and don't care about the host or service port. Consider the following code:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -363,10 +399,12 @@ The `AllocatedEndpoint` property allows you to get or set the endpoint for a ser
   If you're hosting an external executable that runs its own proxy and
   encounters port binding issues due to DCP already binding the port, try
   setting the `IsProxied` property to `false`. This prevents DCP from managing
-  the proxy, allowing your executable to bind the port successfully.
+  the proxy, allowing your executable to bind the port successfully. Set
+  `TargetPort` on the endpoint so Aspire knows which port the executable listens
+  on.
 </Aside>
 
-The `Name` property identifies the service, whereas the `Port` and `TargetPort` properties specify the desired and listening ports, respectively.
+The `Name` property identifies the service, whereas the `Port` and `TargetPort` properties specify the desired and listening ports, respectively. `TargetPort` is required for proxyless endpoints, including endpoints with `IsProxied` set to `false` and, starting in Aspire 13.4, endpoints on persistent resources by default.
 
 For network communication, the `Protocol` property supports **TCP** and **UDP**, with potential for more in the future, and the `Transport` property indicates the transport protocol (**HTTP**, **HTTP2**, **HTTP3**). Lastly, if the service is URI-addressable, the `UriScheme` property provides the URI scheme for constructing the service URI.
 

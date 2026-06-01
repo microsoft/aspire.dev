@@ -22,6 +22,10 @@ This article is the reference for the Aspire Kubernetes hosting integration. It 
 
 ## Installation
 
+:::note[Prerequisite: Helm v4.2.0 or later]
+Aspire's Kubernetes deployment pipeline shells out to `helm upgrade --install` and validates the installed Helm version before executing. **[Helm](https://helm.sh/docs/intro/install/) v4.2.0 or later** must be on your `PATH`. If Helm is missing or too old, Aspire reports a clear, actionable error instead of cryptic flag failures.
+:::
+
 To start building an Aspire app with Kubernetes deployment support, install the [📦 Aspire.Hosting.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Kubernetes) NuGet package:
 
 <Tabs syncKey="aspire-lang">
@@ -108,9 +112,29 @@ await builder.build().run();
 </Tabs>
 
 <Aside type="tip">
-  With the `k8s` variable assigned, you can pass that to the
-  `WithComputeEnvironment` API to disambiguate compute resources for solutions
-  that define more than one. Otherwise, the `k8s` variable isn't required.
+  With the `k8s` variable assigned, you can pass it to the compute environment API to
+  disambiguate compute resources for solutions that define more than one. Otherwise, the `k8s`
+  variable isn't required. This API is named `WithComputeEnvironment` in C# AppHosts and
+  `withComputeEnvironment` in TypeScript AppHosts.
+
+  <Tabs syncKey="aspire-lang">
+  <TabItem id="csharp" label="C#">
+  ```csharp title="C# — AppHost.cs"
+  var k8s = builder.AddKubernetesEnvironment("k8s");
+
+  builder.AddProject<Projects.MyApi>("api")
+      .WithComputeEnvironment(k8s);
+  ```
+  </TabItem>
+  <TabItem id="typescript" label="TypeScript">
+  ```typescript title="apphost.ts"
+  const k8s = await builder.addKubernetesEnvironment('k8s');
+
+  const api = await builder.addNodeApp('api', './api', 'src/index.ts');
+  await api.withComputeEnvironment(k8s);
+  ```
+  </TabItem>
+  </Tabs>
 </Aside>
 
 ## Configure Helm chart options

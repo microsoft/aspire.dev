@@ -115,6 +115,14 @@ Or install the CLI from scratch:
   CLI](/get-started/install-cli/).
 </LearnMore>
 
+Aspire 13.4 also adds a new way to install the CLI: from npm. If you already use npm for your developer tooling, install the CLI globally with a single cross-platform command:
+
+```bash title="Aspire CLI — Install from npm"
+npm install -g @microsoft/aspire-cli
+```
+
+See [Install with npm](/get-started/install-cli/#install-with-npm) for details.
+
 ## 🌐 TypeScript AppHost general availability
 
 TypeScript AppHost support is now generally available. You can author Aspire app models in `apphost.mts` as a first-class AppHost experience, with the same code-first orchestration model used by C# AppHosts and a generated TypeScript SDK for Aspire resources and integrations.
@@ -167,7 +175,7 @@ aspire otel traces --search "POST /orders"
 Resource command inputs are now passed as named CLI options instead of positional arguments. This makes optional inputs easier to skip and lets users supply values in any order. Running `aspire resource <resource> --help` also shows the commands available for that specific resource.
 
 ```bash title="Aspire CLI — Resource command arguments"
-aspire resource cache seed-data --dataset small --force true
+aspire resource cache seed-data --dataset small --force
 aspire resource cache --help
 ```
 
@@ -178,17 +186,10 @@ aspire resource cache --help
 
 ### Aspire workflow skills bundle
 
-The `aspire`, `aspireify`, and `aspire-deployment` skills installed by `aspire agent init` are now packaged as the Aspire skills bundle from [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills). Aspire 13.4 includes an embedded snapshot for default installs, and the optional remote fetch path can download matching GitHub release assets instead of relying only on skill content baked directly into the CLI binary. The install flow remains unchanged.
-
-When remote fetching is enabled, the CLI verifies the GitHub release asset with GitHub artifact attestation (Sigstore-backed SLSA provenance), validates manifest file hashes, rejects unsafe paths, and caches the extracted bundle locally:
-
-- **Windows**: `%USERPROFILE%\.aspire\cache\aspire-skills\`
-- **Linux / macOS**: `~/.aspire/cache/aspire-skills/`
-
-Subsequent installs reuse the cached bundle when present.
+The Aspire workflow skills installed by `aspire agent init` are now packaged as the Aspire skills bundle from [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills). The bundle includes six workflow skills: `aspire`, `aspire-init`, `aspire-orchestration`, `aspire-monitoring`, `aspire-deployment`, and `aspireify`. Aspire 13.4 includes an embedded snapshot for default installs, and the optional remote fetch path can download matching GitHub release assets instead of relying only on skill content baked directly into the CLI binary. The CLI verifies release asset provenance and manifest file hashes before installing selected files. The install flow remains unchanged.
 
 ```bash title="Aspire CLI — Install Aspire workflow skills"
-aspire agent init --skill-locations standard --skills aspire,aspireify,aspire-deployment
+aspire agent init --skill-locations standard --skills aspire,aspire-init,aspire-orchestration,aspire-monitoring,aspire-deployment,aspireify
 ```
 
 <LearnMore>
@@ -205,6 +206,7 @@ Aspire 13.4 includes a set of smaller CLI improvements and fixes:
 - `aspire logs` dims timestamps for readability and shows `No logs found.` when there are no entries, while preserving JSON output for automation.
 - Log file paths in CLI output are clickable terminal links when the terminal supports hyperlinks and degrade gracefully to plain text otherwise.
 - Package-manager installs such as WinGet, Homebrew, and `dotnet tool` keep the CLI bundle beside the CLI binary, so uninstall and upgrade flows clean up the bundle correctly.
+- The Aspire CLI can now be installed from npm (`npm install -g @microsoft/aspire-cli`). When installed this way, `aspire update --self` and update notices print the matching `npm install -g @microsoft/aspire-cli@latest` command instead of overwriting the npm-managed binary. See [Install with npm](/get-started/install-cli/#install-with-npm).
 - `aspire update` now requires `--yes` in non-interactive mode, matching `aspire destroy`.
 - `aspire stop --all` output includes the AppHost name and, when needed, the PID for clearer multi-instance shutdown output.
 - `aspire new`, `aspire init`, `aspire run`, and `aspire update` include fixes for NuGet feed errors, output paths, generated files, disabled dashboards, detached shutdown, and AppHost package-reference cleanup.
@@ -314,6 +316,10 @@ For AKS, `AddAzureKubernetesEnvironment` now wires Azure Application Gateway for
 ### Kubernetes manifests and external Helm charts
 
 Aspire 13.4 adds a Kubernetes manifest resource API for arbitrary manifests and an `AddHelmChart` API for installing external Helm charts as deployment pipeline steps. These APIs make it possible to include Kubernetes-native resources, ingress controllers, monitoring stacks, and other third-party charts alongside the resources generated from your Aspire application model.
+
+### Ingress `WithRoute` renamed to `WithPath`
+
+The Kubernetes `Ingress` routing API has been renamed from `WithRoute(...)` to `WithPath(...)` to better reflect the Kubernetes Ingress path-rule terminology and to disambiguate it from the Gateway API. Update existing AppHosts that call `ingress.WithRoute(...)` to call `ingress.WithPath(...)` instead. The Gateway API equivalent (`gateway.WithRoute(...)`) is unchanged.
 
 ### Consolidated Helm chart configuration
 

@@ -58,6 +58,8 @@ export const redirects = {
   '/install-aspire-cli/': '/get-started/install-cli/',
   '/get-started/welcome/': '/docs/',
   '/get-started/installation/': '/get-started/install-cli/',
+  '/app-host/persistent-containers/': '/app-host/resource-lifetimes/',
+  '/ja/app-host/persistent-containers/': '/ja/app-host/resource-lifetimes/',
   // Integration -client → -connect rename
   '/integrations/ai/github-models/github-models-client/': '/integrations/ai/github-models/github-models-connect/',
   '/integrations/ai/ollama/ollama-client/': '/integrations/ai/ollama/ollama-connect/',
