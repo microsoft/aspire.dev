@@ -10918,15 +10918,10 @@ export interface AzureCosmosDBDatabaseResource {
 // augments handle type AzureCosmosDBEmulatorResource with extension methods
 export interface AzureCosmosDBEmulatorResource {
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -10937,15 +10932,10 @@ export interface AzureCosmosDBEmulatorResource {
 // augments handle type AzureCosmosDBResource with extension methods
 export interface AzureCosmosDBResource {
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -11123,15 +11113,10 @@ export interface AzureKeyVaultResource {
 
   withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -11521,15 +11506,10 @@ export interface AzureStorageEmulatorResource {
 
   withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -11550,15 +11530,10 @@ export interface AzureStorageResource {
 
   withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -12778,15 +12753,10 @@ export interface ContainerResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -13417,15 +13387,10 @@ export interface CSharpAppResource {
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -14035,15 +14000,10 @@ export interface DotnetToolResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -14629,15 +14589,10 @@ export interface ExecutableResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -14974,15 +14929,10 @@ export interface FoundryDeploymentResource {
 // augments handle type FoundryResource with extension methods
 export interface FoundryResource {
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -15298,15 +15248,10 @@ export interface IResourceWithEndpoints {
 
   withBrowserLogs(browser?: string, profile?: string, userDataMode?: BrowserUserDataMode): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
 }
 
 // augments handle type IResourceWithEnvironment with extension methods
@@ -16573,15 +16518,10 @@ export interface ProjectResource {
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -16876,6 +16816,7 @@ export interface CookieSecurePolicy {}
 export interface ForwardedTransformActions {}
 export interface HeaderMatchMode {}
 export interface HealthStatus {}
+export interface HostedAgentOptions {}
 export interface HttpVersionPolicy {}
 export interface IAppIdentityResource {}
 export interface IAsyncDisposable {}
