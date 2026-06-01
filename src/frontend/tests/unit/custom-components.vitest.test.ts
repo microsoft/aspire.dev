@@ -306,11 +306,7 @@ const basicRenderCases: BasicRenderCase[] = [
   {
     name: 'InstallAspireCLI renders both shell variants',
     Component: InstallAspireCLI,
-    includes: [
-      'https://aspire.dev/install.sh',
-      'https://aspire.dev/install.ps1',
-      '/casts/aspire-help.cast',
-    ],
+    includes: ['https://aspire.dev/install.sh', 'https://aspire.dev/install.ps1', 'aspire --help'],
   },
   {
     name: 'IconAside renders a translated fallback title',
