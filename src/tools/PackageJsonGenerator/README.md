@@ -109,5 +109,5 @@ dotnet run --project ../PackageJsonGenerator/PackageJsonGenerator.csproj -- \
 - Compiler-generated types (e.g., closure classes) are automatically filtered out
 - The emitted `targetFramework` should match the selected `lib/<tfm>` folder for the analyzed package
 - The companion `generate-package-json.ps1` script resolves official `Aspire.*` packages from a branch-specific Azure Artifacts feed on `release/*` branches and uses nuget.org elsewhere
-- When the script uses the default package list on a `release/*` branch, it generates only official `Aspire.*` API data and removes stale non-official package JSON from the output directory so release API references don't mix versions from nuget.org
+- Some packages can define a minimum API version in the script when the latest stable NuGet package is older than the Aspire release-aligned preview
 - When the matching `microsoft/aspire` release branch is not publicly reachable yet, set `ASPIRE_RELEASE_FEED_URL`, `ASPIRE_RELEASE_FEED_NAME`, or `ASPIRE_RELEASE_COMMIT` before running the script

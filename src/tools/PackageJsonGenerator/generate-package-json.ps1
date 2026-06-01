@@ -60,6 +60,9 @@ $AspireRepoCandidates = @(
     $env:ASPIRE_GITHUB_REPO_URL,
     "https://github.com/microsoft/aspire"
 ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+$MinimumPackageVersions = @{
+    "CommunityToolkit.Aspire.Microsoft.EntityFrameworkCore.Sqlite" = "13.3.0-preview.1.260514-0647"
+}
 $script:NuGetSourceMetadataCache = @{}
 
 # ── Resolve paths ──────────────────────────────────────────────────────────────
@@ -75,8 +78,6 @@ if (-not $OutputDir) {
 if (-not (Test-Path $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 }
-
-$usingDefaultPackageList = -not $Packages -or $Packages.Count -eq 0
 
 function Remove-StalePackageJsonFiles {
     [CmdletBinding()]
@@ -180,38 +181,6 @@ function Test-IsOfficialAspirePackage {
     param([string]$PackageId)
 
     return $PackageId.StartsWith("Aspire.", [System.StringComparison]::OrdinalIgnoreCase)
-}
-
-function Remove-NonOfficialPackageJsonFiles {
-    [CmdletBinding()]
-    param([string]$OutputDirectory)
-
-    if (-not (Test-Path $OutputDirectory)) {
-        return 0
-    }
-
-    $removedCount = 0
-    $jsonFiles = @(Get-ChildItem -Path $OutputDirectory -File -Filter '*.json')
-    foreach ($jsonFile in $jsonFiles) {
-        try {
-            $packageJson = Get-Content $jsonFile.FullName -Raw | ConvertFrom-Json
-            $packageName = [string]$packageJson.package.name
-        }
-        catch {
-            throw "Failed to read package metadata from '$($jsonFile.FullName)' while cleaning release API data: $_"
-        }
-
-        if ([string]::IsNullOrWhiteSpace($packageName)) {
-            throw "Package metadata in '$($jsonFile.FullName)' does not include package.name."
-        }
-
-        if (-not (Test-IsOfficialAspirePackage -PackageId $packageName)) {
-            Remove-Item $jsonFile.FullName -Force
-            $removedCount++
-        }
-    }
-
-    return $removedCount
 }
 
 function Get-ReleaseFeedNameFromCommit {
@@ -436,6 +405,56 @@ function Get-LatestNuGetVersion {
     }
 
     return $null
+}
+
+function Compare-NuGetVersionCore {
+    [CmdletBinding()]
+    param(
+        [string]$Left,
+        [string]$Right
+    )
+
+    $leftCore = ($Left -split '-', 2)[0]
+    $rightCore = ($Right -split '-', 2)[0]
+    $leftParts = @($leftCore -split '\.' | ForEach-Object { [int]$_ })
+    $rightParts = @($rightCore -split '\.' | ForEach-Object { [int]$_ })
+
+    for ($index = 0; $index -lt 3; $index++) {
+        $leftValue = if ($index -lt $leftParts.Count) { $leftParts[$index] } else { 0 }
+        $rightValue = if ($index -lt $rightParts.Count) { $rightParts[$index] } else { 0 }
+
+        if ($leftValue -lt $rightValue) {
+            return -1
+        }
+        if ($leftValue -gt $rightValue) {
+            return 1
+        }
+    }
+
+    return 0
+}
+
+function Resolve-MinimumPackageVersion {
+    [CmdletBinding()]
+    param(
+        [string]$PackageId,
+        [string]$Version
+    )
+
+    if ([string]::IsNullOrWhiteSpace($PackageId) -or [string]::IsNullOrWhiteSpace($Version)) {
+        return $Version
+    }
+
+    if (-not $MinimumPackageVersions.ContainsKey($PackageId)) {
+        return $Version
+    }
+
+    $minimumVersion = $MinimumPackageVersions[$PackageId]
+    if ((Compare-NuGetVersionCore -Left $Version -Right $minimumVersion) -lt 0) {
+        return $minimumVersion
+    }
+
+    return $Version
 }
 
 function Get-CachedPackagePath {
@@ -730,21 +749,6 @@ else {
 
 if ($officialFeed.IsRelease) {
     Write-Host "Release branch detected ($($officialFeed.BranchName)). Official Aspire packages will resolve from $($officialFeed.DisplayName)." -ForegroundColor Cyan
-
-    if ($usingDefaultPackageList) {
-        $originalPackageCount = $Packages.Count
-        $Packages = @($Packages | Where-Object { Test-IsOfficialAspirePackage -PackageId $_ })
-        $skippedNonOfficialCount = $originalPackageCount - $Packages.Count
-
-        if ($skippedNonOfficialCount -gt 0) {
-            Write-Host "Skipping $skippedNonOfficialCount non-official package(s) from the default release API package set." -ForegroundColor Yellow
-        }
-
-        $removedNonOfficialCount = Remove-NonOfficialPackageJsonFiles -OutputDirectory $OutputDir
-        if ($removedNonOfficialCount -gt 0) {
-            Write-Host "Removed $removedNonOfficialCount non-official package JSON file(s) from $OutputDir." -ForegroundColor Yellow
-        }
-    }
 }
 
 Write-Host "Building PackageJsonGenerator..." -ForegroundColor Cyan
@@ -823,6 +827,7 @@ if ($Packages.Count -gt 3 -and -not $Sequential) {
             $skipCount++
             continue
         }
+        $resolved.Version = Resolve-MinimumPackageVersion -PackageId $resolved.PackageId -Version $resolved.Version
         $packageInfos += $resolved
     }
 } else {
@@ -835,7 +840,8 @@ if ($Packages.Count -gt 3 -and -not $Sequential) {
             $skipCount++
             continue
         }
-        $packageInfos += [PSCustomObject]@{ PackageId = $packageId; Version = $version }
+        $version = Resolve-MinimumPackageVersion -PackageId $packageId -Version $version
+        $packageInfos += [PSCustomObject]@{ PackageId = $packageId; Version = $version; Source = $sourceInfo.DisplaySource }
     }
 }
 

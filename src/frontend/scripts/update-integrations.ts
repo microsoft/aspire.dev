@@ -21,10 +21,14 @@ const EXCLUDED_PACKAGES = [
   'Aspire.MongoDB.Driver.v3',
   'Aspire.RabbitMQ.Client.v7',
   'CommunityToolkit.Aspire.Hosting.Azure.StaticWebApps',
+  'CommunityToolkit.Aspire.Hosting.Dapr.AzureRedis',
   'CommunityToolkit.Aspire.Hosting.EventStore',
   'CommunityToolkit.Aspire.Hosting.Golang',
   'CommunityToolkit.Aspire.EventStore',
 ];
+const MINIMUM_PACKAGE_VERSIONS = new Map<string, string>([
+  ['communitytoolkit.aspire.microsoft.entityframeworkcore.sqlite', '13.3.0-preview.1.260514-0647'],
+]);
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
 export const DEFAULT_NUGET_ICON_URL =
   'https://www.nuget.org/Content/gallery/img/default-package-icon.svg';
@@ -463,6 +467,21 @@ async function getPreferredNonDeprecatedVersion(
     const nonDeprecatedStable = nonDeprecated.filter((leaf) => !leaf.isPrerelease);
     if (hasAnyStable && nonDeprecatedStable.length === 0) {
       return null;
+    }
+
+    const minimumVersion = MINIMUM_PACKAGE_VERSIONS.get(id.toLowerCase());
+    if (minimumVersion) {
+      const minimumLeaf = nonDeprecated.find(
+        (leaf) => leaf.version.toLowerCase() === minimumVersion.toLowerCase()
+      );
+      const stableCandidates = [...nonDeprecatedStable].sort((a, b) =>
+        cmpSemVer(a.version, b.version)
+      );
+      const latestStable = stableCandidates[stableCandidates.length - 1];
+
+      if (minimumLeaf && (!latestStable || cmpSemVer(latestStable.version, minimumVersion) < 0)) {
+        return minimumLeaf.version;
+      }
     }
 
     const pickFrom = nonDeprecatedStable.length > 0 ? nonDeprecatedStable : nonDeprecated;
