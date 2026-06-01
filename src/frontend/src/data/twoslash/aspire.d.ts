@@ -85,6 +85,16 @@ export declare const ContainerLifetime: {
 };
 
 /**
+ * Enum Aspire.Hosting.ApplicationModel.ContainerMountType
+ */
+
+export type ContainerMountType = "BindMount" | "Volume";
+export declare const ContainerMountType: {
+  readonly BindMount: "BindMount";
+  readonly Volume: "Volume";
+};
+
+/**
  * Enum Aspire.Hosting.ApplicationModel.EndpointProperty
  */
 
@@ -154,6 +164,17 @@ export declare const ResourceCommandState: {
   readonly Enabled: "Enabled";
   readonly Disabled: "Disabled";
   readonly Hidden: "Hidden";
+};
+
+/**
+ * Enum Aspire.Hosting.ApplicationModel.ResourceCommandVisibility
+ */
+
+export type ResourceCommandVisibility = "None" | "UI" | "Api";
+export declare const ResourceCommandVisibility: {
+  readonly None: "None";
+  readonly UI: "UI";
+  readonly Api: "Api";
 };
 
 /**
@@ -419,6 +440,17 @@ export declare const GitHubModelName: {
 };
 
 /**
+ * Enum Aspire.Hosting.Kubernetes.GatewayPathMatchType
+ */
+
+export type GatewayPathMatchType = "PathPrefix" | "Exact" | "RegularExpression";
+export declare const GatewayPathMatchType: {
+  readonly PathPrefix: "PathPrefix";
+  readonly Exact: "Exact";
+  readonly RegularExpression: "RegularExpression";
+};
+
+/**
  * Enum Aspire.Hosting.Kubernetes.IngressPathType
  */
 
@@ -470,6 +502,9 @@ export interface CertificateTrustExecutionConfigurationContext {
 export interface CommandOptions {
   description: string;
   parameter: any;
+  arguments: InteractionInput[];
+  validateArguments: callback;
+  visibility: ResourceCommandVisibility;
   confirmationMessage: string;
   iconName: string;
   iconVariant: IconVariant;
@@ -542,6 +577,49 @@ export interface HttpsCertificateExecutionConfigurationContext {
 }
 
 /**
+ * DTO Aspire.Hosting.ApplicationModel.ProcessCommandExportOptions
+ */
+
+export interface ProcessCommandExportOptions {
+  executablePath: string;
+  arguments: string[];
+  workingDirectory: string;
+  environmentVariables: Dict<string,string>;
+  inheritEnvironmentVariables: boolean;
+  standardInputContent: string;
+  killEntireProcessTree: boolean;
+  commandOptions: CommandOptions;
+  maxOutputLineCount: number;
+  displayImmediately: boolean;
+  successExitCodes: number[];
+}
+
+/**
+ * DTO Aspire.Hosting.ApplicationModel.ProcessCommandResultExportOptions
+ */
+
+export interface ProcessCommandResultExportOptions {
+  commandOptions: CommandOptions;
+  maxOutputLineCount: number;
+  displayImmediately: boolean;
+  successExitCodes: number[];
+}
+
+/**
+ * DTO Aspire.Hosting.ApplicationModel.ProcessCommandSpecExportData
+ */
+
+export interface ProcessCommandSpecExportData {
+  executablePath: string;
+  arguments: string[];
+  workingDirectory: string;
+  environmentVariables: Dict<string,string>;
+  inheritEnvironmentVariables: boolean;
+  standardInputContent: string;
+  killEntireProcessTree: boolean;
+}
+
+/**
  * DTO Aspire.Hosting.ApplicationModel.ResourceUrlAnnotation
  */
 
@@ -550,6 +628,18 @@ export interface ResourceUrlAnnotation {
   displayText: string;
   endpoint: EndpointReference;
   displayLocation: UrlDisplayLocation;
+}
+
+/**
+ * DTO Aspire.Hosting.ApplicationModel.UpdateCommandStateResourceSnapshot
+ */
+
+export interface UpdateCommandStateResourceSnapshot {
+  resourceType: string;
+  state: string;
+  stateStyle: string;
+  healthStatus: HealthStatus;
+  exitCode: number;
 }
 
 /**
@@ -632,6 +722,42 @@ export interface ResourceEventDto {
   stateStyle: string;
   healthStatus: string;
   exitCode: number;
+}
+
+/**
+ * DTO Aspire.Hosting.InteractionInput
+ */
+
+export interface InteractionInput {
+  name: string;
+  label: string;
+  description: string;
+  enableDescriptionMarkdown: boolean;
+  inputType: InputType;
+  required: boolean;
+  options: String[];
+  dynamicLoading: InputLoadOptions;
+  value: string;
+  placeholder: string;
+  allowCustomChoice: boolean;
+  disabled: boolean;
+  maxLength: number;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureContainerAppScaleConfig
+ */
+
+export interface AzureContainerAppScaleConfig {
+  minReplicas: number;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureAppServiceSiteConfig
+ */
+
+export interface AzureAppServiceSiteConfig {
+  isAlwaysOn: boolean;
 }
 
 /**
@@ -996,6 +1122,16 @@ export interface ContainerImagePushOptionsCallbackContext {
  */
 
 export interface ContainerImageReference extends IManifestExpressionProvider, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the resource that this container image is associated with.
+   */
+
+  resource: PropertyAccessor<IResource>;
+  /**
+   * Gets the ValueExpression property
+   */
+
+  valueExpression: PropertyAccessor<string>;
 }
 
 /**
@@ -1003,6 +1139,26 @@ export interface ContainerImageReference extends IManifestExpressionProvider, IV
  */
 
 export interface ContainerMountAnnotation extends IResourceAnnotation {
+  /**
+   * Gets a value indicating whether the volume mount is read-only.
+   */
+
+  isReadOnly: PropertyAccessor<boolean>;
+  /**
+   * Gets the source of the bind mount or name if a volume. Can be `null` if the mount is an anonymous volume.
+   */
+
+  source: PropertyAccessor<string>;
+  /**
+   * Gets the target of the mount.
+   */
+
+  target: PropertyAccessor<string>;
+  /**
+   * Gets the type of the mount.
+   */
+
+  type: PropertyAccessor<ContainerMountType>;
 }
 
 /**
@@ -1010,6 +1166,16 @@ export interface ContainerMountAnnotation extends IResourceAnnotation {
  */
 
 export interface ContainerPortReference extends IManifestExpressionProvider, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the resource that this container port is associated with.
+   */
+
+  resource: PropertyAccessor<IResource>;
+  /**
+   * Gets the ValueExpression property
+   */
+
+  valueExpression: PropertyAccessor<string>;
 }
 
 /**
@@ -1090,20 +1256,25 @@ export interface ContainerResource extends IComputeResource, IResource, IResourc
 
   withDockerfile(contextPath: string, dockerfilePath?: string, stage?: string): this;
   /**
-   * Builds the specified container image from a Dockerfile generated by a callback using the `DockerfileBuilder` API.
+   * Configures the resource to use a programmatically generated Dockerfile
    */
 
   withDockerfileBuilder(contextPath: string, callback: (arg: DockerfileBuilderCallbackContext) => Promise<void>, options?: { stage?: string }): this;
   /**
-   * Builds the specified container image from a Dockerfile generated by a callback using the `DockerfileBuilder` API.
+   * Configures the resource to use a programmatically generated Dockerfile
    */
 
   withDockerfileBuilder(contextPath: string, callback: (arg: DockerfileBuilderCallbackContext) => Promise<void>, stage?: string): this;
   /**
-   * Set whether a container resource can use proxied endpoints or whether they should be disabled for all endpoints belonging to the container. If set to `false`, endpoints belonging to the container resource will ignore the configured proxy settings and run proxy-less.
+   * Builds the specified container image from a Dockerfile generated by an asynchronous factory function.
    */
 
-  withEndpointProxySupport(proxyEnabled: boolean): this;
+  withDockerfileFactory(contextPath: string, dockerfileFactory: (arg: DockerfileFactoryContext) => Promise<string>, options?: { stage?: string }): this;
+  /**
+   * Builds the specified container image from a Dockerfile generated by an asynchronous factory function.
+   */
+
+  withDockerfileFactory(contextPath: string, dockerfileFactory: (arg: DockerfileFactoryContext) => Promise<string>, stage?: string): this;
   /**
    * Sets the Entrypoint for the container.
    */
@@ -1317,6 +1488,18 @@ export interface DockerfileBuilderCallbackContext {
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.DockerfileFactoryContext
+ */
+
+export interface DockerfileFactoryContext {
+  /**
+   * Gets the resource for which the Dockerfile is being generated. This allows factory functions to query resource annotations and properties to customize the generated Dockerfile. ``` var containerAnnotation = context.Resource.Annotations.OfType<ContainerImageAnnotation>().FirstOrDefault(); var baseImage = containerAnnotation?.Image ?? "alpine:latest"; ```
+   */
+
+  resource: PropertyAccessor<IResource>;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.DotnetToolResource
  */
 
@@ -1379,7 +1562,7 @@ export interface EndpointReference extends IExpressionValue, IManifestExpression
 
   exists: PropertyAccessor<boolean>;
   /**
-   * Creates a conditional `ReferenceExpression` that resolves to `enabledValue` when `TlsEnabled` is `true` on this endpoint, or to `disabledValue` otherwise.
+   * Gets a conditional expression that resolves to the enabledValue when TLS is enabled on the endpoint, or to the disabledValue otherwise.
    */
 
   getTlsValue(enabledValue: ReferenceExpression, disabledValue: ReferenceExpression): ReferenceExpression;
@@ -1629,7 +1812,7 @@ export interface EnvironmentEditor {
 
 export interface ExecutableResource extends IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
   /**
-   * Adds support for containerizing this `ExecutableResource` during deployment. The resulting container image is built, and when the optional `configure` action is provided, it is used to configure the container resource.
+   * Publishes an executable as a Docker file
    */
 
   publishAsDockerFile(configure: (obj: ContainerResource) => Promise<void>): this;
@@ -1651,6 +1834,11 @@ export interface ExecutableResource extends IComputeResource, IResource, IResour
 
 export interface ExecuteCommandContext {
   /**
+   * Gets the invocation arguments supplied by the client when the command is executed.
+   */
+
+  arguments: PropertyAccessor<InteractionInputCollection>;
+  /**
    * The cancellation token.
    */
 
@@ -1665,11 +1853,6 @@ export interface ExecuteCommandContext {
    */
 
   resourceName: PropertyAccessor<string>;
-  /**
-   * The service provider.
-   */
-
-  serviceProvider: PropertyAccessor<IServiceProvider>;
 }
 
 /**
@@ -1682,6 +1865,18 @@ export interface IAspireStore {
    */
 
   getFileNameWithContent(filenameTemplate: string, sourceFilename: string): string;
+  /**
+   * Gets the base path of this store.
+   */
+
+  basePath: PropertyAccessor<string>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.IComputeEnvironmentResource
+ */
+
+export interface IComputeEnvironmentResource {
 }
 
 /**
@@ -1818,17 +2013,17 @@ export interface IResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Sets a child relationship
    */
 
   withChildRelationship(child: IResource): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, options?: { commandOptions?: CommandOptions }): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
@@ -1848,15 +2043,30 @@ export interface IResource {
 
   withDockerfileBaseImage(buildImage?: string, runtimeImage?: string): this;
   /**
-   * Adds a `ExplicitStartupAnnotation` annotation to the resource so it doesn't automatically start with the app host startup.
+   * Prevents resource from starting automatically
    */
 
   withExplicitStart(): this;
   /**
-   * Adds a `HealthCheckAnnotation` to the resource annotations to associate a resource with a named health check managed by the health check service.
+   * Adds a health check by key
    */
 
   withHealthCheck(key: string): this;
+  /**
+   * Hides the resource from default resource lists
+   */
+
+  withHidden(): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(options?: { exitCode?: number; exitCodes?: number[] }): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(exitCode?: number, exitCodes?: number[]): this;
   /**
    * Specifies the icon to use when displaying the resource in the dashboard.
    */
@@ -1868,10 +2078,25 @@ export interface IResource {
 
   withIconName(iconName: string, iconVariant?: IconVariant): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Configures a resource to match the lifetime of another resource.
+   */
+
+  withLifetimeOf(sourceBuilder: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits.
+   */
+
+  withParentProcessLifetime(parentProcessId: number): this;
+  /**
+   * Sets the parent relationship
    */
 
   withParentRelationship(parent: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime.
+   */
+
+  withPersistentLifetime(): this;
   /**
    * Registers a callback to be executed during the pipeline configuration phase, allowing modification of step dependencies and relationships.
    */
@@ -1888,6 +2113,21 @@ export interface IResource {
 
   withPipelineStepFactory(stepName: string, callback: (arg: PipelineStepContext) => Promise<void>, dependsOn?: string[], requiredBy?: string[], tags?: string[], description?: string): this;
   /**
+   * Adds a command to the resource that starts a local process when invoked.
+   */
+
+  withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
+  /**
    * Adds a relationship to another resource using its builder.
    */
 
@@ -1902,6 +2142,11 @@ export interface IResource {
    */
 
   withRequiredCommand(command: string, helpLink?: string): this;
+  /**
+   * Configures a resource to use a session lifetime.
+   */
+
+  withSessionLifetime(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -1974,7 +2219,7 @@ export interface IResourceWithEndpoints {
 
   asHttp2Service(): IResourceWithEndpoints;
   /**
-   * Gets an `EndpointReference` by name from the resource. These endpoints are declared either using `WithEndpoint``1` or by launch settings (for project resources). The `EndpointReference` can be used to resolve the address of the endpoint in `WithEnvironment``1`.
+   * Gets an endpoint reference
    */
 
   getEndpoint(name: string): EndpointReference;
@@ -1984,12 +2229,12 @@ export interface IResourceWithEndpoints {
 
   onResourceEndpointsAllocated(callback: (arg: ResourceEndpointsAllocatedEvent) => Promise<void>): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(options?: { port?: number; targetPort?: number; scheme?: string; name?: string; env?: string; isProxied?: boolean; isExternal?: boolean; protocol?: ProtocolType }): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(port?: number, targetPort?: number, scheme?: string, name?: string, env?: string, isProxied?: boolean, isExternal?: boolean, protocol?: ProtocolType): this;
@@ -2003,6 +2248,11 @@ export interface IResourceWithEndpoints {
    */
 
   withEndpointCallback(endpointName: string, callback: (obj: EndpointUpdateContext) => Promise<void>, createIfNotExists?: boolean): this;
+  /**
+   * Set whether a resource can use proxied endpoints or whether they should be disabled for all endpoints belonging to the resource. If set to `false`, endpoints belonging to the resource will ignore the configured proxy settings and run proxy-less.
+   */
+
+  withEndpointProxySupport(proxyEnabled: boolean): this;
   /**
    * Marks existing http or https endpoints on a resource as external.
    */
@@ -2019,12 +2269,12 @@ export interface IResourceWithEndpoints {
 
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -2049,22 +2299,22 @@ export interface IResourceWithEndpoints {
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, options?: { path?: string; initialDelaySeconds?: number; periodSeconds?: number; timeoutSeconds?: number; failureThreshold?: number; successThreshold?: number; endpointName?: string }): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -2096,7 +2346,7 @@ export interface IResourceWithEndpoints {
 
 export interface IResourceWithEnvironment {
   /**
-   * Sets the `CertificateTrustScope` for custom certificate authorities associated with the resource. The scope specifies how custom certificate authorities should be applied to a resource at run time in local development scenarios. Custom certificate trust is only applied in run mode; in publish mode resources will use their default certificate trust behavior.
+   * Sets the certificate trust scope
    */
 
   withCertificateTrustScope(scope: CertificateTrustScope): this;
@@ -2219,6 +2469,11 @@ export interface LogFacade {
 
 export interface ParameterResource extends IExpressionValue, IManifestExpressionProvider, IResource, IValueProvider {
   /**
+   * Sets a custom input for the parameter resource from a polyglot app host.
+   */
+
+  withCustomInput(options: ParameterCustomInputOptions): this;
+  /**
    * Sets the description of the parameter resource.
    */
 
@@ -2241,12 +2496,12 @@ export interface ProjectResource extends IComputeResource, IContainerFilesDestin
 
   disableForwardedHeaders(): ProjectResource;
   /**
-   * Adds support for containerizing this `ProjectResource` during deployment. The resulting container image is built, and when the optional `configure` action is provided, it is used to configure the container resource.
+   * Publishes a project as a Docker file with optional container configuration
    */
 
   publishAsDockerFile(options?: { configure?: (obj: ContainerResource) => Promise<void> }): this;
   /**
-   * Adds support for containerizing this `ProjectResource` during deployment. The resulting container image is built, and when the optional `configure` action is provided, it is used to configure the container resource.
+   * Publishes a project as a Docker file with optional container configuration
    */
 
   publishAsDockerFile(configure?: (obj: ContainerResource) => Promise<void>): this;
@@ -2285,12 +2540,12 @@ export interface ReferenceExpressionBuilder {
 
   appendLiteral(value: string): void;
   /**
-   * Appends a value provider to the expression using late binding. The object must implement both `IValueProvider` and `IManifestExpressionProvider`, or be an `IResourceBuilder`1` where T implements both interfaces.
+   * Appends a value provider to the reference expression
    */
 
   appendValueProvider(valueProvider: any, format?: string): void;
   /**
-   * Builds the `ReferenceExpression`.
+   * Builds the reference expression
    */
 
   build(): ReferenceExpression;
@@ -2299,6 +2554,18 @@ export interface ReferenceExpressionBuilder {
    */
 
   isEmpty: PropertyAccessor<boolean>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ResourceCommandService
+ */
+
+export interface ResourceCommandService {
+  /**
+   * Executes a command for the specified resource.
+   */
+
+  executeCommandAsync(resource: IResource, commandName: string, arguments?: Dict<string,string>, cancellationToken?: cancellationToken): ExecuteCommandResult;
 }
 
 /**
@@ -2422,7 +2689,7 @@ export interface ResourceUrlsCallbackContext {
 
   executionContext: PropertyAccessor<DistributedApplicationExecutionContext>;
   /**
-   * Gets an endpoint reference from `Resource` for the specified endpoint name. If `Resource` does not implement `IResourceWithEndpoints` then returns `null`.
+   * Gets an endpoint reference from the associated resource
    */
 
   getEndpoint(name: string): EndpointReference;
@@ -2476,10 +2743,10 @@ export interface ResourceUrlsEditor {
 
 export interface UpdateCommandStateContext {
   /**
-   * The service provider.
+   * Gets the resource snapshot data available to polyglot command state callbacks.
    */
 
-  serviceProvider: PropertyAccessor<IServiceProvider>;
+  resourceSnapshot: PropertyAccessor<UpdateCommandStateResourceSnapshot>;
 }
 
 /**
@@ -2498,10 +2765,20 @@ export interface EventingSubscriberRegistrationContext {
 
   executionContext: PropertyAccessor<DistributedApplicationExecutionContext>;
   /**
+   * Subscribes to the AfterPublish event from an eventing subscriber registration context.
+   */
+
+  onAfterPublish(callback: (arg: AfterPublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
+  /**
    * Subscribes to the AfterResourcesCreated event from an eventing subscriber registration context.
    */
 
   onAfterResourcesCreated(callback: (arg: AfterResourcesCreatedEvent) => Promise<void>): DistributedApplicationEventSubscription;
+  /**
+   * Subscribes to the BeforePublish event from an eventing subscriber registration context.
+   */
+
+  onBeforePublish(callback: (arg: BeforePublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
   /**
    * Subscribes to the BeforeStart event from an eventing subscriber registration context.
    */
@@ -2515,7 +2792,7 @@ export interface EventingSubscriberRegistrationContext {
 
 export interface DistributedApplication extends IHost, IAsyncDisposable, IDisposable {
   /**
-   * Runs an application and returns a Task that only completes when the token is triggered or shutdown is triggered and all `IHostedService` instances are stopped.
+   * Runs the distributed application
    */
 
   run(cancellationToken?: cancellationToken): void;
@@ -2673,15 +2950,25 @@ export interface IDistributedApplicationBuilder {
 
   addDockerfile(name: string, contextPath: string, dockerfilePath?: string, stage?: string): ContainerResource;
   /**
-   * Adds a Dockerfile to the application model that can be treated like a container resource, with the Dockerfile generated programmatically using the `DockerfileBuilder` API.
+   * Adds a container resource built from a programmatically generated Dockerfile
    */
 
   addDockerfileBuilder(name: string, contextPath: string, callback: (arg: DockerfileBuilderCallbackContext) => Promise<void>, options?: { stage?: string }): ContainerResource;
   /**
-   * Adds a Dockerfile to the application model that can be treated like a container resource, with the Dockerfile generated programmatically using the `DockerfileBuilder` API.
+   * Adds a container resource built from a programmatically generated Dockerfile
    */
 
   addDockerfileBuilder(name: string, contextPath: string, callback: (arg: DockerfileBuilderCallbackContext) => Promise<void>, stage?: string): ContainerResource;
+  /**
+   * Adds a Dockerfile to the application model that can be treated like a container resource, with the Dockerfile content generated by an asynchronous factory function.
+   */
+
+  addDockerfileFactory(name: string, contextPath: string, dockerfileFactory: (arg: DockerfileFactoryContext) => Promise<string>, options?: { stage?: string }): ContainerResource;
+  /**
+   * Adds a Dockerfile to the application model that can be treated like a container resource, with the Dockerfile content generated by an asynchronous factory function.
+   */
+
+  addDockerfileFactory(name: string, contextPath: string, dockerfileFactory: (arg: DockerfileFactoryContext) => Promise<string>, stage?: string): ContainerResource;
   /**
    * Adds a .NET tool resource to the application model.
    */
@@ -2753,7 +3040,7 @@ export interface IDistributedApplicationBuilder {
 
   appHostDirectory: PropertyAccessor<string>;
   /**
-   * Builds and returns a new `DistributedApplication` instance. This can only be called once.
+   * Builds the distributed application
    */
 
   build(): DistributedApplication;
@@ -2783,10 +3070,20 @@ export interface IDistributedApplicationBuilder {
 
   userSecretsManager: PropertyAccessor<IUserSecretsManager>;
   /**
+   * Subscribes to the AfterPublish event, which fires after the application is published.
+   */
+
+  subscribeAfterPublish(callback: (arg: AfterPublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
+  /**
    * Subscribes to the AfterResourcesCreated event, which fires after all resources are created.
    */
 
   subscribeAfterResourcesCreated(callback: (arg: AfterResourcesCreatedEvent) => Promise<void>): DistributedApplicationEventSubscription;
+  /**
+   * Subscribes to the BeforePublish event, which fires before the application is published.
+   */
+
+  subscribeBeforePublish(callback: (arg: BeforePublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
   /**
    * Subscribes to the BeforeStart event, which fires before the application starts.
    */
@@ -2797,6 +3094,40 @@ export interface IDistributedApplicationBuilder {
    */
 
   tryAddEventingSubscriber(subscribe: (arg: EventingSubscriberRegistrationContext) => Promise<void>): void;
+}
+
+/**
+ * Handle Aspire.Hosting.InputsDialogValidationContext
+ */
+
+export interface InputsDialogValidationContext {
+  /**
+   * Adds a validation error for the input with the specified name.
+   */
+
+  addValidationError(inputName: string, errorMessage: string): void;
+  /**
+   * Gets the cancellation token for the validation operation.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+  /**
+   * Gets the inputs that are being validated.
+   */
+
+  inputs: PropertyAccessor<InteractionInputCollection>;
+}
+
+/**
+ * Handle Aspire.Hosting.InteractionInputCollection
+ */
+
+export interface InteractionInputCollection extends IEnumerable {
+  /**
+   * Gets all inputs in declaration order.
+   */
+
+  toArray(): InteractionInput[];
 }
 
 /**
@@ -3041,12 +3372,17 @@ export interface PipelineStep {
 
   dependsOn(stepName: string): void;
   /**
-   * Gets the exported description projection for polyglot SDKs.
+   * Gets or initializes the list of step names that this step depends on.
+   */
+
+  dependsOnSteps: PropertyAccessor<List<string>>;
+  /**
+   * Gets or initializes the description of the step.
    */
 
   description: PropertyAccessor<string>;
   /**
-   * Gets the exported name projection for polyglot SDKs.
+   * Gets or initializes the unique name of the step.
    */
 
   name: PropertyAccessor<string>;
@@ -3055,6 +3391,16 @@ export interface PipelineStep {
    */
 
   requiredBy(stepName: string): void;
+  /**
+   * Gets or initializes the list of step names that require this step to complete before they can finish. This is used internally during pipeline construction and is converted to DependsOn relationships.
+   */
+
+  requiredBySteps: PropertyAccessor<List<string>>;
+  /**
+   * Gets or initializes the list of tags that categorize this step.
+   */
+
+  tags: PropertyAccessor<List<string>>;
 }
 
 /**
@@ -3176,6 +3522,40 @@ export interface ProjectResourceOptions {
 }
 
 /**
+ * Handle Aspire.Hosting.Publishing.AfterPublishEvent
+ */
+
+export interface AfterPublishEvent extends IDistributedApplicationEvent {
+  /**
+   * The `DistributedApplicationModel` instance.
+   */
+
+  model: PropertyAccessor<DistributedApplicationModel>;
+  /**
+   * The `IServiceProvider` for the app host.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
+}
+
+/**
+ * Handle Aspire.Hosting.Publishing.BeforePublishEvent
+ */
+
+export interface BeforePublishEvent extends IDistributedApplicationEvent {
+  /**
+   * The `DistributedApplicationModel` instance.
+   */
+
+  model: PropertyAccessor<DistributedApplicationModel>;
+  /**
+   * The `IServiceProvider` for the app host.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.IAzureResource
  */
 
@@ -3267,7 +3647,7 @@ export interface AzureEnvironmentResource extends IResource {
 
 export interface AzureProvisioningResource extends AzureBicepResource, IAzureResource, IResource, IResourceWithParameters {
   /**
-   * Configures the Azure provisioning resource `Infrastructure`.
+   * Configures the Azure provisioning infrastructure callback
    */
 
   configureInfrastructure(configure: (obj: AzureResourceInfrastructure) => Promise<void>): AzureProvisioningResource;
@@ -3361,7 +3741,7 @@ export interface AzureAppConfigurationEmulatorResource extends ContainerResource
 
 export interface AzureAppConfigurationResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithParameters, IValueProvider, IValueWithReferences, IAzurePrivateEndpointTarget {
   /**
-   * Configures an Azure App Configuration resource to be emulated. This resource requires an `AzureAppConfigurationResource` to be added to the application model.
+   * Configures Azure App Configuration to run with the local emulator
    */
 
   runAsEmulator(configureEmulator?: (obj: AzureAppConfigurationEmulatorResource) => Promise<void>): AzureAppConfigurationResource;
@@ -3372,6 +3752,11 @@ export interface AzureAppConfigurationResource extends AzureBicepResource, Azure
  */
 
 export interface AzureContainerAppEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IContainerRegistry, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureContainerRegistry, IAzureDelegatedSubnetResource {
+  /**
+   * Configures the container app environment to use the supplied `AzureUserAssignedIdentityResource` as the managed identity that container apps in the environment use to pull images from the configured container registry (the `AcrPull` identity), instead of having Aspire create a new identity and a new `AcrPull` role assignment.
+   */
+
+  withAcrPullIdentity(identityBuilder: AzureUserAssignedIdentityResource): this;
   /**
    * Configures the container app environment resources to use the same naming conventions as azd.
    */
@@ -3414,6 +3799,11 @@ export interface AzureContainerAppEnvironmentResource extends AzureBicepResource
  */
 
 export interface AzureAppServiceEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IContainerRegistry, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureContainerRegistry {
+  /**
+   * Configures the Azure App Service environment to use the supplied `AzureUserAssignedIdentityResource` as the managed identity that App Service apps use to pull images from the configured container registry (the `AcrPull` identity), instead of having Aspire create a new identity and a new `AcrPull` role assignment.
+   */
+
+  withAcrPullIdentity(identityBuilder: AzureUserAssignedIdentityResource): this;
   /**
    * Enables Azure Application Insights for the Azure App Service environment
    */
@@ -3541,7 +3931,7 @@ export interface AzureOpenAIDeploymentResource extends IExpressionValue, IManife
 
 export interface AzureOpenAIResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParameters, IValueProvider, IValueWithReferences, IAzureNspAssociationTarget, IAzurePrivateEndpointTarget {
   /**
-   * Adds and returns an Azure OpenAI Deployment resource to the `AzureOpenAIResource` resource.
+   * Adds an Azure OpenAI deployment resource
    */
 
   addDeployment(name: string, modelName: string, modelVersion: string): AzureOpenAIDeploymentResource;
@@ -3641,12 +4031,12 @@ export interface AzureCosmosDBResource extends AzureBicepResource, AzureProvisio
 
   addCosmosDatabase(name: string, databaseName?: string): AzureCosmosDBDatabaseResource;
   /**
-   * Configures an Azure Cosmos DB resource to be emulated using the Azure Cosmos DB emulator with the NoSQL API. This resource requires an `AzureCosmosDBResource` to be added to the application model. For more information on the Azure Cosmos DB emulator, see .
+   * Configures the Azure Cosmos DB resource to run using the local emulator
    */
 
   runAsEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource;
   /**
-   * Configures an Azure Cosmos DB resource to be emulated using the Azure Cosmos DB Linux-based emulator (preview) with the NoSQL API. This resource requires an `AzureCosmosDBResource` to be added to the application model. For more information on the Azure Cosmos DB emulator, see .
+   * Configures the Azure Cosmos DB resource to run using the preview emulator
    */
 
   runAsPreviewEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource;
@@ -3759,7 +4149,7 @@ export interface AzureEventHubsResource extends AzureBicepResource, AzureProvisi
 
   addHub(name: string, hubName?: string): AzureEventHubResource;
   /**
-   * Configures an Azure Event Hubs resource to be emulated. This resource requires an `AzureEventHubsResource` to be added to the application model.
+   * Configures the Azure Event Hubs resource to run with the local emulator
    */
 
   runAsEmulator(configureContainer?: (obj: AzureEventHubsEmulatorResource) => Promise<void>): AzureEventHubsResource;
@@ -3875,7 +4265,7 @@ export interface AzureKeyVaultSecretResource extends IExpressionValue, IManifest
 
 export interface AksNodePoolResource extends KubernetesNodePoolResource, IResource, IResourceWithParent {
   /**
-   * Configures a specific AKS node pool to use its own VNet subnet. When applied, this node pool's subnet overrides the environment-level subnet set via `WithSubnet`.
+   * Configures an AKS node pool to use a specific VNet subnet
    */
 
   withSubnet(subnet: AzureSubnetResource): this;
@@ -3887,15 +4277,35 @@ export interface AksNodePoolResource extends KubernetesNodePoolResource, IResour
 
 export interface AzureKubernetesEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureNspAssociationTarget {
   /**
+   * Installs cert-manager into an AKS environment
+   */
+
+  addCertManager(name: string, options?: { chartVersion?: string }): CertManagerResource;
+  /**
+   * Installs cert-manager into an AKS environment
+   */
+
+  addCertManager(name: string, chartVersion?: string): CertManagerResource;
+  /**
    * Adds a Kubernetes Gateway API Gateway resource to the application model, associated with the inner Kubernetes environment of the specified AKS environment.
    */
 
   addGateway(name: string): KubernetesGatewayResource;
   /**
+   * Adds an external Helm chart to be installed in the AKS environment's inner Kubernetes environment. The chart is installed via `helm upgrade --install` as a pipeline step after the main application Helm chart is deployed.
+   */
+
+  addHelmChart(name: string, chartReference: string, chartVersion: string): KubernetesHelmChartResource;
+  /**
    * Adds a Kubernetes Ingress resource to the application model, associated with the inner Kubernetes environment of the specified AKS environment. The ingress generates a `networking.k8s.io/v1 Ingress` resource in the Helm chart output at publish time.
    */
 
   addIngress(name: string): KubernetesIngressResource;
+  /**
+   * Adds an Azure Application Gateway for Containers (AGC) `ApplicationLoadBalancer` to this AKS environment, bound to the supplied delegated subnet. Returns a resource builder that can be passed to `gateway.WithLoadBalancer(lb)` / `ingress.WithLoadBalancer(lb)` to route traffic through this load balancer.
+   */
+
+  addLoadBalancer(name: string, subnet: AzureSubnetResource): AzureKubernetesLoadBalancerResource;
   /**
    * Adds a node pool to the AKS cluster.
    */
@@ -3912,7 +4322,7 @@ export interface AzureKubernetesEnvironmentResource extends AzureBicepResource, 
 
   withContainerRegistry(registry: AzureContainerRegistryResource): this;
   /**
-   * Configures the AKS cluster to use a VNet subnet for node pool networking. Unlike `WithDelegatedSubnet``1`, this does NOT add a service delegation to the subnet — AKS uses plain (non-delegated) subnets.
+   * Configures the AKS cluster to use a VNet subnet
    */
 
   withSubnet(subnet: AzureSubnetResource): this;
@@ -3936,6 +4346,13 @@ export interface AzureKubernetesEnvironmentResource extends AzureBicepResource, 
    */
 
   withWorkloadIdentity(enabled?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Kubernetes.AzureKubernetesLoadBalancerResource
+ */
+
+export interface AzureKubernetesLoadBalancerResource extends IResource, IResourceWithParent {
 }
 
 /**
@@ -4127,15 +4544,15 @@ export interface AzureSubnetResource extends IResource, IResourceWithParent {
 
 export interface AzureVirtualNetworkResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IResource, IResourceWithParameters {
   /**
-   * Adds an Azure Subnet to the Virtual Network.
+   * Adds an Azure subnet resource to an Azure Virtual Network resource.
    */
 
-  addSubnet(name: string, addressPrefix: string, options?: { subnetName?: string }): AzureSubnetResource;
+  addSubnet(name: string, addressPrefix: string | ParameterResource, options?: { subnetName?: string }): AzureSubnetResource;
   /**
-   * Adds an Azure Subnet to the Virtual Network.
+   * Adds an Azure subnet resource to an Azure Virtual Network resource.
    */
 
-  addSubnet(name: string, addressPrefix: string, subnetName?: string): AzureSubnetResource;
+  addSubnet(name: string, addressPrefix: string | ParameterResource, subnetName?: string): AzureSubnetResource;
 }
 
 /**
@@ -4428,7 +4845,7 @@ export interface AzureServiceBusResource extends AzureBicepResource, AzureProvis
 
   addServiceBusTopic(name: string, topicName?: string): AzureServiceBusTopicResource;
   /**
-   * Configures an Azure Service Bus resource to be emulated. This resource requires an `AzureServiceBusResource` to be added to the application model.
+   * Configures the Azure Service Bus resource to run with the local emulator
    */
 
   runAsEmulator(configureContainer?: (obj: AzureServiceBusEmulatorResource) => Promise<void>): AzureServiceBusResource;
@@ -4619,7 +5036,7 @@ export interface AzureServiceBusTopicResource extends IExpressionValue, IManifes
 
 export interface AzureSignalRResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithParameters, IValueProvider, IValueWithReferences, IAzurePrivateEndpointTarget {
   /**
-   * Configures an Azure SignalR resource to be emulated. This resource requires an `AzureSignalRResource` to be added to the application model. Please note that the resource will be emulated in Serverless mode.
+   * Configures an Azure SignalR resource to be emulated. This resource requires an Azure SignalR resource to be added to the application model. Please note that the resource will be emulated in Serverless mode.
    */
 
   runAsEmulator(configureContainer?: (obj: AzureSignalREmulatorResource) => Promise<void>): AzureSignalRResource;
@@ -4861,57 +5278,57 @@ export interface AzureStorageEmulatorResource extends ContainerResource, IComput
 
 export interface AzureStorageResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IResource, IResourceWithEndpoints, IResourceWithParameters, IAzureNspAssociationTarget, IResourceWithAzureFunctionsConfig {
   /**
-   * Creates a builder for the `AzureBlobStorageContainerResource` which can be referenced to get the Azure Storage blob container endpoint for the storage account.
+   * Adds an Azure Blob Storage container resource
    */
 
   addBlobContainer(name: string, options?: { blobContainerName?: string }): AzureBlobStorageContainerResource;
   /**
-   * Creates a builder for the `AzureBlobStorageContainerResource` which can be referenced to get the Azure Storage blob container endpoint for the storage account.
+   * Adds an Azure Blob Storage container resource
    */
 
   addBlobContainer(name: string, blobContainerName?: string): AzureBlobStorageContainerResource;
   /**
-   * Creates a builder for the `AzureBlobStorageResource` which can be referenced to get the Azure Storage blob endpoint for the storage account.
+   * Adds an Azure Blob Storage resource
    */
 
   addBlobs(name: string): AzureBlobStorageResource;
   /**
-   * Creates a builder for the `AzureDataLakeStorageResource` which can be referenced to get the Azure Data Lake endpoint for the storage account.
+   * Adds an Azure Data Lake Storage resource
    */
 
   addDataLake(name: string): AzureDataLakeStorageResource;
   /**
-   * Creates a builder for the `AzureDataLakeStorageFileSystemResource` which can be referenced to get the Azure DataLake file system connection string.
+   * Adds an Azure Data Lake Storage file system resource
    */
 
   addDataLakeFileSystem(name: string, options?: { dataLakeFileSystemName?: string }): AzureDataLakeStorageFileSystemResource;
   /**
-   * Creates a builder for the `AzureDataLakeStorageFileSystemResource` which can be referenced to get the Azure DataLake file system connection string.
+   * Adds an Azure Data Lake Storage file system resource
    */
 
   addDataLakeFileSystem(name: string, dataLakeFileSystemName?: string): AzureDataLakeStorageFileSystemResource;
   /**
-   * Creates a builder for the `AzureQueueStorageQueueResource` which can be referenced to get the Azure Storage queue for the storage account.
+   * Adds an Azure Storage queue resource
    */
 
   addQueue(name: string, options?: { queueName?: string }): AzureQueueStorageQueueResource;
   /**
-   * Creates a builder for the `AzureQueueStorageQueueResource` which can be referenced to get the Azure Storage queue for the storage account.
+   * Adds an Azure Storage queue resource
    */
 
   addQueue(name: string, queueName?: string): AzureQueueStorageQueueResource;
   /**
-   * Creates a builder for the `AzureQueueStorageResource` which can be referenced to get the Azure Storage queues endpoint for the storage account.
+   * Adds an Azure Queue Storage resource
    */
 
   addQueues(name: string): AzureQueueStorageResource;
   /**
-   * Creates a builder for the `AzureTableStorageResource` which can be referenced to get the Azure Storage tables endpoint for the storage account.
+   * Adds an Azure Table Storage resource
    */
 
   addTables(name: string): AzureTableStorageResource;
   /**
-   * Configures an Azure Storage resource to be emulated using Azurite. This resource requires an `AzureStorageResource` to be added to the application model.
+   * Configures the Azure Storage resource to be emulated using Azurite
    */
 
   runAsEmulator(configureContainer?: (obj: AzureStorageEmulatorResource) => Promise<void>): AzureStorageResource;
@@ -4956,6 +5373,13 @@ export interface AzureWebPubSubResource extends AzureBicepResource, AzureProvisi
    */
 
   addHub(name: string, hubName?: string): AzureWebPubSubHubResource;
+}
+
+/**
+ * Handle Aspire.Hosting.BlazorWasmAppResource
+ */
+
+export interface BlazorWasmAppResource extends IResource, IResourceWithEnvironment, IResourceWithParent {
 }
 
 /**
@@ -5143,6 +5567,31 @@ export interface DockerComposeServiceResource extends IResource, IResourceWithPa
  */
 
 export interface ComposeFile {
+  /**
+   * Adds a top-level config definition to the Docker Compose file.
+   */
+
+  addConfig(name: string, file?: string, content?: string, external?: boolean, configure?: (obj: Config) => Promise<void>): ComposeFile;
+  /**
+   * Adds a top-level network definition to the Docker Compose file.
+   */
+
+  addNetwork(name: string, driver?: string, external?: boolean, configure?: (obj: Network) => Promise<void>): ComposeFile;
+  /**
+   * Adds a top-level secret definition to the Docker Compose file.
+   */
+
+  addSecret(name: string, file?: string, external?: boolean, configure?: (obj: Secret) => Promise<void>): ComposeFile;
+  /**
+   * Adds a service definition to the Docker Compose file.
+   */
+
+  addService(name: string, image?: string, configure?: (obj: Service) => Promise<void>): ComposeFile;
+  /**
+   * Adds a top-level volume definition to the Docker Compose file.
+   */
+
+  addVolume(name: string, driver?: string, external?: boolean, configure?: (obj: Volume) => Promise<void>): ComposeFile;
   /**
    * Represents a collection of configuration objects within a Docker Compose file. Each key in the dictionary corresponds to a configuration name, and the value is an instance of the `Config` class that contains the associated configuration details.
    */
@@ -5422,6 +5871,11 @@ export interface Secret {
 
 export interface Service {
   /**
+   * Adds a volume mount to a generated Docker Compose service.
+   */
+
+  addVolume(source: string, target: string, type?: string, isReadOnly?: boolean, configure?: (obj: Volume) => Promise<void>): Service;
+  /**
    * Specifies a list of Linux capabilities to add to the container.
    */
 
@@ -5441,6 +5895,11 @@ export interface Service {
    */
 
   command: PropertyAccessor<List<string>>;
+  /**
+   * Represents a collection of configuration references associated with the service. Each configuration is defined as a reference to an external configuration resource, which can be used to manage application configurations.
+   */
+
+  configs: PropertyAccessor<List<ConfigReference>>;
   /**
    * Specifies the name of the container to be used. This property maps to the "container_name" field in a Docker Compose file. If set, the container will have the specified name; otherwise, a name will be automatically generated.
    */
@@ -5597,6 +6056,11 @@ export interface Service {
 
   restart: PropertyAccessor<string>;
   /**
+   * Represents a collection of secret references used by the service.
+   */
+
+  secrets: PropertyAccessor<List<SecretReference>>;
+  /**
    * Represents a list of security options that can be applied to the container. This is used to configure security-related settings specific to the container such as SELinux labels or AppArmor profiles, providing fine-grained control over the container's security behavior.
    */
 
@@ -5621,6 +6085,11 @@ export interface Service {
    */
 
   setCommand(value: List<string>): Service;
+  /**
+   * Represents a collection of configuration references associated with the service. Each configuration is defined as a reference to an external configuration resource, which can be used to manage application configurations.
+   */
+
+  setConfigs(value: List<ConfigReference>): Service;
   /**
    * Specifies the name of the container to be used. This property maps to the "container_name" field in a Docker Compose file. If set, the container will have the specified name; otherwise, a name will be automatically generated.
    */
@@ -5777,6 +6246,11 @@ export interface Service {
 
   setRestart(value: string): Service;
   /**
+   * Represents a collection of secret references used by the service.
+   */
+
+  setSecrets(value: List<SecretReference>): Service;
+  /**
    * Represents a list of security options that can be applied to the container. This is used to configure security-related settings specific to the container such as SELinux labels or AppArmor profiles, providing fine-grained control over the container's security behavior.
    */
 
@@ -5811,6 +6285,11 @@ export interface Service {
    */
 
   setTty(value: boolean): Service;
+  /**
+   * Represents a collection of ulimit constraints for the service. Ulimits specify system resource limitations to be applied to the container, such as maximum number of open files or maximum stack size.
+   */
+
+  setUlimits(value: Dict<string,Ulimit>): Service;
   /**
    * Specifies the user that the container will run as. The value can be set to a numeric UID, a string for the username, or a combination of both (e.g., "UID:GID").
    */
@@ -5857,6 +6336,11 @@ export interface Service {
 
   tty: PropertyAccessor<boolean>;
   /**
+   * Represents a collection of ulimit constraints for the service. Ulimits specify system resource limitations to be applied to the container, such as maximum number of open files or maximum stack size.
+   */
+
+  ulimits: PropertyAccessor<Dict<string,Ulimit>>;
+  /**
    * Specifies the user that the container will run as. The value can be set to a numeric UID, a string for the username, or a combination of both (e.g., "UID:GID").
    */
 
@@ -5888,6 +6372,147 @@ export interface ServiceDependency {
    */
 
   setCondition(value: string): ServiceDependency;
+}
+
+/**
+ * Handle Aspire.Hosting.Docker.Resources.ServiceNodes.ConfigReference
+ */
+
+export interface ConfigReference {
+  /**
+   * Gets or sets the group ID (GID) used to identify the group of the referenced configuration.
+   */
+
+  gid: PropertyAccessor<string>;
+  /**
+   * Represents the access mode for the configuration reference in the form of an integer value. This property determines the permissions or access level for the configuration being referenced. Typical values might correspond to standard file permission modes.
+   */
+
+  mode: PropertyAccessor<UnixFileMode>;
+  /**
+   * Gets or sets the group ID (GID) used to identify the group of the referenced configuration.
+   */
+
+  setGid(value: string): ConfigReference;
+  /**
+   * Represents the access mode for the configuration reference in the form of an integer value. This property determines the permissions or access level for the configuration being referenced. Typical values might correspond to standard file permission modes.
+   */
+
+  setMode(value: UnixFileMode): ConfigReference;
+  /**
+   * Gets or sets the source configuration reference. This property specifies the origin of the configuration file or data required by the service node.
+   */
+
+  setSource(value: string): ConfigReference;
+  /**
+   * Specifies the target location where the referenced configuration data will be applied or mounted in the context of the Docker service.
+   */
+
+  setTarget(value: string): ConfigReference;
+  /**
+   * Gets or sets the user identifier (UID) associated with the configuration reference. Optional property that specifies the user ID for accessing the configuration target.
+   */
+
+  setUid(value: string): ConfigReference;
+  /**
+   * Gets or sets the source configuration reference. This property specifies the origin of the configuration file or data required by the service node.
+   */
+
+  source: PropertyAccessor<string>;
+  /**
+   * Specifies the target location where the referenced configuration data will be applied or mounted in the context of the Docker service.
+   */
+
+  target: PropertyAccessor<string>;
+  /**
+   * Gets or sets the user identifier (UID) associated with the configuration reference. Optional property that specifies the user ID for accessing the configuration target.
+   */
+
+  uid: PropertyAccessor<string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Docker.Resources.ServiceNodes.SecretReference
+ */
+
+export interface SecretReference {
+  /**
+   * Represents the group ID (GID) associated with the secret reference in a Docker service node.
+   */
+
+  gid: PropertyAccessor<number>;
+  /**
+   * Gets or sets the file mode for the secret reference. The mode defines the file permissions that will be applied to the secret when mounted. This is represented as an integer value.
+   */
+
+  mode: PropertyAccessor<number>;
+  /**
+   * Represents the group ID (GID) associated with the secret reference in a Docker service node.
+   */
+
+  setGid(value: number): SecretReference;
+  /**
+   * Gets or sets the file mode for the secret reference. The mode defines the file permissions that will be applied to the secret when mounted. This is represented as an integer value.
+   */
+
+  setMode(value: number): SecretReference;
+  /**
+   * Gets or sets the name of the source secret reference. This property is used to specify the source from which a secret or configuration is derived.
+   */
+
+  setSource(value: string): SecretReference;
+  /**
+   * Gets or sets the target path where the secret will be mounted within the container. This path is used to specify the destination location of the secret in the container's file system.
+   */
+
+  setTarget(value: string): SecretReference;
+  /**
+   * Gets or sets the user ID (UID) associated with the secret reference. This property allows specifying the UID that will be assigned to the secret when it is mounted within a container.
+   */
+
+  setUid(value: number): SecretReference;
+  /**
+   * Gets or sets the name of the source secret reference. This property is used to specify the source from which a secret or configuration is derived.
+   */
+
+  source: PropertyAccessor<string>;
+  /**
+   * Gets or sets the target path where the secret will be mounted within the container. This path is used to specify the destination location of the secret in the container's file system.
+   */
+
+  target: PropertyAccessor<string>;
+  /**
+   * Gets or sets the user ID (UID) associated with the secret reference. This property allows specifying the UID that will be assigned to the secret when it is mounted within a container.
+   */
+
+  uid: PropertyAccessor<number>;
+}
+
+/**
+ * Handle Aspire.Hosting.Docker.Resources.ServiceNodes.Ulimit
+ */
+
+export interface Ulimit {
+  /**
+   * Gets or sets the hard limit for the resource control.
+   */
+
+  hard: PropertyAccessor<number>;
+  /**
+   * Gets or sets the hard limit for the resource control.
+   */
+
+  setHard(value: number): Ulimit;
+  /**
+   * Defines the soft limit for the Ulimit configuration. The soft limit is the value for resource restrictions that a process is allowed to increase up to the hard limit. This property is nullable, which indicates that this configuration might not be set.
+   */
+
+  setSoft(value: number): Ulimit;
+  /**
+   * Defines the soft limit for the Ulimit configuration. The soft limit is the value for resource restrictions that a process is allowed to increase up to the hard limit. This property is nullable, which indicates that this configuration might not be set.
+   */
+
+  soft: PropertyAccessor<number>;
 }
 
 /**
@@ -6033,16 +6658,6 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
 
   projectResource: PropertyAccessor<ProjectResource>;
   /**
-   * Gets or sets whether a migration bundle should be generated during publishing.
-   */
-
-  publishAsMigrationBundle: PropertyAccessor<boolean>;
-  /**
-   * Gets or sets whether a migration script should be generated during publishing.
-   */
-
-  publishAsMigrationScript: PropertyAccessor<boolean>;
-  /**
    * Gets or sets whether the migration bundle should be published as a container image that applies the migrations to the database at deploy time.
    */
 
@@ -6088,16 +6703,6 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
 
   setMigrationsProjectPath(value: string): EFMigrationResource;
   /**
-   * Gets or sets whether a migration bundle should be generated during publishing.
-   */
-
-  setPublishAsMigrationBundle(value: boolean): EFMigrationResource;
-  /**
-   * Gets or sets whether a migration script should be generated during publishing.
-   */
-
-  setPublishAsMigrationScript(value: boolean): EFMigrationResource;
-  /**
    * Gets or sets whether the migration bundle should be published as a container image that applies the migrations to the database at deploy time.
    */
 
@@ -6112,6 +6717,26 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
    */
 
   setScriptNoTransactions(value: boolean): EFMigrationResource;
+  /**
+   * Configures the EF migration resource to generate a migration bundle during publishing.
+   */
+
+  publishAsMigrationBundle(options?: { targetRuntime?: string; selfContained?: boolean; publishContainer?: boolean; baseImage?: string }): this;
+  /**
+   * Configures the EF migration resource to generate a migration bundle during publishing.
+   */
+
+  publishAsMigrationBundle(targetRuntime?: string, selfContained?: boolean, publishContainer?: boolean, baseImage?: string): this;
+  /**
+   * Configures the EF migration resource to generate a migration script during publishing.
+   */
+
+  publishAsMigrationScript(options?: { idempotent?: boolean; noTransactions?: boolean }): this;
+  /**
+   * Configures the EF migration resource to generate a migration script during publishing.
+   */
+
+  publishAsMigrationScript(idempotent?: boolean, noTransactions?: boolean): this;
   /**
    * Configures the EF migration resource to run database update when the AppHost starts.
    */
@@ -6128,10 +6753,15 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
 
   withMigrationOutputDirectory(outputDirectory: string): this;
   /**
-   * Configures a separate project containing the migrations using a project metadata type.
+   * Configures a separate project containing migrations for polyglot app hosts.
    */
 
-  withMigrationsProject(): this;
+  withMigrationsProject(options?: { migrationsProject?: ProjectResource }): this;
+  /**
+   * Configures a separate project containing migrations for polyglot app hosts.
+   */
+
+  withMigrationsProject(migrationsProject?: ProjectResource): this;
 }
 
 /**
@@ -6140,7 +6770,7 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
 
 export interface AzureAISearchToolResource extends FoundryToolResource, IResource, IFoundryTool {
   /**
-   * Links an Azure AI Search tool to a backing `AzureSearchResource`, creating the necessary Foundry project connection and role assignments.
+   * Links an Azure AI Search tool to a backing search resource.
    */
 
   withReference(search: AzureSearchResource): this;
@@ -6267,12 +6897,12 @@ export interface AzureCognitiveServicesProjectResource extends IAzureResource, I
    * Adds a prompt agent to a Microsoft Foundry project with the specified tools.
    */
 
-  addPromptAgent(model: FoundryDeploymentResource, name: string, options?: { instructions?: string }): AzurePromptAgentResource;
+  addPromptAgent(name: string, model: FoundryDeploymentResource, options?: { instructions?: string }): AzurePromptAgentResource;
   /**
    * Adds a prompt agent to a Microsoft Foundry project with the specified tools.
    */
 
-  addPromptAgent(model: FoundryDeploymentResource, name: string, instructions?: string): AzurePromptAgentResource;
+  addPromptAgent(name: string, model: FoundryDeploymentResource, instructions?: string): AzurePromptAgentResource;
   /**
    * Adds an Azure AI Search connection to a Microsoft Foundry project.
    */
@@ -6685,15 +7315,74 @@ export interface GarnetResource extends ContainerResource, IComputeResource, IEx
 
 export interface GitHubModelResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IValueProvider, IValueWithReferences {
   /**
+   * Adds a health check to the GitHub Model resource.
+   */
+
+  enableHealthCheck(): GitHubModelResource;
+  /**
    * Configures the API key for the GitHub Model resource from a parameter.
    */
 
   withApiKey(apiKey: string | ParameterResource): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Go.GoAppResource
+ */
+
+export interface GoAppResource extends ExecutableResource, ContainerResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
-   * Adds a health check to the GitHub Model resource.
+   * Passes extra arguments to the Go program at runtime. In normal run mode they appear after `go run .`; in Delve mode after the `--` separator.
    */
 
-  withHealthCheck(): this;
+  withAppArgs(args: any[]): this;
+  /**
+   * Starts a headless Delve debug server so that any DAP-compatible client can attach remotely. The application is launched as `dlv --headless=true --listen=127.0.0.1:<port> --api-version=2 debug .` instead of `go run .`. Delve must be available on the PATH.
+   */
+
+  withDelveServer(options?: { port?: number }): this;
+  /**
+   * Starts a headless Delve debug server so that any DAP-compatible client can attach remotely. The application is launched as `dlv --headless=true --listen=127.0.0.1:<port> --api-version=2 debug .` instead of `go run .`. Delve must be available on the PATH.
+   */
+
+  withDelveServer(port?: number): this;
+  /**
+   * Configures private Go module authentication for publish-time Dockerfile generation.
+   */
+
+  withGoPrivate(privatePatterns: string[], authHost: string, options?: { usernameArgName?: string; tokenSecretId?: string }): this;
+  /**
+   * Configures private Go module authentication for publish-time Dockerfile generation.
+   */
+
+  withGoPrivate(privatePatterns: string[], authHost: string, usernameArgName?: string, tokenSecretId?: string): this;
+  /**
+   * Runs `go mod download` before starting the application, pre-fetching all module dependencies into the local module cache without modifying `go.sum`. The main application waits for the download step to complete successfully before launching.
+   */
+
+  withModDownload(): this;
+  /**
+   * Runs `go mod tidy` before starting the application, ensuring `go.sum` is up to date. The main application waits for the tidy step to complete successfully before launching.
+   */
+
+  withModTidy(): this;
+  /**
+   * Runs `go mod vendor` before starting the application, caching all module dependencies in the local `vendor/` directory. The main application waits for the vendor step to complete successfully before launching.
+   */
+
+  withModVendor(): this;
+  /**
+   * Runs `go vet ./...` before starting the application to catch static analysis issues. The main application waits for the vet step to complete successfully before launching.
+   */
+
+  withVetTool(): this;
+}
+
+/**
+ * Handle Aspire.Hosting.JavaScript.BunAppResource
+ */
+
+export interface BunAppResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
 }
 
 /**
@@ -6712,22 +7401,22 @@ export interface JavaScriptAppResource extends ExecutableResource, IComputeResou
 
   publishAsNodeServer(entryPoint: string, outputPath?: string): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a package manager script at runtime.
+   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
    */
 
-  publishAsNpmScript(options?: { startScriptName?: string; runScriptArguments?: string }): this;
+  publishAsPackageScript(options?: { scriptName?: string; runScriptArguments?: string }): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a package manager script at runtime.
+   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
    */
 
-  publishAsNpmScript(startScriptName?: string, runScriptArguments?: string): this;
+  publishAsPackageScript(scriptName?: string, runScriptArguments?: string): this;
   /**
-   * Polyglot-compatible overload. All parameters are optional so the TS codegen wraps them in a single options object rather than positional args.
+   * Publishes the JavaScript application as a standalone static website using YARP.
    */
 
   publishAsStaticWebsite(options?: { apiPath?: string; apiTarget?: IResourceWithServiceDiscovery; outputPath?: string; stripPrefix?: boolean; targetEndpointName?: string }): this;
   /**
-   * Polyglot-compatible overload. All parameters are optional so the TS codegen wraps them in a single options object rather than positional args.
+   * Publishes the JavaScript application as a standalone static website using YARP.
    */
 
   publishAsStaticWebsite(apiPath?: string, apiTarget?: IResourceWithServiceDiscovery, outputPath?: string, stripPrefix?: boolean, targetEndpointName?: string): this;
@@ -6966,6 +7655,60 @@ export interface KeycloakResource extends ContainerResource, IComputeResource, I
 }
 
 /**
+ * Handle Aspire.Hosting.Kubernetes.CertManagerIssuerResource
+ */
+
+export interface CertManagerIssuerResource extends IResource, IResourceWithParent {
+  /**
+   * Configures the issuer to use a custom ACME directory endpoint (e.g., a private ACME server such as ZeroSSL or step-ca).
+   */
+
+  withAcmeServer(serverUrl: string, email: string): this;
+  /**
+   * Configures the issuer to use a custom ACME directory endpoint with a parameterized email.
+   */
+
+  withAcmeServerParam(serverUrl: string, email: string | ParameterResource): this;
+  /**
+   * Adds an HTTP-01 ACME challenge solver to the issuer. cert-manager will satisfy the challenge by provisioning a temporary HTTP route at `/.well-known/acme-challenge/{token}` on the same hostname being validated. This requires the hostname to be publicly reachable on port 80.
+   */
+
+  withHttp01Solver(): this;
+  /**
+   * Configures the issuer to use the Let's Encrypt production ACME endpoint.
+   */
+
+  withLetsEncryptProduction(email: string): this;
+  /**
+   * Configures the issuer to use the Let's Encrypt production ACME endpoint, with the contact email supplied via a parameter resolved at deploy time.
+   */
+
+  withLetsEncryptProductionParam(email: string | ParameterResource): this;
+  /**
+   * Configures the issuer to use the Let's Encrypt staging ACME endpoint. Certificates issued from staging are not trusted by browsers, but the endpoint has much higher rate limits, making it the right choice for development and CI workflows.
+   */
+
+  withLetsEncryptStaging(email: string): this;
+  /**
+   * Configures the issuer to use the Let's Encrypt staging ACME endpoint, with the contact email supplied via a parameter resolved at deploy time.
+   */
+
+  withLetsEncryptStagingParam(email: string | ParameterResource): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.CertManagerResource
+ */
+
+export interface CertManagerResource extends IResource, IResourceWithParent {
+  /**
+   * Adds a cert-manager `ClusterIssuer` to this cert-manager installation.
+   */
+
+  addIssuer(name: string): CertManagerIssuerResource;
+}
+
+/**
  * Handle Aspire.Hosting.Kubernetes.HelmChartOptions
  */
 
@@ -7050,10 +7793,25 @@ export interface KubernetesAspireDashboardResource extends ContainerResource, IC
 
 export interface KubernetesEnvironmentResource extends IComputeEnvironmentResource, IResource {
   /**
+   * Installs cert-manager into a Kubernetes environment
+   */
+
+  addCertManager(name: string, options?: { chartVersion?: string }): CertManagerResource;
+  /**
+   * Installs cert-manager into a Kubernetes environment
+   */
+
+  addCertManager(name: string, chartVersion?: string): CertManagerResource;
+  /**
    * Adds a Kubernetes Gateway API Gateway resource to the application model as a child of the specified Kubernetes environment. The gateway generates a `gateway.networking.k8s.io/v1 Gateway` resource and one or more `HTTPRoute` resources in the Helm chart output at publish time.
    */
 
   addGateway(name: string): KubernetesGatewayResource;
+  /**
+   * Adds an external Helm chart to be installed in the Kubernetes environment. The chart is installed via `helm upgrade --install` as a pipeline step after the main application Helm chart is deployed.
+   */
+
+  addHelmChart(name: string, chartReference: string, chartVersion: string): KubernetesHelmChartResource;
   /**
    * Adds a Kubernetes Ingress resource to the application model as a child of the specified Kubernetes environment. The ingress generates a `networking.k8s.io/v1 Ingress` resource in the Helm chart output at publish time.
    */
@@ -7210,27 +7968,32 @@ export interface KubernetesGatewayResource extends IResource, IResourceWithParen
    * Adds a host-and-path-based routing rule to the gateway. The rule matches traffic for the specified host and path, routing it to the given endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource with a `hostnames` filter.
    */
 
-  withGatewayHostRoute(host: string, path: string, endpoint: EndpointReference, options?: { pathType?: IngressPathType }): this;
+  withGatewayHostRoute(host: string, path: string, endpoint: EndpointReference, options?: { pathType?: GatewayPathMatchType }): this;
   /**
    * Adds a host-and-path-based routing rule to the gateway. The rule matches traffic for the specified host and path, routing it to the given endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource with a `hostnames` filter.
    */
 
-  withGatewayHostRoute(host: string, path: string, endpoint: EndpointReference, pathType?: IngressPathType): this;
+  withGatewayHostRoute(host: string, path: string, endpoint: EndpointReference, pathType?: GatewayPathMatchType): this;
   /**
    * Adds a path-based routing rule to the gateway. The rule matches all hosts and routes traffic matching the specified path to the given endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource attached to the Gateway.
    */
 
-  withGatewayPathRoute(path: string, endpoint: EndpointReference, options?: { pathType?: IngressPathType }): this;
+  withGatewayPathRoute(path: string, endpoint: EndpointReference, options?: { pathType?: GatewayPathMatchType }): this;
   /**
    * Adds a path-based routing rule to the gateway. The rule matches all hosts and routes traffic matching the specified path to the given endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource attached to the Gateway.
    */
 
-  withGatewayPathRoute(path: string, endpoint: EndpointReference, pathType?: IngressPathType): this;
+  withGatewayPathRoute(path: string, endpoint: EndpointReference, pathType?: GatewayPathMatchType): this;
   /**
    * Configures TLS termination with an auto-generated secret name derived from the gateway name.
    */
 
   withGatewayTlsAuto(): this;
+  /**
+   * Adds an HTTPS listener to the gateway and wires it to the supplied cert-manager `ClusterIssuer`. This adds the `cert-manager.io/cluster-issuer` annotation to the generated Gateway resource, causing cert-manager to provision and renew a certificate for each gateway listener hostname.
+   */
+
+  withGatewayTlsIssuer(issuer: CertManagerIssuerResource): this;
   /**
    * Configures TLS termination using a parameter for the secret name.
    */
@@ -7242,10 +8005,42 @@ export interface KubernetesGatewayResource extends IResource, IResourceWithParen
 
   withHostname(hostname: string): this;
   /**
-   * Configures TLS termination on the gateway by adding an HTTPS listener that references a Kubernetes TLS secret. The Gateway terminates TLS and forwards plain HTTP to backends. This does not create a separate route — existing HTTPRoutes serve both HTTP and HTTPS. The TLS configuration applies to all hostnames configured via `WithHostname`.
+   * Configures TLS on a Kubernetes Gateway listener
    */
 
   withTls(secretName: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.KubernetesHelmChartResource
+ */
+
+export interface KubernetesHelmChartResource extends IResource, IResourceWithParent {
+  /**
+   * Opts the Helm chart in to destroy-time uninstall. When set, `aspire destroy` will run `helm uninstall` for this release as part of the destroy pipeline.
+   */
+
+  withHelmChartDestroy(): this;
+  /**
+   * Opts the Helm chart in to `helm upgrade --install --force-conflicts`. When set, Helm's server-side apply forcibly takes over any fields owned by another field manager instead of failing with a conflict.
+   */
+
+  withHelmChartForceConflicts(): this;
+  /**
+   * Sets the Kubernetes namespace for the Helm chart installation. If not set, the namespace defaults to the chart resource name.
+   */
+
+  withHelmChartNamespace(namespace: string): this;
+  /**
+   * Sets the Helm release name for the chart installation. If not set, the release name defaults to the resource name.
+   */
+
+  withHelmChartReleaseName(releaseName: string): this;
+  /**
+   * Sets a Helm value for the chart installation. Values are passed to `helm upgrade --install` via `--set` flags.
+   */
+
+  withHelmValue(key: string, value: string): this;
 }
 
 /**
@@ -7284,30 +8079,30 @@ export interface KubernetesIngressResource extends IResource, IResourceWithParen
 
   withIngressClassParam(className: string | ParameterResource): this;
   /**
+   * Adds a host-scoped path rule to the ingress. The rule matches traffic for the specified host and path, forwarding it to the given endpoint's backing Kubernetes service.
+   */
+
+  withIngressHostAndPath(host: string, path: string, endpoint: EndpointReference, options?: { pathType?: IngressPathType }): this;
+  /**
+   * Adds a host-scoped path rule to the ingress. The rule matches traffic for the specified host and path, forwarding it to the given endpoint's backing Kubernetes service.
+   */
+
+  withIngressHostAndPath(host: string, path: string, endpoint: EndpointReference, pathType?: IngressPathType): this;
+  /**
    * Adds a hostname using a parameter that will be resolved at deploy time.
    */
 
   withIngressHostnameParam(hostname: string | ParameterResource): this;
   /**
-   * Adds a host-and-path-based routing rule to the ingress. The rule matches traffic for the specified host and path, routing it to the given endpoint's backing Kubernetes service.
+   * Adds a path-based rule to the ingress. The rule matches all hosts and forwards traffic matching the specified path to the given endpoint's backing Kubernetes service.
    */
 
-  withIngressHostRoute(host: string, path: string, endpoint: EndpointReference, options?: { pathType?: IngressPathType }): this;
+  withIngressPath(path: string, endpoint: EndpointReference, options?: { pathType?: IngressPathType }): this;
   /**
-   * Adds a host-and-path-based routing rule to the ingress. The rule matches traffic for the specified host and path, routing it to the given endpoint's backing Kubernetes service.
+   * Adds a path-based rule to the ingress. The rule matches all hosts and forwards traffic matching the specified path to the given endpoint's backing Kubernetes service.
    */
 
-  withIngressHostRoute(host: string, path: string, endpoint: EndpointReference, pathType?: IngressPathType): this;
-  /**
-   * Adds a path-based routing rule to the ingress. The rule matches all hosts and routes traffic matching the specified path to the given endpoint's backing Kubernetes service.
-   */
-
-  withIngressPathRoute(path: string, endpoint: EndpointReference, options?: { pathType?: IngressPathType }): this;
-  /**
-   * Adds a path-based routing rule to the ingress. The rule matches all hosts and routes traffic matching the specified path to the given endpoint's backing Kubernetes service.
-   */
-
-  withIngressPathRoute(path: string, endpoint: EndpointReference, pathType?: IngressPathType): this;
+  withIngressPath(path: string, endpoint: EndpointReference, pathType?: IngressPathType): this;
   /**
    * Configures TLS termination with an auto-generated secret name derived from the ingress name.
    */
@@ -7319,10 +8114,37 @@ export interface KubernetesIngressResource extends IResource, IResourceWithParen
 
   withIngressTlsParam(secretName: string | ParameterResource): this;
   /**
-   * Configures TLS termination for the ingress by referencing a Kubernetes TLS secret. The TLS configuration applies to all hostnames configured via `WithHostname`.
+   * Configures TLS for a Kubernetes Ingress using a K8S secret
    */
 
   withTls(secretName: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.KubernetesManifestResource
+ */
+
+export interface KubernetesManifestResource {
+  /**
+   * Adds or updates a Kubernetes annotation on this manifest.
+   */
+
+  withAnnotation(key: string, value: string): KubernetesManifestResource;
+  /**
+   * Adds or updates a manifest field using a dot-separated path.
+   */
+
+  withField(path: string, value: string|number|boolean): KubernetesManifestResource;
+  /**
+   * Adds or updates a Kubernetes label on this manifest.
+   */
+
+  withLabel(key: string, value: string): KubernetesManifestResource;
+  /**
+   * Sets the namespace for this manifest.
+   */
+
+  withNamespace(namespace: string): KubernetesManifestResource;
 }
 
 /**
@@ -7337,6 +8159,11 @@ export interface KubernetesNodePoolResource extends IResource, IResourceWithPare
  */
 
 export interface KubernetesResource extends IResource, IResourceWithParent {
+  /**
+   * Adds an arbitrary Kubernetes manifest to this service's generated Helm chart for polyglot callers.
+   */
+
+  addManifest(apiVersion: string, kind: string, name: string, configure?: (obj: KubernetesManifestResource) => Promise<void>): KubernetesManifestResource;
   /**
    * Gets the Parent property
    */
@@ -8674,22 +9501,22 @@ export interface RedisResource extends ContainerResource, IComputeResource, IExp
 
   withPersistence(interval?: timespan, keysChangedThreshold?: number): this;
   /**
-   * Configures a container resource for Redis Commander which is pre-configured to connect to the `RedisResource` that this method is used on.
+   * Adds Redis Commander management UI
    */
 
   withRedisCommander(options?: { configureContainer?: (obj: RedisCommanderResource) => Promise<void>; containerName?: string }): this;
   /**
-   * Configures a container resource for Redis Commander which is pre-configured to connect to the `RedisResource` that this method is used on.
+   * Adds Redis Commander management UI
    */
 
   withRedisCommander(configureContainer?: (obj: RedisCommanderResource) => Promise<void>, containerName?: string): this;
   /**
-   * Configures a container resource for Redis Insight which is pre-configured to connect to the `RedisResource` that this method is used on.
+   * Adds Redis Insight management UI
    */
 
   withRedisInsight(options?: { configureContainer?: (obj: RedisInsightResource) => Promise<void>; containerName?: string }): this;
   /**
-   * Configures a container resource for Redis Insight which is pre-configured to connect to the `RedisResource` that this method is used on.
+   * Adds Redis Insight management UI
    */
 
   withRedisInsight(configureContainer?: (obj: RedisInsightResource) => Promise<void>, containerName?: string): this;
@@ -8829,12 +9656,12 @@ export interface SqlServerDatabaseResource extends IExpressionValue, IManifestEx
 
 export interface SqlServerServerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
   /**
-   * Adds a SQL Server database to the application model. This is a child resource of a `SqlServerServerResource`.
+   * Adds a SQL Server database resource
    */
 
   addDatabase(name: string, options?: { databaseName?: string }): SqlServerDatabaseResource;
   /**
-   * Adds a SQL Server database to the application model. This is a child resource of a `SqlServerServerResource`.
+   * Adds a SQL Server database resource
    */
 
   addDatabase(name: string, databaseName?: string): SqlServerDatabaseResource;
@@ -9092,10 +9919,15 @@ export interface YarpResource extends ContainerResource, IComputeResource, ICont
 
   withHostPort(port: number | null): this;
   /**
-   * Enables static file serving in the YARP resource. Static files are served from the wwwroot folder.
+   * Enables static file serving in the YARP resource.
    */
 
-  withStaticFiles(): this;
+  withStaticFiles(options?: { sourcePath?: string }): this;
+  /**
+   * Enables static file serving in the YARP resource.
+   */
+
+  withStaticFiles(sourcePath?: string): this;
 }
 
 /**
@@ -9462,12 +10294,12 @@ export interface IDistributedApplicationBuilder {
    * Adds an Azure Virtual Network resource to the application model.
    */
 
-  addAzureVirtualNetwork(name: string, options?: { addressPrefix?: string }): AzureVirtualNetworkResource;
+  addAzureVirtualNetwork(name: string, options?: { addressPrefix?: string | ParameterResource }): AzureVirtualNetworkResource;
   /**
    * Adds an Azure Virtual Network resource to the application model.
    */
 
-  addAzureVirtualNetwork(name: string, addressPrefix?: string): AzureVirtualNetworkResource;
+  addAzureVirtualNetwork(name: string, addressPrefix?: string | ParameterResource): AzureVirtualNetworkResource;
   /**
    * Adds an Azure NAT Gateway resource to the application model.
    */
@@ -9534,6 +10366,16 @@ export interface IDistributedApplicationBuilder {
 
   addAzureWebPubSub(name: string): AzureWebPubSubResource;
   /**
+   * Registers the built-in Blazor Gateway as a file-based C# app. The gateway is shipped as Gateway.cs alongside this library and launched via `AddCSharpApp`. No separate project is needed.
+   */
+
+  addBlazorGateway(name: string): ProjectResource;
+  /**
+   * Registers a Blazor WebAssembly project as a resource without launching it as a process. Prefer AddBlazorWasmProject<TProject> which uses IProjectMetadata for path discovery.
+   */
+
+  addBlazorWasmProject(name: string, projectPath: string): BlazorWasmAppResource;
+  /**
    * Adds a Dev Tunnel resource to the distributed application model.
    */
 
@@ -9564,12 +10406,12 @@ export interface IDistributedApplicationBuilder {
 
   addGarnet(name: string, port?: number, password?: string | ParameterResource): GarnetResource;
   /**
-   * Adds a GitHub Model resource to the application model using a known `GitHubModelName`.
+   * Adds a GitHub Model resource to the distributed application model.
    */
 
   addGitHubModel(name: string, model: GitHubModelName, options?: { organization?: string | ParameterResource }): GitHubModelResource;
   /**
-   * Adds a GitHub Model resource to the application model using a known `GitHubModelName`.
+   * Adds a GitHub Model resource to the distributed application model.
    */
 
   addGitHubModel(name: string, model: GitHubModelName, organization?: string | ParameterResource): GitHubModelResource;
@@ -9583,6 +10425,21 @@ export interface IDistributedApplicationBuilder {
    */
 
   addGitHubModelById(name: string, modelId: string, organization?: string | ParameterResource): GitHubModelResource;
+  /**
+   * Adds a Go application to the application model. The Go toolchain must be available on the PATH.
+   */
+
+  addGoApp(name: string, appDirectory: string, options?: { packagePath?: string; buildTags?: string[]; ldFlags?: string; gcFlags?: string; raceDetector?: boolean }): GoAppResource;
+  /**
+   * Adds a Go application to the application model. The Go toolchain must be available on the PATH.
+   */
+
+  addGoApp(name: string, appDirectory: string, packagePath?: string, buildTags?: string[], ldFlags?: string, gcFlags?: string, raceDetector?: boolean): GoAppResource;
+  /**
+   * Adds a Bun application to the application model. Bun should be available on the PATH.
+   */
+
+  addBunApp(name: string, appDirectory: string, scriptPath: string): BunAppResource;
   /**
    * Adds a JavaScript application resource to the distributed application using the specified app directory and run script.
    */
@@ -9805,13 +10662,22 @@ export interface IDistributedApplicationBuilder {
   addYarp(name: string): YarpResource;
 }
 
+// augments handle type AzureAISearchToolResource with extension methods
+export interface AzureAISearchToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
 // augments handle type AzureAppConfigurationEmulatorResource with extension methods
 export interface AzureAppConfigurationEmulatorResource {
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
 }
 
 // augments handle type AzureAppConfigurationResource with extension methods
@@ -9820,7 +10686,16 @@ export interface AzureAppConfigurationResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+}
+
+// augments handle type AzureApplicationInsightsResource with extension methods
+export interface AzureApplicationInsightsResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureBicepResource with extension methods
@@ -9869,19 +10744,19 @@ export interface AzureBicepResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -9889,17 +10764,17 @@ export interface AzureBicepResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -9914,27 +10789,32 @@ export interface AzureBicepResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureBlobStorageContainerResource with extension methods
@@ -9943,12 +10823,17 @@ export interface AzureBlobStorageContainerResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureBlobStorageResource with extension methods
@@ -9957,23 +10842,46 @@ export interface AzureBlobStorageResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type AzureCognitiveServicesProjectConnectionResource with extension methods
+export interface AzureCognitiveServicesProjectConnectionResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type AzureCognitiveServicesProjectResource with extension methods
+export interface AzureCognitiveServicesProjectResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureContainerRegistryResource with extension methods
 export interface AzureContainerRegistryResource {
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -9981,35 +10889,68 @@ export interface AzureContainerRegistryResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type AzureCosmosDBContainerResource with extension methods
+export interface AzureCosmosDBContainerResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type AzureCosmosDBDatabaseResource with extension methods
+export interface AzureCosmosDBDatabaseResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureCosmosDBEmulatorResource with extension methods
 export interface AzureCosmosDBEmulatorResource {
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureCosmosDBResource with extension methods
 export interface AzureCosmosDBResource {
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureDataLakeStorageFileSystemResource with extension methods
@@ -10018,12 +10959,17 @@ export interface AzureDataLakeStorageFileSystemResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureDataLakeStorageResource with extension methods
@@ -10032,12 +10978,17 @@ export interface AzureDataLakeStorageResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureEnvironmentResource with extension methods
@@ -10046,19 +10997,19 @@ export interface AzureEnvironmentResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -10066,17 +11017,17 @@ export interface AzureEnvironmentResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -10091,27 +11042,32 @@ export interface AzureEnvironmentResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureEventHubConsumerGroupResource with extension methods
@@ -10120,7 +11076,7 @@ export interface AzureEventHubConsumerGroupResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
 }
 
 // augments handle type AzureEventHubResource with extension methods
@@ -10129,7 +11085,7 @@ export interface AzureEventHubResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
 }
 
 // augments handle type AzureEventHubsEmulatorResource with extension methods
@@ -10138,7 +11094,7 @@ export interface AzureEventHubsEmulatorResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
 }
 
 // augments handle type AzureEventHubsResource with extension methods
@@ -10147,7 +11103,16 @@ export interface AzureEventHubsResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+}
+
+// augments handle type AzureFunctionToolResource with extension methods
+export interface AzureFunctionToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureKeyVaultResource with extension methods
@@ -10156,17 +11121,22 @@ export interface AzureKeyVaultResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureKeyVaultSecretResource with extension methods
@@ -10175,7 +11145,21 @@ export interface AzureKeyVaultSecretResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type AzureLogAnalyticsWorkspaceResource with extension methods
+export interface AzureLogAnalyticsWorkspaceResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureNatGatewayResource with extension methods
@@ -10226,7 +11210,7 @@ export interface AzureOpenAIDeploymentResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
 }
 
 // augments handle type AzureOpenAIResource with extension methods
@@ -10235,7 +11219,7 @@ export interface AzureOpenAIResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
 }
 
 // augments handle type AzurePrivateEndpointResource with extension methods
@@ -10250,6 +11234,15 @@ export interface AzurePrivateEndpointResource {
    */
 
   withNetworkSecurityPerimeter(nsp: AzureNetworkSecurityPerimeterResource, accessMode?: NetworkSecurityPerimeterAssociationAccessMode, associationName?: string): this;
+}
+
+// augments handle type AzurePromptAgentResource with extension methods
+export interface AzurePromptAgentResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureProvisioningResource with extension methods
@@ -10313,19 +11306,19 @@ export interface AzureProvisioningResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -10333,17 +11326,17 @@ export interface AzureProvisioningResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -10358,27 +11351,32 @@ export interface AzureProvisioningResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzurePublicIPAddressResource with extension methods
@@ -10401,12 +11399,17 @@ export interface AzureQueueStorageQueueResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureQueueStorageResource with extension methods
@@ -10415,12 +11418,17 @@ export interface AzureQueueStorageResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureSearchResource with extension methods
@@ -10429,7 +11437,12 @@ export interface AzureSearchResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureServiceBusEmulatorResource with extension methods
@@ -10438,7 +11451,7 @@ export interface AzureServiceBusEmulatorResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
 }
 
 // augments handle type AzureServiceBusQueueResource with extension methods
@@ -10447,7 +11460,7 @@ export interface AzureServiceBusQueueResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
 }
 
 // augments handle type AzureServiceBusResource with extension methods
@@ -10456,7 +11469,7 @@ export interface AzureServiceBusResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
 }
 
 // augments handle type AzureServiceBusSubscriptionResource with extension methods
@@ -10465,7 +11478,7 @@ export interface AzureServiceBusSubscriptionResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
 }
 
 // augments handle type AzureServiceBusTopicResource with extension methods
@@ -10474,7 +11487,7 @@ export interface AzureServiceBusTopicResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
 }
 
 // augments handle type AzureSignalREmulatorResource with extension methods
@@ -10483,7 +11496,7 @@ export interface AzureSignalREmulatorResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
 }
 
 // augments handle type AzureSignalRResource with extension methods
@@ -10492,7 +11505,7 @@ export interface AzureSignalRResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
 }
 
 // augments handle type AzureStorageEmulatorResource with extension methods
@@ -10501,22 +11514,27 @@ export interface AzureStorageEmulatorResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureStorageResource with extension methods
@@ -10525,22 +11543,27 @@ export interface AzureStorageResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureSubnetResource with extension methods
@@ -10563,12 +11586,17 @@ export interface AzureTableStorageResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureUserAssignedIdentityResource with extension methods
@@ -10584,7 +11612,7 @@ export interface AzureUserAssignedIdentityResource {
 
   clearDefaultRoleAssignments(): IAzureResource;
   /**
-   * Configures the Azure provisioning resource `Infrastructure`.
+   * Configures the Azure provisioning infrastructure callback
    */
 
   configureInfrastructure(configure: (obj: AzureResourceInfrastructure) => Promise<void>): AzureProvisioningResource;
@@ -10637,19 +11665,19 @@ export interface AzureUserAssignedIdentityResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -10657,17 +11685,17 @@ export interface AzureUserAssignedIdentityResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -10682,27 +11710,32 @@ export interface AzureUserAssignedIdentityResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type AzureVirtualNetworkResource with extension methods
@@ -10725,7 +11758,7 @@ export interface AzureWebPubSubHubResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
 }
 
 // augments handle type AzureWebPubSubResource with extension methods
@@ -10734,7 +11767,165 @@ export interface AzureWebPubSubResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+}
+
+// augments handle type BingGroundingConnectionResource with extension methods
+export interface BingGroundingConnectionResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type BingGroundingToolResource with extension methods
+export interface BingGroundingToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type BunAppResource with extension methods
+export interface BunAppResource {
+  /**
+   * Configures the JavaScript application to publish as a standalone Node.js server that runs a built artifact directly.
+   */
+
+  publishAsNodeServer(entryPoint: string, options?: { outputPath?: string }): this;
+  /**
+   * Configures the JavaScript application to publish as a standalone Node.js server that runs a built artifact directly.
+   */
+
+  publishAsNodeServer(entryPoint: string, outputPath?: string): this;
+  /**
+   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   */
+
+  publishAsPackageScript(options?: { scriptName?: string; runScriptArguments?: string }): this;
+  /**
+   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   */
+
+  publishAsPackageScript(scriptName?: string, runScriptArguments?: string): this;
+  /**
+   * Publishes the JavaScript application as a standalone static website using YARP.
+   */
+
+  publishAsStaticWebsite(options?: { apiPath?: string; apiTarget?: IResourceWithServiceDiscovery; outputPath?: string; stripPrefix?: boolean; targetEndpointName?: string }): this;
+  /**
+   * Publishes the JavaScript application as a standalone static website using YARP.
+   */
+
+  publishAsStaticWebsite(apiPath?: string, apiTarget?: IResourceWithServiceDiscovery, outputPath?: string, stripPrefix?: boolean, targetEndpointName?: string): this;
+  /**
+   * Configures a browser debugger for the JavaScript application resource, enabling browser-based debugging through a child resource that launches when the parent application is ready.
+   */
+
+  withBrowserDebugger(options?: { browser?: string }): this;
+  /**
+   * Configures a browser debugger for the JavaScript application resource, enabling browser-based debugging through a child resource that launches when the parent application is ready.
+   */
+
+  withBrowserDebugger(browser?: string): this;
+  /**
+   * Adds a build script annotation to the resource builder using the specified command-line arguments.
+   */
+
+  withBuildScript(scriptName: string, options?: { args?: string[] }): this;
+  /**
+   * Adds a build script annotation to the resource builder using the specified command-line arguments.
+   */
+
+  withBuildScript(scriptName: string, args?: string[]): this;
+  /**
+   * Configures the JavaScript resource to use Bun as the package manager and optionally installs packages before the application starts.
+   */
+
+  withBun(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the JavaScript resource to use Bun as the package manager and optionally installs packages before the application starts.
+   */
+
+  withBun(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.
+   */
+
+  withNpm(options?: { install?: boolean; installCommand?: string; installArgs?: string[] }): this;
+  /**
+   * Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.
+   */
+
+  withNpm(install?: boolean, installCommand?: string, installArgs?: string[]): this;
+  /**
+   * Configures the Node.js resource to use pnpm as the package manager and optionally installs packages before the application starts.
+   */
+
+  withPnpm(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the Node.js resource to use pnpm as the package manager and optionally installs packages before the application starts.
+   */
+
+  withPnpm(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Adds a run script annotation to the specified JavaScript application resource builder, specifying the script to execute and its arguments during run mode.
+   */
+
+  withRunScript(scriptName: string, options?: { args?: string[] }): this;
+  /**
+   * Adds a run script annotation to the specified JavaScript application resource builder, specifying the script to execute and its arguments during run mode.
+   */
+
+  withRunScript(scriptName: string, args?: string[]): this;
+  /**
+   * Configures the Node.js resource to use yarn as the package manager and optionally installs packages before the application starts.
+   */
+
+  withYarn(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the Node.js resource to use yarn as the package manager and optionally installs packages before the application starts.
+   */
+
+  withYarn(install?: boolean, installArgs?: string[]): this;
+}
+
+// augments handle type CertManagerIssuerResource with extension methods
+export interface CertManagerIssuerResource {
+  /**
+   * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
+   */
+
+  withNodePool(nodePool: KubernetesNodePoolResource): this;
+}
+
+// augments handle type CertManagerResource with extension methods
+export interface CertManagerResource {
+  /**
+   * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
+   */
+
+  withNodePool(nodePool: KubernetesNodePoolResource): this;
+}
+
+// augments handle type CodeInterpreterToolResource with extension methods
+export interface CodeInterpreterToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type ComputerToolResource with extension methods
+export interface ComputerToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 export interface ContainerApp {
@@ -10743,6 +11934,11 @@ export interface ContainerApp {
    */
 
   configureCustomDomain(customDomain: string | ParameterResource, certificateName: string | ParameterResource): void;
+  /**
+   * Configures supported Azure Container App scale settings.
+   */
+
+  configureScale(scale: AzureContainerAppScaleConfig): void;
 }
 
 // augments handle type ContainerRegistryResource with extension methods
@@ -10788,17 +11984,17 @@ export interface ContainerRegistryResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Sets a child relationship
    */
 
   withChildRelationship(child: IResource): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, options?: { commandOptions?: CommandOptions }): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
@@ -10818,15 +12014,30 @@ export interface ContainerRegistryResource {
 
   withDockerfileBaseImage(buildImage?: string, runtimeImage?: string): this;
   /**
-   * Adds a `ExplicitStartupAnnotation` annotation to the resource so it doesn't automatically start with the app host startup.
+   * Prevents resource from starting automatically
    */
 
   withExplicitStart(): this;
   /**
-   * Adds a `HealthCheckAnnotation` to the resource annotations to associate a resource with a named health check managed by the health check service.
+   * Adds a health check by key
    */
 
   withHealthCheck(key: string): this;
+  /**
+   * Hides the resource from default resource lists
+   */
+
+  withHidden(): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(options?: { exitCode?: number; exitCodes?: number[] }): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(exitCode?: number, exitCodes?: number[]): this;
   /**
    * Specifies the icon to use when displaying the resource in the dashboard.
    */
@@ -10838,10 +12049,25 @@ export interface ContainerRegistryResource {
 
   withIconName(iconName: string, iconVariant?: IconVariant): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Configures a resource to match the lifetime of another resource.
+   */
+
+  withLifetimeOf(sourceBuilder: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits.
+   */
+
+  withParentProcessLifetime(parentProcessId: number): this;
+  /**
+   * Sets the parent relationship
    */
 
   withParentRelationship(parent: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime.
+   */
+
+  withPersistentLifetime(): this;
   /**
    * Registers a callback to be executed during the pipeline configuration phase, allowing modification of step dependencies and relationships.
    */
@@ -10858,6 +12084,21 @@ export interface ContainerRegistryResource {
 
   withPipelineStepFactory(stepName: string, callback: (arg: PipelineStepContext) => Promise<void>, dependsOn?: string[], requiredBy?: string[], tags?: string[], description?: string): this;
   /**
+   * Adds a command to the resource that starts a local process when invoked.
+   */
+
+  withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
+  /**
    * Adds a relationship to another resource using its builder.
    */
 
@@ -10872,6 +12113,11 @@ export interface ContainerRegistryResource {
    */
 
   withRequiredCommand(command: string, helpLink?: string): this;
+  /**
+   * Configures a resource to use a session lifetime.
+   */
+
+  withSessionLifetime(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -10896,19 +12142,19 @@ export interface ContainerRegistryResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -10916,17 +12162,17 @@ export interface ContainerRegistryResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -10941,27 +12187,32 @@ export interface ContainerRegistryResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -10992,7 +12243,7 @@ export interface ContainerResource {
 
   excludeFromMcp(): IResource;
   /**
-   * Gets an `EndpointReference` by name from the resource. These endpoints are declared either using `WithEndpoint``1` or by launch settings (for project resources). The `EndpointReference` can be used to resolve the address of the endpoint in `WithEnvironment``1`.
+   * Gets an endpoint reference
    */
 
   getEndpoint(name: string): EndpointReference;
@@ -11052,25 +12303,30 @@ export interface ContainerResource {
 
   withArgsCallback(callback: (obj: CommandLineArgsCallbackContext) => Promise<void>): this;
   /**
-   * Sets the `CertificateTrustScope` for custom certificate authorities associated with the resource. The scope specifies how custom certificate authorities should be applied to a resource at run time in local development scenarios. Custom certificate trust is only applied in run mode; in publish mode resources will use their default certificate trust behavior.
+   * Sets the certificate trust scope
    */
 
   withCertificateTrustScope(scope: CertificateTrustScope): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Sets a child relationship
    */
 
   withChildRelationship(child: IResource): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, options?: { commandOptions?: CommandOptions }): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures the compute environment for the compute resource.
+   */
+
+  withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -11092,12 +12348,12 @@ export interface ContainerResource {
 
   withDockerfileBaseImage(buildImage?: string, runtimeImage?: string): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(options?: { port?: number; targetPort?: number; scheme?: string; name?: string; env?: string; isProxied?: boolean; isExternal?: boolean; protocol?: ProtocolType }): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(port?: number, targetPort?: number, scheme?: string, name?: string, env?: string, isProxied?: boolean, isExternal?: boolean, protocol?: ProtocolType): this;
@@ -11112,6 +12368,11 @@ export interface ContainerResource {
 
   withEndpointCallback(endpointName: string, callback: (obj: EndpointUpdateContext) => Promise<void>, createIfNotExists?: boolean): this;
   /**
+   * Set whether a resource can use proxied endpoints or whether they should be disabled for all endpoints belonging to the resource. If set to `false`, endpoints belonging to the resource will ignore the configured proxy settings and run proxy-less.
+   */
+
+  withEndpointProxySupport(proxyEnabled: boolean): this;
+  /**
    * Sets an environment variable
    */
 
@@ -11122,7 +12383,7 @@ export interface ContainerResource {
 
   withEnvironmentCallback(callback: (arg: EnvironmentCallbackContext) => Promise<void>): this;
   /**
-   * Adds a `ExplicitStartupAnnotation` annotation to the resource so it doesn't automatically start with the app host startup.
+   * Prevents resource from starting automatically
    */
 
   withExplicitStart(): this;
@@ -11132,10 +12393,25 @@ export interface ContainerResource {
 
   withExternalHttpEndpoints(): this;
   /**
-   * Adds a `HealthCheckAnnotation` to the resource annotations to associate a resource with a named health check managed by the health check service.
+   * Adds a health check by key
    */
 
   withHealthCheck(key: string): this;
+  /**
+   * Hides the resource from default resource lists
+   */
+
+  withHidden(): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(options?: { exitCode?: number; exitCodes?: number[] }): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(exitCode?: number, exitCodes?: number[]): this;
   /**
    * Adds an HTTP resource command
    */
@@ -11147,12 +12423,12 @@ export interface ContainerResource {
 
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -11177,12 +12453,12 @@ export interface ContainerResource {
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, options?: { path?: string; initialDelaySeconds?: number; periodSeconds?: number; timeoutSeconds?: number; failureThreshold?: number; successThreshold?: number; endpointName?: string }): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
@@ -11197,12 +12473,12 @@ export interface ContainerResource {
 
   withHttpsDeveloperCertificate(password?: string | ParameterResource): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -11232,6 +12508,11 @@ export interface ContainerResource {
 
   withImagePushOptions(callback: (arg: ContainerImagePushOptionsCallbackContext) => Promise<void>): this;
   /**
+   * Configures a resource to match the lifetime of another resource.
+   */
+
+  withLifetimeOf(sourceBuilder: IResource): this;
+  /**
    * Marks the resource as hosting a Model Context Protocol (MCP) server on the specified endpoint.
    */
 
@@ -11257,10 +12538,20 @@ export interface ContainerResource {
 
   withoutHttpsCertificate(): IResourceWithEnvironment;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits.
+   */
+
+  withParentProcessLifetime(parentProcessId: number): this;
+  /**
+   * Sets the parent relationship
    */
 
   withParentRelationship(parent: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime.
+   */
+
+  withPersistentLifetime(): this;
   /**
    * Registers a callback to be executed during the pipeline configuration phase, allowing modification of step dependencies and relationships.
    */
@@ -11276,6 +12567,21 @@ export interface ContainerResource {
    */
 
   withPipelineStepFactory(stepName: string, callback: (arg: PipelineStepContext) => Promise<void>, dependsOn?: string[], requiredBy?: string[], tags?: string[], description?: string): this;
+  /**
+   * Adds a command to the resource that starts a local process when invoked.
+   */
+
+  withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a reference to another resource
    */
@@ -11317,6 +12623,11 @@ export interface ContainerResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Configures a resource to use a session lifetime.
+   */
+
+  withSessionLifetime(): this;
+  /**
    * Adds or modifies displayed URLs
    */
 
@@ -11337,7 +12648,7 @@ export interface ContainerResource {
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
   /**
-   * Attaches an existing `AzureUserAssignedIdentityResource` to a compute resource, setting it as the target identity for the builder.
+   * Associates an Azure user-assigned identity with a compute resource
    */
 
   withAzureUserAssignedIdentity(identityResourceBuilder: AzureUserAssignedIdentityResource): this;
@@ -11345,7 +12656,7 @@ export interface ContainerResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Publishes the specified container resource as a container app.
    */
@@ -11390,14 +12701,14 @@ export interface ContainerResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -11405,17 +12716,17 @@ export interface ContainerResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -11430,27 +12741,27 @@ export interface ContainerResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
   /**
    * Adds a child resource that can open the application's primary browser endpoint in a tracked browser session, surface browser diagnostics, and capture screenshots.
    */
@@ -11467,15 +12778,20 @@ export interface ContainerResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
   /**
    * Publishes the specified resource as a Kubernetes service.
    */
@@ -11490,7 +12806,12 @@ export interface ContainerResource {
    * Adds an Orleans client to the resource.
    */
 
-  withReference(orleansServiceClient: OrleansServiceClient): this;
+  withOrleansClientReference(orleansServiceClient: OrleansServiceClient): this;
+  /**
+   * Adds Orleans to the resource.
+   */
+
+  withOrleansReference(orleansService: OrleansService): this;
 }
 
 // augments handle type CSharpAppResource with extension methods
@@ -11521,7 +12842,7 @@ export interface CSharpAppResource {
 
   excludeFromMcp(): IResource;
   /**
-   * Gets an `EndpointReference` by name from the resource. These endpoints are declared either using `WithEndpoint``1` or by launch settings (for project resources). The `EndpointReference` can be used to resolve the address of the endpoint in `WithEnvironment``1`.
+   * Gets an endpoint reference
    */
 
   getEndpoint(name: string): EndpointReference;
@@ -11556,12 +12877,12 @@ export interface CSharpAppResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
-   * Adds support for containerizing this `ProjectResource` during deployment. The resulting container image is built, and when the optional `configure` action is provided, it is used to configure the container resource.
+   * Publishes a project as a Docker file with optional container configuration
    */
 
   publishAsDockerFile(options?: { configure?: (obj: ContainerResource) => Promise<void> }): this;
   /**
-   * Adds support for containerizing this `ProjectResource` during deployment. The resulting container image is built, and when the optional `configure` action is provided, it is used to configure the container resource.
+   * Publishes a project as a Docker file with optional container configuration
    */
 
   publishAsDockerFile(configure?: (obj: ContainerResource) => Promise<void>): this;
@@ -11596,25 +12917,30 @@ export interface CSharpAppResource {
 
   withArgsCallback(callback: (obj: CommandLineArgsCallbackContext) => Promise<void>): this;
   /**
-   * Sets the `CertificateTrustScope` for custom certificate authorities associated with the resource. The scope specifies how custom certificate authorities should be applied to a resource at run time in local development scenarios. Custom certificate trust is only applied in run mode; in publish mode resources will use their default certificate trust behavior.
+   * Sets the certificate trust scope
    */
 
   withCertificateTrustScope(scope: CertificateTrustScope): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Sets a child relationship
    */
 
   withChildRelationship(child: IResource): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, options?: { commandOptions?: CommandOptions }): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures the compute environment for the compute resource.
+   */
+
+  withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -11636,12 +12962,12 @@ export interface CSharpAppResource {
 
   withDockerfileBaseImage(buildImage?: string, runtimeImage?: string): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(options?: { port?: number; targetPort?: number; scheme?: string; name?: string; env?: string; isProxied?: boolean; isExternal?: boolean; protocol?: ProtocolType }): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(port?: number, targetPort?: number, scheme?: string, name?: string, env?: string, isProxied?: boolean, isExternal?: boolean, protocol?: ProtocolType): this;
@@ -11656,6 +12982,11 @@ export interface CSharpAppResource {
 
   withEndpointCallback(endpointName: string, callback: (obj: EndpointUpdateContext) => Promise<void>, createIfNotExists?: boolean): this;
   /**
+   * Set whether a resource can use proxied endpoints or whether they should be disabled for all endpoints belonging to the resource. If set to `false`, endpoints belonging to the resource will ignore the configured proxy settings and run proxy-less.
+   */
+
+  withEndpointProxySupport(proxyEnabled: boolean): this;
+  /**
    * Sets an environment variable
    */
 
@@ -11666,7 +12997,7 @@ export interface CSharpAppResource {
 
   withEnvironmentCallback(callback: (arg: EnvironmentCallbackContext) => Promise<void>): this;
   /**
-   * Adds a `ExplicitStartupAnnotation` annotation to the resource so it doesn't automatically start with the app host startup.
+   * Prevents resource from starting automatically
    */
 
   withExplicitStart(): this;
@@ -11676,10 +13007,25 @@ export interface CSharpAppResource {
 
   withExternalHttpEndpoints(): this;
   /**
-   * Adds a `HealthCheckAnnotation` to the resource annotations to associate a resource with a named health check managed by the health check service.
+   * Adds a health check by key
    */
 
   withHealthCheck(key: string): this;
+  /**
+   * Hides the resource from default resource lists
+   */
+
+  withHidden(): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(options?: { exitCode?: number; exitCodes?: number[] }): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(exitCode?: number, exitCodes?: number[]): this;
   /**
    * Adds an HTTP resource command
    */
@@ -11691,12 +13037,12 @@ export interface CSharpAppResource {
 
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -11721,12 +13067,12 @@ export interface CSharpAppResource {
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, options?: { path?: string; initialDelaySeconds?: number; periodSeconds?: number; timeoutSeconds?: number; failureThreshold?: number; successThreshold?: number; endpointName?: string }): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
@@ -11741,12 +13087,12 @@ export interface CSharpAppResource {
 
   withHttpsDeveloperCertificate(password?: string | ParameterResource): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -11776,6 +13122,11 @@ export interface CSharpAppResource {
 
   withImagePushOptions(callback: (arg: ContainerImagePushOptionsCallbackContext) => Promise<void>): this;
   /**
+   * Configures a resource to match the lifetime of another resource.
+   */
+
+  withLifetimeOf(sourceBuilder: IResource): this;
+  /**
    * Marks the resource as hosting a Model Context Protocol (MCP) server on the specified endpoint.
    */
 
@@ -11801,10 +13152,20 @@ export interface CSharpAppResource {
 
   withoutHttpsCertificate(): IResourceWithEnvironment;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits.
+   */
+
+  withParentProcessLifetime(parentProcessId: number): this;
+  /**
+   * Sets the parent relationship
    */
 
   withParentRelationship(parent: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime.
+   */
+
+  withPersistentLifetime(): this;
   /**
    * Registers a callback to be executed during the pipeline configuration phase, allowing modification of step dependencies and relationships.
    */
@@ -11820,6 +13181,21 @@ export interface CSharpAppResource {
    */
 
   withPipelineStepFactory(stepName: string, callback: (arg: PipelineStepContext) => Promise<void>, dependsOn?: string[], requiredBy?: string[], tags?: string[], description?: string): this;
+  /**
+   * Adds a command to the resource that starts a local process when invoked.
+   */
+
+  withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a reference to another resource
    */
@@ -11866,6 +13242,11 @@ export interface CSharpAppResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Configures a resource to use a session lifetime.
+   */
+
+  withSessionLifetime(): this;
+  /**
    * Adds or modifies displayed URLs
    */
 
@@ -11886,7 +13267,7 @@ export interface CSharpAppResource {
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
   /**
-   * Attaches an existing `AzureUserAssignedIdentityResource` to a compute resource, setting it as the target identity for the builder.
+   * Associates an Azure user-assigned identity with a compute resource
    */
 
   withAzureUserAssignedIdentity(identityResourceBuilder: AzureUserAssignedIdentityResource): this;
@@ -11894,7 +13275,7 @@ export interface CSharpAppResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Allows configuring the specified project resource as a container app.
    */
@@ -11939,14 +13320,14 @@ export interface CSharpAppResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -11954,17 +13335,17 @@ export interface CSharpAppResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -11979,27 +13360,37 @@ export interface CSharpAppResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  /**
+   * Attaches a Blazor WebAssembly app to the Gateway. The resource name is used as the URL path prefix (e.g., resource "store" → /store/). Service names are derived from WithReference() annotations on the WASM resource. Service references from the WASM app are automatically forwarded to the gateway so the gateway can resolve service endpoints for YARP proxying.
+   */
+
+  withBlazorClientApp(wasmApp: BlazorWasmAppResource, options?: { apiPrefix?: string; otlpPrefix?: string; proxyTelemetry?: boolean }): this;
+  /**
+   * Attaches a Blazor WebAssembly app to the Gateway. The resource name is used as the URL path prefix (e.g., resource "store" → /store/). Service names are derived from WithReference() annotations on the WASM resource. Service references from the WASM app are automatically forwarded to the gateway so the gateway can resolve service endpoints for YARP proxying.
+   */
+
+  withBlazorClientApp(wasmApp: BlazorWasmAppResource, apiPrefix?: string, otlpPrefix?: string, proxyTelemetry?: boolean): this;
   /**
    * Adds a child resource that can open the application's primary browser endpoint in a tracked browser session, surface browser diagnostics, and capture screenshots.
    */
@@ -12016,20 +13407,30 @@ export interface CSharpAppResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for auto-detected DbContext types.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
-  addEFMigrations(name: string): EFMigrationResource;
+  addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  /**
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   */
+
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
   /**
    * Publishes the specified resource as a Kubernetes service.
    */
@@ -12044,31 +13445,12 @@ export interface CSharpAppResource {
    * Adds an Orleans client to the resource.
    */
 
-  withReference(orleansServiceClient: OrleansServiceClient): this;
-}
-
-// augments handle type DistributedApplication with extension methods
-export interface DistributedApplication {
+  withOrleansClientReference(orleansServiceClient: OrleansServiceClient): this;
   /**
-   * Gets the connection string for the specified resource.
+   * Adds Orleans to the resource.
    */
 
-  getConnectionString(resourceName: string): string;
-  /**
-   * Gets the endpoint for the specified resource.
-   */
-
-  getEndpoint(resourceName: string, endpointName?: string): uri;
-  /**
-   * Gets the endpoint for the specified resource in the specified network context.
-   */
-
-  getEndpointForNetworkExport(resourceName: string, options?: { networkIdentifier?: string; endpointName?: string }): uri;
-  /**
-   * Gets the endpoint for the specified resource in the specified network context.
-   */
-
-  getEndpointForNetworkExport(resourceName: string, networkIdentifier?: string, endpointName?: string): uri;
+  withOrleansReference(orleansService: OrleansService): this;
 }
 
 // augments handle type DockerComposeAspireDashboardResource with extension methods
@@ -12103,7 +13485,7 @@ export interface DotnetToolResource {
 
   excludeFromMcp(): IResource;
   /**
-   * Gets an `EndpointReference` by name from the resource. These endpoints are declared either using `WithEndpoint``1` or by launch settings (for project resources). The `EndpointReference` can be used to resolve the address of the endpoint in `WithEnvironment``1`.
+   * Gets an endpoint reference
    */
 
   getEndpoint(name: string): EndpointReference;
@@ -12138,7 +13520,7 @@ export interface DotnetToolResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
-   * Adds support for containerizing this `ExecutableResource` during deployment. The resulting container image is built, and when the optional `configure` action is provided, it is used to configure the container resource.
+   * Publishes an executable as a Docker file
    */
 
   publishAsDockerFile(configure: (obj: ContainerResource) => Promise<void>): this;
@@ -12168,25 +13550,30 @@ export interface DotnetToolResource {
 
   withArgsCallback(callback: (obj: CommandLineArgsCallbackContext) => Promise<void>): this;
   /**
-   * Sets the `CertificateTrustScope` for custom certificate authorities associated with the resource. The scope specifies how custom certificate authorities should be applied to a resource at run time in local development scenarios. Custom certificate trust is only applied in run mode; in publish mode resources will use their default certificate trust behavior.
+   * Sets the certificate trust scope
    */
 
   withCertificateTrustScope(scope: CertificateTrustScope): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Sets a child relationship
    */
 
   withChildRelationship(child: IResource): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, options?: { commandOptions?: CommandOptions }): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures the compute environment for the compute resource.
+   */
+
+  withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -12208,12 +13595,12 @@ export interface DotnetToolResource {
 
   withDockerfileBaseImage(buildImage?: string, runtimeImage?: string): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(options?: { port?: number; targetPort?: number; scheme?: string; name?: string; env?: string; isProxied?: boolean; isExternal?: boolean; protocol?: ProtocolType }): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(port?: number, targetPort?: number, scheme?: string, name?: string, env?: string, isProxied?: boolean, isExternal?: boolean, protocol?: ProtocolType): this;
@@ -12227,6 +13614,11 @@ export interface DotnetToolResource {
    */
 
   withEndpointCallback(endpointName: string, callback: (obj: EndpointUpdateContext) => Promise<void>, createIfNotExists?: boolean): this;
+  /**
+   * Set whether a resource can use proxied endpoints or whether they should be disabled for all endpoints belonging to the resource. If set to `false`, endpoints belonging to the resource will ignore the configured proxy settings and run proxy-less.
+   */
+
+  withEndpointProxySupport(proxyEnabled: boolean): this;
   /**
    * Sets an environment variable
    */
@@ -12243,7 +13635,7 @@ export interface DotnetToolResource {
 
   withExecutableCommand(command: string): this;
   /**
-   * Adds a `ExplicitStartupAnnotation` annotation to the resource so it doesn't automatically start with the app host startup.
+   * Prevents resource from starting automatically
    */
 
   withExplicitStart(): this;
@@ -12253,10 +13645,25 @@ export interface DotnetToolResource {
 
   withExternalHttpEndpoints(): this;
   /**
-   * Adds a `HealthCheckAnnotation` to the resource annotations to associate a resource with a named health check managed by the health check service.
+   * Adds a health check by key
    */
 
   withHealthCheck(key: string): this;
+  /**
+   * Hides the resource from default resource lists
+   */
+
+  withHidden(): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(options?: { exitCode?: number; exitCodes?: number[] }): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(exitCode?: number, exitCodes?: number[]): this;
   /**
    * Adds an HTTP resource command
    */
@@ -12268,12 +13675,12 @@ export interface DotnetToolResource {
 
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -12298,12 +13705,12 @@ export interface DotnetToolResource {
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, options?: { path?: string; initialDelaySeconds?: number; periodSeconds?: number; timeoutSeconds?: number; failureThreshold?: number; successThreshold?: number; endpointName?: string }): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
@@ -12318,12 +13725,12 @@ export interface DotnetToolResource {
 
   withHttpsDeveloperCertificate(password?: string | ParameterResource): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -12353,6 +13760,11 @@ export interface DotnetToolResource {
 
   withImagePushOptions(callback: (arg: ContainerImagePushOptionsCallbackContext) => Promise<void>): this;
   /**
+   * Configures a resource to match the lifetime of another resource.
+   */
+
+  withLifetimeOf(sourceBuilder: IResource): this;
+  /**
    * Marks the resource as hosting a Model Context Protocol (MCP) server on the specified endpoint.
    */
 
@@ -12378,10 +13790,20 @@ export interface DotnetToolResource {
 
   withoutHttpsCertificate(): IResourceWithEnvironment;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits.
+   */
+
+  withParentProcessLifetime(parentProcessId: number): this;
+  /**
+   * Sets the parent relationship
    */
 
   withParentRelationship(parent: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime.
+   */
+
+  withPersistentLifetime(): this;
   /**
    * Registers a callback to be executed during the pipeline configuration phase, allowing modification of step dependencies and relationships.
    */
@@ -12397,6 +13819,21 @@ export interface DotnetToolResource {
    */
 
   withPipelineStepFactory(stepName: string, callback: (arg: PipelineStepContext) => Promise<void>, dependsOn?: string[], requiredBy?: string[], tags?: string[], description?: string): this;
+  /**
+   * Adds a command to the resource that starts a local process when invoked.
+   */
+
+  withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a reference to another resource
    */
@@ -12438,6 +13875,11 @@ export interface DotnetToolResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Configures a resource to use a session lifetime.
+   */
+
+  withSessionLifetime(): this;
+  /**
    * Adds or modifies displayed URLs
    */
 
@@ -12463,7 +13905,7 @@ export interface DotnetToolResource {
 
   withWorkingDirectory(workingDirectory: string): this;
   /**
-   * Attaches an existing `AzureUserAssignedIdentityResource` to a compute resource, setting it as the target identity for the builder.
+   * Associates an Azure user-assigned identity with a compute resource
    */
 
   withAzureUserAssignedIdentity(identityResourceBuilder: AzureUserAssignedIdentityResource): this;
@@ -12471,7 +13913,7 @@ export interface DotnetToolResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Publishes the specified container resource as a container app.
    */
@@ -12516,14 +13958,14 @@ export interface DotnetToolResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -12531,17 +13973,17 @@ export interface DotnetToolResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -12556,27 +13998,27 @@ export interface DotnetToolResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
   /**
    * Adds a child resource that can open the application's primary browser endpoint in a tracked browser session, surface browser diagnostics, and capture screenshots.
    */
@@ -12593,15 +14035,20 @@ export interface DotnetToolResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
   /**
    * Publishes the specified resource as a Kubernetes service.
    */
@@ -12616,7 +14063,12 @@ export interface DotnetToolResource {
    * Adds an Orleans client to the resource.
    */
 
-  withReference(orleansServiceClient: OrleansServiceClient): this;
+  withOrleansClientReference(orleansServiceClient: OrleansServiceClient): this;
+  /**
+   * Adds Orleans to the resource.
+   */
+
+  withOrleansReference(orleansService: OrleansService): this;
 }
 
 // augments handle type ExecutableResource with extension methods
@@ -12642,7 +14094,7 @@ export interface ExecutableResource {
 
   excludeFromMcp(): IResource;
   /**
-   * Gets an `EndpointReference` by name from the resource. These endpoints are declared either using `WithEndpoint``1` or by launch settings (for project resources). The `EndpointReference` can be used to resolve the address of the endpoint in `WithEnvironment``1`.
+   * Gets an endpoint reference
    */
 
   getEndpoint(name: string): EndpointReference;
@@ -12702,25 +14154,30 @@ export interface ExecutableResource {
 
   withArgsCallback(callback: (obj: CommandLineArgsCallbackContext) => Promise<void>): this;
   /**
-   * Sets the `CertificateTrustScope` for custom certificate authorities associated with the resource. The scope specifies how custom certificate authorities should be applied to a resource at run time in local development scenarios. Custom certificate trust is only applied in run mode; in publish mode resources will use their default certificate trust behavior.
+   * Sets the certificate trust scope
    */
 
   withCertificateTrustScope(scope: CertificateTrustScope): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Sets a child relationship
    */
 
   withChildRelationship(child: IResource): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, options?: { commandOptions?: CommandOptions }): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures the compute environment for the compute resource.
+   */
+
+  withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -12742,12 +14199,12 @@ export interface ExecutableResource {
 
   withDockerfileBaseImage(buildImage?: string, runtimeImage?: string): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(options?: { port?: number; targetPort?: number; scheme?: string; name?: string; env?: string; isProxied?: boolean; isExternal?: boolean; protocol?: ProtocolType }): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(port?: number, targetPort?: number, scheme?: string, name?: string, env?: string, isProxied?: boolean, isExternal?: boolean, protocol?: ProtocolType): this;
@@ -12762,6 +14219,11 @@ export interface ExecutableResource {
 
   withEndpointCallback(endpointName: string, callback: (obj: EndpointUpdateContext) => Promise<void>, createIfNotExists?: boolean): this;
   /**
+   * Set whether a resource can use proxied endpoints or whether they should be disabled for all endpoints belonging to the resource. If set to `false`, endpoints belonging to the resource will ignore the configured proxy settings and run proxy-less.
+   */
+
+  withEndpointProxySupport(proxyEnabled: boolean): this;
+  /**
    * Sets an environment variable
    */
 
@@ -12772,7 +14234,7 @@ export interface ExecutableResource {
 
   withEnvironmentCallback(callback: (arg: EnvironmentCallbackContext) => Promise<void>): this;
   /**
-   * Adds a `ExplicitStartupAnnotation` annotation to the resource so it doesn't automatically start with the app host startup.
+   * Prevents resource from starting automatically
    */
 
   withExplicitStart(): this;
@@ -12782,10 +14244,25 @@ export interface ExecutableResource {
 
   withExternalHttpEndpoints(): this;
   /**
-   * Adds a `HealthCheckAnnotation` to the resource annotations to associate a resource with a named health check managed by the health check service.
+   * Adds a health check by key
    */
 
   withHealthCheck(key: string): this;
+  /**
+   * Hides the resource from default resource lists
+   */
+
+  withHidden(): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(options?: { exitCode?: number; exitCodes?: number[] }): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(exitCode?: number, exitCodes?: number[]): this;
   /**
    * Adds an HTTP resource command
    */
@@ -12797,12 +14274,12 @@ export interface ExecutableResource {
 
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -12827,12 +14304,12 @@ export interface ExecutableResource {
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, options?: { path?: string; initialDelaySeconds?: number; periodSeconds?: number; timeoutSeconds?: number; failureThreshold?: number; successThreshold?: number; endpointName?: string }): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
@@ -12847,12 +14324,12 @@ export interface ExecutableResource {
 
   withHttpsDeveloperCertificate(password?: string | ParameterResource): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -12882,6 +14359,11 @@ export interface ExecutableResource {
 
   withImagePushOptions(callback: (arg: ContainerImagePushOptionsCallbackContext) => Promise<void>): this;
   /**
+   * Configures a resource to match the lifetime of another resource.
+   */
+
+  withLifetimeOf(sourceBuilder: IResource): this;
+  /**
    * Marks the resource as hosting a Model Context Protocol (MCP) server on the specified endpoint.
    */
 
@@ -12907,10 +14389,20 @@ export interface ExecutableResource {
 
   withoutHttpsCertificate(): IResourceWithEnvironment;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits.
+   */
+
+  withParentProcessLifetime(parentProcessId: number): this;
+  /**
+   * Sets the parent relationship
    */
 
   withParentRelationship(parent: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime.
+   */
+
+  withPersistentLifetime(): this;
   /**
    * Registers a callback to be executed during the pipeline configuration phase, allowing modification of step dependencies and relationships.
    */
@@ -12926,6 +14418,21 @@ export interface ExecutableResource {
    */
 
   withPipelineStepFactory(stepName: string, callback: (arg: PipelineStepContext) => Promise<void>, dependsOn?: string[], requiredBy?: string[], tags?: string[], description?: string): this;
+  /**
+   * Adds a command to the resource that starts a local process when invoked.
+   */
+
+  withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a reference to another resource
    */
@@ -12967,6 +14474,11 @@ export interface ExecutableResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Configures a resource to use a session lifetime.
+   */
+
+  withSessionLifetime(): this;
+  /**
    * Adds or modifies displayed URLs
    */
 
@@ -12987,7 +14499,7 @@ export interface ExecutableResource {
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
   /**
-   * Attaches an existing `AzureUserAssignedIdentityResource` to a compute resource, setting it as the target identity for the builder.
+   * Associates an Azure user-assigned identity with a compute resource
    */
 
   withAzureUserAssignedIdentity(identityResourceBuilder: AzureUserAssignedIdentityResource): this;
@@ -12995,7 +14507,7 @@ export interface ExecutableResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Publishes the specified container resource as a container app.
    */
@@ -13040,14 +14552,14 @@ export interface ExecutableResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -13055,17 +14567,17 @@ export interface ExecutableResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -13080,27 +14592,27 @@ export interface ExecutableResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
   /**
    * Adds a child resource that can open the application's primary browser endpoint in a tracked browser session, surface browser diagnostics, and capture screenshots.
    */
@@ -13117,15 +14629,20 @@ export interface ExecutableResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
   /**
    * Publishes the specified resource as a Kubernetes service.
    */
@@ -13140,7 +14657,12 @@ export interface ExecutableResource {
    * Adds an Orleans client to the resource.
    */
 
-  withReference(orleansServiceClient: OrleansServiceClient): this;
+  withOrleansClientReference(orleansServiceClient: OrleansServiceClient): this;
+  /**
+   * Adds Orleans to the resource.
+   */
+
+  withOrleansReference(orleansService: OrleansService): this;
 }
 
 // augments handle type ExternalServiceResource with extension methods
@@ -13186,17 +14708,17 @@ export interface ExternalServiceResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Sets a child relationship
    */
 
   withChildRelationship(child: IResource): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, options?: { commandOptions?: CommandOptions }): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
@@ -13216,15 +14738,30 @@ export interface ExternalServiceResource {
 
   withDockerfileBaseImage(buildImage?: string, runtimeImage?: string): this;
   /**
-   * Adds a `ExplicitStartupAnnotation` annotation to the resource so it doesn't automatically start with the app host startup.
+   * Prevents resource from starting automatically
    */
 
   withExplicitStart(): this;
   /**
-   * Adds a `HealthCheckAnnotation` to the resource annotations to associate a resource with a named health check managed by the health check service.
+   * Adds a health check by key
    */
 
   withHealthCheck(key: string): this;
+  /**
+   * Hides the resource from default resource lists
+   */
+
+  withHidden(): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(options?: { exitCode?: number; exitCodes?: number[] }): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(exitCode?: number, exitCodes?: number[]): this;
   /**
    * Specifies the icon to use when displaying the resource in the dashboard.
    */
@@ -13236,10 +14773,25 @@ export interface ExternalServiceResource {
 
   withIconName(iconName: string, iconVariant?: IconVariant): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Configures a resource to match the lifetime of another resource.
+   */
+
+  withLifetimeOf(sourceBuilder: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits.
+   */
+
+  withParentProcessLifetime(parentProcessId: number): this;
+  /**
+   * Sets the parent relationship
    */
 
   withParentRelationship(parent: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime.
+   */
+
+  withPersistentLifetime(): this;
   /**
    * Registers a callback to be executed during the pipeline configuration phase, allowing modification of step dependencies and relationships.
    */
@@ -13256,6 +14808,21 @@ export interface ExternalServiceResource {
 
   withPipelineStepFactory(stepName: string, callback: (arg: PipelineStepContext) => Promise<void>, dependsOn?: string[], requiredBy?: string[], tags?: string[], description?: string): this;
   /**
+   * Adds a command to the resource that starts a local process when invoked.
+   */
+
+  withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
+  /**
    * Adds a relationship to another resource using its builder.
    */
 
@@ -13270,6 +14837,11 @@ export interface ExternalServiceResource {
    */
 
   withRequiredCommand(command: string, helpLink?: string): this;
+  /**
+   * Configures a resource to use a session lifetime.
+   */
+
+  withSessionLifetime(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -13294,19 +14866,19 @@ export interface ExternalServiceResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -13314,17 +14886,17 @@ export interface ExternalServiceResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -13339,27 +14911,32 @@ export interface ExternalServiceResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -13367,18 +14944,68 @@ export interface ExternalServiceResource {
   withNodePool(nodePool: KubernetesNodePoolResource): this;
 }
 
+// augments handle type FabricToolResource with extension methods
+export interface FabricToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type FileSearchToolResource with extension methods
+export interface FileSearchToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type FoundryDeploymentResource with extension methods
+export interface FoundryDeploymentResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
 // augments handle type FoundryResource with extension methods
 export interface FoundryResource {
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type FoundryToolResource with extension methods
+export interface FoundryToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type FunctionToolResource with extension methods
+export interface FunctionToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 export interface IAzureDelegatedSubnetResource {
@@ -13390,6 +15017,11 @@ export interface IAzureDelegatedSubnetResource {
 }
 
 export interface IComputeResource {
+  /**
+   * Configures the compute environment for the compute resource.
+   */
+
+  withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
   /**
    * Adds an asynchronous callback to configure container image push options for the resource.
    */
@@ -13406,7 +15038,7 @@ export interface IComputeResource {
 
   withRemoteImageTag(remoteImageTag: string): this;
   /**
-   * Attaches an existing `AzureUserAssignedIdentityResource` to a compute resource, setting it as the target identity for the builder.
+   * Associates an Azure user-assigned identity with a compute resource
    */
 
   withAzureUserAssignedIdentity(identityResourceBuilder: AzureUserAssignedIdentityResource): this;
@@ -13552,6 +15184,15 @@ export interface ILoggerFactory {
   createLogger(categoryName: string): ILogger;
 }
 
+// augments handle type ImageGenerationToolResource with extension methods
+export interface ImageGenerationToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
 export interface IMauiPlatformResource {
   /**
    * Configures the MAUI platform resource to send OpenTelemetry data through an automatically created dev tunnel. This is the easiest option for most scenarios, as it handles tunnel creation, configuration, and endpoint injection automatically.
@@ -13566,19 +15207,19 @@ export interface IResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -13586,17 +15227,17 @@ export interface IResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -13611,27 +15252,32 @@ export interface IResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -13652,15 +15298,15 @@ export interface IResourceWithEndpoints {
 
   withBrowserLogs(browser?: string, profile?: string, userDataMode?: BrowserUserDataMode): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
 }
 
 // augments handle type IResourceWithEnvironment with extension methods
@@ -13669,7 +15315,12 @@ export interface IResourceWithEnvironment {
    * Adds an Orleans client to the resource.
    */
 
-  withReference(orleansServiceClient: OrleansServiceClient): this;
+  withOrleansClientReference(orleansServiceClient: OrleansServiceClient): this;
+  /**
+   * Adds Orleans to the resource.
+   */
+
+  withOrleansReference(orleansService: OrleansService): this;
 }
 
 export interface IServiceProvider {
@@ -13693,6 +15344,11 @@ export interface IServiceProvider {
    */
 
   getLoggerFactory(): ILoggerFactory;
+  /**
+   * Gets the resource command service from the service provider.
+   */
+
+  getResourceCommandService(): ResourceCommandService;
   /**
    * Gets the resource logger service from the service provider.
    */
@@ -13736,6 +15392,20 @@ export interface KubernetesEnvironmentResource {
 // augments handle type KubernetesGatewayResource with extension methods
 export interface KubernetesGatewayResource {
   /**
+   * Routes a Kubernetes Gateway through an AGC ApplicationLoadBalancer
+   */
+
+  withLoadBalancer(loadBalancer: AzureKubernetesLoadBalancerResource): this;
+  /**
+   * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
+   */
+
+  withNodePool(nodePool: KubernetesNodePoolResource): this;
+}
+
+// augments handle type KubernetesHelmChartResource with extension methods
+export interface KubernetesHelmChartResource {
+  /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
 
@@ -13744,6 +15414,11 @@ export interface KubernetesGatewayResource {
 
 // augments handle type KubernetesIngressResource with extension methods
 export interface KubernetesIngressResource {
+  /**
+   * Routes a Kubernetes Ingress through an AGC ApplicationLoadBalancer
+   */
+
+  withLoadBalancer(loadBalancer: AzureKubernetesLoadBalancerResource): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -13836,22 +15511,22 @@ export interface NextJsAppResource {
 
   publishAsNodeServer(entryPoint: string, outputPath?: string): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a package manager script at runtime.
+   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
    */
 
-  publishAsNpmScript(options?: { startScriptName?: string; runScriptArguments?: string }): this;
+  publishAsPackageScript(options?: { scriptName?: string; runScriptArguments?: string }): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a package manager script at runtime.
+   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
    */
 
-  publishAsNpmScript(startScriptName?: string, runScriptArguments?: string): this;
+  publishAsPackageScript(scriptName?: string, runScriptArguments?: string): this;
   /**
-   * Polyglot-compatible overload. All parameters are optional so the TS codegen wraps them in a single options object rather than positional args.
+   * Publishes the JavaScript application as a standalone static website using YARP.
    */
 
   publishAsStaticWebsite(options?: { apiPath?: string; apiTarget?: IResourceWithServiceDiscovery; outputPath?: string; stripPrefix?: boolean; targetEndpointName?: string }): this;
   /**
-   * Polyglot-compatible overload. All parameters are optional so the TS codegen wraps them in a single options object rather than positional args.
+   * Publishes the JavaScript application as a standalone static website using YARP.
    */
 
   publishAsStaticWebsite(apiPath?: string, apiTarget?: IResourceWithServiceDiscovery, outputPath?: string, stripPrefix?: boolean, targetEndpointName?: string): this;
@@ -13940,22 +15615,22 @@ export interface NodeAppResource {
 
   publishAsNodeServer(entryPoint: string, outputPath?: string): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a package manager script at runtime.
+   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
    */
 
-  publishAsNpmScript(options?: { startScriptName?: string; runScriptArguments?: string }): this;
+  publishAsPackageScript(options?: { scriptName?: string; runScriptArguments?: string }): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a package manager script at runtime.
+   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
    */
 
-  publishAsNpmScript(startScriptName?: string, runScriptArguments?: string): this;
+  publishAsPackageScript(scriptName?: string, runScriptArguments?: string): this;
   /**
-   * Polyglot-compatible overload. All parameters are optional so the TS codegen wraps them in a single options object rather than positional args.
+   * Publishes the JavaScript application as a standalone static website using YARP.
    */
 
   publishAsStaticWebsite(options?: { apiPath?: string; apiTarget?: IResourceWithServiceDiscovery; outputPath?: string; stripPrefix?: boolean; targetEndpointName?: string }): this;
   /**
-   * Polyglot-compatible overload. All parameters are optional so the TS codegen wraps them in a single options object rather than positional args.
+   * Publishes the JavaScript application as a standalone static website using YARP.
    */
 
   publishAsStaticWebsite(apiPath?: string, apiTarget?: IResourceWithServiceDiscovery, outputPath?: string, stripPrefix?: boolean, targetEndpointName?: string): this;
@@ -14074,17 +15749,17 @@ export interface ParameterResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Sets a child relationship
    */
 
   withChildRelationship(child: IResource): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, options?: { commandOptions?: CommandOptions }): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
@@ -14104,15 +15779,30 @@ export interface ParameterResource {
 
   withDockerfileBaseImage(buildImage?: string, runtimeImage?: string): this;
   /**
-   * Adds a `ExplicitStartupAnnotation` annotation to the resource so it doesn't automatically start with the app host startup.
+   * Prevents resource from starting automatically
    */
 
   withExplicitStart(): this;
   /**
-   * Adds a `HealthCheckAnnotation` to the resource annotations to associate a resource with a named health check managed by the health check service.
+   * Adds a health check by key
    */
 
   withHealthCheck(key: string): this;
+  /**
+   * Hides the resource from default resource lists
+   */
+
+  withHidden(): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(options?: { exitCode?: number; exitCodes?: number[] }): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(exitCode?: number, exitCodes?: number[]): this;
   /**
    * Specifies the icon to use when displaying the resource in the dashboard.
    */
@@ -14124,10 +15814,25 @@ export interface ParameterResource {
 
   withIconName(iconName: string, iconVariant?: IconVariant): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Configures a resource to match the lifetime of another resource.
+   */
+
+  withLifetimeOf(sourceBuilder: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits.
+   */
+
+  withParentProcessLifetime(parentProcessId: number): this;
+  /**
+   * Sets the parent relationship
    */
 
   withParentRelationship(parent: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime.
+   */
+
+  withPersistentLifetime(): this;
   /**
    * Registers a callback to be executed during the pipeline configuration phase, allowing modification of step dependencies and relationships.
    */
@@ -14144,6 +15849,21 @@ export interface ParameterResource {
 
   withPipelineStepFactory(stepName: string, callback: (arg: PipelineStepContext) => Promise<void>, dependsOn?: string[], requiredBy?: string[], tags?: string[], description?: string): this;
   /**
+   * Adds a command to the resource that starts a local process when invoked.
+   */
+
+  withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
+  /**
    * Adds a relationship to another resource using its builder.
    */
 
@@ -14158,6 +15878,11 @@ export interface ParameterResource {
    */
 
   withRequiredCommand(command: string, helpLink?: string): this;
+  /**
+   * Configures a resource to use a session lifetime.
+   */
+
+  withSessionLifetime(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -14182,19 +15907,19 @@ export interface ParameterResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -14202,17 +15927,17 @@ export interface ParameterResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -14227,32 +15952,37 @@ export interface ParameterResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
   /**
-   * Creates a Docker Compose environment variable placeholder for the specified `ParameterResource`.
+   * Creates a Docker Compose environment variable placeholder from a parameter builder
    */
 
   asEnvironmentPlaceholder(dockerComposeService: DockerComposeServiceResource): string;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -14283,7 +16013,7 @@ export interface ProjectResource {
 
   excludeFromMcp(): IResource;
   /**
-   * Gets an `EndpointReference` by name from the resource. These endpoints are declared either using `WithEndpoint``1` or by launch settings (for project resources). The `EndpointReference` can be used to resolve the address of the endpoint in `WithEnvironment``1`.
+   * Gets an endpoint reference
    */
 
   getEndpoint(name: string): EndpointReference;
@@ -14348,25 +16078,30 @@ export interface ProjectResource {
 
   withArgsCallback(callback: (obj: CommandLineArgsCallbackContext) => Promise<void>): this;
   /**
-   * Sets the `CertificateTrustScope` for custom certificate authorities associated with the resource. The scope specifies how custom certificate authorities should be applied to a resource at run time in local development scenarios. Custom certificate trust is only applied in run mode; in publish mode resources will use their default certificate trust behavior.
+   * Sets the certificate trust scope
    */
 
   withCertificateTrustScope(scope: CertificateTrustScope): this;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Sets a child relationship
    */
 
   withChildRelationship(child: IResource): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, options?: { commandOptions?: CommandOptions }): this;
   /**
-   * Adds a `ResourceCommandAnnotation` to the resource annotations to add a resource command.
+   * Adds a resource command
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures the compute environment for the compute resource.
+   */
+
+  withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -14388,12 +16123,12 @@ export interface ProjectResource {
 
   withDockerfileBaseImage(buildImage?: string, runtimeImage?: string): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(options?: { port?: number; targetPort?: number; scheme?: string; name?: string; env?: string; isProxied?: boolean; isExternal?: boolean; protocol?: ProtocolType }): this;
   /**
-   * Exposes an endpoint on a resource. A reference to this endpoint can be retrieved using `GetEndpoint``1`. The endpoint name will be the scheme name if not specified.
+   * Adds a network endpoint
    */
 
   withEndpoint(port?: number, targetPort?: number, scheme?: string, name?: string, env?: string, isProxied?: boolean, isExternal?: boolean, protocol?: ProtocolType): this;
@@ -14408,6 +16143,11 @@ export interface ProjectResource {
 
   withEndpointCallback(endpointName: string, callback: (obj: EndpointUpdateContext) => Promise<void>, createIfNotExists?: boolean): this;
   /**
+   * Set whether a resource can use proxied endpoints or whether they should be disabled for all endpoints belonging to the resource. If set to `false`, endpoints belonging to the resource will ignore the configured proxy settings and run proxy-less.
+   */
+
+  withEndpointProxySupport(proxyEnabled: boolean): this;
+  /**
    * Sets an environment variable
    */
 
@@ -14418,7 +16158,7 @@ export interface ProjectResource {
 
   withEnvironmentCallback(callback: (arg: EnvironmentCallbackContext) => Promise<void>): this;
   /**
-   * Adds a `ExplicitStartupAnnotation` annotation to the resource so it doesn't automatically start with the app host startup.
+   * Prevents resource from starting automatically
    */
 
   withExplicitStart(): this;
@@ -14428,10 +16168,25 @@ export interface ProjectResource {
 
   withExternalHttpEndpoints(): this;
   /**
-   * Adds a `HealthCheckAnnotation` to the resource annotations to associate a resource with a named health check managed by the health check service.
+   * Adds a health check by key
    */
 
   withHealthCheck(key: string): this;
+  /**
+   * Hides the resource from default resource lists
+   */
+
+  withHidden(): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(options?: { exitCode?: number; exitCodes?: number[] }): this;
+  /**
+   * Hides the resource from default resource lists after successful completion
+   */
+
+  withHiddenOnCompletion(exitCode?: number, exitCodes?: number[]): this;
   /**
    * Adds an HTTP resource command
    */
@@ -14443,12 +16198,12 @@ export interface ProjectResource {
 
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTP endpoint on a resource, or updates the existing HTTP endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "http" if not specified.
+   * Adds an HTTP endpoint
    */
 
   withHttpEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -14473,12 +16228,12 @@ export interface ProjectResource {
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, options?: { path?: string; initialDelaySeconds?: number; periodSeconds?: number; timeoutSeconds?: number; failureThreshold?: number; successThreshold?: number; endpointName?: string }): this;
   /**
-   * ATS export stub for `WithHttpProbe``1` with renamed parameter to avoid reserved keyword conflicts in Go and Rust.
+   * Adds an HTTP health probe to the resource
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
@@ -14493,12 +16248,12 @@ export interface ProjectResource {
 
   withHttpsDeveloperCertificate(password?: string | ParameterResource): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(options?: { port?: number; targetPort?: number; name?: string; env?: string; isProxied?: boolean }): this;
   /**
-   * Exposes an HTTPS endpoint on a resource, or updates the existing HTTPS endpoint if one with the same name already exists. This endpoint reference can be retrieved using `GetEndpoint``1`. The endpoint name will be "https" if not specified.
+   * Adds an HTTPS endpoint
    */
 
   withHttpsEndpoint(port?: number, targetPort?: number, name?: string, env?: string, isProxied?: boolean): this;
@@ -14528,6 +16283,11 @@ export interface ProjectResource {
 
   withImagePushOptions(callback: (arg: ContainerImagePushOptionsCallbackContext) => Promise<void>): this;
   /**
+   * Configures a resource to match the lifetime of another resource.
+   */
+
+  withLifetimeOf(sourceBuilder: IResource): this;
+  /**
    * Marks the resource as hosting a Model Context Protocol (MCP) server on the specified endpoint.
    */
 
@@ -14553,10 +16313,20 @@ export interface ProjectResource {
 
   withoutHttpsCertificate(): IResourceWithEnvironment;
   /**
-   * Adds a `ResourceRelationshipAnnotation` to the resource annotations to add a parent-child relationship.
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits.
+   */
+
+  withParentProcessLifetime(parentProcessId: number): this;
+  /**
+   * Sets the parent relationship
    */
 
   withParentRelationship(parent: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime.
+   */
+
+  withPersistentLifetime(): this;
   /**
    * Registers a callback to be executed during the pipeline configuration phase, allowing modification of step dependencies and relationships.
    */
@@ -14572,6 +16342,21 @@ export interface ProjectResource {
    */
 
   withPipelineStepFactory(stepName: string, callback: (arg: PipelineStepContext) => Promise<void>, dependsOn?: string[], requiredBy?: string[], tags?: string[], description?: string): this;
+  /**
+   * Adds a command to the resource that starts a local process when invoked.
+   */
+
+  withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
+  /**
+   * Adds a command to the resource that starts a local process created by a callback when invoked.
+   */
+
+  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a reference to another resource
    */
@@ -14613,6 +16398,11 @@ export interface ProjectResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Configures a resource to use a session lifetime.
+   */
+
+  withSessionLifetime(): this;
+  /**
    * Adds or modifies displayed URLs
    */
 
@@ -14633,7 +16423,7 @@ export interface ProjectResource {
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
   /**
-   * Attaches an existing `AzureUserAssignedIdentityResource` to a compute resource, setting it as the target identity for the builder.
+   * Associates an Azure user-assigned identity with a compute resource
    */
 
   withAzureUserAssignedIdentity(identityResourceBuilder: AzureUserAssignedIdentityResource): this;
@@ -14641,7 +16431,7 @@ export interface ProjectResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
+  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
   /**
    * Allows configuring the specified project resource as a container app.
    */
@@ -14686,14 +16476,14 @@ export interface ProjectResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
+  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
   /**
-   * Gets the `AzureContainerRegistryResource` associated with the specified Azure compute environment resource.
+   * Gets the Azure Container Registry associated with a compute environment resource.
    */
 
   getAzureContainerRegistry(): AzureContainerRegistryResource;
   /**
-   * Configures a resource that implements `IContainerRegistry` to use the specified Azure Container Registry.
+   * Configures a compute environment resource to use an Azure Container Registry.
    */
 
   withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
@@ -14701,17 +16491,17 @@ export interface ProjectResource {
    * Adds role assignments to the specified Azure Container Registry resource.
    */
 
-  withRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
+  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
+  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
    * Associates an Azure PaaS resource with a Network Security Perimeter.
    */
@@ -14726,27 +16516,37 @@ export interface ProjectResource {
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
+  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
+  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
+  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
    */
 
-  withRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+  /**
+   * Attaches a Blazor WebAssembly app to the Gateway. The resource name is used as the URL path prefix (e.g., resource "store" → /store/). Service names are derived from WithReference() annotations on the WASM resource. Service references from the WASM app are automatically forwarded to the gateway so the gateway can resolve service endpoints for YARP proxying.
+   */
+
+  withBlazorClientApp(wasmApp: BlazorWasmAppResource, options?: { apiPrefix?: string; otlpPrefix?: string; proxyTelemetry?: boolean }): this;
+  /**
+   * Attaches a Blazor WebAssembly app to the Gateway. The resource name is used as the URL path prefix (e.g., resource "store" → /store/). Service names are derived from WithReference() annotations on the WASM resource. Service references from the WASM app are automatically forwarded to the gateway so the gateway can resolve service endpoints for YARP proxying.
+   */
+
+  withBlazorClientApp(wasmApp: BlazorWasmAppResource, apiPrefix?: string, otlpPrefix?: string, proxyTelemetry?: boolean): this;
   /**
    * Adds a child resource that can open the application's primary browser endpoint in a tracked browser session, surface browser diagnostics, and capture screenshots.
    */
@@ -14763,20 +16563,30 @@ export interface ProjectResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for auto-detected DbContext types.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
-  addEFMigrations(name: string): EFMigrationResource;
+  addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
-  publishAsHostedAgent(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
   /**
-   * Publish the containerized agent as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
    */
 
-  publishAsHostedAgent(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
+  /**
+   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   */
+
+  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
   /**
    * Publishes the specified resource as a Kubernetes service.
    */
@@ -14791,7 +16601,21 @@ export interface ProjectResource {
    * Adds an Orleans client to the resource.
    */
 
-  withReference(orleansServiceClient: OrleansServiceClient): this;
+  withOrleansClientReference(orleansServiceClient: OrleansServiceClient): this;
+  /**
+   * Adds Orleans to the resource.
+   */
+
+  withOrleansReference(orleansService: OrleansService): this;
+}
+
+// augments handle type SharePointToolResource with extension methods
+export interface SharePointToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 // augments handle type UvicornAppResource with extension methods
@@ -14851,22 +16675,22 @@ export interface ViteAppResource {
 
   publishAsNodeServer(entryPoint: string, outputPath?: string): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a package manager script at runtime.
+   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
    */
 
-  publishAsNpmScript(options?: { startScriptName?: string; runScriptArguments?: string }): this;
+  publishAsPackageScript(options?: { scriptName?: string; runScriptArguments?: string }): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a package manager script at runtime.
+   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
    */
 
-  publishAsNpmScript(startScriptName?: string, runScriptArguments?: string): this;
+  publishAsPackageScript(scriptName?: string, runScriptArguments?: string): this;
   /**
-   * Polyglot-compatible overload. All parameters are optional so the TS codegen wraps them in a single options object rather than positional args.
+   * Publishes the JavaScript application as a standalone static website using YARP.
    */
 
   publishAsStaticWebsite(options?: { apiPath?: string; apiTarget?: IResourceWithServiceDiscovery; outputPath?: string; stripPrefix?: boolean; targetEndpointName?: string }): this;
   /**
-   * Polyglot-compatible overload. All parameters are optional so the TS codegen wraps them in a single options object rather than positional args.
+   * Publishes the JavaScript application as a standalone static website using YARP.
    */
 
   publishAsStaticWebsite(apiPath?: string, apiTarget?: IResourceWithServiceDiscovery, outputPath?: string, stripPrefix?: boolean, targetEndpointName?: string): this;
@@ -14940,6 +16764,31 @@ export interface ViteAppResource {
    */
 
   withYarn(install?: boolean, installArgs?: string[]): this;
+}
+
+// augments handle type WebSearchToolResource with extension methods
+export interface WebSearchToolResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+export interface WebSite {
+  /**
+   * Configures supported Azure App Service site settings.
+   */
+
+  configureSiteConfig(siteConfig: AzureAppServiceSiteConfig): void;
+}
+
+export interface WebSiteSlot {
+  /**
+   * Configures supported Azure App Service deployment slot site settings.
+   */
+
+  configureSlotSiteConfig(siteConfig: AzureAppServiceSiteConfig): void;
 }
 
 // ---- free functions ----
@@ -15026,6 +16875,7 @@ export interface ContainerAppJob {}
 export interface CookieSecurePolicy {}
 export interface ForwardedTransformActions {}
 export interface HeaderMatchMode {}
+export interface HealthStatus {}
 export interface HttpVersionPolicy {}
 export interface IAppIdentityResource {}
 export interface IAsyncDisposable {}
@@ -15035,10 +16885,10 @@ export interface IAzureContainerRegistryResource {}
 export interface IAzureNspAssociationTarget {}
 export interface IAzurePrivateEndpointTarget {}
 export interface IAzurePrivateEndpointTargetNotification {}
-export interface IComputeEnvironmentResource {}
 export interface IConfigurationSection {}
 export interface IContainerRegistry {}
 export interface IDisposable {}
+export interface IEnumerable {}
 export interface IFoundryTool {}
 export interface IHost {}
 export interface IManifestExpressionProvider {}
@@ -15049,6 +16899,7 @@ export interface IResourceWithProbes extends IResource {}
 export interface IResourceWithServiceDiscovery extends IResource {}
 export interface IValueProvider {}
 export interface IValueWithReferences {}
+export interface InputLoadOptions {}
 export interface List<T = unknown> {}
 export interface NetworkSecurityPerimeterAccessRuleDirection {}
 export interface NetworkSecurityPerimeterAssociationAccessMode {}
@@ -15060,8 +16911,8 @@ export interface SameSiteMode {}
 export interface SecurityRuleAccess {}
 export interface SecurityRuleDirection {}
 export interface SecurityRuleProtocol {}
-export interface WebSite {}
-export interface WebSiteSlot {}
+export interface String {}
+export interface UnixFileMode {}
 export interface arg {}
 export interface arg1 {}
 export interface arg2 {}

@@ -433,6 +433,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'get-started/ai-coding-agents',
             },
             {
+              label: 'Aspire skills',
+              slug: 'get-started/aspire-skills',
+            },
+            {
               label: 'Aspire MCP server',
               slug: 'get-started/aspire-mcp-server',
             },

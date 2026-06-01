@@ -214,6 +214,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
           slug: 'reference/cli/install-script',
         },
         {
+          label: 'Search and filter',
+          slug: 'reference/cli/search-filter',
+        },
+        {
           label: 'Configuration',
           translations: {
             da: 'Konfiguration',

@@ -58,7 +58,7 @@ When updating a guest AppHost project, such as a TypeScript AppHost, `aspire upd
 The selected Aspire SDK is newer than this Aspire CLI. Update the Aspire CLI now and re-run `aspire update` to update this project?
 ```
 
-If you confirm, the CLI updates itself and skips the project update. When the CLI is installed as a .NET tool, the command prints the `dotnet tool update` command to run manually instead:
+If you confirm, the CLI updates itself and skips the project update. When the CLI is installed from npm or as a .NET tool, the command prints the matching package-manager update command to run manually instead:
 
 ```text title="Output"
 Project update skipped. Update the Aspire CLI, then re-run `aspire update`.
@@ -70,6 +70,20 @@ After updating the CLI, re-run `aspire update` to complete the project update. T
 To update the CLI without being prompted, run `aspire update --self` before running `aspire update` on a guest AppHost project.
 :::
 
+### Updating the CLI based on how it was installed
+
+`aspire update --self` (and the update notice shown when a newer version is available) adapts to how the CLI was installed so it doesn't overwrite files owned by a package manager:
+
+- When the CLI was installed from **npm** (the `@microsoft/aspire-cli` package), the command prints the npm update command to run instead of downloading a new binary:
+
+  ```text title="Output"
+  To update the Aspire CLI when installed from npm, run:
+    npm install -g @microsoft/aspire-cli@latest
+  ```
+
+- When the CLI was installed with the **install script** or another **binary install**, `aspire update --self` downloads and installs the latest CLI binary directly.
+- When the CLI was installed as a **.NET tool**, the command prints the `dotnet tool update` command to run.
+
 ## Options
 
 The following options are available:
@@ -78,7 +92,7 @@ The following options are available:
 
 - **`--self`**
 
-  Update the Aspire CLI itself to the latest version.
+  Update the Aspire CLI itself to the latest version. The CLI adapts to how it was installed: npm and .NET tool installs print the matching package-manager command to run, while install-script and other binary installs download the latest binary directly. See [Updating the CLI based on how it was installed](#updating-the-cli-based-on-how-it-was-installed).
 
 - **`--channel`**
 
