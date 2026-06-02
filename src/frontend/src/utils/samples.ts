@@ -61,12 +61,13 @@ export function appHostIconName(
 
 /**
  * Map the AppHost entry-point file extension to an expressive-code language
- * identifier so syntax highlighting matches the file.
+ * identifier so syntax highlighting matches the file. Treats Aspire 13.4's
+ * `apphost.mts` (TypeScript module) the same as the legacy `apphost.ts`.
  */
 export function appHostCodeLang(path: string | null | undefined): string {
   if (!path) return 'text';
   const lower = path.toLowerCase();
-  if (lower.endsWith('.ts')) return 'typescript';
+  if (lower.endsWith('.ts') || lower.endsWith('.mts')) return 'typescript';
   if (lower.endsWith('.cs')) return 'csharp';
   if (lower.endsWith('.csproj')) return 'xml';
   return 'text';
@@ -74,7 +75,7 @@ export function appHostCodeLang(path: string | null | undefined): string {
 
 /**
  * Extract the basename of the AppHost entry-point path. This is used as the
- * rendered title of the code block (e.g., "AppHost.cs", "apphost.ts").
+ * rendered title of the code block (e.g., "AppHost.cs", "apphost.mts").
  */
 export function appHostCodeTitle(path: string | null | undefined): string | null {
   if (!path) return null;

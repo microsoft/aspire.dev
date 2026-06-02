@@ -91,7 +91,7 @@ const TAG_RULES: TagRule[] = [
   { tag: 'javascript', patterns: [/\bJavaScript\b/i, /\bJS\b/, /\.js\b/] },
   {
     tag: 'typescript',
-    patterns: [/\bTypeScript\b/i, /\bts-node\b/i, /\bapphost\.ts\b/i, /\.tsx?\b/],
+    patterns: [/\bTypeScript\b/i, /\bts-node\b/i, /\bapphost\.m?ts\b/i, /\.m?tsx?\b/],
   },
   { tag: 'node', patterns: [/\bNode\.?js\b/i, /\bnpm\b/i] },
   {
@@ -160,10 +160,14 @@ function detectTags(name: string, readme: string, appHost: AppHostKind | null): 
 }
 
 function detectAppHost(paths: readonly string[]): AppHostInfo | null {
-  // Priority: TypeScript apphost.ts wins because the file-based AppHost.cs
+  // Priority: TypeScript apphost wins because the file-based AppHost.cs
   // detection would otherwise catch sample mirrors that include both shapes.
+  // Aspire 13.4 renamed the entry point from `apphost.ts` to `apphost.mts`
+  // (with the generated SDK moving from `./.modules/` to `./.aspire/modules/`).
+  // Both layouts continue to work and either may appear in samples, so the
+  // regex accepts the legacy `.ts` extension and the current `.mts` one.
   for (const p of paths) {
-    if (/(?:^|\/)apphost\.ts$/i.test(p)) {
+    if (/(?:^|\/)apphost\.m?ts$/i.test(p)) {
       return { kind: 'typescript', entryPath: p };
     }
   }
