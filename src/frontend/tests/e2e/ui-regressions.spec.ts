@@ -679,3 +679,44 @@ test('sidebar collapse toggle disappears below the topic-nav sidebar breakpoint'
   await expect(collapseButton).toBeHidden();
   await expect(expandButton).toBeHidden();
 });
+
+test('sidebar collapse toggle hides on no-TOC topic-nav landing pages between 50rem and 100rem', async ({
+  page,
+}) => {
+  // Regression for the "toggle overlaps the page H1 on landing pages"
+  // bug. The inline-with-TOC override in Sidebar.astro that anchors
+  // the toggle inside the mobile TOC bar at 50–100rem only fires when
+  // `html[data-has-toc]` is set. Landing pages such as `/deployment/`
+  // set `tableOfContents: false`, so without the no-TOC hide rule the
+  // toggle falls back to its floating-tab base position at the top of
+  // the article column where its leftmost ~48px overlap the page H1
+  // at narrow widths (the H1 also starts at the article column's
+  // left edge). At >= 100rem the article column is wide enough that
+  // the floating tab clears the H1, and below 50rem the topic
+  // sidebar is in the mobile menu, so the hide rule is scoped to the
+  // 50–100rem range.
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 800 || viewport.width >= 1600,
+    'Bug only reproduces where the topic-nav sidebar is persistent but the mobile TOC bar is unavailable (≥ 50rem and < 100rem on no-TOC pages).'
+  );
+
+  await page.goto('/deployment/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForTopicSidebarReady(page);
+
+  // Sanity check: this is a no-TOC page on the topic-nav layout —
+  // both of the conditions the hide rule depends on.
+  const hasToc = await page.evaluate(() =>
+    document.documentElement.hasAttribute('data-has-toc')
+  );
+  expect(hasToc).toBe(false);
+  await expect(page.locator('.topics-sidebar[data-topic-nav]')).toBeVisible();
+
+  // The persistent collapse/expand toggle should be hidden because
+  // there is no mobile TOC bar to anchor it into at this width.
+  const collapseButton = page.locator('#topic-sidebar-collapse-btn');
+  const expandButton = page.locator('#topic-sidebar-expand-btn');
+  await expect(collapseButton).toBeHidden();
+  await expect(expandButton).toBeHidden();
+});

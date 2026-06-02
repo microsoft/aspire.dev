@@ -1256,6 +1256,31 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     }
   }
 
+  /* Hide the toggle on sub-desktop widths when no mobile TOC bar is
+     present (e.g. landing pages such as `/deployment/` that set
+     `tableOfContents: false` in their frontmatter). The inline-with-TOC
+     override above only fires when `html[data-has-toc]` is set, so
+     without a TOC bar the toggle falls back to its base floating-tab
+     position at the top of the article column where its leftmost ~48px
+     overlap the page H1 at narrow widths. There is no second control
+     to align against, so the cleanest fix is to suppress the toggle
+     entirely in this range — at >= 100rem the article column is wide
+     enough that the floating-tab position clears the H1, and below
+     50rem the topic-sidebar is already moved into the mobile menu. */
+  @media (min-width: 50rem) and (max-width: 99.999rem) {
+    :global(html:not([data-has-toc])) #topic-sidebar-collapse-btn,
+    :global(html:not([data-has-toc])) #topic-sidebar-expand-btn {
+      display: none !important;
+    }
+  }
+
+  @media (min-width: 72rem) and (max-width: 99.999rem) {
+    :global(html:not([data-has-toc])) #sidebar-collapse-btn,
+    :global(html:not([data-has-toc])) #sidebar-expand-btn {
+      display: none !important;
+    }
+  }
+
   @media (max-width: 50rem) {
     .sidebar-dropdown-trigger,
     .sidebar-dropdown-option {
