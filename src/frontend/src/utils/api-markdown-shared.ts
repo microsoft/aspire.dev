@@ -113,13 +113,15 @@ export function inlineCode(value: string): string {
 }
 
 export function markdownResponse(content: string): Response {
-  // `text/plain` (instead of `text/markdown`) lets the browser display the
-  // raw markdown source inline in a new tab when the user clicks "View
-  // markdown", matching GitHub's raw-file convention. Most browsers treat
-  // `text/markdown` as a download type, which is not what we want here.
+  // NOTE: production preview/deployment serves these prerendered `.md` files
+  // via a static file server, which infers Content-Type from the file
+  // extension (`text/markdown`). This explicit header only takes effect
+  // under SSR/dev — we keep it as the canonical signal of what we intend
+  // to serve, but consumers like the page-actions "Copy Markdown" button
+  // do not depend on the response Content-Type.
   return new Response(content, {
     headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
+      'Content-Type': 'text/markdown; charset=utf-8',
     },
   });
 }

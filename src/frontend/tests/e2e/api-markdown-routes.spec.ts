@@ -73,11 +73,12 @@ for (const route of markdownRoutes) {
     const response = await request.get(route.path);
 
     expect(response.ok(), `${route.path} should return 200.`).toBe(true);
-    // The shared `markdownResponse` helper serves raw markdown as
-    // `text/plain` so the browser displays it inline in a new tab rather
-    // than triggering a download. The page-actions plugin's Copy Markdown
-    // fetch and the "View markdown" link both rely on this behavior.
-    expect(response.headers()['content-type']).toContain('text/plain');
+    // The static preview server infers Content-Type from the `.md`
+    // extension as `text/markdown`. The page-actions Copy Markdown fetch
+    // does not depend on the Content-Type — it consumes the body text
+    // directly — so this is purely an assertion that the route serves
+    // markdown rather than HTML.
+    expect(response.headers()['content-type']).toContain('text/markdown');
 
     const body = await response.text();
 
