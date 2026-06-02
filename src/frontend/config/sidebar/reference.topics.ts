@@ -479,8 +479,8 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                   slug: 'reference/cli/commands/aspire-otel-spans',
                 },
                 {
-                  label: 'aspire otel traces',
-                  slug: 'reference/cli/commands/aspire-otel-traces',
+                  label: 'aspire otel trace',
+                  slug: 'reference/cli/commands/aspire-otel-trace',
                 },
               ],
             },
