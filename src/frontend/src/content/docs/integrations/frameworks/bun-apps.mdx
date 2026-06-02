@@ -20,7 +20,7 @@ import bunIcon from '@assets/icons/bun-icon.png';
 The Aspire Bun hosting integration enables you to run [Bun](https://bun.sh/) applications alongside your other Aspire resources in the app host. Bun apps participate in the same service discovery, health checks, OpenTelemetry export, and Aspire dashboard support as the rest of your solution.
 
 :::note
-If you're looking at older Bun documentation or existing apps, Bun hosting was previously documented through [📦 CommunityToolkit.Aspire.Hosting.Bun](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Bun). For current Aspire applications, use `Aspire.Hosting.JavaScript`.
+The `AddBunApp(...)` integration was previously implemented as part of the [📦 CommunityToolkit.Aspire.Hosting.Bun](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Bun) package but is now built in to `Aspire.Hosting.JavaScript`.
 :::
 
 ## Hosting integration
@@ -51,10 +51,6 @@ builder.Build().Run();
 - **appDirectory**: The path to the directory containing your Bun application, relative to the AppHost project.
 - **scriptPath**: The script to run relative to `appDirectory`, such as `server.ts`.
 
-### Install packages before startup
-
-When your Bun app includes a `package.json` file, Aspire uses Bun as the package manager and installs packages automatically before the application starts.
-
 ### Specify a custom entrypoint
 
 Pass a different `scriptPath` to run a different script:
@@ -67,6 +63,10 @@ var bunApp = builder.AddBunApp("bun-api", "../bun-app", "src/http/server.ts")
 
 builder.Build().Run();
 ```
+
+### Install packages before startup
+
+When your Bun app includes a `package.json` file, Aspire uses Bun as the package manager and installs packages automatically before the application starts.
 
 ### Configure HTTP endpoints
 
@@ -84,13 +84,11 @@ builder.Build().Run();
 Your Bun application reads the `PORT` variable at startup:
 
 ```typescript title="TypeScript — server.ts"
-const port = Number(process.env.PORT || 3000);
-
 const server = Bun.serve({
-  port,
-  fetch(request) {
-    return new Response('Hello from Bun!');
-  },
+    port: process.env.PORT || 3000,
+    fetch(request) {
+        return new Response("Hello from Bun!");
+    },
 });
 
 console.log(`Server listening on port ${server.port}`);
