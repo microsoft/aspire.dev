@@ -680,21 +680,26 @@ test('sidebar collapse toggle disappears below the topic-nav sidebar breakpoint'
   await expect(expandButton).toBeHidden();
 });
 
-test('sidebar collapse toggle hides on no-TOC topic-nav landing pages between 50rem and 100rem', async ({
+test('sidebar collapse toggle stays visible without overlapping the H1 on no-TOC landing pages', async ({
   page,
 }) => {
-  // Regression for the "toggle overlaps the page H1 on landing pages"
-  // bug. The inline-with-TOC override in Sidebar.astro that anchors
-  // the toggle inside the mobile TOC bar at 50–100rem only fires when
+  // Regression for the "toggle covers the page H1" bug. The
+  // inline-with-TOC override in Sidebar.astro that anchors the toggle
+  // inside the mobile TOC bar at 50–100rem only fires when
   // `html[data-has-toc]` is set. Landing pages such as `/deployment/`
-  // set `tableOfContents: false`, so without the no-TOC hide rule the
-  // toggle falls back to its floating-tab base position at the top of
-  // the article column where its leftmost ~48px overlap the page H1
-  // at narrow widths (the H1 also starts at the article column's
-  // left edge). At >= 100rem the article column is wide enough that
-  // the floating tab clears the H1, and below 50rem the topic
-  // sidebar is in the mobile menu, so the hide rule is scoped to the
-  // 50–100rem range.
+  // set `tableOfContents: false`, so before this fix the toggle fell
+  // back to its floating-tab base position at the top of the article
+  // column where its leftmost ~48px overlapped the page H1's first
+  // letter at narrow widths.
+  //
+  // The fix keeps the toggle visible (it still controls the sidebar)
+  // by anchoring it into a TOC-bar-height row on no-TOC pages too
+  // (see Sidebar.astro), and padding the first `.content-panel`
+  // container so the H1 starts below the toggle (see site.css). At
+  // >= 100rem the article column is wide enough that the floating tab
+  // clears the H1 on its own, and below 50rem the topic sidebar is in
+  // the mobile menu, so the no-TOC anchor + padding rules are scoped
+  // to the 50–100rem range.
   const viewport = page.viewportSize();
   test.skip(
     !viewport || viewport.width < 800 || viewport.width >= 1600,
@@ -706,17 +711,46 @@ test('sidebar collapse toggle hides on no-TOC topic-nav landing pages between 50
   await waitForTopicSidebarReady(page);
 
   // Sanity check: this is a no-TOC page on the topic-nav layout —
-  // both of the conditions the hide rule depends on.
+  // both conditions the no-TOC anchor + padding rules depend on.
   const hasToc = await page.evaluate(() =>
     document.documentElement.hasAttribute('data-has-toc')
   );
   expect(hasToc).toBe(false);
   await expect(page.locator('.topics-sidebar[data-topic-nav]')).toBeVisible();
 
-  // The persistent collapse/expand toggle should be hidden because
-  // there is no mobile TOC bar to anchor it into at this width.
   const collapseButton = page.locator('#topic-sidebar-collapse-btn');
-  const expandButton = page.locator('#topic-sidebar-expand-btn');
-  await expect(collapseButton).toBeHidden();
-  await expect(expandButton).toBeHidden();
+  // Starlight tags the page-title H1 with `id="_top"`. On landing pages
+  // like `/deployment/` the H1 lives in the first `.content-panel`
+  // container (not inside `<article>`, which only wraps the body
+  // content), so an `article h1` selector misses it.
+  const h1 = page.locator('h1#_top');
+
+  // The persistent collapse/expand toggle must remain visible — the
+  // reader still needs to be able to hide the sidebar to gain reading
+  // width. Hiding the toggle would be a usability regression in its
+  // own right.
+  await expect(collapseButton).toBeVisible();
+  await expect(h1).toBeVisible();
+
+  const collapseBox = await collapseButton.boundingBox();
+  const h1Box = await h1.boundingBox();
+  expect(collapseBox).not.toBeNull();
+  expect(h1Box).not.toBeNull();
+  if (!collapseBox || !h1Box) return;
+
+  // The toggle and the H1 must not overlap. Assert bounding-box
+  // separation: either the toggle sits entirely above the H1, or
+  // entirely to its left. The current fix anchors the toggle into a
+  // synthesized TOC-bar-height row at the top of the article column
+  // and pads the title container so the H1 drops below the toggle,
+  // satisfying the "above" condition. A 1-pixel tolerance covers
+  // sub-pixel rounding.
+  const collapseBottom = collapseBox.y + collapseBox.height;
+  const collapseRight = collapseBox.x + collapseBox.width;
+  const above = collapseBottom <= h1Box.y + 1;
+  const leftOf = collapseRight <= h1Box.x + 1;
+  expect(
+    above || leftOf,
+    `Toggle (${JSON.stringify(collapseBox)}) overlaps H1 (${JSON.stringify(h1Box)}); expected toggle to be above or left of H1.`
+  ).toBe(true);
 });

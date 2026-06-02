@@ -1256,28 +1256,38 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     }
   }
 
-  /* Hide the toggle on sub-desktop widths when no mobile TOC bar is
-     present (e.g. landing pages such as `/deployment/` that set
-     `tableOfContents: false` in their frontmatter). The inline-with-TOC
-     override above only fires when `html[data-has-toc]` is set, so
-     without a TOC bar the toggle falls back to its base floating-tab
-     position at the top of the article column where its leftmost ~48px
-     overlap the page H1 at narrow widths. There is no second control
-     to align against, so the cleanest fix is to suppress the toggle
-     entirely in this range — at >= 100rem the article column is wide
-     enough that the floating-tab position clears the H1, and below
-     50rem the topic-sidebar is already moved into the mobile menu. */
-  @media (min-width: 50rem) and (max-width: 99.999rem) {
-    :global(html:not([data-has-toc])) #topic-sidebar-collapse-btn,
-    :global(html:not([data-has-toc])) #topic-sidebar-expand-btn {
-      display: none !important;
-    }
-  }
+  /* Keep the toggle accessible on landing pages without a mobile TOC bar
+     (e.g. `/deployment/` with `tableOfContents: false`). Without the
+     TOC bar there is nothing for the toggle to anchor against, so the
+     base floating-tab position parks it at the top of the article
+     column where its leftmost ~48px overlap the H1 at narrow widths.
+     Reuse the inline-with-TOC anchoring and synthesize the TOC-bar
+     height row via padding on the first content container (the one
+     that holds the page title) so the H1 starts below the toggle.
+     Collapse/expand stays available across all widths where the
+     sidebar itself is visible.
 
-  @media (min-width: 72rem) and (max-width: 99.999rem) {
-    :global(html:not([data-has-toc])) #sidebar-collapse-btn,
-    :global(html:not([data-has-toc])) #sidebar-expand-btn {
-      display: none !important;
+     Use a literal 3rem instead of var(--sl-mobile-toc-height, 3rem)
+     because the variable is explicitly set to 0rem outside of the
+     data-has-toc scope (see site.css), which would defeat the
+     fallback. */
+  @media (min-width: 50rem) and (max-width: 99.999rem) {
+    :global(html:not([data-has-toc])) .sidebar-collapse-btn,
+    :global(html:not([data-has-toc])) .sidebar-expand-btn {
+      top: calc(var(--sl-nav-height, 4rem) + var(--aspire-banner-height, 0px) - 1px);
+      height: 3rem;
+      border-radius: 0;
+      box-shadow: none;
+      border-inline-end: 1px solid var(--sl-color-gray-5);
+      border-block-end: 1px solid var(--sl-color-hairline-shade);
+      background: var(--sl-color-bg-nav);
+      z-index: calc(var(--sl-z-index-toc, 10) + 1);
+    }
+
+    :global(html:not([data-has-toc])) .sidebar-collapse-btn:hover,
+    :global(html:not([data-has-toc])) .sidebar-expand-btn:hover {
+      box-shadow: none;
+      background: var(--sl-color-bg);
     }
   }
 
