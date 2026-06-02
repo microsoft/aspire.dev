@@ -24,9 +24,14 @@ AppHost configuration is provided through launch profiles:
   ]}
 />
 <Pivot id="csharp">
-In C# AppHosts, profiles live in `launchSettings.json`:
+C# AppHosts come in two forms, and each stores launch profiles differently:
 
-```json title="launchSettings.json"
+- **Project-based AppHost** (the default `dotnet new aspire-apphost` template): profiles live in `Properties/launchSettings.json`.
+- **File-based AppHost** (created with `aspire new` using the empty C# template): profiles live in `apphost.run.json`. The `aspire.config.json` file in this layout only points at the entry file — it does **not** contain a `profiles` block.
+
+**Project-based AppHost** — `Properties/launchSettings.json`:
+
+```json title="Properties/launchSettings.json"
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
@@ -45,6 +50,38 @@ In C# AppHosts, profiles live in `launchSettings.json`:
   }
 }
 ```
+
+**File-based AppHost** — `apphost.run.json` (profiles) and `aspire.config.json` (entry point only):
+
+```json title="apphost.run.json"
+{
+  "profiles": {
+    "https": {
+      "applicationUrl": "https://localhost:17134;http://localhost:15170",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21030",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22057"
+      }
+    }
+  }
+}
+```
+
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.cs"
+  }
+}
+```
+
+<Aside type="note">
+  `aspire run`, `dotnet run apphost.cs`, and C# Dev Kit all read `apphost.run.json`
+  for launch profiles when it is present. The `aspire.config.json` for the file-based
+  C# template intentionally omits `profiles` to avoid duplicating that data.
+</Aside>
 </Pivot>
 <Pivot id="typescript">
 In TypeScript AppHosts, profiles live in `aspire.config.json`:
