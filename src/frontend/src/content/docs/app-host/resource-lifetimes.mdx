@@ -1,6 +1,6 @@
 ---
 title: Configure resource lifetimes in Aspire
-description: Learn how session, persistent, resource-scoped, and parent-process lifetimes control Aspire containers, executables, and projects.
+description: Learn how session, persistent, resource-scoped, and parent-process lifetimes and explicit start control Aspire containers, executables, and projects.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
@@ -67,6 +67,52 @@ A resource-scoped lifetime configures one resource to use another resource's eff
 Use resource-scoped lifetime when a companion resource should follow the lifetime choice of another resource. This is useful for sidecars, helper executables, or child resources that should become persistent only when the resource they support is persistent.
 
 Aspire evaluates the source resource's lifetime when it prepares the application model, so later lifetime changes to the source resource are reflected by the dependent resource. The source and dependent resources must both support lifetime configuration.
+
+## Defer resource start with explicit start
+
+Use `WithExplicitStart()` to prevent a resource from starting automatically with the rest of the AppHost. The resource appears in the dashboard but remains stopped until you start it manually.
+
+This is useful for resources that require user interaction before they can start — for example, resources that use dynamic configuration callbacks to prompt for credentials or other runtime input. Combining `WithExplicitStart()` with callback-based configuration APIs like `WithEnvironment` or `WithArgs` gives you precise control over when those callbacks run.
+
+### Session-scoped explicit-start resources
+
+For session-scoped resources (the default lifetime), Aspire defers DCP registration until you manually start the resource from the dashboard. This means execution configuration callbacks — such as `WithEnvironment(context => ...)` — are **not** evaluated during AppHost startup. They run only when the resource is manually started.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// The callback below is NOT evaluated during AppHost startup.
+// It runs only when the resource is manually started from the dashboard.
+var job = builder.AddExecutable("batch-job", "dotnet", ".", "run", "--project", "BatchJob")
+    .WithExplicitStart()
+    .WithEnvironment(async context =>
+    {
+        // Prompt or compute dynamic configuration at start time
+        context.EnvironmentVariables["API_KEY"] = await GetApiKeyAsync();
+    });
+
+builder.Build().Run();
+```
+
+### Persistent explicit-start resources
+
+For persistent resources, Aspire must register the resource with DCP immediately at startup so it can discover any existing running instance. However, when you manually start a persistent explicit-start resource, Aspire patches the existing DCP resource to start it rather than deleting and recreating it. This means the execution configuration callbacks run once during startup registration and are **not** re-evaluated when you manually start the resource.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Persistent explicit-start resources are registered at startup to detect existing instances.
+// The callback runs during startup registration — not again when manually started.
+var cache = builder.AddContainer("long-lived-cache", "my-cache-image")
+    .WithPersistentLifetime()
+    .WithExplicitStart()
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["CACHE_SIZE"] = "512mb";
+    });
+
+builder.Build().Run();
+```
 
 ## Configure a persistent container
 
