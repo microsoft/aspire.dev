@@ -13,6 +13,11 @@ on:
         required: false
         default: ""
         type: string
+    secrets:
+      ASPIRE_BOT_APP_ID:
+        required: false
+      ASPIRE_BOT_PRIVATE_KEY:
+        required: false
 
 permissions:
   contents: read
@@ -98,6 +103,7 @@ jobs:
       # Note: `uses` actions ignore the job-level working-directory,
       # so the path is repo-root-relative (src/frontend/dist).
       - name: Upload build artifact
+        id: upload-build-artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
@@ -105,6 +111,94 @@ jobs:
           path: src/frontend/dist
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Check PR comment prerequisites
+        id: pr-comment-prerequisites
+        if: ${{ always() && inputs.pull_number != '' && steps.upload-build-artifact.outcome == 'success' }}
+        env:
+          ASPIRE_BOT_APP_ID: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          ASPIRE_BOT_PRIVATE_KEY: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          can_comment=true
+
+          if [ ! -f "dist/index.html" ]; then
+            echo "::notice::Skipping frontend artifact PR comment because dist/index.html was not found."
+            can_comment=false
+          fi
+
+          if [ -z "$ASPIRE_BOT_APP_ID" ] || [ -z "$ASPIRE_BOT_PRIVATE_KEY" ]; then
+            echo "::notice::Skipping frontend artifact PR comment because GitHub App credentials are unavailable."
+            can_comment=false
+          fi
+
+          echo "can-comment=$can_comment" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub App token for PR comment
+        id: pr-comment-app-token
+        if: ${{ always() && steps.pr-comment-prerequisites.outputs.can-comment == 'true' }}
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-pull-requests: write
+
+      - name: Upsert PR artifact comment
+        if: ${{ always() && steps.pr-comment-app-token.outputs.token != '' }}
+        env:
+          GH_TOKEN: ${{ steps.pr-comment-app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PULL_NUMBER: ${{ inputs.pull_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          urlencode() {
+            node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$1"
+          }
+
+          marker='<!-- aspire-dev-frontend-dist-artifact -->'
+          pr_url="${GITHUB_SERVER_URL}/${GH_REPO}/pull/${PULL_NUMBER}"
+          vscode_url="vscode://davidpine-dev.asciinema/open?url=$(urlencode "$pr_url")"
+          redirect_url="https://vscode.dev/redirect?url=$(urlencode "$vscode_url")"
+          badge_message=$(urlencode "Open PR #${PULL_NUMBER} artifacts")
+          badge_url="https://img.shields.io/badge/VS%20Code-${badge_message}-555?labelColor=007ACC&logo=visualstudiocode&logoColor=white"
+          badge="[![VS Code: Open PR #${PULL_NUMBER} artifacts](${badge_url})](${redirect_url})"
+
+          body_file=$(mktemp)
+          comment_ids_file=$(mktemp)
+          trap 'rm -f "$body_file" "$comment_ids_file"' EXIT
+
+          cat > "$body_file" <<EOF
+          ${marker}
+          ## Frontend HTML artifact ready
+
+          The latest frontend build uploaded the \`frontend-dist\` artifact for PR #${PULL_NUMBER}. Use the VS Code button below to open this PR with GitHub Artifacts Explorer and browse the built HTML locally.
+
+          ${badge}
+
+          _This comment updates automatically when a new frontend build artifact is uploaded._
+          EOF
+
+          body=$(cat "$body_file")
+          gh api "repos/${GH_REPO}/issues/${PULL_NUMBER}/comments" \
+            --paginate \
+            --jq ".[] | select(.body | contains(\"${marker}\")) | .id" \
+            > "$comment_ids_file"
+          comment_id=$(sed -n '1p' "$comment_ids_file")
+
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${GH_REPO}/issues/comments/${comment_id}" \
+              --raw-field body="$body" \
+              >/dev/null
+          else
+            gh api --method POST "repos/${GH_REPO}/issues/${PULL_NUMBER}/comments" \
+              --raw-field body="$body" \
+              >/dev/null
+          fi
 
       - name: Check dist
         run: |
