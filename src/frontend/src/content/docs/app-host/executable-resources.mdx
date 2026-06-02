@@ -274,6 +274,41 @@ const app = await builder.addExecutable("api", "uvicorn", ".", ["main:app", "--r
 </TabItem>
 </Tabs>
 
+### `WithEnvironment` API unification in Aspire 13.3
+
+Aspire 13.3 unified polyglot AppHost environment assignment behind a single `withEnvironment(name, value)` pattern. The `value` argument accepts the same kinds used by the underlying `WithEnvironment` overloads, including:
+
+- `string`
+- `ReferenceExpression`
+- `EndpointReference`
+- `IResourceBuilder<ParameterResource>`
+- `IResourceBuilder<IResourceWithConnectionString>`
+- `IExpressionValue`
+
+Before 13.3, generated SDKs exposed separate helpers per value kind:
+
+```typescript title="TypeScript — before (older call sites)"
+await app.withEnvironmentEndpoint("API_URL", api.getEndpoint("http"));
+await app.withEnvironmentParameter("API_KEY", apiKey);
+await app.withEnvironmentConnectionString("DB", database);
+```
+
+In 13.3 and later, use the unified method:
+
+```typescript title="TypeScript — after (unified API)"
+await app.withEnvironment("API_URL", api.getEndpoint("http"));
+await app.withEnvironment("API_KEY", apiKey);
+await app.withEnvironment("DB", database);
+```
+
+Compatibility shims keep older call sites working and map directly to the new pattern:
+
+- `withEnvironmentEndpoint(name, endpoint)` → `withEnvironment(name, endpoint)`
+- `withEnvironmentParameter(name, parameter)` → `withEnvironment(name, parameter)`
+- `withEnvironmentConnectionString(name, resource)` → `withEnvironment(name, resource)`
+
+For migration, replace shimmed helpers with `withEnvironment(name, value)` as you touch existing code.
+
 ## Publishing with PublishAsDockerFile
 
 For production deployment, executable resources need to be containerized. Use the `PublishAsDockerFile` method to specify how the executable should be packaged:
