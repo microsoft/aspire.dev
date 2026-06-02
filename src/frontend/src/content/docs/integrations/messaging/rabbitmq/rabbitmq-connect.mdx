@@ -44,6 +44,31 @@ The RabbitMQ server resource exposes the following connection properties:
 Uri: amqp://guest:p%40ssw0rd1@localhost:5672
 ```
 
+## Environment variables and connection string formats
+
+The way Aspire exposes connection information depends on how the RabbitMQ resource is modeled in your AppHost:
+
+### Using `WithReference` (typed RabbitMQ resource)
+
+When your AppHost adds a typed RabbitMQ resource with `builder.AddRabbitMQ("messaging")` and references it with `.WithReference(messaging)`, Aspire injects **individual connection properties** as environment variables using the `[RESOURCE]_[PROPERTY]` format:
+
+- `MESSAGING_HOST` = hostname
+- `MESSAGING_PORT` = port number
+- `MESSAGING_USERNAME` = username
+- `MESSAGING_PASSWORD` = password
+- `MESSAGING_VIRTUALHOST` = virtual host path (if set)
+- `MESSAGING_URI` = full connection URI
+
+This is the **recommended approach** because Aspire manages the resource lifecycle, configuration, and provides typed client integrations.
+
+### Using `AddConnectionString` (external connection string)
+
+When your AppHost uses `builder.AddConnectionString("messaging")` to reference an existing, pre-configured RabbitMQ server outside Aspire's control, only a **single connection string** environment variable is injected:
+
+- `ConnectionStrings__messaging` = the full connection string provided to `AddConnectionString`
+
+With this approach, there are **no individual property variables** (`MESSAGING_HOST`, `MESSAGING_PORT`, etc.). Consuming apps must parse the connection string themselves or use client libraries that accept a connection string directly.
+
 ## Connect from your app
 
 Pick the language your consuming app is written in. Each example assumes your AppHost adds a RabbitMQ resource named `messaging` and references it from the consuming app.

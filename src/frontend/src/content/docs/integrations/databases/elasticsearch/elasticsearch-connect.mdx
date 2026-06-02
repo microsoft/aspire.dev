@@ -39,6 +39,26 @@ The Elasticsearch resource exposes the following connection properties:
 Uri: http://elastic:p%40ssw0rd1@localhost:9200
 ```
 
+## Environment variables and connection string formats
+
+The way Aspire exposes connection information depends on how the Elasticsearch resource is modeled in your AppHost:
+
+### Using `WithReference` (typed Elasticsearch resource)
+
+When your AppHost adds a typed Elasticsearch resource with `builder.AddElasticsearch("elasticsearch")` and references it with `.WithReference(elasticsearch)`, Aspire injects **individual connection properties** as environment variables using the `[RESOURCE]_[PROPERTY]` format:
+
+- `ELASTICSEARCH_URI` = full connection URI
+
+This is the **recommended approach** because Aspire manages the resource lifecycle, configuration, and provides typed client integrations.
+
+### Using `AddConnectionString` (external connection string)
+
+When your AppHost uses `builder.AddConnectionString("elasticsearch")` to reference an existing, pre-configured Elasticsearch instance outside Aspire's control, only a **single connection string** environment variable is injected:
+
+- `ConnectionStrings__elasticsearch` = the full connection string provided to `AddConnectionString`
+
+With this approach, there are **no individual property variables** (`ELASTICSEARCH_URI`). Consuming apps must use the connection string directly or parse it themselves to extract the necessary connection details.
+
 ## Connect from your app
 
 Pick the language your consuming app is written in. Each example assumes your AppHost adds an Elasticsearch resource named `elasticsearch` and references it from the consuming app.

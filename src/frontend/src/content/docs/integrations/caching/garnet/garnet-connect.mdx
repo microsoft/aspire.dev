@@ -42,6 +42,29 @@ The Garnet resource exposes the following connection properties:
 Uri: garnet://:p%40ssw0rd1@localhost:6379
 ```
 
+## Environment variables and connection string formats
+
+The way Aspire exposes connection information depends on how the Garnet resource is modeled in your AppHost:
+
+### Using `WithReference` (typed Garnet resource)
+
+When your AppHost adds a typed Garnet resource with `builder.AddGarnet("cache")` and references it with `.WithReference(cache)`, Aspire injects **individual connection properties** as environment variables using the `[RESOURCE]_[PROPERTY]` format:
+
+- `CACHE_HOST` = hostname
+- `CACHE_PORT` = port number
+- `CACHE_PASSWORD` = password (if set)
+- `CACHE_URI` = full connection URI
+
+This is the **recommended approach** because Aspire manages the resource lifecycle, configuration, and provides typed client integrations.
+
+### Using `AddConnectionString` (external connection string)
+
+When your AppHost uses `builder.AddConnectionString("cache")` to reference an existing, pre-configured Garnet instance outside Aspire's control, only a **single connection string** environment variable is injected:
+
+- `ConnectionStrings__cache` = the full connection string provided to `AddConnectionString`
+
+With this approach, there are **no individual property variables** (`CACHE_HOST`, `CACHE_PORT`, etc.). Consuming apps must parse the connection string themselves or use client libraries that accept a connection string directly.
+
 ## Connect from your app
 
 Pick the language your consuming app is written in. Each example assumes your AppHost adds a Garnet resource named `cache` and references it from the consuming app.
