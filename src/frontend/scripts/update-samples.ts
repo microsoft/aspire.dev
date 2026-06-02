@@ -5,14 +5,32 @@ import { pipeline } from 'stream/promises';
 import fetch from 'node-fetch';
 
 const REPO = 'microsoft/aspire-samples';
-const BRANCH = 'main';
+const DEFAULT_BRANCH = 'main';
+// `BRANCH` controls which ref of `microsoft/aspire-samples` is fetched (README,
+// AppHost code, raw assets, tree listing). The override exists so contributors
+// can stage `samples.json` against a still-open upstream PR by running the
+// script with `SAMPLES_BRANCH=<head-ref> pnpm run update:samples` — the output
+// is identical to what the next normal run will produce after that PR merges,
+// so the staged data PR is idempotent with the upstream merge.
+const BRANCH = process.env.SAMPLES_BRANCH ?? DEFAULT_BRANCH;
+// PR head refs frequently contain `/` (e.g. `feature/foo`,
+// `user/dapine-aspire-api-updates`). GitHub accepts `/` in path positions for
+// the raw, contents, and git/trees endpoints, but other URL-significant
+// characters in a ref (`#`, `?`, `%`, `&`, etc.) need to be percent-encoded.
+// Encoding per `/`-separated segment preserves the `/` boundaries while
+// safely escaping every other special character within each segment.
+const BRANCH_PATH = BRANCH.split('/').map(encodeURIComponent).join('/');
+const BRANCH_QUERY = encodeURIComponent(BRANCH);
 const SAMPLES_DIR = 'samples';
 const OUTPUT_PATH = './src/data/samples.json';
 const ASSETS_DIR = './src/assets/samples';
 const ASSETS_IMPORT_PREFIX = '~/assets/samples';
 const GITHUB_API = 'https://api.github.com';
-const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
-const TREE_BASE = `https://github.com/${REPO}/tree/${BRANCH}`;
+const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH_PATH}`;
+// `TREE_BASE` is intentionally pinned to `main` (never the override) so the
+// generated `href` fields on each sample stay valid after a PR branch goes
+// away. The branch override is for fetching content, not for cementing links.
+const TREE_BASE = `https://github.com/${REPO}/tree/${DEFAULT_BRANCH}`;
 const LEGACY_DOCS_HOST = 'https://learn.microsoft.com';
 const ASPIRE_DOC_URL_REWRITES = [
   [
@@ -364,7 +382,7 @@ async function fetchText(url: string): Promise<string | null> {
 
 async function listSampleDirs(): Promise<string[]> {
   const contents = await fetchJson<GitHubContentEntry[]>(
-    `${GITHUB_API}/repos/${REPO}/contents/${SAMPLES_DIR}?ref=${BRANCH}`
+    `${GITHUB_API}/repos/${REPO}/contents/${SAMPLES_DIR}?ref=${BRANCH_QUERY}`
   );
 
   return contents
@@ -380,7 +398,7 @@ async function listSampleDirs(): Promise<string[]> {
  */
 async function fetchSamplePaths(): Promise<Map<string, string[]>> {
   const tree = await fetchJson<GitTreeResponse>(
-    `${GITHUB_API}/repos/${REPO}/git/trees/${BRANCH}?recursive=1`
+    `${GITHUB_API}/repos/${REPO}/git/trees/${BRANCH_PATH}?recursive=1`
   );
 
   if (tree.truncated) {
@@ -471,7 +489,10 @@ async function processSample(
 }
 
 async function main(): Promise<void> {
-  console.log(`📦 Fetching sample directories from ${REPO}...`);
+  console.log(`📦 Fetching sample directories from ${REPO}@${BRANCH}...`);
+  if (BRANCH !== DEFAULT_BRANCH) {
+    console.log(`   (branch override via SAMPLES_BRANCH; href links stay anchored to ${DEFAULT_BRANCH})`);
+  }
   const [dirs, pathsBySample] = await Promise.all([listSampleDirs(), fetchSamplePaths()]);
   console.log(`📂 Found ${dirs.length} sample directories`);
 
