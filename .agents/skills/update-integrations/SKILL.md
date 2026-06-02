@@ -196,10 +196,10 @@ If an official release feed is required but not yet publicly reachable, rerun wi
 After updating `aspire-integrations.json`, regenerate the TypeScript API reference JSON files for the hosting packages that expose ATS capabilities:
 
 ```bash
-cd src/frontend && node scripts/update-ts-api.js
+pnpm --filter ./src/frontend run update:ts-api
 ```
 
-The companion `generate-ts-api-json.ps1` script reads the generated C# package JSON files in `src/frontend/src/data/pkgs/`, selects `Aspire.Hosting` and `Aspire.Hosting.*` packages, and passes each package/version through to `aspire sdk dump`. This keeps `src/frontend/src/data/ts-modules/` aligned with the same package set and versions that already flowed through C# API generation.
+The companion `generate-ts-api-json.ps1` script reads the generated C# package JSON files in `src/frontend/src/data/pkgs/`, selects `Aspire.Hosting`, `Aspire.Hosting.*`, and `CommunityToolkit.Aspire.Hosting.*` packages, and passes each package/version through to `aspire sdk dump`. This keeps `src/frontend/src/data/ts-modules/` aligned with the same package set and versions that already flowed through C# API generation.
 
 When a TypeScript module is regenerated for a new package version, stale `ts-modules` JSON files for older versions of that same package are deleted automatically.
 
