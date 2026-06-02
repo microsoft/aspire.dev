@@ -1,41 +1,18 @@
 ---
+import DefaultEditLink from '@astrojs/starlight/components/EditLink.astro';
+
 import { Icon } from '@astrojs/starlight/components';
 
 const { editUrl } = Astro.locals.starlightRoute;
-const normalizedEditUrl = normalizeGitHubEditUrl(editUrl);
-
-function normalizeGitHubEditUrl(url: URL | string | undefined): string | undefined {
-  if (!url) return undefined;
-
-  const value = url instanceof URL ? url.toString() : url;
-
-  try {
-    const parsed = new URL(value);
-
-    if (parsed.hostname !== 'github.com') return value;
-
-    const segments = parsed.pathname.split('/').filter(Boolean);
-    if (segments.length < 4) return value;
-
-    const [owner, repo, action, ...rest] = segments;
-    if (action === 'edit' || action === 'blob') return value;
-
-    parsed.pathname = `/${owner}/${repo}/blob/${[action, ...rest].join('/')}`;
-    return parsed.toString();
-  } catch {
-    return value;
-  }
-}
 ---
 
 {
-  normalizedEditUrl && (
+  editUrl && (
     <div class="sl-flex">
       <div class="sl-flex" data-tour-target="edit-page" data-tour-step="edit-page">
-        <a href={normalizedEditUrl} class="sl-flex print:hidden">
-          <Icon name="pencil" size="1.2em" />
+        <DefaultEditLink>
           <slot />
-        </a>
+        </DefaultEditLink>
       </div>
       <a href="/i18n/" class="sl-flex" target="_blank" rel="noopener noreferrer">
         <Icon name="translate" size="1.2em" /> {Astro.locals.t('footer.translatePage' as any)}
