@@ -112,7 +112,7 @@ public static class ComputeEnvironmentResourceExtensions
         return builder.AddResource(resource)
             .WithPipelineStepFactory(
                 stepName: $"{name}-build-images",
-                callback: BuildAndPublishArtifactsAsync,
+                callback: PublishAsync,
                 requiredBy: [WellKnownPipelineSteps.Publish],
                 description: "Build container images and write deployment artifacts.")
             .WithPipelineStepFactory(
@@ -125,7 +125,7 @@ public static class ComputeEnvironmentResourceExtensions
 }
 ```
 
-In the same class, define `BuildAndPublishArtifactsAsync` and `DeployAsync` as private static methods that each accept `PipelineStepContext`.
+In the same class, define `PublishAsync` and `DeployAsync` as private static methods that each accept `PipelineStepContext` (shown in the next sections).
 The explicit `dependsOn` relationship ensures the deploy step waits for this resource's image-build step, even when you add other custom publish or deploy steps to the pipeline.
 
 The preceding code:
@@ -135,6 +135,7 @@ The preceding code:
 - Instantiates a `ComputeEnvironmentResource` given the `name`.
 - Registers a publish step and a deploy step with explicit dependencies.
 - Adds both steps through `WithPipelineStepFactory`.
+- Uses the validated resource name as the prefix for stable, unambiguous step names.
 
 ### Example AppHost
 
@@ -169,7 +170,7 @@ The preceding code uses the `AddComputeEnvironment` extension method to add the 
 The publish step callback can build container images and generate deployment artifacts:
 
 ```csharp title="ComputeEnvironmentResourceExtensions.cs"
-private static async Task BuildAndPublishArtifactsAsync(PipelineStepContext context)
+private static async Task PublishAsync(PipelineStepContext context)
 {
     var imageBuilder = context.Services.GetRequiredService<IResourceContainerImageBuilder>();
     var reportingStep = context.ReportingStep;
