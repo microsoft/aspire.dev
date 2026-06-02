@@ -3,7 +3,7 @@ import EditLink from '../../src/components/starlight/EditLink.astro';
 import { normalizeHtml, renderComponent, type StarlightRoute } from './astro-test-utils';
 
 describe('starlight EditLink', () => {
-  it('normalizes malformed GitHub edit links missing /edit or /blob', async () => {
+  it('normalizes malformed GitHub links by inserting /blob/', async () => {
     const starlightRoute: StarlightRoute = {
       editUrl:
         'https://github.com/microsoft/aspire.dev/main/src/frontend/src/content/docs/whats-new/aspire-13-4.mdx',
