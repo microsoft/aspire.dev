@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import heroImage from '@assets/aspire-hero.png';
 import AccessibleCodeButtons from '@components/AccessibleCodeButtons.astro';
@@ -642,17 +642,13 @@ describe('custom Astro component render coverage', () => {
     });
   }
 
-  it('renders different Aspire quotes for different random values', async () => {
-    const randomSpy = vi.spyOn(Math, 'random');
-    randomSpy.mockReturnValueOnce(0).mockReturnValueOnce(0.99);
+  it('renders the quote randomization script and quote pool', async () => {
+    const html = normalizeHtml(await renderComponent(FreeAndOpenSourceAside));
 
-    const firstRender = normalizeHtml(await renderComponent(FreeAndOpenSourceAside));
-    const secondRender = normalizeHtml(await renderComponent(FreeAndOpenSourceAside));
-
-    expect(firstRender).toContain('Aspire is the cloud-native app model for .NET.');
-    expect(secondRender).toContain('Aspire is open source from app model to deployment artifacts.');
-
-    randomSpy.mockRestore();
+    expect(html).toContain('data-random-aspire-quote');
+    expect(html).toContain('Math.floor(Math.random() * quotes.length)');
+    expect(html).toContain('Aspire is the cloud-native app model for .NET.');
+    expect(html).toContain('Aspire is open source from app model to deployment artifacts.');
   });
 
   it('filters GitHubRepoStats by repository name when multiple stats are provided', async () => {
