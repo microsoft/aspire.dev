@@ -103,7 +103,7 @@ jobs:
       # Note: `uses` actions ignore the job-level working-directory,
       # so the path is repo-root-relative (src/frontend/dist).
       - name: Upload build artifact
-        id: upload-build-artifact
+        id: upload_build_artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
@@ -113,8 +113,8 @@ jobs:
           retention-days: 7
 
       - name: Check PR comment prerequisites
-        id: pr-comment-prerequisites
-        if: ${{ always() && inputs.pull_number != '' && steps.upload-build-artifact.outcome == 'success' }}
+        id: pr_comment_prerequisites
+        if: ${{ always() && inputs.pull_number != '' && steps.upload_build_artifact.outcome == 'success' }}
         env:
           ASPIRE_BOT_APP_ID: ${{ secrets.ASPIRE_BOT_APP_ID }}
           ASPIRE_BOT_PRIVATE_KEY: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
@@ -132,11 +132,11 @@ jobs:
             can_comment=false
           fi
 
-          echo "can-comment=$can_comment" >> "$GITHUB_OUTPUT"
+          echo "can_comment=$can_comment" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub App token for PR comment
-        id: pr-comment-app-token
-        if: ${{ always() && steps.pr-comment-prerequisites.outputs.can-comment == 'true' }}
+        id: pr_comment_app_token
+        if: ${{ always() && steps.pr_comment_prerequisites.outputs.can_comment == 'true' }}
         uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
         with:
           client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
@@ -144,12 +144,13 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
           github-api-url: ${{ github.api_url }}
+          permission-issues: write
           permission-pull-requests: write
 
       - name: Upsert PR artifact comment
-        if: ${{ always() && steps.pr-comment-app-token.outputs.token != '' }}
+        if: ${{ always() && steps.pr_comment_app_token.outputs.token != '' }}
         env:
-          GH_TOKEN: ${{ steps.pr-comment-app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.pr_comment_app_token.outputs.token }}
           GH_REPO: ${{ github.repository }}
           PULL_NUMBER: ${{ inputs.pull_number }}
         shell: bash
