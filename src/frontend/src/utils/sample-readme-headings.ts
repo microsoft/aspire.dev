@@ -1,5 +1,4 @@
-import type { MarkdownHeading } from 'astro';
-import { lexer, type Token, type Tokens } from 'marked';
+import type { Token } from 'marked';
 
 /**
  * Drops the leading `# Title` line from a sample README so the page's own
@@ -114,77 +113,3 @@ export function normalizeHeadingTokens(tokens: Token[] = []): Token[] {
   });
 }
 
-/**
- * Mirrors how `SampleReadmeBlocks` extracts the raw concatenated text of a
- * heading from its child tokens. The slug is derived from this raw string,
- * so the collector must use the same expression as the renderer or the
- * generated TOC anchors won't resolve to the rendered `<h*>` `id`s.
- */
-function getHeadingRawText(tokens: Token[] | undefined): string {
-  return tokens?.map(tokenText).join('') ?? '';
-}
-
-export interface CollectHeadingsOptions {
-  minHeadingLevel?: number;
-  maxHeadingLevel?: number;
-}
-
-/**
- * Parses a sample README and returns a flat `MarkdownHeading[]` whose
- * `slug` values match the `id` attributes `SampleReadmeBlocks` emits at
- * render time. Pass the result to `<StarlightPage headings={…}>` so the
- * "On this page" TOC lists the README's real h2/h3 entries.
- *
- * Slug counting walks **every** heading (regardless of depth) so a
- * non-TOC heading (e.g. an h4) with the same text as a later h2 still
- * bumps the suffix counter the same way the renderer does. Only headings
- * within `[minHeadingLevel, maxHeadingLevel]` are returned, but the
- * counter state stays in sync.
- */
-export function collectSampleReadmeHeadings(
-  readme: string,
-  { minHeadingLevel = 2, maxHeadingLevel = 3 }: CollectHeadingsOptions = {}
-): MarkdownHeading[] {
-  const tokens = lexer(stripReadmeTitle(readme), { gfm: true });
-  const headingCounts = new Map<string, number>();
-  const headings: MarkdownHeading[] = [];
-
-  const walk = (blocks: Token[]): void => {
-    for (const block of blocks) {
-      if (block.type === 'heading') {
-        const heading = block as Tokens.Heading;
-        const rawText = getHeadingRawText(heading.tokens);
-        const baseSlug = slugifyHeading(rawText);
-        const seen = headingCounts.get(baseSlug) ?? 0;
-        headingCounts.set(baseSlug, seen + 1);
-        const slug = seen === 0 ? baseSlug : `${baseSlug}-${seen}`;
-
-        if (heading.depth >= minHeadingLevel && heading.depth <= maxHeadingLevel) {
-          headings.push({
-            depth: heading.depth,
-            slug,
-            text: toSentenceCase(rawText),
-          });
-        }
-        continue;
-      }
-
-      if (block.type === 'list') {
-        const list = block as Tokens.List;
-        for (const item of list.items ?? []) {
-          walk(item.tokens ?? []);
-        }
-        continue;
-      }
-
-      if (block.type === 'blockquote') {
-        const blockquote = block as Tokens.Blockquote;
-        walk(blockquote.tokens ?? []);
-        continue;
-      }
-    }
-  };
-
-  walk(tokens);
-  return headings;
-}
