@@ -22,7 +22,7 @@ The `aspire ps` command lists all running Aspire AppHost processes. The output i
 
 The command scans for running AppHosts by checking the backchannel connections in the `~/.aspire/backchannels/` directory. This approach is fast because it doesn't need to recursively search for project files.
 
-`aspire ps` provides an AppHost-level summary only. To inspect per-resource details or continuously stream resource state changes, use [`aspire describe`](/reference/cli/commands/aspire-describe/).
+`aspire ps` provides AppHost-level information. Use `--follow` to continuously stream AppHost lifecycle updates. To inspect per-resource details or stream resource state changes within a specific AppHost, use [`aspire describe --follow`](/reference/cli/commands/aspire-describe/).
 
 The default output is a human-readable table with the following columns:
 
@@ -43,6 +43,10 @@ In-scope AppHosts (those within the current directory) are displayed first, foll
 ## Options
 
 The following options are available:
+
+- **`-f, --follow`**
+
+  Continuously stream AppHost lifecycle updates. Requires `--format Json`. Output is emitted as one compact JSON object per line in [Newline Delimited JSON (NDJSON)](https://github.com/ndjson/ndjson-spec) format whenever an AppHost starts, stops, or changes state. Each line follows the same schema as a single AppHost entry from snapshot JSON output, plus a `status` field (`running` or `stopped`).
 
 - **`--format <Json|Table>`**
 
@@ -97,6 +101,12 @@ The following options are available:
   ```
 
   The `logFilePath` property is `null` when no log path is available for the AppHost.
+
+- Stream AppHost lifecycle updates as NDJSON and pipe to `jq`:
+
+  ```bash title="Aspire CLI"
+  aspire ps --follow --format Json | jq -c '{ appHostPath, status }'
+  ```
 
 ## See also
 
