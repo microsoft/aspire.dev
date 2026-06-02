@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import heroImage from '@assets/aspire-hero.png';
 import AccessibleCodeButtons from '@components/AccessibleCodeButtons.astro';
@@ -404,9 +404,9 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['data-lang-name="TypeScript"', 'data-lang-name="C#"', 'And more...'],
   },
   {
-    name: 'FreeAndOpenSourceAside renders translated copy',
+    name: 'FreeAndOpenSourceAside renders localized title',
     Component: FreeAndOpenSourceAside,
-    includes: ['landing.freeAndOSS', 'landing.aspirePromise'],
+    includes: ['landing.freeAndOSS'],
   },
   {
     name: 'OsAwareTabs renders shell tabs and sync key script',
@@ -641,6 +641,19 @@ describe('custom Astro component render coverage', () => {
       }
     });
   }
+
+  it('renders different Aspire quotes for different random values', async () => {
+    const randomSpy = vi.spyOn(Math, 'random');
+    randomSpy.mockReturnValueOnce(0).mockReturnValueOnce(0.99);
+
+    const firstRender = normalizeHtml(await renderComponent(FreeAndOpenSourceAside));
+    const secondRender = normalizeHtml(await renderComponent(FreeAndOpenSourceAside));
+
+    expect(firstRender).toContain('Aspire is the cloud-native app model for .NET.');
+    expect(secondRender).toContain('Aspire is open source from app model to deployment artifacts.');
+
+    randomSpy.mockRestore();
+  });
 
   it('filters GitHubRepoStats by repository name when multiple stats are provided', async () => {
     const html = normalizeHtml(
