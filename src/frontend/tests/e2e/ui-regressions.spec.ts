@@ -247,16 +247,30 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   await page.goto('/get-started/aspire-vscode-extension/');
   await dismissCookieConsentIfVisible(page);
 
-  const themeSelect = page.locator('#footer-theme-select');
+  const themeToggle = page.locator('#footer-theme-toggle');
+  const darkThemeButton = themeToggle.getByRole('radio', { name: 'Dark' });
+  const lightThemeButton = themeToggle.getByRole('radio', { name: 'Light' });
+  const autoThemeButton = themeToggle.getByRole('radio', { name: 'Auto' });
   const kbdSelect = page.locator('#footer-kbd-select');
 
-  await themeSelect.selectOption('dark');
+  async function expectThemeSelection(selectedTheme: 'light' | 'auto' | 'dark') {
+    await expect(lightThemeButton).toHaveAttribute(
+      'aria-checked',
+      String(selectedTheme === 'light')
+    );
+    await expect(autoThemeButton).toHaveAttribute('aria-checked', String(selectedTheme === 'auto'));
+    await expect(darkThemeButton).toHaveAttribute('aria-checked', String(selectedTheme === 'dark'));
+  }
+
+  await darkThemeButton.click();
+  await expectThemeSelection('dark');
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('starlight-theme')))
     .toBe('dark');
 
-  await themeSelect.selectOption('light');
+  await lightThemeButton.click();
+  await expectThemeSelection('light');
   await expect
     .poll(() => page.evaluate(() => document.documentElement.dataset.theme))
     .toBe('light');
@@ -268,7 +282,7 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
 
   await page.reload();
 
-  await expect(themeSelect).toHaveValue('light');
+  await expectThemeSelection('light');
   await expect(kbdSelect).toHaveValue('mac');
 });
 
