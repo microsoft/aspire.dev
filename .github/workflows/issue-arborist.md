@@ -42,11 +42,45 @@ steps:
       set -euo pipefail
       mkdir -p /tmp/gh-aw/issues-data
       echo "⬇ Downloading the last 100 open issues (excluding sub-issues)..."
-      gh issue list --repo "$GITHUB_REPOSITORY" \
-        --search "-parent-issue:*" \
-        --state open \
-        --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
-        --limit 100 \
+      query="$(cat <<'GRAPHQL'
+      query($searchQuery: String!) {
+        search(query: $searchQuery, type: ISSUE, first: 100) {
+          nodes {
+            ... on Issue {
+              number
+              title
+              author {
+                login
+              }
+              createdAt
+              state
+              url
+              body
+              labels(first: 50) {
+                nodes {
+                  name
+                }
+              }
+              updatedAt
+              closedAt
+              milestone {
+                title
+              }
+              assignees(first: 20) {
+                nodes {
+                  login
+                }
+              }
+            }
+          }
+        }
+      }
+      GRAPHQL
+      )"
+      gh api graphql \
+        -f query="$query" \
+        -F searchQuery="repo:${GITHUB_REPOSITORY} is:issue state:open -parent-issue:*" \
+        | jq '.data.search.nodes' \
         > /tmp/gh-aw/issues-data/issues.json
       total=$(jq 'length' /tmp/gh-aw/issues-data/issues.json)
       echo "✓ Saved $total issues to /tmp/gh-aw/issues-data/issues.json"
