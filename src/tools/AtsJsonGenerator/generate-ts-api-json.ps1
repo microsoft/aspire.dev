@@ -110,6 +110,51 @@ function Remove-StaleTsModuleFiles {
     } | Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
+function Get-JsonArrayPropertyCount {
+    param(
+        [psobject]$Object,
+        [string]$PropertyName
+    )
+
+    $property = $Object.PSObject.Properties[$PropertyName]
+    if ($null -eq $property -or $null -eq $property.Value) {
+        return 0
+    }
+
+    return @($property.Value).Count
+}
+
+function Get-TsModuleApiItemCount {
+    param([psobject]$ModuleJson)
+
+    $itemCount = 0
+    foreach ($propertyName in @("functions", "handleTypes", "dtoTypes", "enumTypes")) {
+        $itemCount += Get-JsonArrayPropertyCount -Object $ModuleJson -PropertyName $propertyName
+    }
+
+    return $itemCount
+}
+
+function Remove-EmptyTsModuleFile {
+    param(
+        [string]$PackageName,
+        [string]$OutputFile
+    )
+
+    if (-not (Test-Path $OutputFile)) {
+        throw "Cannot inspect missing TypeScript module file at $OutputFile"
+    }
+
+    $json = Get-Content $OutputFile -Raw | ConvertFrom-Json
+    if ((Get-TsModuleApiItemCount -ModuleJson $json) -gt 0) {
+        return $false
+    }
+
+    Remove-Item $OutputFile -Force
+    Write-Host "  Omitted empty TypeScript module for $PackageName" -ForegroundColor DarkYellow
+    return $true
+}
+
 function Normalize-BranchName {
     [CmdletBinding()]
     param([string]$BranchName)
@@ -756,9 +801,13 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
         }
 
         if ($LASTEXITCODE -eq 0) {
-            $success++
             if ($version) {
                 Remove-StaleTsModuleFiles -PackageName $name -CurrentOutputFile $outputFile -OutputDirectory $OutputDir
+            }
+            if (Remove-EmptyTsModuleFile -PackageName $name -OutputFile $outputFile) {
+                $skipped++
+            } else {
+                $success++
             }
         } else {
             Write-Warning "  Transform failed"

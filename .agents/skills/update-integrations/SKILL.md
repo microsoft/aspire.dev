@@ -201,7 +201,7 @@ pnpm --filter ./src/frontend run update:ts-api
 
 The companion `generate-ts-api-json.ps1` script reads the generated C# package JSON files in `src/frontend/src/data/pkgs/`, selects `Aspire.Hosting`, `Aspire.Hosting.*`, and `CommunityToolkit.Aspire.Hosting.*` packages, and passes each package/version through to `aspire sdk dump`. This keeps `src/frontend/src/data/ts-modules/` aligned with the same package set and versions that already flowed through C# API generation.
 
-When a TypeScript module is regenerated for a new package version, stale `ts-modules` JSON files for older versions of that same package are deleted automatically.
+When a TypeScript module is regenerated for a new package version, stale `ts-modules` JSON files for older versions of that same package are deleted automatically. Regenerated modules with no functions or types are omitted from `src/frontend/src/data/ts-modules/`.
 
 After the JSON is refreshed, `update-ts-api` automatically chains `generate-twoslash-types.ts` to rebuild `src/frontend/src/data/twoslash/aspire.d.ts`. This bundle is source-controlled and its diff must be committed alongside the `ts-modules` JSON changes — without it, docs hover tooltips fall back to `any`. If you only need to refresh the bundle (e.g. after a generator script change) without running the full SDK dump, use:
 
