@@ -460,10 +460,11 @@ const basicRenderCases: BasicRenderCase[] = [
     ],
   },
   {
-    name: 'FooterPreferences renders selectors and storage keys',
+    name: 'FooterPreferences renders theme toggle, selectors, and storage keys',
     Component: FooterPreferences,
     includes: [
-      'id="footer-theme-select"',
+      'id="footer-theme-toggle"',
+      'role="radiogroup"',
       'id="footer-language-select"',
       'id="footer-kbd-select"',
       'Select theme',
