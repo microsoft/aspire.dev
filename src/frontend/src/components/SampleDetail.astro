@@ -96,26 +96,31 @@ function normalizeForCompare(value: string): string {
 
 function paragraphPlainText(token: marked.Tokens.Paragraph): string {
   const parts: string[] = [];
+  // marked carries both a `text` field AND a `tokens` array on `strong`,
+  // `em`, `del`, and `link` — the `text` field is the rendered text without
+  // markers, and `tokens` holds the same content as inline children. Walking
+  // *both* would yield "foofoo" for `**foo**`. The leaf-only types (`text`,
+  // `codespan`) carry just `text`, so push it directly; the wrapping types
+  // recurse so inner `text`/`codespan` contribute the actual characters once.
   const walk = (nodes: marked.Token[] | undefined): void => {
     if (!nodes) return;
     for (const node of nodes) {
       switch (node.type) {
         case 'text':
         case 'codespan':
+          parts.push((node as marked.Tokens.Text | marked.Tokens.Codespan).text ?? '');
+          break;
         case 'em':
         case 'strong':
         case 'del':
-          parts.push((node as marked.Tokens.Text | marked.Tokens.Codespan).text ?? '');
-          walk((node as any).tokens);
-          break;
         case 'link':
-          walk((node as marked.Tokens.Link).tokens);
+          walk((node as marked.Tokens.Em | marked.Tokens.Strong | marked.Tokens.Del | marked.Tokens.Link).tokens);
           break;
         case 'br':
           parts.push(' ');
           break;
         default:
-          walk((node as any).tokens);
+          walk((node as { tokens?: marked.Token[] }).tokens);
       }
     }
   };

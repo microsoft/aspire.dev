@@ -910,6 +910,71 @@ describe('custom Astro component render coverage', () => {
     expect(ctaIconIndex).toBeLessThan(ctaLabelIndex);
   });
 
+  it('strips emphasized first paragraphs and long emphasized labels (paragraphPlainText doubling regression)', async () => {
+    // Regression for the marked-token doubling bug in SampleDetail's
+    // paragraphPlainText: marked carries both a `text` field and a `tokens`
+    // array on `strong`/`em`/`del`. Walking both produced "foofoo" for `**foo**`,
+    // which silently broke both consumers of paragraphPlainText:
+    //
+    //   1. dropLeadingSummaryParagraph compares the first README paragraph's
+    //      text against the hero summary via startsWith. Any inline emphasis
+    //      in that paragraph doubled its characters, the prefix match failed,
+    //      and the duplicated summary sentence leaked into the rendered body.
+    //
+    //   2. paragraphIsShortLabel bails on paragraphs longer than 60 chars.
+    //      Doubling an emphasized 40+ char label pushed it past the cap, so
+    //      paragraphIsShortLabel rejected it and the dangling label paragraph
+    //      stayed in the body after its image was extracted into the gallery.
+    //
+    // Both bugs are observable from the rendered HTML, so we exercise the
+    // real SampleDetail render rather than reaching for the private helper.
+    const distinctiveSummarySentence =
+      'Boldy Aspire production monitoring sample with realtime metrics.';
+    const longEmphasizedLabel = 'Aspire dashboard production monitoring view label';
+
+    const html = normalizeHtml(
+      await renderComponent(SampleDetail, {
+        props: {
+          sample: {
+            ...sampleCardFixture,
+            description: '**Boldy** Aspire production monitoring sample with realtime metrics.',
+            readme: [
+              '# Title',
+              '',
+              // First README paragraph: same sentence as the summary but
+              // with emphasis. dropLeadingSummaryParagraph must still
+              // recognize it and remove it from the body.
+              '**Boldy** Aspire production monitoring sample with realtime metrics.',
+              '',
+              // 49-char emphasized label preceding a standalone image.
+              // 49 ≤ 60 → paragraphIsShortLabel must classify it as a
+              // dangling label and filterDanglingLabels must drop it
+              // before the image is extracted into the gallery. With
+              // the doubling bug, plain length measures 98 and the
+              // label survives as orphan text.
+              `**${longEmphasizedLabel}**`,
+              '',
+              '![Aspire dashboard](~/assets/samples/aspire-shop/aspireshop-frontend-complete.png)',
+            ].join('\n'),
+          },
+          samplesHref: '/reference/samples/',
+        },
+      })
+    );
+
+    // 1. The summary sentence renders exactly once: in the hero block. If
+    //    the leading README paragraph isn't dropped, it appears a second
+    //    time in the README body and the count rises to 2.
+    const escaped = distinctiveSummarySentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const summaryMatches = html.match(new RegExp(escaped, 'g')) ?? [];
+    expect(summaryMatches.length, 'summary sentence should appear exactly once (hero only)').toBe(1);
+
+    // 2. The long emphasized label is gone from the body. Its image still
+    //    surfaces in the gallery so the screenshot itself is preserved.
+    expect(html).not.toContain(longEmphasizedLabel);
+    expect(html).toContain('Zoom image: Aspire dashboard');
+  });
+
   it('builds sample markdown payload with absolute image URLs and metadata preamble', async () => {
     const { appHostLabel, buildSampleMarkdown } = await import('@utils/samples');
 
