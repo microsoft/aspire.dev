@@ -132,19 +132,14 @@ await builder.build().run();
 
 ## Connect to an existing Azure SQL server
 
-You might have an existing Azure SQL Database service that you want to connect to. Chain a call to `AsExisting` (or `asExisting`) to annotate that your resource already exists in Azure:
+You can connect to an existing Azure SQL Database service by using a connection string resource:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var existingName = builder.AddParameter("existingSqlServerName");
-var existingResourceGroup = builder.AddParameter("existingSqlServerResourceGroup");
-
-var sql = builder.AddAzureSqlServer("sql")
-    .AsExisting(existingName, existingResourceGroup)
-    .AddDatabase("database");
+var sql = builder.AddConnectionString("database");
 
 builder.AddProject<Projects.ExampleProject>()
     .WithReference(sql);
@@ -159,15 +154,10 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const existingName = await builder.addParameter("existingSqlServerName");
-const existingResourceGroup = await builder.addParameter("existingSqlServerResourceGroup");
-
-const sql = await builder.addAzureSqlServer("sql");
-await sql.asExisting(existingName, { resourceGroup: existingResourceGroup });
-const db = await sql.addDatabase("database");
+const database = await builder.addConnectionString("database");
 
 await builder.addNodeApp("api", "./api", "index.js")
-    .withReference(db);
+    .withReference(database);
 
 // After adding all resources, run the app...
 await builder.build().run();
@@ -175,7 +165,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-For more information on treating Azure SQL resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+For more information on connection string resources, see [Reference existing resources](/get-started/resources/).
 
 ## Run Azure SQL server resource as a container
 
