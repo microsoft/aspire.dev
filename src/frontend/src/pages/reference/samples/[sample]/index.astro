@@ -5,6 +5,7 @@ import { getImage } from 'astro:assets';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import SampleDetail from '@components/SampleDetail.astro';
 import samplesJson from '@data/samples.json';
+import { collectSampleReadmeHeadings } from '@utils/sample-readme-headings';
 import { sampleDescriptionText, sampleSlug, type Sample } from '@utils/samples';
 
 export function getStaticPaths() {
@@ -38,6 +39,24 @@ const description =
     ?.split('\n')
     .find((line) => line.trim().length > 0)
     ?.trim() ?? `Explore the ${sample.title} Aspire sample.`;
+
+// Build the "On this page" TOC from the README's real h2/h3 headings.
+// Without this, `StarlightPage` would receive `headings: []` and the
+// generated TOC would consist of just the auto "Overview" entry — which
+// still renders the mobile TOC bar (and the right-rail at ≥100rem) but
+// gives the reader nothing useful to click. Disable the TOC entirely
+// when the README has no headings in the configured range so the bar
+// doesn't render at all.
+const tocMinHeadingLevel = 2;
+const tocMaxHeadingLevel = 3;
+const readmeHeadings = collectSampleReadmeHeadings(sample.readme, {
+  minHeadingLevel: tocMinHeadingLevel,
+  maxHeadingLevel: tocMaxHeadingLevel,
+});
+const tableOfContents =
+  readmeHeadings.length > 0
+    ? { minHeadingLevel: tocMinHeadingLevel, maxHeadingLevel: tocMaxHeadingLevel }
+    : false;
 ---
 
 <StarlightPage
@@ -49,12 +68,13 @@ const description =
     category: 'sample',
     prev: false,
     next: false,
-    tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 3 },
+    tableOfContents,
     lastUpdated: false,
     editUrl: false,
     giscus: false,
     pageActions: true,
   }}
+  headings={readmeHeadings}
 >
   <Breadcrumb
     crumbs={[
