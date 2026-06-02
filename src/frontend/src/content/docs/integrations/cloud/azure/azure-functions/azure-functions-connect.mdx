@@ -231,12 +231,17 @@ def my_queue_function(msg: func.ServiceBusMessage):
 ## Durable Task Scheduler client integration
 
 For Durable Functions workloads that use [Durable Task Scheduler](https://learn.microsoft.com/azure/azure-functions/durable/durable-task-scheduler/durable-task-scheduler), use the Aspire client integration package to register workers and clients with health checks and OpenTelemetry tracing.
+Use this integration when your app directly hosts Durable Task workers or clients outside the Azure Functions runtime process; for AppHost scheduler and task hub resource setup, continue to use the hosting APIs documented in [Set up Azure Functions in the AppHost](../azure-functions-host/#durable-task-scheduler-integration).
 
 <InstallDotNetPackage packageName="Aspire.Microsoft.DurableTask.AzureManaged" />
 
 ### Minimal end-to-end setup
 
 Add a Durable Task Scheduler resource and task hub in your AppHost, then reference the task hub from your worker project:
+
+:::note
+The AppHost snippet uses a pragma to suppress `ASPIREDURABLETASK001` because the Durable Task Scheduler hosting APIs are currently marked as experimental.
+:::
 
 ```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIREDURABLETASK001
@@ -268,6 +273,8 @@ builder.AddDurableTaskSchedulerWorker("taskhub", worker =>
     });
 });
 ```
+
+The connection name (`"taskhub"`) must match the task hub resource name from the AppHost.
 
 If your app only needs to start and manage orchestrations (without hosting a worker), use `AddDurableTaskSchedulerClient`:
 
