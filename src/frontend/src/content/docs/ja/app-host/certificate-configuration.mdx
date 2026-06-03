@@ -188,10 +188,14 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
+```typescript title="apphost.mts" twoslash
+import { createBuilder, type ReferenceExpression } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
+
+const referenceExpression = (value: string): ReferenceExpression => ({
+  getValueAsync: () => value,
+});
 
 const api = await builder.addContainer("api", {
   image: "my-api",
@@ -202,9 +206,9 @@ api.createExecutionConfiguration()
   .withArgumentsConfig()
   .withEnvironmentVariablesConfig()
   .withHttpsCertificateConfig(async () => ({
-    certificatePath: builder.createReferenceExpression`/certs/tls.crt`,
-    keyPath: builder.createReferenceExpression`/certs/tls.key`,
-    pfxPath: builder.createReferenceExpression`/certs/tls.pfx`,
+    certificatePath: referenceExpression("/certs/tls.crt"),
+    keyPath: referenceExpression("/certs/tls.key"),
+    pfxPath: referenceExpression("/certs/tls.pfx"),
   }));
 
 await builder.build().run();
@@ -293,10 +297,14 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
+```typescript title="apphost.mts" twoslash
+import { createBuilder, type ReferenceExpression } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
+
+const referenceExpression = (value: string): ReferenceExpression => ({
+  getValueAsync: () => value,
+});
 
 const api = await builder.addContainer("api", {
   image: "myimage",
@@ -307,8 +315,8 @@ api.createExecutionConfiguration()
   .withArgumentsConfig()
   .withEnvironmentVariablesConfig()
   .withCertificateTrustConfig(async () => ({
-    certificateBundlePath: builder.createReferenceExpression`/certs/ca-bundle.crt`,
-    certificateDirectoriesPath: builder.createReferenceExpression`/certs`,
+    certificateBundlePath: referenceExpression("/certs/ca-bundle.crt"),
+    certificateDirectoriesPath: referenceExpression("/certs"),
     rootCertificatesPath: "/etc/ssl/certs",
     isContainer: true,
   }));
