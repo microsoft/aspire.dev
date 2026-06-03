@@ -259,6 +259,27 @@ await web.withHttpEndpoint({ targetPort: 80, isProxied: false });
 </TabItem>
 </Tabs>
 
+### Resolving proxyless container endpoints before container creation
+
+Proxyless container endpoints normally defer host port assignment until DCP creates the container. This means that if you reference an endpoint in a `WithEnvironment` callback or similar configuration that runs before the container is fully built, the port may not yet be available, which can cause deadlocks or failures.
+
+Starting in Aspire 13.5, Aspire supports on-demand port allocation for dynamic proxyless container endpoints. When your AppHost code references a proxyless container endpoint before the container is created — for example, to expose the container's own port number as an environment variable — Aspire commits the `targetPort` as a fallback host port and makes it available immediately. Once the container's ports are finalized, normal DCP-based host port assignment takes over for any subsequent endpoint resolution.
+
+This lets you write patterns like the following, where a container exposes its own public port in an environment variable:
+
+```csharp title="AppHost.cs"
+var database = builder.AddContainer("database", "image")
+    .WithEndpoint(name: "tcp", targetPort: 5432, isProxied: false);
+
+database.WithEnvironment("PUBLIC_PORT", database.GetEndpoint("tcp").Property(EndpointProperty.Port));
+```
+
+In this example, `PUBLIC_PORT` is set to the endpoint's port before the container is created. Because the endpoint is proxyless and has a `targetPort` of `5432`, Aspire uses `5432` as the fallback host port so the value is available immediately.
+
+:::note
+If the endpoint is not referenced before container creation, DCP still assigns the host port dynamically. On-demand allocation only activates when a proxyless container endpoint is explicitly resolved before container creation completes.
+:::
+
 ## Omit the host port
 
 For proxied endpoints, when you omit the host port, Aspire generates a random port for both host and service port. This is useful when you want to avoid port conflicts and don't care about the host or service port. Consider the following code:
