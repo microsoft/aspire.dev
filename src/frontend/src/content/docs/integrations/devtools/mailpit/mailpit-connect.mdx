@@ -33,16 +33,16 @@ The Mailpit resource exposes the following connection properties:
 
 | Property Name  | Description |
 | -------------- | ----------- |
-| `SmtpHost`     | The hostname or IP address of the Mailpit SMTP server |
-| `SmtpPort`     | The port number the Mailpit SMTP server is listening on (default: `1025`) |
-| `HttpEndpoint` | The base URL of the Mailpit web UI (default: `http://{host}:8025`) |
+| `Host`     | The hostname or IP address of the Mailpit SMTP server |
+| `Port`     | The port number the Mailpit SMTP server is listening on (default: `1025`) |
+| `Uri` | The base URL of the Mailpit web UI (default: `http://{host}:8025`) |
 
 **Example environment variable values for a resource named `mailpit`:**
 
 ```
-MAILPIT_SMTPHOST=localhost
-MAILPIT_SMTPPORT=1025
-MAILPIT_HTTPENDPOINT=http://localhost:8025
+MAILPIT_HOST=localhost
+MAILPIT_PORT=1025
+MAILPIT_URI=http://localhost:8025
 ```
 
 ## Connect from your app
@@ -60,9 +60,9 @@ There is no dedicated Aspire client integration package for Mailpit. Instead, re
 using System.Net.Mail;
 
 // Read Aspire-injected SMTP connection properties
-var smtpHost = Environment.GetEnvironmentVariable("MAILPIT_SMTPHOST") ?? "localhost";
+var smtpHost = Environment.GetEnvironmentVariable("MAILPIT_HOST") ?? "localhost";
 var smtpPort = int.TryParse(
-    Environment.GetEnvironmentVariable("MAILPIT_SMTPPORT"), out var p) ? p : 1025;
+    Environment.GetEnvironmentVariable("MAILPIT_PORT"), out var p) ? p : 1025;
 ```
 
 #### Send an email
@@ -80,10 +80,10 @@ await client.SendMailAsync(message);
 
 #### Inspect captured emails
 
-Open the Mailpit web UI via the `HttpEndpoint` property:
+Open the Mailpit web UI via the `Uri` property:
 
 ```csharp title="C# — Program.cs"
-var mailpitUiUrl = Environment.GetEnvironmentVariable("MAILPIT_HTTPENDPOINT");
+var mailpitUiUrl = Environment.GetEnvironmentVariable("MAILPIT_URI");
 // Navigate to mailpitUiUrl in a browser to inspect captured emails.
 ```
 
@@ -94,9 +94,9 @@ For production-style registration, wrap the SMTP configuration in a hosted servi
 ```csharp title="C# — Program.cs"
 builder.Services.AddSingleton<SmtpClient>(_ =>
     new SmtpClient(
-        host: Environment.GetEnvironmentVariable("MAILPIT_SMTPHOST") ?? "localhost",
+        host: Environment.GetEnvironmentVariable("MAILPIT_HOST") ?? "localhost",
         port: int.TryParse(
-            Environment.GetEnvironmentVariable("MAILPIT_SMTPPORT"), out var p) ? p : 1025));
+            Environment.GetEnvironmentVariable("MAILPIT_PORT"), out var p) ? p : 1025));
 ```
 
 </TabItem>
@@ -115,8 +115,8 @@ import (
 
 func main() {
     // Read Aspire-injected SMTP connection properties
-    smtpHost := os.Getenv("MAILPIT_SMTPHOST")
-    smtpPort := os.Getenv("MAILPIT_SMTPPORT")
+    smtpHost := os.Getenv("MAILPIT_HOST")
+    smtpPort := os.Getenv("MAILPIT_PORT")
     addr := fmt.Sprintf("%s:%s", smtpHost, smtpPort)
 
     from := "sender@example.com"
@@ -147,8 +147,8 @@ import smtplib
 from email.mime.text import MIMEText
 
 # Read Aspire-injected SMTP connection properties
-smtp_host = os.getenv("MAILPIT_SMTPHOST", "localhost")
-smtp_port = int(os.getenv("MAILPIT_SMTPPORT", "1025"))
+smtp_host = os.getenv("MAILPIT_HOST", "localhost")
+smtp_port = int(os.getenv("MAILPIT_PORT", "1025"))
 
 msg = MIMEText("This email was captured by Mailpit.")
 msg["Subject"] = "Hello from Aspire"
@@ -177,8 +177,8 @@ import nodemailer from 'nodemailer';
 
 // Read Aspire-injected SMTP connection properties
 const transporter = nodemailer.createTransport({
-    host: process.env.MAILPIT_SMTPHOST,
-    port: Number(process.env.MAILPIT_SMTPPORT ?? 1025),
+    host: process.env.MAILPIT_HOST,
+    port: Number(process.env.MAILPIT_PORT ?? 1025),
     secure: false,         // Mailpit does not use TLS
     auth: undefined,       // Mailpit does not require authentication
 });
@@ -191,10 +191,10 @@ await transporter.sendMail({
 });
 ```
 
-To open the Mailpit web UI programmatically, read the `HttpEndpoint`:
+To open the Mailpit web UI programmatically, read the `Uri`:
 
 ```typescript title="TypeScript — Open Mailpit UI"
-const mailpitUiUrl = process.env.MAILPIT_HTTPENDPOINT;
+const mailpitUiUrl = process.env.MAILPIT_URI;
 // Navigate to mailpitUiUrl in a browser to inspect captured emails.
 ```
 
