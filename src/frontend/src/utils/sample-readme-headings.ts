@@ -83,8 +83,9 @@ type HeadingChildToken = { text?: unknown; raw?: unknown };
 
 function tokenText(token: Token): string {
   const candidate = token as HeadingChildToken;
-  if (typeof candidate.text === 'string') return candidate.text;
+  if (typeof candidate.text === 'string' && candidate.text.length > 0) return candidate.text;
   if (typeof candidate.raw === 'string') return candidate.raw;
+  if (typeof candidate.text === 'string') return candidate.text;
   return '';
 }
 
