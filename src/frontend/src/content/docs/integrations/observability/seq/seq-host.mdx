@@ -158,7 +158,24 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-The TypeScript AppHost doesn't currently expose a `withDataVolume(...)` API for Seq. To persist Seq data from a TypeScript AppHost, use [`withBindMount`](/get-started/app-host/) to map a host directory into the container at `/data` instead.
+```typescript title="apphost.mts" twoslash
+import { ContainerLifetime, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const seq = await builder.addSeq("seq", "admin-password");
+await seq.withDataVolume();
+await seq.excludeFromManifest();
+await seq.withLifetime(ContainerLifetime.Persistent);
+await seq.withEnvironment("ACCEPT_EULA", "Y");
+
+const myService = await builder.addProject("example", "../ExampleProject/ExampleProject.csproj");
+await myService
+    .withReference(seq)
+    .waitFor(seq);
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>
@@ -231,4 +248,3 @@ For the full reference of Seq connection properties — and how consuming apps i
 ## Hosting integration health checks
 
 The Seq hosting integration does not automatically register a health check. Seq availability is typically verified by the consuming app's client integration or by using `.WaitFor(seq)` in the AppHost to delay dependent resources until the Seq container is ready.
-

@@ -5,7 +5,7 @@ description: Learn how to use the Aspire Data API Builder hosting integration to
 ---
 
 import { Image } from 'astro:assets';
-import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import dabIcon from '@assets/icons/data-api-builder-icon.png';
 
@@ -21,10 +21,6 @@ import dabIcon from '@assets/icons/data-api-builder-icon.png';
 />
 
 This article is the reference for the Aspire Data API Builder hosting integration. It enumerates the AppHost APIs that you use to model a [Data API Builder](https://learn.microsoft.com/azure/data-api-builder/overview) (DAB) resource in your [`AppHost`](/get-started/app-host/) project. DAB is an open-source tool that generates REST and GraphQL APIs directly from your database schema.
-
-:::note
-TypeScript AppHost support for the Data API Builder integration is not yet available. The examples on this page use the C# AppHost only.
-:::
 
 ## Installation
 
@@ -54,7 +50,25 @@ Or, choose a manual installation approach:
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-TypeScript AppHost support for the Data API Builder integration is not yet available.
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Data API Builder hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder": "*"
+  }
+}
+```
+
+The TypeScript AppHost bindings for Data API Builder are provided by the Community Toolkit package. After installation, the `.aspire/modules/aspire.mjs` file in your project includes `addDataAPIBuilder` and related APIs.
 
 </TabItem>
 </Tabs>
@@ -85,7 +99,23 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-TypeScript AppHost support for the Data API Builder integration is not yet available.
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const sqldb = await (await builder.addSqlServer("sql")).addDatabase("sqldb");
+
+const dab = await builder.addDataAPIBuilder("dab");
+await dab.withReference(sqldb);
+
+const exampleProject = await builder.addProject(
+    "example-project",
+    "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(dab);
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>
@@ -94,7 +124,7 @@ The Data API Builder integration automatically discovers and uses `dab-config.js
 
 ## Multiple configuration files
 
-Data API Builder supports multiple configuration files for different databases. To specify multiple configuration files, pass an array of config file paths to `AddDataAPIBuilder`:
+Data API Builder supports multiple configuration files for different databases. To specify multiple configuration files, pass an array of config file paths to `AddDataAPIBuilder` or `addDataAPIBuilder`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -119,7 +149,22 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-TypeScript AppHost support for the Data API Builder integration is not yet available.
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const sql = await (await builder.addSqlServer("sql")).addDatabase("sqldb");
+const postgres = await (await builder.addPostgres("postgres")).addDatabase("postgresdb");
+
+const dab = await builder.addDataAPIBuilder("dab", {
+    configFilePaths: ["dab-config.SqlServer.json", "dab-config.PostgreSQL.json"],
+});
+await dab.withReference(sql);
+await dab.withReference(postgres);
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>
@@ -146,14 +191,25 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-TypeScript AppHost support for the Data API Builder integration is not yet available.
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const dab = await builder.addDataAPIBuilder("dab");
+await dab.withImageRegistry("myregistry.azurecr.io");
+await dab.withImage("custom-dab");
+await dab.withImageTag("1.0.0");
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>
 
 ## Database references
 
-Data API Builder requires references to the databases it exposes. Use `WithReference` to connect Data API Builder to your databases:
+Data API Builder requires references to the databases it exposes. Use `WithReference` or `withReference` to connect Data API Builder to your databases:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -178,7 +234,20 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-TypeScript AppHost support for the Data API Builder integration is not yet available.
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const sql = await (await builder.addSqlServer("sql")).addDatabase("sqldb");
+const cosmos = await (await builder.addAzureCosmosDB("cosmos")).addCosmosDatabase("cosmosdb");
+
+const dab = await builder.addDataAPIBuilder("dab");
+await dab.withReference(sql);
+await dab.withReference(cosmos);
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>

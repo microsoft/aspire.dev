@@ -4,7 +4,7 @@ description: Extend the functionality of your Redis hosting with community-built
 next: false
 ---
 
-import { Badge, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
 import redisIcon from '@assets/icons/redis-icon.png';
@@ -38,9 +38,19 @@ To get started with the Aspire Community Toolkit Redis hosting extensions, insta
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-<Aside type="note">
-  The Community Toolkit Redis extensions package (`CommunityToolkit.Aspire.Hosting.Redis.Extensions`) is a .NET-only package. The extension APIs such as `WithDbGate` are not available in TypeScript AppHosts. Use the official [Redis integration](/integrations/caching/redis/redis-get-started/) to add Redis to a TypeScript AppHost.
-</Aside>
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Redis.Extensions
+```
+
+This updates your `aspire.config.json` with the Redis extensions package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Redis.Extensions": "*"
+  }
+}
+```
 
 </TabItem>
 </Tabs>
@@ -69,9 +79,21 @@ builder.AddProject<Projects.ExampleProject>()
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-<Aside type="note">
-  The `WithDbGate` extension is not available in TypeScript AppHosts. DbGate management UI configuration is a C#-only feature.
-</Aside>
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const redis = await builder.addRedis("redis");
+await redis.withDbGate();
+
+const exampleProject = await builder.addProject(
+    "example-project",
+    "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(redis);
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>

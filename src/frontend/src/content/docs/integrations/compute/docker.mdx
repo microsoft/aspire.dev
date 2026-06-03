@@ -637,9 +637,22 @@ var api = builder.AddProject<Projects.Api>("api")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-:::note
-The `WithImagePushOptions` API is not yet available in the TypeScript AppHost SDK. Use `withRemoteImageName` and `withRemoteImageTag` for static image naming and tagging.
-:::
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api
+  .publishAsDockerComposeService(async (resource, service) => {
+    await service.name.set("api");
+  })
+  .withImagePushOptions(async (context) => {
+    const imageName = context.resource.getResourceName().toLowerCase();
+    context.options.setRemoteImageName(`myorg/${imageName}`);
+    context.options.setRemoteImageTag("latest");
+  });
+```
 </TabItem>
 </Tabs>
 
@@ -666,9 +679,29 @@ var api = builder.AddProject<Projects.Api>("api")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-:::note
-The asynchronous `WithImagePushOptions` callback overload is not yet available in the TypeScript AppHost SDK.
-:::
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api
+  .publishAsDockerComposeService(async (resource, service) => {
+    await service.name.set("api");
+  })
+  .withImagePushOptions(async (context) => {
+    const config = await loadImageConfiguration();
+    context.options.setRemoteImageName(config.imageName);
+    context.options.setRemoteImageTag(config.imageTag);
+  });
+
+async function loadImageConfiguration() {
+  return {
+    imageName: "myorg/api",
+    imageTag: "latest",
+  };
+}
+```
 </TabItem>
 </Tabs>
 

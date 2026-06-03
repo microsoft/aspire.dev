@@ -3,8 +3,7 @@ title: Use community extensions for MongoDB hosting
 description: Extend the functionality of your MongoDB hosting with the Aspire Community Toolkit, including the DbGate management UI.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import { Aside } from '@astrojs/starlight/components';
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
 import mongodbIcon from '@assets/icons/mongodb-icon.png';
@@ -32,16 +31,24 @@ To get started with the Aspire Community Toolkit MongoDB hosting extensions, ins
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.MongoDB.Extensions" />
 
-<Aside type="note">
-  TypeScript AppHost support for the Community Toolkit `withDbGate` extension is
-  not yet available.
-</Aside>
+For TypeScript AppHosts, add the Community Toolkit MongoDB extensions package to `aspire.config.json`:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.MongoDB.Extensions": "*"
+  }
+}
+```
 
 ## Add management UI
 
 ### DbGate management UI
 
 To add the [DbGate](https://dbgate.org/) management UI to your MongoDB resource, call the `WithDbGate` method on the `MongoDBResourceBuilder` instance:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -54,6 +61,26 @@ builder.AddProject<Projects.ExampleProject>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const mongodb = await builder.addMongoDB("mongodb");
+await mongodb.withDbGate();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(mongodb);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 This adds a new DbGate resource to the AppHost which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your MongoDB databases.
 

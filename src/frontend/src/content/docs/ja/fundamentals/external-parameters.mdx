@@ -236,9 +236,27 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-:::note
-`withDescription` と `withCustomInput` API は、TypeScript AppHost SDK ではまだ利用できません。
-:::
+```typescript title="apphost.mts" twoslash
+import { InputType, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const externalServiceUrl = await builder.addParameter('external-service-url');
+await externalServiceUrl
+  .withDescription(
+    'The URL of the external service. See [example.com](https://example.com) for details.',
+    { enableMarkdown: true }
+  )
+  .withCustomInput({
+    inputType: InputType.Text,
+    label: 'External service URL',
+    placeholder: 'Enter value for external-service-url',
+  });
+
+await builder.addExternalService('external-service', externalServiceUrl);
+
+await builder.build().run();
+```
 
 </TabItem>
 </Tabs>

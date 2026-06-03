@@ -3,8 +3,7 @@ title: Use community extensions for MySQL hosting
 description: Extend the functionality of your MySQL hosting with the Aspire Community Toolkit, including management UIs like Adminer and DbGate.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import { Aside } from '@astrojs/starlight/components';
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
 import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
@@ -33,16 +32,24 @@ To get started with the Aspire Community Toolkit MySQL hosting extensions, insta
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.MySql.Extensions" />
 
-<Aside type="note">
-  TypeScript AppHost support for the Community Toolkit `withDbGate` and
-  `withAdminer` extensions is not yet available.
-</Aside>
+For TypeScript AppHosts, add the Community Toolkit MySQL extensions package to `aspire.config.json`:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.MySql.Extensions": "*"
+  }
+}
+```
 
 ## Add management UI
 
 ### DbGate management UI
 
 To add the [DbGate](https://dbgate.org/) management UI to your MySQL resource, call the `WithDbGate` method on the `MySqlServerResourceBuilder` instance:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -56,16 +63,34 @@ builder.AddProject<Projects.ExampleProject>("api")
 builder.Build().Run();
 ```
 
-<Aside type="note">
-  TypeScript AppHost support for combining these Community Toolkit management UI
-  extension methods isn't yet available.
-</Aside>
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+await mysql.withDbGate();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(mysql);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 This adds a new DbGate resource to the AppHost which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your MySQL databases.
 
 ### Adminer management UI
 
 To add the [Adminer](https://adminer.org/) management UI to your MySQL resource, call the `WithAdminer` method on the `MySqlServerResourceBuilder` instance:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -79,11 +104,34 @@ builder.AddProject<Projects.ExampleProject>("api")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+await mysql.withAdminer();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(mysql);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 This adds a new Adminer resource to the AppHost which is available from the Aspire dashboard. Adminer is a lightweight database management tool that provides a simple web interface for database operations.
 
 ### Using both management UIs
 
 You can use both management UIs together on the same MySQL resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -97,6 +145,27 @@ builder.AddProject<Projects.ExampleProject>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+await mysql.withDbGate();
+await mysql.withAdminer();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(mysql);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ## See also
 

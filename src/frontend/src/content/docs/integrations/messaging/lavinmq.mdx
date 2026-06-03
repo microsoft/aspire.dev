@@ -5,7 +5,7 @@ description: Learn how to use the Aspire LavinMQ Hosting integration to orchestr
 ---
 
 import { Image } from 'astro:assets';
-import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import lavinmqIcon from '@assets/icons/lavinmq-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
@@ -20,10 +20,6 @@ import lavinmqIcon from '@assets/icons/lavinmq-icon.png';
 />
 
 This article is the reference for the Aspire LavinMQ Hosting integration. It enumerates the AppHost APIs that you use to model a LavinMQ resource in your [`AppHost`](/get-started/app-host/) project. [LavinMQ](https://lavinmq.com/) is a high-performance message broker that implements the AMQP 0.9.1 protocol and is wire-compatible with RabbitMQ. The integration provisions a LavinMQ instance using the `docker.io/cloudamqp/lavinmq` container image.
-
-<Aside type="note">
-  TypeScript AppHost support for the LavinMQ integration is not yet available. The examples on this page use the C# AppHost only.
-</Aside>
 
 ## Installation
 
@@ -49,9 +45,21 @@ Or, choose a manual installation approach:
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-<Aside type="caution">
-  TypeScript AppHost support (`addLavinMQ` and related APIs) is not yet available for this community integration. Use the C# AppHost tab for installation instructions.
-</Aside>
+```bash title="Terminal"
+aspire add lavinmq
+```
+
+This updates your `aspire.config.json` with the LavinMQ hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.LavinMQ": "*"
+  }
+}
+```
+
+The TypeScript AppHost bindings for LavinMQ are provided by the Community Toolkit package. After installation, the `.aspire/modules/aspire.mjs` file in your project includes `addLavinMQ` and related APIs.
 
 </TabItem>
 </Tabs>
@@ -75,9 +83,20 @@ builder.AddProject<Projects.ExampleProject>()
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-<Aside type="caution">
-  TypeScript AppHost support for the LavinMQ integration is not yet available.
-</Aside>
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const lavinmq = await builder.addLavinMQ("lavinmq");
+
+const exampleProject = await builder.addProject(
+    "example-project",
+    "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(lavinmq);
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>
@@ -86,7 +105,7 @@ When Aspire adds a container image to the AppHost, as shown in the preceding exa
 
 ## Add LavinMQ resource with data volume
 
-To add data volumes for persisting LavinMQ data, call the `WithDataVolume` method:
+To add data volumes for persisting LavinMQ data, call the `WithDataVolume` or `withDataVolume` method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -104,9 +123,21 @@ builder.AddProject<Projects.ExampleProject>()
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-<Aside type="caution">
-  TypeScript AppHost support for the LavinMQ integration is not yet available.
-</Aside>
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const lavinmq = await builder.addLavinMQ("lavinmq");
+await lavinmq.withDataVolume("lavinmq-data");
+
+const exampleProject = await builder.addProject(
+    "example-project",
+    "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(lavinmq);
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>
@@ -115,7 +146,7 @@ The data volume is used to persist the LavinMQ data outside the lifecycle of the
 
 ## Add LavinMQ resource with data bind mount
 
-For development scenarios, you may want to use bind mounts instead of data volumes. To add a data bind mount, call the `WithDataBindMount` method:
+For development scenarios, you may want to use bind mounts instead of data volumes. To add a data bind mount, call the `WithDataBindMount` or `withDataBindMount` method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -133,9 +164,21 @@ builder.AddProject<Projects.ExampleProject>()
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-<Aside type="caution">
-  TypeScript AppHost support for the LavinMQ integration is not yet available.
-</Aside>
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const lavinmq = await builder.addLavinMQ("lavinmq");
+await lavinmq.withDataBindMount("/LavinMQ/Data");
+
+const exampleProject = await builder.addProject(
+    "example-project",
+    "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(lavinmq);
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>

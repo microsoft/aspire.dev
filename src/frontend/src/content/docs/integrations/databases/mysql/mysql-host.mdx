@@ -94,11 +94,13 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
+import { ContainerLifetime, createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 const mysql = await builder.addMySql("mysql");
+await mysql.withLifetime(ContainerLifetime.Persistent);
+
 const mysqldb = await mysql.addDatabase("mysqldb");
 
 await builder.addNodeApp("api", "./api", "index.js")
@@ -122,8 +124,6 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 <Aside type="note">
     The MySQL container can be slow to start, so it's best to use a _persistent_ lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
-
-    The TypeScript AppHost doesn't currently expose a `withLifetime(...)` API. Use the C# AppHost when persistent container lifetime is required.
 </Aside>
 
 <Aside type="note">
@@ -160,7 +160,30 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-The TypeScript AppHost doesn't currently expose a `withCreationScript(...)` API for MySQL database resources. To initialize a MySQL database from a TypeScript AppHost, use [`withInitFiles(...)`](#add-mysql-resource-with-init-files) to copy SQL initialization scripts into the container's init directory instead.
+```typescript title="apphost.mts" twoslash
+import { ContainerLifetime, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+await mysql.withLifetime(ContainerLifetime.Persistent);
+
+const mysqldb = await mysql.addDatabase("mysqldb")
+    .withCreationScript(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL
+        );
+        `);
+
+const myService = await builder.addProject("example", "../ExampleProject/ExampleProject.csproj");
+await myService
+    .withReference(mysqldb)
+    .waitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>
