@@ -3,12 +3,6 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 import { Code } from 'astro-expressive-code/components';
 import { marked } from 'marked';
 
-import {
-  normalizeHeadingTokens,
-  slugifyHeading,
-  toSentenceCase,
-} from '@utils/sample-readme-headings';
-
 interface Props {
   blocks: marked.Token[];
   sampleHref: string;
@@ -95,6 +89,73 @@ function createRenderer(): marked.Renderer {
   };
 
   return renderer;
+}
+
+function slugifyHeading(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .trim()
+    .replace(/<[^>]*>/g, '')
+    .replace(/[^\p{Letter}\p{Number}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return slug || 'section';
+}
+
+function toSentenceCase(value: string): string {
+  const words = value.trim().split(/(\s+)/);
+  let firstWordSeen = false;
+
+  return words
+    .map((word) => {
+      if (/^\s+$/.test(word) || shouldPreserveWord(word)) {
+        if (!firstWordSeen && !/^\s+$/.test(word)) {
+          firstWordSeen = true;
+        }
+        return word;
+      }
+
+      if (!firstWordSeen) {
+        firstWordSeen = true;
+        return word.charAt(0).toLocaleUpperCase() + word.slice(1).toLocaleLowerCase();
+      }
+
+      return word.toLocaleLowerCase();
+    })
+    .join('');
+}
+
+function shouldPreserveWord(word: string): boolean {
+  const trimmed = word.replace(/^[^\p{Letter}\p{Number}]+|[^\p{Letter}\p{Number}]+$/gu, '');
+  return (
+    trimmed.length === 0 ||
+    /[a-z][A-Z]/.test(trimmed) ||
+    /\d/.test(trimmed) ||
+    /^[A-Z]{2,}$/.test(trimmed) ||
+    /[.#/+_-]/.test(trimmed)
+  );
+}
+
+function normalizeHeadingTokens(tokens: marked.Token[] = []): marked.Token[] {
+  let remainingText: string | null = toSentenceCase(
+    tokens.map((token: any) => token.text || token.raw || '').join('')
+  );
+
+  return tokens.map((token: any) => {
+    if (remainingText === null || typeof token.text !== 'string') {
+      return token;
+    }
+
+    const normalized = remainingText.slice(0, token.text.length);
+    remainingText = remainingText.slice(token.text.length);
+    return {
+      ...token,
+      raw: normalized,
+      text: normalized,
+    };
+  });
 }
 
 const markdownRenderer = createRenderer();

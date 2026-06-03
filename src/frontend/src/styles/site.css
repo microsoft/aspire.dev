@@ -1467,14 +1467,9 @@ it configures at which point the mobile toc should be replaced with the normal t
    title container so the H1 starts cleanly below the toggle. Targets
    the first `.content-panel` (the title-row container) only, to
    avoid introducing a gap between the title and the body content
-   that lives in the second `.content-panel`.
-
-   Sample detail pages (`.sample-detail`) are excluded — they use the
-   base floating-tab toggle styling (see Sidebar.astro) which sits at
-   the sidebar's right edge rather than spanning a synthetic bar row,
-   so the synthetic-bar padding would just leave a gap above the hero. */
+   that lives in the second `.content-panel`. */
 @media (min-width: 50rem) and (max-width: 99.999rem) {
-  :root:not([data-has-toc]):not(:has(.sample-detail)):has(.topics-sidebar[data-topic-nav])
+  :root:not([data-has-toc]):has(.topics-sidebar[data-topic-nav])
     .content-panel:first-of-type
     > .sl-container {
     padding-block-start: 3rem;
@@ -1482,7 +1477,7 @@ it configures at which point the mobile toc should be replaced with the normal t
 }
 
 @media (min-width: 72rem) and (max-width: 99.999rem) {
-  :root:not([data-has-toc]):not(:has(.sample-detail)):has(.topics-sidebar[data-api-ref])
+  :root:not([data-has-toc]):has(.topics-sidebar[data-api-ref])
     .content-panel:first-of-type
     > .sl-container {
     padding-block-start: 3rem;
@@ -1522,6 +1517,38 @@ it configures at which point the mobile toc should be replaced with the normal t
 
   :root[data-has-toc] .content-panel > .sl-container {
     margin-inline: var(--sl-content-margin-inline, auto);
+  }
+}
+
+/* Sample detail pages opted back into Starlight's TOC so the mobile
+   "On this page" dropdown stays available on narrow and medium widths
+   (the affordance vanished when `tableOfContents: false` was set), but
+   the desktop right-rail TOC is intentionally suppressed — sample
+   pages render a custom hero/code layout that owns its own column and
+   does not benefit from a duplicated heading list at the side.
+   At ≥100rem widths Starlight would normally hide the mobile dropdown
+   and show only the right-rail; force the right-rail panel down and
+   keep the mobile dropdown so the page still has an "On this page"
+   entry point at every breakpoint. The mobile dropdown lives inside
+   `.right-sidebar` alongside the right-rail panel, so hide the panel
+   specifically (`.right-sidebar-panel`) and leave the wrapper intact.
+   Also widen `--sl-content-width` to reclaim the column the right-rail
+   would have occupied so the hero/code expands into the freed space
+   instead of leaving an empty band on the right. */
+@media (min-width: 100rem) {
+  :root[data-has-toc]:has(.sample-detail) {
+    --sl-mobile-toc-height: 3rem;
+    --sl-content-width: calc(
+      100vw - var(--sl-sidebar-width) - 4 * var(--sl-content-pad-x)
+    );
+  }
+
+  :root[data-has-toc]:has(.sample-detail) .right-sidebar-panel {
+    display: none;
+  }
+
+  :root[data-has-toc]:has(.sample-detail) .lg\:sl-hidden {
+    display: block;
   }
 }
 
