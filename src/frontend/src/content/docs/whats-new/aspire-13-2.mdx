@@ -1225,7 +1225,71 @@ The `BeforeResourceStartedEvent` now only fires when actually starting a resourc
 
 ### Connection property suffix
 
-A connection property suffix has been added which may require updates to code that accesses connection properties directly.
+To make it unambiguous that connection properties like `Database` and `Model` carry *name* strings rather than data objects, Aspire 13.2 adds an explicit `Name` suffix to those properties across all built-in resource types (see [microsoft/aspire#13471](https://github.com/microsoft/aspire/pull/13471)).
+
+**What changed:** The following connection property names were renamed:
+
+| Old property name | New property name | Affected resources |
+| --- | --- | --- |
+| `Database` | `DatabaseName` | PostgreSQL database, SQL Server database, MySQL database, MongoDB database, Oracle database, Milvus database, Azure Cosmos DB database, Azure PostgreSQL Flexible Server database, Azure SQL database, Azure Data Explorer (Kusto) database |
+| `Model` | `ModelName` | Azure AI Foundry deployment, Azure OpenAI deployment, OpenAI model, GitHub Models |
+| `ConsumerGroup` | `ConsumerGroupName` | Azure Event Hubs consumer group |
+
+**How this affects your code:** Aspire exposes each connection property as an environment variable named `[RESOURCE]_[PROPERTY]`. When a property is renamed, the environment variable name changes too.
+
+For example, for a PostgreSQL database resource named `mydb`:
+
+```bash title="Bash — Before (Aspire ≤13.1)"
+MYDB_DATABASE=customers
+```
+
+```bash title="Bash — After (Aspire 13.2)"
+MYDB_DATABASENAME=customers
+```
+
+For an Azure OpenAI deployment named `chat`:
+
+```bash title="Bash — Before (Aspire ≤13.1)"
+CHAT_MODEL=gpt-4o-mini
+```
+
+```bash title="Bash — After (Aspire 13.2)"
+CHAT_MODELNAME=gpt-4o-mini
+```
+
+**Migrating your code:**
+
+<Steps>
+
+1. **Find all reads of the old environment variable names.** Search your consuming apps for the old pattern, for example `_DATABASE`, `_MODEL`, or `_CONSUMERGROUP`:
+
+    ```bash title="Bash — Finding affected reads"
+    grep -r "_DATABASE\|_MODEL\|_CONSUMERGROUP" ./src
+    ```
+
+2. **Update the variable name to use the new suffix.** Replace each old name with the new `Name`-suffixed equivalent:
+
+    ```csharp title="C# — Before"
+    var dbName = Environment.GetEnvironmentVariable("MYDB_DATABASE");
+    ```
+
+    ```csharp title="C# — After"
+    var dbName = Environment.GetEnvironmentVariable("MYDB_DATABASENAME");
+    ```
+
+3. **Update AppHost code that calls `GetConnectionProperty`.** If your AppHost reads a specific property directly, update the property name string:
+
+    ```csharp title="C# — AppHost.cs — Before"
+    worker.WithEnvironment("DB_NAME",
+        mydb.Resource.GetConnectionProperty("Database"));
+    ```
+
+    ```csharp title="C# — AppHost.cs — After"
+    worker.WithEnvironment("DB_NAME",
+        mydb.Resource.GetConnectionProperty("DatabaseName"));
+    ```
+
+</Steps>
 
 ### AIFoundry to Foundry transition
 
