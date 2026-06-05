@@ -271,15 +271,15 @@ public static class TalkingClockExtensions
         // Use the OnInitializeResource event to establish the lifecycle behavior for this custom resource.
         // This event fires after a resource is added but before endpoints are allocated.
         // It's the preferred way to add custom logic to resources that don't have a built-in lifecycle.
-        clockBuilder.OnInitializeResource(static async (resource, @event, token) =>
+        clockBuilder.OnInitializeResource(static async (resource, initEvent, token) =>
         {
             // This event is published when the resource is initialized.
-            // You can add custom logic here to establish the lifecycle for your custom resource.
+            // You add custom logic here to establish the lifecycle for your custom resource.
 
-            var log = @event.Logger; // Get the logger for this resource instance.
-            var eventing = @event.Eventing; // Get the eventing service for publishing events.
-            var notification = @event.Notifications; // Get the notification service for state updates.
-            var services = @event.Services; // Get the service provider for dependency injection.
+            var log = initEvent.Logger; // Get the logger for this resource instance.
+            var eventing = initEvent.Eventing; // Get the eventing service for publishing events.
+            var notification = initEvent.Notifications; // Get the notification service for state updates.
+            var services = initEvent.Services; // Get the service provider for dependency injection.
 
             // Publish an Aspire event indicating that this resource is about to start.
             // Other components could subscribe to this event for pre-start actions.
@@ -349,7 +349,7 @@ public static class TalkingClockExtensions
                 // Establish a parent-child relationship with the TalkingClockResource.
                 // This creates a hierarchical structure in the dashboard and coordinates lifecycle management.
                 .WithParentRelationship(clockBuilder)
-                .WithInitialState(new()
+                .WithInitialState(new CustomResourceSnapshot
                 {
                     ResourceType = "ClockHand",
                     CreationTimeStamp = DateTime.UtcNow,
