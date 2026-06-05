@@ -1,0 +1,138 @@
+---
+title: Blazor WebAssembly integration
+description: Enable browser telemetry for Blazor WebAssembly apps with Aspire 13.4 Blazor hosting, gateway proxying, and client service defaults.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Blazor WebAssembly apps run .NET in the browser, so they need a startup path that makes telemetry configuration available before the WebAssembly runtime starts. In Aspire 13.4, use the Aspire Blazor hosting integration instead of configuring a Blazor WebAssembly app like a generic JavaScript browser app that sends OTLP directly to the dashboard.
+
+The Blazor hosting integration configures same-origin gateway or host routes for service calls and OTLP telemetry. The browser sends telemetry to a relative `/_otlp` path, or the app-prefixed equivalent such as `/app/_otlp`, and the gateway or host forwards it to the Aspire dashboard. This avoids CORS setup for the dashboard and keeps dashboard OTLP headers on the server-side proxy instead of putting them in browser-visible configuration.
+
+## Configure standalone Blazor WebAssembly
+
+For a standalone Blazor WebAssembly project, add the WASM project resource, reference any backend services from it, and bind it to a Blazor Gateway. Configure the gateway with HTTP/protobuf OTLP export because browser-based clients can't use OTLP/gRPC.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var weatherApi = builder.AddProject<Projects.WeatherApi>("weatherapi");
+
+var blazorApp = builder.AddBlazorWasmProject("app", "../Client/Client.csproj")
+    .WithReference(weatherApi);
+
+builder.AddBlazorGateway("gateway")
+    .WithExternalHttpEndpoints()
+    .WithOtlpExporter(OtlpProtocol.HttpProtobuf)
+    .WithBlazorClientApp(blazorApp);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder, OtlpProtocol } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const weatherApi = await builder.addProject(
+  'weatherapi',
+  '../WeatherApi/WeatherApi.csproj'
+);
+
+const blazorApp = await builder.addBlazorWasmProject(
+  'app',
+  '../Client/Client.csproj'
+);
+await blazorApp.withReference(await weatherApi.getEndpoint('http'));
+
+const gateway = await builder
+  .addBlazorGateway('gateway')
+  .withExternalHttpEndpoints()
+  .withOtlpExporter({ protocol: OtlpProtocol.HttpProtobuf });
+
+await gateway.withBlazorClientApp(blazorApp);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The gateway exposes browser-safe configuration under the app path, such as `/app/_blazor/_configuration`. A Blazor JavaScript initializer reads that configuration before the runtime starts and adds values such as service discovery endpoints, `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and `OTEL_EXPORTER_OTLP_PROTOCOL` to the WebAssembly runtime environment. `OTEL_EXPORTER_OTLP_HEADERS` isn't sent to the browser; the gateway's proxy route injects dashboard OTLP headers when it forwards telemetry.
+
+## Configure hosted Blazor WebAssembly
+
+For a Blazor Web App that hosts an Interactive WebAssembly client, configure the host project to proxy API calls and telemetry for the WebAssembly client:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var weatherApi = builder.AddProject<Projects.WeatherApi>("weatherapi");
+
+builder.AddProject<Projects.BlazorWeb>("blazorapp")
+    .ProxyBlazorService(weatherApi)
+    .ProxyBlazorTelemetry();
+
+builder.Build().Run();
+```
+
+:::note
+`ProxyBlazorService` and `ProxyBlazorTelemetry` are C# AppHost APIs in Aspire 13.4. They aren't exported to TypeScript AppHosts yet.
+:::
+
+The AppHost emits YARP reverse proxy configuration and a Blazor client configuration response for the host project. In the host app, load the reverse proxy configuration and map the proxy routes:
+
+```csharp title="Program.cs"
+builder.Services.AddReverseProxy()
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
+    .AddServiceDiscoveryDestinationResolver();
+
+// Other app configuration omitted for brevity.
+
+app.MapReverseProxy();
+```
+
+For hosted Blazor WebAssembly, the startup configuration is delivered during prerendering. A JavaScript initializer runs before the WebAssembly runtime starts, reads the rendered configuration, and injects the values into the runtime environment.
+
+## Configure the Blazor client
+
+After the JavaScript initializer injects environment variables, bridge them into `IConfiguration` and initialize the OpenTelemetry providers from the WebAssembly app:
+
+```csharp title="Program.cs"
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.Extensions.Hosting;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
+
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
+builder.Configuration.AddEnvironmentVariables();
+builder.AddBlazorClientServiceDefaults();
+
+var host = builder.Build();
+
+_ = host.Services.GetService<MeterProvider>();
+_ = host.Services.GetService<TracerProvider>();
+
+await host.RunAsync();
+```
+
+`AddBlazorClientServiceDefaults` is a helper you define in your Blazor client service defaults project. In the Aspire samples, this helper adds Blazor component metrics and tracing, configures OpenTelemetry logging, metrics, and tracing, adds service discovery, and configures HTTP client defaults for the browser app.
+
+:::caution
+Don't add a public endpoint that returns dashboard OTLP URLs or API keys to the browser. Use the Blazor gateway or hosted proxy routes so the browser posts telemetry to its own origin and the server-side proxy handles forwarding to the dashboard.
+:::
+
+## See also
+
+- [Enable browser telemetry overview](/dashboard/enable-browser-telemetry/)
+- [Set up Blazor hosting in the AppHost](/integrations/dotnet/blazor-hosting/)
+- [Connect Blazor apps and APIs](/integrations/dotnet/blazor-connect/)
+- [Browser app configuration](/dashboard/enable-browser-telemetry/browser-app-configuration/)
+- [Telemetry after deployment](/dashboard/telemetry-after-deployment/)
