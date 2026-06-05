@@ -6,7 +6,8 @@
  * Set ASPIRE_CLI_PATH to use an installed Aspire CLI that is not on PATH.
  *
  * By default, reads the generated C# package JSON files and generates
- * data for the matching Aspire.Hosting.* package/version set.
+ * data for the matching Aspire.Hosting* and CommunityToolkit.Aspire.Hosting*
+ * package/version sets.
  *
  * Optionally pass an Aspire repo clone path to discover packages from source:
  *   tsx ./scripts/update-ts-api.ts /path/to/aspire

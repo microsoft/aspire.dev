@@ -1,14 +1,15 @@
 ---
 title: aspire start command
 seoTitle: aspire start command reference for the Aspire CLI
-description: Learn about the aspire start command and its usage. This command starts an apphost in the background.
+description: Learn about the aspire start command and its usage. This command starts an AppHost in the background.
 ---
 
 import Include from '@components/Include.astro';
+import { Kbd } from 'starlight-kbd/components';
 
 ## Name
 
-`aspire start` - Start an apphost in the background.
+`aspire start` - Start an AppHost in the background.
 
 ## Synopsis
 
@@ -18,11 +19,46 @@ aspire start [options] [[--] <additional arguments>...]
 
 ## Description
 
-The `aspire start` command starts an AppHost in the background and exits after the apphost is running. Use it when you want a detached apphost that you can inspect later with commands such as `aspire ps`, `aspire describe`, `aspire logs`, and `aspire stop`.
+The `aspire start` command starts an AppHost in the background and exits after the AppHost reaches a stable running state. Use it when you want a detached AppHost that you can inspect later with commands such as `aspire ps`, `aspire describe`, `aspire logs`, and `aspire stop`.
 
 <Include relativePath="reference/cli/includes/project-search-logic-description.md" />
 
 You can output detached startup details as a table or JSON, and you can pass additional arguments through to the AppHost by using the `--` delimiter.
+
+### Startup readiness and failure diagnostics
+
+`aspire start` waits for the AppHost to report that it has reached a stable running state before detaching. This means that early startup failures — such as TypeScript syntax errors in a polyglot AppHost or C# compile errors in a .NET AppHost — are surfaced in the parent terminal instead of being silently lost in the background.
+
+When the AppHost fails to start, `aspire start` displays a curated excerpt of the startup output that filters out noise such as package install logs and highlights the relevant error messages:
+
+```bash title="Aspire CLI"
+Starting Aspire AppHost in the background...
+❌ Failed to start the AppHost.
+ℹ️ Recent AppHost startup output:
+apphost.ts(1,15): error TS1109: Expression expected.
+❌ AppHost process exited with code 2.
+📄 See logs at <log-path>
+```
+
+For a .NET AppHost with a compile error, the output includes the relevant build diagnostics:
+
+```bash title="Aspire CLI"
+Starting Aspire AppHost in the background...
+❌ Failed to start the AppHost.
+ℹ️ Recent AppHost startup output:
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+/work/MyAppHost/Program.cs(3,41): error CS1002: ; expected [/work/MyAppHost/MyAppHost.csproj]
+Build FAILED.
+    0 Warning(s)
+    1 Error(s)
+❌ AppHost failed to build.
+📄 See logs at <log-path>
+```
+
+The parent log also captures the replayed child output under `DetachedAppHost/...` log categories so the log file is self-contained.
+
+Pressing <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> while `aspire start` is waiting for the AppHost to start will terminate the startup process.
 
 ## Hot Reload and watch behavior
 
@@ -52,7 +88,7 @@ The following options are available:
 
 - **`--format <Json|Table>`**
 
-  Output format for detached apphost results. Use `Json` for machine-readable output suitable for scripting and automation.
+  Output format for detached AppHost results. Use `Json` for machine-readable output suitable for scripting and automation.
 
 - **`--isolated`**
 

@@ -299,7 +299,7 @@ This agent depends on the following skills. Read the full skill instructions bef
 
 | Skill | File | When used |
 |-------|------|-----------|
-| doc-tester | `.github/skills/doc-tester/SKILL.md` | Phase 3 (content validation), Phase 6 (smoke test) |
-| hex1b | `.github/skills/hex1b/SKILL.md` | Phase 2 (preview server management), terminal capture |
-| playwright-cli | `.github/skills/playwright-cli/SKILL.md` | Phase 3d, Phase 6 (browser-based verification) |
-| update-integrations | `.github/skills/update-integrations/SKILL.md` | Phase 5 (integration docs sync) |
+| doc-tester | `.agents/skills/doc-tester/SKILL.md` | Phase 3 (content validation), Phase 6 (smoke test) |
+| hex1b | `.agents/skills/hex1b/SKILL.md` | Phase 2 (preview server management), terminal capture |
+| playwright-cli | `.agents/skills/playwright-cli/SKILL.md` | Phase 3d, Phase 6 (browser-based verification) |
+| update-integrations | `.agents/skills/update-integrations/SKILL.md` | Phase 5 (integration docs sync) |

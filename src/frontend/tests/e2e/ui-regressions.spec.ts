@@ -247,16 +247,30 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   await page.goto('/get-started/aspire-vscode-extension/');
   await dismissCookieConsentIfVisible(page);
 
-  const themeSelect = page.locator('#footer-theme-select');
+  const themeToggle = page.locator('#footer-theme-toggle');
+  const darkThemeButton = themeToggle.getByRole('radio', { name: 'Dark' });
+  const lightThemeButton = themeToggle.getByRole('radio', { name: 'Light' });
+  const autoThemeButton = themeToggle.getByRole('radio', { name: 'Auto' });
   const kbdSelect = page.locator('#footer-kbd-select');
 
-  await themeSelect.selectOption('dark');
+  async function expectThemeSelection(selectedTheme: 'light' | 'auto' | 'dark') {
+    await expect(lightThemeButton).toHaveAttribute(
+      'aria-checked',
+      String(selectedTheme === 'light')
+    );
+    await expect(autoThemeButton).toHaveAttribute('aria-checked', String(selectedTheme === 'auto'));
+    await expect(darkThemeButton).toHaveAttribute('aria-checked', String(selectedTheme === 'dark'));
+  }
+
+  await darkThemeButton.click();
+  await expectThemeSelection('dark');
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('starlight-theme')))
     .toBe('dark');
 
-  await themeSelect.selectOption('light');
+  await lightThemeButton.click();
+  await expectThemeSelection('light');
   await expect
     .poll(() => page.evaluate(() => document.documentElement.dataset.theme))
     .toBe('light');
@@ -268,7 +282,7 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
 
   await page.reload();
 
-  await expect(themeSelect).toHaveValue('light');
+  await expectThemeSelection('light');
   await expect(kbdSelect).toHaveValue('mac');
 });
 
@@ -678,4 +692,79 @@ test('sidebar collapse toggle disappears below the topic-nav sidebar breakpoint'
   const expandButton = page.locator('#topic-sidebar-expand-btn');
   await expect(collapseButton).toBeHidden();
   await expect(expandButton).toBeHidden();
+});
+
+test('sidebar collapse toggle stays visible without overlapping the H1 on no-TOC landing pages', async ({
+  page,
+}) => {
+  // Regression for the "toggle covers the page H1" bug. The
+  // inline-with-TOC override in Sidebar.astro that anchors the toggle
+  // inside the mobile TOC bar at 50–100rem only fires when
+  // `html[data-has-toc]` is set. Landing pages such as `/deployment/`
+  // set `tableOfContents: false`, so before this fix the toggle fell
+  // back to its floating-tab base position at the top of the article
+  // column where its leftmost ~48px overlapped the page H1's first
+  // letter at narrow widths.
+  //
+  // The fix keeps the toggle visible (it still controls the sidebar)
+  // by anchoring it into a TOC-bar-height row on no-TOC pages too
+  // (see Sidebar.astro), and padding the first `.content-panel`
+  // container so the H1 starts below the toggle (see site.css). At
+  // >= 100rem the article column is wide enough that the floating tab
+  // clears the H1 on its own, and below 50rem the topic sidebar is in
+  // the mobile menu, so the no-TOC anchor + padding rules are scoped
+  // to the 50–100rem range.
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 800 || viewport.width >= 1600,
+    'Bug only reproduces where the topic-nav sidebar is persistent but the mobile TOC bar is unavailable (≥ 50rem and < 100rem on no-TOC pages).'
+  );
+
+  await page.goto('/deployment/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForTopicSidebarReady(page);
+
+  // Sanity check: this is a no-TOC page on the topic-nav layout —
+  // both conditions the no-TOC anchor + padding rules depend on.
+  const hasToc = await page.evaluate(() =>
+    document.documentElement.hasAttribute('data-has-toc')
+  );
+  expect(hasToc).toBe(false);
+  await expect(page.locator('.topics-sidebar[data-topic-nav]')).toBeVisible();
+
+  const collapseButton = page.locator('#topic-sidebar-collapse-btn');
+  // Starlight tags the page-title H1 with `id="_top"`. On landing pages
+  // like `/deployment/` the H1 lives in the first `.content-panel`
+  // container (not inside `<article>`, which only wraps the body
+  // content), so an `article h1` selector misses it.
+  const h1 = page.locator('h1#_top');
+
+  // The persistent collapse/expand toggle must remain visible — the
+  // reader still needs to be able to hide the sidebar to gain reading
+  // width. Hiding the toggle would be a usability regression in its
+  // own right.
+  await expect(collapseButton).toBeVisible();
+  await expect(h1).toBeVisible();
+
+  const collapseBox = await collapseButton.boundingBox();
+  const h1Box = await h1.boundingBox();
+  expect(collapseBox).not.toBeNull();
+  expect(h1Box).not.toBeNull();
+  if (!collapseBox || !h1Box) return;
+
+  // The toggle and the H1 must not overlap. Assert bounding-box
+  // separation: either the toggle sits entirely above the H1, or
+  // entirely to its left. The current fix anchors the toggle into a
+  // synthesized TOC-bar-height row at the top of the article column
+  // and pads the title container so the H1 drops below the toggle,
+  // satisfying the "above" condition. A 1-pixel tolerance covers
+  // sub-pixel rounding.
+  const collapseBottom = collapseBox.y + collapseBox.height;
+  const collapseRight = collapseBox.x + collapseBox.width;
+  const above = collapseBottom <= h1Box.y + 1;
+  const leftOf = collapseRight <= h1Box.x + 1;
+  expect(
+    above || leftOf,
+    `Toggle (${JSON.stringify(collapseBox)}) overlaps H1 (${JSON.stringify(h1Box)}); expected toggle to be above or left of H1.`
+  ).toBe(true);
 });

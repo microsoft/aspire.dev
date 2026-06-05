@@ -1,0 +1,401 @@
+{
+  "package": {
+    "name": "Aspire.Hosting.Go",
+    "version": "13.4.0-preview.1.26281.18",
+    "language": "typescript",
+    "sourceRepository": "https://github.com/microsoft/aspire"
+  },
+  "functions": [
+    {
+      "name": "addGoApp",
+      "capabilityId": "Aspire.Hosting.Go/addGoApp",
+      "qualifiedName": "addGoApp",
+      "description": "Adds a Go application to the application model. The Go toolchain must be available on the PATH.",
+      "remarks": "This method executes the Go application using `go run .`. The Go toolchain resolves the\nentry point from the package in `appDirectory`.\nGo applications automatically have VS Code debugging support enabled via Delve.\nUse `WithModTidy``1`, `WithModVendor``1`, or `WithModDownload``1`\nto manage module dependencies before startup, and `WithVetTool``1` to run static analysis.\nUse `WithAppArgs``1` to pass runtime program arguments, and\n`WithDelveServer``1` to enable remote debugging via a headless Delve server.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addGoApp(name: string, appDirectory: string, packagePath?: string, buildTags?: string[], ldFlags?: string, gcFlags?: string, raceDetector?: boolean): GoAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The path to the directory that acts as both the Go module root (where `go.mod` lives) and the Docker build context for `aspire publish`."
+        },
+        {
+          "name": "packagePath",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": ".",
+          "description": "The Go package to run or build, relative to `appDirectory`. Defaults to `\".\"` (the module root itself). Use a sub-path such as `\"./cmd/server\"` when the main package is not at the module root (e.g. `api/cmd/server/main.go` with `api/go.mod`). This value is passed to `go run`, `dlv debug`, and `go build` consistently."
+        },
+        {
+          "name": "buildTags",
+          "type": "string[]",
+          "isOptional": true,
+          "description": "Optional build tags passed to the compiler via `-tags` (e.g. `\"netgo\"`, `\"integration\"`)."
+        },
+        {
+          "name": "ldFlags",
+          "type": "string",
+          "isOptional": true,
+          "description": "Optional linker flags passed via `-ldflags` (e.g. `\"-X main.version=1.0.0\"`)."
+        },
+        {
+          "name": "gcFlags",
+          "type": "string",
+          "isOptional": true,
+          "description": "Optional compiler flags passed via `-gcflags` (e.g. `\"all=-N -l\"` to disable optimisations for Delve)."
+        },
+        {
+          "name": "raceDetector",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "False",
+          "description": "When `true`, enables the Go race detector by passing `-race` to `go run`."
+        }
+      ],
+      "returnType": "GoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "withAppArgs",
+      "capabilityId": "Aspire.Hosting.Go/withAppArgs",
+      "qualifiedName": "withAppArgs",
+      "description": "Passes extra arguments to the Go program at runtime. In normal run mode they appear after `go run .`; in Delve mode after the `--` separator.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withAppArgs(args: any[]): GoAppResource",
+      "parameters": [
+        {
+          "name": "args",
+          "type": "any[]",
+          "description": "The program arguments (e.g., `\"serve\"`, `\"--config\"`, `\"prod.yaml\"`)."
+        }
+      ],
+      "returnType": "GoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Go.GoAppResource"
+      ]
+    },
+    {
+      "name": "withDelveServer",
+      "capabilityId": "Aspire.Hosting.Go/withDelveServer",
+      "qualifiedName": "withDelveServer",
+      "description": "Starts a headless Delve debug server so that any DAP-compatible client can attach remotely. The application is launched as `dlv --headless=true --listen=127.0.0.1:<port> --api-version=2 debug .` instead of `go run .`. Delve must be available on the PATH.",
+      "remarks": "Delve is the only Go debugger; both GoLand and VS Code use it under the hood, just in\ndifferent modes:\n- GoLand: Create a Go Remote run configuration pointing at `localhost:<port>` and start it after the resource has started.\n- VS Code (attach mode): Add a `\"request\": \"attach\"` entry to `launch.json` with `\"mode\": \"remote\"`, `\"host\": \"localhost\"`, and `\"port\": <port>`, then start it after the resource has started.\nVS Code users who do not need GoLand compatibility can rely on the automatic VS Code\ndebugging support that `AddGoApp` enables by default — no change to the\napplication command is required in that case.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDelveServer(port?: number): GoAppResource",
+      "parameters": [
+        {
+          "name": "port",
+          "type": "number",
+          "isOptional": true,
+          "defaultValue": "2345",
+          "description": "The TCP port Delve listens on. Defaults to `2345`."
+        }
+      ],
+      "returnType": "GoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Go.GoAppResource"
+      ]
+    },
+    {
+      "name": "withGoPrivate",
+      "capabilityId": "Aspire.Hosting.Go/withGoPrivate",
+      "qualifiedName": "withGoPrivate",
+      "description": "Configures private Go module authentication for publish-time Dockerfile generation.",
+      "remarks": "Only affects the generated Dockerfile — has no effect in run mode, where the local\nGo toolchain picks up credentials from the developer's own `~/.netrc` or git\ncredential helper.\nThe generated build stage writes a temporary `.netrc` file from the username\nbuild-arg and the token secret, runs `go mod download`, then removes the file —\nall in a single layer so credentials never persist in the image.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withGoPrivate(privatePatterns: string[], authHost: string, usernameArgName?: string, tokenSecretId?: string): GoAppResource",
+      "parameters": [
+        {
+          "name": "privatePatterns",
+          "type": "string[]",
+          "description": "One or more module path patterns that should bypass the public proxy and checksum database, e.g. `\"*.mycompany.com\"` or `\"github.com/myorg\"`. Passed verbatim to `GOPRIVATE`, which implicitly covers `GONOSUMCHECK` and `GONOPROXY`."
+        },
+        {
+          "name": "authHost",
+          "type": "string",
+          "description": "The Git host that requires authentication, e.g. `\"github.com\"`."
+        },
+        {
+          "name": "usernameArgName",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": "GIT_USER",
+          "description": "The Docker build-arg name for the Git username. Defaults to `\"GIT_USER\"`. Pass it at build time with `--build-arg GIT_USER=myuser`."
+        },
+        {
+          "name": "tokenSecretId",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": "gittoken",
+          "description": "The BuildKit secret ID for the Git access token. Defaults to `\"gittoken\"`. Pass it at build time with `--secret id=gittoken,src=/path/to/token`."
+        }
+      ],
+      "returnType": "GoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Go.GoAppResource"
+      ]
+    },
+    {
+      "name": "withModDownload",
+      "capabilityId": "Aspire.Hosting.Go/withModDownload",
+      "qualifiedName": "withModDownload",
+      "description": "Runs `go mod download` before starting the application, pre-fetching all module dependencies into the local module cache without modifying `go.sum`. The main application waits for the download step to complete successfully before launching.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withModDownload(): GoAppResource",
+      "parameters": [],
+      "returnType": "GoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Go.GoAppResource"
+      ]
+    },
+    {
+      "name": "withModTidy",
+      "capabilityId": "Aspire.Hosting.Go/withModTidy",
+      "qualifiedName": "withModTidy",
+      "description": "Runs `go mod tidy` before starting the application, ensuring `go.sum` is up to date. The main application waits for the tidy step to complete successfully before launching.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withModTidy(): GoAppResource",
+      "parameters": [],
+      "returnType": "GoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Go.GoAppResource"
+      ]
+    },
+    {
+      "name": "withModVendor",
+      "capabilityId": "Aspire.Hosting.Go/withModVendor",
+      "qualifiedName": "withModVendor",
+      "description": "Runs `go mod vendor` before starting the application, caching all module dependencies in the local `vendor/` directory. The main application waits for the vendor step to complete successfully before launching.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withModVendor(): GoAppResource",
+      "parameters": [],
+      "returnType": "GoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Go.GoAppResource"
+      ]
+    },
+    {
+      "name": "withVetTool",
+      "capabilityId": "Aspire.Hosting.Go/withVetTool",
+      "qualifiedName": "withVetTool",
+      "description": "Runs `go vet ./...` before starting the application to catch static analysis issues. The main application waits for the vet step to complete successfully before launching.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withVetTool(): GoAppResource",
+      "parameters": [],
+      "returnType": "GoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Go.GoAppResource"
+      ]
+    }
+  ],
+  "handleTypes": [
+    {
+      "name": "GoAppResource",
+      "fullName": "Aspire.Hosting.Go.GoAppResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "Represents a Go application resource in the distributed application model.",
+      "remarks": "This resource allows Go applications to run as part of a distributed application. The resource\nmanages the Go toolchain, working directory, and lifecycle of the Go application.\nGo applications can expose HTTP endpoints, communicate with other services, and participate\nin service discovery like other Aspire resources. They support automatic OpenTelemetry\ninstrumentation when configured with the appropriate Go packages.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IContainerFilesDestinationResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.IResourceWithServiceDiscovery"
+      ],
+      "capabilities": [
+        {
+          "name": "withAppArgs",
+          "capabilityId": "Aspire.Hosting.Go/withAppArgs",
+          "qualifiedName": "withAppArgs",
+          "description": "Passes extra arguments to the Go program at runtime. In normal run mode they appear after `go run .`; in Delve mode after the `--` separator.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withAppArgs(args: any[]): GoAppResource",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "any[]",
+              "description": "The program arguments (e.g., `\"serve\"`, `\"--config\"`, `\"prod.yaml\"`)."
+            }
+          ],
+          "returnType": "GoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Go.GoAppResource"
+          ]
+        },
+        {
+          "name": "withDelveServer",
+          "capabilityId": "Aspire.Hosting.Go/withDelveServer",
+          "qualifiedName": "withDelveServer",
+          "description": "Starts a headless Delve debug server so that any DAP-compatible client can attach remotely. The application is launched as `dlv --headless=true --listen=127.0.0.1:<port> --api-version=2 debug .` instead of `go run .`. Delve must be available on the PATH.",
+          "remarks": "Delve is the only Go debugger; both GoLand and VS Code use it under the hood, just in\ndifferent modes:\n- GoLand: Create a Go Remote run configuration pointing at `localhost:<port>` and start it after the resource has started.\n- VS Code (attach mode): Add a `\"request\": \"attach\"` entry to `launch.json` with `\"mode\": \"remote\"`, `\"host\": \"localhost\"`, and `\"port\": <port>`, then start it after the resource has started.\nVS Code users who do not need GoLand compatibility can rely on the automatic VS Code\ndebugging support that `AddGoApp` enables by default — no change to the\napplication command is required in that case.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDelveServer(port?: number): GoAppResource",
+          "parameters": [
+            {
+              "name": "port",
+              "type": "number",
+              "isOptional": true,
+              "defaultValue": "2345",
+              "description": "The TCP port Delve listens on. Defaults to `2345`."
+            }
+          ],
+          "returnType": "GoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Go.GoAppResource"
+          ]
+        },
+        {
+          "name": "withGoPrivate",
+          "capabilityId": "Aspire.Hosting.Go/withGoPrivate",
+          "qualifiedName": "withGoPrivate",
+          "description": "Configures private Go module authentication for publish-time Dockerfile generation.",
+          "remarks": "Only affects the generated Dockerfile — has no effect in run mode, where the local\nGo toolchain picks up credentials from the developer's own `~/.netrc` or git\ncredential helper.\nThe generated build stage writes a temporary `.netrc` file from the username\nbuild-arg and the token secret, runs `go mod download`, then removes the file —\nall in a single layer so credentials never persist in the image.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withGoPrivate(privatePatterns: string[], authHost: string, usernameArgName?: string, tokenSecretId?: string): GoAppResource",
+          "parameters": [
+            {
+              "name": "privatePatterns",
+              "type": "string[]",
+              "description": "One or more module path patterns that should bypass the public proxy and checksum database, e.g. `\"*.mycompany.com\"` or `\"github.com/myorg\"`. Passed verbatim to `GOPRIVATE`, which implicitly covers `GONOSUMCHECK` and `GONOPROXY`."
+            },
+            {
+              "name": "authHost",
+              "type": "string",
+              "description": "The Git host that requires authentication, e.g. `\"github.com\"`."
+            },
+            {
+              "name": "usernameArgName",
+              "type": "string",
+              "isOptional": true,
+              "defaultValue": "GIT_USER",
+              "description": "The Docker build-arg name for the Git username. Defaults to `\"GIT_USER\"`. Pass it at build time with `--build-arg GIT_USER=myuser`."
+            },
+            {
+              "name": "tokenSecretId",
+              "type": "string",
+              "isOptional": true,
+              "defaultValue": "gittoken",
+              "description": "The BuildKit secret ID for the Git access token. Defaults to `\"gittoken\"`. Pass it at build time with `--secret id=gittoken,src=/path/to/token`."
+            }
+          ],
+          "returnType": "GoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Go.GoAppResource"
+          ]
+        },
+        {
+          "name": "withModDownload",
+          "capabilityId": "Aspire.Hosting.Go/withModDownload",
+          "qualifiedName": "withModDownload",
+          "description": "Runs `go mod download` before starting the application, pre-fetching all module dependencies into the local module cache without modifying `go.sum`. The main application waits for the download step to complete successfully before launching.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withModDownload(): GoAppResource",
+          "parameters": [],
+          "returnType": "GoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Go.GoAppResource"
+          ]
+        },
+        {
+          "name": "withModTidy",
+          "capabilityId": "Aspire.Hosting.Go/withModTidy",
+          "qualifiedName": "withModTidy",
+          "description": "Runs `go mod tidy` before starting the application, ensuring `go.sum` is up to date. The main application waits for the tidy step to complete successfully before launching.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withModTidy(): GoAppResource",
+          "parameters": [],
+          "returnType": "GoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Go.GoAppResource"
+          ]
+        },
+        {
+          "name": "withModVendor",
+          "capabilityId": "Aspire.Hosting.Go/withModVendor",
+          "qualifiedName": "withModVendor",
+          "description": "Runs `go mod vendor` before starting the application, caching all module dependencies in the local `vendor/` directory. The main application waits for the vendor step to complete successfully before launching.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withModVendor(): GoAppResource",
+          "parameters": [],
+          "returnType": "GoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Go.GoAppResource"
+          ]
+        },
+        {
+          "name": "withVetTool",
+          "capabilityId": "Aspire.Hosting.Go/withVetTool",
+          "qualifiedName": "withVetTool",
+          "description": "Runs `go vet ./...` before starting the application to catch static analysis issues. The main application waits for the vet step to complete successfully before launching.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withVetTool(): GoAppResource",
+          "parameters": [],
+          "returnType": "GoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Go/Aspire.Hosting.Go.GoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Go.GoAppResource"
+          ]
+        }
+      ]
+    }
+  ],
+  "dtoTypes": [],
+  "enumTypes": []
+}

@@ -8,7 +8,7 @@ test('TypeScript API search keeps result names visible on narrow viewports', asy
   await dismissCookieConsentIfVisible(page);
 
   const results = page.locator('#ts-api-search-results .api-search-result');
-  await expect(results).toHaveCount(1);
+  await expect(results.first()).toBeVisible();
 
   const firstResult = results.first();
   const resultName = firstResult.locator('.api-search-result-name');

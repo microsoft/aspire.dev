@@ -483,6 +483,48 @@ export declare const YarpSslProtocol: {
   readonly Tls13: "Tls13";
 };
 
+/**
+ * Enum Aspire.Hosting.GoFeatureFlagLogLevel
+ */
+
+export type GoFeatureFlagLogLevel = "Debug" | "Information" | "Warning" | "Error";
+export declare const GoFeatureFlagLogLevel: {
+  readonly Debug: "Debug";
+  readonly Information: "Information";
+  readonly Warning: "Warning";
+  readonly Error: "Error";
+};
+
+/**
+ * Enum Aspire.Hosting.McpTransportType
+ */
+
+export type McpTransportType = "StreamableHttp" | "Sse";
+export declare const McpTransportType: {
+  readonly StreamableHttp: "StreamableHttp";
+  readonly Sse: "Sse";
+};
+
+/**
+ * Enum Aspire.Hosting.OllamaGpuVendor
+ */
+
+export type OllamaGpuVendor = "Nvidia" | "AMD";
+export declare const OllamaGpuVendor: {
+  readonly Nvidia: "Nvidia";
+  readonly AMD: "AMD";
+};
+
+/**
+ * Enum Aspire.Hosting.KeyType
+ */
+
+export type KeyType = "Ed25519" | "Rsa";
+export declare const KeyType: {
+  readonly Ed25519: "Ed25519";
+  readonly Rsa: "Rsa";
+};
+
 // ---- DTOs ----
 /**
  * DTO Aspire.Hosting.ApplicationModel.CertificateTrustExecutionConfigurationContext
@@ -851,6 +893,28 @@ export interface FoundryModel {
   name: string;
   version: string;
   format: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Foundry.HostedAgentOptions
+ */
+
+export interface HostedAgentOptions {
+  description: string;
+  cpu: number;
+  memory: number;
+  metadata: Dict<string,string>;
+  environmentVariables: Dict<string,string>;
+  protocols: List<HostedAgentProtocolVersion>;
+}
+
+/**
+ * DTO Aspire.Hosting.Foundry.HostedAgentProtocolVersion
+ */
+
+export interface HostedAgentProtocolVersion {
+  protocol: string;
+  version: string;
 }
 
 /**
@@ -2532,6 +2596,8 @@ export interface ProjectResource extends IComputeResource, IContainerFilesDestin
    */
 
   withReplicas(replicas: number): this;
+  /** Assigns Microsoft Foundry roles to this project resource. */
+  withRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
 /**
@@ -3680,6 +3746,8 @@ export interface AzureProvisioningResource extends AzureBicepResource, IAzureRes
  */
 
 export interface AzureResourceInfrastructure {
+  /** Gets the provisionable Azure resources produced by the infrastructure callback. */
+  getProvisionableResources(): Promise<any[]>;
 }
 
 /**
@@ -9875,7 +9943,7 @@ export interface IYarpConfigurationBuilder {
    * Adds a route for a cluster, endpoint, resource, or string destination target.
    */
 
-  addRoute(path: string, target: ExternalServiceResource|string): YarpRoute;
+  addRoute(path: string, target: ExternalServiceResource | string | EndpointReference): YarpRoute;
 }
 
 /**
@@ -10207,6 +10275,1870 @@ export interface YarpRoute {
    */
 
   withTransformXForwarded(headerPrefix?: string, xDefault?: ForwardedTransformActions, xFor?: ForwardedTransformActions, xHost?: ForwardedTransformActions, xProto?: ForwardedTransformActions, xPrefix?: ForwardedTransformActions): YarpRoute;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ActiveMQArtemisServerResource
+ */
+
+export interface ActiveMQArtemisServerResource extends ActiveMQServerResourceBase, ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ActiveMQServerResource
+ */
+
+export interface ActiveMQServerResource extends ActiveMQServerResourceBase, ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ActiveMQServerResourceBase
+ */
+
+export interface ActiveMQServerResourceBase extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the ConnectionStringExpression property
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the parameter that contains the ActiveMQ server password.
+   */
+
+  passwordParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the ActiveMQ server.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the ActiveMQ server.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the parameter that contains the ActiveMQ server username.
+   */
+
+  userNameParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Adds a bind mount for the conf folder to a ActiveMQ container resource.
+   */
+
+  withConfBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the conf folder to a ActiveMQ container resource.
+   */
+
+  withConfBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the config folder to a ActiveMQ container resource.
+   */
+
+  withConfVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the config folder to a ActiveMQ container resource.
+   */
+
+  withConfVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a bind mount for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.AdminerContainerResource
+ */
+
+export interface AdminerContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Configures the host port that the Adminer resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.DataApiBuilderContainerResource
+ */
+
+export interface DataApiBuilderContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary HTTP endpoint for the Data API Builder resource.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the HTTP URI expression for the Data API Builder resource.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.AzureStorageExplorerResource
+ */
+
+export interface AzureStorageExplorerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the Azure Storage Explorer instance.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Configures the host port that the Azure Storage Explorer resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.DbGateContainerResource
+ */
+
+export interface DbGateContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the primary endpoint for the DbGate.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Adds a bind mount for the data folder to a DbGate container resource.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the data folder to a DbGate container resource.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the data folder to a DbGate container resource.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the data folder to a DbGate container resource.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Configures the host port that the DbGate resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.DenoAppResource
+ */
+
+export interface DenoAppResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+  /**
+   * Ensures the Deno packages are installed before the application starts using Deno as the package manager.
+   */
+
+  withDenoPackageInstallation(): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ElasticvueContainerResource
+ */
+
+export interface ElasticvueContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Configures the host port that the Elasticvue resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.FlagdResource
+ */
+
+export interface FlagdResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the flagd server.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the health check HTTP endpoint for the flagd server.
+   */
+
+  healthCheckEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the OFREP endpoint for the flagd server.
+   */
+
+  ofrepEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary HTTP endpoint for the flagd server.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the flagd server.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Configures flagd to use a bind mount as the source of flags.
+   */
+
+  withBindFileSync(fileSource: string, options?: { filename?: string }): this;
+  /**
+   * Configures flagd to use a bind mount as the source of flags.
+   */
+
+  withBindFileSync(fileSource: string, filename?: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.FlywayResource
+ */
+
+export interface FlywayResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+
+  withTelemetryOptIn(): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.GoFeatureFlagResource
+ */
+
+export interface GoFeatureFlagResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the GO Feature Flag instance.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the GO Feature Flag instance. This endpoint is used for all API calls over HTTP.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the GO Feature Flag instance.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a named volume for the data folder to a GO Feature flag container resource.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for the data folder to a GO Feature flag container resource.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Adds a bind mount for the goff configuration folder to a GO Feature flag container resource.
+   */
+
+  withGoffBindMount(source: string): this;
+
+  withLogLevel(logLevel: GoFeatureFlagLogLevel): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.JavaAppContainerResource
+ */
+
+export interface JavaAppContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.JavaAppExecutableResource
+ */
+
+export interface JavaAppExecutableResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+  /**
+   * Gets or sets the path to the JAR file to execute.
+   */
+
+  jarPath: PropertyAccessor<string>;
+  /**
+   * Gets or sets the path to the JAR file to execute.
+   */
+
+  setJarPath(value: string): JavaAppExecutableResource;
+  /**
+   * Adds a Gradle build step to the Java application
+   */
+
+  withGradleBuild(args: string[]): this;
+  /**
+   * Configures the Java application to run using a Gradle task
+   */
+
+  withGradleTask(task: string, args: string[]): this;
+  /**
+   * Adds a Maven build step to the Java application
+   */
+
+  withMavenBuild(args: string[]): this;
+  /**
+   * Configures the Java application to run using a Maven goal
+   */
+
+  withMavenGoal(goal: string, args: string[]): this;
+  /**
+   * Configures a custom build tool wrapper script path. This is useful when the wrapper script is not in the default location or has a non-standard name.
+   */
+
+  withWrapperPath(wrapperScript: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.NxAppResource
+ */
+
+export interface NxAppResource extends ExecutableResource, JavaScriptAppResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.NxResource
+ */
+
+export interface NxResource extends IResource {
+
+  addApp(name: string, options?: { appName?: string }): NxAppResource;
+
+  addApp(name: string, appName?: string): NxAppResource;
+
+  withBun(options?: { install?: boolean }): this;
+
+  withBun(install?: boolean): this;
+
+  withNpm(options?: { install?: boolean }): this;
+
+  withNpm(install?: boolean): this;
+  /**
+   * Configures the Nx workspace to use the specified JavaScript package manager when starting apps.
+   */
+
+  withPackageManagerLaunch(options?: { packageManager?: string }): this;
+  /**
+   * Configures the Nx workspace to use the specified JavaScript package manager when starting apps.
+   */
+
+  withPackageManagerLaunch(packageManager?: string): this;
+
+  withPnpm(options?: { install?: boolean }): this;
+
+  withPnpm(install?: boolean): this;
+
+  withYarn(options?: { install?: boolean }): this;
+
+  withYarn(install?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.TurborepoAppResource
+ */
+
+export interface TurborepoAppResource extends ExecutableResource, JavaScriptAppResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.TurborepoResource
+ */
+
+export interface TurborepoResource extends IResource {
+
+  addApp(name: string, options?: { filter?: string }): TurborepoAppResource;
+
+  addApp(name: string, filter?: string): TurborepoAppResource;
+
+  withBun(options?: { install?: boolean }): this;
+
+  withBun(install?: boolean): this;
+
+  withNpm(options?: { install?: boolean }): this;
+
+  withNpm(install?: boolean): this;
+  /**
+   * Configures the Turborepo workspace to use the specified JavaScript package manager when starting apps.
+   */
+
+  withPackageManagerLaunch(options?: { packageManager?: string }): this;
+  /**
+   * Configures the Turborepo workspace to use the specified JavaScript package manager when starting apps.
+   */
+
+  withPackageManagerLaunch(packageManager?: string): this;
+
+  withPnpm(options?: { install?: boolean }): this;
+
+  withPnpm(install?: boolean): this;
+
+  withYarn(options?: { install?: boolean }): this;
+
+  withYarn(install?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.KurrentDBResource
+ */
+
+export interface KurrentDBResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string for the KurrentDB server.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the KurrentDB server.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the KurrentDB server.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a bind mount for the data folder to a KurrentDB container resource.
+   */
+
+  withDataBindMount(source: string): this;
+  /**
+   * Adds a named volume for the data folder to a KurrentDB container resource.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for the data folder to a KurrentDB container resource.
+   */
+
+  withDataVolume(name?: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.LavinMQContainerResource
+ */
+
+export interface LavinMQContainerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * ConnectionString for the LavinMQ server in the form of amqp://guest:guest@host:port/.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary AMQP endpoint for the LavinMQ resource.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the LavinMQ server.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Configures a bind mount for the LavinMQ container resource to allow data persistence. The method mounts a specified source path on the host to the container's data directory.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Configures a bind mount for the LavinMQ container resource to allow data persistence. The method mounts a specified source path on the host to the container's data directory.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Configures a data volume for the LavinMQ container resource by specifying its name and read-only status.
+   */
+
+  withDataVolume(name: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Configures a data volume for the LavinMQ container resource by specifying its name and read-only status.
+   */
+
+  withDataVolume(name: string, isReadOnly?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.MailPitContainerResource
+ */
+
+export interface MailPitContainerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * ConnectionString for MailPit smtp endpoint in the form of smtp://host:port.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for the SMTP endpoint.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for the SMTP endpoint.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary SMTP endpoint for the MailPit server.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the MailPit SMTP endpoint.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Configures a bind mount for the data directory of the MailPit container resource.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Configures a bind mount for the data directory of the MailPit container resource.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Configures a data volume for the MailPit container resource.
+   */
+
+  withDataVolume(name: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Configures a data volume for the MailPit container resource.
+   */
+
+  withDataVolume(name: string, isReadOnly?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.McpInspectorResource
+ */
+
+export interface McpInspectorResource extends ExecutableResource, JavaScriptAppResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+  /**
+   * Configures the MCP Inspector to use bun as the package manager.
+   */
+
+  withBun(): this;
+  /**
+   * Configures the MCP Inspector resource to use a specified MCP server resource that uses SSE as the transport type.
+   */
+
+  withInspectedMcpServer(mcpServer: IResourceWithEndpoints, options?: { isDefault?: boolean; transportType?: McpTransportType; path?: string }): this;
+  /**
+   * Configures the MCP Inspector resource to use a specified MCP server resource that uses SSE as the transport type.
+   */
+
+  withInspectedMcpServer(mcpServer: IResourceWithEndpoints, isDefault?: boolean, transportType?: McpTransportType, path?: string): this;
+  /**
+   * Configures the MCP Inspector to use pnpm as the package manager.
+   */
+
+  withPnpm(): this;
+  /**
+   * Configures the MCP Inspector to use yarn as the package manager.
+   */
+
+  withYarn(): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.MeilisearchResource
+ */
+
+export interface MeilisearchResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the Meilisearch
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the parameter that contains the Meilisearch superuser password.
+   */
+
+  masterKeyParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the Meilisearch. This endpoint is used for all API calls over HTTP.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the Meilisearch server.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a bind mount for the data folder to a Meilisearch container resource.
+   */
+
+  withDataBindMount(source: string): this;
+  /**
+   * Adds a named volume for the data folder to a Meilisearch container resource.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for the data folder to a Meilisearch container resource.
+   */
+
+  withDataVolume(name?: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.MinioContainerResource
+ */
+
+export interface MinioContainerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the Minio
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * The MinIO root password.
+   */
+
+  passwordParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the MinIO. This endpoint is used for all API calls over HTTP.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * The MinIO root user.
+   */
+
+  rootUser: PropertyAccessor<ParameterResource>;
+  /**
+   * The MinIO root password.
+   */
+
+  setPasswordParameter(value: string | ParameterResource): MinioContainerResource;
+  /**
+   * The MinIO root user.
+   */
+
+  setRootUser(value: string | ParameterResource): MinioContainerResource;
+  /**
+   * Gets the connection URI expression for the MinIO server.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a bind mount for the data folder to a MinIO container resource.
+   */
+
+  withDataBindMount(source: string): this;
+  /**
+   * Adds a named volume for the data folder to a MinIO container resource.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for the data folder to a MinIO container resource.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Configures the host port that the MinIO resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
+   * Configures the password that the MinIO resource uses.
+   */
+
+  withPassword(password: string | ParameterResource): this;
+  /**
+   * Configures the user name that the MinIO resource uses.
+   */
+
+  withUserName(userName: string | ParameterResource): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.NgrokResource
+ */
+
+export interface NgrokResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Adds a ngrok auth token to a ngrok resource.
+   */
+
+  withAuthToken(ngrokAuthToken: string | ParameterResource): this;
+  /**
+   * Adds a ngrok auth token to a ngrok resource.
+   */
+
+  withAuthTokenValue(ngrokAuthToken: string): this;
+  /**
+   * Configures a resource with endpoints as a ngrok tunnel endpoint.
+   */
+
+  withTunnelEndpoint(resource: IResourceWithEndpoints, endpointName: string, options?: { ngrokUrl?: string; labels?: Dict<string,string> }): this;
+  /**
+   * Configures a resource with endpoints as a ngrok tunnel endpoint.
+   */
+
+  withTunnelEndpoint(resource: IResourceWithEndpoints, endpointName: string, ngrokUrl?: string, labels?: Dict<string,string>): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.IOllamaResource
+ */
+
+export interface IOllamaResource {
+  /**
+   * Adds a model from Hugging Face to the Ollama resource. Only models in GGUF format are supported.
+   */
+
+  addHuggingFaceModel(name: string, modelName: string): OllamaModelResource;
+  /**
+   * Adds a model to the Ollama resource.
+   */
+
+  addModel(modelName: string): OllamaModelResource;
+  /**
+   * Adds a model to the Ollama resource.
+   */
+
+  addNamedModel(name: string, modelName: string): OllamaModelResource;
+  /**
+   * Adds an Open WebUI container to the application model for administering Ollama. This version of the package defaults to the main tag of the Open WebUI container image.
+   */
+
+  withOpenWebUI(options?: { configureContainer?: (obj: OpenWebUIResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds an Open WebUI container to the application model for administering Ollama. This version of the package defaults to the main tag of the Open WebUI container image.
+   */
+
+  withOpenWebUI(configureContainer?: (obj: OpenWebUIResource) => Promise<void>, containerName?: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.OllamaExecutableResource
+ */
+
+export interface OllamaExecutableResource extends ExecutableResource, ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IOllamaResource, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the Ollama server.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the Host property
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the Models property
+   */
+
+  models: PropertyAccessor<string[]>;
+  /**
+   * Gets the Port property
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the PrimaryEndpoint property
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the UriExpression property
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.OllamaModelResource
+ */
+
+export interface OllamaModelResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the Ollama model.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the model name.
+   */
+
+  modelName: PropertyAccessor<string>;
+  /**
+   * Gets the parent Ollama resource.
+   */
+
+  parent: PropertyAccessor<IOllamaResource>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.OllamaResource
+ */
+
+export interface OllamaResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IOllamaResource, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the Ollama server.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the Host property
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the Models property
+   */
+
+  models: PropertyAccessor<string[]>;
+  /**
+   * Gets the Port property
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the PrimaryEndpoint property
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the UriExpression property
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a data volume to the Ollama container.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a data volume to the Ollama container.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Adds GPU support to the Ollama container.
+   */
+
+  withGPUSupport(options?: { vendor?: OllamaGpuVendor }): this;
+  /**
+   * Adds GPU support to the Ollama container.
+   */
+
+  withGPUSupport(vendor?: OllamaGpuVendor): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.OpenWebUIResource
+ */
+
+export interface OpenWebUIResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the Open WebUI endpoint.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the list of Ollama resources that are associated with this Open WebUI resource.
+   */
+
+  ollamaResources: PropertyAccessor<IOllamaResource[]>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the http endpoint for the Open WebUI resource.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the Open WebUI endpoint.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a data volume to the Open WebUI container.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a data volume to the Open WebUI container.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Configures the host port that the Open WebUI resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+}
+
+/**
+ * Handle Aspire.Hosting.OllamaGpuVendor
+ */
+
+export interface OllamaGpuVendor extends IComparable, IConvertible, IFormattable, ISpanFormattable {
+}
+
+/**
+ * Handle Aspire.Hosting.OpenTelemetryCollectorResource
+ */
+
+export interface OpenTelemetryCollectorResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the gRPC endpoint for the collector.
+   */
+
+  grpcEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the HTTP endpoint for the collector.
+   */
+
+  httpEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Configures all compatible resources in the application to forward telemetry to this collector.
+   */
+
+  withAppForwarding(): this;
+  /**
+   * Adds a configuration file to the collector resource.
+   */
+
+  withConfig(configPath: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.OpenTelemetryCollectorSettings
+ */
+
+export interface OpenTelemetryCollectorSettings {
+  /**
+   * Gets the full collector image reference.
+   */
+
+  collectorImage: PropertyAccessor<string>;
+  /**
+   * Gets or sets the tag to use for the collector image.
+   */
+
+  collectorTag: PropertyAccessor<string>;
+  /**
+   * Gets or sets a value indicating whether the collector health check is disabled.
+   */
+
+  disableHealthcheck: PropertyAccessor<boolean>;
+  /**
+   * Gets or sets a value indicating whether the gRPC endpoint is enabled on the collector container. Note: this also configures TLS when Aspire is configured for HTTPS.
+   */
+
+  enableGrpcEndpoint: PropertyAccessor<boolean>;
+  /**
+   * Gets or sets a value indicating whether the HTTP endpoint is enabled on the collector container. Note: this also configures TLS when Aspire is configured for HTTPS.
+   */
+
+  enableHttpEndpoint: PropertyAccessor<boolean>;
+  /**
+   * Gets or sets a value indicating whether the default OTLP receivers should use HTTP even when Aspire is configured for HTTPS.
+   */
+
+  forceNonSecureReceiver: PropertyAccessor<boolean>;
+  /**
+   * Gets or sets the collector image path.
+   */
+
+  image: PropertyAccessor<string>;
+  /**
+   * Gets or sets the container registry for the image.
+   */
+
+  registry: PropertyAccessor<string>;
+  /**
+   * Gets or sets the tag to use for the collector image.
+   */
+
+  setCollectorTag(value: string): OpenTelemetryCollectorSettings;
+  /**
+   * Gets or sets a value indicating whether the collector health check is disabled.
+   */
+
+  setDisableHealthcheck(value: boolean): OpenTelemetryCollectorSettings;
+  /**
+   * Gets or sets a value indicating whether the gRPC endpoint is enabled on the collector container. Note: this also configures TLS when Aspire is configured for HTTPS.
+   */
+
+  setEnableGrpcEndpoint(value: boolean): OpenTelemetryCollectorSettings;
+  /**
+   * Gets or sets a value indicating whether the HTTP endpoint is enabled on the collector container. Note: this also configures TLS when Aspire is configured for HTTPS.
+   */
+
+  setEnableHttpEndpoint(value: boolean): OpenTelemetryCollectorSettings;
+  /**
+   * Gets or sets a value indicating whether the default OTLP receivers should use HTTP even when Aspire is configured for HTTPS.
+   */
+
+  setForceNonSecureReceiver(value: boolean): OpenTelemetryCollectorSettings;
+  /**
+   * Gets or sets the collector image path.
+   */
+
+  setImage(value: string): OpenTelemetryCollectorSettings;
+  /**
+   * Gets or sets the container registry for the image.
+   */
+
+  setRegistry(value: string): OpenTelemetryCollectorSettings;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.PapercutSmtpContainerResource
+ */
+
+export interface PapercutSmtpContainerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * ConnectionString for the Papercut SMTP server in the form of smtp://host:port.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for the SMTP endpoint.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for the SMTP endpoint.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the connection URI expression for the Papercut SMTP endpoint.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.PerlAppResource
+ */
+
+export interface PerlAppResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+  /**
+   * Configures the Perl application to use Carton as its package manager. Carton manages dependencies via `cpanfile` and a lock file (`cpanfile.snapshot`), enabling reproducible builds. Use `WithProjectDependencies``1` to run `carton install` at startup.
+   */
+
+  withCarton(): this;
+  /**
+   * Configures the Perl application to use cpanm (App::cpanminus) as its package manager instead of the default cpan. Call this before `WithPackage``1` to change how packages are installed.
+   */
+
+  withCpanMinus(): this;
+  /**
+   * Configures the Perl application to use a local::lib directory for module isolation. Sets `PERL5LIB`, `PERL_LOCAL_LIB_ROOT`, `PERL_MM_OPT`, and `PERL_MB_OPT` environment variables so that modules are resolved from and installed into the local directory.
+   */
+
+  withLocalLib(options?: { path?: string }): this;
+  /**
+   * Configures the Perl application to use a local::lib directory for module isolation. Sets `PERL5LIB`, `PERL_LOCAL_LIB_ROOT`, `PERL_MM_OPT`, and `PERL_MB_OPT` environment variables so that modules are resolved from and installed into the local directory.
+   */
+
+  withLocalLib(path?: string): this;
+  /**
+   * Adds a Perl package (module) to be installed before the application starts. Uses the configured package manager: cpan by default, or cpanm if `WithCpanMinus``1` was called.
+   */
+
+  withPackage(packageName: string, options?: { force?: boolean; skipTest?: boolean }): this;
+  /**
+   * Adds a Perl package (module) to be installed before the application starts. Uses the configured package manager: cpan by default, or cpanm if `WithCpanMinus``1` was called.
+   */
+
+  withPackage(packageName: string, force?: boolean, skipTest?: boolean): this;
+  /**
+   * Configures the Perl application to use a specific perlbrew-managed Perl version.
+   */
+
+  withPerlbrew(version: string, options?: { perlbrewRoot?: string }): this;
+  /**
+   * Configures the Perl application to use a specific perlbrew-managed Perl version.
+   */
+
+  withPerlbrew(version: string, perlbrewRoot?: string): this;
+  /**
+   * Configures the Perl application to use a specific perlbrew-managed Perl version. This resolves the Perl executable from the perlbrew installation and updates the resource's command and environment variables so that all subsequent operations use the specified Perl version.
+   */
+
+  withPerlbrewEnvironment(version: string, options?: { perlbrewRoot?: string }): this;
+  /**
+   * Configures the Perl application to use a specific perlbrew-managed Perl version. This resolves the Perl executable from the perlbrew installation and updates the resource's command and environment variables so that all subsequent operations use the specified Perl version.
+   */
+
+  withPerlbrewEnvironment(version: string, perlbrewRoot?: string): this;
+  /**
+   * Configures certificate trust for the Perl application by setting SSL/TLS environment variables that common Perl HTTP libraries respect. Sets `SSL_CERT_FILE` (IO::Socket::SSL / LWP), `PERL_LWP_SSL_CA_FILE` (LWP::UserAgent), and `MOJO_CA_FILE` (Mojolicious) to the certificate bundle path provided by Aspire.
+   */
+
+  withPerlCertificateTrust(): this;
+  /**
+   * Configures project-level dependency installation for the Perl application. Runs the appropriate install command based on the active package manager: - - If the active package manager is `cpan` (the default), it is automatically switched to `cpanm` since `cpan` does not support `--installdeps`.
+   */
+
+  withProjectDependencies(options?: { cartonDeployment?: boolean }): this;
+  /**
+   * Configures project-level dependency installation for the Perl application. Runs the appropriate install command based on the active package manager: - - If the active package manager is `cpan` (the default), it is automatically switched to `cpanm` since `cpan` does not support `--installdeps`.
+   */
+
+  withProjectDependencies(cartonDeployment?: boolean): this;
+}
+
+/**
+ * Handle CommunityToolkit.Aspire.Hosting.PowerShell.PowerShellRunspacePoolResource
+ */
+
+export interface PowerShellRunspacePoolResource extends IResource, IResourceWithWaitSupport, IDisposable {
+  /**
+   * Adds a PowerShell script resource to the distributed application.
+   */
+
+  addScript(name: string, script: string): PowerShellScriptResource;
+}
+
+/**
+ * Handle CommunityToolkit.Aspire.Hosting.PowerShell.PowerShellScriptResource
+ */
+
+export interface PowerShellScriptResource extends IResource, IResourceWithArgs, IResourceWithEnvironment, IResourceWithWaitSupport, IDisposable {
+
+  withArgs(args: string[]): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.StreamlitAppResource
+ */
+
+export interface StreamlitAppResource extends ExecutableResource, PythonAppResource, ContainerResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RavenDBDatabaseResource
+ */
+
+export interface RavenDBDatabaseResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the RavenDB database, derived from the parent server's connection string.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the name of the database.
+   */
+
+  databaseName: PropertyAccessor<string>;
+  /**
+   * Gets the parent RavenDB server resource associated with this database.
+   */
+
+  parent: PropertyAccessor<RavenDBServerResource>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RavenDBServerResource
+ */
+
+export interface RavenDBServerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Adds a database resource to an existing RavenDB server resource.
+   */
+
+  addDatabase(name: string, options?: { databaseName?: string; ensureCreated?: boolean }): RavenDBDatabaseResource;
+  /**
+   * Adds a database resource to an existing RavenDB server resource.
+   */
+
+  addDatabase(name: string, databaseName?: string, ensureCreated?: boolean): RavenDBDatabaseResource;
+  /**
+   * Gets the connection string expression for the RavenDB server, formatted as "http(s)://{Host}:{Port}" depending on the security setting.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets a read-only dictionary of databases associated with this server resource. The key represents the resource name, and the value represents the database name.
+   */
+
+  databases: PropertyAccessor<Dict<string,string>>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the RavenDB server.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the TCP endpoint for the RavenDB server.
+   */
+
+  tcpEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the RavenDB server.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a bind mount for the data folder to a RavenDB container resource.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the data folder to a RavenDB container resource.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the data folder to a RavenDB container resource.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the data folder to a RavenDB container resource.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a bind mount for the logs folder to a RavenDB container resource.
+   */
+
+  withLogBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the logs folder to a RavenDB container resource.
+   */
+
+  withLogBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the logs folder to a RavenDB container resource.
+   */
+
+  withLogVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the logs folder to a RavenDB container resource.
+   */
+
+  withLogVolume(name?: string, isReadOnly?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RustAppExecutableResource
+ */
+
+export interface RustAppExecutableResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.SftpContainerResource
+ */
+
+export interface SftpContainerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * ConnectionString for the atmoz SFTP server in the form of sftp://host:port.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the connection URI expression for the atmoz SFTP endpoint.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a bind mount for the specified host key file to an SFTP container resource.
+   */
+
+  withHostKeyFile(keyFile: string, keyType: KeyType): this;
+  /**
+   * Adds a bind mount for the public key file of the specified user to an SFTP container resource.
+   */
+
+  withUserKeyFile(username: string, keyFile: string, keyType: KeyType): this;
+  /**
+   * Adds a bind mount for the users.conf file to an SFTP container resource.
+   */
+
+  withUsersFile(usersFile: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.KeyType
+ */
+
+export interface KeyType extends IComparable, IConvertible, IFormattable, ISpanFormattable {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.SolrResource
+ */
+
+export interface SolrResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the Solr server.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * The Solr core name.
+   */
+
+  coreName: PropertyAccessor<string>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the Solr server.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * The Solr core name.
+   */
+
+  setCoreName(value: string): SolrResource;
+  /**
+   * Gets the connection URI expression for the Solr server.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Specifies the path to the config set directory.
+   */
+
+  withConfigset(configSetName: string, configSetPath: string): this;
+  /**
+   * Adds a bind mount for the data folder to a Solr container resource.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the data folder to a Solr container resource.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the data folder to a Solr container resource.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the data folder to a Solr container resource.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.SqlProjectResource
+ */
+
+export interface SqlProjectResource extends IResource, IResourceWithDacpac, IResourceWithWaitSupport {
+  /**
+   * Gets the configured path to the deployment options publish profile.
+   */
+
+  dacDeployOptionsPath: PropertyAccessor<string>;
+  /**
+   * Gets the configured path to the .dacpac file.
+   */
+
+  dacpacPath: PropertyAccessor<string>;
+  /**
+   * Gets a value indicating whether deployment should be skipped when the dacpac has already been deployed.
+   */
+
+  skipWhenDeployed: PropertyAccessor<boolean>;
+  /**
+   * Publishes the SQL Server database project to a connection string resource.
+   */
+
+  withConnectionReference(target: IResourceWithConnectionString): this;
+  /**
+   * Sets the publish profile path used for DAC deployment options.
+   */
+
+  withDacDeployOptions(optionsPath: string): this;
+  /**
+   * Specifies the path to the .dacpac file.
+   */
+
+  withDacpac(dacpacPath: string): this;
+  /**
+   * Publishes the SQL Server database project to a SQL Server database resource.
+   */
+
+  withReference(target: SqlServerDatabaseResource): this;
+  /**
+   * Specifies that .dacpac deployment should be skipped if metadata in the target database indicates that the .dacpac has already been deployed in its current state.
+   */
+
+  withSkipWhenDeployed(): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.SqliteResource
+ */
+
+export interface SqliteResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the ConnectionStringExpression property
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+
+  withSqliteWeb(options?: { containerName?: string }): this;
+
+  withSqliteWeb(containerName?: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.SqliteWebResource
+ */
+
+export interface SqliteWebResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the Open WebUI endpoint.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the http endpoint for the Open WebUI resource.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the Sqlite Web endpoint.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.StripeResource
+ */
+
+export interface StripeResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the webhook signing secret retrieved from the Stripe CLI.
+   */
+
+  setWebhookSigningSecret(value: string): StripeResource;
+  /**
+   * Gets the webhook signing secret retrieved from the Stripe CLI.
+   */
+
+  webhookSigningSecret: PropertyAccessor<string>;
+  /**
+   * Configures the Stripe CLI to use a specific API key from a parameter.
+   */
+
+  withApiKey(apiKey: string | ParameterResource): this;
+  /**
+   * Configures the Stripe CLI to listen for webhooks and forward them to the specified URL expression.
+   */
+
+  withListen(forwardTo: IResourceWithEndpoints, options?: { webhookPath?: string; events?: string[] }): this;
+  /**
+   * Configures the Stripe CLI to listen for webhooks and forward them to the specified URL expression.
+   */
+
+  withListen(forwardTo: IResourceWithEndpoints, webhookPath?: string, events?: string[]): this;
+  /**
+   * Configures the Stripe CLI to listen for webhooks and forward them to the specified URL expression.
+   */
+
+  withListenExternalService(forwardTo: ExternalServiceResource, options?: { webhookPath?: string; events?: string[] }): this;
+  /**
+   * Configures the Stripe CLI to listen for webhooks and forward them to the specified URL expression.
+   */
+
+  withListenExternalService(forwardTo: ExternalServiceResource, webhookPath?: string, events?: string[]): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.SurrealDbDatabaseResource
+ */
+
+export interface SurrealDbDatabaseResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the SurrealDB database.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the database name.
+   */
+
+  databaseName: PropertyAccessor<string>;
+  /**
+   * Gets the parent SurrealDB namespace resource.
+   */
+
+  parent: PropertyAccessor<SurrealDbNamespaceResource>;
+  /**
+   * Defines the SQL script used to create the database.
+   */
+
+  withCreationScript(script: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.SurrealDbNamespaceResource
+ */
+
+export interface SurrealDbNamespaceResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Adds a SurrealDB database resource to the application model
+   */
+
+  addDatabase(name: string, options?: { databaseName?: string }): SurrealDbDatabaseResource;
+  /**
+   * Adds a SurrealDB database resource to the application model
+   */
+
+  addDatabase(name: string, databaseName?: string): SurrealDbDatabaseResource;
+  /**
+   * Gets the connection string expression for the SurrealDB database.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * A dictionary where the key is the resource name and the value is the database name.
+   */
+
+  databases: PropertyAccessor<Dict<string,string>>;
+  /**
+   * Gets the namespace name.
+   */
+
+  namespaceName: PropertyAccessor<string>;
+  /**
+   * Gets the parent SurrealDB container resource.
+   */
+
+  parent: PropertyAccessor<SurrealDbServerResource>;
+  /**
+   * Defines the SQL script used to create the namespace.
+   */
+
+  withCreationScript(script: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.SurrealDbServerResource
+ */
+
+export interface SurrealDbServerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Adds a SurrealDB namespace resource to the application model
+   */
+
+  addNamespace(name: string, options?: { namespaceName?: string }): SurrealDbNamespaceResource;
+  /**
+   * Adds a SurrealDB namespace resource to the application model
+   */
+
+  addNamespace(name: string, namespaceName?: string): SurrealDbNamespaceResource;
+  /**
+   * Gets the connection string expression for the SurrealDB instance.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * A dictionary where the key is the resource name and the value is the namespace name.
+   */
+
+  namespaces: PropertyAccessor<Dict<string,string>>;
+  /**
+   * Gets the parameter that contains the SurrealDB password.
+   */
+
+  passwordParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the SurrealDB instance.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the SurrealDB instance.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the parameter that contains the SurrealDB username.
+   */
+
+  userNameParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Adds a bind mount for the data folder to a SurrealDB resource.
+   */
+
+  withDataBindMount(source: string): this;
+  /**
+   * Adds a named volume for the data folder to a SurrealDB resource.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for the data folder to a SurrealDB resource.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Copies init files into a SurrealDB container resource.
+   */
+
+  withInitFiles(source: string): this;
+
+  withLogLevel(logLevel: string): this;
+  /**
+   * Injects the appropriate environment variables to allow the resource to enable sending telemetry to the dashboard. 1. It sets the OTLP endpoint to the value of the DOTNET_DASHBOARD_OTLP_ENDPOINT_URL environment variable. 2. It sets the service name and instance id to the resource name and UID. Values are injected by the orchestrator. 3. It sets a small batch schedule delay in development. This reduces the delay that OTLP exporter waits to sends telemetry and makes the dashboard telemetry pages responsive.
+   */
+
+  withSurrealDbOtlpExporter(): this;
+
+  withSurrealist(options?: { containerName?: string }): this;
+
+  withSurrealist(containerName?: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.UmamiResource
+ */
+
+export interface UmamiResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+  /**
+   * Gets the primary endpoint for the Umami instance.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the parameter that contains the Umami app secret.
+   */
+
+  secretParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Configures PostgreSQL as the storage backend for Umami
+   */
+
+  withPostgreSQL(database: PostgresDatabaseResource): this;
+}
+
+/**
+ * Handle CommunityToolkit.Aspire.Hosting.Zitadel.ZitadelResource
+ */
+
+export interface ZitadelResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Adds database support to the Zitadel resource.
+   */
+
+  withDatabase(server: PostgresServerResource, options?: { databaseName?: string }): this;
+  /**
+   * Adds database support to the Zitadel resource.
+   */
+
+  withDatabase(server: PostgresServerResource, databaseName?: string): this;
+  /**
+   * Adds database support to the Zitadel resource.
+   */
+
+  withExistingDatabase(database: PostgresDatabaseResource): this;
+  /**
+   * Configures the external domain for the Zitadel resource
+   */
+
+  withExternalDomain(externalDomain: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.K6Resource
+ */
+
+export interface K6Resource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the primary endpoint for the Grafana k6 instance. This endpoint is used for all API calls over HTTP.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Set K6 environment variables from the existing OTEL environment set for this resource. See https://grafana.com/docs/k6/latest/results-output/real-time/opentelemetry/#configuration.
+   */
+
+  withK6OtlpEnvironment(): this;
+  /**
+   * Runs a k6 JS script when starting the Grafana k6 container resource.
+   */
+
+  withScript(scriptPath: string, options?: { virtualUsers?: number; duration?: string }): this;
+  /**
+   * Runs a k6 JS script when starting the Grafana k6 container resource.
+   */
+
+  withScript(scriptPath: string, virtualUsers?: number, duration?: string): this;
 }
 
 // ---- target-type interfaces (resource/builder APIs) ----
@@ -10682,6 +12614,540 @@ export interface IDistributedApplicationBuilder {
    */
 
   addYarp(name: string): YarpResource;
+  /**
+   * Adds a ActiveMQ container to the application model.
+   */
+
+  addActiveMQ(name: string, options?: { userName?: string | ParameterResource; password?: string | ParameterResource; port?: number; scheme?: string; webPort?: number }): ActiveMQServerResource;
+  /**
+   * Adds a ActiveMQ container to the application model.
+   */
+
+  addActiveMQ(name: string, userName?: string | ParameterResource, password?: string | ParameterResource, port?: number, scheme?: string, webPort?: number): ActiveMQServerResource;
+  /**
+   * Adds a ActiveMQ Artemis container to the application model.
+   */
+
+  addActiveMQArtemis(name: string, options?: { userName?: string | ParameterResource; password?: string | ParameterResource; port?: number; scheme?: string; webPort?: number }): ActiveMQArtemisServerResource;
+  /**
+   * Adds a ActiveMQ Artemis container to the application model.
+   */
+
+  addActiveMQArtemis(name: string, userName?: string | ParameterResource, password?: string | ParameterResource, port?: number, scheme?: string, webPort?: number): ActiveMQArtemisServerResource;
+  /**
+   * Adds a Adminer container resource to the application.
+   */
+
+  addAdminer(name: string, options?: { port?: number }): AdminerContainerResource;
+  /**
+   * Adds a Adminer container resource to the application.
+   */
+
+  addAdminer(name: string, port?: number): AdminerContainerResource;
+  /**
+   * Adds a DataAPIBuilder application to the application model. Executes the pre-built containerized DataAPIBuilder engine.
+   */
+
+  addDataAPIBuilder(name: string, options?: { configFilePaths?: string[]; httpPort?: number }): DataApiBuilderContainerResource;
+  /**
+   * Adds a DataAPIBuilder application to the application model. Executes the pre-built containerized DataAPIBuilder engine.
+   */
+
+  addDataAPIBuilder(name: string, configFilePaths?: string[], httpPort?: number): DataApiBuilderContainerResource;
+  /**
+   * Adds a DbGate container resource to the application.
+   */
+
+  addDbGate(options?: { name?: string; port?: number }): DbGateContainerResource;
+  /**
+   * Adds a DbGate container resource to the application.
+   */
+
+  addDbGate(name?: string, port?: number): DbGateContainerResource;
+  /**
+   * Adds a Deno application to the application model. Deno should available on the PATH.
+   */
+
+  addDenoApp(name: string, scriptPath: string, options?: { workingDirectory?: string; permissionFlags?: string[]; args?: string[] }): DenoAppResource;
+  /**
+   * Adds a Deno application to the application model. Deno should available on the PATH.
+   */
+
+  addDenoApp(name: string, scriptPath: string, workingDirectory?: string, permissionFlags?: string[], args?: string[]): DenoAppResource;
+  /**
+   * Adds a Deno task to the distributed application builder
+   */
+
+  addDenoTask(name: string, options?: { workingDirectory?: string; taskName?: string; args?: string[] }): DenoAppResource;
+  /**
+   * Adds a Deno task to the distributed application builder
+   */
+
+  addDenoTask(name: string, workingDirectory?: string, taskName?: string, args?: string[]): DenoAppResource;
+  /**
+   * Adds a flagd container to the application model.
+   */
+
+  addFlagd(name: string, options?: { port?: number; ofrepPort?: number }): FlagdResource;
+  /**
+   * Adds a flagd container to the application model.
+   */
+
+  addFlagd(name: string, port?: number, ofrepPort?: number): FlagdResource;
+
+  addFlyway(name: string, migrationScriptsPath: string): FlywayResource;
+  /**
+   * Adds an GO Feature Flag container resource to the application model. The default image is and the tag is .
+   */
+
+  addGoFeatureFlag(name: string, options?: { pathToConfigFile?: string; port?: number }): GoFeatureFlagResource;
+  /**
+   * Adds an GO Feature Flag container resource to the application model. The default image is and the tag is .
+   */
+
+  addGoFeatureFlag(name: string, pathToConfigFile?: string, port?: number): GoFeatureFlagResource;
+  /**
+   * Adds a Java application to the application model. Executes the executable Java app.
+   */
+
+  addJavaApp(name: string, workingDirectory: string): JavaAppExecutableResource;
+  /**
+   * Adds a Java application to the application model. Executes the executable Java app.
+   */
+
+  addJavaAppWithJar(name: string, workingDirectory: string, jarPath: string, options?: { args?: string[] }): JavaAppExecutableResource;
+  /**
+   * Adds a Java application to the application model. Executes the executable Java app.
+   */
+
+  addJavaAppWithJar(name: string, workingDirectory: string, jarPath: string, args?: string[]): JavaAppExecutableResource;
+  /**
+   * Adds a Java application to the application model. Executes the containerized Java app.
+   */
+
+  addJavaContainerApp(name: string, image: string, options?: { imageTag?: string }): JavaAppContainerResource;
+  /**
+   * Adds a Java application to the application model. Executes the containerized Java app.
+   */
+
+  addJavaContainerApp(name: string, image: string, imageTag?: string): JavaAppContainerResource;
+  /**
+   * Adds an Nx monorepo workspace to the distributed application builder.
+   */
+
+  addNxApp(name: string, options?: { workingDirectory?: string }): NxResource;
+  /**
+   * Adds an Nx monorepo workspace to the distributed application builder.
+   */
+
+  addNxApp(name: string, workingDirectory?: string): NxResource;
+  /**
+   * Adds a Turborepo monorepo workspace to the distributed application builder.
+   */
+
+  addTurborepoApp(name: string, options?: { workingDirectory?: string }): TurborepoResource;
+  /**
+   * Adds a Turborepo monorepo workspace to the distributed application builder.
+   */
+
+  addTurborepoApp(name: string, workingDirectory?: string): TurborepoResource;
+  /**
+   * Adds a KurrentDB resource to the application model. A container is used for local development. The default image is and the tag is .
+   */
+
+  addKurrentDB(name: string, options?: { port?: number }): KurrentDBResource;
+  /**
+   * Adds a KurrentDB resource to the application model. A container is used for local development. The default image is and the tag is .
+   */
+
+  addKurrentDB(name: string, port?: number): KurrentDBResource;
+  /**
+   * Adds a LavinMQ container resource to the distributed application builder. Configures the resource with specified parameters and sets up health checks for the resource.
+   */
+
+  addLavinMQ(name: string, options?: { amqpPort?: number; managementPort?: number }): LavinMQContainerResource;
+  /**
+   * Adds a LavinMQ container resource to the distributed application builder. Configures the resource with specified parameters and sets up health checks for the resource.
+   */
+
+  addLavinMQ(name: string, amqpPort?: number, managementPort?: number): LavinMQContainerResource;
+  /**
+   * Adds a MailPit container resource
+   */
+
+  addMailPit(name: string, options?: { httpPort?: number; smtpPort?: number }): MailPitContainerResource;
+  /**
+   * Adds a MailPit container resource
+   */
+
+  addMailPit(name: string, httpPort?: number, smtpPort?: number): MailPitContainerResource;
+  /**
+   * Adds a MCP Inspector container resource
+   */
+
+  addMcpInspector(name: string, options?: { clientPort?: number; serverPort?: number; inspectorVersion?: string; proxyToken?: string | ParameterResource }): McpInspectorResource;
+  /**
+   * Adds a MCP Inspector container resource
+   */
+
+  addMcpInspector(name: string, clientPort?: number, serverPort?: number, inspectorVersion?: string, proxyToken?: string | ParameterResource): McpInspectorResource;
+  /**
+   * Adds an Meilisearch container resource to the application model. The default image is and the tag is .
+   */
+
+  addMeilisearch(name: string, options?: { masterKey?: string | ParameterResource; port?: number }): MeilisearchResource;
+  /**
+   * Adds an Meilisearch container resource to the application model. The default image is and the tag is .
+   */
+
+  addMeilisearch(name: string, masterKey?: string | ParameterResource, port?: number): MeilisearchResource;
+  /**
+   * Adds a MinIO container to the application model. The default image is "minio/minio" and the tag is "latest".
+   */
+
+  addMinioContainer(name: string, options?: { rootUser?: string | ParameterResource; rootPassword?: string | ParameterResource; port?: number }): MinioContainerResource;
+  /**
+   * Adds a MinIO container to the application model. The default image is "minio/minio" and the tag is "latest".
+   */
+
+  addMinioContainer(name: string, rootUser?: string | ParameterResource, rootPassword?: string | ParameterResource, port?: number): MinioContainerResource;
+  /**
+   * Configures a container resource for grok which is pre-configured to connect to the resource that this method is used on.
+   */
+
+  addNgrok(name: string, options?: { configurationFolder?: string; endpointPort?: number; endpointName?: string; configurationVersion?: number }): NgrokResource;
+  /**
+   * Configures a container resource for grok which is pre-configured to connect to the resource that this method is used on.
+   */
+
+  addNgrok(name: string, configurationFolder?: string, endpointPort?: number, endpointName?: string, configurationVersion?: number): NgrokResource;
+  /**
+   * Adds an Ollama container resource to the application model.
+   */
+
+  addOllama(name: string, options?: { port?: number }): OllamaResource;
+  /**
+   * Adds an Ollama container resource to the application model.
+   */
+
+  addOllama(name: string, port?: number): OllamaResource;
+  /**
+   * Adds an Ollama executable resource to the application model.
+   */
+
+  addOllamaLocal(name: string, options?: { port?: number; targetPort?: number }): OllamaExecutableResource;
+  /**
+   * Adds an Ollama executable resource to the application model.
+   */
+
+  addOllamaLocal(name: string, port?: number, targetPort?: number): OllamaExecutableResource;
+  /**
+   * Adds an OpenTelemetry Collector container resource to the application model.
+   */
+
+  addOpenTelemetryCollector(name: string, configureSettings?: (obj: OpenTelemetryCollectorSettings) => Promise<void>): OpenTelemetryCollectorResource;
+  /**
+   * Adds Papercut SMTP to the application model.
+   */
+
+  addPapercutSmtp(name: string, options?: { httpPort?: number; smtpPort?: number }): PapercutSmtpContainerResource;
+  /**
+   * Adds Papercut SMTP to the application model.
+   */
+
+  addPapercutSmtp(name: string, httpPort?: number, smtpPort?: number): PapercutSmtpContainerResource;
+  /**
+   * Adds a Perl API server resource (e.g., Mojolicious, Dancer2) to the application model. Passes the `daemon` subcommand so HTTP frameworks start a listener.
+   */
+
+  addPerlApi(resourceName: string, appDirectory: string, scriptName: string): PerlAppResource;
+  /**
+   * Adds a Perl executable (compiled binary or PAR-packed application) to the application model. The executable is run directly rather than through the `perl` interpreter.
+   */
+
+  addPerlExecutable(resourceName: string, appDirectory: string, executablePath: string): PerlAppResource;
+  /**
+   * Adds a Perl module to the application model. The module is executed using `perl -MModule::Name -e "Module::Name->run()"`.
+   */
+
+  addPerlModule(resourceName: string, appDirectory: string, moduleName: string): PerlAppResource;
+  /**
+   * Adds a Perl script resource (worker, CLI tool, background service) to the application model.
+   */
+
+  addPerlScript(resourceName: string, appDirectory: string, scriptName: string): PerlAppResource;
+
+  addPowerShell(name: string, options?: { languageMode?: string; minRunspaces?: number; maxRunspaces?: number }): PowerShellRunspacePoolResource;
+
+  addPowerShell(name: string, languageMode?: string, minRunspaces?: number, maxRunspaces?: number): PowerShellRunspacePoolResource;
+  /**
+   * Adds a Streamlit application to the application model.
+   */
+
+  addStreamlitApp(name: string, appDirectory: string, scriptPath: string): StreamlitAppResource;
+  /**
+   * Adds a RavenDB server resource to the application model. A container is used for local development. This overload simplifies the configuration by creating an unsecured RavenDB server resource with default settings.
+   */
+
+  addRavenDB(name: string): RavenDBServerResource;
+  /**
+   * Adds a Rust application to the application model, using the bacon cli.
+   */
+
+  addBaconApp(name: string, workingDirectory: string, options?: { args?: string[] }): RustAppExecutableResource;
+  /**
+   * Adds a Rust application to the application model, using the bacon cli.
+   */
+
+  addBaconApp(name: string, workingDirectory: string, args?: string[]): RustAppExecutableResource;
+  /**
+   * Adds a Rust application to the application model, using the cargo cli.
+   */
+
+  addRustApp(name: string, workingDirectory: string, options?: { args?: string[] }): RustAppExecutableResource;
+  /**
+   * Adds a Rust application to the application model, using the cargo cli.
+   */
+
+  addRustApp(name: string, workingDirectory: string, args?: string[]): RustAppExecutableResource;
+  /**
+   * Adds atmoz SFTP to the application model.
+   */
+
+  addSftp(name: string, options?: { port?: number }): SftpContainerResource;
+  /**
+   * Adds atmoz SFTP to the application model.
+   */
+
+  addSftp(name: string, port?: number): SftpContainerResource;
+  /**
+   * Adds an Apache Solr container resource to the distributed application.
+   */
+
+  addSolr(name: string, options?: { port?: number; coreName?: string }): SolrResource;
+  /**
+   * Adds an Apache Solr container resource to the distributed application.
+   */
+
+  addSolr(name: string, port?: number, coreName?: string): SolrResource;
+  /**
+   * Adds a SQL Server Database Project resource to the application.
+   */
+
+  addSqlProject(name: string): SqlProjectResource;
+  /**
+   * Adds an Sqlite resource to the application builder.
+   */
+
+  addSqlite(name: string, options?: { databasePath?: string; databaseFileName?: string }): SqliteResource;
+  /**
+   * Adds an Sqlite resource to the application builder.
+   */
+
+  addSqlite(name: string, databasePath?: string, databaseFileName?: string): SqliteResource;
+  /**
+   * Adds the Stripe CLI to the application model for local webhook forwarding.
+   */
+
+  addStripe(name: string, apiKey: string | ParameterResource): StripeResource;
+  /**
+   * Adds a SurrealDB resource to the application model. A container is used for local development. The default image is and the tag is .
+   */
+
+  addSurrealServer(name: string, options?: { userName?: string | ParameterResource; password?: string | ParameterResource; port?: number; path?: string; strictMode?: boolean }): SurrealDbServerResource;
+  /**
+   * Adds a SurrealDB resource to the application model. A container is used for local development. The default image is and the tag is .
+   */
+
+  addSurrealServer(name: string, userName?: string | ParameterResource, password?: string | ParameterResource, port?: number, path?: string, strictMode?: boolean): SurrealDbServerResource;
+  /**
+   * Adds a Umami resource to the application model. A container is used for local development. The default image is and the tag is .
+   */
+
+  addUmami(name: string, options?: { secret?: string | ParameterResource; port?: number }): UmamiResource;
+  /**
+   * Adds a Umami resource to the application model. A container is used for local development. The default image is and the tag is .
+   */
+
+  addUmami(name: string, secret?: string | ParameterResource, port?: number): UmamiResource;
+  /**
+   * Adds a Zitadel container resource
+   */
+
+  addZitadel(name: string, options?: { port?: number; username?: string | ParameterResource; password?: string | ParameterResource; masterKey?: string | ParameterResource }): ZitadelResource;
+  /**
+   * Adds a Zitadel container resource
+   */
+
+  addZitadel(name: string, port?: number, username?: string | ParameterResource, password?: string | ParameterResource, masterKey?: string | ParameterResource): ZitadelResource;
+  /**
+   * Adds a Grafana k6 container resource to the application model. The default image is and the tag is .
+   */
+
+  addK6(name: string, options?: { enableBrowserExtensions?: boolean; port?: number }): K6Resource;
+  /**
+   * Adds a Grafana k6 container resource to the application model. The default image is and the tag is .
+   */
+
+  addK6(name: string, enableBrowserExtensions?: boolean, port?: number): K6Resource;
+}
+
+// augments handle type ActiveMQArtemisServerResource with extension methods
+export interface ActiveMQArtemisServerResource {
+  /**
+   * Gets the ConnectionStringExpression property
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the parameter that contains the ActiveMQ server password.
+   */
+
+  passwordParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the ActiveMQ server.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the ActiveMQ server.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the parameter that contains the ActiveMQ server username.
+   */
+
+  userNameParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Adds a bind mount for the conf folder to a ActiveMQ container resource.
+   */
+
+  withConfBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the conf folder to a ActiveMQ container resource.
+   */
+
+  withConfBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the config folder to a ActiveMQ container resource.
+   */
+
+  withConfVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the config folder to a ActiveMQ container resource.
+   */
+
+  withConfVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a bind mount for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+}
+
+// augments handle type ActiveMQServerResource with extension methods
+export interface ActiveMQServerResource {
+  /**
+   * Gets the ConnectionStringExpression property
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the parameter that contains the ActiveMQ server password.
+   */
+
+  passwordParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the ActiveMQ server.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the ActiveMQ server.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the parameter that contains the ActiveMQ server username.
+   */
+
+  userNameParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Adds a bind mount for the conf folder to a ActiveMQ container resource.
+   */
+
+  withConfBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the conf folder to a ActiveMQ container resource.
+   */
+
+  withConfBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the config folder to a ActiveMQ container resource.
+   */
+
+  withConfVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the config folder to a ActiveMQ container resource.
+   */
+
+  withConfVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a bind mount for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the data folder to a ActiveMQ container resource.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
 }
 
 // augments handle type AzureAISearchToolResource with extension methods
@@ -10875,6 +13341,16 @@ export interface AzureBlobStorageResource {
    */
 
   withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+  /**
+   * Adds an Azure Storage Explorer instance to a Blob storage resource.
+   */
+
+  withAzureStorageExplorer(options?: { configureContainer?: (obj: AzureStorageExplorerResource) => Promise<void>; name?: string }): this;
+  /**
+   * Adds an Azure Storage Explorer instance to a Blob storage resource.
+   */
+
+  withAzureStorageExplorer(configureContainer?: (obj: AzureStorageExplorerResource) => Promise<void>, name?: string): this;
 }
 
 // augments handle type AzureCognitiveServicesProjectConnectionResource with extension methods
@@ -10940,15 +13416,10 @@ export interface AzureCosmosDBDatabaseResource {
 // augments handle type AzureCosmosDBEmulatorResource with extension methods
 export interface AzureCosmosDBEmulatorResource {
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -10959,15 +13430,10 @@ export interface AzureCosmosDBEmulatorResource {
 // augments handle type AzureCosmosDBResource with extension methods
 export interface AzureCosmosDBResource {
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -11145,15 +13611,10 @@ export interface AzureKeyVaultResource {
 
   withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -11451,6 +13912,16 @@ export interface AzureQueueStorageResource {
    */
 
   withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+  /**
+   * Adds an Azure Storage Explorer instance to a Queue storage resource.
+   */
+
+  withAzureStorageExplorer(options?: { configureContainer?: (obj: AzureStorageExplorerResource) => Promise<void>; name?: string }): this;
+  /**
+   * Adds an Azure Storage Explorer instance to a Queue storage resource.
+   */
+
+  withAzureStorageExplorer(configureContainer?: (obj: AzureStorageExplorerResource) => Promise<void>, name?: string): this;
 }
 
 // augments handle type AzureSearchResource with extension methods
@@ -11543,15 +14014,10 @@ export interface AzureStorageEmulatorResource {
 
   withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -11572,15 +14038,10 @@ export interface AzureStorageResource {
 
   withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -11619,6 +14080,16 @@ export interface AzureTableStorageResource {
    */
 
   withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+  /**
+   * Adds an Azure Storage Explorer instance to a Table storage resource.
+   */
+
+  withAzureStorageExplorer(options?: { configureContainer?: (obj: AzureStorageExplorerResource) => Promise<void>; name?: string }): this;
+  /**
+   * Adds an Azure Storage Explorer instance to a Table storage resource.
+   */
+
+  withAzureStorageExplorer(configureContainer?: (obj: AzureStorageExplorerResource) => Promise<void>, name?: string): this;
 }
 
 // augments handle type AzureUserAssignedIdentityResource with extension methods
@@ -11912,6 +14383,16 @@ export interface BunAppResource {
    */
 
   withYarn(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(options?: { endpointName?: string }): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(endpointName?: string): this;
 }
 
 // augments handle type CertManagerIssuerResource with extension methods
@@ -12800,15 +15281,10 @@ export interface ContainerResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
@@ -12839,6 +15315,36 @@ export interface ContainerResource {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
+   */
+
+  withJvmArgs(args: string[]): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(options?: { agentPath?: string }): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(agentPath?: string): this;
+  /**
+   * Routes telemetry for the resource through the specified OpenTelemetry Collector.
+   */
+
+  withOpenTelemetryCollectorRouting(collectorBuilder: OpenTelemetryCollectorResource): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, options?: { webhookSigningSecretEnvVarName?: string }): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
 }
 
 // augments handle type CSharpAppResource with extension methods
@@ -13444,15 +15950,10 @@ export interface CSharpAppResource {
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
@@ -13483,6 +15984,36 @@ export interface CSharpAppResource {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
+   */
+
+  withJvmArgs(args: string[]): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(options?: { agentPath?: string }): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(agentPath?: string): this;
+  /**
+   * Routes telemetry for the resource through the specified OpenTelemetry Collector.
+   */
+
+  withOpenTelemetryCollectorRouting(collectorBuilder: OpenTelemetryCollectorResource): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, options?: { webhookSigningSecretEnvVarName?: string }): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
 }
 
 // augments handle type DockerComposeAspireDashboardResource with extension methods
@@ -14067,15 +16598,10 @@ export interface DotnetToolResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
@@ -14106,6 +16632,49 @@ export interface DotnetToolResource {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
+   */
+
+  withJvmArgs(args: string[]): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(options?: { agentPath?: string }): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(agentPath?: string): this;
+  /**
+   * Routes telemetry for the resource through the specified OpenTelemetry Collector.
+   */
+
+  withOpenTelemetryCollectorRouting(collectorBuilder: OpenTelemetryCollectorResource): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, options?: { webhookSigningSecretEnvVarName?: string }): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
+}
+
+export interface ElasticsearchResource {
+  /**
+   * Adds an administration and development platform for Elasticsearch to the application model using Elasticvue.
+   */
+
+  withElasticvue(options?: { configureContainer?: (obj: ElasticvueContainerResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds an administration and development platform for Elasticsearch to the application model using Elasticvue.
+   */
+
+  withElasticvue(configureContainer?: (obj: ElasticvueContainerResource) => Promise<void>, containerName?: string): this;
 }
 
 // augments handle type ExecutableResource with extension methods
@@ -14666,15 +17235,10 @@ export interface ExecutableResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
@@ -14705,6 +17269,36 @@ export interface ExecutableResource {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
+   */
+
+  withJvmArgs(args: string[]): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(options?: { agentPath?: string }): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(agentPath?: string): this;
+  /**
+   * Routes telemetry for the resource through the specified OpenTelemetry Collector.
+   */
+
+  withOpenTelemetryCollectorRouting(collectorBuilder: OpenTelemetryCollectorResource): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, options?: { webhookSigningSecretEnvVarName?: string }): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
 }
 
 // augments handle type ExternalServiceResource with extension methods
@@ -15016,15 +17610,10 @@ export interface FoundryDeploymentResource {
 // augments handle type FoundryResource with extension methods
 export interface FoundryResource {
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -15248,90 +17837,6 @@ export interface IMauiPlatformResource {
   withOtlpDevTunnel(): this;
 }
 
-// augments handle type IResource with extension methods
-export interface IResource {
-  /**
-   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
-   */
-
-  withAppConfigurationRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): this;
-  /**
-   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure OpenAI resource. This replaces the default role assignments for the resource.
-   */
-
-  withCognitiveServicesRoleAssignments(target: AzureOpenAIResource, roles: AzureOpenAIRole[]): this;
-  /**
-   * Gets the Azure Container Registry associated with a compute environment resource.
-   */
-
-  getAzureContainerRegistry(): AzureContainerRegistryResource;
-  /**
-   * Configures a compute environment resource to use an Azure Container Registry.
-   */
-
-  withAzureContainerRegistry(registryBuilder: AzureContainerRegistryResource): this;
-  /**
-   * Adds role assignments to the specified Azure Container Registry resource.
-   */
-
-  withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
-  /**
-   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
-   */
-
-  withEventHubsRoleAssignments(target: AzureEventHubsResource, roles: AzureEventHubsRole[]): this;
-  /**
-   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.
-   */
-
-  withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
-  /**
-   * Associates an Azure PaaS resource with a Network Security Perimeter.
-   */
-
-  withNetworkSecurityPerimeter(nsp: AzureNetworkSecurityPerimeterResource, options?: { accessMode?: NetworkSecurityPerimeterAssociationAccessMode; associationName?: string }): this;
-  /**
-   * Associates an Azure PaaS resource with a Network Security Perimeter.
-   */
-
-  withNetworkSecurityPerimeter(nsp: AzureNetworkSecurityPerimeterResource, accessMode?: NetworkSecurityPerimeterAssociationAccessMode, associationName?: string): this;
-  /**
-   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure AI Search service resource. This replaces the default role assignments for the resource.
-   */
-
-  withSearchRoleAssignments(target: AzureSearchResource, roles: AzureSearchRole[]): this;
-  /**
-   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
-   */
-
-  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
-  /**
-   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure SignalR resource. This replaces the default role assignments for the resource.
-   */
-
-  withSignalRRoleAssignments(target: AzureSignalRResource, roles: AzureSignalRRole[]): this;
-  /**
-   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Storage account. This replaces the default role assignments for the resource.
-   */
-
-  withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
-  /**
-   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
-   */
-
-  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
-  /**
-   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
-   */
-
-  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
-  /**
-   * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
-   */
-
-  withNodePool(nodePool: KubernetesNodePoolResource): this;
-}
-
 // augments handle type IResourceWithEndpoints with extension methods
 export interface IResourceWithEndpoints {
   /**
@@ -15345,15 +17850,10 @@ export interface IResourceWithEndpoints {
 
   withBrowserLogs(browser?: string, profile?: string, userDataMode?: BrowserUserDataMode): this;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
 }
 
 // augments handle type IResourceWithEnvironment with extension methods
@@ -15368,6 +17868,36 @@ export interface IResourceWithEnvironment {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
+   */
+
+  withJvmArgs(args: string[]): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(options?: { agentPath?: string }): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(agentPath?: string): this;
+  /**
+   * Routes telemetry for the resource through the specified OpenTelemetry Collector.
+   */
+
+  withOpenTelemetryCollectorRouting(collectorBuilder: OpenTelemetryCollectorResource): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, options?: { webhookSigningSecretEnvVarName?: string }): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
 }
 
 export interface IServiceProvider {
@@ -15411,6 +17941,66 @@ export interface IServiceProvider {
    */
 
   getUserSecretsManager(): IUserSecretsManager;
+}
+
+// augments handle type JavaAppContainerResource with extension methods
+export interface JavaAppContainerResource {
+  /**
+   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
+   */
+
+  withJvmArgs(args: string[]): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(options?: { agentPath?: string }): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(agentPath?: string): this;
+}
+
+// augments handle type JavaAppExecutableResource with extension methods
+export interface JavaAppExecutableResource {
+  /**
+   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
+   */
+
+  withJvmArgs(args: string[]): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(options?: { agentPath?: string }): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(agentPath?: string): this;
+}
+
+// augments handle type JavaScriptAppResource with extension methods
+export interface JavaScriptAppResource {
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(options?: { endpointName?: string }): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(endpointName?: string): this;
+}
+
+// augments handle type KeycloakResource with extension methods
+export interface KeycloakResource {
+
+  withPostgres(database: PostgresDatabaseResource, options?: { username?: string | ParameterResource; password?: string | ParameterResource; xaEnabled?: boolean }): this;
+
+  withPostgres(database: PostgresDatabaseResource, username?: string | ParameterResource, password?: string | ParameterResource, xaEnabled?: boolean): this;
 }
 
 // augments handle type KubernetesAspireDashboardResource with extension methods
@@ -15545,6 +18135,44 @@ export interface MauiWindowsPlatformResource {
   withOtlpDevTunnel(): this;
 }
 
+// augments handle type MongoDBServerResource with extension methods
+export interface MongoDBServerResource {
+  /**
+   * Adds an administration and development platform for MongoDB to the application model using DbGate.
+   */
+
+  withDbGate(options?: { containerName?: string }): this;
+  /**
+   * Adds an administration and development platform for MongoDB to the application model using DbGate.
+   */
+
+  withDbGate(containerName?: string): this;
+}
+
+// augments handle type MySqlServerResource with extension methods
+export interface MySqlServerResource {
+  /**
+   * Adds an administration and development platform for MySql to the application model using Adminer.
+   */
+
+  withAdminer(options?: { configureContainer?: (obj: AdminerContainerResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds an administration and development platform for MySql to the application model using Adminer.
+   */
+
+  withAdminer(configureContainer?: (obj: AdminerContainerResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Adds an administration and development platform for MySql to the application model using DbGate.
+   */
+
+  withDbGate(options?: { configureContainer?: (obj: DbGateContainerResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds an administration and development platform for MySql to the application model using DbGate.
+   */
+
+  withDbGate(configureContainer?: (obj: DbGateContainerResource) => Promise<void>, containerName?: string): this;
+}
+
 // augments handle type NextJsAppResource with extension methods
 export interface NextJsAppResource {
   /**
@@ -15647,6 +18275,16 @@ export interface NextJsAppResource {
    */
 
   withYarn(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(options?: { endpointName?: string }): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(endpointName?: string): this;
 }
 
 // augments handle type NodeAppResource with extension methods
@@ -15751,6 +18389,97 @@ export interface NodeAppResource {
    */
 
   withYarn(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(options?: { endpointName?: string }): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(endpointName?: string): this;
+}
+
+// augments handle type NxAppResource with extension methods
+export interface NxAppResource {
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(options?: { endpointName?: string }): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(endpointName?: string): this;
+}
+
+// augments handle type OllamaExecutableResource with extension methods
+export interface OllamaExecutableResource {
+  /**
+   * Adds a model from Hugging Face to the Ollama resource. Only models in GGUF format are supported.
+   */
+
+  addHuggingFaceModel(name: string, modelName: string): OllamaModelResource;
+  /**
+   * Adds a model to the Ollama resource.
+   */
+
+  addModel(modelName: string): OllamaModelResource;
+  /**
+   * Adds a model to the Ollama resource.
+   */
+
+  addNamedModel(name: string, modelName: string): OllamaModelResource;
+  /**
+   * Adds an Open WebUI container to the application model for administering Ollama. This version of the package defaults to the main tag of the Open WebUI container image.
+   */
+
+  withOpenWebUI(options?: { configureContainer?: (obj: OpenWebUIResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds an Open WebUI container to the application model for administering Ollama. This version of the package defaults to the main tag of the Open WebUI container image.
+   */
+
+  withOpenWebUI(configureContainer?: (obj: OpenWebUIResource) => Promise<void>, containerName?: string): this;
+}
+
+// augments handle type OllamaResource with extension methods
+export interface OllamaResource {
+  /**
+   * Adds a model from Hugging Face to the Ollama resource. Only models in GGUF format are supported.
+   */
+
+  addHuggingFaceModel(name: string, modelName: string): OllamaModelResource;
+  /**
+   * Adds a model to the Ollama resource.
+   */
+
+  addModel(modelName: string): OllamaModelResource;
+  /**
+   * Adds a model to the Ollama resource.
+   */
+
+  addNamedModel(name: string, modelName: string): OllamaModelResource;
+  /**
+   * Adds an Open WebUI container to the application model for administering Ollama. This version of the package defaults to the main tag of the Open WebUI container image.
+   */
+
+  withOpenWebUI(options?: { configureContainer?: (obj: OpenWebUIResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds an Open WebUI container to the application model for administering Ollama. This version of the package defaults to the main tag of the Open WebUI container image.
+   */
+
+  withOpenWebUI(configureContainer?: (obj: OpenWebUIResource) => Promise<void>, containerName?: string): this;
+}
+
+// augments handle type OpenTelemetryCollectorResource with extension methods
+export interface OpenTelemetryCollectorResource {
+  /**
+   * Routes telemetry for the resource through the specified OpenTelemetry Collector.
+   */
+
+  withOpenTelemetryCollectorRouting(collectorBuilder: OpenTelemetryCollectorResource): this;
 }
 
 // augments handle type ParameterResource with extension methods
@@ -16035,6 +18764,26 @@ export interface ParameterResource {
    */
 
   withNodePool(nodePool: KubernetesNodePoolResource): this;
+}
+
+// augments handle type PostgresDatabaseResource with extension methods
+export interface PostgresDatabaseResource {
+
+  withFlywayMigration(flywayName: string, migrationScriptsPath: string): this;
+
+  withFlywayRepair(flywayName: string, migrationScriptsPath: string): this;
+}
+
+// augments handle type PostgresServerResource with extension methods
+export interface PostgresServerResource {
+
+  withAdminer(options?: { containerName?: string }): this;
+
+  withAdminer(containerName?: string): this;
+
+  withDbGate(options?: { containerName?: string }): this;
+
+  withDbGate(containerName?: string): this;
 }
 
 // augments handle type ProjectResource with extension methods
@@ -16620,15 +19369,10 @@ export interface ProjectResource {
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
   /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
 
-  withComputeEnvironment(options?: { project?: AzureCognitiveServicesProjectResource; configure?: (obj: HostedAgentConfiguration) => Promise<void> }): this;
-  /**
-   * Configures the resource to run as a hosted agent in Microsoft Foundry. If a project resource is not provided, the method will attempt to find an existing Microsoft Foundry project resource in the application model. If none exists, a new project resource (and its parent account resource) will be created automatically.
-   */
-
-  withComputeEnvironment(project?: AzureCognitiveServicesProjectResource, configure?: (obj: HostedAgentConfiguration) => Promise<void>): this;
+  asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
    */
@@ -16659,6 +19403,50 @@ export interface ProjectResource {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
+   */
+
+  withJvmArgs(args: string[]): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(options?: { agentPath?: string }): this;
+  /**
+   * Configures the OpenTelemetry Java Agent for the Java application.
+   */
+
+  withOtelAgent(agentPath?: string): this;
+  /**
+   * Routes telemetry for the resource through the specified OpenTelemetry Collector.
+   */
+
+  withOpenTelemetryCollectorRouting(collectorBuilder: OpenTelemetryCollectorResource): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, options?: { webhookSigningSecretEnvVarName?: string }): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
+}
+
+// augments handle type RedisResource with extension methods
+export interface RedisResource {
+  /**
+   * Adds an administration and development platform for Redis to the application model using DbGate.
+   */
+
+  withDbGate(options?: { configureContainer?: (obj: DbGateContainerResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds an administration and development platform for Redis to the application model using DbGate.
+   */
+
+  withDbGate(configureContainer?: (obj: DbGateContainerResource) => Promise<void>, containerName?: string): this;
 }
 
 // augments handle type SharePointToolResource with extension methods
@@ -16668,6 +19456,58 @@ export interface SharePointToolResource {
    */
 
   withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
+// augments handle type SqlServerServerResource with extension methods
+export interface SqlServerServerResource {
+  /**
+   * Adds an administration and development platform for SqlServer to the application model using Adminer.
+   */
+
+  withAdminer(options?: { containerName?: string; imageTag?: string }): this;
+  /**
+   * Adds an administration and development platform for SqlServer to the application model using Adminer.
+   */
+
+  withAdminer(containerName?: string, imageTag?: string): this;
+  /**
+   * Adds an administration and development platform for SqlServer to the application model using DbGate.
+   */
+
+  withDbGate(options?: { containerName?: string; imageTag?: string }): this;
+  /**
+   * Adds an administration and development platform for SqlServer to the application model using DbGate.
+   */
+
+  withDbGate(containerName?: string, imageTag?: string): this;
+}
+
+// augments handle type StripeResource with extension methods
+export interface StripeResource {
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, options?: { webhookSigningSecretEnvVarName?: string }): this;
+  /**
+   * Adds a reference to a Stripe CLI resource for accessing its webhook signing secret.
+   */
+
+  withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
+}
+
+// augments handle type TurborepoAppResource with extension methods
+export interface TurborepoAppResource {
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(options?: { endpointName?: string }): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(endpointName?: string): this;
 }
 
 // augments handle type UvicornAppResource with extension methods
@@ -16816,6 +19656,16 @@ export interface ViteAppResource {
    */
 
   withYarn(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(options?: { endpointName?: string }): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(endpointName?: string): this;
 }
 
 // augments handle type WebSearchToolResource with extension methods
@@ -16937,18 +19787,23 @@ export interface IAzureContainerRegistryResource {}
 export interface IAzureNspAssociationTarget {}
 export interface IAzurePrivateEndpointTarget {}
 export interface IAzurePrivateEndpointTargetNotification {}
+export interface IComparable {}
 export interface IConfigurationSection {}
 export interface IContainerRegistry {}
+export interface IConvertible {}
 export interface IDisposable {}
 export interface IEnumerable {}
+export interface IFormattable {}
 export interface IFoundryTool {}
 export interface IHost {}
 export interface IManifestExpressionProvider {}
 export interface IResourceAnnotation {}
 export interface IResourceWithAzureFunctionsConfig extends IResource {}
+export interface IResourceWithDacpac extends IResource {}
 export interface IResourceWithParameters extends IResource {}
 export interface IResourceWithProbes extends IResource {}
 export interface IResourceWithServiceDiscovery extends IResource {}
+export interface ISpanFormattable {}
 export interface IValueProvider {}
 export interface IValueWithReferences {}
 export interface InputLoadOptions {}

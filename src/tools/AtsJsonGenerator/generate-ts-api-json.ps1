@@ -2,7 +2,7 @@
 <#
 .SYNOPSIS
     Generates TypeScript API reference JSON files by running `aspire sdk dump --format json`
-    for each Aspire hosting integration that has [AspireExport] attributes.
+    for each Aspire or Community Toolkit hosting integration that has ATS capabilities.
 
 .DESCRIPTION
     Supports two input modes:
@@ -108,6 +108,51 @@ function Remove-StaleTsModuleFiles {
     Get-ChildItem -Path $OutputDirectory -File -Filter '*.json' | Where-Object {
         $_.Name -match $namePattern -and [System.IO.Path]::GetFullPath($_.FullName) -ne $currentPath
     } | Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
+function Get-JsonArrayPropertyCount {
+    param(
+        [psobject]$Object,
+        [string]$PropertyName
+    )
+
+    $property = $Object.PSObject.Properties[$PropertyName]
+    if ($null -eq $property -or $null -eq $property.Value) {
+        return 0
+    }
+
+    return @($property.Value).Count
+}
+
+function Get-TsModuleApiItemCount {
+    param([psobject]$ModuleJson)
+
+    $itemCount = 0
+    foreach ($propertyName in @("functions", "handleTypes", "dtoTypes", "enumTypes")) {
+        $itemCount += Get-JsonArrayPropertyCount -Object $ModuleJson -PropertyName $propertyName
+    }
+
+    return $itemCount
+}
+
+function Remove-EmptyTsModuleFile {
+    param(
+        [string]$PackageName,
+        [string]$OutputFile
+    )
+
+    if (-not (Test-Path $OutputFile)) {
+        throw "Cannot inspect missing TypeScript module file at $OutputFile"
+    }
+
+    $json = Get-Content $OutputFile -Raw | ConvertFrom-Json
+    if ((Get-TsModuleApiItemCount -ModuleJson $json) -gt 0) {
+        return $false
+    }
+
+    Remove-Item $OutputFile -Force
+    Write-Host "  Omitted empty TypeScript module for $PackageName" -ForegroundColor DarkYellow
+    return $true
 }
 
 function Normalize-BranchName {
@@ -337,6 +382,39 @@ function New-TemporaryNuGetConfigDirectory {
 }
 
 # ── Route 0: Auto-detect from generated C# package JSON ───────────────────────
+function Test-IsTypeScriptSdkPackage {
+    [CmdletBinding()]
+    param([string]$PackageName)
+
+    if ([string]::IsNullOrWhiteSpace($PackageName)) {
+        return $false
+    }
+
+    return (
+        $PackageName.Equals("Aspire.Hosting", [System.StringComparison]::OrdinalIgnoreCase) -or
+        $PackageName.StartsWith("Aspire.Hosting.", [System.StringComparison]::OrdinalIgnoreCase) -or
+        $PackageName.StartsWith("CommunityToolkit.Aspire.Hosting.", [System.StringComparison]::OrdinalIgnoreCase)
+    )
+}
+
+function Get-PackageSourceRepository {
+    [CmdletBinding()]
+    param([string]$PackageName)
+
+    if (
+        $PackageName.Equals("Aspire.Hosting", [System.StringComparison]::OrdinalIgnoreCase) -or
+        $PackageName.StartsWith("Aspire.Hosting.", [System.StringComparison]::OrdinalIgnoreCase)
+    ) {
+        return "https://github.com/microsoft/aspire"
+    }
+
+    if ($PackageName.StartsWith("CommunityToolkit.Aspire.Hosting.", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return "https://github.com/CommunityToolkit/Aspire"
+    }
+
+    return $null
+}
+
 if (-not $AspireRepoPath -and (-not $NuGetPackageVersion -or $NuGetPackageVersion.Count -eq 0)) {
     Write-Host "No -AspireRepoPath or -NuGetPackageVersion provided. Auto-detecting from generated C# package JSON..." -ForegroundColor Cyan
 
@@ -363,7 +441,7 @@ if (-not $AspireRepoPath -and (-not $NuGetPackageVersion -or $NuGetPackageVersio
                 }
             } |
             Where-Object {
-                ($_.Name -eq "Aspire.Hosting" -or $_.Name -like "Aspire.Hosting.*") -and
+                (Test-IsTypeScriptSdkPackage -PackageName $_.Name) -and
                 -not [string]::IsNullOrWhiteSpace($_.Version)
             } |
             Group-Object Name |
@@ -373,7 +451,7 @@ if (-not $AspireRepoPath -and (-not $NuGetPackageVersion -or $NuGetPackageVersio
     )
 
     if ($hostingPackages.Count -eq 0) {
-        Write-Error "No Aspire.Hosting package JSON files found in $packageJsonDir"
+        Write-Error "No TypeScript SDK package JSON files found in $packageJsonDir"
         return
     }
 
@@ -381,11 +459,11 @@ if (-not $AspireRepoPath -and (-not $NuGetPackageVersion -or $NuGetPackageVersio
     $NuGetPackageVersion = @($hostingPackages | ForEach-Object { "$($_.Name)@$($_.Version)" })
 
     if ($NuGetPackageVersion.Count -eq 0) {
-        Write-Error "No versioned Aspire.Hosting package JSON files found in $packageJsonDir"
+        Write-Error "No versioned TypeScript SDK package JSON files found in $packageJsonDir"
         return
     }
 
-    Write-Host "  Found $($NuGetPackageVersion.Count) Aspire.Hosting packages to process" -ForegroundColor DarkGray
+    Write-Host "  Found $($NuGetPackageVersion.Count) TypeScript SDK packages to process" -ForegroundColor DarkGray
 }
 
 # ── Helper: invoke the aspire CLI ──────────────────────────────────────────────
@@ -453,7 +531,7 @@ if ($AspireRepoPath) {
         }
     }
 
-    # Only Aspire.Hosting.* packages expose ATS capabilities for the TypeScript SDK.
+    # Only hosting packages expose ATS capabilities for the TypeScript SDK.
     # Client/component packages (e.g. Aspire.Azure.Data.Tables) are not applicable.
     $hostingDirs = Get-ChildItem -Path $SrcDir -Directory -Filter "Aspire.Hosting.*" | Where-Object {
         $_.Name -notmatch "(Analyzers|CodeGeneration|RemoteHost|Tests)"
@@ -496,8 +574,8 @@ if ($NuGetPackageVersion -and $NuGetPackageVersion.Count -gt 0) {
         $pkgName = $Matches[1]
         $pkgVersion = $Matches[2]
 
-        if ($pkgName -ne "Aspire.Hosting" -and -not $pkgName.StartsWith("Aspire.Hosting.")) {
-            Write-Warning "Skipping $pkgName — only Aspire.Hosting.* packages have ATS capabilities"
+        if (-not (Test-IsTypeScriptSdkPackage -PackageName $pkgName)) {
+            Write-Warning "Skipping $pkgName — only Aspire.Hosting* and CommunityToolkit.Aspire.Hosting* packages have ATS capabilities"
             continue
         }
 
@@ -612,9 +690,12 @@ foreach ($pkg in $corePackages) {
             "run", "--project", $ToolProject, "--no-build", "--",
             "--input", $dumpFile,
             "--output", $outputFile,
-            "--package-name", $name,
-            "--source-repo", "https://github.com/microsoft/aspire"
+            "--package-name", $name
         )
+        $sourceRepository = Get-PackageSourceRepository -PackageName $name
+        if ($sourceRepository) {
+            $transformArgs += @("--source-repo", $sourceRepository)
+        }
 
         & dotnet @transformArgs 2>&1 | ForEach-Object {
             if ($_ -match "Generated:") {
@@ -699,9 +780,12 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
             "run", "--project", $ToolProject, "--no-build", "--",
             "--input", $dumpFile,
             "--output", $outputFile,
-            "--package-name", $name,
-            "--source-repo", "https://github.com/microsoft/aspire"
+            "--package-name", $name
         )
+        $sourceRepository = Get-PackageSourceRepository -PackageName $name
+        if ($sourceRepository) {
+            $transformArgs += @("--source-repo", $sourceRepository)
+        }
 
         # Dedup against core if available
         if ($coreOutputFile) {
@@ -717,9 +801,13 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
         }
 
         if ($LASTEXITCODE -eq 0) {
-            $success++
             if ($version) {
                 Remove-StaleTsModuleFiles -PackageName $name -CurrentOutputFile $outputFile -OutputDirectory $OutputDir
+            }
+            if (Remove-EmptyTsModuleFile -PackageName $name -OutputFile $outputFile) {
+                $skipped++
+            } else {
+                $success++
             }
         } else {
             Write-Warning "  Transform failed"

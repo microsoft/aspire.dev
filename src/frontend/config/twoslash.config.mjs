@@ -58,9 +58,9 @@ export const TWOSLASH_COMPILER_OPTIONS = Object.freeze({
 
 /**
  * Twoslash handbook options. We keep `noErrorValidation: true` so an
- * unannotated TS error in a sample doesn't *fail* the twoslash pass — the
- * site still renders the diagnostic, and the audit harness still surfaces
- * it. Without this, the build itself would crash on the first stale sample.
+ * unannotated TS error in a sample doesn't crash the twoslash pass on the
+ * first stale sample. The strict audit test collects every diagnostic and
+ * fails if any block would render an error UX.
  */
 export const TWOSLASH_HANDBOOK_OPTIONS = Object.freeze({
   noErrorValidation: true,

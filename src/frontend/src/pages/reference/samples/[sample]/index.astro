@@ -1,0 +1,69 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { getImage } from 'astro:assets';
+
+import Breadcrumb from '@components/Breadcrumb.astro';
+import SampleDetail from '@components/SampleDetail.astro';
+import samplesJson from '@data/samples.json';
+import { sampleDescriptionText, sampleSlug, type Sample } from '@utils/samples';
+
+export function getStaticPaths() {
+  return (samplesJson as Sample[]).map((sample) => ({
+    params: { sample: sampleSlug(sample.name) },
+    props: { sample },
+  }));
+}
+
+const { sample } = Astro.props as { sample: Sample };
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const samplesHref = `${base}/reference/samples/`;
+const allImages = import.meta.glob<{ default: ImageMetadata }>(
+  '/src/assets/samples/**/*.{png,jpg,jpeg,gif,svg,webp}',
+  { eager: true }
+);
+
+function resolveImage(thumbnail: string | null): ImageMetadata | null {
+  if (!thumbnail) return null;
+  const importPath = thumbnail.replace('~/assets/', '/src/assets/');
+  const entry = allImages[importPath];
+  return entry?.default ?? null;
+}
+
+const resolvedThumbnail = resolveImage(sample.thumbnail);
+const sampleOgImage = resolvedThumbnail
+  ? (await getImage({ src: resolvedThumbnail, width: 1200 })).src
+  : undefined;
+const description =
+  sampleDescriptionText(sample.description)
+    ?.split('\n')
+    .find((line) => line.trim().length > 0)
+    ?.trim() ?? `Explore the ${sample.title} Aspire sample.`;
+---
+
+<StarlightPage
+  frontmatter={{
+    title: sample.title,
+    description,
+    ...(sampleOgImage ? { ogImage: sampleOgImage } : {}),
+    topic: 'reference',
+    category: 'sample',
+    prev: false,
+    next: false,
+    tableOfContents: false,
+    lastUpdated: false,
+    editUrl: false,
+    giscus: false,
+    pageActions: true,
+  }}
+>
+  <Breadcrumb
+    crumbs={[
+      { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+      { label: 'Reference', href: `${base}/reference/overview/` },
+      { label: 'Samples', href: samplesHref },
+      { label: sample.title },
+    ]}
+  />
+
+  <SampleDetail sample={sample} samplesHref={samplesHref} />
+</StarlightPage>

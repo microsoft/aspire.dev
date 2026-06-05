@@ -1,6 +1,7 @@
 import type { StarlightSidebarTopicsUserConfig } from 'starlight-sidebar-topics';
 
 export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
+  id: 'reference',
   label: {
     en: 'Reference',
     es: 'Referencia',
@@ -212,6 +213,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             'zh-CN': '安装脚本',
           },
           slug: 'reference/cli/install-script',
+        },
+        {
+          label: 'Search and filter',
+          slug: 'reference/cli/search-filter',
         },
         {
           label: 'Configuration',
@@ -434,6 +439,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-export',
             },
             { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
+            { label: 'aspire ls', slug: 'reference/cli/commands/aspire-ls' },
             {
               label: 'aspire logs',
               slug: 'reference/cli/commands/aspire-logs',

@@ -154,13 +154,13 @@ await builder.build().run();
 - `name`: 呼び出すコマンド名。
 - `displayName`: ダッシュボードに表示するコマンド名。
 - `executeCommand`: コマンド呼び出し時に実行されるコールバック。C# では型が `Func<ExecuteCommandContext, Task<ExecuteCommandResult>>`、TypeScript では `(context: ExecuteCommandContext) => Promise<ExecuteCommandResult>` です。
-- `updateState`: ダッシュボード上でコマンドを有効化する状態を判定するコールバック。C# では `Func<UpdateCommandStateContext, ResourceCommandState>` で、`CommandOptions.UpdateState` 経由で指定します。TypeScript では `CommandOptions` 上の `updateState` フィールドです（現在は `any` 型）。
+- `updateState`: ダッシュボード上でコマンドを有効化する状態を判定するコールバック。C# では `Func<UpdateCommandStateContext, ResourceCommandState>` で、`CommandOptions.UpdateState` 経由で指定します。TypeScript では `(context: UpdateCommandStateContext) => Promise<ResourceCommandState>` で、`CommandOptions` 上の `updateState` フィールドとして指定します。
 - `iconName`: ダッシュボードに表示するアイコン名。アイコンは省略可能ですが、指定する場合は有効な [Fluent UI Blazor アイコン名](https://www.fluentui-blazor.net/Icon#explorer) である必要があります。
 - `iconVariant`: ダッシュボードに表示するアイコンのバリアント。有効な値は `Regular`（既定）または `Filled` です。
 
 ## コマンド実行ロジック
 
-`executeCommand` コールバックは、コマンド ロジックを実装する場所です。受け取る `ExecuteCommandContext` から、サービス プロバイダー、操作対象リソース、キャンセル トークンにアクセスできます。
+`executeCommand` コールバックは、コマンド ロジックを実装する場所です。受け取る `ExecuteCommandContext` から、操作対象リソース、キャンセル、ログなどのコマンド固有データにアクセスできます。
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -204,12 +204,12 @@ private static async Task<ExecuteCommandResult> OnRunClearCacheCommandAsync(
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-TypeScript でのコールバック シグネチャは `(context: ExecuteCommandContext) => Promise<ExecuteCommandResult>` です。`ExecuteCommandContext` は camelCase の同等サーフェスを公開し、加えてショートカットとして `logger` アクセサーを提供します。
+TypeScript でのコールバック シグネチャは `(context: ExecuteCommandContext) => Promise<ExecuteCommandResult>` です。`ExecuteCommandContext` はコマンド固有データの async アクセサーを公開します。
 
-- `serviceProvider` — 依存性注入コンテナーの async アクセサー。
-- `resourceName` — リソース インスタンス名の async アクセサー。
-- `cancellationToken` — `CancellationToken` を返す async アクセサー。`await` して `AbortSignal` を受け取る API に転送できます。
-- `logger` — リソース ロガーの async アクセサー。`serviceProvider` からロガーを解決するのと同等です。
+- `resourceName()` — リソース インスタンス名。
+- `cancellationToken()` — `AbortSignal` を受け取る API に転送できる `CancellationToken`。
+- `logger()` — リソース ロガー。
+- `arguments()` — コマンド実行時に渡された呼び出し引数。
 
 TypeScript コールバックは通常、async アロー関数としてインライン定義します。次の例は、リソースの HTTP エンドポイントを取得し、キャンセル トークンを `fetch` に転送します。
 
@@ -217,7 +217,7 @@ TypeScript コールバックは通常、async アロー関数としてインラ
 async (context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
     const endpoint = await cache.getEndpoint("http");
     const url = await endpoint.url.get();
-    const cancellation = await context.cancellationToken.get();
+    const cancellation = await context.cancellationToken();
 
     const res = await fetch(`${url}/admin/cache/clear`, {
         method: "POST",
@@ -286,13 +286,13 @@ private static ResourceCommandState OnUpdateResourceState(
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-<Aside type="caution">
-TypeScript の `UpdateCommandStateContext` は現在 `serviceProvider` のみを公開し、`resourceSnapshot` プロパティは **公開していません**。そのため、`ResourceSnapshot.HealthStatus` でコマンドをゲートする C# パターンに、現時点で直接対応する TypeScript 等価表現はありません。TypeScript コールバックでもプロバイダーからサービス解決はできますが、ライブのリソース スナップショットは検査できません。
-</Aside>
+TypeScript では `CommandOptions` の `updateState` フィールドは非同期コールバックで、`UpdateCommandStateContext` を受け取ります。コンテキストは `resourceSnapshot()` を公開します。これは、`healthStatus` とライフサイクル状態の `state` を含む、リソース インスタンスのスナップショットを返す非同期関数です。
 
-TypeScript では `CommandOptions` の `updateState` フィールドが緩い型（`any`）であり、SDK はまだ `ResourceCommandState` 列挙体をエクスポートしていません。現時点の TypeScript AppHost で最も単純な方法は、`updateState` を完全に省略することです。コマンドは既定で有効になり、リソース到達後にのみコマンド登録します。
+次の例では、C# パターンと同様に、リソースが健全な状態のときのみ `clear-cache` コマンドを有効にします。
 
 ```typescript title="apphost.mts"
+import { HealthStatus, ResourceCommandState } from './.modules/aspire.js';
+
 await cache.withCommand(
     "clear-cache",
     "Clear Cache",
@@ -300,11 +300,23 @@ await cache.withCommand(
     {
         commandOptions: {
             iconName: "AnimalRabbitOff",
+            updateState: async (ctx) => {
+                const snapshot = await ctx.resourceSnapshot();
+
+                return snapshot.healthStatus === HealthStatus.Healthy
+                    ? ResourceCommandState.Enabled
+                    : ResourceCommandState.Disabled;
+            },
         },
     });
 ```
 
-TypeScript AppHost でライフサイクル対応のゲーティングが必要な場合は、コールバック内ではなく外側で制御します。たとえば、接続文字列またはエンドポイント イベントを購読した後に、コマンドが依存するデータがリソースから公開されてからコマンドを登録してください。
+上記のコードは以下を行います。
+
+- `ctx.resourceSnapshot()` を呼び出して現在のリソース スナップショットを取得します。
+- リソースが健全であれば `ResourceCommandState.Enabled` を返し、そうでなければ `ResourceCommandState.Disabled` を返します。
+
+`HealthStatus` と `ResourceCommandState` 列挙体は生成された SDK（`aspire.ts`）からエクスポートされており、直接インポートして使用できます。
 
 </TabItem>
 </Tabs>
@@ -352,7 +364,7 @@ await cache.withCommand(
     async (context) => {
         const endpoint = await cache.getEndpoint("http");
         const url = await endpoint.url.get();
-        const cancellation = await context.cancellationToken.get();
+        const cancellation = await context.cancellationToken();
 
         const res = await fetch(`${url}/admin/cache/clear`, {
             method: "POST",
@@ -411,21 +423,20 @@ await builder.build().run();
 
 ## コマンドをプログラムで実行する
 
-<Aside type="note">
-`ResourceCommandService` を使ったプログラムによるコマンド実行は、現在 **C# AppHost 機能** です。TypeScript SDK ではカスタム コマンドを登録できますが、他のコマンド内からコマンドを呼び出すサービスはまだ公開されていません。したがって、次の 3 つのサブセクション（_カスタム コマンドからコマンドを実行する_、_リソース ID でコマンドを実行する_、_レプリカを持つリソースでコマンドを実行する_）は C# 専用です。この後に続く [_コマンド実行結果を処理する_](#コマンド実行結果を処理する) サブセクションは、どちらの言語で書いたコマンドにも当てはまります。
-</Aside>
-
 [Aspire ダッシュボード](/ja/dashboard/overview/) を介してコマンドを実行するだけでなく、`ResourceCommandService` を使ってプログラムからコマンドを実行することもできます。このサービスは、次のような場合に有用です。
 
 - アプリケーション コード内からコマンドを実行する
 - ワークフローの一部としてコマンド実行を自動化する
 - リソース制御が必要なカスタム ツールを構築する
 
-最も一般的なシナリオは、他のカスタム コマンド実装からコマンドを呼び出すことです。`ExecuteCommandContext` は `IServiceProvider` へのアクセスを提供し、これを使って `ResourceCommandService` を取得できます。
+最も一般的なシナリオは、他のカスタム コマンド実装からコマンドを呼び出すことです。C# では `ExecuteCommandContext.ServiceProvider` を使って `ResourceCommandService` を取得します。TypeScript では、コマンドを登録する前に AppHost の実行コンテキストからサービスを解決し、コールバックでキャプチャします。
 
 ### カスタム コマンドからコマンドを実行する
 
 次の例は、他のコマンドを実行するカスタム コマンドの作成方法を示しています。このケースでは、"reset-all" コマンドがキャッシュをクリアし、データベースを再起動します。
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.ApplicationModel;
@@ -474,19 +485,74 @@ var api = builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const executionContext = await builder.executionContext();
+const serviceProvider = await executionContext.serviceProvider();
+const commandService = await serviceProvider.getResourceCommandService();
+
+const cache = await builder.addRedis("cache");
+await cache.withCommand("clear-cache", "Clear Cache", async () => {
+    // キャッシュ クリアの実装
+    return { success: true };
+});
+
+const database = await builder.addPostgres("postgres");
+await database.withCommand("restart", "Restart Database", async () => {
+    // データベース再起動の実装
+    return { success: true };
+});
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(cache);
+await api.withReference(database);
+await api.withCommand("reset-all", "Reset Everything", async (ctx) => {
+    const logger = await ctx.logger();
+    const cancellationToken = await ctx.cancellationToken();
+
+    await logger.logInformation("Starting full system reset...");
+
+    const clearResult = await commandService.executeCommandAsync(
+        "cache", "clear-cache", { cancellationToken });
+
+    const restartResult = await commandService.executeCommandAsync(
+        "postgres", "restart", { cancellationToken });
+
+    if (!clearResult.success || !restartResult.success) {
+        return { success: false, message: "System reset failed" };
+    }
+
+    await logger.logInformation("System reset completed successfully");
+    return { success: true };
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 この例では:
 
-- `context` パラメーターで `ServiceProvider` と `Logger` にアクセスします。
-- `context.Logger` は Aspire ダッシュボード内のリソース ログ ストリームへ直接ログを書き込みます。サービス プロバイダーからロガーを解決する必要はありません。
-- `ResourceCommandService` はサービス プロバイダーから取得します。
-- コマンドは `cache.Resource` と `database.Resource` を使ってリソース インスタンスに対して実行します。
+- C# では `context` パラメーターでサービス プロバイダーとロガーにアクセスします。
+- TypeScript では、コマンドを登録する前に AppHost 実行コンテキストのサービス プロバイダーから `ResourceCommandService` を取得します。
+- C# では `cache.Resource` と `database.Resource` を使ってリソース インスタンスに対してコマンドを実行し、TypeScript では `"cache"` や `"postgres"` などのリソース名文字列を使って実行します。
 - 各コマンド結果の成功を確認してから次へ進みます。
 
 ### リソース ID でコマンドを実行する
 
 リソース ID またはリソース名を使ってコマンドを実行することもできます。リソース ID はリソース インスタンスの一意識別子で、リソース名は表示名です（この方法を使うには一意である必要があります）。
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var result = await commandService.ExecuteCommandAsync(
     resourceId: "cache", 
     commandName: "clear-cache",
@@ -506,7 +572,31 @@ else
 }
 ```
 
-`resourceId` パラメーターには、次のいずれかを指定できます:
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const result = await commandService.executeCommandAsync(
+    "cache",
+    "clear-cache",
+    { cancellationToken });
+
+if (result.success) {
+    console.log("Command executed successfully");
+}
+else if (result.canceled) {
+    console.warn("Command was canceled");
+}
+else {
+    console.error(`Command failed: ${result.message}`);
+}
+```
+
+</TabItem>
+</Tabs>
+
+リソース識別子引数（C# の `resourceId`、または TypeScript で文字列を渡す場合の最初の引数）には、次のいずれかを指定できます:
+
 - リソースの一意 ID（例: レプリカを持つリソースの `cache-abcdwxyz`）
 - 重複名がない場合の表示名（例: `cache`）
 
@@ -514,7 +604,7 @@ else
 
 複数レプリカを持つリソースに対して `IResource` オーバーロードでコマンドを実行すると、すべてのインスタンスで並列実行されます。
 
-```csharp
+```csharp title="AppHost.cs"
 // レプリカを持つリソースでは、すべてのインスタンスでコマンドが実行される
 var result = await commandService.ExecuteCommandAsync(
     resource: cache.Resource,
@@ -522,7 +612,10 @@ var result = await commandService.ExecuteCommandAsync(
     cancellationToken: cancellationToken);
 ```
 
+TypeScript では、前述のリソース識別子オーバーロードを使います。特定のレプリカ ID を渡して 1 つのインスタンスを対象にするか、重複名がない場合は一意のリソース名を渡します。
+
 複数レプリカ上で実行した場合の動作:
+
 - コマンドはすべてのインスタンスで並列実行されます。
 - すべてのコマンドが成功した場合、結果は成功を示します。
 - いずれかのコマンドが失敗した場合、結果には失敗の詳細が含まれます。

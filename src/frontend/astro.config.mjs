@@ -10,6 +10,7 @@ import { socialConfig } from './config/socials.config.ts';
 import catppuccin from '@catppuccin/starlight';
 import lunaria from './config/lunaria-starlight.mjs';
 import mermaid from 'astro-mermaid';
+import mdx from '@astrojs/mdx';
 import starlight from '@astrojs/starlight';
 import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightImageZoom from 'starlight-image-zoom';
@@ -223,6 +224,10 @@ export default defineConfig({
           ],
         }),
       ],
+    }),
+    mdx({
+      optimize: true,
+      gfm: true,
     }),
     jopSoftwarecookieconsent(cookieConfig),
     ...(isBuildTimingEnabled ? [buildTiming()] : []),

@@ -1,4 +1,5 @@
 import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+import { isApiReferencePath } from '@utils/api-reference-routes';
 
 /**
  * Shared page-metadata helpers used by both the structured-data JSON-LD
@@ -63,10 +64,7 @@ const NON_DEFAULT_LOCALE_PREFIXES = [
   'zh-cn',
 ] as const;
 
-const localePrefixPattern = new RegExp(
-  `^(?:${NON_DEFAULT_LOCALE_PREFIXES.join('|')})(?:/|$)`,
-  'i'
-);
+const localePrefixPattern = new RegExp(`^(?:${NON_DEFAULT_LOCALE_PREFIXES.join('|')})(?:/|$)`, 'i');
 
 const releaseNotePattern = /^whats-new\/aspire-/i;
 
@@ -81,7 +79,13 @@ type RouteEntryData = {
   template?: string;
 };
 
-type MinimalRoute = Pick<StarlightRouteData, 'entry' | 'entryMeta' | 'head' | 'lang' | 'locale'>;
+type MinimalRoute = Pick<StarlightRouteData, 'entryMeta' | 'head' | 'lang' | 'locale'> & {
+  entry: {
+    id: string;
+    data: Record<string, unknown>;
+    filePath?: string;
+  };
+};
 
 export type OgType = 'website' | 'article';
 
@@ -275,6 +279,8 @@ export function shouldSkipDynamicOgImage(route: MinimalRoute, contentBasePath: s
   const data = route.entry.data as RouteEntryData;
   if (data.og === false) return true;
   if (data.template === 'splash') return true;
+  if (isPagesRoute(route)) return true;
+  if (isApiReferencePath(contentBasePath)) return true;
   if (isHomePagePath(contentBasePath)) return true;
   if (contentBasePath === '404') return true;
   return false;
@@ -338,6 +344,11 @@ export function resolveSiteUrl(site: URL | string | undefined, currentUrl: URL):
 
 function normalizeEntryId(entryId: string): string {
   return entryId.replace(/\\/g, '/');
+}
+
+function isPagesRoute(route: MinimalRoute): boolean {
+  const filePath = normalizeEntryId(route.entry.filePath ?? '').replace(/^\/+/, '');
+  return filePath.startsWith('src/pages/');
 }
 
 function stripMarkdownExtension(value: string): string {

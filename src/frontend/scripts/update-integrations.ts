@@ -14,6 +14,7 @@ const OFFICIAL_RELEASE_FEED_QUERIES = ['Aspire.'];
 const COMMUNITY_TOOLKIT_QUERIES = ['CommunityToolkit.Aspire'];
 const EXCLUDED_PACKAGES = [
   'Aspire.Cli',
+  'Aspire.Hosting.Azure.AIFoundry',
   'Aspire.Hosting.IncrementalMigration',
   'Aspire.Hosting.NodeJs',
   'Aspire.Hosting.Testing',

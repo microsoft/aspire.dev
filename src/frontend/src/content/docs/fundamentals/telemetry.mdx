@@ -4,9 +4,8 @@ seoTitle: 'Aspire telemetry: OpenTelemetry logs, traces, and metrics'
 description: Learn the essential Aspire telemetry concepts — logging, distributed tracing, and metrics with OpenTelemetry, and how the Aspire dashboard surfaces them in real time.
 ---
 
-
-import { Kbd } from 'starlight-kbd/components';
 import { Aside } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
 
 One of the primary objectives of Aspire is to ensure that apps are straightforward to debug and diagnose. Aspire integrations automatically set up logging, tracing, and metrics configurations—sometimes known as the pillars of observability—using the [.NET OpenTelemetry SDK](https://github.com/open-telemetry/opentelemetry-dotnet).
@@ -59,7 +58,7 @@ When you create an Aspire project, the Aspire dashboard provides a UI for viewin
 
 ### Telemetry flow in local development
 
-When you start an Aspire project with debugging (pressing <kbd>F5</kbd>), the following workflow occurs:
+When you start an Aspire project with debugging (pressing <Kbd windows="F5" />), the following workflow occurs:
 
 1. **Dashboard and DCP start** — The Aspire dashboard and developer control plane (DCP) start
 2. **App configuration runs** — The AppHost project runs its configuration:
@@ -72,6 +71,34 @@ When you start an Aspire project with debugging (pressing <kbd>F5</kbd>), the fo
 5. **Dashboard displays** — The dashboard displays near real-time telemetry of all Aspire projects
 
 All of these steps happen internally, so in most cases you simply need to run the app to see this process in action.
+
+### Use telemetry with AI coding agents
+
+AI coding agents can access Aspire telemetry to diagnose issues, inspect app behavior, and monitor resources without requiring you to manually copy data from the dashboard. The Aspire CLI is built for agent-driven workflows—commands support non-interactive execution and `--format Json` for structured output that agents can parse.
+
+When running an Aspire AppHost, agents use CLI commands like `aspire otel logs`, `aspire otel traces`, and `aspire describe` to fetch structured logs, distributed traces, and resource status directly from the dashboard. A typical agent workflow starts the app with `aspire start`, waits for resources with `aspire wait`, then queries telemetry to diagnose issues and verify fixes.
+
+When using a standalone dashboard, agents pass `--dashboard-url` to point CLI commands at the dashboard instance and query telemetry from any application sending OTLP data.
+
+<LearnMore>
+
+- [AI coding agents and Aspire](/get-started/ai-coding-agents/) — using AI agents with an Aspire AppHost
+- [AI coding agents and the Aspire Dashboard](/dashboard/ai-coding-agents/#standalone-mode) — using AI agents with a standalone dashboard
+
+</LearnMore>
+
+## APIs and data access
+
+The Aspire dashboard exposes APIs for both receiving and querying telemetry data. Applications write data to the dashboard using OTLP endpoints, and developers and tools read data back through multiple interfaces:
+
+- **Aspire CLI** — The `aspire otel logs`, `aspire otel traces`, and `aspire otel spans` commands query telemetry directly from the terminal. Use `--format Json` for structured output suitable for scripting and automation.
+- **Export** — The `aspire export` command packages telemetry and resource data into a zip file for offline analysis or sharing.
+- **MCP server** — The Aspire MCP server exposes dashboard data to AI coding agents through Model Context Protocol tools.
+- **HTTP telemetry API** — The dashboard exposes HTTP endpoints under `/api/telemetry/` that return data in OTLP JSON format, supporting real-time streaming and resource filtering.
+
+<LearnMore>
+For more information, see [Dashboard APIs and data access](/dashboard/apis/).
+</LearnMore>
 
 ## Deployment
 

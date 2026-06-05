@@ -1,44 +1,22 @@
 ---
 import { Badge, Icon } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
-// marked is used at build-time only (Astro component server code) — no client bundle cost
-import { marked } from 'marked';
 import { tagLabel } from '@utils/sample-tags';
+import {
+  appHostIconName,
+  appHostShortLabel,
+  sampleDescriptionText,
+  type ResolvedSample,
+} from '@utils/samples';
 
 interface Props {
-  sample: {
-    name: string;
-    title: string;
-    description: string | null;
-    href: string;
-    tags: string[];
-    thumbnail: string | null;
-    resolvedThumbnail: ImageMetadata | null;
-  };
+  sample: ResolvedSample;
 }
 
 const { sample } = Astro.props;
 
-
-
-// Render markdown, stripping relative links (repo-internal) to plain text
-
-function renderMarkdown(md: string): string {
-  const renderer = new marked.Renderer();
-  renderer.link = function ({ href, title, tokens }) {
-    // Strip relative links — just output the link text
-    if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:')) {
-      const text = tokens?.map((t: any) => t.raw || t.text || '').join('') || '';
-      return text;
-    }
-    const defaultLinkRenderer = Object.getPrototypeOf(renderer).link.bind(renderer);
-    return defaultLinkRenderer({ href, title, tokens });
-  };
-  return marked.parse(md, { breaks: false, gfm: true, renderer }) as string;
-}
-
 /**
- * Split a markdown description into a preview (first paragraph or intro before
+ * Split a plain text description into a preview (first paragraph or intro before
  * a list) and the remaining content. Short descriptions are not split.
  */
 function splitDescription(text: string): { preview: string; rest: string | null } {
@@ -82,84 +60,120 @@ function splitDescription(text: string): { preview: string; rest: string | null 
   return { preview: text, rest: null };
 }
 
-let previewHtml: string | null = null;
-let restHtml: string | null = null;
+let previewText: string | null = null;
+let restText: string | null = null;
+const descriptionText = sampleDescriptionText(sample.description);
 
-if (sample.description) {
+if (descriptionText) {
   // Cards without a thumbnail show full text (no truncation)
   if (!sample.resolvedThumbnail) {
-    previewHtml = renderMarkdown(sample.description);
-    restHtml = null;
+    previewText = descriptionText;
+    restText = null;
   } else {
-    const { preview, rest } = splitDescription(sample.description);
-    previewHtml = renderMarkdown(preview);
-    restHtml = rest ? renderMarkdown(rest) : null;
+    const { preview, rest } = splitDescription(descriptionText);
+    previewText = preview;
+    restText = rest;
   }
 }
 
 const visibleTags = sample.tags.slice(0, 5);
 const remaining = Math.max(sample.tags.length - 5, 0);
 const overflowTags = sample.tags.slice(5);
+
+const appHostIcon = appHostIconName(sample.appHost);
 ---
 
 <article
   class="sample-card"
+  class:list={[sample.resolvedThumbnail && 'has-thumbnail']}
+  data-sample-detail-href={sample.detailHref}
   data-tags={sample.tags.join(',')}
   data-title={sample.title.toLowerCase()}
   data-name={sample.name}
   data-description={(sample.description || '').toLowerCase()}
 >
-  {sample.resolvedThumbnail && (
-    <div class="thumbnail">
-      <Image
-        src={sample.resolvedThumbnail}
-        alt={`Screenshot of the ${sample.title} sample`}
-        loading="lazy"
-        widths={[400, 800]}
-        sizes="(min-width: 768px) 50vw, 100vw"
-      />
-    </div>
-  )}
+  {
+    sample.resolvedThumbnail && (
+      <div class="thumbnail">
+        <Image
+          src={sample.resolvedThumbnail}
+          alt={`Screenshot of the ${sample.title} sample`}
+          loading="lazy"
+          widths={[400, 800]}
+          sizes="(min-width: 768px) 50vw, 100vw"
+        />
+      </div>
+    )
+  }
   <div class="card-body">
     <h3 class="title">
-      <a href={sample.href} target="_blank" rel="noopener noreferrer">
+      <a href={sample.detailHref}>
         {sample.title}
       </a>
     </h3>
-    {previewHtml && (
-      <div class="desc" data-desc>
-        <div set:html={previewHtml} />
-        {restHtml && (
-          <div class="desc-rest" set:html={restHtml} data-desc-rest hidden />
-        )}
-        {restHtml && (
-          <button class="read-more-btn" data-read-more type="button">
-            Read more&hellip;
-          </button>
-        )}
-      </div>
-    )}
-    {sample.tags.length > 0 && (
-      <div class="badges">
-        {visibleTags.map((tag) => (
-          <span data-tag-key={tag}>
-            <Badge text={tagLabel(tag)} size="small" />
-          </span>
-        ))}
-        {remaining > 0 && (
-          <Badge
-            text={`+${remaining}`}
-            size="small"
-            variant="tip"
-            title={overflowTags.map(tagLabel).join(', ')}
-          />
-        )}
-      </div>
-    )}
+    {
+      previewText && (
+        <div class="desc" data-desc>
+          <p>{previewText}</p>
+          {restText && (
+            <div class="desc-rest" data-desc-rest hidden>
+              <p>{restText}</p>
+            </div>
+          )}
+          {restText && (
+            <button class="read-more-btn" data-read-more type="button">
+              Read more&hellip;
+            </button>
+          )}
+        </div>
+      )
+    }
+    {
+      sample.tags.length > 0 && (
+        <div class="badges">
+          {visibleTags.map((tag) => (
+            <span data-tag-key={tag}>
+              <Badge text={tagLabel(tag)} size="small" />
+            </span>
+          ))}
+          {remaining > 0 && (
+            <Badge
+              text={`+${remaining}`}
+              size="small"
+              variant="tip"
+              title={overflowTags.map(tagLabel).join(', ')}
+            />
+          )}
+        </div>
+      )
+    }
     <div class="footer">
+      {
+        sample.appHost && (
+          <div class="apphost-pill" data-apphost={sample.appHost}>
+            {appHostIcon ? (
+              <Icon name={appHostIcon} size="0.85rem" />
+            ) : (
+              <svg
+                class="apphost-glyph"
+                aria-hidden="true"
+                viewBox="0 0 16 16"
+                width="12"
+                height="12"
+              >
+                <path
+                  d="M5.6 4.2 2.2 7.6c-.22.22-.22.58 0 .8L5.6 11.8c.22.22.58.22.8 0a.566.566 0 0 0 0-.8L3.42 8l3-3a.566.566 0 0 0 0-.8.566.566 0 0 0-.82 0Zm4.8 0a.566.566 0 0 0-.8.8l3 3-3 3a.566.566 0 0 0 0 .8c.22.22.58.22.8 0l3.4-3.4a.566.566 0 0 0 0-.8l-3.4-3.4Z"
+                  fill="currentColor"
+                />
+              </svg>
+            )}
+            <span>{appHostShortLabel(sample.appHost)} AppHost</span>
+          </div>
+        )
+      }
       <a href={sample.href} target="_blank" rel="noopener noreferrer" class="link">
+        <Icon name="github" size="1rem" />
         View on GitHub
-        <Icon name="external" size="1rem" />
       </a>
     </div>
   </div>
@@ -167,8 +181,10 @@ const overflowTags = sample.tags.slice(5);
 
 <script>
   document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+
     // Read-more toggle with smooth animation
-    const btn = (e.target as HTMLElement).closest('[data-read-more]') as HTMLButtonElement | null;
+    const btn = target.closest('[data-read-more]') as HTMLButtonElement | null;
     if (btn) {
       const desc = btn.closest('[data-desc]');
       if (!desc) return;
@@ -184,7 +200,7 @@ const overflowTags = sample.tags.slice(5);
     // Clickable tag badges — activate the matching filter chip in the grid.
     // Each badge is wrapped in a <span data-tag-key="..."> so we can match by
     // tag key rather than display text, avoiding locale/whitespace mismatches.
-    const badgeWrap = (e.target as HTMLElement).closest('[data-tag-key]') as HTMLElement | null;
+    const badgeWrap = target.closest('[data-tag-key]') as HTMLElement | null;
     if (badgeWrap) {
       const tagKey = badgeWrap.dataset.tagKey;
       if (!tagKey) return;
@@ -194,6 +210,15 @@ const overflowTags = sample.tags.slice(5);
       if (chip) {
         chip.click();
         chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+      return;
+    }
+
+    const card = target.closest('[data-sample-detail-href]') as HTMLElement | null;
+    if (card && !target.closest('a, button')) {
+      const href = card.dataset.sampleDetailHref;
+      if (href) {
+        window.location.href = href;
       }
     }
   });
@@ -205,7 +230,7 @@ const overflowTags = sample.tags.slice(5);
     flex-direction: column;
     border: 1px solid var(--sl-color-gray-5);
     border-top: 3px solid transparent;
-    border-radius: 0.75rem;
+    border-radius: 0.5rem;
     overflow: hidden;
     box-shadow: var(--sl-shadow-sm);
     background: linear-gradient(
@@ -213,14 +238,38 @@ const overflowTags = sample.tags.slice(5);
       color-mix(in srgb, var(--sl-color-gray-6) 100%, transparent) 0%,
       color-mix(in srgb, var(--sl-color-gray-6) 85%, var(--sl-color-black)) 100%
     );
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    transition:
+      box-shadow 0.2s ease,
+      border-color 0.2s ease,
+      transform 0.2s ease;
     break-inside: avoid;
+    cursor: pointer;
   }
 
-  .sample-card:hover {
+  .sample-card:hover,
+  .sample-card:focus-within {
     box-shadow: var(--sl-shadow-md);
     border-color: var(--sl-color-gray-4);
     border-top-color: var(--sl-color-accent);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .sample-card.has-thumbnail:hover,
+    .sample-card.has-thumbnail:focus-within {
+      transform: translateY(-2px);
+    }
+
+    .sample-card.has-thumbnail .thumbnail img {
+      transition:
+        transform 0.35s ease,
+        filter 0.35s ease;
+    }
+
+    .sample-card.has-thumbnail:hover .thumbnail img,
+    .sample-card.has-thumbnail:focus-within .thumbnail img {
+      transform: scale(1.025);
+      filter: saturate(1.05) contrast(1.03);
+    }
   }
 
   .thumbnail {
@@ -263,6 +312,51 @@ const overflowTags = sample.tags.slice(5);
     color: var(--sl-color-accent-high);
   }
 
+  .apphost-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 50%, transparent);
+    background: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 14%, var(--sl-color-bg));
+    color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 35%, var(--sl-color-white));
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+
+  .apphost-pill :global(svg),
+  .apphost-pill .apphost-glyph {
+    color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent-high)) 80%, var(--sl-color-white));
+  }
+
+  .apphost-glyph {
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  .apphost-pill[data-apphost='typescript'] {
+    --apphost-color: #3178c6;
+  }
+
+  .apphost-pill[data-apphost='csproj'],
+  .apphost-pill[data-apphost='file-based'] {
+    --apphost-color: #512bd4;
+  }
+
+  :global([data-theme='light']) .apphost-pill {
+    color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 80%, var(--sl-color-black));
+    background: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 12%, white);
+    border-color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 55%, transparent);
+  }
+
+  :global([data-theme='light']) .apphost-pill :global(svg),
+  :global([data-theme='light']) .apphost-pill .apphost-glyph {
+    color: var(--apphost-color, var(--sl-color-accent-high));
+  }
+
   /* ---- Description (rendered markdown) ---- */
   .desc {
     color: var(--sl-color-gray-2);
@@ -275,7 +369,16 @@ const overflowTags = sample.tags.slice(5);
     margin: 0 0 0.5em;
   }
 
+  .desc p {
+    margin: 0 0 0.5em;
+    white-space: pre-line;
+  }
+
   .desc :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .desc p:last-child {
     margin-bottom: 0;
   }
 
@@ -342,7 +445,7 @@ const overflowTags = sample.tags.slice(5);
   .footer {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    gap: 0.75rem;
     padding-top: 0.625rem;
     border-top: 1px solid var(--sl-color-gray-5);
   }
@@ -351,6 +454,7 @@ const overflowTags = sample.tags.slice(5);
     display: flex;
     align-items: center;
     gap: 0.35rem;
+    margin-left: auto;
     color: var(--sl-color-accent-high);
     font-size: 0.85rem;
     font-weight: 500;

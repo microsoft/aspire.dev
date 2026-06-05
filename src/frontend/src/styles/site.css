@@ -7,6 +7,7 @@
 @import './cookieconsent-custom.css';
 @import './utils.css';
 @import './api-reference.css';
+@import './mermaid.css';
 
 :root {
   --aspire-color-purple: #512bd4;
@@ -332,10 +333,6 @@ pre[data-language='bash'] > code,
 pre[data-language='powershell'] > code,
 pre[data-language='console'] > code {
   line-height: initial;
-}
-
-pre.mermaid[data-processed='true'] {
-  border: 1px solid var(--sl-color-gray-5);
 }
 
 .sl-markdown-content code {
@@ -1457,6 +1454,38 @@ it configures at which point the mobile toc should be replaced with the normal t
 @media (min-width: 50rem) and (max-width: 71.999rem) {
   :root[data-has-toc]:has(.topics-sidebar[data-topic-nav]) mobile-starlight-toc summary {
     padding-inline-start: calc(1rem + var(--aspire-sidebar-toggle-width));
+  }
+}
+
+/* Landing pages without a mobile TOC bar (`tableOfContents: false` in
+   frontmatter, e.g. `/deployment/`) still render the persistent
+   sidebar collapse/expand toggle at sub-desktop widths. Sidebar.astro
+   anchors it into the same row position the TOC bar would occupy,
+   but there is no bar element to push the page H1 down. Without this
+   padding the toggle's leftmost ~48px overlap the H1's first letter
+   at 1024×600. Reserve a TOC-bar-height row at the top of the page-
+   title container so the H1 starts cleanly below the toggle. Targets
+   the first `.content-panel` (the title-row container) only, to
+   avoid introducing a gap between the title and the body content
+   that lives in the second `.content-panel`.
+
+   Sample detail pages (`.sample-detail`) are excluded — they use the
+   base floating-tab toggle styling (see Sidebar.astro) which sits at
+   the sidebar's right edge rather than spanning a synthetic bar row,
+   so the synthetic-bar padding would just leave a gap above the hero. */
+@media (min-width: 50rem) and (max-width: 99.999rem) {
+  :root:not([data-has-toc]):not(:has(.sample-detail)):has(.topics-sidebar[data-topic-nav])
+    .content-panel:first-of-type
+    > .sl-container {
+    padding-block-start: 3rem;
+  }
+}
+
+@media (min-width: 72rem) and (max-width: 99.999rem) {
+  :root:not([data-has-toc]):not(:has(.sample-detail)):has(.topics-sidebar[data-api-ref])
+    .content-panel:first-of-type
+    > .sl-container {
+    padding-block-start: 3rem;
   }
 }
 

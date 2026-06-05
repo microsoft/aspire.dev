@@ -115,3 +115,23 @@ test('falls back to the site-wide image for the home page', async ({ request, ba
   const imageResponse = await request.get(new URL('/og-image.png', baseURL).toString());
   expect(imageResponse.ok(), 'the fallback /og-image.png must exist').toBe(true);
 });
+
+test('falls back to the site-wide image for generated API reference pages', async ({
+  request,
+  baseURL,
+}) => {
+  const response = await request.get('/reference/api/typescript/aspire.hosting.redis/');
+  expect(response.ok(), 'API reference page should return 200').toBe(true);
+  const html = await response.text();
+
+  expect(html).toMatch(
+    new RegExp(
+      `<meta\\b[^>]*property="og:image"[^>]*content="[^"]*${escape('/og-image.png')}"`,
+      'i'
+    )
+  );
+  expect(html).not.toMatch(/\/og\/reference\/api\/typescript\//i);
+
+  const imageResponse = await request.get(new URL('/og-image.png', baseURL).toString());
+  expect(imageResponse.ok(), 'the fallback /og-image.png must exist').toBe(true);
+});

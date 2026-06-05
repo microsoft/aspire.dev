@@ -31,6 +31,7 @@ import PivotSelector from '@components/PivotSelector.astro';
 import Placeholder from '@components/Placeholder.astro';
 import QuickStartJourney from '@components/QuickStartJourney.astro';
 import SampleCard from '@components/SampleCard.astro';
+import SampleDetail from '@components/SampleDetail.astro';
 import SampleGrid from '@components/SampleGrid.astro';
 import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
@@ -103,8 +104,11 @@ const sampleCardFixture = {
   title: 'Redis sample',
   description: 'This sample shows how to connect an API and dashboard to Redis.',
   href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample',
+  readme: '# Redis sample\n\nThis sample shows how to connect an API and dashboard to Redis.',
   tags: ['csharp', 'redis'],
   thumbnail: '~/assets/samples/placeholder.png',
+  appHost: 'csproj' as const,
+  detailHref: '/reference/samples/redis-sample/',
   resolvedThumbnail: heroImage,
 };
 
@@ -517,6 +521,17 @@ const invalidSampleGridProps: PropsOf<typeof SampleGrid> = {
   unexpected: true,
 };
 
+const validSampleDetailProps = {
+  sample: sampleCardFixture,
+  samplesHref: '/reference/samples/',
+} satisfies PropsOf<typeof SampleDetail>;
+// @ts-expect-error SampleDetail should reject unknown props.
+const invalidSampleDetailProps: PropsOf<typeof SampleDetail> = {
+  sample: sampleCardFixture,
+  samplesHref: '/reference/samples/',
+  unexpected: true,
+};
+
 const validSessionCardProps = {
   ...sessions[0],
   index: 1,
@@ -764,6 +779,8 @@ void [
   invalidSampleCardProps,
   validSampleGridProps,
   invalidSampleGridProps,
+  validSampleDetailProps,
+  invalidSampleDetailProps,
   validSessionCardProps,
   invalidSessionCardProps,
   validSessionGridProps,
