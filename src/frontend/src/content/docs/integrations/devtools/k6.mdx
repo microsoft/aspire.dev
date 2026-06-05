@@ -1,62 +1,102 @@
 ---
-title: k6 integration
+title: Set up k6 in the AppHost
+description: Learn how to use the Aspire k6 Hosting integration to orchestrate and configure a Grafana k6 load-testing resource in an Aspire solution.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from "@components/InstallPackage.astro";
-import ThemeImage from '@components/ThemeImage.astro';
+import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import k6Icon from '@assets/icons/k6-icon.svg';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
-<ThemeImage
-  light={k6Icon}
-  dark={k6Icon}
+<Image
+  src={k6Icon}
   alt="k6 logo"
   width={100}
   height={100}
-  zoomable={false}
-  classOverride="float-inline-left icon"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
 
-[Grafana k6](https://k6.io/) is a performance & load testing tool. The Aspire k6 integration enables you to create new container instances from Aspire with the `docker.io/grafana/k6` container image.
+This article is the reference for the Aspire k6 Hosting integration. It enumerates the AppHost APIs that you use to model a [Grafana k6](https://k6.io/) performance and load-testing resource in your [`AppHost`](/get-started/app-host/) project.
 
-## Hosting integration
+:::note
+TypeScript AppHost support for the k6 integration is not yet available. The examples on this page use the C# AppHost only.
+:::
 
-To get started with the Aspire k6 hosting integration, install the [CommunityToolkit.Aspire.Hosting.k6](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.k6) NuGet package in the app host project.
+## Installation
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.k6" />
+To start building an Aspire app that uses k6, install the [📦 CommunityToolkit.Aspire.Hosting.k6](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.k6) NuGet package:
 
-### Add k6 server resource
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
-In your app host project, call `AddK6` on the builder instance to add a flagd container resource:
+```bash title="Terminal"
+aspire add k6
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.k6@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.k6" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+TypeScript AppHost support for the k6 integration is not yet available.
+
+</TabItem>
+</Tabs>
+
+## Add k6 resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a k6 resource as shown in the following example:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var myService = builder.AddProject<Projects.MyService>();
+var myService = builder.AddProject<Projects.MyService>("myService");
 
 var k6 = builder.AddK6("k6")
-                .WithBindMount("scripts", "/scripts", true)
+                .WithBindMount("scripts", "/scripts", isReadOnly: true)
                 .WithScript("/scripts/main.js")
                 .WithReference(myService)
-                .WaitFor(apiservice);
+                .WaitFor(myService);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-When Aspire adds a container image to the app host, as shown in the preceding example with the `docker.io/grafana/k6` image, it creates a new k6 instance on your local machine. You may need to add a reference to your k6 instance in order to test this resource.
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+TypeScript AppHost support for the k6 integration is not yet available.
+
+</TabItem>
+</Tabs>
+
+When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/grafana/k6` image, it creates a new k6 instance on your local machine.
 
 <Aside type="caution">
-
-The k6 container requires a JavaScript entrypoint to run successfully. Use the `WithBindMount` method to configure a source for your scripts and the `WithScript` to configure the JavaScript entrypoint.
-
+The k6 container requires a JavaScript entrypoint to run successfully. Use `WithBindMount` to mount the directory that contains your scripts, and `WithScript` to specify the JavaScript entrypoint file.
 </Aside>
 
 ## Scripts configuration
 
-You will need to add a JavaScript file that will be executed by k6. Here is a simple example:
+You need to provide a JavaScript file for k6 to execute. Here is a minimal example:
 
 ```js title="scripts/main.js"
 import http from "k6/http";
@@ -69,52 +109,76 @@ export default function () {
 }
 ```
 
-The `services__myService__http__0` environment variable is used to get the `http` endpoint provided for the `myService` resource.
+The `services__myService__http__0` environment variable resolves to the `http` endpoint of the `myService` resource.
 
-For more information on how to write a Grafana k6 script, see the [Write your first test with Grafana k6](https://grafana.com/docs/k6/latest/get-started/write-your-first-test/).
+For more information on writing k6 scripts, see [Write your first test with Grafana k6](https://grafana.com/docs/k6/latest/get-started/write-your-first-test/).
 
-### Customize ports
+## Customize ports
 
-To customize the ports used by the k6 container resource, provide the `port` parameter to the `AddK6` method:
+To use a fixed host port instead of a randomly assigned one, pass the `port` parameter to `AddK6`:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var myService = builder.AddProject<Projects.MyService>();
+var myService = builder.AddProject<Projects.MyService>("myService");
 
 var k6 = builder.AddK6("k6", port: 6565)
-                .WithBindMount("scripts", "/scripts", true)
+                .WithBindMount("scripts", "/scripts", isReadOnly: true)
                 .WithScript("/scripts/main.js")
                 .WithReference(myService)
-                .WaitFor(apiservice);
+                .WaitFor(myService);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-The `port` parameter specifies the host port for the k6 HTTP endpoint. If this parameter is not provided, a random port is assigned.
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-### Enable browser extensions
+TypeScript AppHost support for the k6 integration is not yet available.
+
+</TabItem>
+</Tabs>
+
+The `port` parameter sets the host port for the k6 HTTP API endpoint. When omitted, Aspire assigns a random port.
+
+## Enable browser extensions
+
+To enable the k6 browser module — which adds browser-level APIs and frontend performance metrics to your k6 tests — pass `enableBrowserExtensions: true` to `AddK6`:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var myService = builder.AddProject<Projects.MyService>();
+var myService = builder.AddProject<Projects.MyService>("myService");
 
 var k6 = builder.AddK6("k6", enableBrowserExtensions: true)
-                .WithBindMount("scripts", "/scripts", true)
+                .WithBindMount("scripts", "/scripts", isReadOnly: true)
                 .WithScript("/scripts/main.js")
                 .WithReference(myService)
-                .WaitFor(apiservice);
+                .WaitFor(myService);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-The browser module brings browser automation and end-to-end web testing to k6 while supporting core k6 features. It adds browser-level APIs to interact with browsers and collect frontend performance metrics as part of your k6 tests.
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-For more information on how to use Grafana k6 browser, see the [Using k6 browser](https://grafana.com/docs/k6/latest/using-k6-browser/).
+TypeScript AppHost support for the k6 integration is not yet available.
+
+</TabItem>
+</Tabs>
+
+For more information on the k6 browser module, see [Using k6 browser](https://grafana.com/docs/k6/latest/using-k6-browser/).
 
 ## See also
 
 - [Grafana k6 website](https://k6.io/)
 - [Grafana k6 documentation](https://grafana.com/docs/k6/latest/)
-- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire Community Toolkit GitHub](https://github.com/CommunityToolkit/Aspire)

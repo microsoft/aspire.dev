@@ -1,0 +1,807 @@
+---
+title: Multi-language integrations
+seoTitle: Author multi-language Aspire integrations for AppHost
+description: Annotate Aspire hosting integrations so they work with TypeScript AppHosts and the generated SDK, while preparing exports for future AppHost languages.
+---
+
+import {
+  Aside,
+  Steps,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
+
+Aspire hosting integrations are C# libraries that extend the AppHost with new resource types. By default, these integrations are only available in C# AppHosts. To make them available in TypeScript AppHosts, you annotate your APIs with ATS (Aspire Type System) attributes.
+
+This guide walks you through the process of exporting your integration for TypeScript AppHost use. The same ATS metadata can support additional AppHost languages as they become available in future Aspire releases.
+
+## How it works
+
+When a TypeScript AppHost adds your integration, the Aspire CLI:
+
+<Steps>
+
+1. Loads your integration assembly
+2. Scans for ATS attributes on methods, types, and properties, such as `[AspireExport]`.
+3. Generates a typed TypeScript SDK with matching methods
+4. The generated SDK communicates with your C# code via JSON-RPC at runtime
+
+</Steps>
+
+Your C# code runs as-is — the TypeScript SDK is a thin client that calls into it. You don't need to rewrite anything in TypeScript.
+
+<a id="install-the-analyzer"></a>
+
+## Enable the analyzer
+
+The integration analyzer provides build-time validation that catches common export mistakes. It ships **inside the [`📦 Aspire.Hosting`](https://www.nuget.org/packages/Aspire.Hosting) package** — you don't install a separate analyzer package. Because hosting integrations already reference `Aspire.Hosting`, all you need to do is opt in to the analyzer by setting the `EnableAspireIntegrationAnalyzers` MSBuild property in your integration project:
+
+```xml title="XML — MyIntegration.csproj"
+<PropertyGroup>
+    <EnableAspireIntegrationAnalyzers>true</EnableAspireIntegrationAnalyzers>
+</PropertyGroup>
+```
+
+The analyzer reports diagnostics that help you get your exports right before users encounter runtime errors. Common scenarios include detecting incompatible parameter types, missing export annotations on public methods, duplicate export or capability IDs, and synchronous callbacks that could deadlock in multi-language app hosts.
+
+## Export extension methods
+
+Annotate your extension methods with `[AspireExport]` and use XML doc comments to document them for the generated TypeScript SDK:
+
+```csharp title="C# — MyDatabaseBuilderExtensions.cs"
+/// <summary>Adds a MyDatabase container resource.</summary>
+/// <param name="builder">The distributed application builder.</param>
+/// <param name="name">The MyDatabase resource name.</param>
+/// <param name="port">The optional port.</param>
+/// <returns>The MyDatabase resource builder.</returns>
+[AspireExport("addMyDatabase")]
+public static IResourceBuilder<MyDatabaseResource> AddMyDatabase(
+    this IDistributedApplicationBuilder builder,
+    [ResourceName] string name,
+    int? port = null)
+{
+    // Your existing implementation...
+}
+
+/// <summary>Adds a database to the MyDatabase server.</summary>
+/// <param name="builder">The MyDatabase server resource builder.</param>
+/// <param name="name">The database name.</param>
+/// <param name="databaseName">The optional database name override.</param>
+/// <returns>The database resource builder.</returns>
+[AspireExport("addDatabase")]
+public static IResourceBuilder<MyDatabaseDatabaseResource> AddDatabase(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    [ResourceName] string name,
+    string? databaseName = null)
+{
+    // Your existing implementation...
+}
+
+/// <summary>Adds a data volume to the MyDatabase server.</summary>
+/// <param name="builder">The MyDatabase server resource builder.</param>
+/// <param name="name">The optional volume name.</param>
+/// <returns>The MyDatabase resource builder.</returns>
+[AspireExport("withDataVolume")]
+public static IResourceBuilder<MyDatabaseResource> WithDataVolume(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    string? name = null)
+{
+    // Your existing implementation...
+}
+```
+
+This generates the following highlighted TypeScript APIs:
+
+```typescript title="TypeScript — Generated SDK" {5-8}
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const db = await builder
+  .addMyDatabase('db', { port: 5432 })
+  .addDatabase('mydata')
+  .withDataVolume();
+
+const app = await builder.build();
+await app.run();
+```
+
+<Aside type="tip" title="Naming convention">
+  The export ID usually becomes the method name in generated SDKs. Use camelCase
+  (e.g., `addMyDatabase`, `withDataVolume`), or set `MethodName` when the
+  runtime capability ID and SDK method name need to differ. For static exports,
+  the full capability ID is computed as `{AssemblyName}/{exportId}` — for
+  example, `MyCompany.Hosting.MyDatabase/addMyDatabase`.
+</Aside>
+
+### Document your exports
+
+XML doc comments are the primary source for generated SDK API documentation. The ATS scanner reads `<summary>`, `<param>`, `<returns>`, and `<remarks>` tags and includes them in the TypeScript JSDoc generated for your integration.
+
+Use `ats-*` override tags when the standard C# XML documentation doesn't translate well to generated SDK docs — for example, when a `<summary>` references C#-specific types or language constructs that have no direct equivalent in TypeScript. The supported overrides are:
+
+- `<ats-summary>` — overrides `<summary>` in polyglot docs
+- `<ats-param name="...">` — overrides `<param>` for a specific parameter
+- `<ats-returns>` — overrides `<returns>`
+- `<ats-remarks>` — overrides `<remarks>`
+
+An empty `ats-*` tag intentionally suppresses the matching standard documentation in the generated SDK.
+
+```csharp title="C# — Polyglot-incompatible summary with ats-summary override"
+/// <ats-summary>Adds a Redis container resource.</ats-summary>
+/// <summary>
+/// Adds a <see cref="RedisResource"/> to the <see cref="IDistributedApplicationBuilder"/>.
+/// </summary>
+/// <param name="builder">The distributed application builder.</param>
+/// <param name="name">The Redis resource name.</param>
+/// <returns>The Redis resource builder.</returns>
+[AspireExport("addRedis")]
+public static IResourceBuilder<RedisResource> AddRedis(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+```
+
+#### Cross-references in ATS docs
+
+Use `<ats-see cref="!:kind:identifier.path" />` and `<ats-seealso cref="!:kind:identifier.path" />` to link to generated SDK elements. The `!:` prefix prevents the C# compiler from validating the custom `cref` format; ATS removes it before parsing. The supported `kind` values are `type`, `method`, and `field`. The reference path uses dot notation over generated SDK identifiers:
+
+```csharp title="C# — Cross-references using ats-see"
+/// <summary>
+/// Configures <ats-see cref="!:type:RedisResource" />.
+/// </summary>
+/// <remarks>
+/// See also <ats-see cref="!:method:RedisResource.withPersistence" /> and
+/// <ats-seealso cref="!:field:RedisDefaults.Port" />.
+/// </remarks>
+[AspireExport("configureRedis")]
+public static IResourceBuilder<RedisResource> ConfigureRedis(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+```
+
+TypeScript renders these references as JSDoc `{@link ...}` links.
+
+:::note
+The `Description` property on `[AspireExport]` is still supported as a compatibility fallback, but new exports should use XML doc comments. The analyzer reports `ASPIREEXPORT015` as an error when `Description` is set on a new export.
+:::
+
+### Keep capability IDs unique
+
+The runtime dispatches TypeScript AppHost calls by **capability ID**. A capability ID is more restrictive than a C# method signature: it doesn't include the C# receiver type, parameter list, or overload signature. Starting in Aspire 13.3, the analyzer reports `ASPIREEXPORT013` when two exports in the same assembly generate the same capability ID.
+
+For static exports, the generated capability ID uses the assembly name and effective export ID. The following methods collide even though they target different C# types:
+
+```csharp title="C# — Duplicate capability ID"
+[AspireExport("configure")]
+public static void ConfigureBuilder(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+
+[AspireExport("configure")]
+public static IResourceBuilder<MyDatabaseResource> ConfigureDatabase(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    string value)
+{
+    return builder;
+}
+```
+
+Use distinct export IDs for the runtime capability, and use `MethodName` when you want the generated SDK method name to stay concise on different target types:
+
+```csharp title="C# — Unique capability IDs with SDK method names"
+[AspireExport("configureBuilder", MethodName = "configure")]
+public static void ConfigureBuilder(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+
+[AspireExport("configureDatabase", MethodName = "configure")]
+public static IResourceBuilder<MyDatabaseResource> ConfigureDatabase(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    string value)
+{
+    return builder;
+}
+```
+
+When you set `ExposeMethods = true` or `ExposeProperties = true` on a context type, the analyzer also checks the capabilities generated for public instance members. Overloaded instance methods with the same name generate the same default capability ID, so either expose a single ATS-friendly overload, mark unsupported overloads with `[AspireExportIgnore]`, or give each exported member a unique `[AspireExport]` ID and generated `MethodName`.
+
+## Export resource types
+
+Mark your resource types with `[AspireExport]` so the TypeScript SDK can reference them as typed handles. Set `ExposeProperties = true` to make all public properties accessible as capabilities, or annotate individual properties with `[AspireExport]` for fine-grained control:
+
+```csharp title="C# — MyDatabaseResource.cs"
+[AspireExport(ExposeProperties = true)]
+public sealed class MyDatabaseResource(string name)
+    : ContainerResource(name), IResourceWithConnectionString
+{
+    /// <summary>
+    /// Gets the primary endpoint for the database.
+    /// </summary>
+    public EndpointReference PrimaryEndpoint => new(this, "tcp");
+
+    /// <summary>
+    /// Internal implementation detail — not exported.
+    /// </summary>
+    [AspireExportIgnore]
+    public string InternalConnectionPool { get; set; } = "";
+}
+
+[AspireExport]
+public sealed class MyDatabaseDatabaseResource(string name, MyDatabaseResource parent)
+    : Resource(name)
+{
+    // Your existing implementation...
+}
+```
+
+When `ExposeProperties = true`, each public property becomes a capability in the generated SDK. Use `[AspireExportIgnore]` on properties that shouldn't be exposed.
+
+You can also set `ExposeMethods = true` to export public instance methods as capabilities alongside properties.
+
+### How getter-only properties appear in TypeScript
+
+The code generator distinguishes between read-only (getter-only) properties and read-write or mutable-collection properties:
+
+- **Getter-only properties** (no setter, and not a mutable collection type) are generated as async methods in TypeScript: `property(): Promise<T>`.
+- **Read-write properties** and **mutable-collection properties** (such as `AspireList<T>` or `AspireDict<K,V>`) are generated as `readonly` getter properties.
+
+For example, a C# class with both kinds of property:
+
+```csharp title="C# — Mixed property kinds"
+[AspireExport(ExposeProperties = true)]
+public class MyCallbackContext
+{
+    /// <summary>Getter-only — becomes an async method in TypeScript.</summary>
+    public IResource Resource => _resource;
+
+    /// <summary>Mutable collection — stays a readonly getter in TypeScript.</summary>
+    public AspireList<string> Tags { get; } = new();
+}
+```
+
+Generates the following TypeScript interface:
+
+```typescript title="TypeScript — Generated interface"
+export interface MyCallbackContext {
+  toJSON(): MarshalledHandle;
+  resource(): Promise<IResourceHandle>; // getter-only → async method
+  readonly tags: AspireList<string>; // mutable collection → readonly getter
+}
+```
+
+TypeScript AppHost authors call getter-only properties as functions:
+
+```typescript title="TypeScript — Consuming the generated API"
+const resource = await context.resource();
+const tags = context.tags; // no await needed for mutable collections
+```
+
+:::tip
+Prefer getter-only properties (`=> value;` or `{ get; }` without a setter) when the TypeScript side should treat the value as a read-once async operation. Use `AspireList<T>` and `AspireDict<K,V>` when TypeScript code needs to add, remove, or iterate values directly.
+:::
+
+## Callback context types and the ATS-first editor pattern
+
+When you export a method that accepts a callback (such as `withEnvironmentCallback`, `withArgsCallback`, or `withUrls`), the callback receives a _context_ object. For TypeScript compatibility, context types should follow the ATS-first design:
+
+1. Use `[AspireExport]` (not `ExposeProperties = true`) on the context class.
+2. Annotate only the properties that TypeScript callers need with individual `[AspireExport]` attributes.
+3. For mutable state (environment variables, command-line arguments, URL lists), expose a small _editor_ class rather than the raw collection.
+
+### Defining an editor class
+
+An editor wraps a mutable collection and exposes specific operations — typically `add`, `set`, or `remove` — instead of handing the raw collection to TypeScript:
+
+```csharp title="C# — EnvironmentEditor.cs"
+/// <summary>
+/// Provides an ATS-first editor for environment variables within polyglot callbacks.
+/// </summary>
+[AspireExport]
+internal sealed class EnvironmentEditor(Dictionary<string, object> environmentVariables)
+{
+    /// <summary>Sets an environment variable.</summary>
+    /// <param name="name">The environment variable name.</param>
+    /// <param name="value">The environment variable value.</param>
+    [AspireExport]
+    public void Set(
+        string name,
+        [AspireUnion(
+            typeof(string),
+            typeof(ReferenceExpression),
+            typeof(EndpointReference),
+            typeof(IResourceBuilder<ParameterResource>),
+            typeof(IResourceBuilder<IResourceWithConnectionString>))]
+        object value)
+    {
+        environmentVariables[name] = value;
+    }
+}
+```
+
+### Defining the callback context
+
+Use individual `[AspireExport]` attributes on each property the TypeScript caller needs. Pass the editor as a getter-only property so TypeScript callers receive it as an async method:
+
+```csharp title="C# — MyCallbackContext.cs"
+[AspireExport]
+public sealed class MyCallbackContext(
+    DistributedApplicationExecutionContext executionContext,
+    IResource resource,
+    Dictionary<string, object> environmentVariables)
+{
+    /// <summary>Gets the resource associated with this callback.</summary>
+    [AspireExport]
+    public IResource Resource => resource;
+
+    /// <summary>Gets the execution context.</summary>
+    [AspireExport]
+    public DistributedApplicationExecutionContext ExecutionContext => executionContext;
+
+    /// <summary>Gets the environment variable editor.</summary>
+    [AspireExport]
+    internal EnvironmentEditor Environment => new(environmentVariables);
+}
+```
+
+### Exporting the callback method
+
+Export the extension method that accepts the callback, using `Action<MyCallbackContext>` as the parameter type:
+
+```csharp title="C# — MyResourceBuilderExtensions.cs"
+/// <summary>Configures the resource using a callback.</summary>
+/// <param name="builder">The resource builder.</param>
+/// <param name="configure">The callback to configure the resource.</param>
+/// <returns>The resource builder.</returns>
+[AspireExport("withMyCallback")]
+public static IResourceBuilder<MyResource> WithMyCallback(
+    this IResourceBuilder<MyResource> builder,
+    Action<MyCallbackContext> configure)
+{
+    return builder.WithAnnotation(new MyCallbackAnnotation(configure));
+}
+```
+
+The generated TypeScript API accepts an async arrow function:
+
+```typescript title="TypeScript — Consuming the callback API"
+await myResource.withMyCallback(async (context) => {
+  const resource = await context.resource();
+  const env = await context.environment();
+  await env.set('MY_KEY', 'my-value');
+});
+```
+
+:::note
+The `Action<T>` delegate type is ATS-compatible. The TypeScript side receives an async function; the Aspire runtime bridges the async TypeScript call to the synchronous C# delegate on a background thread.
+:::
+
+## Services available from callback service providers
+
+Several ATS callback contexts expose an `IServiceProvider` handle through a `services()` or `serviceProvider()` accessor. These accessors are async `PropertyAccessor` values, so await them before using the returned service provider. For example, resource events expose `await event.services()`, command contexts expose `await context.serviceProvider()`, and `DistributedApplicationExecutionContext` exposes `await executionContext.serviceProvider()`.
+
+In TypeScript, use the ATS-friendly methods on the service provider instead of the C# generic dependency-injection pattern. For example, call `services.getLoggerFactory()` instead of `serviceProvider.GetRequiredService<ILoggerFactory>()`.
+
+```typescript title="TypeScript — Using a callback service provider"
+await builder.subscribeBeforeStart(async (event) => {
+  const services = await event.services();
+  const loggerFactory = services.getLoggerFactory();
+  const logger = loggerFactory.createLogger('AppHost');
+
+  logger.logInformation('The AppHost is starting.');
+});
+```
+
+The generated TypeScript SDK exposes these service-provider methods:
+
+- [`getDistributedApplicationModel()`](/reference/api/typescript/aspire.hosting/getdistributedapplicationmodel/) returns [`DistributedApplicationModel`](/reference/api/typescript/aspire.hosting/distributedapplicationmodel/). Inspect application resources with [`getResources()`](/reference/api/typescript/aspire.hosting/distributedapplicationmodel/getresources/) or locate a resource by name with [`findResourceByName()`](/reference/api/typescript/aspire.hosting/distributedapplicationmodel/findresourcebyname/).
+- [`getLoggerFactory()`](/reference/api/typescript/aspire.hosting/getloggerfactory/) returns [`ILoggerFactory`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.iloggerfactory). Create a named logger with [`createLogger()`](/reference/api/typescript/aspire.hosting/createlogger/), then write messages with [`logInformation()`](/reference/api/typescript/aspire.hosting/loginformation/), [`logWarning()`](/reference/api/typescript/aspire.hosting/logwarning/), [`logError()`](/reference/api/typescript/aspire.hosting/logerror/), or [`logDebug()`](/reference/api/typescript/aspire.hosting/logdebug/).
+- [`getResourceLoggerService()`](/reference/api/typescript/aspire.hosting/getresourceloggerservice/) returns [`ResourceLoggerService`](/reference/api/typescript/aspire.hosting/resourceloggerservice/). Complete resource log streams with [`completeLog()`](/reference/api/typescript/aspire.hosting/resourceloggerservice/completelog/) or [`completeLogByName()`](/reference/api/typescript/aspire.hosting/resourceloggerservice/completelogbyname/).
+- [`getResourceNotificationService()`](/reference/api/typescript/aspire.hosting/getresourcenotificationservice/) returns [`ResourceNotificationService`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/). Publish resource updates, inspect state, or wait for readiness with [`publishResourceUpdate()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/publishresourceupdate/), [`tryGetResourceState()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/trygetresourcestate/), [`waitForDependencies()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/waitfordependencies/), [`waitForResourceHealthy()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/waitforresourcehealthy/), [`waitForResourceState()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/waitforresourcestate/), or [`waitForResourceStates()`](/reference/api/typescript/aspire.hosting/resourcenotificationservice/waitforresourcestates/).
+- [`getUserSecretsManager()`](/reference/api/typescript/aspire.hosting/getusersecretsmanager/) returns [`IUserSecretsManager`](/reference/api/typescript/aspire.hosting/iusersecretsmanager/). Read user-secrets availability and path with `await secrets.isAvailable()` and `await secrets.filePath()` (or the `.get()` methods on those property accessors), set or delete secrets, and persist state with [`getOrSetSecret()`](/reference/api/typescript/aspire.hosting/iusersecretsmanager/getorsetsecret/), [`trySetSecret()`](/reference/api/typescript/aspire.hosting/iusersecretsmanager/trysetsecret/), [`tryDeleteSecret()`](/reference/api/typescript/aspire.hosting/iusersecretsmanager/trydeletesecret/), or [`saveStateJson()`](/reference/api/typescript/aspire.hosting/iusersecretsmanager/savestatejson/).
+- [`getAspireStore()`](/reference/api/typescript/aspire.hosting/getaspirestore/) returns [`IAspireStore`](/reference/api/typescript/aspire.hosting/iaspirestore/). Create deterministic file copies with [`getFileNameWithContent()`](/reference/api/typescript/aspire.hosting/iaspirestore/getfilenamewithcontent/) when generated artifacts need stable paths.
+- [`getEventing()`](/reference/api/typescript/aspire.hosting/geteventing/) returns [`IDistributedApplicationEventing`](/reference/api/typescript/aspire.hosting/idistributedapplicationeventing/). Access eventing infrastructure from callbacks, including [`unsubscribe()`](/reference/api/typescript/aspire.hosting/idistributedapplicationeventing/unsubscribe/) for event subscriptions created by builder-level helpers such as `subscribeBeforeStart()` and `subscribeAfterResourcesCreated()`.
+
+### Inspect the application model
+
+Use `getDistributedApplicationModel()` when callback code needs to inspect or locate resources in the AppHost model:
+
+```typescript title="TypeScript — Inspecting AppHost resources"
+await builder.subscribeAfterResourcesCreated(async (event) => {
+  const services = await event.services();
+  const model = services.getDistributedApplicationModel();
+  const resources = model.getResources();
+  const api = model.findResourceByName('api');
+});
+```
+
+### Write logs
+
+Use `getLoggerFactory()` to create loggers from callbacks that expose a service provider:
+
+```typescript title="TypeScript — Writing logs from a callback"
+await builder.subscribeBeforeStart(async (event) => {
+  const services = await event.services();
+  const logger = services.getLoggerFactory().createLogger('startup');
+
+  logger.logInformation('Preparing resources.');
+});
+```
+
+### Work with resource state and logs
+
+Use `getResourceNotificationService()` for resource state transitions and `getResourceLoggerService()` for resource log streams:
+
+```typescript title="TypeScript — Waiting for resource state"
+const cache = await builder.addRedis('cache');
+
+cache.onResourceReady(async (event) => {
+  const resource = await event.resource();
+  const services = await event.services();
+  const resourceName = resource.getResourceName();
+  const notifications = services.getResourceNotificationService();
+  const resourceLogs = services.getResourceLoggerService();
+
+  notifications.waitForResourceHealthy(resourceName);
+  resourceLogs.completeLog(resource);
+});
+```
+
+### Manage user secrets and generated files
+
+Use `getUserSecretsManager()` for user secrets and `getAspireStore()` for stable files created during AppHost execution:
+
+```typescript title="TypeScript — Using AppHost services"
+await builder.subscribeBeforeStart(async (event) => {
+  const services = await event.services();
+  const secrets = services.getUserSecretsManager();
+  const store = services.getAspireStore();
+  const model = services.getDistributedApplicationModel();
+  const api = model.findResourceByName('api');
+
+  if (await secrets.isAvailable()) {
+    secrets.getOrSetSecret(api, 'ApiKey', crypto.randomUUID());
+  }
+
+  const generatedFile = store.getFileNameWithContent(
+    'seed-data.json',
+    './seed-data.json'
+  );
+});
+```
+
+### Eventing and command services
+
+Use `getEventing()` when callback code needs the eventing service itself:
+
+```typescript title="TypeScript — Using eventing from services"
+const subscription = await builder.subscribeBeforeStart(async (event) => {
+  const services = await event.services();
+  const eventing = services.getEventing();
+
+  eventing.unsubscribe(subscription);
+});
+```
+
+`ResourceCommandService` is available in the C# API reference and includes command execution APIs, but the current generated TypeScript API reference data for `Aspire.Hosting` doesn't expose a `getResourceCommandService()` service-provider method or a `ResourceCommandService` handle. Until that API appears in the generated SDK, don't fetch command services directly from TypeScript callbacks; use the exported resource command APIs such as `withCommand()`, `withHttpCommand()`, and command callback contexts instead.
+
+## Export configuration DTOs
+
+If your integration accepts structured configuration, mark the options class with `[AspireDto]`. DTOs are serialized as JSON between the TypeScript AppHost and the .NET runtime:
+
+```csharp title="C# — MyDatabaseOptions.cs"
+[AspireDto]
+public sealed class AddMyDatabaseOptions
+{
+    public required string Name { get; init; }
+    public int? Port { get; init; }
+    public string? ImageTag { get; init; }
+}
+```
+
+<Aside type="note">
+DTOs should only contain properties that can be serialized to and from JSON. Avoid using complex .NET types—such as `IConfiguration`, `ILogger`, or delegate types like `Action` and `Func<T>`—as they are not serializable and are not suitable for DTOs.
+</Aside>
+
+### Collection properties in DTOs
+
+DTO collection properties (such as `List<T>`, `IList<T>`, `IEnumerable<T>`, arrays, or `Dictionary<string, T>`) are generated as **value-shaped JSON types** in the TypeScript SDK. This means AppHost code can supply plain collection literals directly rather than constructing handle-backed wrapper objects.
+
+For example, a DTO that accepts address prefix and fully qualified domain name collections:
+
+```csharp title="C# — MyAccessRule.cs"
+[AspireDto]
+public sealed class MyAccessRule
+{
+    public List<string> AddressPrefixes { get; init; } = [];
+    public List<string> FullyQualifiedDomainNames { get; init; } = [];
+}
+```
+
+The TypeScript SDK exposes collection values using ordinary TypeScript collection shapes:
+
+```typescript title="TypeScript — apphost.mts"
+const rule: MyAccessRule = {
+  addressPrefixes: ['203.0.113.0/24', '198.51.100.0/24'],
+  fullyQualifiedDomainNames: ['example.com'],
+};
+```
+
+:::note
+This behavior applies to DTOs only. Mutable collection properties on **exported resource types** (classes annotated with `[AspireExport]`) continue to use handle-backed wrappers such as `AspireList<T>` so that guest code can add or remove values imperatively. DTOs use value-shaped types because they are consumed as JSON input objects, not as live handles.
+:::
+
+## Export value catalogs
+
+Use `[AspireValue]` to export immutable predefined values from your integration into guest SDKs as typed catalog objects. This is useful when your integration ships well-known constants or configuration presets—such as a list of supported model names or region identifiers—that TypeScript AppHost authors should be able to reference without reconstructing them manually.
+
+### Define a value catalog
+
+Apply `[AspireValue]` to `static readonly` fields or `static` properties on your type. The required `catalogName` argument sets the root name of the generated catalog in guest SDKs:
+
+```csharp title="C# — MyModels.cs"
+using Aspire.Hosting;
+
+[AspireDto]
+public sealed class MyModel
+{
+    public required string Name { get; init; }
+    public required string Version { get; init; }
+}
+
+public static class MyModels
+{
+    public static class FastModels
+    {
+        /// <summary>A fast, lightweight model for simple tasks.</summary>
+        [AspireValue("MyModels")]
+        public static readonly MyModel Lite = new() { Name = "my-model-lite", Version = "1" };
+
+        /// <summary>A fast model with extended context support.</summary>
+        [AspireValue("MyModels")]
+        public static readonly MyModel LiteLong = new() { Name = "my-model-lite-long", Version = "1" };
+    }
+
+    public static class PowerModels
+    {
+        /// <summary>A high-capability model for complex tasks.</summary>
+        [AspireValue("MyModels")]
+        public static readonly MyModel Pro = new() { Name = "my-model-pro", Version = "2" };
+    }
+}
+```
+
+The scanner snaps the values at scan time by serializing each field or property to JSON. It also reads XML doc comments to include descriptions in the generated catalog.
+
+### Use catalog values in guest SDKs
+
+After generating the SDK (for example, with `aspire run`), the catalog is available as a nested object in the TypeScript SDK. The nesting mirrors the static class hierarchy of the C# source:
+
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import { MyModels } from './.aspire/modules/my-integration.mjs';
+
+const builder = await createBuilder();
+
+// Use predefined catalog values directly
+await builder
+  .addMyService('svc', { model: MyModels.FastModels.Lite })
+  .build()
+  .run();
+```
+
+### Override the exported name
+
+By default, the exported name matches the field or property name. Use the `Name` property to override it:
+
+```csharp title="C# — Override exported name"
+[AspireValue("MyModels", Name = "lite")]
+public static readonly MyModel Lite = new() { Name = "my-model-lite", Version = "1" };
+```
+
+### Value catalog constraints
+
+- Exported fields and properties must be **static**.
+- The value must be serializable to JSON. Avoid types that hold runtime handles, delegates, or other non-serializable state.
+- Handles (`IResourceBuilder<T>`, resource instances) are **not** valid as exported values.
+- Values are snapped **once** at scan time. They are emitted as compile-time constants in generated SDKs and are not refreshed at runtime.
+
+:::note
+`[AspireValue]` exports predefined constants into the generated SDK. It is not a mechanism for sharing live runtime state. For runtime interactions, use `[AspireExport]` methods instead.
+:::
+
+## Handle incompatible overloads
+
+Some C# overloads use types that can't be represented in TypeScript (e.g., `Action<T>` delegates with non-serializable contexts, interpolated string handlers, or C#-specific types). Mark these with `[AspireExportIgnore]`:
+
+```csharp title="C# — Exclude incompatible overloads"
+// This overload works in TypeScript — simple parameters
+/// <summary>Sets the maximum number of connections.</summary>
+/// <param name="builder">The resource builder.</param>
+/// <param name="maxConnections">The maximum number of connections.</param>
+/// <returns>The resource builder.</returns>
+[AspireExport("withConnectionStringLimit")]
+public static IResourceBuilder<MyDatabaseResource> WithConnectionStringLimit(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    int maxConnections)
+{
+    // ...
+}
+
+// This overload uses a C#-specific type — exclude it
+[AspireExportIgnore(Reason = "ForwarderConfig is not ATS-compatible. Use the DTO-based overload.")]
+public static IResourceBuilder<MyDatabaseResource> WithConnectionStringLimit(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    ForwarderConfig config)
+{
+    // ...
+}
+```
+
+<Aside type="caution">
+  The analyzer (ASPIREEXPORT008) warns when public extension methods on exported
+  types lack either `[AspireExport]` or `[AspireExportIgnore]`. Every public
+  method must be explicitly exported or excluded.
+</Aside>
+
+## Union types
+
+When a parameter accepts multiple types, use `[AspireUnion]` to declare the valid options:
+
+```csharp title="C# — Union type parameter"
+/// <summary>Sets an environment variable on the resource.</summary>
+/// <param name="builder">The resource builder.</param>
+/// <param name="name">The environment variable name.</param>
+/// <param name="value">The value, which may be a string, reference expression, or endpoint reference.</param>
+/// <returns>The resource builder.</returns>
+[AspireExport("withEnvironment")]
+public static IResourceBuilder<T> WithEnvironment<T>(
+    this IResourceBuilder<T> builder,
+    string name,
+    [AspireUnion(
+        typeof(string),
+        typeof(ReferenceExpression),
+        typeof(EndpointReference),
+        typeof(IResourceBuilder<ParameterResource>),
+        typeof(IResourceBuilder<IResourceWithConnectionString>),
+        typeof(IResourceBuilder<ExternalServiceResource>),
+        typeof(IExpressionValue))]
+    object value)
+    where T : IResourceWithEnvironment
+{
+    // ...
+}
+```
+
+All types in the union must be ATS-compatible. The analyzer (ASPIREEXPORT005, ASPIREEXPORT006) validates union declarations at build time.
+
+## Analyzer diagnostics
+
+The integration analyzer reports these diagnostics when `EnableAspireIntegrationAnalyzers` is set to `true`:
+
+| ID              | Severity | Description                                                                                 |
+| --------------- | -------- | ------------------------------------------------------------------------------------------- |
+| ASPIREEXPORT001 | Error    | `[AspireExport]` method must be static                                                      |
+| ASPIREEXPORT002 | Error    | Invalid export ID format (must match `[a-zA-Z][a-zA-Z0-9.]*`)                               |
+| ASPIREEXPORT003 | Error    | Return type is not ATS-compatible                                                           |
+| ASPIREEXPORT004 | Error    | Parameter type is not ATS-compatible                                                        |
+| ASPIREEXPORT005 | Warning  | `[AspireUnion]` requires at least 2 types                                                   |
+| ASPIREEXPORT006 | Warning  | Union type is not ATS-compatible                                                            |
+| ASPIREEXPORT007 | Warning  | Duplicate export ID for the same target type                                                |
+| ASPIREEXPORT008 | Warning  | Public extension method on exported type missing `[AspireExport]` or `[AspireExportIgnore]` |
+| ASPIREEXPORT009 | Warning  | Export name may collide with other integrations                                             |
+| ASPIREEXPORT010 | Warning  | Synchronous callback invoked inline — may deadlock in multi-language app hosts              |
+| ASPIREEXPORT011 | Warning  | Explicit export ID matches the convention-derived name                                      |
+| ASPIREEXPORT012 | Warning  | Callback context type missing `[AspireExport]`                                              |
+| ASPIREEXPORT013 | Warning  | Duplicate polyglot capability ID across exports in the same assembly                        |
+| ASPIREEXPORT015 | Error    | `[AspireExport(Description = ...)]` is deprecated — use XML doc comments instead            |
+| ASPIREEXPORT016 | Warning  | DTO property is a get-only mutable collection. Add an init accessor                         |
+
+A clean build with zero analyzer warnings or errors means your integration is ready for TypeScript AppHost use.
+
+## Local development with project references
+
+You can test your integration locally without publishing to a NuGet feed. In your TypeScript AppHost's `aspire.config.json`, set the package value to a `.csproj` path instead of a version number:
+
+```json title="JSON — aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.mts",
+    "language": "typescript/nodejs"
+  },
+  "packages": {
+    "Aspire.Hosting.Redis": "13.3.0",
+    "MyCompany.Hosting.MyDatabase": "../src/MyCompany.Hosting.MyDatabase/MyCompany.Hosting.MyDatabase.csproj"
+  }
+}
+```
+
+When the CLI detects a `.csproj` path, it builds the project locally and generates the TypeScript SDK from the resulting assemblies. This lets you iterate on your exports without publishing to a feed.
+
+<Aside type="note">
+  Project references require the .NET SDK to be installed (for `dotnet build`).
+  The NuGet-only path (version strings) does not require the .NET SDK.
+</Aside>
+
+## Test your exports
+
+<Steps>
+
+1. Create a TypeScript AppHost for testing:
+
+   ```bash title="Create test AppHost"
+   mkdir test-apphost && cd test-apphost
+   aspire init --language typescript
+   ```
+
+2. Add your integration via project reference in `aspire.config.json`:
+
+   ```json title="JSON — aspire.config.json (packages section)"
+   {
+     "packages": {
+       "MyCompany.Hosting.MyDatabase": "../src/MyCompany.Hosting.MyDatabase/MyCompany.Hosting.MyDatabase.csproj"
+     }
+   }
+   ```
+
+3. Run `aspire run` to generate the TypeScript SDK:
+
+   ```bash title="Generate SDK and start"
+   aspire run
+   ```
+
+4. Check the generated `.aspire/modules/` directory for your integration's TypeScript types. Verify that your exported methods appear with the correct signatures.
+
+5. Use the generated API in `apphost.mts`:
+
+   ```typescript title="TypeScript — apphost.mts"
+   import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+   const builder = await createBuilder();
+
+   const db = await builder
+     .addMyDatabase('db', { port: 5432 })
+     .addDatabase('mydata')
+     .withDataVolume();
+
+   await builder.build().run();
+   ```
+
+</Steps>
+
+## Supported types
+
+The following types are ATS-compatible and can be used in exported method signatures:
+
+| Category            | Types                                                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Primitives**      | `string`, `bool`, `int`, `long`, `float`, `double`, `decimal`                                                                      |
+| **Value types**     | `DateTime`, `TimeSpan`, `Guid`, `Uri`                                                                                              |
+| **Enums**           | Any enum type                                                                                                                      |
+| **Handles**         | `IResourceBuilder<T>`, `IDistributedApplicationBuilder`, resource types marked with `[AspireExport]`                               |
+| **DTOs**            | Classes/structs marked with `[AspireDto]`                                                                                          |
+| **Exported values** | Static fields/properties marked with `[AspireValue]` (emitted as catalog constants in guest SDKs)                                  |
+| **Collections**     | `List<T>`, `Dictionary<string, T>`, arrays — where `T` is ATS-compatible                                                           |
+| **Delegates**       | `Action<T>`, `Func<T>`, and other delegate types (use `RunSyncOnBackgroundThread = true` for exports that invoke synchronous callbacks inline, including async-returning exports that call callbacks before their first `await`) |
+| **Services**        | `ILogger`, `IServiceProvider`, `IConfiguration` (already exported by the core framework)                                           |
+| **Special**         | `ParameterResource`, `ReferenceExpression`, `EndpointReference`, `IExpressionValue`, `CancellationToken`                           |
+| **Nullable**        | Any of the above as nullable (`T?`)                                                                                                |
+
+Types that are **not** ATS-compatible include: interpolated string handlers and custom complex types without `[AspireExport]` or `[AspireDto]`.
+
+## See also
+
+- [Build your first app](/get-started/first-app/?lang=typescript) — Get started with a TypeScript AppHost
+- [Custom resources](/extensibility/custom-resources/) — Creating custom resource types
+- [Integrations overview](/integrations/overview/) — Available integrations

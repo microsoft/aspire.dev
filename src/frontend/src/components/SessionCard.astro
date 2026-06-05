@@ -1,0 +1,437 @@
+---
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+export interface Speaker {
+  name: string;
+  headshot?: ImageMetadata;
+  jobTitle?: string;
+  company?: string;
+}
+
+export interface Props {
+  title: string;
+  speakers: Speaker[];
+  abstract: string;
+  timeslot?: string;
+  duration?: string;
+  keynote?: boolean;
+  index?: number;
+}
+
+const { title, speakers, abstract, timeslot, duration, keynote = false, index = 0 } = Astro.props;
+
+function getInitials(name: string): string {
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+const GOLDEN_ANGLE = 137.508;
+function getColorForIndex(idx: number): { bg: string; fg: string } {
+  const hue = (idx * GOLDEN_ANGLE) % 360;
+  const saturation = 55;
+  let lightness = 28;
+  if (hue > 40 && hue < 85) lightness = 22;
+  else if (hue >= 85 && hue < 140) lightness = 24;
+  return { bg: `hsl(${hue.toFixed(0)} ${saturation}% ${lightness}%)`, fg: '#ffffff' };
+}
+---
+
+<li
+  class:list={['session-card', 'not-content', { keynote }]}
+  style={`--card-index: ${index}`}
+  data-title={title.toLowerCase()}
+  data-speakers={speakers.map(s => s.name.toLowerCase()).join(',')}
+  data-abstract={abstract.toLowerCase()}
+  data-keynote={keynote ? 'true' : 'false'}
+>
+  {/* Gradient accent bar */}
+  <div class="accent-bar" aria-hidden="true"></div>
+
+  <div class="card-inner">
+    {/* Time badge */}
+    {timeslot && (
+      <div class="time-badge">
+        <svg class="time-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+        <span class="time-text" data-original-time={timeslot}>{timeslot}</span>
+        {duration && <span class="time-duration">{duration}</span>}
+      </div>
+    )}
+
+    {/* Session content */}
+    <div class="content">
+      <h3 class="title">{title}</h3>
+      <p class="abstract">{abstract}</p>
+    </div>
+
+    {/* Speakers row */}
+    <div class="speakers">
+      {
+        speakers.map((speaker, si) => {
+          const initials = getInitials(speaker.name);
+          const colors = getColorForIndex((index * 10) + si);
+          return (
+            <div class="speaker">
+              <div class="headshot-ring">
+                {speaker.headshot ? (
+                  <Image
+                    class="headshot"
+                    src={speaker.headshot}
+                    alt={speaker.name}
+                    width={80}
+                    height={80}
+                  />
+                ) : (
+                  <div
+                    class="headshot-initials"
+                    style={`background-color: ${colors.bg}; color: ${colors.fg};`}
+                  >
+                    {initials}
+                  </div>
+                )}
+              </div>
+              <div class="speaker-info">
+                <span class="speaker-name">{speaker.name}</span>
+                {speaker.jobTitle && (
+                  <span class="speaker-role">
+                    {speaker.jobTitle}
+                    {speaker.company && <> &middot; {speaker.company}</>}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })
+      }
+    </div>
+  </div>
+</li>
+
+<style>
+  .session-card {
+    position: relative;
+    list-style: none;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 0.35s ease;
+    animation: card-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--card-index, 0) * 0.12s);
+  }
+
+  @keyframes card-enter {
+    from {
+      opacity: 0;
+      transform: translateY(24px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .session-card:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      0 20px 40px color-mix(in srgb, var(--sl-color-accent) 12%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--sl-color-accent) 15%, transparent);
+    border-color: color-mix(in srgb, var(--sl-color-accent) 50%, var(--sl-color-gray-5));
+  }
+
+  /* Gradient top accent */
+  .accent-bar {
+    height: 3px;
+    background: linear-gradient(
+      90deg,
+      var(--sl-color-accent),
+      var(--color-magenta, #d600aa),
+      var(--sl-color-accent)
+    );
+  }
+
+  /* Keynote variant */
+  .session-card.keynote .accent-bar {
+    height: 6px;
+    background: linear-gradient(
+      90deg,
+      var(--sl-color-accent),
+      var(--color-magenta, #d600aa),
+      var(--color-flamingo, #f65163),
+      var(--color-magenta, #d600aa),
+      var(--sl-color-accent)
+    );
+  }
+
+  .card-inner {
+    padding: 1.75rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .session-card.keynote {
+    border: none;
+    background: transparent;
+    overflow: visible;
+    position: relative;
+    padding: 2px;
+    background:
+      conic-gradient(
+        from var(--border-angle, 0deg),
+        color-mix(in srgb, var(--sl-color-accent) 20%, transparent) 0%,
+        var(--sl-color-accent) 15%,
+        var(--color-magenta, #d600aa) 30%,
+        color-mix(in srgb, var(--color-magenta, #d600aa) 20%, transparent) 50%,
+        color-mix(in srgb, var(--sl-color-accent) 20%, transparent) 65%,
+        var(--sl-color-accent) 80%,
+        color-mix(in srgb, var(--sl-color-accent) 20%, transparent) 100%
+      );
+    border-radius: 1rem;
+    animation: keynote-border-rotate 4s linear infinite;
+  }
+
+  .session-card.keynote .accent-bar {
+    display: none;
+  }
+
+  .session-card.keynote .card-inner {
+    background:
+      radial-gradient(ellipse 60% 80% at 0% 100%, color-mix(in srgb, var(--sl-color-accent) 15%, transparent) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 70% at 100% 0%, rgba(214, 0, 170, 0.1) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 50% at 50% 50%, color-mix(in srgb, var(--sl-color-accent) 5%, transparent) 0%, transparent 80%),
+      linear-gradient(135deg, var(--sl-color-gray-6) 0%, color-mix(in srgb, var(--sl-color-accent) 4%, var(--sl-color-gray-6)) 100%);
+    border-radius: calc(1rem - 2px);
+  }
+
+  @property --border-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+  }
+
+  @keyframes keynote-border-rotate {
+    to {
+      --border-angle: 360deg;
+    }
+  }
+
+  :global([data-theme='light']) .session-card.keynote {
+    background:
+      conic-gradient(
+        from var(--border-angle, 0deg),
+        color-mix(in srgb, var(--sl-color-accent) 25%, var(--sl-color-black)) 0%,
+        var(--sl-color-accent) 15%,
+        var(--color-magenta, #d600aa) 30%,
+        color-mix(in srgb, var(--color-magenta, #d600aa) 25%, var(--sl-color-black)) 50%,
+        color-mix(in srgb, var(--sl-color-accent) 25%, var(--sl-color-black)) 65%,
+        var(--sl-color-accent) 80%,
+        color-mix(in srgb, var(--sl-color-accent) 25%, var(--sl-color-black)) 100%
+      );
+  }
+
+  :global([data-theme='light']) .session-card.keynote .card-inner {
+    background:
+      radial-gradient(ellipse 60% 80% at 0% 100%, color-mix(in srgb, var(--sl-color-accent) 6%, transparent) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 70% at 100% 0%, rgba(214, 0, 170, 0.04) 0%, transparent 70%),
+      var(--sl-color-black);
+  }
+
+  /* Time badge */
+  .time-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    align-self: flex-start;
+    padding: 0.3rem 0.85rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sl-color-accent) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--sl-color-text-accent);
+    letter-spacing: 0.02em;
+  }
+
+  .time-icon {
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+
+  .time-text {
+    white-space: nowrap;
+  }
+
+  .time-duration {
+    font-weight: 400;
+    padding-left: 0.25rem;
+    border-left: 1px solid color-mix(in srgb, var(--sl-color-accent) 40%, transparent);
+    margin-left: 0.15rem;
+  }
+
+  /* Content */
+  .content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--sl-color-white);
+    transition: color 0.25s ease;
+  }
+
+  .session-card:hover .title {
+    color: var(--sl-color-text-accent);
+  }
+
+  .abstract {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--sl-color-gray-2);
+  }
+
+  /* ── Light theme overrides ── */
+  :global([data-theme='light']) .session-card {
+    background: var(--sl-color-gray-7);
+    border-color: var(--sl-color-gray-5);
+    box-shadow: var(--sl-shadow-sm);
+  }
+
+  :global([data-theme='light']) .session-card:hover {
+    box-shadow:
+      0 16px 32px color-mix(in srgb, var(--sl-color-accent) 10%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--sl-color-accent) 50%, var(--sl-color-gray-5));
+  }
+
+  :global([data-theme='light']) .time-badge {
+    color: var(--sl-color-text-accent);
+    background: color-mix(in srgb, var(--sl-color-accent) 10%, transparent);
+    border-color: color-mix(in srgb, var(--sl-color-accent) 25%, transparent);
+  }
+
+  :global([data-theme='light']) .title {
+    color: var(--sl-color-white);
+  }
+
+  :global([data-theme='light']) .session-card:hover .title {
+    color: var(--sl-color-text-accent);
+  }
+
+  :global([data-theme='light']) .abstract {
+    color: var(--sl-color-gray-3);
+  }
+
+  :global([data-theme='light']) .speaker-name {
+    color: var(--sl-color-white);
+  }
+
+  :global([data-theme='light']) .speaker-role {
+    color: var(--sl-color-gray-3);
+  }
+
+  :global([data-theme='light']) .speakers {
+    border-top-color: var(--sl-color-gray-5);
+  }
+
+  /* Speakers */
+  .speakers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  .speaker {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .headshot-ring {
+    position: relative;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    padding: 2px;
+    background: linear-gradient(135deg, var(--sl-color-accent), var(--color-magenta, #d600aa));
+    flex-shrink: 0;
+  }
+
+  .headshot {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .headshot-initials {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  .speaker-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  .speaker-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+    white-space: nowrap;
+  }
+
+  .speaker-role {
+    font-size: 0.78rem;
+    color: var(--sl-color-gray-3);
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Mobile */
+  @media (max-width: 600px) {
+    .card-inner {
+      padding: 1.25rem 1.25rem;
+    }
+
+    .title {
+      font-size: 1.15rem;
+    }
+
+    .speakers {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .speaker-role {
+      white-space: normal;
+    }
+  }
+</style>

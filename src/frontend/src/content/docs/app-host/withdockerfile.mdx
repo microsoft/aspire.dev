@@ -1,9 +1,10 @@
 ---
 title: Add Dockerfiles to your app model
-description: Learn how to add Dockerfiles to your app model.
+seoTitle: Add Dockerfiles to your Aspire AppHost project app model
+description: Add Dockerfiles to your Aspire app model with WithDockerfile — build local container images, layer arguments, and pin context paths for project and executable resources.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 With Aspire it's possible to specify a _Dockerfile_ to build when the [AppHost](/get-started/app-host/) is started using either the `AddDockerfile` or `WithDockerfile` extension methods.
 
@@ -12,7 +13,7 @@ These two methods serve different purposes:
 - **`AddDockerfile`**: Creates a new container resource from an existing Dockerfile. Use this when you want to add a custom containerized service to your app model.
 - **`WithDockerfile`**: Customizes an existing container resource (like a database or cache) to use a different Dockerfile. Use this when you want to modify the default container image for an Aspire component.
 
-Both methods expect an existing Dockerfile in the specified context path—neither method creates a Dockerfile for you.
+Both methods expect an existing Dockerfile in the specified context path—neither method creates a Dockerfile for you. To generate a Dockerfile from AppHost code instead, use the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically) or the [Dockerfile factory APIs](#generate-a-dockerfile-with-a-factory-function).
 
 ## When to use AddDockerfile vs WithDockerfile
 
@@ -35,19 +36,35 @@ Choose the appropriate method based on your scenario:
 
 In the following example the `AddDockerfile` extension method is used to specify a container by referencing the context path for the container build.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var container = builder.AddDockerfile(
     "mycontainer", "relative/context/path");
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
-Unless the context path argument is a rooted path the context path is interpreted as being relative to the AppHost projects directory (where the AppHost `*.csproj` folder is located).
+const builder = await createBuilder();
+
+const container = await builder.addDockerfile(
+    "mycontainer", "relative/context/path");
+```
+</TabItem>
+</Tabs>
+
+Unless the context path argument is a rooted path the context path is interpreted as being relative to the AppHost project directory.
 
 By default the name of the _Dockerfile_ which is used is `Dockerfile` and is expected to be within the context path directory. It's possible to explicitly specify the _Dockerfile_ name either as an absolute path or a relative path to the context path.
 
 This is useful if you wish to modify the specific _Dockerfile_ being used when running locally or when the AppHost is deploying.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -57,6 +74,21 @@ var container = builder.ExecutionContext.IsRunMode
     : builder.AddDockerfile(
           "mycontainer", "relative/context/path", "Dockerfile.release");
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const container = (await builder.executionContext.isRunMode())
+    ? await builder.addDockerfile(
+          "mycontainer", "relative/context/path", "Dockerfile.debug")
+    : await builder.addDockerfile(
+          "mycontainer", "relative/context/path", "Dockerfile.release");
+```
+</TabItem>
+</Tabs>
 
 ## Customize existing container resources
 
@@ -64,6 +96,8 @@ When using `AddDockerfile` the return value is an `IResourceBuilder<ContainerRes
 
 Using the `WithDockerfile` extension method it's possible to take an existing Aspire component (like PostgreSQL, Redis, or SQL Server) and replace its default container image with a custom one built from your own Dockerfile. This allows you to continue using the strongly typed resource types and their specific extension methods while customizing the underlying container.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -73,20 +107,242 @@ var pgsql = builder.AddPostgres("pgsql")
     .WithDockerfile("path/to/context")
     .WithPgAdmin(); // Still works because it's still a PostgreSQL resource
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const pgsql = await builder.addPostgres("pgsql");
+
+// This replaces the default PostgreSQL container image with a custom one
+// built from your Dockerfile, while keeping PostgreSQL-specific functionality.
+await pgsql.withDockerfile("path/to/context");
+await pgsql.withPgAdmin(); // Still works because it's still a PostgreSQL resource.
+```
+</TabItem>
+</Tabs>
+
+## Generate a Dockerfile programmatically
+
+Use `AddDockerfileBuilder` or `WithDockerfileBuilder` when you need Aspire to generate a Dockerfile from AppHost code. These APIs are useful when the Dockerfile depends on AppHost configuration, when you want to compose Dockerfile fragments, or when you want to keep multi-stage image build logic near the resource definition.
+
+<Aside type="caution">
+  The Dockerfile builder APIs are experimental and may change in future
+  releases. In C# AppHosts, suppress diagnostic
+  [`ASPIREDOCKERFILEBUILDER001`](/diagnostics/aspiredockerfilebuilder001/) when you choose to use them.
+</Aside>
+
+`AddDockerfileBuilder` creates a new container resource and configures the generated Dockerfile in one step:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel.Docker;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddDockerfileBuilder("frontend", "../frontend", context =>
+{
+    var build = context.Builder.From("node:22-alpine", "build");
+    build.WorkDir("/app")
+        .Copy("package*.json", "./")
+        .Run("npm ci")
+        .Copy(".", ".")
+        .Run("npm run build");
+
+    var runtime = context.Builder.From("nginx:alpine", "runtime");
+    runtime.CopyFrom("build", "/app/dist", "/usr/share/nginx/html")
+        .Expose(80);
+
+    return Task.CompletedTask;
+}, stage: "runtime");
+#pragma warning restore ASPIREDOCKERFILEBUILDER001
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import type { DockerfileBuilderCallbackContext } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+
+  await dockerfile
+    .from("node:22-alpine", { stageName: "build" })
+    .workDir("/app")
+    .copy("package*.json", "./")
+    .run("npm ci")
+    .copy(".", ".")
+    .run("npm run build");
+
+  await dockerfile
+    .from("nginx:alpine", { stageName: "runtime" })
+    .copyFrom("build", "/app/dist", "/usr/share/nginx/html")
+    .expose(80);
+};
+
+await builder.addDockerfileBuilder("frontend", "../frontend", configureDockerfile, {
+  stage: "runtime",
+});
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+`WithDockerfileBuilder` applies a generated Dockerfile to an existing container resource. The image name provided when the resource is created is replaced by the generated Dockerfile build during publish:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel.Docker;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddContainer("frontend", "nginx:alpine")
+    .WithDockerfileBuilder("../frontend", context =>
+    {
+        var stage = context.Builder.From("nginx:alpine", "runtime");
+        stage.Copy(".", "/usr/share/nginx/html")
+            .Expose(80);
+
+        return Task.CompletedTask;
+    }, stage: "runtime");
+#pragma warning restore ASPIREDOCKERFILEBUILDER001
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import type { DockerfileBuilderCallbackContext } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+  await dockerfile
+    .from("nginx:alpine", { stageName: "runtime" })
+    .copy(".", "/usr/share/nginx/html")
+    .expose(80);
+};
+
+await builder
+  .addContainer("frontend", "nginx:alpine")
+  .withDockerfileBuilder("../frontend", configureDockerfile, {
+    stage: "runtime",
+  });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## Generate a Dockerfile with a factory function
+
+Use `AddDockerfileFactory` or `WithDockerfileFactory` when you need to generate a Dockerfile as a string from AppHost code. Unlike the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically) that use a fluent API to compose Dockerfile instructions, the factory APIs let you return Dockerfile content directly as a string — useful when you already have string-based Dockerfile generation logic or want to construct content conditionally.
+
+The factory callback receives a `DockerfileFactoryContext` parameter that provides access to the resource and DI services when needed.
+
+`AddDockerfileFactory` creates a new container resource and configures the generated Dockerfile in one step:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var container = builder.AddDockerfileFactory("myapp", "../myapp", async context =>
+{
+    // Return Dockerfile content as a string.
+    return """
+        FROM node:22-alpine
+        WORKDIR /app
+        COPY . .
+        RUN npm ci
+        EXPOSE 3000
+        CMD ["node", "server.js"]
+        """;
+});
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+TypeScript AppHost support for Dockerfile factory APIs isn't available because `DockerfileFactoryContext` exposes .NET runtime types that aren't part of the polyglot SDK surface. Use the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically) for TypeScript AppHosts.
+
+</TabItem>
+</Tabs>
+
+`WithDockerfileFactory` applies a factory-generated Dockerfile to an existing container resource:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("myapp", "placeholder")
+    .WithDockerfileFactory("../myapp", async context =>
+    {
+        return """
+            FROM nginx:alpine
+            COPY dist/ /usr/share/nginx/html
+            EXPOSE 80
+            """;
+    });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+TypeScript AppHost support for Dockerfile factory APIs isn't available because `DockerfileFactoryContext` exposes .NET runtime types that aren't part of the polyglot SDK surface. Use the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically) for TypeScript AppHosts.
+
+</TabItem>
+</Tabs>
 
 ## Pass build arguments
 
 The `WithBuildArg` method can be used to pass arguments into the container image build.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var container = builder.AddDockerfile("mygoapp", "relative/context/path")
     .WithBuildArg("GO_VERSION", "1.22");
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const container = await builder.addDockerfile("mygoapp", "relative/context/path");
+await container.withBuildArg("GO_VERSION", "1.22");
+```
+</TabItem>
+</Tabs>
 
 The value parameter on the `WithBuildArg` method can be a literal value (`boolean`, `string`, `int`) or it can be a resource builder for a [parameter resource](/fundamentals/external-parameters/). The following code replaces the `GO_VERSION` with a parameter value that can be specified at deployment time.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -95,6 +351,20 @@ var goVersion = builder.AddParameter("goversion");
 var container = builder.AddDockerfile("mygoapp", "relative/context/path")
     .WithBuildArg("GO_VERSION", goVersion);
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const goVersion = await builder.addParameter("goversion");
+
+const container = await builder.addDockerfile("mygoapp", "relative/context/path");
+await container.withBuildArg("GO_VERSION", goVersion);
+```
+</TabItem>
+</Tabs>
 
 Build arguments correspond to the [`ARG` command](https://docs.docker.com/build/guide/build-args/) in _Dockerfiles_. Expanding the preceding example, this is a multi-stage _Dockerfile_ which specifies specific container image version to use as a parameter.
 
@@ -123,6 +393,8 @@ CMD ["./mygoapp"]
 
 In addition to build arguments it's possible to specify build secrets using `WithBuildSecret` which are made selectively available to individual commands in the _Dockerfile_ using the `--mount=type=secret` syntax on `RUN` commands.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -131,6 +403,20 @@ var accessToken = builder.AddParameter("accesstoken", secret: true);
 var container = builder.AddDockerfile("myapp", "relative/context/path")
     .WithBuildSecret("ACCESS_TOKEN", accessToken);
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const accessToken = await builder.addParameter("accesstoken", { secret: true });
+
+const container = await builder.addDockerfile("myapp", "relative/context/path");
+await container.withBuildSecret("ACCESS_TOKEN", accessToken);
+```
+</TabItem>
+</Tabs>
 
 For example, consider the `RUN` command in a _Dockerfile_ which exposes the specified secret to the specific command:
 

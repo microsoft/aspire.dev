@@ -1,0 +1,382 @@
+---
+title: Set up Azure Cache for Redis in the AppHost
+description: Learn how to use the Aspire Azure Cache for Redis Hosting integration to orchestrate and configure a managed Redis cache in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import cacheRedisIcon from '@assets/icons/azure-cacheredis-icon.png';
+
+<Image
+  src={cacheRedisIcon}
+  alt="Azure Cache for Redis logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the reference for the Aspire Azure Cache for Redis Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure managed Redis cache resource in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Azure Cache for Redis integration, start with the [Get started with Azure Cache for Redis integrations](/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Cache for Redis](../azure-cache-redis-connect/).
+
+## Installation
+
+To start building an Aspire app that uses Azure Cache for Redis, install the [📦 Aspire.Hosting.Azure.Redis](https://www.nuget.org/packages/Aspire.Hosting.Azure.Redis) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add azure-redis
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Azure.Redis@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.Redis" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-redis
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Cache for Redis hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Redis": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add Azure Managed Redis resource
+
+Once you've installed the hosting integration in your AppHost project, you can add an Azure Managed Redis resource as shown in the following examples:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddAzureManagedRedis("cache");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addAzureManagedRedis("cache");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. The resource is named `cache` and represents an Azure Managed Redis cache. Aspire generates the Bicep needed to provision it in Azure.
+
+1. By default, Aspire configures the resource to use Microsoft Entra ID (role-based access) authentication. No password is stored in the connection string. For more information, see [Configure access key authentication](#configure-access-key-authentication).
+
+1. The `WithReference` (or `withReference`) call configures a connection in the consuming project named after the resource, such as `cache` in the preceding example.
+
+</Steps>
+
+<Aside type="caution">
+  When you call `AddAzureManagedRedis` (or `addAzureManagedRedis`), it implicitly calls `AddAzureProvisioning` — which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+<Aside type="note">
+  When you reference an Azure Cache for Redis resource from the AppHost, Aspire makes several properties available to the consuming project, such as the hostname, port, and connection URI. For a complete list of these properties and per-language connection examples, see [Connect to Azure Cache for Redis](../azure-cache-redis-connect/).
+</Aside>
+
+## Run as a local Redis container
+
+The Azure Cache for Redis hosting integration supports running a local Redis container during development. This lets you develop and test your app locally without provisioning an Azure resource or connecting to an existing Azure Cache for Redis instance.
+
+To run the resource as a container, chain a call to `RunAsContainer` (or `runAsContainer`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddAzureManagedRedis("cache")
+    .RunAsContainer();
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addAzureManagedRedis("cache")
+    .runAsContainer();
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The preceding code pulls the [`docker.io/library/redis`](https://hub.docker.com/_/redis/) container image and runs it locally. The consuming app connects to the container using a password-based connection string during development.
+
+:::tip
+The `RunAsContainer` method accepts an optional delegate that lets you customize the underlying `RedisResource` — for example, adding [Redis Insight](https://redis.io/insight/), [Redis Commander](https://joeferner.github.io/redis-commander/), a data volume, or a data bind mount. For more information, see [Redis Hosting integration](../../../caching/redis/redis-host/#add-redis-resource-with-redis-insights).
+:::
+
+## Connect to an existing Azure Cache for Redis instance
+
+If you already have an Azure Cache for Redis instance you want to use, call `AsExisting` (or `asExisting`) to annotate that the resource already exists rather than being provisioned:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingRedisName = builder.AddParameter("existingRedisName");
+var existingRedisResourceGroup = builder.AddParameter("existingRedisResourceGroup");
+
+var cache = builder.AddAzureManagedRedis("cache")
+    .AsExisting(existingRedisName, existingRedisResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const existingRedisName = await builder.addParameter("existingRedisName");
+const existingRedisResourceGroup = await builder.addParameter("existingRedisResourceGroup");
+
+const cache = await builder.addAzureManagedRedis("cache")
+    .asExisting(existingRedisName, { resourceGroup: existingRedisResourceGroup });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+For more information on treating Azure resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+## Configure access key authentication
+
+By default, the Azure Managed Redis resource uses Microsoft Entra ID authentication. To switch to access key authentication (not recommended for production), call `WithAccessKeyAuthentication` (or `withAccessKeyAuthentication`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddAzureManagedRedis("cache")
+    .WithAccessKeyAuthentication();
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addAzureManagedRedis("cache")
+    .withAccessKeyAuthentication();
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+When access key authentication is enabled, the generated Bicep stores the access key in an Azure Key Vault secret and injects it as the `Password` connection property. The connection string includes the password instead of relying on a managed identity token.
+
+## Provisioning-generated Bicep
+
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by hand — the provisioning APIs generate it for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Managed Redis resource, the following Bicep is generated:
+
+```bicep title="Bicep — cache.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+resource cache 'Microsoft.Cache/redis@2024-11-01' = {
+  name: take('cache-${uniqueString(resourceGroup().id)}', 63)
+  location: location
+  properties: {
+    sku: {
+      name: 'Basic'
+      family: 'C'
+      capacity: 1
+    }
+    enableNonSslPort: false
+    disableAccessKeyAuthentication: true
+    minimumTlsVersion: '1.2'
+    redisConfiguration: {
+      'aad-enabled': 'true'
+    }
+  }
+  tags: {
+    'aspire-resource-name': 'cache'
+  }
+}
+
+output connectionString string = '${cache.properties.hostName},ssl=true'
+
+output name string = cache.name
+```
+
+In addition, role assignments are created for the Azure resource in a separate module:
+
+```bicep title="Bicep — cache-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param cache_outputs_name string
+
+param principalId string
+
+param principalName string
+
+resource cache 'Microsoft.Cache/redis@2024-11-01' existing = {
+  name: cache_outputs_name
+}
+
+resource cache_contributor 'Microsoft.Cache/redis/accessPolicyAssignments@2024-11-01' = {
+  name: guid(cache.id, principalId, 'Data Contributor')
+  properties: {
+    accessPolicyName: 'Data Contributor'
+    objectId: principalId
+    objectIdAlias: principalName
+  }
+  parent: cache
+}
+```
+
+The generated Bicep provisions the Azure Cache for Redis instance and creates an access policy assignment so the consuming application can connect using its managed identity. The generated Bicep is a starting point that reflects the provisioning infrastructure configured in your AppHost. Customizations made directly to the Bicep files are overwritten on the next publish — make changes through the C# or TypeScript provisioning APIs instead.
+
+## Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables Bicep customization through the `ConfigureInfrastructure` API:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureManagedRedis("cache")
+    .ConfigureInfrastructure(infra =>
+    {
+        var redisCache = infra.GetProvisionableResources()
+                              .OfType<RedisCache>()
+                              .Single();
+
+        redisCache.Sku = new RedisSku
+        {
+            Name = RedisSkuName.Standard,
+            Family = RedisSkuFamily.C,
+            Capacity = 1,
+        };
+        redisCache.Tags.Add("ExampleKey", "Example value");
+    });
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addAzureManagedRedis("cache")
+    .configureInfrastructure(async (infra) => {
+        // Use the AzureResourceInfrastructure API to customize Bicep
+        // parameters or resources directly.
+        await infra.addParameter("skuName", "Standard");
+    });
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The preceding C# code retrieves the `RedisCache` resource from the infrastructure and updates the SKU to `Standard` tier with capacity 1, then adds a tag. The TypeScript AppHost exposes the same `configureInfrastructure` API for adding Bicep parameters and customizing resource configuration.
+
+For more configuration options, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+
+## Connection properties
+
+For the full reference of Azure Cache for Redis connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Azure Cache for Redis](../azure-cache-redis-connect/).
+
+## Hosting integration health checks
+
+The Azure Cache for Redis hosting integration automatically adds a health check for the resource when running as a local container. The health check verifies that the Redis instance is running and that a connection can be established.
+
+The hosting integration relies on the [📦 AspNetCore.HealthChecks.Redis](https://www.nuget.org/packages/AspNetCore.HealthChecks.Redis) NuGet package to perform the health check.
+
+:::note
+Health checks are only registered when running as a local container via `RunAsContainer`. When connecting to an actual Azure Cache for Redis service, the Aspire dashboard uses the Azure resource status to report health.
+:::

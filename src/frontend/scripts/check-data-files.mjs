@@ -21,7 +21,7 @@ function checkDataFiles() {
     console.log('\n🔄 Running update:all to generate missing files...\n');
 
     try {
-      execSync('npm run update:all', { stdio: 'inherit' });
+      execSync('pnpm run update:all', { stdio: 'inherit' });
       console.log('\n✅ Data files generated successfully');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';

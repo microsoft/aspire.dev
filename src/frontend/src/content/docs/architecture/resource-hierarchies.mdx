@@ -1,9 +1,10 @@
 ---
 title: Resource Hierarchies
-description: Learn how Aspire manages resources and their dependencies in your application.
+seoTitle: Aspire resource parent-child hierarchies in AppHost
+description: Model parent-child resource relationships in Aspire to express ownership, lifecycle containment, and dashboard grouping for distributed application topologies.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Aspire supports modeling **parent-child relationships** between resources to express ownership, containment, and grouping.
 
@@ -65,7 +66,7 @@ The following scenarios illustrate how Aspire models parent-child relationships:
 
 In Aspire, configuration, connectivity details, and dependencies between distributed resources are modeled using **structured values**. These values capture relationships explicitly—not just as simple strings—making the application graph **portable, inspectable, and evolvable**.
 
-Aspire represents these relationships through a **heterogeneous Directed Acyclic Graph (DAG)**. This graph tracks not only dependency ordering but also how **structured values** are passed between resources at multiple abstraction levels: configuration, connection, and runtime behavior.
+Aspire represents these relationships through a **heterogeneous Directed Acyclic Graph (<abbr title="Directed Acyclic Graph" data-tooltip-placement="top">DAG</abbr>)**. This graph tracks not only dependency ordering but also how **structured values** are passed between resources at multiple abstraction levels: configuration, connection, and runtime behavior.
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -407,14 +408,17 @@ builder.Build().Run();
 ## `EndpointReferenceExpression` — Accessing Endpoint Parts
 
 `EndpointReferenceExpression` represents **one field** of an endpoint (`Host`, `Port`, `Scheme`, etc.).
-Call `endpoint.Property(...)` to get that field; the result is still a structured value and stays deferred until publish/run time.
+In C#, call `endpoint.Property(...)` to get that field. In TypeScript AppHosts, call `await endpoint.property(...)`. The result is still a structured value and stays deferred until publish/run time.
 
-| Need                                    | Pattern                                                |
-| --------------------------------------- | ------------------------------------------------------ |
-| Only one part (e.g., host)              | `endpoint.Property(EndpointProperty.Host)`             |
-| Compose multiple parts into one setting | Build a `ReferenceExpression` (see dedicated section). |
+| Need                                    | Pattern                                                                                                          |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Only one part (e.g., host)              | C#: `endpoint.Property(EndpointProperty.Host)`<br />TypeScript: `await endpoint.property(EndpointProperty.Host)` |
+| Compose multiple parts into one setting | Build a `ReferenceExpression` (see dedicated section).                                                           |
 
-```csharp title="Example — Expose Redis Host and Port"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
 var redis = builder.AddContainer("redis", "redis")
                    .WithEndpoint("tcp", 6379);
 
@@ -427,7 +431,33 @@ builder.AddProject("worker")
        });
 ```
 
-In this pattern, `ep.Property(...)` returns an `EndpointReferenceExpression`, which is a structured value that will be resolved at runtime.
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const redis = await builder.addContainer('redis', 'redis');
+await redis.withEndpoint({ name: 'tcp', targetPort: 6379 });
+
+const ep = await redis.getEndpoint('tcp');
+const redisHost = await ep.property(EndpointProperty.Host);
+const redisPort = await ep.property(EndpointProperty.Port);
+
+await builder
+  .addProject('worker', '../Worker/Worker.csproj')
+  .withEnvironment('REDIS_HOST', redisHost)
+  .withEnvironment('REDIS_PORT', redisPort);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+In this pattern, the endpoint property call returns an `EndpointReferenceExpression`, which is a structured value that will be resolved at runtime.
 
 ```csharp title="Example — Build a Full Redis URL"
 var ep = redis.GetEndpoint("tcp");
@@ -475,17 +505,117 @@ Aspire resolves endpoints differently based on the relationship between the sour
 | Executable / Project | Container            | Host network (`localhost:port`).            | `localhost:6379`            |
 | Container            | Executable / Project | Host network (`host.docker.internal:port`). | `host.docker.internal:5000` |
 
-#### Advanced Scenario: Dynamic Endpoint Resolution Across Contexts
+### Advanced Scenario: Overriding default endpoint resolution
 
-Aspire resolves endpoints differently based on the execution context (e.g., run mode vs. publish mode, container vs. executable). Sometimes you want to override that resolution behavior.
+Aspire resolves endpoints differently based on the execution context (e.g., run mode vs. publish mode, container vs. executable). Sometimes you need to override that resolution behavior to get an endpoint from a different perspective than the default.
 
-Consider the following scenario, where the example shows a project that is going to setup up grafana and keycloak. We need to give the project the address for container-to-container communication between grafana and keycloak even though the target resource is a project. The project isn't directly talking to keycloak or grafana, it's a mediator that is just setting URLs in the appropriate configuration of each container.
+Consider a scenario where a project resource needs to configure Grafana and Keycloak containers. The project must provide container-to-container URLs for these services to communicate with each other, even though the project itself would normally receive host-based URLs.
+
+### Explicit context resolution with ValueProviderContext
+
+Starting with Aspire 13.2, you can explicitly control endpoint resolution context using `ValueProviderContext`. This provides a cleaner alternative to manually constructing URLs when you need endpoints resolved from a specific resource's perspective or network context.
+
+#### Resolve from a specific resource (Caller)
+
+Use the `Caller` property to resolve an endpoint from the perspective of a specific calling resource:
+
+```csharp title="C# — Resolve endpoint from a resource's perspective"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+var containerApp = builder.AddContainer("worker", "myimage");
+
+// Get the endpoint reference
+var endpoint = redis.GetEndpoint("tcp");
+
+// Resolve the URL from the container's perspective
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Caller = containerApp.Resource,
+});
+
+// The URL will be appropriate for container-to-container communication
+// e.g., "cache:6379" using the resource name as the hostname
+```
+
+This is particularly useful when you need to pass connection information between resources that may be running in different contexts (containers vs. host processes).
+
+#### Resolve from a specific network
+
+Use the `Network` property to resolve an endpoint from the perspective of a specific network:
+
+```csharp title="C# — Resolve endpoint from a network's perspective"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+
+// Get the endpoint reference
+var endpoint = redis.GetEndpoint("tcp");
+
+// Resolve the URL for the default Aspire container network
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Network = KnownNetworkIdentifiers.DefaultAspireContainerNetwork
+});
+
+// The URL will be appropriate for the container network
+// e.g., "cache:6379" using the resource name as the hostname
+```
+
+The `KnownNetworkIdentifiers` class provides predefined network identifiers:
+
+- `LocalhostNetwork`: Resolves to localhost-based URLs
+- `DefaultAspireContainerNetwork`: Resolves to container network URLs using resource names
+- `PublicInternet`: Resolves to externally accessible URLs
+
+<Aside type="note">
+  These APIs existed in Aspire 13.1 but did not behave as expected. In Aspire
+  13.2, they now correctly resolve endpoints based on the specified context. For
+  more details, see [What's new in Aspire
+  13.2](/whats-new/aspire-13-2/#contextual-endpoint-resolution).
+</Aside>
 
 ### Cross-Context Communication Example
 
 The following code demonstrates how to set environment variables for a project that needs to communicate with other resources like Grafana and Keycloak. It ensures that the URLs are correctly resolved based on the execution context (run mode vs. publish mode).
 
-```csharp title="C# — AppHost.cs"
+With Aspire 13.2, you can simplify this using `ValueProviderContext`:
+
+```csharp title="C# — Simplified with ValueProviderContext (Aspire 13.2+)"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var keycloak = builder.AddKeycloak("keycloak", 8080);
+var grafana = builder.AddContainer("grafana", "grafana/grafana");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithEnvironment(async ctx =>
+    {
+        var keyCloakEndpoint = keycloak.GetEndpoint("http");
+        var grafanaEndpoint = grafana.GetEndpoint("http");
+
+        ctx.EnvironmentVariables["Grafana__Url"] = grafanaEndpoint;
+
+        if (ctx.ExecutionContext.IsRunMode)
+        {
+            // Resolve from container network perspective
+            var keycloakUrl = await keyCloakEndpoint.GetValueAsync(new ValueProviderContext
+            {
+                Network = KnownNetworkIdentifiers.DefaultAspireContainerNetwork
+            });
+
+            ctx.EnvironmentVariables["Keycloak__AuthServerUrl"] = keycloakUrl;
+        }
+        else
+        {
+            // In publish mode let the endpoint resolver handle the URL
+            ctx.EnvironmentVariables["Keycloak__AuthServerUrl"] = keyCloakEndpoint;
+        }
+    });
+
+builder.Build().Run();
+```
+
+**Before Aspire 13.2**, you would need to manually construct the URL:
+
+```csharp title="C# — Manual URL construction (pre-13.2)"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder.AddKeycloak("keycloak", 8080);
@@ -501,11 +631,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
         if (ctx.ExecutionContext.IsRunMode)
         {
-            // The project needs to get the URL for keycloak in the context
-            // of the container network, but since this is a project, it'll
-            // resolve the url in the context of the host network. We get
-            // the runtime url and change the host and port to match the
-            // container network pattern (host = resource name, port = target port ?? port)
+            // Manual URL construction required in pre-13.2
             var keycloakUrl = new UriBuilder(keyCloakEndpoint.Url)
             {
                 Host = keycloak.Resource.Name,

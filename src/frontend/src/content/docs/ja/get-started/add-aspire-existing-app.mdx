@@ -1,966 +1,701 @@
 ---
-title: 既存のアプリを Aspireify する
-description: aspire init を使用して既存のアプリケーションに Aspire のオーケストレーションを追加する方法を学ぶ
+title: "既存のアプリに Aspire を追加する"
+description: "`aspire init` と AI コーディング エージェントを使って、または AppHost でリソースを手動で接続して、既存のアプリケーションに Aspire を追加します。"
+next: false
 ---
 
-import {
-  Aside,
-  Steps,
-  FileTree,
-  Tabs,
-  TabItem,
-} from '@astrojs/starlight/components';
+import { FileTree, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
-import InstallPackage from '@components/InstallPackage.astro';
-import PivotSelector from '@components/PivotSelector.astro';
-import Pivot from '@components/Pivot.astro';
 
-<PivotSelector
-  title="最初にプログラミング言語を選択しましょう"
-  key="lang"
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'python', title: 'Python' },
-    { id: 'javascript', title: 'JavaScript' },
-  ]}
-/>
+新しいテンプレートを基準にソリューションを作り直す代わりに、すでにあるアプリへ Aspire を追加しましょう。最短ルートは `aspire init` と AI コーディング エージェントの組み合わせです。これによりサービスを自動検出し、 AppHost へ配線できます。より細かく制御したい場合は、下に手動手順も用意しています。
 
-このガイドでは、既存のアプリケーションに Aspire のオーケストレーションを追加する方法を紹介します。アプリが C#、Python、JavaScript、またはそれらの組み合わせで書かれていても問題ありません。ゼロから始めるのではなく、 `aspire init` コマンドを使って、現在のプロジェクトに段階的に Aspire を取り入れていきます。
+## なぜ既存のアプリに Aspire を追加するのか？
 
-:::note[定義]{icon="approve-check-circle"}
-**Aspireify** (動詞): 既存のアプリケーションを、Aspire を追加するだけで分散化され、可観測性を備え、オーケストレーションされたシステムへと変身させることです。必要なのはほんの数個のコマンドだけです！
-:::
+分散アプリケーションが大きくなるほど、ローカル開発は壊れやすいスクリプト、コピペされた接続文字列、起動順序の暗黙知の寄せ集めになりがちです。 Aspire は、すでに持っているリソースに対して単一のオーケストレーション層を提供します。関係性をコードで一度定義すれば、サービス検出、構成の注入、起動順序、ダッシュボードでの可視化を Aspire が処理します。
 
-## 既存のアプリに Aspire を追加する理由は？
+Aspire は段階的にも導入できます。まずは、コンテナー、データベース、キャッシュ、キュー、バックグラウンド ワーカー、ローカル開発コマンドのように、手作業では整合を保ちにくい部分からモデリングしてください。準備ができたらテレメトリを追加し、アプリの成長に合わせてモデルを深めていけます。
 
-分散アプリケーションが成長すると、複数のサービスを調整する作業は、設定ファイルの乱立、ハードコードされた URL、壊れやすい起動スクリプトといった“絡み合った糸”のようになっていきます。環境ごとに異なる接続文字列の管理、サービス間依存関係の手作業での配線、マイクロサービス全体にまたがる問題の追跡…。開発環境のセットアップも儀式のようになり、「データベース → キャッシュ → サービス A → サービス B」の順で起動しなければならず、わずかな手順ミスで最初からやり直し、ということも珍しくありません。
+## 前提条件
 
-Aspire は、これらの複雑さを ひとつの統合オーケストレーション層 によって解消します。アプリケーション全体を一つのシステムとして扱い、コード内でサービスとその関係を一度定義するだけで ([AppHost](/get-started/app-host/))、Aspire が自動的にサービス検出を行い、設定を挿入し、ログ・トレース・メトリクスを含むダッシュボードまで提供します。サービスが C#、Python、JavaScript のいずれで書かれていても、あるいはそれらが混在していても、開発からデプロイまで一貫した体験が得られます。
+開始する前に、次を確認してください:
 
-そして何より魅力的なのは、Aspire を段階的に採用できる ことです。まずはオーケストレーションを導入し、準備ができたら可観測性を追加し、必要に応じて外部サービスを統合するといった柔軟な進め方ができます。既存のコードベースに大幅な変更を加える必要はほとんどなく、もし Aspire が合わないと感じた場合でも元に戻すことができます。
+- [Aspire CLI をインストール済み](/ja/get-started/install-cli/)
+- Aspire を追加する既存のアプリケーションまたはワークスペースがあること
+- 既存サービスが必要とするランタイムとツール
 
-## 事前準備
+### AppHost 固有の要件
 
-始める前に、アプリケーションの使用言語に応じて、次の要件を満たすようにインストールされていることを確認してください。
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
-### 共通の要件
+- [.NET SDK 10.0 以降](/ja/get-started/prerequisites/)
+- Visual Studio 2022 17.13 以降、 Visual Studio Code、または JetBrains Rider（任意）
 
-- [.NET SDK 10.0 以降](/ja/get-started/prerequisites/) — アプリケーションの言語に関係なく、Aspire AppHost に必要です。
-- [Aspire CLI のインストール](/ja/get-started/install-cli/) — オーケストレーションやデプロイのコマンドに必要です。
-- Aspire を追加する既存のアプリケーション。
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-### 開発言語ごとの要件
+- [Node.js 22 以降](https://nodejs.org/)
+- npm、 yarn、または pnpm
 
-<Pivot id="csharp">
+</TabItem>
+</Tabs>
 
-**C# アプリケーションの場合:**
+## 推奨: 「aspireify」スキル付きの AI コーディング エージェントを使う
 
-- 1 つ以上の .NET または ASP.NET Core プロジェクト (`.csproj`) を含むソリューション
-- Visual Studio 2022 17.13 以降、Visual Studio Code、JetBrains Rider（任意）
-
-**プロジェクトタイプの例:**
-
-- ASP.NET Core Minimal API
-- ASP.NET Core Razor Pages または Blazor アプリ
-- コンソールアプリケーション
-- Worker サービス
-- gRPC サービス
-- Azure Functions
-
-</Pivot>
-<Pivot id="python">
-
-**Python アプリケーションの場合:**
-
-- [Python 3.10 以降](https://www.python.org/downloads/) がインストールされていること
-- パッケージ管理のための [uv](https://docs.astral.sh/uv/) (推奨) または pip
-- 既存の Python アプリケーション
-
-**アプリケーションタイプの例:**
-
-- FastAPI web アプリケーション
-- Flask web アプリケーション
-- Django アプリケーション
-- Python スクリプト や Worker プロセス
-- Streamlit などのその他 Python Web フレームワーク
-
-</Pivot>
-<Pivot id="javascript">
-
-**JavaScript/TypeScript アプリケーションの場合:**
-
-- [Node.js 22 以降](https://nodejs.org/) がインストールされていること
-- パッケージ管理のための npm, yarn, or pnpm
-- 既存の JavaScript／TypeScript アプリケーション
-
-**アプリケーションタイプの例:**
-
-- React、 Vue、 Svelte アプリケーション (特に Vite ベース)
-- Node.js/Express API
-- Next.js アプリケーション
-- Angular アプリケーション
-- TypeScript バックエンド サービス
-
-</Pivot>
-
-<Aside type="tip" title="複数開発言語 アプリケーション">
-  アプリケーションが複数の言語を使用している場合は、関連するすべての前提条件がインストールされていることを確認してください。Aspire
-  の AppHost
-  は、異なる言語で書かれたサービスを同時にオーケストレーションできます。
-</Aside>
-
-## プロセスの概要
-
-既存のアプリケーションに Aspire を追加する手順は、主に次のステップで進めます:
+既存アプリへ Aspire を追加する最速の方法は、 `aspire init` で骨組みを作ってから、配線を **`aspireify` エージェント スキル**に任せることです。このスキルは、リソース検出、依存関係の配線、 OpenTelemetry の設定、検証を自動で行います。
 
 <Steps>
 
-1. **Aspire 対応を初期化** — `aspire init` を使用して AppHost（オーケストレーション層）を追加します。
-2. **アプリケーションを追加** — AppHost に C#、Python、JavaScript のアプリケーションを登録します。
-3. **テレメトリーを構成（任意）** — 可観測性のために OpenTelemetry を追加します。
-4. **統合を追加（任意）** — データベース、キャッシュ、メッセージキューなどを接続します。
-5. **実行と検証** — Aspire オーケストレーションでアプリケーションの動作を確認します。
+1. リポジトリのルートで `aspire init` を実行します:
 
-</Steps>
-
-## Aspire 対応を初期化
-
-`aspire init` コマンドは、既存のアプリケーションに Aspire を追加するための出発点です。このコマンドはプロジェクト構造を分析し、サービスをオーケストレーションする AppHost を追加します。
-
-<Steps>
-
-1. プロジェクトのディレクトリに移動します:
-
-   <Pivot id="csharp">
-     ```bash title="ソリューションのディレクトリに移動"
-     cd /path/to/your-solution
-     ```
-   </Pivot>
-   <Pivot id="python">
-     ```bash title="プロジェクトルートに移動"
-     cd /path/to/your-project
-     ```
-   </Pivot>
-   <Pivot id="javascript">
-     ```bash title="ワークスペースルートに移動"
-     cd /path/to/your-workspace
-     ```
-   </Pivot>
-
-2. `aspire init` を実行して Aspire を初期化:
-
-   ```bash title="Aspire を初期化"
+   ```bash title="Aspire を初期化する"
    aspire init
    ```
 
-   `aspire init` コマンドは、既定で **対話モード** で実行されます。実行すると次の処理が行われます。:
+   プロンプトが表示されたら AppHost 言語（ C# または TypeScript）を選ぶか、 `--language csharp` / `--language typescript` を指定します。コマンドは最小構成の AppHost、 `aspire.config.json`、および `aspireify` スキルをエージェントのスキル ディレクトリへ作成します。ルートに既存の `package.json` がある JavaScript または TypeScript アプリでは、既存アプリ パッケージのモジュール設定を変更しないように、TypeScript AppHost は `aspire-apphost/` サブフォルダーに作成されます。
 
-   <Pivot id="csharp">
-     - 既存のソリューション構成を検出する - プロジェクトベースの
-     AppHost（`AppHost.cs` を含む _AppHost_ プロジェクト）を作成する -
-     プロジェクトを分析し、オーケストレーションに追加すべきものを提案する -
-     必要な Aspire パッケージをインストールする
-   </Pivot>
-   <Pivot id="python">
-     - 既存のプロジェクト構成を検出する - ファイルベースの
-     AppHost（`apphost.cs`）を作成する - Python
-     アプリケーションを分析し、オーケストレーションに追加すべきものを提案する -
-     必要な Aspire パッケージをインストールする
-   </Pivot>
-   <Pivot id="javascript">
-     - 既存のワークスペース構成を検出する - ファイルベースの
-     AppHost（`apphost.cs`）を作成する - JavaScript / Node.js
-     アプリケーションを分析し、オーケストレーションに追加すべきものを提案する -
-     必要な Aspire パッケージをインストールする
-   </Pivot>
+    :::note[AppHost の言語はオーケストレーション対象を制限しません]
+    C# と TypeScript のどちらの AppHost を選んでも、 Aspire は任意の言語で書かれたサービスをオーケストレーションできます。 C#、 JavaScript、 Python、 Go、 Rust、 Java、コンテナーなどに対応します。 AppHost 言語はオーケストレーションをどう記述するかの違いであり、ワークロードの制約ではありません。
+    :::
 
-   <LearnMore>
-     `aspire init` コマンドおよびそのオプションの詳細については、 [CLI
-     リファレンス: `aspire
-     init`](/reference/cli/commands/aspire-init/)を参照してください。
-   </LearnMore>
+2. AI コーディング エージェントに `aspireify` スキルの実行を依頼します。エージェントは次を行います:
+
+   - リポジトリをスキャンし、既存のプロジェクト、サービス、コンテナー、インフラストラクチャを検出する
+   - 検出したリソース、含める対象、その他の確認事項を開始前に質問する
+   - `WithReference`、 `WaitFor`、エンドポイント、ボリュームを使って AppHost へ配線する
+   - 各サービスに ServiceDefaults を追加し、 OpenTelemetry を構成する
+   - `aspire start` を実行してセットアップを検証する
+
+3. エージェントが成功を報告したら、自分でも `aspire start` を実行してダッシュボードを開き、想定どおりか確認します。問題があればエージェントに伝えてください。 Aspire にはトラブルシューティング用のツールが豊富にあります。
 
 </Steps>
 
-### `aspire init` は何を作成するのか？
 
-<Pivot id="csharp">
-`aspire init` を実行すると、ソリューションにはプロジェクトベースの AppHost が作成されます:
+<LearnMore>
+`aspire init` コマンドと aspireify スキルの詳細は、 [CLI リファレンス: `aspire init`](/ja/reference/cli/commands/aspire-init/) を参照してください。
+</LearnMore>
 
-<FileTree>
-- ExampleEcommerce.sln (updated)
-- src/
-  - **ExampleEcommerce.AppHost/** (new) orchestration project
-    - **ExampleEcommerce.AppHost.csproj** project file
-    - **AppHost.cs** orchestration code
-  - Api/
-    - ExampleEcommerce.Api.csproj
-    - Program.cs
-    - Controllers/
-  - Web/
-    - ExampleEcommerce.Web.csproj
-    - Program.cs
-    - Pages/
-  - OrderProcessor/
-    - ExampleEcommerce.OrderProcessor.csproj
-    - Worker.cs
-</FileTree>
-
-これは Web フロントエンド、API サービス、バックグラウンド ワーカーを備えた典型的な e コマース ソリューションの例です。
-
-</Pivot>
-<Pivot id="python">
-`aspire init` を実行すると、プロジェクトにはファイルベースの AppHost が作成されます:
-
-<FileTree>
-- my-saas-app/
-  - **apphost.cs** (new) orchestration code
-  - **apphost.run.json** (new) configuration
-  - api/
-    - main.py
-    - routers/
-    - models/
-    - pyproject.toml
-  - frontend/
-    - app.py
-    - templates/
-    - static/
-    - requirements.txt
-  - worker/
-    - tasks.py
-    - celery_config.py
-    - requirements.txt
-</FileTree>
-
-これは FastAPI バックエンド、Flask フロントエンド、Celery ワーカーを備えた典型的な SaaS アプリケーションの例です。
-
-</Pivot>
-<Pivot id="javascript">
-`aspire init` を実行すると、プロジェクトにはファイルベースの AppHost が作成されます:
-
-<FileTree>
-- my-store/
-  - **apphost.cs** (new) orchestration code
-  - **apphost.run.json** (new) configuration
-  - packages/
-    - api/
-      - src/
-        - server.js
-        - routes/
-      - package.json
-    - web/
-      - src/
-        - App.tsx
-        - components/
-      - package.json
-      - vite.config.ts
-    - admin/
-      - src/
-        - main.ts
-        - views/
-      - package.json
-  - package.json (workspace root)
-</FileTree>
-
-これは Node.js API、React ストアフロント、管理ダッシュボードを備えた典型的なモノレポの例です。
-
-</Pivot>
-
-<Pivot id="csharp">
-新しく作成された AppHost プロジェクト内の `AppHost.cs` ファイルには、最初に次のような最小限のスターターコードが含まれています:
-
-```csharp title="AppHost.cs — aspire init 後の初期状態"
-var builder = DistributedApplication.CreateBuilder(args);
-
-// TODO: Add resources here
-
-builder.Build().Run();
-```
-
-</Pivot>
-<Pivot id="python">
-`apphost.cs` ファイルには、最初に次のような最小限のスターターコードが含まれています:
-
-```csharp title="apphost.cs — aspire init 後の初期状態"
-#:sdk Aspire.AppHost.Sdk@13.0.0
-
-var builder = DistributedApplication.CreateBuilder(args);
-
-// TODO: Add resources here
-
-builder.Build().Run();
-```
-
-</Pivot>
-<Pivot id="javascript">
-`apphost.cs` ファイルには、最初に次のような最小限のスターターコードが含まれています:
-
-```csharp title="apphost.cs — aspire init 後の初期状態"
-#:sdk Aspire.AppHost.Sdk@13.0.0
-
-var builder = DistributedApplication.CreateBuilder(args);
-
-// TODO: Add resources here
-
-builder.Build().Run();
-```
-
-</Pivot>
-
-これは出発点となるコードです。次のセクションでは、既存のアプリケーションを追加し、それらの関係を構成していきます。
-
-## AppHost にアプリケーションを追加する
-
-AppHost を用意したら、既存のアプリケーションを登録する必要があります。まず、アプリケーションの種類に応じたホスティング パッケージをインストールし、その後 AppHost にリソースを追加します。
-
-### ホスティング パッケージのインストール
-
-<Pivot id="csharp">
-
-C# プロジェクトで、プロジェクトベースのオーケストレーション (`.csproj` ファイル) を使用している場合、追加のパッケージは不要です。基本の Aspire SDK には、 `AddProject<T>` (またはファイルベース アプリ用の `AddCSharpApp`)のサポートが含まれています。
-
-</Pivot>
-<Pivot id="python">
-
-Python アプリケーションでは、Python 用のホスティング パッケージをインストールします。:
-
-<InstallPackage
-  packageName="Aspire.Hosting.Python"
-  omitPackageReference={true}
-/>
-
-このパッケージは、`AddUvicornApp`、`AddPythonApp`、`AddPythonModule` などのメソッドを提供します。
-
-</Pivot>
-<Pivot id="javascript">
-
-JavaScript / TypeScript アプリケーションの場合は、JavaScript 用のホスティング パッケージをインストールします:
-
-<InstallPackage
-  packageName="Aspire.Hosting.JavaScript"
-  omitPackageReference={true}
-/>
-
-このパッケージは、`AddViteApp`、`AddNodeApp`、`AddJavaScriptApp` などのメソッドを提供します。
-
-</Pivot>
-
-### AppHost でリソースをモデル化する
-
-<Pivot id="csharp">
-  AppHost プロジェクト内の `AppHost.cs`
-  ファイルを更新し、アプリケーションをリソースとして登録します。リソースは分散アプリケーションの構成要素であり、各サービス、コンテナー、インフラストラクチャ
-  リソースは、Aspire がオーケストレーションできる対象になります。
-</Pivot>
-<Pivot id="python,javascript">
-  `apphost.cs`
-  ファイルを更新し、アプリケーションをリソースとして登録します。リソースは分散アプリケーションの構成要素であり、各サービス、コンテナー、インフラストラクチャ
-  リソースは、Aspire がオーケストレーションできる対象になります。
-</Pivot>
-
-<Pivot id="csharp">
-
-C# プロジェクトの場合は、AddProject を使用して既存の C# プロジェクトを参照します:
-
-```csharp title="AppHost.cs — Complete e-commerce example"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var api = builder.AddProject<Projects.ExampleEcommerce_Api>("api")
-    .WithHttpHealthCheck("/health");
-
-var web = builder.AddProject<Projects.ExampleEcommerce_Web>("web")
-    .WithExternalHttpEndpoints()
-    .WithReference(api)
-    .WaitFor(api);
-
-var orderProcessor = builder.AddProject<Projects.ExampleEcommerce_OrderProcessor>("orderprocessor")
-    .WithReference(api);
-
-builder.Build().Run();
-```
-
-**主なメソッド:**
-
-- `AddProject<T>` - ソリューション内の .NET プロジェクトを追加します。
-- `WithHttpHealthCheck` - HTTP エンドポイントを通じてサービスの正常性を監視します。
-- `WithReference` - サービス間通信を有効にします。
-- `WaitFor` - 適切な起動順序を保証します。
-
-</Pivot>
-<Pivot id="python">
-
-Aspire では、Python アプリケーション向けにいくつかのメソッドが提供されています:
-
-```csharp title="apphost.cs — Complete SaaS example"
-#:sdk Aspire.AppHost.Sdk@13.0.0
-#:package Aspire.Hosting.Python@13.0.0
-
-var builder = DistributedApplication.CreateBuilder(args);
-
-// FastAPI backend
-var api = builder.AddUvicornApp("api", "./api", "main:app")
-    .WithUv()
-    .WithHttpHealthCheck("/health");
-
-// Flask frontend
-var frontend = builder.AddUvicornApp("frontend", "./frontend", "app:app")
-    .WithUv()
-    .WithExternalHttpEndpoints()
-    .WithReference(api)
-    .WaitFor(api);
-
-// Celery worker
-var worker = builder.AddPythonApp("worker", "./worker", "celery")
-    .WithUv()
-    .WithArgs("worker", "-A", "tasks")
-    .WithReference(api);
-
-builder.Build().Run();
-```
-
-**主なメソッド:**
-
-- `AddUvicornApp` - FastAPI、Flask などの ASGI / WSGI フレームワーク向け。
-- `AddPythonApp` - 単体の Python スクリプト向け。
-- `WithUv()` - 高速なパッケージ管理のために uv を使用します。（推奨）
-- `WithPip()` - 従来の pip を使用したパッケージ管理。
-
-</Pivot>
-<Pivot id="javascript">
-
-JavaScript アプリケーションの場合は、アプリケーションの種類に応じて適切なメソッドを使用します:
-
-```csharp title="apphost.cs — Complete monorepo example"
-#:sdk Aspire.AppHost.Sdk@13.0.0
-#:package Aspire.Hosting.JavaScript@13.0.0
-
-var builder = DistributedApplication.CreateBuilder(args);
-
-// Node.js API
-var api = builder.AddNodeApp("api", "./packages/api", "src/server.js")
-    .WithNpm()
-    .WithHttpHealthCheck("/health");
-
-// React storefront
-var web = builder.AddViteApp("web", "./packages/web")
-    .WithExternalHttpEndpoints()
-    .WithReference(api)
-    .WaitFor(api);
-
-// Admin dashboard
-var admin = builder.AddViteApp("admin", "./packages/admin")
-    .WithExternalHttpEndpoints()
-    .WithReference(api)
-    .WaitFor(api);
-
-builder.Build().Run();
-```
-
-**主なメソッド:**
-
-- `AddViteApp` - Vite ベースのアプリケーション（React、Vue、Svelte など）向け。
-- `AddNodeApp` - Node.js アプリケーション向け。
-- `AddJavaScriptApp` -npm/yarn/pnpm を使用する汎用的な JavaScript アプリケーション向け
-  - `WithNpm()` / `WithYarn()` / `WithPnpm()` - 使用するパッケージ マネージャーを指定
-- `WithRunScript` - 開発時に実行する npm スクリプトを指定
-
-:::note[スクリプトに引数を渡す方法]
-Aspire 9 で非推奨となった `AddNpmApp` API とは異なり、新しい JavaScript ホスティング メソッド（`AddJavaScriptApp`、`AddViteApp`、`AddNodeApp`）では、コンストラクター パラメーターとして `args` をサポートしていません。スクリプトに引数を渡す方法は次の 2 つがあります:
-
-**オプション 1: `WithArgs` を使用して直接引数を渡す**
-
-```csharp title="apphost.cs — Pass arguments using WithArgs"
-builder.AddViteApp("frontend", "./frontend")
-    .WithArgs("--no-open");
-```
-
-**オプション 2: 引数付きのカスタム スクリプトを `package.json` に定義する**
-
-```json title="package.json"
-{
-  "scripts": {
-    "dev": "vite",
-    "dev:no-open": "vite --no-open"
-  }
-}
-```
-
-```csharp title="apphost.cs — Reference custom script"
-builder.AddViteApp("frontend", "./frontend")
-    .WithRunScript("dev:no-open");
-```
-
-オプション 2 では、すべてのスクリプト設定を `package.json` にまとめられるため、スクリプトの見通しが良くなり、Aspire 以外でも（例: `npm run dev:no-open`）実行しやすくなります。
+:::tip[あらゆる AI コーディング エージェントで利用可能]
+aspireify スキルは GitHub Copilot、 Claude Code、または MCP 互換アシスタントで動作します。リポジトリ構造を読み取り、下の手動セクションで説明しているのと同じ配線パターンを適用します。
 :::
 
-</Pivot>
+---
 
-<Aside type="tip">
-  開発言語を自由に組み合わせることができます。上記の例では単一言語のシナリオを示していますが、Aspire
-  はポリグロット（多開発言語）
-  アプリケーションのオーケストレーションを得意としています。同じ AppHost に
-  C#、Python、JavaScript
-  のリソースを追加することで、真にクロス言語なソリューションを構築できます。
-</Aside>
+## AppHost を手動で配線する
 
-### サービスを接続する
+配線を完全に制御したい場合や、 aspireify スキルが内部で何をしているか理解したい場合は、次の手動手順に従ってください。これは初期セットアップ後に AppHost を拡張またはカスタマイズする際のリファレンスにもなります。
 
-`WithReference` の呼び出しにより、サービス間の依存関係が確立され、サービス検出が有効になります:
+### AppHost を選ぶ
 
-<Pivot id="csharp">
+AppHost はオーケストレーション層です。ここでの選択はオーケストレーションの記述方法を変えるものであり、 Aspire が何をオーケストレーションできるかを制限するものではありません。
 
-```csharp title="AppHost.cs — .NET サービスを接続する" ".WithReference"
-// Omitted for brevity...
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
-var api = builder.AddProject<Projects.YourApi>("api");
+Aspire には C# AppHost のスタイルが 2 つあります:
 
-var web = builder.AddProject<Projects.YourWeb>("web")
-    .WithReference(api);  // Web can call API
+**ファイル ベース AppHost** - `#:sdk` と `#:package` ディレクティブを使う単一の `apphost.cs` ファイルです。 `.csproj` もソリューション統合も不要です。ポリグロット リポジトリや迅速なセットアップに最適です。
 
-var worker = builder.AddProject<Projects.YourWorker>("worker")
-    .WithReference(api);  // Worker can call API
+**プロジェクト ベース AppHost** - 既存の C# プロジェクトと一緒に `.sln` 内で管理される従来型の `AppHost.csproj` です。 `ProjectReference` 項目と生成される `Projects` 名前空間を使い、型付きの `AddProject<T>()` 呼び出しを行います。すでにリポジトリが .NET ソリューションで、 IDE 統合されたオーケストレーションを望む場合に最適です。
 
-// Omitted for brevity...
-```
+どちらのスタイルも同じ `Aspire.AppHost.Sdk` と同じホスティング API を使用します。
 
-</Pivot>
-<Pivot id="python">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-```csharp title="apphost.cs — Python サービスを接続する" ".WithReference"
-// Omitted for brevity...
+TypeScript AppHost は、リポジトリが Node.js ワークスペース中心の場合や、 TypeScript でパス ベースのオーケストレーションを記述したい場合に適しています。
 
-var api = builder.AddUvicornApp("api", "../python-api", "main:app")
-    .WithUv();
+- `apphost.mts` で管理。既存の JavaScript または TypeScript アプリでは、`aspire init` が `aspire-apphost/` の下に作成します
+- npm、 pnpm、 yarn、 Bun など主要なパッケージ マネージャーで実行可能
+- 既存のパッケージ マネージャーおよびモノレポのワークフローに自然に適合
 
-var worker = builder.AddPythonApp("worker", "../python-worker", "worker.py")
-    .WithReference(api);  // Worker gets API_HTTP and API_HTTPS env vars
+</TabItem>
+</Tabs>
 
-// Omitted for brevity...
-```
+:::tip[ランタイムのロックインはありません]
+どちらの AppHost スタイルでもマルチ言語システムをオーケストレーションできます。 C#、 Node.js、 Python、 Go、 Rust、 Java、コンテナー、およびサポートされる統合を同じアプリケーション モデルに混在できます。単一ワークロードに合わせるのではなく、リポジトリやチームに最適な AppHost を選んでください。
+:::
 
-</Pivot>
-<Pivot id="javascript">
+### AppHost をセットアップする
 
-```csharp title="apphost.cs — JavaScript サービスを接続する" ".WithReference"
-// Omitted for brevity...
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
-var api = builder.AddNodeApp("api", "../node-api", "server.js")
-    .WithNpm();
+#### ファイル ベース AppHost（既定）
 
-var frontend = builder.AddViteApp("frontend", "../react-frontend")
-    .WithReference(api);  // Frontend gets API_HTTP and API_HTTPS env vars
-
-// Omitted for brevity...
-```
-
-</Pivot>
-
-`WithReference` を呼び出すことで、リソース間の依存関係を宣言します。あとは Aspire が自動的に処理し、ローカル実行時でも本番環境でも、サービス同士が円滑に通信できるように、実行時およびデプロイ時に必要な構成を自動で注入してくれます。
-
-## テレメトリ構成を追加する（任意）
-
-<Pivot id="csharp">
-
-ServiceDefaults は、.NET サービスに可観測性、回復性、正常性チェックを追加するための標準化された方法を提供します。この手順は任意ですが、本番アプリケーションでは推奨されます。
+ソリューションへプロジェクトを追加せず、軽量な単一ファイル オーケストレーターを使いたい場合は、ファイル ベース AppHost を利用します。 `.sln` が検出されない場合、 `aspire init` が既定でこのスタイルを作成します。
 
 <Steps>
 
-1. `aspire init` の実行中に、ServiceDefaults を追加するかどうかを確認される場合があります。最初に追加しなかった場合でも、後から Aspire CLI を使用するか、手動で追加できます。
+1. リポジトリ ルートで `aspire init` を実行します。 `.sln` がない場合、ファイル ベースの `apphost.cs` が作成されます:
 
-2. ServiceDefaults を手動でプロジェクトに追加する:
+   ```bash title="ファイル ベース AppHost で Aspire を初期化する"
+   aspire init
+   ```
 
-   ```bash title=".NET CLI — ServiceDefaults をプロジェクトに追加する"
+2. ホスティング統合を追加します:
+
+   ```bash title="ホスティング統合を追加する"
+   aspire add redis
+   ```
+
+3. `apphost.cs` でリソースを配線します:
+
+   ```csharp title="apphost.cs"
+   #:sdk Aspire.AppHost.Sdk@13.2.0
+   #:package Aspire.Hosting.Redis@13.2.0
+
+   #pragma warning disable ASPIRECSHARPAPPS001
+
+   var builder = DistributedApplication.CreateBuilder(args);
+
+   var cache = builder.AddRedis("cache");
+
+   var api = builder.AddCSharpApp("api", "./src/Api/MyApp.Api.csproj")
+       .WithReference(cache)
+       .WithHttpHealthCheck("/health");
+
+   var worker = builder.AddCSharpApp("worker", "./src/Worker/MyApp.Worker.csproj")
+       .WithReference(cache);
+
+   builder.Build().Run();
+   ```
+
+</Steps>
+
+セットアップ後の典型的なリポジトリ構成は次のとおりです:
+
+<FileTree>
+    - apphost.cs (new)
+    - aspire.config.json (new)
+    - src/
+        - Api/
+            - MyApp.Api.csproj
+        - Worker/
+            - MyApp.Worker.csproj
+</FileTree>
+
+:::caution[AddCSharpApp は実験的機能です]
+`AddCSharpApp` は現在実験的機能です。制限事項や診断抑制の詳細は、 [C# file-based apps](/ja/integrations/dotnet/csharp-file-based-apps/) を参照してください。
+:::
+
+#### プロジェクト ベース AppHost（ .sln あり）
+
+リポジトリがすでに複数プロジェクトを含む .NET ソリューション（ `.sln` または `.slnx`）の場合は、この方法を使います。プロジェクト ベース AppHost は `ProjectReference` 項目と生成された `Projects` 名前空間を使って型付きの `AddProject<T>()` を呼び出すため、 IntelliSense、リファクタリング、ビルド順序の把握を含む完全な IDE サポートが得られます。
+
+<Steps>
+
+1. ソリューション ルートで `aspire init` を実行します。 `.sln` を検出して、プロジェクト ベース AppHost を自動作成します:
+
+   ```bash title=".NET ソリューションで Aspire を初期化する"
+   aspire init
+   ```
+
+2. オーケストレーション対象にする各サービスへのプロジェクト参照を AppHost から追加します:
+
+   ```bash title="プロジェクト参照を追加する"
+   dotnet add MyApp.AppHost reference src/Api/MyApp.Api.csproj
+   dotnet add MyApp.AppHost reference src/Web/MyApp.Web.csproj
+   dotnet add MyApp.AppHost reference src/Worker/MyApp.Worker.csproj
+   ```
+
+3. ホスティング統合を追加します:
+
+   ```bash title="ホスティング統合を追加する"
+   aspire add redis
+   aspire add postgres
+   ```
+
+4. AppHost の `Program.cs` でリソースを配線します:
+
+   ```csharp title="MyApp.AppHost/Program.cs"
+   var builder = DistributedApplication.CreateBuilder(args);
+
+   var cache = builder.AddRedis("cache")
+       .WithLifetime(ContainerLifetime.Persistent);
+
+   var db = builder.AddPostgres("postgres")
+       .WithLifetime(ContainerLifetime.Persistent)
+       .AddDatabase("mydb");
+
+   var api = builder.AddProject<Projects.MyApp_Api>("api")
+       .WithReference(db)
+       .WithReference(cache)
+       .WaitFor(db);
+
+   builder.AddProject<Projects.MyApp_Web>("web")
+       .WithReference(api)
+       .WaitFor(api);
+
+   builder.AddProject<Projects.MyApp_Worker>("worker")
+       .WithReference(cache)
+       .WithReference(db);
+
+   builder.Build().Run();
+   ```
+
+</Steps>
+
+セットアップ後の典型的なソリューション構成は次のとおりです:
+
+<FileTree>
+    - MyApp.sln
+    - MyApp.AppHost/
+        - MyApp.AppHost.csproj
+        - Program.cs
+    - MyApp.ServiceDefaults/
+        - MyApp.ServiceDefaults.csproj
+        - Extensions.cs
+    - src/
+        - Api/
+            - MyApp.Api.csproj
+        - Web/
+            - MyApp.Web.csproj
+        - Worker/
+            - MyApp.Worker.csproj
+</FileTree>
+
+:::note[ProjectReference の配線]
+AppHost 内の各 `ProjectReference` はソース ジェネレーターを起動し、 `Projects` 名前空間にクラスを生成します。 `AddProject<Projects.MyApp_Api>("api")` を呼び出すと、 Aspire はプロジェクト パスとビルドおよび起動方法を認識します。プロジェクト参照とメタデータ生成の詳細は [Aspire SDK](/ja/get-started/aspire-sdk/) を参照してください。
+:::
+
+<LearnMore>
+カスタム型名、複数プロジェクト ソリューション、起動プロファイルを含む `AddProject` の完全なワークフローは、 [Project resources](/ja/integrations/dotnet/project-resources/) を参照してください。
+</LearnMore>
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+<Steps>
+
+1. TypeScript 言語オプションを付けて、ワークスペース ルートで `aspire init` を実行します:
+
+   ```bash title="TypeScript AppHost で Aspire を初期化する"
+   aspire init --language typescript
+   ```
+
+2. ホスティング統合を追加します:
+
+   ```bash title="ホスティング統合を追加する"
+   aspire add redis
+   aspire add postgres
+   ```
+
+3. `aspire-apphost/apphost.mts` でリソースを配線します:
+
+   ```typescript title="apphost.mts" twoslash
+   import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+   const builder = await createBuilder();
+
+   const cache = await builder.addRedis('cache');
+
+   const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
+
+   const api = await builder
+       .addProject('api', '../src/Api/MyApp.Api.csproj')
+       .withReference(db)
+       .withReference(cache)
+       .waitFor(db);
+
+   await builder
+       .addViteApp('web', '../services/web')
+       .withReference(api)
+       .waitFor(api);
+
+   await builder.build().run();
+   ```
+
+</Steps>
+
+セットアップ後の典型的なワークスペース構成は次のとおりです:
+
+<FileTree>
+    - aspire.config.json (new)
+    - package.json (Aspire 委譲スクリプトを追加)
+    - aspire-apphost/ (new)
+        - apphost.mts
+        - .aspire/modules/
+        - package.json
+        - tsconfig.apphost.json
+    - services/
+        - web/
+            - package.json
+            - src/
+    - src/
+        - Api/
+            - MyApp.Api.csproj
+</FileTree>
+
+:::note[.aspire フォルダーは自動生成されます]
+生成された SDK ファイルを手動編集するのではなく、 `aspire-apphost/.aspire/` は Aspire CLI に管理させてください。
+:::
+
+</TabItem>
+</Tabs>
+
+### シナリオ: ホスティング統合を使った既存サービス
+
+この方法は、実行したいワークロードに対するファーストクラスなリソース型がすでに Aspire にある場合に使います。これによりアプリケーション モデルは、汎用シェル コマンドへ落とし込むのではなく、そのサービスが何で何に依存するかに集中できます。
+
+代表例は Node.js アプリ、 Vite フロントエンド、 Python ワーカー、 Uvicorn ベース API です。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="apphost.cs — Existing services with hosting integrations"
+#:sdk Aspire.AppHost.Sdk@13.3.0
+#:package Aspire.Hosting.Redis@13.3.0
+#:package Aspire.Hosting.Python@13.3.0
+#:package Aspire.Hosting.JavaScript@13.3.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+var api = builder.AddUvicornApp("api", "../services/api", "main:app")
+    .WithUv()
+    .WithReference(cache)
+    .WithExternalHttpEndpoints();
+
+var worker = builder.AddPythonApp("worker", "../workers/inventory-sync", "worker.py")
+    .WithReference(cache);
+
+var web = builder.AddViteApp("web", "../services/web")
+    .WithReference(api)
+    .WaitFor(api);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts — Existing services with hosting integrations" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis('cache');
+
+const api = await builder
+    .addUvicornApp('api', '../services/api', 'main:app')
+    .withUv()
+    .withReference(cache)
+    .withExternalHttpEndpoints();
+
+await builder
+    .addPythonApp('worker', '../workers/inventory-sync', 'worker.py')
+    .withReference(cache);
+
+await builder
+    .addViteApp('web', '../services/web')
+    .withReference(api)
+    .waitFor(api);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+ワークロードに専用ホスティング API がまだない場合でも、 `AddExecutable` または `addExecutable` を使って実行可能リソースとしてモデル化すれば、同じアプリケーション モデルに参加させられます。
+
+<LearnMore>
+ファーストクラス ワークロードのガイダンスは、 [JavaScript integration](/ja/integrations/frameworks/javascript/)、 [Python integration](/ja/integrations/frameworks/python/)、 [Multi-language architecture](/ja/architecture/multi-language-architecture/) を参照してください。
+</LearnMore>
+
+:::caution[フロントエンド デプロイに関する注意]
+これらの例は、開発時に Aspire でサポート済みフロントエンドおよびサービス ワークロードを実行する方法を示しています。フロントエンド リソースを公開またはデプロイする予定がある場合は、 [Deploy JavaScript apps](/ja/deployment/javascript-apps/) を参照し、本番向けに適切なホスティング モデルを選択してください。
+:::
+
+### シナリオ: 既存コンテナーと共有インフラストラクチャ
+
+この方法は、重要な境界がランタイム環境そのものにある場合に使います。たとえば公開済みコンテナー イメージ、共有データベース、キャッシュ、キュー、既存インフラストラクチャ トポロジなどです。まず共有リソースをモデル化し、その後それらを利用するワークロードを接続して、接続性、構成、起動順序を明示化します。
+
+対象インフラストラクチャに対するファーストクラス統合が Aspire にある場合は、最初にそれを追加します:
+
+```bash title="ホスティング統合を追加する"
+aspire add postgres
+aspire add redis
+```
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="apphost.cs — Existing containers and shared infrastructure"
+#:sdk Aspire.AppHost.Sdk@13.3.0
+#:package Aspire.Hosting.PostgreSQL@13.3.0
+#:package Aspire.Hosting.Redis@13.3.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres")
+    .AddDatabase("orders");
+
+var cache = builder.AddRedis("cache");
+
+var api = builder.AddContainer("api", "ghcr.io/contoso/orders-api:latest")
+    .WithReference(db)
+    .WithReference(cache)
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http");
+
+var web = builder.AddContainer("web", "ghcr.io/contoso/orders-web:latest")
+    .WithReference(api)
+    .WithHttpEndpoint(port: 3000, targetPort: 3000, name: "http");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts — Existing containers and shared infrastructure" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const db = (await builder.addPostgres('postgres')).addDatabase('orders');
+
+const cache = await builder.addRedis('cache');
+
+const api = await builder
+    .addContainer('api', { image: 'ghcr.io/contoso/orders-api', tag: 'latest' })
+    .withReference(db)
+    .withReference(cache)
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
+
+await builder
+    .addContainer('web', { image: 'ghcr.io/contoso/orders-web', tag: 'latest' })
+    .withReference(api)
+    .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+
+### シナリオ: Docker Compose
+
+このシナリオは、 Docker Compose がすでにシステムの形を表現できている場合に使います。 Compose ファイルを、ワークロード、共有インフラストラクチャ、公開ポート、依存関係のエッジを示す地図として扱い、その関係を AppHost へ再定義します。
+
+目標は、各フィールドを 1 行ずつ翻訳することではなく、同じ関係性をより明確なリソース モデルとして表現することです。
+
+<Tabs>
+<TabItem label='Docker Compose'>
+
+```yaml title="docker-compose.yml" showLineNumbers
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=mydb
+    ports:
+      - "5432:5432"
+
+  api:
+    build: ./api
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/mydb
+    depends_on:
+      - postgres
+
+  web:
+    build: ./web
+    environment:
+      - API_URL=http://api:8080
+    depends_on:
+      - api
+```
+
+</TabItem>
+<TabItem label='C#'>
+
+```csharp title="apphost.cs" showLineNumbers
+#:sdk Aspire.AppHost.Sdk@13.3.0
+#:package Aspire.Hosting.PostgreSQL@13.3.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres")
+    .AddDatabase("mydb");
+
+var api = builder.AddDockerfile("api", "./api")
+    .WithReference(db)
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http");
+
+var web = builder.AddDockerfile("web", "./web")
+    .WithReference(api)
+    .WithHttpEndpoint(port: 3000, targetPort: 3000, name: "http");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label='TypeScript'>
+
+```typescript title="apphost.mts" showLineNumbers twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
+
+const api = await builder
+    .addDockerfile('api', '../api')
+    .withReference(db)
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
+
+await builder
+    .addDockerfile('web', '../web')
+    .withReference(api)
+    .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+これらのシナリオは出発点であり、排他的なモードではありません。実際の多くのアプリでは、ワークロード固有リソース、コンテナー、共有インフラストラクチャ、プロジェクト パス参照、ときどき必要なカスタム コマンドを 1 つのアプリケーション モデルに混在させます。重要なのは、依存関係、エンドポイント、構成、起動動作が明示化されることです。
+
+<LearnMore>
+さらに例を確認するには、 [Project resources](/ja/integrations/dotnet/project-resources/)、 [C# file-based apps](/ja/integrations/dotnet/csharp-file-based-apps/)、 [Executable resources](/ja/app-host/executable-resources/)、 [Migrate from Docker Compose](/ja/app-host/migrate-from-docker-compose/) を参照してください。
+</LearnMore>
+
+## テレメトリ構成を追加する（任意）
+
+テレメトリは AppHost 自体ではなく、それを出力するワークロード側で構成します。 Aspire はローカル オーケストレーション時に OTLP 宛先と共有ダッシュボードを各ワークロードへ提供しますが、各サービスでは引き続きランタイムに適した可観測性ライブラリを使用します。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+アプリに C# サービスが含まれる場合、 ServiceDefaults は可観測性、レジリエンス、ヘルスチェックを追加する標準的な方法です。
+
+<Steps>
+
+1. ServiceDefaults プロジェクトを作成し、サービスから参照します:
+
+   ```bash title="ServiceDefaults を追加する"
    dotnet new aspire-servicedefaults -n YourProject.ServiceDefaults
    dotnet sln add YourProject.ServiceDefaults
    dotnet add YourProject reference YourProject.ServiceDefaults
    ```
 
-3. プロジェクトの `Program.cs` を更新して、ServiceDefaults を使用するようにする:
+2. サービスの `Program.cs` を更新します:
 
    ```csharp title="Program.cs — ServiceDefaults を追加する"
    var builder = WebApplication.CreateBuilder(args);
 
-   // Add Aspire ServiceDefaults for observability and resilience
    builder.AddServiceDefaults();
-
-   // ... your existing service configuration ...
 
    var app = builder.Build();
 
-   // Map Aspire ServiceDefaults endpoints
    app.MapDefaultEndpoints();
-
-   // ... your existing middleware ...
-
    app.Run();
    ```
 
 </Steps>
 
 <LearnMore>
-  ServiceDefaults の詳細については、 [Service
-  Defaults](/fundamentals/service-defaults/) を参照してください。
+詳しくは [Service Defaults](/ja/get-started/csharp-service-defaults/) を参照してください。
 </LearnMore>
 
-</Pivot>
-<Pivot id="python">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-Python アプリケーションは、OpenTelemetry を使用して Aspire ダッシュボードにテレメトリを送信できます:
-
-<Steps>
-
-1. Python アプリケーションに OpenTelemetry パッケージをインストールします:
-
-   ```bash title="Install OpenTelemetry packages"
-   uv add opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp-proto-grpc
-   uv add opentelemetry-instrumentation-fastapi  # For FastAPI
-   # Or for Flask:
-   # uv add opentelemetry-instrumentation-flask
-   ```
-
-2. Python アプリケーションで OpenTelemetry を構成します:
-
-   ```python title="Python — Configure OpenTelemetry"
-   import os
-   from opentelemetry import trace, metrics
-   from opentelemetry.sdk.trace import TracerProvider
-   from opentelemetry.sdk.metrics import MeterProvider
-   from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-   from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-   from opentelemetry.sdk.resources import Resource
-   from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-   # Get OTLP endpoint from environment (injected by Aspire)
-   otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-
-   # Configure tracing and metrics
-   resource = Resource.create({"service.name": "api"})
-   trace.set_tracer_provider(TracerProvider(resource=resource))
-   metrics.set_meter_provider(MeterProvider(resource=resource))
-
-   # Instrument your FastAPI app
-   FastAPIInstrumentor.instrument_app(app)
-   ```
-
-</Steps>
-
-</Pivot>
-<Pivot id="javascript">
-
-JavaScript / Node.js アプリケーションも、OpenTelemetry を使用してテレメトリを送信できます:
+アプリに Node.js または TypeScript サービスが含まれる場合は、サービス内で OpenTelemetry を構成し、 Aspire が提供する <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> エンドポイントへ送信します。
 
 <Steps>
 
 1. OpenTelemetry パッケージをインストールします:
 
-   ```bash title="OpenTelemetry パッケージをインストール"
+   ```bash title="OpenTelemetry パッケージをインストールする"
    npm install @opentelemetry/api @opentelemetry/sdk-node \
-     @opentelemetry/auto-instrumentations-node \
-     @opentelemetry/exporter-trace-otlp-grpc \
-     @opentelemetry/exporter-metrics-otlp-grpc
+       @opentelemetry/auto-instrumentations-node \
+       @opentelemetry/exporter-trace-otlp-grpc \
+       @opentelemetry/exporter-metrics-otlp-grpc
    ```
 
-2. テレメトリ構成ファイルを作成します:
+2. テレメトリのブートストラップ ファイルを作成します:
 
-   ```javascript title="JavaScript — telemetry.js"
-   const { NodeSDK } = require('@opentelemetry/sdk-node');
-   const {
-     getNodeAutoInstrumentations,
-   } = require('@opentelemetry/auto-instrumentations-node');
-   const {
-     OTLPTraceExporter,
-   } = require('@opentelemetry/exporter-trace-otlp-grpc');
-   const {
-     OTLPMetricExporter,
-   } = require('@opentelemetry/exporter-metrics-otlp-grpc');
-   const {
-     PeriodicExportingMetricReader,
-   } = require('@opentelemetry/sdk-metrics');
-   const { resourceFromAttributes } = require('@opentelemetry/resources');
-   const { ATTR_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
-
-   const otlpEndpoint =
-     process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4317';
-
-   // Create resource with service name
-   const resource = resourceFromAttributes({
-       [ATTR_SERVICE_NAME]: 'frontend',
-   });
+   ```typescript title="telemetry.ts"
+   import { NodeSDK } from '@opentelemetry/sdk-node';
+   import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 
    const sdk = new NodeSDK({
-     resource: resource,
-     traceExporter: new OTLPTraceExporter({ url: otlpEndpoint }),
-     metricReader: new PeriodicExportingMetricReader({
-       exporter: new OTLPMetricExporter({ url: otlpEndpoint }),
-     }),
-     instrumentations: [getNodeAutoInstrumentations()],
+       instrumentations: [getNodeAutoInstrumentations()],
    });
 
    sdk.start();
    ```
 
-3. アプリケーションのエントリーポイントの先頭で、テレメトリ構成をインポートします:
+3. アプリのエントリ ポイントで最初にそれを import します:
 
-   ```javascript title="JavaScript — app.js"
-   // This must be first!
-   require('./telemetry');
+   ```typescript title="src/server.ts"
+   import './telemetry';
 
-   const express = require('express');
-   // ... rest of your app
+   import express from 'express';
+
+   const app = express();
    ```
 
 </Steps>
 
-</Pivot>
-
-## 統合機能を追加する（任意）
-
-Aspire には、Redis、PostgreSQL、RabbitMQ などの一般的なサービスを簡単に扱える統合ライブラリが用意されています。これらの統合機能は、構成、正常性チェック、テレメトリを自動的に処理します。
-
-AppHost に Redis などのホスティング統合を追加し、それを依存するリソースから参照すると、Aspire は必要な構成を自動的に注入します。これには、接続文字列、URL、環境変数、その他サービス固有の設定が含まれ、サービス間での接続文字列の手動管理が不要になります。
-
-<Steps>
-
-1.  アプリケーション内で Aspire の統合機能が有効に活用できるサービスを特定します。一般的な対象は次のとおりです:
-    - データベース（PostgreSQL、SQL Server、MongoDB）
-    - キャッシュ（Redis、Valkey）
-    - メッセージング（RabbitMQ、Azure Service Bus、Kafka）
-    - ストレージ（Azure Blob Storage、AWS S3）
-
-2.  `aspire add` コマンドを使用して、AppHost に統合パッケージを追加します:
-
-    ```bash title="Add a Redis integration"
-    aspire add redis
-    ```
-
-    このコマンドにより、必要な NuGet パッケージが追加され、統合の構成を支援します。
-
-3.  AppHost を更新して統合機能を参照し、すべてのサービス間で共有します。:
-
-    ```csharp title="apphost.cs — Add Redis integration for polyglot apps"
-    var builder = DistributedApplication.CreateBuilder(args);
-
-    // Add Redis resource
-    var cache = builder.AddRedis("cache");
-
-    // Share Redis with .NET API
-    var api = builder.AddProject<Projects.YourApi>("api")
-        .WithReference(cache)
-        .WithHttpHealthCheck("/health");
-
-    // Share Redis with Python worker
-    var pythonWorker = builder.AddPythonApp("worker", "../python-worker", "worker.py")
-        .WithReference(cache);  // Python gets CACHE_HOST, CACHE_PORT env vars
-
-    // Share Redis with Node.js service
-    var nodeService = builder.AddNodeApp("service", "../node-service", "index.js")
-        .WithReference(cache);  // Node.js gets CACHE_HOST, CACHE_PORT env vars
-
-    builder.Build().Run();
-    ```
-
-4.  各開発言語で統合機能を構成します:
-
-          <Pivot id="csharp">
-
-    ```bash title="Redis クライアントを .NET プロジェクトに追加"
-    dotnet add YourApi package Aspire.StackExchange.Redis
-    ```
-
-    ```csharp title="Program.cs — Redis クライアントを構成する"
-    var builder = WebApplication.CreateBuilder(args);
-    builder.AddRedisClient("cache");
-    ```
-
-          </Pivot>
-
-    <Pivot id="python">
-
-    ```bash title="Redis クライアントを Python プロジェクトに追加"
-    uv add redis
-    ```
-
-    ```python title="Python — Redis クライアントを構成する"
-    import os
-    import redis
-
-    # Aspire injects CACHE_HOST and CACHE_PORT
-    redis_client = redis.Redis(
-        host=os.getenv("CACHE_HOST"),
-        port=int(os.getenv("CACHE_PORT")),
-        decode_responses=True
-    )
-    ```
-
-          </Pivot>
-
-    <Pivot id="javascript">
-
-    ```bash title="Redis クライアントを Node.js プロジェクトに追加"
-    npm install redis
-    ```
-
-    ```javascript title="JavaScript — Redis クライアントを構成する"
-    const redis = require('redis');
-
-    // Aspire injects CACHE_HOST and CACHE_PORT
-    const client = redis.createClient({
-      socket: {
-        host: process.env.CACHE_HOST,
-        port: process.env.CACHE_PORT,
-      },
-    });
-    ```
-
-          </Pivot>
-
-</Steps>
-
-<LearnMore>
-  [Integrations section](/integrations/gallery/)
-  で利用可能な統合機能を参照してください。
-</LearnMore>
-
-## 実行と確認
-
-Aspire をアプリケーションに追加したので、実際に実行してオーケストレーションの動作を確認しましょう。
-
-<Steps>
-
-1. ソリューション ディレクトリから、Aspire CLI を使用してアプリケーションを実行します:
-
-   ```bash title="Aspire でアプリケーションを実行"
-   aspire run
-   ```
-
-   Aspire CLI は次の処理を行います:
-   - AppHost（ファイルベースの `apphost.cs`）を検出する
-   - ソリューションをビルドする
-   - オーケストレーションされたすべてのサービスを起動する
-   - Aspire ダッシュボードを起動する
-
-2. ダッシュボードの URL がターミナル出力に表示されます:
-
-   ```bash title="出力の例" mark={4}
-   🔍  Finding apphosts...
-   apphost.cs
-
-   Dashboard:  https://localhost:17068/login?t=ea559845d54cea66b837dc0ff33c3bd3
-
-        Logs:  ~/.aspire/cli/logs/apphost-13024-2025-11-19-12-00-00.log
-
-               Press CTRL+C to stop the apphost and exit.
-   ```
-
-3. 表示された URL を使用して、ブラウザーでダッシュボードを開きます。次の情報を確認できます:
-   - オーケストレーションされたすべてのリソースとその状態
-   - 各サービスのリアルタイム ログ
-   - 可観測性のためのトレースとメトリクス
-   - 環境変数と構成情報
-
-4. 次の方法で、サービスが正しく動作していることを確認します:
-   - **Resources** ページでサービスの正常性を確認する
-   - アプリケーションのエンドポイントにアクセスする
-   - ダッシュボードでログやトレースを確認する
-
-5. ターミナルで <Kbd windows="Ctrl+C" mac="⌘+C" /> を押して、アプリケーションを停止します。
-
-</Steps>
-
-<Aside type="tip">
-  [Aspire ダッシュボード](/dashboard/explore/) ServiceDefaults
-  や統合機能をまだ追加していない場合でも有用な情報を提供します。サービスの基本情報、起動順序、エンドポイントなどを確認できます。
-</Aside>
-
-### ボーナスコンテンツ
-
-現在 Docker Compose を使用してサービスをオーケストレーションしている場合、Aspire はそれを置き換えることができ、さらに次のような追加のメリットを提供します。:
-
-<Tabs>
-<TabItem label='Docker compose の場合'>
-```yaml title="docker-compose.yml" showLineNumbers
-services:
-   postgres:
-      image: postgres:latest
-      environment:
-         - POSTGRES_PASSWORD=postgres
-         - POSTGRES_DB=mydb
-      ports:
-         - "5432:5432"
-   
-   api:
-      build: ./api
-      ports:
-         - "8080:8080"
-      environment:
-         - DATABASE_URL=postgres://postgres:postgres@postgres:5432/mydb
-      depends_on:
-         - postgres
-   
-   web:
-      build: ./web
-      ports:
-         - "3000:3000"
-      environment:
-         - API_URL=http://api:8080
-      depends_on:
-         - api
-```
-</TabItem>
-<TabItem label="Aspire の場合">
-```csharp title="apphost.cs" showLineNumbers
-var builder = DistributedApplication.CreateBuilder(args);
-
-var db = builder.AddPostgres("postgres")
-.AddDatabase("mydb");
-
-var api = builder.AddProject<Projects.Api>("api")
-.WithReference(db);
-
-var web = builder.AddProject<Projects.Web>("web")
-.WithExternalHttpEndpoints()
-.WithReference(api)
-.WaitFor(api);
-
-builder.Build().Run();
-
-```
 </TabItem>
 </Tabs>
 
-**Docker Compose と比べた Aspire の主な利点:**
+他のランタイムでは、すでに利用しているランタイムに合う OpenTelemetry SDK またはインストルメンテーション ライブラリを使い、ローカル オーケストレーション時に Aspire が提供する OTLP エンドポイントへテレメトリを送信してください。
 
-- **記述量が圧倒的に少ない** — それでいて、より表現力が高く強力。
-- **URL の手動設定が不要** — サービス同士が自動的に相互発見する。
-- **型安全な参照** — サービス依存関係をコンパイル時にチェック可能。
-- **組み込みダッシュボード** — Prometheus や Grafana などの追加ツールなしで可観測性を実現。
-- **開発からデプロイまで一貫** — 同じオーケストレーション コードをローカル実行にも利用でき、Docker Compose の生成や任意の環境へのデプロイが可能。
-- **統合ライブラリ** — データベース、キャッシュ、メッセージ キュー向けのベストプラクティスを組み込んだ事前構築済みサポート。
-- **開発言語非依存** — C#、Python、JavaScript など多くの言語や、コンテナー化されたサービスに対応。
+## 実行して検証する
 
-<Aside type="note">
-Aspire では、Docker Compose ファイルを自動生成することもできます！ `aspire deploy`を使用してデプロイする際に、デプロイ先として Docker Compose を指定できます。詳細については、 [最初のアプリをデプロイする](/ja/get-started/deploy-first-app/) を参照してください。
-</Aside>
+AppHost で必要なリソースと関係性を表現できたら、 Aspire CLI で全体をまとめて起動します。
+
+<Steps>
+
+1. AppHost を含むディレクトリで、次を実行します:
+
+   ```bash title="Aspire でアプリケーションを実行する"
+   aspire run
+   ```
+
+2. CLI が AppHost を検出し、リソースを起動し、ダッシュボード URL を出力するまで待ちます。
+
+   ```bash title="出力例" mark={3}
+   Finding apphosts...
+
+   Dashboard: https://localhost:17068/login?t=example
+
+   Press CTRL+C to stop the apphost and exit.
+   ```
+
+3. ブラウザーでダッシュボードを開き、次を確認します:
+
+   - すべてのリソースが正常に起動する
+   - サービス依存関係が想定どおりの順序で表示される
+   - ログ、トレース、メトリクスを確認できる
+   - エンドポイントと環境変数が正しい
+
+4. フロントエンドから API 呼び出し、ワーカー ジョブ、データベース アクセスなど、実際に重視するアプリ フローを実行して確認します。
+
+5. ターミナルで <Kbd windows="Ctrl+C" mac="⌃+C" /> を押してシステムを停止します。
+
+</Steps>
+
+:::tip
+[Aspire dashboard](/ja/dashboard/explore/) は、より深いテレメトリや統合を追加する前の段階でも有用です。起動順序、ログ、エンドポイント、構成を 1 か所で確認できます。
+:::
 
 ## 次のステップ
 
-おめでとうございます！ 既存のアプリケーションに Aspire を正常に追加できました。次におすすめのステップは次のとおりです:
+ここまでで、コア ワークフローは完成です。アプリが必要とするリソースを記述し、それらに依存するワークロードを接続し、 Aspire にローカル開発時のシステム全体を実行させます。ここからは、アプリ全体を一度に作り替えるのではなく、段階的にセットアップを深めていけます。
 
-- **さらに統合機能を追加する** — データベース、キャッシュ、メッセージ キューの利用を簡素化するために、 [インテグレーション](/integrations/gallery/) を確認してください
-- **可観測性を構成する** — アプリケーションのテレメトリを強化:
-  <Pivot id="csharp">
-  - [Service Defaults](/fundamentals/service-defaults/) を参照してください
-  </Pivot>
-  <Pivot id="python">
-  - [Standalone dashboard for Python](/dashboard/standalone-for-python/) を参照してください
-  </Pivot>
-  <Pivot id="javascript">
-  - [Standalone dashboard for Node.js](/dashboard/standalone-for-nodejs/) を参照してください
-  </Pivot>
-- **アプリケーションをデプロイする** — [最初のアプリをデプロイする](/get-started/deploy-first-app/) チュートリアルに従って、Aspire アプリケーションをデプロイしてください
-- **ダッシュボードを活用する** — [Aspire ダッシュボード](/dashboard/overview/) とその機能について詳しく学びましょう
-- **ポリグロット（多開発言語）機能について学ぶ**:
-  - [Aspire における Python サポート](/whats-new/aspire-13/#python-as-a-first-class-citizen)
-  - [Aspire における JavaScript サポート](/whats-new/aspire-13/#javascript-as-a-first-class-citizen)
-```
+- カスタム コマンドや非プロジェクト ワークロードについては [Executable resources](/ja/app-host/executable-resources/) を確認する
+- ローカル オーケストレーションの次へ進む準備ができたら [Deploy your first app](/ja/get-started/deploy-first-app/) を進める
+- エディターからアプリを実行・確認するには [Aspire extension for VS Code](/ja/get-started/aspire-vscode-extension/) を使う
+- よくあるセットアップ問題は [Troubleshooting guide](/ja/get-started/troubleshooting/) を確認する
+- 質問やフィードバックは [Discord](https://aka.ms/aspire-discord) で共有する

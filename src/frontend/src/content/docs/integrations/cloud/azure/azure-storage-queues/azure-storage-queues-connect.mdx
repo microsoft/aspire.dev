@@ -1,0 +1,341 @@
+---
+title: Connect to Azure Queue Storage
+description: Learn how to connect to Azure Queue Storage from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import queueIcon from '@assets/icons/azure-storagequeue-icon.png';
+
+<Image
+  src={queueIcon}
+  alt="Azure Queue Storage logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure Queue Storage resource that's already modeled in your AppHost. For the AppHost API surface — adding an Azure Storage account, Azurite emulator configuration, data volumes, and more — see [Azure Queue Storage Hosting integration](../azure-storage-queues-host/).
+
+When you reference an Azure Queue Storage resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Azure Queue Storage client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `ConnectionString` property of a resource called `queues` becomes `QUEUES_CONNECTIONSTRING`.
+
+### Queue Storage resource
+
+The Queue Storage resource exposes the following connection properties:
+
+| Property Name        | Description |
+| -------------------- | ----------- |
+| `ConnectionString`   | **Emulator only.** The full connection string for the Azurite emulator |
+| `Uri`                | The queue service endpoint, with the format `https://{account}.queue.core.windows.net/` |
+
+**Example values (emulator):**
+
+```
+ConnectionString: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8...;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1
+Uri: http://127.0.0.1:10001/devstoreaccount1
+```
+
+### Queue resource
+
+The Queue resource inherits all properties from its parent Queue Storage resource and adds:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `QueueName`   | The name of the specific queue |
+
+For example, if you reference a Queue Storage resource named `queues` in your AppHost project, the following environment variables are available in the consuming project:
+
+- `QUEUES_CONNECTIONSTRING` (emulator only)
+- `QUEUES_URI`
+- `QUEUES_QUEUENAME`
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a queue resource named `queues` and references it from the consuming app.
+
+<Tabs syncKey="azure-storage-queues-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Azure Queue Storage client integration. It registers a [`QueueServiceClient`](https://learn.microsoft.com/dotnet/api/azure.storage.queues.queueserviceclient) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Azure.Storage.Queues](https://www.nuget.org/packages/Aspire.Azure.Storage.Queues) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Storage.Queues" />
+
+#### Add the Queue Storage client
+
+In _Program.cs_, call `AddAzureQueueServiceClient` on your `IHostApplicationBuilder` to register a `QueueServiceClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureQueueServiceClient(connectionName: "queues");
+```
+
+<Aside type="tip">
+The `connectionName` must match the queue resource name from the AppHost. For more information, see [Add Azure Queue Storage resource](../azure-storage-queues-host/#add-azure-queue-storage-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(QueueServiceClient client)
+{
+    // Use client...
+}
+```
+
+#### Add keyed Queue Storage clients
+
+To register multiple `QueueServiceClient` instances with different connection names, use `AddKeyedAzureQueueServiceClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedAzureQueueServiceClient(name: "orders");
+builder.AddKeyedAzureQueueServiceClient(name: "notifications");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("orders")] QueueServiceClient ordersClient,
+    [FromKeyedServices("notifications")] QueueServiceClient notificationsClient)
+{
+    // Use clients...
+}
+```
+
+For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire Azure Queue Storage client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureQueueServiceClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureQueueServiceClient("queues");
+```
+
+Two formats are supported in the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json (service URI)"
+{
+  "ConnectionStrings": {
+    "queues": "https://{account_name}.queue.core.windows.net/"
+  }
+}
+```
+
+```json title="JSON — appsettings.json (connection string)"
+{
+  "ConnectionStrings": {
+    "queues": "AccountName=myaccount;AccountKey=myaccountkey"
+  }
+}
+```
+
+The service URI approach is recommended for production because it works with [default Azure credentials](/integrations/cloud/azure/azure-default-credential/).
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureStorageQueuesSettings` and `QueueClientOptions` from configuration using the `Aspire:Azure:Storage:Queues` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Azure": {
+      "Storage": {
+        "Queues": {
+          "DisableHealthChecks": false,
+          "DisableTracing": false,
+          "ClientOptions": {
+            "Diagnostics": {
+              "ApplicationId": "myapp"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<AzureStorageQueuesSettings>` to configure settings inline:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureQueueServiceClient(
+    "queues",
+    settings => settings.DisableHealthChecks = true);
+```
+
+You can also configure `QueueClientOptions`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureQueueServiceClient(
+    "queues",
+    configureClientBuilder: clientBuilder =>
+        clientBuilder.ConfigureOptions(
+            options => options.Diagnostics.ApplicationId = "myapp"));
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The Azure Queue Storage client integration:
+
+- Adds a health check when `DisableHealthChecks` is `false`, which verifies that a connection can be established to the queue service.
+- Integrates with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire Azure Queue Storage client integration automatically configures logging and tracing through OpenTelemetry.
+
+**Logging** categories:
+
+- `Azure.Core`
+- `Azure.Identity`
+
+**Tracing** activities:
+
+- `Azure.Storage.Queues.QueueClient`
+
+**Metrics:** The Azure Queue Storage integration currently doesn't support metrics by default due to limitations in the Azure SDK.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected service URI from the environment and create a `QueueServiceClient` directly using [📦 Azure.Storage.Queues](https://www.nuget.org/packages/Azure.Storage.Queues/):
+
+```csharp title="C# — Program.cs"
+using Azure.Identity;
+using Azure.Storage.Queues;
+
+// Use connection string if available (emulator), otherwise use service URI with default credential
+var connectionString = Environment.GetEnvironmentVariable("QUEUES_CONNECTIONSTRING");
+QueueServiceClient client;
+
+if (!string.IsNullOrEmpty(connectionString))
+{
+    client = new QueueServiceClient(connectionString);
+}
+else
+{
+    var serviceUri = new Uri(Environment.GetEnvironmentVariable("QUEUES_URI")!);
+    client = new QueueServiceClient(serviceUri, new DefaultAzureCredential());
+}
+
+// Use client...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the [`azure-sdk-for-go/sdk/storage/azqueue`](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue) package:
+
+```bash title="Terminal"
+go get github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue
+go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
+```
+
+Read the injected environment variables and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "os"
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+    "github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue"
+)
+
+func main() {
+    var client *azqueue.ServiceClient
+    var err error
+
+    // Use connection string if available (emulator), otherwise use service URI
+    connStr := os.Getenv("QUEUES_CONNECTIONSTRING")
+    if connStr != "" {
+        client, err = azqueue.NewServiceClientFromConnectionString(connStr, nil)
+    } else {
+        serviceURL := os.Getenv("QUEUES_URI")
+        cred, credErr := azidentity.NewDefaultAzureCredential(nil)
+        if credErr != nil {
+            panic(credErr)
+        }
+        client, err = azqueue.NewServiceClient(serviceURL, cred, nil)
+    }
+    if err != nil {
+        panic(err)
+    }
+
+    // Use client to interact with Azure Queue Storage...
+    _ = client
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the [`azure-storage-queue`](https://pypi.org/project/azure-storage-queue/) package:
+
+```bash title="Terminal"
+pip install azure-storage-queue azure-identity
+```
+
+Read the injected environment variables and connect:
+
+```python title="Python — app.py"
+import os
+from azure.storage.queue import QueueServiceClient
+from azure.identity import DefaultAzureCredential
+
+# Use connection string if available (emulator), otherwise use service URI
+connection_string = os.getenv("QUEUES_CONNECTIONSTRING")
+
+if connection_string:
+    client = QueueServiceClient.from_connection_string(connection_string)
+else:
+    service_url = os.getenv("QUEUES_URI")
+    client = QueueServiceClient(account_url=service_url, credential=DefaultAzureCredential())
+
+# Use client to interact with Azure Queue Storage...
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the [`@azure/storage-queue`](https://www.npmjs.com/package/@azure/storage-queue) package:
+
+```bash title="Terminal"
+npm install @azure/storage-queue @azure/identity
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { QueueServiceClient } from '@azure/storage-queue';
+import { DefaultAzureCredential } from '@azure/identity';
+
+// Use connection string if available (emulator), otherwise use service URI
+const connectionString = process.env.QUEUES_CONNECTIONSTRING;
+let client: QueueServiceClient;
+
+if (connectionString) {
+    client = QueueServiceClient.fromConnectionString(connectionString);
+} else {
+    const serviceUrl = process.env.QUEUES_URI!;
+    client = new QueueServiceClient(serviceUrl, new DefaultAzureCredential());
+}
+
+// Use client to interact with Azure Queue Storage...
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See [Set up Azure Queue Storage in the AppHost](../azure-storage-queues-host/) for details.
+</Aside>

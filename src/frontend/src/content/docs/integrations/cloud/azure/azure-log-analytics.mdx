@@ -1,0 +1,261 @@
+---
+title: Azure Log Analytics
+seoTitle: Azure Log Analytics integration for Aspire apps
+description: Learn how to use the Azure Log Analytics hosting integration to add Log Analytics workspaces to your Aspire application for centralized logging and monitoring.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import logAnalyticsIcon from '@assets/icons/azure-loganalytics-icon.png';
+
+<Image
+  src={logAnalyticsIcon}
+  alt="Azure Log Analytics logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the reference for the Aspire Azure Log Analytics Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Azure Log Analytics workspace resources in your [`AppHost`](/get-started/app-host/) project.
+
+[Azure Log Analytics](https://azure.microsoft.com/services/monitor/) is a tool in Azure Monitor that allows you to edit and run log queries against data in Azure Monitor Logs. The Aspire Azure Log Analytics integration enables you to provision Log Analytics workspaces for centralized logging and monitoring.
+
+## Installation
+
+To start building an Aspire app that uses Azure Log Analytics, install the [📦 Aspire.Hosting.Azure.OperationalInsights](https://www.nuget.org/packages/Aspire.Hosting.Azure.OperationalInsights) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add azure-operational-insights
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Azure.OperationalInsights@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.OperationalInsights" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-operational-insights
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Log Analytics hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.OperationalInsights": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add Azure Log Analytics workspace resource
+
+The Aspire Azure Log Analytics hosting integration models the Log Analytics workspace as the `AzureLogAnalyticsWorkspaceResource` type. To add a Log Analytics workspace resource to your app host, call `AddAzureLogAnalyticsWorkspace` (or `addAzureLogAnalyticsWorkspace`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var logAnalytics = builder.AddAzureLogAnalyticsWorkspace("log-analytics");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const logAnalytics = await builder.addAzureLogAnalyticsWorkspace("log-analytics");
+
+// After adding all resources, run the app...
+await builder.build().run();
+
+````
+
+</TabItem>
+</Tabs>
+
+The preceding code adds an Azure Log Analytics workspace resource named `log-analytics` to the application model.
+
+<Aside type="caution">
+  When you call `AddAzureLogAnalyticsWorkspace` (or
+  `addAzureLogAnalyticsWorkspace`), it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+## Use with Application Insights
+
+A common pattern is to use a Log Analytics workspace with Application Insights for centralized telemetry collection. You can link an Application Insights resource to a Log Analytics workspace:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var logAnalytics = builder.AddAzureLogAnalyticsWorkspace("log-analytics");
+var appInsights = builder.AddAzureApplicationInsights("app-insights", logAnalytics);
+
+builder.AddProject<Projects.ExampleProject>()
+.WithReference(appInsights);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+
+````
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const logAnalytics =
+  await builder.addAzureLogAnalyticsWorkspace('log-analytics');
+const appInsights = await builder.addAzureApplicationInsights('app-insights');
+await appInsights.withLogAnalyticsWorkspace(logAnalytics);
+
+const api = await builder.addNodeApp('api', './api', 'index.js');
+await api.withReference(appInsights);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The preceding code:
+
+- Adds an Azure Log Analytics workspace resource named `log-analytics`.
+- Adds an Azure Application Insights resource named `app-insights` that uses the Log Analytics workspace for log storage.
+- References the Application Insights resource in the consuming project.
+
+For more information, see [Azure Application Insights integration](/integrations/cloud/azure/azure-application-insights/).
+
+## Connection properties
+
+The Azure Log Analytics workspace resource exposes the following connection property:
+
+| Property name             | Description                                     |
+| ------------------------- | ----------------------------------------------- |
+| `logAnalyticsWorkspaceId` | The resource ID of the Log Analytics workspace. |
+
+## Provisioning-generated Bicep
+
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand—the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Log Analytics workspace resource, the following Bicep is generated:
+
+```bicep title="Generated Bicep — log-analytics.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+resource log_analytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: take('log-analytics-${uniqueString(resourceGroup().id)}', 63)
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+  }
+  tags: {
+    'aspire-resource-name': 'log-analytics'
+  }
+}
+
+output logAnalyticsWorkspaceId string = log_analytics.id
+```
+
+The preceding Bicep provisions an Azure Log Analytics workspace with the pay-per-GB pricing tier.
+
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API. For example, you can configure the SKU, retention period, and more. The following example demonstrates how to customize the Azure Log Analytics workspace:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var logAnalytics = builder.AddAzureLogAnalyticsWorkspace("log-analytics")
+    .ConfigureInfrastructure(infra =>
+    {
+        var workspace = infra.GetProvisionableResources()
+            .OfType<OperationalInsightsWorkspace>()
+            .Single();
+
+        workspace.Sku = new OperationalInsightsWorkspaceSku(
+            OperationalInsightsWorkspaceSkuName.PerGB2018);
+        workspace.RetentionInDays = 90;
+        workspace.Tags.Add("environment", "production");
+    });
+
+var appInsights = builder.AddAzureApplicationInsights("app-insights", logAnalytics);
+```
+
+<Aside type="note">
+  TypeScript AppHosts can use curated provisioning helper APIs when an
+  integration exposes them. This example directly customizes Azure.Provisioning
+  objects through `ConfigureInfrastructure`, which is currently C#-only unless
+  the integration wraps the scenario in a polyglot-friendly helper.
+</Aside>
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling `GetProvisionableResources`.
+  - The `OperationalInsightsWorkspace` is configured with 90-day retention and a custom tag.
+
+For more information, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/). For the full list of configurable properties, see the [Azure.Provisioning.OperationalInsights](https://learn.microsoft.com/dotnet/api/azure.provisioning.operationalinsights) API documentation.
+
+## Client integration
+
+<Aside type="note">
+  The Azure Log Analytics hosting integration does not include a corresponding
+  client integration package. Use the [Azure Monitor Query client
+  library](https://learn.microsoft.com/dotnet/api/overview/azure/monitor.query-readme)
+  to query logs programmatically.
+</Aside>
+
+## See also
+
+- [Azure Monitor Logs overview](https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs)
+- [Log Analytics workspace overview](https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-workspace-overview)
+- [Azure Application Insights integration](/integrations/cloud/azure/azure-application-insights/)
+- [Azure integration overview](/integrations/cloud/azure/overview/)

@@ -1,0 +1,887 @@
+---
+import SessionCard, { type Props as SessionProps } from './SessionCard.astro';
+
+interface Props {
+  sessions: SessionProps[];
+}
+
+const { sessions } = Astro.props;
+
+// Group sessions by timeslot for the timeline
+const timeGroups: { time: string; sessions: SessionProps[] }[] = [];
+const noTimeSlot: SessionProps[] = [];
+
+for (const session of sessions) {
+  if (session.timeslot) {
+    const existing = timeGroups.find((g) => g.time === session.timeslot);
+    if (existing) {
+      existing.sessions.push(session);
+    } else {
+      timeGroups.push({ time: session.timeslot, sessions: [session] });
+    }
+  } else {
+    noTimeSlot.push(session);
+  }
+}
+
+// Flatten back with indices for animation stagger
+let globalIndex = 0;
+---
+
+<div class="session-controls not-content">
+  <div class="controls-row">
+    <div class="search-wrapper">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input
+        type="text"
+        class="session-search"
+        placeholder="Search sessions or speakers…"
+        aria-label="Search sessions"
+        autocomplete="off"
+      />
+      <button class="clear-search" aria-label="Clear search" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <div class="filter-toggles">
+      <button class="tz-toggle" aria-label="Toggle timezone display" title="Toggle timezone display" data-tooltip-placement="top">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="2" y1="12" x2="22" y2="12" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+        <span class="tz-label">Show local time</span>
+      </button>
+      <button class="clock-toggle" aria-label="Toggle 12/24 hour format" title="Toggle 12/24 hour format" data-tooltip-placement="top">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+        <span class="clock-label">24h</span>
+      </button>
+    </div>
+  </div>
+  <div class="active-filters" hidden>
+    <span class="filter-summary"></span>
+  </div>
+</div>
+
+<div class="session-timeline not-content">
+  {timeGroups.map((group) => {
+    const allTBD = group.sessions.every(s => !s.abstract || s.abstract === 'TBD');
+    return (
+    <details class="time-group" open={!allTBD}>
+      <summary class="time-marker">
+        <div class="time-dot" aria-hidden="true"></div>
+        <span class="time-label" data-original-time={group.time}>{group.time}</span>
+        <svg class="collapse-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+        <span class="collapsed-info">
+          {group.sessions.length} {group.sessions.length === 1 ? 'session' : 'sessions'}
+        </span>
+      </summary>
+      <div class="session-list-wrapper">
+        <ul class:list={['session-list', { 'single-session': group.sessions.length === 1 }]}>
+          {group.sessions.map((session) => {
+            const idx = globalIndex++;
+            return <SessionCard {...session} index={idx} />;
+          })}
+        </ul>
+      </div>
+    </details>
+  )})}
+
+  {noTimeSlot.length > 0 && (
+    <ul class="session-list no-timeline">
+      {noTimeSlot.map((session) => {
+        const idx = globalIndex++;
+        return <SessionCard {...session} index={idx} />;
+      })}
+    </ul>
+  )}
+</div>
+
+<style>
+  /* ── Controls bar ── */
+  .session-controls {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .controls-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .search-wrapper {
+    position: relative;
+    flex: 1 1 220px;
+    min-width: 180px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--sl-color-gray-3);
+    pointer-events: none;
+    width: 16px;
+    height: 16px;
+    display: block;
+    flex-shrink: 0;
+  }
+
+  .session-search {
+    width: 100%;
+    padding: 0.55rem 2.25rem 0.55rem 2.25rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .session-search::placeholder {
+    color: var(--sl-color-gray-3);
+  }
+
+  .session-search:focus {
+    border-color: var(--sl-color-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-accent) 25%, transparent);
+  }
+
+  .clear-search {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: none;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--sl-color-gray-3) 25%, transparent);
+    color: var(--sl-color-gray-2);
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  .clear-search:hover {
+    background: color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
+    color: var(--sl-color-white);
+  }
+
+  .clear-search[hidden] {
+    display: none;
+  }
+
+  .filter-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .filter-btn,
+  .tz-toggle,
+  .clock-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-gray-2);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .filter-btn:hover,
+  .tz-toggle:hover,
+  .clock-toggle:hover {
+    border-color: color-mix(in srgb, var(--sl-color-accent) 50%, var(--sl-color-gray-5));
+    color: var(--sl-color-white);
+  }
+
+  .filter-btn[aria-pressed='true'] {
+    background: color-mix(in srgb, var(--sl-color-accent) 18%, transparent);
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-text-accent);
+  }
+
+  .tz-toggle[data-active='true'],
+  .clock-toggle[data-active='true'] {
+    background: color-mix(in srgb, var(--sl-color-accent) 18%, transparent);
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-text-accent);
+  }
+
+  .active-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  .active-filters[hidden] {
+    display: none;
+  }
+
+  .filter-summary {
+    font-style: italic;
+  }
+
+  /* Hidden card via filter */
+  :global(.session-card.filtered-out) {
+    display: none !important;
+  }
+
+  /* Hidden time group when all cards filtered */
+  .time-group.group-hidden {
+    display: none;
+  }
+
+  .no-results-msg {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--sl-color-gray-3);
+    font-size: 0.95rem;
+  }
+
+  /* ── Light theme ── */
+  :global([data-theme='light']) .session-search {
+    background: var(--sl-color-gray-7);
+    border-color: var(--sl-color-gray-5);
+    color: var(--sl-color-white);
+  }
+
+  :global([data-theme='light']) .session-search:focus {
+    border-color: var(--sl-color-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-accent) 20%, transparent);
+  }
+
+  :global([data-theme='light']) .filter-btn,
+  :global([data-theme='light']) .tz-toggle,
+  :global([data-theme='light']) .clock-toggle {
+    background: var(--sl-color-gray-7);
+    border-color: var(--sl-color-gray-5);
+    color: var(--sl-color-gray-2);
+  }
+
+  :global([data-theme='light']) .filter-btn:hover,
+  :global([data-theme='light']) .tz-toggle:hover,
+  :global([data-theme='light']) .clock-toggle:hover {
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-white);
+  }
+
+  :global([data-theme='light']) .filter-btn[aria-pressed='true'],
+  :global([data-theme='light']) .tz-toggle[data-active='true'],
+  :global([data-theme='light']) .clock-toggle[data-active='true'] {
+    background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-text-accent);
+  }
+
+  :global([data-theme='light']) .clear-search {
+    background: color-mix(in srgb, var(--sl-color-gray-3) 20%, transparent);
+    color: var(--sl-color-gray-2);
+  }
+
+  :global([data-theme='light']) .clear-search:hover {
+    background: color-mix(in srgb, var(--sl-color-accent) 25%, transparent);
+    color: var(--sl-color-text-accent);
+  }
+
+  @media (max-width: 768px) {
+    .controls-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .search-wrapper {
+      flex: none;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .filter-toggles {
+      justify-content: flex-start;
+    }
+  }
+
+  /* ── Timeline ── */
+  .session-timeline {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    padding-left: 2rem;
+    interpolate-size: allow-keywords;
+  }
+
+  /* Vertical timeline connector */
+  .session-timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 2px;
+    background: linear-gradient(
+      180deg,
+      var(--sl-color-accent),
+      color-mix(in srgb, var(--sl-color-accent) 30%, transparent)
+    );
+    border-radius: 2px;
+  }
+
+  .time-group {
+    position: relative;
+    border: none;
+    transition: margin 0.3s ease;
+  }
+
+  .time-group:not([open]) {
+    margin-bottom: -1.25rem;
+  }
+
+  /* Hide the default details marker */
+  .time-group summary {
+    list-style: none;
+  }
+  .time-group summary::-webkit-details-marker,
+  .time-group summary::marker {
+    display: none;
+    content: '';
+  }
+
+  /* Glowing dot on the timeline */
+  .time-marker {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    position: relative;
+    left: -2rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .time-group:not([open]) .time-marker {
+    margin-bottom: 0;
+  }
+
+  .time-marker:hover .time-label {
+    color: var(--sl-color-accent);
+  }
+
+  .collapse-chevron {
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+    color: var(--sl-color-text-accent);
+    opacity: 0.6;
+  }
+
+  .time-marker:hover .collapse-chevron {
+    opacity: 1;
+  }
+
+  .time-group[open] .collapse-chevron {
+    transform: rotate(0deg);
+  }
+
+  .time-group:not([open]) .collapse-chevron {
+    transform: rotate(-90deg);
+  }
+
+  /* Collapsed info pill — hidden when open */
+  .collapsed-info {
+    display: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: color-mix(in srgb, var(--sl-color-text-accent) 70%, transparent);
+    background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 20%, transparent);
+    padding: 0.15rem 0.65rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .time-group:not([open]) .collapsed-info {
+    display: inline-flex;
+  }
+
+  /* Animate content with interpolate-size */
+  .session-list-wrapper {
+    overflow: visible;
+    padding-top: 4px;
+  }
+
+  .time-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--sl-color-accent);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--sl-color-accent) 50%, transparent);
+    flex-shrink: 0;
+    position: relative;
+    animation: pulse-dot 3s ease-in-out infinite;
+  }
+
+  .time-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 12px color-mix(in srgb, var(--sl-color-accent) 50%, transparent); }
+    50% { box-shadow: 0 0 20px color-mix(in srgb, var(--sl-color-accent) 70%, transparent); }
+  }
+
+  .time-label {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--sl-color-text-accent);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    transition: color 0.2s ease;
+  }
+
+  /* ── Light theme overrides ── */
+  :global([data-theme='light']) .session-timeline::before {
+    background: linear-gradient(
+      180deg,
+      var(--sl-color-accent),
+      color-mix(in srgb, var(--sl-color-accent) 20%, transparent)
+    );
+  }
+
+  :global([data-theme='light']) .time-dot {
+    box-shadow: 0 0 10px color-mix(in srgb, var(--sl-color-accent) 35%, transparent);
+  }
+
+  :global([data-theme='light']) .time-label {
+    color: var(--sl-color-text-accent);
+  }
+
+  :global([data-theme='light']) .collapse-chevron {
+    color: var(--sl-color-text-accent);
+  }
+
+  .session-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* When only one session in a time block, span full width */
+  .session-list.single-session {
+    grid-template-columns: 1fr;
+  }
+
+  .session-list.no-timeline {
+    padding-left: 0;
+  }
+
+  /* When no time groups exist, hide the timeline */
+  .session-timeline:not(:has(.time-group))::before {
+    display: none;
+  }
+
+  .session-timeline:not(:has(.time-group)) {
+    padding-left: 0;
+  }
+
+  @media (max-width: 768px) {
+    .session-timeline {
+      padding-left: 1.5rem;
+    }
+
+    .time-marker {
+      left: -1.5rem;
+    }
+
+    .session-list {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  // Conference date for timezone conversion (March 23, 2026)
+  const CONF_DATE = '2026-03-23';
+
+  function initSessionGrid() {
+    // ── Collapsible time groups ──
+    const groups = document.querySelectorAll<HTMLDetailsElement>('.time-group');
+
+    for (const details of groups) {
+      const summary = details.querySelector('summary');
+      const wrapper = details.querySelector<HTMLElement>('.session-list-wrapper');
+      if (!summary || !wrapper) continue;
+
+      let animation: Animation | null = null;
+
+      summary.addEventListener('click', (e) => {
+        e.preventDefault();
+        animation?.cancel();
+
+        if (details.open) {
+          const startHeight = wrapper.offsetHeight;
+          wrapper.style.overflow = 'hidden';
+          animation = wrapper.animate(
+            [
+              { height: `${startHeight}px`, opacity: 1 },
+              { height: '0px', opacity: 0 },
+            ],
+            { duration: 250, easing: 'ease-in-out' }
+          );
+          animation.onfinish = () => {
+            details.open = false;
+            wrapper.style.overflow = '';
+            wrapper.style.height = '';
+            animation = null;
+          };
+        } else {
+          details.open = true;
+          const endHeight = wrapper.offsetHeight;
+          wrapper.style.overflow = 'hidden';
+          animation = wrapper.animate(
+            [
+              { height: '0px', opacity: 0 },
+              { height: `${endHeight}px`, opacity: 1 },
+            ],
+            { duration: 250, easing: 'ease-in-out' }
+          );
+          animation.onfinish = () => {
+            wrapper.style.overflow = '';
+            wrapper.style.height = '';
+            animation = null;
+          };
+        }
+      });
+    }
+
+    // ── Filter state ──
+    const searchInput = document.querySelector<HTMLInputElement>('.session-search');
+    const clearSearchBtn = document.querySelector<HTMLButtonElement>('.clear-search');
+    const tzBtn = document.querySelector<HTMLButtonElement>('.tz-toggle');
+    const tzLabel = tzBtn?.querySelector<HTMLSpanElement>('.tz-label');
+    const clockBtn = document.querySelector<HTMLButtonElement>('.clock-toggle');
+    const clockLabel = clockBtn?.querySelector<HTMLSpanElement>('.clock-label');
+    const activeFilters = document.querySelector<HTMLDivElement>('.active-filters');
+    const filterSummary = document.querySelector<HTMLSpanElement>('.filter-summary');
+    const timeline = document.querySelector<HTMLDivElement>('.session-timeline');
+    const cards = document.querySelectorAll<HTMLElement>('.session-card');
+
+    let searchQuery = '';
+    let showLocalTime = true;
+
+    // Detect browser's preferred hour cycle
+    function detectBrowserHour12(): boolean {
+      const testFormatter = new Intl.DateTimeFormat(undefined, { hour: 'numeric' });
+      const resolved = testFormatter.resolvedOptions();
+      return resolved.hour12 ?? !resolved.hourCycle?.startsWith('h2');
+    }
+    let useHour12 = detectBrowserHour12();
+
+    // ── Timezone conversion ──
+    function parsePTTime(ptStr: string): Date | null {
+      // Parse "9:00 AM PT" or "9:35 AM PT" → Date on conf day in PT
+      const match = ptStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*PT/i);
+      if (!match) return null;
+
+      let hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      const period = match[3].toUpperCase();
+
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+
+      // Build a Date in PT (America/Los_Angeles)
+      // March 23, 2026 is in PDT (UTC-7)
+      const dateStr = `${CONF_DATE}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+
+      // Create as a Date using the known PT offset
+      // We'll use Intl to resolve the actual offset
+      const tempDate = new Date(dateStr);
+      // Get the PT offset for this date
+      const ptFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
+      });
+      // Create a UTC date that represents this PT time
+      const utcDate = new Date(`${CONF_DATE}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00-07:00`);
+      return utcDate;
+    }
+
+    function formatLocalTime(date: Date): string {
+      const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: userTz,
+        hour: useHour12 ? 'numeric' : '2-digit',
+        minute: '2-digit',
+        hour12: useHour12,
+        timeZoneName: 'short',
+      });
+      return formatter.format(date);
+    }
+
+    function formatPTTime(ptStr: string): string {
+      // Reformat the original PT time string according to current hour format
+      const match = ptStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*PT/i);
+      if (!match) return ptStr;
+      let hours = parseInt(match[1], 10);
+      const minutes = match[2];
+      const period = match[3].toUpperCase();
+      if (useHour12) {
+        return `${hours}:${minutes} ${period} PT`;
+      } else {
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return `${String(hours).padStart(2, '0')}:${minutes} PT`;
+      }
+    }
+
+    function getUserTzAbbr(): string {
+      const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: userTz,
+        timeZoneName: 'short',
+      });
+      const parts = formatter.formatToParts(new Date(`${CONF_DATE}T12:00:00-07:00`));
+      const tzPart = parts.find(p => p.type === 'timeZoneName');
+      return tzPart?.value || 'Local';
+    }
+
+    function updateTimezoneDisplay() {
+      const timeLabels = document.querySelectorAll<HTMLElement>('[data-original-time]');
+      for (const el of timeLabels) {
+        const original = el.getAttribute('data-original-time')!;
+        if (showLocalTime) {
+          const date = parsePTTime(original);
+          if (date) {
+            el.textContent = formatLocalTime(date);
+          }
+        } else {
+          el.textContent = formatPTTime(original);
+        }
+      }
+
+      // Update collapsed-info pills to also reflect counts
+      updateGroupVisibility();
+    }
+
+    // ── Filtering ──
+    function applyFilters() {
+      let visibleCount = 0;
+      const totalCount = cards.length;
+
+      for (const card of cards) {
+        const title = card.getAttribute('data-title') || '';
+        const speakers = card.getAttribute('data-speakers') || '';
+        const abstract = card.getAttribute('data-abstract') || '';
+
+        let visible = true;
+
+        // Text search
+        if (searchQuery) {
+          const haystack = `${title} ${speakers} ${abstract}`;
+          visible = haystack.includes(searchQuery);
+        }
+
+        if (visible) {
+          card.classList.remove('filtered-out');
+          visibleCount++;
+        } else {
+          card.classList.add('filtered-out');
+        }
+      }
+
+      updateGroupVisibility();
+      updateFilterStatus(visibleCount, totalCount);
+    }
+
+    function updateGroupVisibility() {
+      // Remove existing no-results message
+      const existingMsg = timeline?.querySelector('.no-results-msg');
+      existingMsg?.remove();
+
+      let anyVisible = false;
+
+      for (const group of groups) {
+        const groupCards = group.querySelectorAll('.session-card');
+        const visibleCards = group.querySelectorAll('.session-card:not(.filtered-out)');
+
+        if (visibleCards.length === 0) {
+          group.classList.add('group-hidden');
+        } else {
+          group.classList.remove('group-hidden');
+          anyVisible = true;
+        }
+
+        // Update collapsed-info pill count
+        const pill = group.querySelector('.collapsed-info');
+        if (pill) {
+          const count = visibleCards.length;
+          pill.textContent = `${count} ${count === 1 ? 'session' : 'sessions'}`;
+        }
+      }
+
+      if (!anyVisible && timeline) {
+        const msg = document.createElement('p');
+        msg.className = 'no-results-msg';
+        msg.textContent = 'No sessions match your filters.';
+        timeline.appendChild(msg);
+      }
+    }
+
+    function updateFilterStatus(visible: number, total: number) {
+      const hasFilters = !!searchQuery;
+
+      if (activeFilters) {
+        activeFilters.hidden = !hasFilters;
+      }
+
+      if (filterSummary && hasFilters) {
+        const parts: string[] = [];
+        if (searchQuery) parts.push(`"${searchQuery}"`);
+        filterSummary.textContent = `Showing ${visible} of ${total} — ${parts.join(', ')}`;
+      }
+    }
+
+    // ── Event listeners ──
+    searchInput?.addEventListener('input', () => {
+      searchQuery = searchInput.value.trim().toLowerCase();
+      if (clearSearchBtn) {
+        clearSearchBtn.hidden = !searchQuery;
+      }
+      applyFilters();
+    });
+
+    clearSearchBtn?.addEventListener('click', () => {
+      searchQuery = '';
+      if (searchInput) searchInput.value = '';
+      clearSearchBtn.hidden = true;
+      searchInput?.focus();
+      applyFilters();
+    });
+
+    function setTooltip(el: HTMLElement, text: string) {
+      const tippy = (el as any)._tippy;
+      if (tippy) {
+        tippy.setContent(text);
+      } else {
+        el.title = text;
+      }
+    }
+
+    function updateTzTitle() {
+      if (!tzBtn) return;
+      if (showLocalTime) {
+        const abbr = getUserTzAbbr();
+        setTooltip(tzBtn, `Currently showing ${abbr} \u2014 click to switch to PT`);
+      } else {
+        const abbr = getUserTzAbbr();
+        setTooltip(tzBtn, `Currently showing PT \u2014 click to switch to ${abbr}`);
+      }
+    }
+
+    tzBtn?.addEventListener('click', () => {
+      showLocalTime = !showLocalTime;
+      tzBtn.setAttribute('data-active', String(showLocalTime));
+
+      if (tzLabel) {
+        if (showLocalTime) {
+          const abbr = getUserTzAbbr();
+          tzLabel.textContent = `Showing ${abbr}`;
+        } else {
+          tzLabel.textContent = 'Show local time';
+        }
+      }
+
+      updateTzTitle();
+      updateTimezoneDisplay();
+    });
+
+    // ── Clock format toggle ──
+    function updateClockTitle() {
+      if (!clockBtn) return;
+      if (useHour12) {
+        setTooltip(clockBtn, 'Currently showing 12-hour time \u2014 click to switch to 24-hour');
+      } else {
+        setTooltip(clockBtn, 'Currently showing 24-hour time \u2014 click to switch to 12-hour');
+      }
+    }
+
+    clockBtn?.addEventListener('click', () => {
+      useHour12 = !useHour12;
+      clockBtn.setAttribute('data-active', String(!useHour12));
+      if (clockLabel) {
+        clockLabel.textContent = useHour12 ? '24h' : '12h';
+      }
+      updateClockTitle();
+      updateTimezoneDisplay();
+    });
+
+    // Initialize clock toggle state
+    if (clockBtn) {
+      clockBtn.setAttribute('data-active', String(!useHour12));
+      if (clockLabel) {
+        clockLabel.textContent = useHour12 ? '24h' : '12h';
+      }
+      updateClockTitle();
+    }
+
+    // Detect if user's timezone differs from PT; if same, hide the toggle
+    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (userTz === 'America/Los_Angeles' && tzBtn) {
+      tzBtn.style.display = 'none';
+    }
+
+    // Apply local time on load & set toggle state
+    if (tzBtn) {
+      tzBtn.setAttribute('data-active', String(showLocalTime));
+    }
+    if (tzLabel && showLocalTime) {
+      const abbr = getUserTzAbbr();
+      tzLabel.textContent = `Showing ${abbr}`;
+    }
+    updateTzTitle();
+    updateTimezoneDisplay();
+  }
+
+  // Run on initial load and on Astro view transitions
+  initSessionGrid();
+  document.addEventListener('astro:after-swap', initSessionGrid);
+</script>

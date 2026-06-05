@@ -1,20 +1,481 @@
 ---
 import SidebarTopicsSidebar from 'starlight-sidebar-topics/overrides/Sidebar.astro';
-import { Icon, LinkButton } from '@astrojs/starlight/components';
+import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
+import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
+// @ts-ignore Starlight provides this virtual component at runtime.
+import MobileMenuFooter from 'virtual:starlight/components/MobileMenuFooter';
+import { Badge, Icon, LinkButton } from '@astrojs/starlight/components';
+import { sidebarTopics } from '../../../config/sidebar/sidebar.topics.js';
+import { referenceTopics } from '../../../config/sidebar/reference.topics.js';
+
+const routeData = Astro.locals.starlightRoute;
+const topicState = Astro.locals.starlightSidebarTopics;
+const pageId = routeData?.id ?? '';
+const locale = routeData?.locale;
+const isApiRefPage = pageId.startsWith('reference/api');
+const apiLang = pageId.startsWith('reference/api/typescript')
+  ? 'ts'
+  : pageId.startsWith('reference/api/csharp')
+    ? 'csharp'
+    : undefined;
+const sidebar = routeData?.sidebar ?? [];
+const topics = topicState?.topics ?? [];
+
+type SidebarTopicOption = {
+  label: string;
+  link: string;
+  icon?: string;
+  badge?: {
+    text: string;
+    variant?: TopicBadgeVariant;
+  };
+  isCurrent: boolean;
+};
+
+type TopicBadgeVariant = 'success' | 'default' | 'note' | 'danger' | 'caution' | 'tip';
+
+function resolveTopicLabel(topic: (typeof sidebarTopics)[number], currentLocale?: string) {
+  if (typeof topic.label === 'string') {
+    return topic.label;
+  }
+
+  return topic.label[currentLocale ?? ''] ?? topic.label.en ?? Object.values(topic.label)[0] ?? '';
+}
+
+function buildLocalizedHref(path: string, currentLocale?: string) {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  const prefixed = currentLocale ? `/${currentLocale}${normalized}` : normalized;
+  return prefixed.endsWith('/') ? prefixed : `${prefixed}/`;
+}
+
+function resolveTopicBadge(
+  badge:
+    | string
+    | { text: string | Record<string, string>; variant?: TopicBadgeVariant }
+    | undefined,
+  currentLocale?: string
+): SidebarTopicOption['badge'] {
+  if (!badge) {
+    return undefined;
+  }
+
+  if (typeof badge === 'string') {
+    return { text: badge };
+  }
+
+  const text =
+    typeof badge.text === 'string'
+      ? badge.text
+      : (badge.text[currentLocale ?? ''] ?? badge.text.en ?? Object.values(badge.text)[0] ?? '');
+
+  return {
+    text,
+    variant: badge.variant,
+  };
+}
+
+function normalizeTopic(
+  topic: {
+    label: string | Record<string, string>;
+    link: string;
+    icon?: string;
+    badge?: string | { text: string | Record<string, string>; variant?: TopicBadgeVariant };
+    isCurrent: boolean;
+  },
+  currentLocale?: string
+): SidebarTopicOption {
+  return {
+    label:
+      typeof topic.label === 'string'
+        ? topic.label
+        : (topic.label[currentLocale ?? ''] ??
+          topic.label.en ??
+          Object.values(topic.label)[0] ??
+          ''),
+    link: topic.link,
+    icon: topic.icon,
+    badge: resolveTopicBadge(topic.badge, currentLocale),
+    isCurrent: topic.isCurrent,
+  };
+}
+
+const fallbackApiTopics: SidebarTopicOption[] = isApiRefPage
+  ? sidebarTopics.map((topic) => ({
+      label: resolveTopicLabel(topic, locale),
+      link: buildLocalizedHref(topic.link, locale),
+      icon: topic.icon,
+      badge: resolveTopicBadge(topic.badge, locale),
+      isCurrent: topic === referenceTopics,
+    }))
+  : [];
+const effectiveTopics: SidebarTopicOption[] = isApiRefPage
+  ? fallbackApiTopics
+  : topics.map((topic) => normalizeTopic(topic, locale));
+const currentTopic = effectiveTopics.find((topic) => topic.isCurrent) ?? effectiveTopics[0];
+const hasTopicSidebar = Boolean(
+  !isApiRefPage && routeData?.hasSidebar && topicState?.isPageWithTopic && currentTopic
+);
+const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
 ---
 
-<div class="topics-sidebar">
-  <SidebarTopicsSidebar {...Astro.props}>
-    <slot />
-  </SidebarTopicsSidebar>
+<div
+  class="topics-sidebar"
+  data-api-ref={isApiRefPage || undefined}
+  data-api-lang={apiLang}
+  data-topic-nav={hasTopicSidebar || undefined}
+>
+  {
+    isApiRefPage ? (
+      <>
+        <div class="api-sidebar-sticky not-content">
+          {hasTopicsList && (
+            <ul
+              class="starlight-sidebar-topics topics-sidebar-list"
+              data-tour-target="topics-list"
+              data-tour-step="topics-list"
+            >
+              {effectiveTopics.map((topic) => (
+                <li>
+                  <a
+                    href={topic.link}
+                    title={topic.label}
+                    aria-current={topic.isCurrent ? 'page' : undefined}
+                    class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
+                  >
+                    {topic.icon && (
+                      <div class="starlight-sidebar-topics-icon">
+                        <Icon name={topic.icon as any} />
+                      </div>
+                    )}
+                    <div>
+                      {topic.label}
+                      {topic.badge && (
+                        <Badge
+                          class="starlight-sidebar-topics-badge"
+                          text={topic.badge.text}
+                          variant={topic.badge.variant}
+                        />
+                      )}
+                    </div>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div class="sidebar-filter sidebar-filter-row">
+            <div class="sidebar-filter-wrap">
+              <svg
+                class="sidebar-filter-icon"
+                aria-hidden="true"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              <label class="sr-only" for="sidebar-filter-input">
+                Filter sidebar
+              </label>
+              <input
+                type="text"
+                id="sidebar-filter-input"
+                class="sidebar-filter-input"
+                placeholder="Filter sidebar…"
+                autocomplete="off"
+                aria-label="Filter sidebar entries"
+              />
+              <button
+                type="button"
+                id="sidebar-filter-clear"
+                class="sidebar-filter-clear"
+                aria-label="Clear filter"
+                hidden
+              >
+                <svg
+                  aria-hidden="true"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
+          </div>
+          <div
+            class="sidebar-filter-empty"
+            id="sidebar-filter-empty"
+            aria-labelledby="sidebar-filter-empty-copy"
+            hidden
+          >
+            <p class="sidebar-filter-empty-copy" id="sidebar-filter-empty-copy" />
+            <button
+              type="button"
+              class="sidebar-filter-empty-action"
+              id="sidebar-filter-empty-action"
+            >
+              Clear filter
+            </button>
+          </div>
+        </div>
+        <SidebarPersister>
+          <SidebarSublist sublist={sidebar} />
+        </SidebarPersister>
+        <div class="md:sl-hidden">
+          <MobileMenuFooter />
+        </div>
+      </>
+    ) : hasTopicSidebar ? (
+      <>
+        <div class="topic-sidebar-sticky not-content">
+          <ul
+            class="starlight-sidebar-topics topics-sidebar-list"
+            data-tour-target="topics-list"
+            data-tour-step="topics-list"
+          >
+            {effectiveTopics.map((topic) => (
+              <li>
+                <a
+                  href={topic.link}
+                  title={topic.label}
+                  aria-current={topic.isCurrent ? 'page' : undefined}
+                  class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
+                >
+                  {topic.icon && (
+                    <div class="starlight-sidebar-topics-icon">
+                      <Icon name={topic.icon as any} />
+                    </div>
+                  )}
+                  <div>
+                    {topic.label}
+                    {topic.badge && (
+                      <Badge
+                        class="starlight-sidebar-topics-badge"
+                        text={topic.badge.text}
+                        variant={topic.badge.variant}
+                      />
+                    )}
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <div class="sidebar-filter sidebar-filter-row">
+            <div class="sidebar-filter-wrap">
+              <svg
+                class="sidebar-filter-icon"
+                aria-hidden="true"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              <label class="sr-only" for="sidebar-filter-input">
+                Filter sidebar
+              </label>
+              <input
+                type="text"
+                id="sidebar-filter-input"
+                class="sidebar-filter-input"
+                placeholder="Filter sidebar…"
+                autocomplete="off"
+                aria-label="Filter sidebar entries"
+              />
+              <button
+                type="button"
+                id="sidebar-filter-clear"
+                class="sidebar-filter-clear"
+                aria-label="Clear filter"
+                hidden
+              >
+                <svg
+                  aria-hidden="true"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
+          </div>
+          <div
+            class="sidebar-filter-empty"
+            id="sidebar-filter-empty"
+            aria-labelledby="sidebar-filter-empty-copy"
+            hidden
+          >
+            <p class="sidebar-filter-empty-copy" id="sidebar-filter-empty-copy" />
+            <button
+              type="button"
+              class="sidebar-filter-empty-action"
+              id="sidebar-filter-empty-action"
+            >
+              Clear filter
+            </button>
+          </div>
+        </div>
+        <SidebarPersister>
+          <SidebarSublist sublist={sidebar} />
+        </SidebarPersister>
+        <div class="md:sl-hidden">
+          <MobileMenuFooter />
+        </div>
+      </>
+    ) : (
+      <SidebarTopicsSidebar {...Astro.props}>
+        <slot />
+      </SidebarTopicsSidebar>
+    )
+  }
   <div class="divider"></div>
   <div class="sidebar-bottom">
-    <LinkButton href={'https://github.com/microsoft/aspire.dev'} variant="minimal">
+    <LinkButton
+      href={'https://github.com/microsoft/aspire.dev'}
+      variant="minimal"
+      title="GitHub: microsoft/aspire.dev"
+    >
       <Icon name="github" />
-      aspire.dev
+      <span>aspire.dev</span>
     </LinkButton>
   </div>
 </div>
+{
+  isApiRefPage && (
+    <>
+      <button
+        type="button"
+        class="sidebar-collapse-btn"
+        id="sidebar-collapse-btn"
+        data-tour-target="sidebar-toggle"
+        aria-label="Collapse sidebar"
+        title="Collapse sidebar"
+        aria-expanded="true"
+        aria-controls="starlight__sidebar"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m7-6l-3-3l3-3" />
+          </>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="sidebar-expand-btn"
+        id="sidebar-expand-btn"
+        data-tour-target="sidebar-toggle"
+        aria-label="Expand sidebar"
+        title="Expand sidebar"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m5-12l3 3l-3 3" />
+          </>
+        </svg>
+      </button>
+    </>
+  )
+}
+{
+  hasTopicSidebar && (
+    <>
+      <button
+        type="button"
+        class="sidebar-collapse-btn"
+        id="topic-sidebar-collapse-btn"
+        data-tour-target="sidebar-toggle"
+        data-tour-step="sidebar-toggle"
+        aria-label="Collapse sidebar"
+        title="Collapse sidebar"
+        aria-expanded="true"
+        aria-controls="starlight__sidebar"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m7-6l-3-3l3-3" />
+          </>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="sidebar-expand-btn"
+        id="topic-sidebar-expand-btn"
+        data-tour-target="sidebar-toggle"
+        aria-label="Expand sidebar"
+        title="Expand sidebar"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m5-12l3 3l-3 3" />
+          </>
+        </svg>
+      </button>
+    </>
+  )
+}
 
 <style>
   .topics-sidebar {
@@ -40,4 +501,1663 @@ import { Icon, LinkButton } from '@astrojs/starlight/components';
   .topics-sidebar .sl-link-button {
     padding-bottom: 0rem;
   }
+
+  .topics-sidebar {
+    --sidebar-dropdown-trigger-bg: var(--sl-color-bg);
+    --sidebar-dropdown-trigger-border: var(--sl-color-gray-5);
+    --sidebar-dropdown-panel-bg: color-mix(
+      in srgb,
+      var(--sl-color-bg-sidebar) 97%,
+      var(--sl-color-black)
+    );
+    --sidebar-dropdown-hover-bg: color-mix(in srgb, var(--sl-color-text-accent) 14%, transparent);
+    --sidebar-dropdown-selected-bg: color-mix(
+      in srgb,
+      var(--sl-color-text-accent) 18%,
+      transparent
+    );
+    --sidebar-dropdown-selected-border: color-mix(
+      in srgb,
+      var(--sl-color-text-accent) 40%,
+      transparent
+    );
+    --sidebar-dropdown-muted: var(--sl-color-gray-2);
+    --sidebar-dropdown-code-bg: color-mix(in srgb, var(--sl-color-bg-nav) 70%, transparent);
+    --sidebar-dropdown-code-border: color-mix(
+      in srgb,
+      var(--sl-color-hairline-light) 90%,
+      transparent
+    );
+    --sidebar-dropdown-code-color: var(--sl-color-text);
+    --sidebar-empty-bg: color-mix(
+      in srgb,
+      var(--sl-color-bg-sidebar) 90%,
+      var(--sl-color-text-accent) 10%
+    );
+    --sidebar-empty-border: color-mix(
+      in srgb,
+      var(--sl-color-gray-4) 72%,
+      var(--sl-color-text-accent) 28%
+    );
+    --sidebar-empty-action-bg-hover: color-mix(
+      in srgb,
+      var(--sl-color-text-accent) 12%,
+      transparent
+    );
+    --sidebar-empty-action-border: color-mix(
+      in srgb,
+      var(--sl-color-gray-4) 76%,
+      var(--sl-color-text-accent) 24%
+    );
+    --sidebar-control-pad-x: 0.8rem;
+    --sidebar-control-icon-size: 1.25rem;
+    --sidebar-control-gap: 0.75rem;
+    --sidebar-control-height: 2.5rem;
+  }
+
+  /* Sidebar header wrappers — topics list + filter scroll along with the
+     rest of the sidebar content (no sticky positioning). */
+  .api-sidebar-sticky,
+  .topic-sidebar-sticky {
+    padding-top: 0.75rem;
+  }
+
+  /* The visual styling for `.starlight-sidebar-topics` lives globally in
+     `site.css` (mirroring the original plugin look). The scoped class here
+     only adds a small bottom margin so the filter row beneath sits flush. */
+  .topics-sidebar-list {
+    margin-bottom: 0.75rem;
+  }
+
+  /* Filter row sits full-width directly below the topics list. */
+  .sidebar-filter-row {
+    margin-bottom: 0.75rem;
+  }
+
+  .sidebar-dropdown-shell {
+    position: relative;
+    min-width: 0;
+  }
+
+  .topic-selector-dropdown {
+    padding: 0.35rem 0 0.75rem;
+  }
+
+  .sidebar-dropdown-trigger {
+    width: 100%;
+    min-height: var(--sidebar-control-height);
+    display: flex;
+    align-items: center;
+    gap: var(--sidebar-control-gap);
+    padding: 0.625rem var(--sidebar-control-pad-x);
+    border: 1px solid var(--sidebar-dropdown-trigger-border);
+    border-radius: 0.5rem;
+    background: var(--sidebar-dropdown-trigger-bg);
+    color: var(--sl-color-text);
+    text-align: left;
+    cursor: pointer;
+    transition:
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      background-color 0.18s ease,
+      color 0.18s ease;
+  }
+
+  .sidebar-dropdown-trigger:hover {
+    border-color: var(--sl-color-gray-4);
+    box-shadow: var(--sl-shadow-md);
+  }
+
+  .sidebar-dropdown-trigger:focus-visible {
+    outline: none;
+    border-color: var(--sl-color-text-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-text-accent) 20%, transparent);
+  }
+
+  .sidebar-dropdown-shell[data-open='true'] .sidebar-dropdown-trigger {
+    border-color: color-mix(in srgb, var(--sl-color-text-accent) 45%, var(--sl-color-gray-4));
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--sl-color-text-accent) 18%, transparent),
+      var(--sl-shadow-md);
+  }
+
+  .sidebar-dropdown-trigger-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.1rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .sidebar-dropdown-trigger-label {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--sl-text-sm, 0.875rem);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .sidebar-dropdown-trigger-meta,
+  .sidebar-dropdown-option-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .sidebar-dropdown-option-meta {
+    min-height: 1.1rem;
+  }
+
+  .sidebar-dropdown-inline-code {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.08rem 0.38rem;
+    border: 1px solid var(--sidebar-dropdown-code-border);
+    border-radius: 0.375rem;
+    background: var(--sidebar-dropdown-code-bg);
+    color: var(--sidebar-dropdown-code-color);
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 0.76rem;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .sidebar-dropdown-caret {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    margin-left: auto;
+    color: var(--sl-color-gray-2);
+    transition:
+      transform 0.18s ease,
+      color 0.18s ease;
+  }
+
+  .sidebar-dropdown-shell[data-open='true'] .sidebar-dropdown-caret {
+    transform: rotate(180deg);
+    color: var(--sl-color-text-accent);
+  }
+
+  .sidebar-dropdown-panel {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    left: 0;
+    right: 0;
+    z-index: 25;
+    padding: 0.4rem;
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 90%, transparent);
+    border-radius: 0.5rem;
+    background: var(--sidebar-dropdown-panel-bg);
+    box-shadow: var(--sl-shadow-lg);
+    backdrop-filter: blur(14px);
+  }
+
+  .sidebar-dropdown-panel[hidden] {
+    display: none;
+  }
+
+  .sidebar-dropdown-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.8rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--sl-color-text);
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      box-shadow 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .sidebar-dropdown-option:hover,
+  .sidebar-dropdown-option:focus-visible {
+    background: var(--sidebar-dropdown-hover-bg);
+    color: var(--sl-color-white);
+    outline: none;
+  }
+
+  .sidebar-dropdown-option[aria-checked='true'] {
+    background: var(--sidebar-dropdown-selected-bg);
+    box-shadow: inset 0 0 0 1px var(--sidebar-dropdown-selected-border);
+  }
+
+  .sidebar-dropdown-option-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.26rem;
+    min-width: 0;
+  }
+
+  .sidebar-dropdown-option-label {
+    font-size: var(--sl-text-sm, 0.875rem);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .sidebar-dropdown-trigger-topic {
+    margin-top: 0;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+    background: var(--sidebar-dropdown-trigger-bg);
+    border-color: var(--sidebar-dropdown-trigger-border);
+    color: var(--sl-color-text);
+  }
+
+  .topic-selector-icon {
+    width: var(--sidebar-control-icon-size);
+    min-width: var(--sidebar-control-icon-size);
+    height: var(--sidebar-control-icon-size);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 0;
+  }
+
+  .sidebar-dropdown-trigger-topic .starlight-sidebar-topics-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    border-color: transparent;
+    margin-right: 0;
+  }
+
+  .topic-selector-meta :global(.starlight-sidebar-topics-badge) {
+    margin-inline-start: 0;
+  }
+
+  .sidebar-dropdown-panel-topics {
+    top: 100%;
+    padding: 0.25rem;
+    margin-top: 0rem;
+    overflow: hidden;
+    background-clip: padding-box;
+  }
+
+  .starlight-sidebar-topics.starlight-sidebar-topics-menu {
+    margin: 0;
+    padding: 0.2rem;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    max-height: min(60vh, 24rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .starlight-sidebar-topics-menu::after {
+    content: none;
+  }
+
+  .starlight-sidebar-topics-menu li + li {
+    margin-top: 0;
+  }
+
+  .starlight-sidebar-topics-menu a {
+    font-size: var(--sl-text-sm, 0.875rem);
+    padding: 0.55rem 0.6rem;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .starlight-sidebar-topics-menu a:hover,
+  .starlight-sidebar-topics-menu a:focus-visible {
+    transform: none;
+  }
+
+  .starlight-sidebar-topics-menu a.starlight-sidebar-topics-current {
+    background: var(--sidebar-dropdown-selected-bg);
+    border: 1px solid var(--sidebar-dropdown-selected-border);
+    color: var(--sl-color-accent-high);
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--sidebar-dropdown-selected-border) 75%, transparent);
+  }
+
+  .starlight-sidebar-topics-menu a.starlight-sidebar-topics-current .starlight-sidebar-topics-icon {
+    color: inherit;
+  }
+
+  :global([data-theme='light']) .starlight-sidebar-topics-menu a.starlight-sidebar-topics-current {
+    color: var(--sl-color-accent);
+  }
+
+  /* ── Sidebar filter input ─────────────────────────────────────── */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .sidebar-filter {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sidebar-filter-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .sidebar-filter-icon {
+    position: absolute;
+    left: var(--sidebar-control-pad-x);
+    width: var(--sidebar-control-icon-size);
+    height: var(--sidebar-control-icon-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sidebar-dropdown-muted);
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  .sidebar-filter-input {
+    width: 100%;
+    min-height: var(--sidebar-control-height);
+    padding: 0.45rem 2rem 0.45rem
+      calc(
+        var(--sidebar-control-pad-x) + var(--sidebar-control-icon-size) + var(--sidebar-control-gap)
+      );
+    background: var(--sidebar-dropdown-trigger-bg);
+    color: var(--sl-color-text);
+    font-size: var(--sl-text-sm, 0.875rem);
+    border: 1px solid var(--sidebar-dropdown-trigger-border);
+    border-radius: 0.5rem;
+    line-height: 1.4;
+    box-sizing: border-box;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s,
+      background-color 0.15s,
+      color 0.15s;
+  }
+
+  .sidebar-filter-input::placeholder {
+    color: var(--sidebar-dropdown-muted);
+    opacity: 1;
+  }
+
+  .sidebar-filter-input:hover {
+    border-color: var(--sl-color-gray-4);
+    box-shadow: var(--sl-shadow-md);
+  }
+
+  .sidebar-filter-input:focus {
+    outline: none;
+    border-color: var(--sl-color-text-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-text-accent) 20%, transparent);
+  }
+
+  .sidebar-filter-clear {
+    position: absolute;
+    right: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0.25rem;
+    color: var(--sl-color-gray-3);
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      background 0.15s;
+  }
+
+  .sidebar-filter-clear:hover {
+    color: var(--sl-color-white);
+    background: color-mix(in srgb, var(--sl-color-gray-4) 40%, transparent);
+  }
+
+  .sidebar-filter-clear[hidden] {
+    display: none;
+  }
+
+  .sidebar-filter-empty {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
+    margin-bottom: 0.75rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--sidebar-empty-border);
+    border-radius: 0.5rem;
+    background: var(--sidebar-empty-bg);
+    color: var(--sl-color-text);
+  }
+
+  .sidebar-filter-empty[hidden] {
+    display: none;
+  }
+
+  .sidebar-filter-empty-copy {
+    flex: 1 1 12rem;
+    margin: 0;
+    color: var(--sl-color-text);
+    font-size: var(--sl-text-sm, 0.875rem);
+    line-height: 1.45;
+  }
+
+  .sidebar-filter-empty-action {
+    flex-shrink: 0;
+    align-self: center;
+    padding: 0.42rem 0.7rem;
+    border: 1px solid var(--sidebar-empty-action-border);
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--sl-color-text-accent);
+    font-size: var(--sl-text-xs, 0.75rem);
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .sidebar-filter-empty-action:hover,
+  .sidebar-filter-empty-action:focus-visible {
+    background: var(--sidebar-empty-action-bg-hover);
+    border-color: color-mix(
+      in srgb,
+      var(--sl-color-text-accent) 40%,
+      var(--sidebar-empty-action-border)
+    );
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-text-accent) 16%, transparent);
+  }
+
+  :global([data-theme='light']) .sidebar-filter-input {
+    border-color: var(--sl-color-gray-5);
+  }
+  :global([data-theme='light']) .topics-sidebar {
+    --sidebar-dropdown-trigger-bg: var(--sl-color-bg);
+    --sidebar-dropdown-trigger-border: var(--sl-color-gray-5);
+    --sidebar-dropdown-panel-bg: color-mix(in srgb, var(--sl-color-bg) 98%, white);
+    --sidebar-dropdown-hover-bg: color-mix(in srgb, var(--aspire-color-primary) 10%, white);
+    --sidebar-dropdown-selected-bg: color-mix(in srgb, var(--aspire-color-primary) 12%, white);
+    --sidebar-dropdown-selected-border: color-mix(
+      in srgb,
+      var(--aspire-color-primary) 36%,
+      var(--sl-color-gray-5)
+    );
+    --sidebar-dropdown-muted: var(--sl-color-gray-3);
+    --sidebar-dropdown-code-bg: color-mix(
+      in srgb,
+      var(--aspire-color-white) 92%,
+      var(--sl-color-gray-7)
+    );
+    --sidebar-dropdown-code-border: color-mix(in srgb, var(--sl-color-gray-6) 82%, transparent);
+    --sidebar-dropdown-code-color: var(--aspire-color-muted-strong, var(--sl-color-gray-2));
+    --sidebar-empty-bg: color-mix(in srgb, var(--sl-color-bg) 92%, var(--aspire-color-primary) 8%);
+    --sidebar-empty-border: color-mix(
+      in srgb,
+      var(--sl-color-gray-5) 72%,
+      var(--aspire-color-primary) 28%
+    );
+    --sidebar-empty-action-bg-hover: color-mix(in srgb, var(--aspire-color-primary) 10%, white);
+    --sidebar-empty-action-border: color-mix(
+      in srgb,
+      var(--sl-color-gray-5) 74%,
+      var(--aspire-color-primary) 26%
+    );
+  }
+  :global([data-theme='light']) .sidebar-filter-clear:hover {
+    color: var(--sl-color-white);
+    background: color-mix(in srgb, var(--sl-color-gray-5) 60%, transparent);
+  }
+  /* Sidebar filter highlight */
+  :global(mark.sb-hl) {
+    background: color-mix(in srgb, var(--sl-color-text-accent) 25%, transparent);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  /* ── Sidebar collapse / expand ────────────────────────────────── */
+
+  /* Anchor the collapse/expand toggle to the sidebar's right edge so it
+     reads as a tab projecting from the sidebar. The button stays visible
+     (position: fixed) while the sidebar's own contents (topics, filter,
+     entries) scroll independently. When the sidebar is collapsed
+     (--sl-sidebar-width: 0), the button slides flush to the viewport
+     edge. When an announcement banner is visible the JS controller
+     writes --aspire-banner-height on <html>, pushing the button below
+     the banner. */
+  /* Floating sidebar collapse/expand toggle. Both the collapse and the
+     expand button live at `left: var(--sl-sidebar-width)`, anchored to
+     the sidebar's right edge. When --sl-sidebar-width animates to 0,
+     the button slides flush to the viewport edge alongside the sidebar.
+
+     Both buttons share the same position. Visibility is driven by an
+     opacity crossfade keyed off `[data-sidebar-collapsed]` /
+     `[data-topic-sidebar-collapsed]` on <html>, with `pointer-events`
+     ensuring only the active button receives clicks. This keeps the
+     swap synchronised with the sidebar's width transition.
+
+     At widths where the Starlight mobile TOC bar
+     (`#starlight__on-this-page--mobile`) is visible (≥ 50rem and
+     < 100rem with `[data-has-toc]`), the toggle is repositioned
+     into the same row as that bar (see the `(min-width: 50rem) and
+     (max-width: 99.999rem)` override below) so the two controls
+     don't collide.
+
+     Visibility of the toggle is tied to whether the sidebar itself
+     is persistently visible at the current viewport, not to a
+     single global breakpoint:
+
+       - API-ref pages (`#sidebar-*`): the sidebar drops into
+         mobile-overlay mode below 72rem (see the `[data-api-ref]`
+         block in site.css), so the toggle is hidden below 72rem.
+       - Topic-nav pages (`#topic-sidebar-*`): the sidebar stays
+         visible down to Starlight's default 50rem breakpoint, so
+         the toggle is visible from 50rem upward and hidden below. */
+  .sidebar-collapse-btn,
+  .sidebar-expand-btn {
+    position: fixed;
+    top: calc(
+      var(--sl-nav-height, 3.5rem) + var(--aspire-banner-height, 0px) +
+        var(--sl-mobile-toc-height, 0px) + 0.75rem
+    );
+    left: var(--sl-sidebar-width);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--aspire-sidebar-toggle-width, 3rem);
+    height: var(--aspire-sidebar-toggle-width, 3rem);
+    padding: 0.7rem;
+    background: var(--sl-color-bg);
+    border: none;
+    /* Project from the sidebar's right edge — flat on the left, rounded
+       on the right. When collapsed the button sits at left:0 and the
+       flat left edge butts cleanly against the viewport border. */
+    border-radius: 0 0.375rem 0.375rem 0;
+    color: var(--sl-color-text-accent);
+    cursor: pointer;
+    z-index: 20;
+    box-shadow: 2px 1px 3px color-mix(in srgb, var(--sl-color-black) 14%, transparent);
+    /* Match the sidebar's width transition so the button slides with it.
+       `visibility` flips instantly when becoming active so the button is
+       focusable mid-fade, and is delayed by the opacity duration when
+       deactivating so the fade-out can play. */
+    transition:
+      color 0.15s,
+      background-color 0.15s,
+      box-shadow 0.15s,
+      opacity 0.25s ease,
+      left 0.25s ease,
+      top 0.25s ease,
+      visibility 0s linear 0s;
+  }
+
+  /* Expand button starts hidden in the expanded state; collapse button
+     starts hidden in the collapsed state. Both reside in the DOM and
+     transition opacity together with the sidebar width. `visibility:
+     hidden` is paired with the opacity fade so the inactive button is
+     truly inert — neither receivable to assistive tech nor reported as
+     visible to test runners like Playwright. */
+  .sidebar-expand-btn {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition:
+      color 0.15s,
+      background-color 0.15s,
+      box-shadow 0.15s,
+      opacity 0.25s ease,
+      left 0.25s ease,
+      top 0.25s ease,
+      visibility 0s linear 0.25s;
+  }
+
+  :global(html[data-sidebar-collapsed]) #sidebar-collapse-btn,
+  :global(html[data-topic-sidebar-collapsed]) #topic-sidebar-collapse-btn {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition:
+      color 0.15s,
+      background-color 0.15s,
+      box-shadow 0.15s,
+      opacity 0.25s ease,
+      left 0.25s ease,
+      top 0.25s ease,
+      visibility 0s linear 0.25s;
+  }
+
+  :global(html[data-sidebar-collapsed]) #sidebar-expand-btn,
+  :global(html[data-topic-sidebar-collapsed]) #topic-sidebar-expand-btn {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+    transition:
+      color 0.15s,
+      background-color 0.15s,
+      box-shadow 0.15s,
+      opacity 0.25s ease,
+      left 0.25s ease,
+      top 0.25s ease,
+      visibility 0s linear 0s;
+  }
+
+  .sidebar-collapse-btn:hover,
+  .sidebar-expand-btn:hover {
+    color: var(--sl-color-text);
+    box-shadow: 2px 2px 6px color-mix(in srgb, var(--sl-color-black) 22%, transparent);
+  }
+  .sidebar-collapse-btn:focus-visible,
+  .sidebar-expand-btn:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+  .sidebar-collapse-btn svg,
+  .sidebar-expand-btn svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Hide the toggle when the sidebar isn't persistently visible.
+
+     API-ref pages (`#sidebar-*` ids): at < 72rem the sidebar enters
+     mobile-overlay mode (see `[data-api-ref]` block in site.css and
+     Starlight's < 50rem default). The persistent collapsed/expanded
+     state doesn't apply in overlay mode — there's a hamburger button
+     instead — so hide the toggle below 72rem on these pages.
+
+     Topic-nav pages (`#topic-sidebar-*` ids): the topic sidebar stays
+     visible at Starlight's default sub-desktop sizing down to 50rem;
+     below 50rem Starlight moves it into the mobile menu. Hide the
+     toggle below 50rem so it disappears together with the sidebar. */
+  @media (max-width: 71.999rem) {
+    #sidebar-collapse-btn,
+    #sidebar-expand-btn {
+      display: none !important;
+    }
+  }
+
+  @media (max-width: 49.999rem) {
+    #topic-sidebar-collapse-btn,
+    #topic-sidebar-expand-btn {
+      display: none !important;
+    }
+  }
+
+  /* Inline the toggle with the mobile "On this page" TOC bar at every
+     width that shows that bar while the sidebar is also persistently
+     visible — i.e. ≥ 50rem and < 100rem with [data-has-toc].
+
+     The API-ref toggle (#sidebar-*) is hidden below 72rem via the rule
+     above, so this scope visually renders for:
+       - topic-nav at 50–71.999rem (tablet), and
+       - both toggles at 72–99.999rem (desktop with mobile-TOC override).
+
+     Without this override the base calc parks the toggle a row below
+     the TOC bar where it covers the first line of content and crowds
+     the `#starlight__on-this-page--mobile` dropdown trigger. Sliding
+     the toggle up into the TOC bar's row keeps both controls visible
+     while letting the dropdown content shift right (see site.css for
+     the companion `padding-inline-start` on the summary). */
+  @media (min-width: 50rem) and (max-width: 99.999rem) {
+    :global(html[data-has-toc]) .sidebar-collapse-btn,
+    :global(html[data-has-toc]) .sidebar-expand-btn {
+      top: calc(var(--sl-nav-height, 4rem) + var(--aspire-banner-height, 0px) - 1px);
+      height: var(--sl-mobile-toc-height, 3rem);
+      /* Drop the floating-tab treatment — the toggle is part of the
+         TOC bar's row now, not a tab projecting from the sidebar. */
+      border-radius: 0;
+      box-shadow: none;
+      border-inline-end: 1px solid var(--sl-color-gray-5);
+      border-block-end: 1px solid var(--sl-color-hairline-shade);
+      background: var(--sl-color-bg-nav);
+      /* Promote above the mobile TOC's nav bar so the toggle paints on
+         top of the bar's background rather than slipping behind it. */
+      z-index: calc(var(--sl-z-index-toc, 10) + 1);
+    }
+
+    :global(html[data-has-toc]) .sidebar-collapse-btn:hover,
+    :global(html[data-has-toc]) .sidebar-expand-btn:hover {
+      /* Cancel the elevated hover shadow inherited from the base rule —
+         a shadow looks out of place inside the flat TOC bar. */
+      box-shadow: none;
+      background: var(--sl-color-bg);
+    }
+  }
+
+  /* Keep the toggle accessible on landing pages without a mobile TOC bar
+     (e.g. `/deployment/` with `tableOfContents: false`). Without the
+     TOC bar there is nothing for the toggle to anchor against, so the
+     base floating-tab position parks it at the top of the article
+     column where its leftmost ~48px overlap the H1 at narrow widths.
+     Reuse the inline-with-TOC anchoring and synthesize the TOC-bar
+     height row via padding on the first content container (the one
+     that holds the page title) so the H1 starts below the toggle.
+     Collapse/expand stays available across all widths where the
+     sidebar itself is visible.
+
+     Sample detail pages (`.sample-detail`) opt out of this treatment —
+     they removed the mobile TOC bar but the flat in-bar styling reads
+     as a stray bar fragment next to the hero. They use the base
+     floating-tab style instead (rounded right edge, drop shadow,
+     page background) so the toggle reads as a tab projecting from the
+     sidebar rather than a leftover bar.
+
+     Use a literal 3rem instead of var(--sl-mobile-toc-height, 3rem)
+     because the variable is explicitly set to 0rem outside of the
+     data-has-toc scope (see site.css), which would defeat the
+     fallback. */
+  @media (min-width: 50rem) and (max-width: 99.999rem) {
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) .sidebar-collapse-btn,
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) .sidebar-expand-btn {
+      top: calc(var(--sl-nav-height, 4rem) + var(--aspire-banner-height, 0px) - 1px);
+      height: 3rem;
+      border-radius: 0;
+      box-shadow: none;
+      border-inline-end: 1px solid var(--sl-color-gray-5);
+      border-block-end: 1px solid var(--sl-color-hairline-shade);
+      background: var(--sl-color-bg-nav);
+      z-index: calc(var(--sl-z-index-toc, 10) + 1);
+    }
+
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) .sidebar-collapse-btn:hover,
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) .sidebar-expand-btn:hover {
+      box-shadow: none;
+      background: var(--sl-color-bg);
+    }
+  }
+
+  @media (max-width: 50rem) {
+    .sidebar-dropdown-trigger,
+    .sidebar-dropdown-option {
+      padding-inline: 0.7rem;
+    }
+  }
 </style>
+
+<script>
+  /**
+   * Sidebar filter controller shared by API reference and topic sidebars.
+   * Filters sidebar entries by matching their label text against user input.
+   */
+  class SidebarFilterController {
+    private input: HTMLInputElement | null = null;
+    private clearBtn: HTMLButtonElement | null = null;
+    private statusEl: HTMLElement | null = null;
+    private emptyEl: HTMLElement | null = null;
+    private emptyCopyEl: HTMLElement | null = null;
+    private emptyActionBtn: HTMLButtonElement | null = null;
+    private sidebarContainer: HTMLElement | null = null;
+    private debounceTimer: number | null = null;
+    private static readonly DEBOUNCE_MS = 200;
+
+    constructor() {
+      this.init();
+    }
+
+    private init(): void {
+      const container = document.querySelector(
+        '.topics-sidebar[data-api-ref], .topics-sidebar[data-topic-nav]'
+      ) as HTMLElement | null;
+      if (!container) return;
+      if (container.dataset.filterBound === 'true') return;
+      container.dataset.filterBound = 'true';
+
+      this.input = container.querySelector('#sidebar-filter-input');
+      this.clearBtn = container.querySelector('#sidebar-filter-clear');
+      this.statusEl = container.querySelector('#sidebar-filter-status');
+      this.emptyEl = container.querySelector('#sidebar-filter-empty');
+      this.emptyCopyEl = container.querySelector('#sidebar-filter-empty-copy');
+      this.emptyActionBtn = container.querySelector('#sidebar-filter-empty-action');
+      this.sidebarContainer = container.querySelector('.sl-sidebar-persist');
+
+      if (!this.input || !this.sidebarContainer) {
+        // Fallback: look for the ul.top-level directly
+        this.sidebarContainer = container.querySelector('ul.top-level')?.parentElement ?? null;
+      }
+      if (!this.input) return;
+
+      this.input.addEventListener('input', () => this.handleInput());
+      this.input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          this.clear();
+          this.input?.blur();
+        }
+      });
+
+      this.clearBtn?.addEventListener('click', () => {
+        this.clear();
+        this.input?.focus();
+      });
+
+      this.emptyActionBtn?.addEventListener('click', () => {
+        this.clear();
+        this.input?.focus();
+      });
+    }
+
+    private handleInput(): void {
+      if (this.debounceTimer) clearTimeout(this.debounceTimer);
+      this.debounceTimer = window.setTimeout(
+        () => this.applyFilter(),
+        SidebarFilterController.DEBOUNCE_MS
+      );
+    }
+
+    private clear(): void {
+      if (this.input) this.input.value = '';
+      this.applyFilter();
+    }
+
+    private applyFilter(): void {
+      const query = this.input?.value.trim().toLowerCase() ?? '';
+      const hasQuery = query.length > 0;
+
+      // Toggle clear button visibility
+      if (this.clearBtn) {
+        this.clearBtn.hidden = !hasQuery;
+      }
+
+      const topList = this.sidebarContainer?.querySelector('ul.top-level') as HTMLElement | null;
+      if (!topList) return;
+
+      if (!hasQuery) {
+        this.resetAll(topList);
+        this.updateStatus('');
+        this.updateEmptyState(false, '');
+        return;
+      }
+
+      let visibleCount = 0;
+      const topItems = topList.querySelectorAll(':scope > li');
+
+      for (const li of topItems) {
+        visibleCount += this.filterItem(li as HTMLElement, query);
+      }
+
+      if (visibleCount === 0) {
+        this.updateStatus('No matching sidebar article titles');
+        this.updateEmptyState(true, this.input?.value.trim() ?? '');
+      } else {
+        this.updateStatus(`${visibleCount} matching ${visibleCount === 1 ? 'entry' : 'entries'}`);
+        this.updateEmptyState(false, '');
+      }
+    }
+
+    /**
+     * CamelCase match: "dab" matches DistributedApplicationBuilder.
+     */
+    private camelMatch(text: string, query: string): boolean {
+      const uppers = text.replace(/[^A-Z]/g, '').toLowerCase();
+      return uppers.length >= 2 && (uppers.startsWith(query) || uppers.includes(query));
+    }
+
+    /**
+     * Recursively filter a sidebar <li>.
+     * Returns the number of visible leaf items within this subtree.
+     */
+    private filterItem(li: HTMLElement, query: string): number {
+      const details = li.querySelector(':scope > details') as HTMLDetailsElement | null;
+
+      if (details) {
+        // Group item (has children)
+        const summary = details.querySelector(':scope > summary');
+        const labelEl = summary?.querySelector(
+          '.group-label .large, .group-label'
+        ) as HTMLElement | null;
+        const groupLabel = (labelEl?.textContent ?? '').trim();
+        const groupLower = groupLabel.toLowerCase();
+        const groupMatches = groupLower.includes(query) || this.camelMatch(groupLabel, query);
+
+        // Filter children
+        const childList = details.querySelector(':scope > ul');
+        const childItems = childList?.querySelectorAll(':scope > li') ?? [];
+        let childVisible = 0;
+
+        for (const childLi of childItems) {
+          childVisible += this.filterItem(childLi as HTMLElement, query);
+        }
+
+        if (groupMatches) {
+          // Group label matches — show the group and ALL children
+          li.style.display = '';
+          if (labelEl) this.highlightText(labelEl, query);
+          this.showAllChildren(details as HTMLElement);
+          (details as HTMLDetailsElement).open = true;
+          return this.countLeafItems(details as HTMLElement);
+        } else if (childVisible > 0) {
+          // Some children match — show the group, keep it open
+          li.style.display = '';
+          if (labelEl) this.clearHighlight(labelEl);
+          (details as HTMLDetailsElement).open = true;
+          return childVisible;
+        } else {
+          // Nothing matches — hide the group
+          li.style.display = 'none';
+          if (labelEl) this.clearHighlight(labelEl);
+          return 0;
+        }
+      } else {
+        // Leaf item (link)
+        const link = li.querySelector(':scope > a') as HTMLElement | null;
+        const label = (link?.textContent ?? '').trim();
+        const labelLower = label.toLowerCase();
+        const matches = labelLower.includes(query) || this.camelMatch(label, query);
+        li.style.display = matches ? '' : 'none';
+        if (link) {
+          if (matches && query) {
+            this.highlightText(link, query);
+          } else {
+            this.clearHighlight(link);
+          }
+        }
+        return matches ? 1 : 0;
+      }
+    }
+
+    /** Highlight matching text within an element */
+    private highlightText(el: HTMLElement, query: string): void {
+      this.clearHighlight(el);
+      if (!query) {
+        return;
+      }
+
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => {
+          const text = node.textContent ?? '';
+          const parent = node.parentElement;
+          if (!parent || !text.trim()) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          if (parent.closest('mark.sb-hl, .sl-badge, .starlight-sidebar-topics-badge')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      });
+
+      let textNode: Text | null = null;
+      let matchIndex = -1;
+
+      while (walker.nextNode()) {
+        const candidate = walker.currentNode as Text;
+        const candidateText = candidate.textContent ?? '';
+        const idx = candidateText.toLowerCase().indexOf(query);
+        if (idx >= 0) {
+          textNode = candidate;
+          matchIndex = idx;
+          break;
+        }
+      }
+
+      if (!textNode || matchIndex < 0) {
+        return;
+      }
+
+      const range = document.createRange();
+      range.setStart(textNode, matchIndex);
+      range.setEnd(textNode, matchIndex + query.length);
+
+      const mark = document.createElement('mark');
+      mark.className = 'sb-hl';
+      range.surroundContents(mark);
+    }
+
+    /** Remove highlights from an element */
+    private clearHighlight(el: HTMLElement): void {
+      const marks = el.querySelectorAll('mark.sb-hl');
+      if (marks.length === 0) return;
+
+      for (const mark of marks) {
+        mark.replaceWith(document.createTextNode(mark.textContent ?? ''));
+      }
+
+      el.normalize();
+    }
+
+    /** Show all descendants (reset display) */
+    private showAllChildren(parent: HTMLElement): void {
+      const childItems = parent.querySelectorAll('li');
+      for (const li of childItems) {
+        (li as HTMLElement).style.display = '';
+      }
+    }
+
+    /** Count leaf items (links, not groups) in a subtree */
+    private countLeafItems(parent: HTMLElement): number {
+      return parent.querySelectorAll('a[href]').length;
+    }
+
+    /** Reset all items to visible and restore collapsed state */
+    private resetAll(topList: HTMLElement): void {
+      const allItems = topList.querySelectorAll('li');
+      for (const li of allItems) {
+        (li as HTMLElement).style.display = '';
+      }
+      // Clear highlights
+      topList.querySelectorAll('mark.sb-hl').forEach((mark) => {
+        mark.replaceWith(document.createTextNode(mark.textContent ?? ''));
+      });
+      topList.normalize();
+      // Re-collapse groups that aren't on the current page path
+      const allDetails = topList.querySelectorAll('details');
+      for (const details of allDetails) {
+        const hasCurrent = details.querySelector('[aria-current="page"]');
+        if (!hasCurrent) {
+          (details as HTMLDetailsElement).open = false;
+        }
+      }
+    }
+
+    private updateStatus(text: string): void {
+      if (this.statusEl) this.statusEl.textContent = text;
+    }
+
+    private updateEmptyState(show: boolean, query: string): void {
+      if (!this.emptyEl || !this.emptyCopyEl) {
+        return;
+      }
+
+      this.emptyEl.hidden = !show;
+      if (!show) {
+        this.emptyCopyEl.textContent = '';
+        return;
+      }
+
+      const message = query
+        ? `No sidebar article titles match "${query}".`
+        : 'No matching sidebar article titles.';
+      this.emptyCopyEl.textContent = message;
+      // Also surface the message through the polite live region so screen
+      // readers hear *why* the list is empty, not just "0 matches".
+      this.updateStatus(message);
+    }
+  }
+
+  const TOPIC_SIDEBAR_COLLAPSED_KEY = 'topic-sidebar-collapsed';
+  function setSidebarDropdownOpen(dropdown: HTMLElement, isOpen: boolean): void {
+    const trigger = dropdown.querySelector<HTMLElement>('[data-dropdown-trigger]');
+    const panel = dropdown.querySelector<HTMLElement>('[data-dropdown-panel]');
+    if (!trigger || !panel) {
+      return;
+    }
+
+    dropdown.dataset.open = isOpen ? 'true' : 'false';
+    trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    panel.hidden = !isOpen;
+  }
+
+  function closeAllSidebarDropdowns(except?: HTMLElement): void {
+    const dropdowns = document.querySelectorAll<HTMLElement>('[data-sidebar-dropdown]');
+    for (const dropdown of dropdowns) {
+      if (except && dropdown === except) {
+        continue;
+      }
+      setSidebarDropdownOpen(dropdown, false);
+    }
+  }
+
+  function initSidebarDropdowns(): void {
+    const dropdowns = document.querySelectorAll<HTMLElement>('[data-sidebar-dropdown]');
+
+    for (const dropdown of dropdowns) {
+      const trigger = dropdown.querySelector<HTMLElement>('[data-dropdown-trigger]');
+      const panel = dropdown.querySelector<HTMLElement>('[data-dropdown-panel]');
+      if (!trigger || !panel) {
+        continue;
+      }
+
+      if (dropdown.dataset.bound === 'true') {
+        continue;
+      }
+
+      dropdown.dataset.bound = 'true';
+      setSidebarDropdownOpen(dropdown, false);
+
+      trigger.addEventListener('click', () => {
+        const isOpen = dropdown.dataset.open === 'true';
+        closeAllSidebarDropdowns(isOpen ? undefined : dropdown);
+        setSidebarDropdownOpen(dropdown, !isOpen);
+      });
+
+      panel.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('a[href]')) {
+          setSidebarDropdownOpen(dropdown, false);
+        }
+      });
+
+      dropdown.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          setSidebarDropdownOpen(dropdown, false);
+          trigger.focus();
+        }
+      });
+    }
+
+    if (!(window as any).__sidebarDropdownHandlers) {
+      (window as any).__sidebarDropdownHandlers = true;
+
+      document.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement | null;
+        if (!target?.closest('[data-sidebar-dropdown]')) {
+          closeAllSidebarDropdowns();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeAllSidebarDropdowns();
+        }
+      });
+    }
+  }
+
+  /**
+   * Handle Ctrl+K / Cmd+K on API reference pages.
+   * Routes to #api-search-input (the main search on the index page) if present,
+   * otherwise falls back to the sidebar filter input.
+   *
+   * Because Search.astro does not render <site-search> on API pages, there is
+   * no competing Pagefind handler — we just need to prevent the browser default.
+   */
+  function handleApiSearchShortcut(e: KeyboardEvent) {
+    // Only act when on an API ref page (signalled by server-rendered attribute)
+    if (!document.querySelector('.topics-sidebar[data-api-ref]')) return;
+    if (!((e.ctrlKey || e.metaKey) && e.key === 'k')) return;
+
+    e.preventDefault();
+
+    // Prefer the page-level API search input; fall back to sidebar filter
+    const target =
+      (document.getElementById('api-search-input') as HTMLInputElement | null) ??
+      (document.getElementById('sidebar-filter-input') as HTMLInputElement | null);
+
+    if (target) {
+      target.focus();
+      target.select();
+    }
+  }
+
+  // Initialize on load and after Astro client-side navigation
+  function initSidebarFilter() {
+    new SidebarFilterController();
+  }
+
+  /* ── Sidebar collapse / expand toggle ─────────────────────────── */
+
+  const SIDEBAR_COLLAPSED_KEY = 'api-sidebar-collapsed';
+  const SIDEBAR_READY_ATTR = 'data-api-sidebar-ready';
+  const TOPIC_SIDEBAR_READY_ATTR = 'data-topic-sidebar-ready';
+
+  /* Briefly tagging <html> with `data-sidebar-expanding` /
+     `data-topic-sidebar-expanding` while the rail → expanded transition
+     plays lets the filter and sidebar entries run a subtle blur-in
+     animation as they re-enter the layout. The flag clears just after
+     the underlying width transition (250ms) finishes. */
+  const SIDEBAR_EXPAND_ANIMATION_MS = 320;
+  let sidebarExpandTimer = 0;
+  let topicSidebarExpandTimer = 0;
+
+  // Module-scoped observers so we can disconnect previous instances on
+  // re-init (astro:after-swap) instead of leaking one per navigation.
+  let bannerMutationObserver: MutationObserver | null = null;
+  let bannerResizeObserver: ResizeObserver | null = null;
+
+  function safeSetItem(key: string, value: string): void {
+    // localStorage can throw in private browsing / quota-exceeded /
+    // sandboxed iframes. Failing silently is the right call here — the
+    // in-memory DOM state still works, we just won't persist.
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* noop */
+    }
+  }
+
+  function setSidebarReady(ready: boolean): void {
+    if (ready) {
+      document.documentElement.setAttribute(SIDEBAR_READY_ATTR, '');
+    } else {
+      document.documentElement.removeAttribute(SIDEBAR_READY_ATTR);
+    }
+  }
+
+  function setTopicSidebarReady(ready: boolean): void {
+    if (ready) {
+      document.documentElement.setAttribute(TOPIC_SIDEBAR_READY_ATTR, '');
+    } else {
+      document.documentElement.removeAttribute(TOPIC_SIDEBAR_READY_ATTR);
+    }
+  }
+
+  /**
+   * Keep the disclosure-button pair semantically correct: only one button
+   * in each pair is visually present (the other is `visibility: hidden`),
+   * so only the visible one should advertise `aria-controls` /
+   * `aria-expanded`. The hidden one gets `aria-hidden="true"` and drops
+   * those attrs entirely, so assistive tech sees a single live control
+   * for the sidebar disclosure at any time.
+   */
+  function syncToggleA11y(
+    collapseBtn: HTMLElement,
+    expandBtn: HTMLElement,
+    isCollapsed: boolean
+  ): void {
+    const active = isCollapsed ? expandBtn : collapseBtn;
+    const inactive = isCollapsed ? collapseBtn : expandBtn;
+
+    active.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    active.setAttribute('aria-controls', 'starlight__sidebar');
+    active.removeAttribute('aria-hidden');
+
+    inactive.setAttribute('aria-hidden', 'true');
+    inactive.removeAttribute('aria-expanded');
+    inactive.removeAttribute('aria-controls');
+  }
+
+  function initSidebarCollapse() {
+    setSidebarReady(false);
+    // Clear any pending expand-animation flag carried over from the
+    // previous page so it can't fire on the next page mid-navigation.
+    window.clearTimeout(sidebarExpandTimer);
+    document.documentElement.removeAttribute('data-sidebar-expanding');
+
+    const container = document.querySelector('.topics-sidebar[data-api-ref]');
+    if (!container) {
+      // Not an API page — remove stale collapsed state from a previous API page visit
+      document.documentElement.removeAttribute('data-sidebar-collapsed');
+      return;
+    }
+
+    const collapseBtn = document.getElementById('sidebar-collapse-btn');
+    const expandBtn = document.getElementById('sidebar-expand-btn');
+    if (!collapseBtn || !expandBtn) return;
+
+    // Sync aria-expanded with the data-sidebar-collapsed attribute that
+    // Head.astro set from localStorage before this script ran.
+    syncToggleA11y(
+      collapseBtn,
+      expandBtn,
+      document.documentElement.hasAttribute('data-sidebar-collapsed')
+    );
+
+    if (collapseBtn.dataset.bound !== 'true') {
+      collapseBtn.dataset.bound = 'true';
+      collapseBtn.addEventListener('click', () => {
+        setSidebarCollapsed(true, expandBtn, collapseBtn);
+        safeSetItem(SIDEBAR_COLLAPSED_KEY, '1');
+      });
+    }
+
+    if (expandBtn.dataset.bound !== 'true') {
+      expandBtn.dataset.bound = 'true';
+      expandBtn.addEventListener('click', () => {
+        setSidebarCollapsed(false, expandBtn, collapseBtn);
+        safeSetItem(SIDEBAR_COLLAPSED_KEY, '0');
+      });
+    }
+
+    setSidebarReady(true);
+  }
+
+  function initTopicSidebarCollapse() {
+    setTopicSidebarReady(false);
+    window.clearTimeout(topicSidebarExpandTimer);
+    document.documentElement.removeAttribute('data-topic-sidebar-expanding');
+
+    const container = document.querySelector('.topics-sidebar[data-topic-nav]');
+    if (!container) {
+      document.documentElement.removeAttribute('data-topic-sidebar-collapsed');
+      return;
+    }
+
+    const collapseBtn = document.getElementById('topic-sidebar-collapse-btn');
+    const expandBtn = document.getElementById('topic-sidebar-expand-btn');
+    if (!collapseBtn || !expandBtn) {
+      return;
+    }
+
+    syncToggleA11y(
+      collapseBtn,
+      expandBtn,
+      document.documentElement.hasAttribute('data-topic-sidebar-collapsed')
+    );
+
+    if (collapseBtn.dataset.bound !== 'true') {
+      collapseBtn.dataset.bound = 'true';
+      collapseBtn.addEventListener('click', () => {
+        setTopicSidebarCollapsed(true, expandBtn, collapseBtn);
+        safeSetItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '1');
+      });
+    }
+
+    if (expandBtn.dataset.bound !== 'true') {
+      expandBtn.dataset.bound = 'true';
+      expandBtn.addEventListener('click', () => {
+        setTopicSidebarCollapsed(false, expandBtn, collapseBtn);
+        safeSetItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '0');
+      });
+    }
+
+    setTopicSidebarReady(true);
+  }
+
+  function setTopicSidebarCollapsed(
+    collapsed: boolean,
+    expandBtn: HTMLElement,
+    collapseBtn: HTMLElement
+  ): void {
+    const root = document.documentElement;
+    const wasCollapsed = root.hasAttribute('data-topic-sidebar-collapsed');
+
+    if (collapsed) {
+      window.clearTimeout(topicSidebarExpandTimer);
+      root.removeAttribute('data-topic-sidebar-expanding');
+      root.setAttribute('data-topic-sidebar-collapsed', '');
+      syncToggleA11y(collapseBtn, expandBtn, true);
+      // Focus the now-visible button so keyboard users stay anchored.
+      try {
+        expandBtn.focus({ preventScroll: true });
+      } catch {
+        expandBtn.focus();
+      }
+    } else {
+      // Only run the blur-in animation when actually transitioning from
+      // a collapsed state — not on initial load when we're already expanded.
+      if (wasCollapsed) {
+        root.setAttribute('data-topic-sidebar-expanding', '');
+        window.clearTimeout(topicSidebarExpandTimer);
+        topicSidebarExpandTimer = window.setTimeout(() => {
+          root.removeAttribute('data-topic-sidebar-expanding');
+        }, SIDEBAR_EXPAND_ANIMATION_MS);
+      }
+      root.removeAttribute('data-topic-sidebar-collapsed');
+      syncToggleA11y(collapseBtn, expandBtn, false);
+      if (wasCollapsed) {
+        try {
+          collapseBtn.focus({ preventScroll: true });
+        } catch {
+          collapseBtn.focus();
+        }
+      }
+    }
+  }
+
+  function initTopicSidebarUi() {
+    initSidebarDropdowns();
+    initTopicSidebarCollapse();
+  }
+
+  function setSidebarCollapsed(
+    collapsed: boolean,
+    expandBtn: HTMLElement,
+    collapseBtn: HTMLElement
+  ) {
+    const root = document.documentElement;
+    const wasCollapsed = root.hasAttribute('data-sidebar-collapsed');
+
+    if (collapsed) {
+      window.clearTimeout(sidebarExpandTimer);
+      root.removeAttribute('data-sidebar-expanding');
+      root.setAttribute('data-sidebar-collapsed', '');
+      syncToggleA11y(collapseBtn, expandBtn, true);
+      try {
+        expandBtn.focus({ preventScroll: true });
+      } catch {
+        expandBtn.focus();
+      }
+    } else {
+      if (wasCollapsed) {
+        root.setAttribute('data-sidebar-expanding', '');
+        window.clearTimeout(sidebarExpandTimer);
+        sidebarExpandTimer = window.setTimeout(() => {
+          root.removeAttribute('data-sidebar-expanding');
+        }, SIDEBAR_EXPAND_ANIMATION_MS);
+      }
+      root.removeAttribute('data-sidebar-collapsed');
+      syncToggleA11y(collapseBtn, expandBtn, false);
+      if (wasCollapsed) {
+        try {
+          collapseBtn.focus({ preventScroll: true });
+        } catch {
+          collapseBtn.focus();
+        }
+      }
+    }
+  }
+
+  // Guard against registering duplicate listeners on client-side navigation
+  if (!(window as any).__sidebarInit) {
+    (window as any).__sidebarInit = true;
+    document.addEventListener('keydown', handleApiSearchShortcut);
+    document.addEventListener('DOMContentLoaded', initSidebarFilter);
+    document.addEventListener('astro:after-swap', initSidebarFilter);
+    document.addEventListener('DOMContentLoaded', initSidebarCollapse);
+    document.addEventListener('astro:after-swap', initSidebarCollapse);
+    document.addEventListener('DOMContentLoaded', initTopicSidebarUi);
+    document.addEventListener('astro:after-swap', initTopicSidebarUi);
+    document.addEventListener('DOMContentLoaded', initBannerHeightTracking);
+    document.addEventListener('astro:after-swap', initBannerHeightTracking);
+    // Remove teleported toggle buttons from <body> *before* the swap so
+    // they can't conflict with the fresh buttons rendered into the next
+    // page's sidebar (and so any stale handlers bound to them are dropped
+    // along with the nodes themselves).
+    document.addEventListener('astro:before-swap', cleanupTeleportedToggles);
+    document.addEventListener('DOMContentLoaded', teleportSidebarToggles);
+    document.addEventListener('astro:after-swap', teleportSidebarToggles);
+  }
+  // Also init immediately in case DOMContentLoaded already fired
+  if (document.readyState !== 'loading') initSidebarFilter();
+  if (document.readyState !== 'loading') initSidebarCollapse();
+  if (document.readyState !== 'loading') initTopicSidebarUi();
+  if (document.readyState !== 'loading') initBannerHeightTracking();
+  if (document.readyState !== 'loading') teleportSidebarToggles();
+
+  /* ── Sidebar toggle teleport ──────────────────────────────────── */
+
+  /**
+   * Remove any toggle buttons that were previously teleported to
+   * `<body>`. Called as an `astro:before-swap` listener so stale
+   * buttons (and the click handlers bound to them) are discarded
+   * before the next page's HTML morph runs. After the swap, the
+   * new page's freshly-rendered buttons get found, bound, and
+   * re-teleported by `initSidebarCollapse` / `teleportSidebarToggles`.
+   */
+  function cleanupTeleportedToggles() {
+    const ids = [
+      'sidebar-collapse-btn',
+      'sidebar-expand-btn',
+      'topic-sidebar-collapse-btn',
+      'topic-sidebar-expand-btn',
+    ];
+    for (const id of ids) {
+      // querySelectorAll guards against the (invalid but possible) case
+      // where a stale teleported button and a fresh in-sidebar button
+      // briefly share the same id during a swap.
+      const matches = document.querySelectorAll<HTMLElement>(`#${id}`);
+      matches.forEach((btn) => {
+        if (btn.parentElement === document.body) {
+          btn.remove();
+        }
+      });
+    }
+  }
+
+  /**
+   * Move the floating sidebar collapse/expand toggle buttons to
+   * `<body>` so they escape the sidebar's stacking context. The
+   * sidebar pane lives in its own flex column; its descendants —
+   * even those with `position: fixed` — are still painted within
+   * the sidebar's flex item, which the main content area paints
+   * over. Reparenting to `<body>` puts the toggle in the root
+   * stacking context where its `z-index` actually wins, so mouse
+   * clicks reach the button instead of the page content beneath.
+   */
+  function teleportSidebarToggles() {
+    const ids = [
+      'sidebar-collapse-btn',
+      'sidebar-expand-btn',
+      'topic-sidebar-collapse-btn',
+      'topic-sidebar-expand-btn',
+    ];
+    // Defensive sweep: if any stale teleported buttons survived the
+    // last swap (e.g. an aborted view transition), drop them so they
+    // can't shadow the fresh in-sidebar buttons via getElementById.
+    for (const id of ids) {
+      const matches = document.querySelectorAll<HTMLElement>(`#${id}`);
+      if (matches.length <= 1) continue;
+      matches.forEach((btn) => {
+        if (btn.parentElement === document.body) {
+          btn.remove();
+        }
+      });
+    }
+
+    for (const id of ids) {
+      const btn = document.getElementById(id);
+      if (btn && btn.parentElement !== document.body) {
+        document.body.appendChild(btn);
+      }
+    }
+  }
+
+  /* ── Banner height tracking ───────────────────────────────────── */
+
+  /**
+   * Measure the announcement banner's height (if present and open) and
+   * write it to `--aspire-banner-height` on the root element so floating
+   * UI (the sidebar collapse/expand toggle) can offset itself below it.
+   * Updates on dismiss/state changes and on window resize.
+   */
+  function initBannerHeightTracking() {
+    const root = document.documentElement;
+    const update = () => {
+      const banner = document.querySelector('.sl-banner') as HTMLElement | null;
+      const open = banner && banner.dataset.bannerState !== 'closing' && !banner.hidden;
+      const height = open ? Math.round(banner.getBoundingClientRect().height) : 0;
+      if (height > 0) {
+        root.style.setProperty('--aspire-banner-height', `${height}px`);
+      } else {
+        root.style.removeProperty('--aspire-banner-height');
+      }
+    };
+
+    update();
+
+    const banner = document.querySelector('.sl-banner') as HTMLElement | null;
+    if (banner) {
+      // Disconnect any prior observers before re-attaching so we don't
+      // accumulate one set per client-side navigation.
+      bannerMutationObserver?.disconnect();
+      bannerResizeObserver?.disconnect();
+
+      // Track state changes (open → closing) emitted by Banner.astro's controller
+      bannerMutationObserver = new MutationObserver(update);
+      bannerMutationObserver.observe(banner, {
+        attributes: true,
+        attributeFilter: ['data-banner-state', 'hidden'],
+      });
+      // Track size changes too (e.g. responsive line-wrap)
+      if (typeof ResizeObserver !== 'undefined') {
+        bannerResizeObserver = new ResizeObserver(update);
+        bannerResizeObserver.observe(banner);
+      }
+    } else {
+      bannerMutationObserver?.disconnect();
+      bannerResizeObserver?.disconnect();
+      bannerMutationObserver = null;
+      bannerResizeObserver = null;
+    }
+
+    if (!(window as any).__bannerHeightResizeBound) {
+      (window as any).__bannerHeightResizeBound = true;
+      window.addEventListener('resize', update);
+    }
+  }
+
+  /* ── Sticky sidebar offsets & auto-scroll ─────────────────────── */
+
+  /**
+   * Set up sticky positioning for the sidebar header and filter.
+   * Also scrolls the active sidebar item into view.
+   */
+  function setupStickySidebar() {
+    const sidebar = document.querySelector('.topics-sidebar[data-api-ref]') as HTMLElement | null;
+    if (!sidebar) return;
+
+    // Auto-scroll the active item into view
+    scrollToActive(sidebar);
+  }
+
+  /**
+   * Scroll the sidebar so the currently active item is visible,
+   * positioned roughly in the upper third of the visible area.
+   */
+  function scrollToActive(sidebar: Element) {
+    const scrollContainer = sidebar.closest('.sidebar-pane');
+    if (!scrollContainer) return;
+
+    const activeLink = sidebar.querySelector('[aria-current="page"]') as HTMLElement | null;
+    if (!activeLink) return;
+
+    // Wait a tick for sticky layout to settle
+    requestAnimationFrame(() => {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const activeRect = activeLink.getBoundingClientRect();
+
+      // Check if active item is already fully visible
+      if (activeRect.top >= containerRect.top && activeRect.bottom <= containerRect.bottom) {
+        return; // Already visible, no scroll needed
+      }
+
+      // Scroll so active item is in the upper third of the visible area
+      const targetOffset = activeRect.top - containerRect.top - containerRect.height / 3;
+      scrollContainer.scrollTop += targetOffset;
+    });
+  }
+
+  // Run sticky setup on load and after client-side navigation
+  if (!(window as any).__apiSidebarStickInit) {
+    (window as any).__apiSidebarStickInit = true;
+    document.addEventListener('DOMContentLoaded', setupStickySidebar);
+    document.addEventListener('astro:after-swap', setupStickySidebar);
+    document.addEventListener('astro:page-load', setupStickySidebar);
+  }
+  if (document.readyState !== 'loading') {
+    requestAnimationFrame(setupStickySidebar);
+  }
+</script>

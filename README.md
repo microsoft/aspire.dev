@@ -1,6 +1,6 @@
 # Aspire — Your stack, streamlined
 
-The official home of Aspire: a single experience that is both the public product/marketing site and the full documentation hub at [aspire.dev](https://aspire.dev). [Aspire Docs on Microsoft Learn](https://learn.microsoft.com/dotnet/aspire/) will transition to this repository.
+The official home of Aspire: a single experience that is both the public product/marketing site and the full documentation hub at [aspire.dev](https://aspire.dev).
 
 ## 🌟 About
 

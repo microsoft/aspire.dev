@@ -1,0 +1,159 @@
+---
+title: WPF and Windows Forms with Aspire
+description: Learn how to orchestrate WPF and Windows Forms desktop applications alongside Aspire-managed backend services during local development.
+---
+
+import { Image } from 'astro:assets';
+import { Steps } from '@astrojs/starlight/components';
+import dotnetIcon from '@assets/icons/dotnet.svg';
+
+<Image
+  src={dotnetIcon}
+  alt=".NET logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+WPF (Windows Presentation Foundation) and Windows Forms are .NET desktop UI frameworks for building Windows applications. Because they are standard .NET projects, you can register them in an Aspire AppHost alongside your backend services using the same `AddProject` API you use for web and worker services. Aspire then starts and monitors the desktop app as a local process resource when you run the AppHost during development.
+
+:::note
+WPF and Windows Forms applications require Windows and are **not** containerized or included in [`aspire deploy`](/reference/cli/commands/aspire-deploy/) output. Aspire orchestrates them as local processes during development only. For production deployment, use your existing desktop tooling (MSIX, ClickOnce, and so on).
+:::
+
+## Add WPF or Windows Forms to the AppHost
+
+No additional NuGet package is required. Add the desktop project reference to the AppHost and call `AddProject` to register it.
+
+<Steps>
+
+1. **Add a project reference** from your AppHost `.csproj` to the WPF or Windows Forms project:
+
+   ```xml title="XML — AppHost.csproj"
+   <ItemGroup>
+     <ProjectReference Include="..\MyWpfApp\MyWpfApp.csproj" />
+   </ItemGroup>
+   ```
+
+1. **Register the project** in your AppHost and wire up any service references it needs:
+
+   ```csharp title="C# — AppHost.cs"
+   var builder = DistributedApplication.CreateBuilder(args);
+
+   var api = builder.AddProject<Projects.ApiService>("api");
+
+   builder.AddProject<Projects.MyWpfApp>("desktop")
+       .WithReference(api)
+       .WaitFor(api);
+
+   // After adding all resources, run the app...
+   builder.Build().Run();
+   ```
+
+   When you run the AppHost, the desktop application starts automatically as a process resource alongside all other registered services.
+
+1. **Add service discovery** to the desktop project so it can resolve Aspire-managed service addresses at runtime. Reference the `Aspire.ServiceDefaults` project (or install `Microsoft.Extensions.ServiceDiscovery` directly), then configure the generic host in your startup code.
+
+   For **WPF**, override `OnStartup` in `App.xaml.cs`:
+
+   ```csharp title="C# — App.xaml.cs (WPF)"
+   public partial class App : Application
+   {
+       public IServiceProvider Services { get; private set; } = default!;
+
+       protected override void OnStartup(StartupEventArgs e)
+       {
+           base.OnStartup(e);
+
+           var host = Host.CreateDefaultBuilder()
+               .ConfigureServices(services =>
+               {
+                   services.AddServiceDiscovery();
+                   services.AddHttpClient<ApiClient>(client =>
+                   {
+                       client.BaseAddress = new Uri("https+http://api");
+                   }).AddServiceDiscovery();
+               })
+               .Build();
+
+           Services = host.Services;
+           host.Start();
+       }
+   }
+   ```
+
+   For **Windows Forms**, configure the host in `Program.cs`:
+
+   ```csharp title="C# — Program.cs (Windows Forms)"
+   var host = Host.CreateDefaultBuilder(args)
+       .ConfigureServices(services =>
+       {
+           services.AddServiceDiscovery();
+           services.AddHttpClient<ApiClient>(client =>
+           {
+               client.BaseAddress = new Uri("https+http://api");
+           }).AddServiceDiscovery();
+           services.AddTransient<MainForm>();
+       })
+       .Build();
+
+   Application.EnableVisualStyles();
+   Application.SetCompatibleTextRenderingDefault(false);
+   Application.Run(host.Services.GetRequiredService<MainForm>());
+   ```
+
+   :::tip
+   The `https+http://` scheme tells the HTTP client to prefer HTTPS but fall back to HTTP. The service name (`api`) must match the resource name defined in your `AppHost.cs`.
+   :::
+
+</Steps>
+
+## Dev-only orchestration
+
+A common pattern is to register the desktop app only during local development and skip it in CI or staging environments. Use `builder.Environment.IsDevelopment()` to add the resource conditionally:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .AddDatabase("mydb");
+
+var api = builder.AddProject<Projects.ApiService>("api")
+    .WithReference(postgres);
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.AddProject<Projects.MyWpfApp>("desktop")
+        .WithReference(api)
+        .WaitFor(api);
+}
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+## Limitations
+
+- **Windows only**: WPF and Windows Forms require Windows. On macOS or Linux, the desktop resource will fail to start because the .NET WPF/WinForms runtime is unavailable on those platforms.
+- **No deployment support**: [`aspire deploy`](/reference/cli/commands/aspire-deploy/) does not produce deployment artifacts for desktop apps. They are treated as development-time resources only.
+- **Dashboard lifecycle**: Desktop apps start automatically when the AppHost runs. They cannot be started or stopped on demand from the Aspire dashboard the same way containerized services can.
+
+## Comparison with .NET MAUI
+
+| Feature | WPF / WinForms | .NET MAUI |
+|---------|---------------|-----------|
+| Aspire hosting package | None — uses standard `AddProject` | `Aspire.Hosting.Maui` |
+| Platform support | Windows only | Windows, macOS, iOS, Android |
+| Dev Tunnels support | Not applicable | Built-in for iOS/Android |
+| Production deployment with Aspire | Not supported | Not supported |
+
+For cross-platform desktop and mobile scenarios, consider [.NET MAUI integration](/integrations/dotnet/maui/).
+
+## See also
+
+- [.NET MAUI integration](/integrations/dotnet/maui/)
+- [AppHost overview](/get-started/app-host/)
+- [Service discovery in .NET](/fundamentals/networking-overview/)
+- [WPF documentation](https://learn.microsoft.com/dotnet/desktop/wpf/)
+- [Windows Forms documentation](https://learn.microsoft.com/dotnet/desktop/winforms/)

@@ -1,6 +1,7 @@
 ---
 title: Access resources in tests
-description: Learn how to access the resources from the Aspire AppHost in your tests.
+seoTitle: Access Aspire resources from integration tests using xUnit
+description: Resolve and inspect Aspire AppHost resources from your tests — connection strings, endpoints, HTTP clients, and service discovery URIs for integration scenarios.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -44,3 +45,25 @@ await app.ResourceNotifications.WaitForResourceHealthyAsync(
 ```
 
 This resource-notification pattern ensures that the resources are available before running the tests, avoiding potential issues with the tests failing due to the resources not being ready.
+
+## Start & Stop
+
+In some cases, you may want to manually start a resource when it is not initially started, for when the resource was created `WithExplicitStart` for example.
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+await app.ResourceCommands.ExecuteCommandAsync(
+    "webfrontend",
+    KnownResourceCommands.StartCommand,
+    cts.Token);
+```
+
+You could also want to stop a resource manually to see if your application is resilient when a particular resource shuts down.
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+await app.ResourceCommands.ExecuteCommandAsync(
+    "webfrontend",
+    KnownResourceCommands.StopCommand,
+    cts.Token);
+```

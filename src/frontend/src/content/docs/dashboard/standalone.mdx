@@ -1,6 +1,6 @@
 ---
-title: Standalone Aspire dashboard
-description: How to use the Aspire dashboard standalone.
+title: Run the Aspire dashboard standalone
+description: Run the Aspire dashboard as a standalone container or executable — collect OTLP telemetry from any language, then view logs, traces, and metrics without the AppHost.
 ---
 
 import { Image } from 'astro:assets';
@@ -11,10 +11,12 @@ import standaloneModeImage from '@assets/dashboard/standalone/standalone-mode.pn
 import standaloneModeImageLight from '@assets/dashboard/standalone/standalone-mode-light.png';
 import containerLogImage from '@assets/dashboard/standalone/aspire-dashboard-container-log.png';
 
-The [Aspire dashboard](/dashboard/overview/) provides a great UI for viewing telemetry. The dashboard:
+The [Aspire dashboard](/dashboard/overview/) provides a great UI for viewing telemetry. You can run the dashboard in standalone mode in two ways:
 
-- Ships as a container image that can be used with any OpenTelemetry enabled app.
-- Can be used standalone, without the rest of Aspire.
+- Use the [Aspire CLI](/reference/cli/overview/) to start the dashboard with default local endpoints.
+- Use the standalone dashboard container image when you want to run it with Docker or another OCI-compliant container runtime.
+
+Both options work without the rest of Aspire and can receive telemetry from any OpenTelemetry-enabled app.
 
 <ThemeImage
   light={standaloneModeImageLight}
@@ -23,16 +25,35 @@ The [Aspire dashboard](/dashboard/overview/) provides a great UI for viewing tel
 
 ## Start the dashboard
 
-The dashboard is started using the Docker command line.
+Choose the startup path that best fits your workflow. The Aspire CLI provides the shortest local setup, while the container image works well when you already manage tools through a container runtime.
+
+### Aspire CLI
+
+Install the [Aspire CLI](/get-started/install-cli/), then start the dashboard:
+
+```bash title="Aspire CLI"
+aspire dashboard run
+```
+
+The dashboard starts with the following defaults:
+
+- **Frontend UI** at `http://localhost:18888`
+- **OTLP/gRPC** endpoint at `http://localhost:4317`
+- **OTLP/HTTP** endpoint at `http://localhost:4318`
+
+The dashboard is secured with a browser token by default. A login URL with the token is displayed in the terminal output. Use `--allow-anonymous` to disable authentication during local development.
+
+For all available options, see the [`aspire dashboard run`](/reference/cli/commands/aspire-dashboard-run/) command reference.
+
+### Container image
+
+The dashboard also ships as a standalone container image. Use this option when a container workflow fits your environment or you want to manage dashboard hosting with your existing container tooling.
 
 <OsAwareTabs syncKey="terminal">
 <div slot="unix">
 
 ```bash
-docker run --rm -it -d \
-    -p 18888:18888 \
-    -p 4317:18889 \
-    --name aspire-dashboard \
+docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-dashboard \
     mcr.microsoft.com/dotnet/aspire-dashboard:latest
 ```
 
@@ -40,10 +61,7 @@ docker run --rm -it -d \
 <div slot="windows">
 
 ```powershell
-docker run --rm -it -d `
-    -p 18888:18888 `
-    -p 4317:18889 `
-    --name aspire-dashboard `
+docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-dashboard `
     mcr.microsoft.com/dotnet/aspire-dashboard:latest
 ```
 
@@ -53,13 +71,16 @@ docker run --rm -it -d `
 The preceding Docker command:
 
 - Starts a container from the `mcr.microsoft.com/dotnet/aspire-dashboard:latest` image.
-- The container exposes two ports:
-  - Mapping the dashboard's OTLP port `18889` to the host's port `4317`. Port `4317` receives OpenTelemetry data from apps. Apps send data using [OpenTelemetry Protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/).
+- The container exposes three ports:
   - Mapping the dashboard's port `18888` to the host's port `18888`. Port `18888` has the dashboard UI. Navigate to `http://localhost:18888` in the browser to view the dashboard.
+  - Mapping the dashboard's OTLP/gRPC port `18889` to the host's port `4317`. Port `4317` receives OpenTelemetry data from apps using [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc).
+  - Mapping the dashboard's OTLP/HTTP port `18890` to the host's port `4318`. Port `4318` receives OpenTelemetry data from apps using [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp).
 
 ## Login to the dashboard
 
 Data displayed in the dashboard can be sensitive. By default, the dashboard is secured with authentication that requires a token to login.
+
+When the dashboard is run with `aspire dashboard run`, the Aspire CLI prints the login URL directly in the terminal. Open that URL in your browser to log in.
 
 When the dashboard is run from a standalone container, the login token is printed to the container logs. The logs are displayed in the Docker Desktop user interface on the **Logs** tab for the **aspire-dashboard** container:
 
@@ -98,7 +119,7 @@ echo $matches.Value
 </OsAwareTabs>
 
 <Aside type="tip">
-To avoid the login, you can disable the authentication requirement by setting the `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` environment variable to `true`. Additional configuration is available, see [Dashboard configuration](/dashboard/configuration/).
+To avoid the login during local development, start the dashboard with `aspire dashboard run --allow-anonymous`. If you're running the dashboard container, set the `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` environment variable to `true`. Additional configuration is available, see [Dashboard configuration](/dashboard/configuration/).
 </Aside>
 
 For more information about logging into the dashboard, see [Dashboard authentication](/dashboard/explore/#dashboard-authentication).
@@ -113,20 +134,20 @@ The dashboard offers a UI for viewing telemetry. Refer to the documentation to e
 
 Although there is no restriction on where the dashboard is run, the dashboard is designed as a development and short-term diagnostic tool. The dashboard persists telemetry in-memory which creates some limitations:
 
-- Telemetry is automatically removed if [telemetry limits](configuration#telemetry-limits) are exceeded.
+- Telemetry is automatically removed if [telemetry limits](/dashboard/configuration/#telemetry-limits) are exceeded.
 - No telemetry is persisted when the dashboard is restarted.
 
 ### Unavailable features when standalone
 
 The dashboard has functionality for viewing Aspire resources. The dashboard resource features are disabled when it is run in standalone mode. To enable the resources UI, [add configuration for a resource service](/dashboard/configuration/#resources).
 
-[GitHub Copilot functionality](/dashboard/copilot/) isn't available in the standalone dashboard. Copilot uses a connection to your IDE to communicate with GitHub Copilot and that connection isn't available when the dashboard is in standalone mode.
+AI coding agents can still use the standalone dashboard via the Aspire CLI and MCP server. See [Dashboard and AI coding agents](/dashboard/ai-coding-agents/#standalone-mode) for details.
 
 ## Send telemetry to the dashboard
 
 Apps send telemetry to the dashboard using [OpenTelemetry Protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/). The dashboard must expose a port for receiving OpenTelemetry data, and apps are configured to send data to that address.
 
-A Docker command was shown earlier to [start the dashboard](#start-the-dashboard). It configured the container to receive OpenTelemetry data on port `4317`. The OTLP endpoint's full address is `http://localhost:4317`.
+Both startup options shown earlier configure the dashboard to receive OpenTelemetry data on port `4317` (gRPC) and port `4318` (HTTP). The <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint addresses are `http://localhost:4317` for gRPC and `http://localhost:4318` for HTTP. The Docker command maps the container's OTLP ports to the same host ports.
 
 ### Configure OpenTelemetry SDK
 
@@ -134,19 +155,51 @@ Apps collect and send telemetry using [their language's OpenTelemetry SDK](https
 
 Important OpenTelemetry SDK options to configure:
 
-- OTLP endpoint, which should match the dashboard's configuration, for example, `http://localhost:4317`.
-- OTLP protocol, with the dashboard currently supporting only the [OTLP/gRPC protocol](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc). Configure applications to use the `grpc` protocol.
+- OTLP endpoint, which should match the dashboard's configuration, for example, `http://localhost:4317` for gRPC or `http://localhost:4318` for HTTP.
+- OTLP protocol. The dashboard supports all OTLP protocols:
+  - [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc) (`grpc`)
+  - [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp) (`http/protobuf` or `http/json`)
 
 To configure applications:
 
 - Use the OpenTelemetry SDK APIs within the application, or
 - Start the app with [known environment variables](https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options):
-  - `OTEL_EXPORTER_OTLP_PROTOCOL` with a value of `grpc`.
-  - `OTEL_EXPORTER_OTLP_ENDPOINT` with a value of `http://localhost:4317`.
+  - `OTEL_EXPORTER_OTLP_PROTOCOL` with a value of `grpc`, `http/protobuf`, or `http/json`.
+  - `OTEL_EXPORTER_OTLP_ENDPOINT` with a value of `http://localhost:4317` for gRPC or `http://localhost:4318` for HTTP.
+
+<Aside type="note">
+Additional configuration may be required to authenticate with the dashboard if you have configured the dashboard to secure the telemetry endpoint. For more information, see [Securing the telemetry endpoint](/dashboard/security-considerations/#secure-telemetry-endpoint).
+</Aside>
+
+## Query telemetry with the Aspire CLI
+
+The [Aspire CLI](/reference/cli/overview/) can query telemetry data directly from the dashboard's API, allowing you to view logs, traces, and spans from the terminal without opening the dashboard UI.
+
+The dashboard's telemetry API is secured with API key authentication by default. When using the CLI commands, you can pass the dashboard's login URL (including the browser token) via `--dashboard-url` and the token is automatically exchanged for an API key. Alternatively, if the dashboard is started with `aspire dashboard run --allow-anonymous` or the `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` environment variable is set to `true`, no authentication is required — this should only be used during local development.
+
+### View telemetry with `aspire otel`
+
+The [`aspire otel`](/reference/cli/commands/aspire-otel/) commands retrieve telemetry from the dashboard. Use `--dashboard-url` to point at a standalone dashboard — you can paste the full login URL and the browser token is automatically exchanged for an API key:
+
+```bash title="Aspire CLI"
+aspire otel logs --dashboard-url "http://localhost:18888/login?t=<token>"
+aspire otel traces --dashboard-url "http://localhost:18888/login?t=<token>"
+aspire otel spans --dashboard-url "http://localhost:18888/login?t=<token>"
+```
+
+For more details, see the [`aspire otel logs`](/reference/cli/commands/aspire-otel-logs/), [`aspire otel traces`](/reference/cli/commands/aspire-otel-traces/), and [`aspire otel spans`](/reference/cli/commands/aspire-otel-spans/) command references.
+
+### Use AI agents with `aspire agent mcp`
+
+The [`aspire agent mcp`](/reference/cli/commands/aspire-agent-mcp/) command starts an MCP (Model Context Protocol) server that AI assistants can connect to. When used with `--dashboard-url`, it runs in dashboard-only mode and exposes telemetry tools (structured logs and traces) to MCP-compatible clients:
+
+```bash title="Aspire CLI"
+aspire agent mcp --dashboard-url "http://localhost:18888/login?t=<token>"
+```
 
 ## Sample
 
-For a sample of using the standalone dashboard, see the [Standalone Aspire dashboard sample app](https://github.com/dotnet/aspire-samples/tree/main/samples/standalone-dashboard).
+For a sample of using the standalone dashboard, see the [Standalone Aspire dashboard sample app](https://github.com/microsoft/aspire-samples/tree/main/samples/standalone-dashboard).
 
 ## Next steps
 

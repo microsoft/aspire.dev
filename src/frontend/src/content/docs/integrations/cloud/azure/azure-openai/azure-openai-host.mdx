@@ -1,0 +1,463 @@
+---
+title: Set up Azure OpenAI in the AppHost
+description: Learn how to use the Aspire Azure OpenAI hosting integration to provision and configure Azure OpenAI resources in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import openaiIcon from '@assets/icons/azure-openai-icon.png';
+
+<Image
+  src={openaiIcon}
+  alt="Azure OpenAI logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the reference for the Aspire Azure OpenAI hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure OpenAI account and deployment resources in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Azure OpenAI integration, start with the [Get started with Azure OpenAI integrations](/integrations/cloud/azure/azure-openai/azure-openai-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure OpenAI](../azure-openai-connect/).
+
+## Installation
+
+To start building an Aspire app that uses Azure OpenAI, install the [📦 Aspire.Hosting.Azure.CognitiveServices](https://www.nuget.org/packages/Aspire.Hosting.Azure.CognitiveServices) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add azure-cognitive-services
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Azure.CognitiveServices@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.CognitiveServices" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-cognitive-services
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure OpenAI hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.CognitiveServices": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add an Azure OpenAI resource
+
+Once you've installed the hosting integration in your AppHost project, you can add an Azure OpenAI account resource and then add one or more deployment resources beneath it:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddAzureOpenAI("openai");
+
+var chat = openai.AddDeployment(
+    name: "chat",
+    modelName: "gpt-4o",
+    modelVersion: "2024-08-06");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat)
+    .WaitFor(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const openai = await builder.addAzureOpenAI("openai");
+
+const chat = await openai.addDeployment("chat", "gpt-4o", "2024-08-06");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat)
+    .waitFor(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. Calling `AddAzureOpenAI` (or `addAzureOpenAI`) creates an `AzureOpenAIResource` that models the Azure Cognitive Services account. It implicitly calls `AddAzureProvisioning`, which adds support for generating Azure resources dynamically during app startup.
+
+1. Calling `AddDeployment` (or `addDeployment`) creates an `AzureOpenAIDeploymentResource` child that represents a model deployment on the account. Specify the deployment name, model name, and model version. See [Azure OpenAI model versions](https://learn.microsoft.com/azure/ai-services/openai/concepts/models) for available models and versions.
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced deployment resource, such as `chat` in the preceding example.
+
+</Steps>
+
+<Aside type="caution">
+  When you call `AddAzureOpenAI` (or `addAzureOpenAI`), it implicitly calls
+  `AddAzureProvisioning` — which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+<Aside type="note">
+    When you reference an Azure OpenAI deployment from the AppHost, Aspire makes the endpoint URI and model name available to the consuming project as environment variables. For a complete list of these properties and per-language connection examples, see [Connect to Azure OpenAI](../azure-openai-connect/).
+</Aside>
+
+## Add multiple Azure OpenAI deployments
+
+Add multiple deployment children beneath the same account to share a single Azure OpenAI resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddAzureOpenAI("openai");
+
+var chat = openai.AddDeployment("chat", "gpt-4o", "2024-08-06");
+var embeddings = openai.AddDeployment("embeddings", "text-embedding-3-small", "1");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat)
+    .WithReference(embeddings)
+    .WaitFor(chat)
+    .WaitFor(embeddings);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const openai = await builder.addAzureOpenAI("openai");
+
+const chat = await openai.addDeployment("chat", "gpt-4o", "2024-08-06");
+const embeddings = await openai.addDeployment("embeddings", "text-embedding-3-small", "1");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat)
+    .withReference(embeddings)
+    .waitFor(chat)
+    .waitFor(embeddings);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+Referencing `chat` passes a connection named `chat` to the consuming project, and referencing `embeddings` passes a connection named `embeddings`. Both share the parent Azure OpenAI account.
+
+## Managed identity and role assignments
+
+By default, Aspire provisions Azure OpenAI with `disableLocalAuth: true` and automatically creates a `CognitiveServicesOpenAIUser` role assignment for each app that references the resource. This means consuming apps authenticate via managed identity — no API key is needed.
+
+To explicitly assign roles to a consuming app (for example, to grant contributor access for fine-tuning scenarios), call `WithRoleAssignments` in C# or `withCognitiveServicesRoleAssignments` in TypeScript on the consuming resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddAzureOpenAI("openai");
+
+var chat = openai.AddDeployment("chat", "gpt-4o", "2024-08-06");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat)
+    .WaitFor(chat)
+    .WithRoleAssignments(openai, AzureOpenAIRole.CognitiveServicesOpenAIContributor);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder, AzureOpenAIRole } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const openai = await builder.addAzureOpenAI("openai");
+
+const chat = await openai.addDeployment("chat", "gpt-4o", "2024-08-06");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat)
+    .waitFor(chat)
+    .withCognitiveServicesRoleAssignments(openai, [AzureOpenAIRole.CognitiveServicesOpenAIContributor]);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The available `AzureOpenAIRole` values are:
+
+| Role | Description |
+| ---- | ----------- |
+| `CognitiveServicesOpenAIUser` | Read access to models, deployments, and completions. Default when using `WithReference`. |
+| `CognitiveServicesOpenAIContributor` | Create and delete deployments in addition to user permissions. |
+| `CognitiveServicesUser` | Broader Cognitive Services access. |
+
+To remove the default automatic role assignments and manage them entirely yourself, call `ClearDefaultRoleAssignments` (or `clearDefaultRoleAssignments`) on the Azure OpenAI resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var openai = builder.AddAzureOpenAI("openai")
+    .ClearDefaultRoleAssignments();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const openai = await builder.addAzureOpenAI("openai");
+await openai.clearDefaultRoleAssignments();
+```
+</TabItem>
+</Tabs>
+
+## Connect to an existing Azure OpenAI service
+
+You might have an already-deployed Azure OpenAI account in your Azure subscription that you want to connect to. Use `AsExisting` (or `asExisting`) to point the resource at an existing account instead of provisioning a new one:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingOpenAIName = builder.AddParameter("existingOpenAIName");
+var existingOpenAIResourceGroup = builder.AddParameter("existingOpenAIResourceGroup");
+
+var openai = builder.AddAzureOpenAI("openai")
+    .AsExisting(existingOpenAIName, existingOpenAIResourceGroup);
+
+var chat = openai.AddDeployment("chat", "gpt-4o", "2024-08-06");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat)
+    .WaitFor(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const existingOpenAIName = await builder.addParameter("existingOpenAIName");
+const existingOpenAIResourceGroup = await builder.addParameter("existingOpenAIResourceGroup");
+
+const openai = await builder.addAzureOpenAI("openai");
+await openai.asExisting(existingOpenAIName, existingOpenAIResourceGroup);
+
+const chat = await openai.addDeployment("chat", "gpt-4o", "2024-08-06");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat)
+    .waitFor(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+For more information on treating Azure resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+<Aside type="note">
+  Alternatively, add a connection string to the AppHost instead of representing a typed Azure OpenAI resource. This approach is weakly-typed, and doesn't work with role assignments or infrastructure customizations. For more information, see [Add existing Azure resources with connection strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).
+</Aside>
+
+## Provisioning-generated Bicep
+
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by hand — the provisioning APIs generate it for you. When you publish your app, the generated Bicep provisions an Azure Cognitive Services account with standard defaults.
+
+```bicep title="Bicep — openai.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+resource openai 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
+  name: take('openai-${uniqueString(resourceGroup().id)}', 64)
+  location: location
+  kind: 'OpenAI'
+  properties: {
+    customSubDomainName: toLower(take(concat('openai', uniqueString(resourceGroup().id)), 24))
+    publicNetworkAccess: 'Enabled'
+    disableLocalAuth: true
+  }
+  sku: {
+    name: 'S0'
+  }
+  tags: {
+    'aspire-resource-name': 'openai'
+  }
+}
+
+resource chat 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  name: 'chat'
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'gpt-4o'
+      version: '2024-08-06'
+    }
+  }
+  sku: {
+    name: 'Standard'
+    capacity: 8
+  }
+  parent: openai
+}
+
+output connectionString string = 'Endpoint=${openai.properties.endpoint}'
+
+output name string = openai.name
+```
+
+Role assignments are created in a companion module:
+
+```bicep title="Bicep — openai-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param openai_outputs_name string
+
+param principalType string
+
+param principalId string
+
+resource openai 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = {
+  name: openai_outputs_name
+}
+
+resource openai_CognitiveServicesOpenAIUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(openai.id, principalId, subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'))
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+    principalType: principalType
+  }
+  scope: openai
+}
+```
+
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Direct edits to the Bicep file are overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated output.
+
+## Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of `AzureProvisioningResource`. This enables customization of the generated Bicep by providing a fluent API to configure Azure resources using the `ConfigureInfrastructure` API:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+using Azure.Provisioning.CognitiveServices;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureOpenAI("openai")
+    .ConfigureInfrastructure(infra =>
+    {
+        var resources = infra.GetProvisionableResources();
+        var account = resources.OfType<CognitiveServicesAccount>().Single();
+
+        account.Sku = new CognitiveServicesSku
+        {
+            Tier = CognitiveServicesSkuTier.Enterprise,
+            Name = "E0"
+        };
+        account.Tags.Add("ExampleKey", "Example value");
+    });
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const openai = await builder.addAzureOpenAI("openai");
+
+await openai.configureInfrastructure(async infra => {
+    const resources = await infra.getProvisionableResources();
+    // Modify the CognitiveServicesAccount resource as needed
+});
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The preceding C# code:
+
+- Calls `ConfigureInfrastructure` to customize the generated Bicep.
+- Retrieves provisionable resources with `GetProvisionableResources`.
+- Gets the single `CognitiveServicesAccount` resource.
+- Upgrades the SKU to `Enterprise` / `E0`.
+- Adds a tag to the Cognitive Services account.
+
+## Available models
+
+Common model identifiers for Azure OpenAI:
+
+| Category   | Model identifiers |
+| ---------- | ----------------- |
+| Chat       | `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo` |
+| Reasoning  | `o3`, `o3-mini`, `o4-mini` |
+| Embeddings | `text-embedding-3-small`, `text-embedding-3-large` |
+| Images     | `dall-e-3` |
+| Audio      | `whisper` |
+
+For the full list and current model versions, see the [Azure OpenAI models documentation](https://learn.microsoft.com/azure/ai-services/openai/concepts/models).
+
+## Connection properties
+
+For the full reference of Azure OpenAI connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Azure OpenAI](../azure-openai-connect/).
+
+## See also
+
+- [Get started with the Azure OpenAI integrations](/integrations/cloud/azure/azure-openai/azure-openai-get-started/)
+- [Connect to Azure OpenAI](/integrations/cloud/azure/azure-openai/azure-openai-connect/)
+- [Azure OpenAI Service documentation](https://learn.microsoft.com/azure/ai-services/openai/)
+- [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration)

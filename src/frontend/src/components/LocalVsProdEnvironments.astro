@@ -5,13 +5,13 @@ import { Code } from '@astrojs/starlight/components';
 <div class="orbit-section">
   <div class="environment-toggle">
     <div class="toggle-container">
-      <button class="active toggle-btn toggle-local">
+      <button class="active toggle-btn toggle-local" aria-pressed="true">
         {Astro.locals.t('landing.environments.local')}
       </button>
-      <button class="toggle-btn toggle-test">
+      <button class="toggle-btn toggle-test" aria-pressed="false">
         {Astro.locals.t('landing.environments.test')}
       </button>
-      <button class="toggle-btn toggle-prod">
+      <button class="toggle-btn toggle-prod" aria-pressed="false">
         {Astro.locals.t('landing.environments.prod')}
       </button>
     </div>
@@ -183,10 +183,15 @@ import { Code } from '@astrojs/starlight/components';
       return isMobileUA || (isSmallScreen && hasTouch);
     }
 
+    function setActiveEnvironment(activeBtn) {
+      [localBtn, testBtn, prodBtn].forEach((btn) => {
+        btn.setAttribute('aria-pressed', (btn === activeBtn).toString());
+        btn.classList.toggle('active', btn === activeBtn);
+      });
+    }
+
     localBtn.addEventListener('click', () => {
-      localBtn.classList.add('active');
-      testBtn.classList.remove('active');
-      prodBtn.classList.remove('active');
+      setActiveEnvironment(localBtn);
       container.classList.remove('test-active', 'prod-active');
       container.classList.add('local-active');
       localSubtitle.classList.add('local-active');
@@ -196,9 +201,7 @@ import { Code } from '@astrojs/starlight/components';
     });
 
     testBtn.addEventListener('click', () => {
-      testBtn.classList.add('active');
-      localBtn.classList.remove('active');
-      prodBtn.classList.remove('active');
+      setActiveEnvironment(testBtn);
       container.classList.remove('local-active', 'prod-active');
       container.classList.add('test-active');
       testSubtitle.classList.add('test-active');
@@ -208,9 +211,7 @@ import { Code } from '@astrojs/starlight/components';
     });
 
     prodBtn.addEventListener('click', () => {
-      prodBtn.classList.add('active');
-      localBtn.classList.remove('active');
-      testBtn.classList.remove('active');
+      setActiveEnvironment(prodBtn);
       container.classList.remove('local-active', 'test-active');
       container.classList.add('prod-active');
       prodSubtitle.classList.add('prod-active');

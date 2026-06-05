@@ -1,12 +1,12 @@
 ---
 title: Kubernetes integration
-description: Learn how to add Kubernetes resources to your Aspire application.
-next: false
+seoTitle: "Kubernetes integration for Aspire: hosting and client wiring"
+description: Learn how to add Kubernetes deployment support to your Aspire application using the Aspire.Hosting.Kubernetes hosting integration.
 ---
 
-import InstallPackage from '@components/InstallPackage.astro';
-import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import kubernetesIcon from '@assets/icons/kubernetes.svg';
 
 <Image
@@ -18,17 +18,67 @@ import kubernetesIcon from '@assets/icons/kubernetes.svg';
   data-zoom-off
 />
 
-The Aspire Kubernetes hosting integration enables you to generate Kubernetes deployment manifests from your Aspire application model. This integration allows you to define your application's infrastructure and deployment configuration using the familiar Aspire AppHost and then publish it as Kubernetes YAML manifests for deployment to any Kubernetes cluster.
+This article is the reference for the Aspire Kubernetes hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Kubernetes environment resources in your [`AppHost`](/get-started/app-host/) project. The integration enables you to publish and deploy your Aspire application to any Kubernetes cluster, generating Helm charts from your application model or deploying directly to a cluster using your current `kubectl` context.
 
-## Hosting integration
+## Installation
 
-To get started with the Aspire Kubernetes hosting integration, install the [📦 Aspire.Hosting.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Kubernetes) NuGet package in the AppHost project:
+:::note[Prerequisite: Helm v4.2.0 or later]
+Aspire's Kubernetes deployment pipeline shells out to `helm upgrade --install` and validates the installed Helm version before executing. **[Helm](https://helm.sh/docs/intro/install/) v4.2.0 or later** must be on your `PATH`. If Helm is missing or too old, Aspire reports a clear, actionable error instead of cryptic flag failures.
+:::
 
-<InstallPackage packageName="Aspire.Hosting.Kubernetes" />
+To start building an Aspire app with Kubernetes deployment support, install the [📦 Aspire.Hosting.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Kubernetes) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add kubernetes
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Kubernetes@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Kubernetes" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add kubernetes
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Kubernetes hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Kubernetes": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Add Kubernetes environment
 
-After installing the package, add a Kubernetes environment to your AppHost project using the `AddKubernetesEnvironment` method:
+After installing the package, add a Kubernetes environment to your AppHost:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -40,81 +90,276 @@ var api = builder.AddProject<Projects.MyApi>("api");
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const api = await builder
+    .addNodeApp('api', './api', 'src/index.ts')
+    .withHttpEndpoint({ env: 'PORT' })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 <Aside type="tip">
-  With the `k8s` variable assigned, you can pass that to the
-  `WithComputeEnvironment` API to disambiguate compute resources for solutions
-  that define more than one. Otherwise, the `k8s` variable isn't required.
+  With the `k8s` variable assigned, you can pass it to the compute environment API to
+  disambiguate compute resources for solutions that define more than one. Otherwise, the `k8s`
+  variable isn't required. This API is named `WithComputeEnvironment` in C# AppHosts and
+  `withComputeEnvironment` in TypeScript AppHosts.
+
+  <Tabs syncKey="aspire-lang">
+  <TabItem id="csharp" label="C#">
+  ```csharp title="C# — AppHost.cs"
+  var k8s = builder.AddKubernetesEnvironment("k8s");
+
+  builder.AddProject<Projects.MyApi>("api")
+      .WithComputeEnvironment(k8s);
+  ```
+  </TabItem>
+  <TabItem id="typescript" label="TypeScript">
+  ```typescript title="apphost.ts"
+  const k8s = await builder.addKubernetesEnvironment('k8s');
+
+  const api = await builder.addNodeApp('api', './api', 'src/index.ts');
+  await api.withComputeEnvironment(k8s);
+  ```
+  </TabItem>
+  </Tabs>
 </Aside>
 
-## Configure Kubernetes environment properties
+## Configure Helm chart options
 
-You can customize the Kubernetes environment using the `WithProperties` method:
+You can configure the generated Helm chart using the `WithHelm` method, which provides a fluent `HelmChartOptions` builder:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var api = builder.AddProject<Projects.MyApi>("api");
-
 builder.AddKubernetesEnvironment("k8s")
-       .WithProperties(k8s =>
-       {
-           k8s.HelmChartName = "my-aspire-app";
-       });
-
-builder.Build().Run();
+    .WithHelm(helm =>
+    {
+        helm.WithChartName("my-aspire-app")
+            .WithChartVersion("1.0.0")
+            .WithChartDescription("My Aspire application deployed to Kubernetes")
+            .WithReleaseName("my-release")
+            .WithNamespace("my-namespace");
+    });
 ```
 
-The `WithProperties` method allows you to configure various aspects of the Kubernetes deployment, including the Helm chart name that will be used for generating the Kubernetes resources.
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-## Generate Kubernetes manifests
-
-To generate Kubernetes manifests from your Aspire application, use the `aspire publish` command:
-
-```bash
-aspire publish -o k8s-artifacts
+```typescript title="apphost.mts"
+const k8s = await builder.addKubernetesEnvironment('k8s');
+await k8s.withHelm(async (helm) => {
+  await helm.withNamespace('my-namespace');
+  await helm.withReleaseName('my-release');
+  await helm.withChartName('my-aspire-app');
+  await helm.withChartVersion('1.0.0');
+  await helm.withChartDescription('My Aspire application deployed to Kubernetes');
+});
 ```
 
-This command generates a complete set of Kubernetes YAML manifests in the specified output directory (`k8s-artifacts` in this example). The generated artifacts include:
+</TabItem>
+</Tabs>
 
-- **Deployments** or **StatefulSets** for your application services
-- **Services** for network connectivity
-- **ConfigMaps** for application configuration
-- **Secrets** for sensitive data
-- **Helm charts** for easier deployment management
+Helm is the default deployment engine. Call `WithHelm` only when you need to customize the defaults.
 
-## Supported resources
+The `WithHelm` method is the single configuration entry point for Helm chart settings. The available options are:
 
-The Kubernetes hosting integration supports converting various Aspire resources to their Kubernetes equivalents:
+| Method | Description |
+|---|---|
+| `WithChartName(string)` | Sets the Helm chart name (defaults to the application name). |
+| `WithChartVersion(string)` | Sets the Helm chart version. Accepts a literal string or an Aspire parameter. |
+| `WithChartDescription(string)` | Sets the description written into `Chart.yaml`. |
+| `WithReleaseName(string)` | Sets the Helm release name used during deployment. |
+| `WithNamespace(string)` | Sets the Kubernetes namespace for the deployment. |
 
-- **Project resources** → Deployments or StatefulSets
-- **Container resources** → Deployments or StatefulSets
-- **Connection strings** → ConfigMaps and Secrets
-- **Environment variables** → ConfigMaps and Secrets
-- **Endpoints** → Services and ingress configuration
-- **Volumes** → PersistentVolumes and PersistentVolumeClaims
+## Configure a container registry
 
-## Deployment considerations
+A vanilla Kubernetes cluster doesn't know which container registry to use for your application images. Use `AddContainerRegistry` and `WithContainerRegistry` to specify a registry that is accessible from both your local machine and from the cluster:
 
-When deploying to Kubernetes, consider the following:
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
-### Container images
+```csharp title="C# — AppHost.cs"
+var registry = builder.AddContainerRegistry("registry", "myregistry.example.com:5000");
+builder.AddKubernetesEnvironment("k8s").WithContainerRegistry(registry);
+```
 
-Ensure your application projects are configured to build container images. The Kubernetes publisher will reference the container images for your projects. If you haven't specified custom container images, the integration will use parameterized Helm values that you can override during deployment.
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-### Resource names
+```typescript title="apphost.mts"
+const registry = await builder.addContainerRegistry('registry', 'myregistry.example.com:5000');
+const k8s = await builder.addKubernetesEnvironment('k8s');
+await k8s.withContainerRegistry(registry);
+```
 
-Resource names in Kubernetes must follow DNS naming conventions. The integration automatically converts Aspire resource names to valid Kubernetes resource names by:
+</TabItem>
+</Tabs>
 
-- Converting to lowercase
-- Replacing invalid characters with hyphens
-- Ensuring names don't start or end with hyphens
+<Aside type="note">
+  The container registry APIs are currently in preview. In C#, suppress the `ASPIRECOMPUTE003` diagnostic to use them.
+</Aside>
 
-### Environment-specific configuration
+## Customize individual resources
 
-Use [external parameters](/fundamentals/external-parameters/) to configure environment-specific values that should be different between development and production environments.
+Use `PublishAsKubernetesService` to modify the generated Kubernetes resources for individual services:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+
+builder.AddContainer("service", "nginx")
+    .PublishAsKubernetesService(resource =>
+    {
+        // Scale to 3 replicas
+        if (resource.Workload is Deployment deployment)
+        {
+            deployment.Spec.Replicas = 3;
+        }
+    });
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const service = await builder.addContainer('service', 'nginx');
+await service.publishAsKubernetesService(async (resource) => {
+  // Scale to 3 replicas
+  await resource.workload.spec.replicas.set(3);
+});
+```
+
+</TabItem>
+</Tabs>
+
+## Add custom Kubernetes manifests
+
+Within a `PublishAsKubernetesService` callback, you can attach arbitrary Kubernetes manifests — such as [cert-manager](https://cert-manager.io/) `Certificate` definitions, additional `ConfigMap` objects, or any other Kubernetes resource — to the generated Helm chart alongside your service.
+
+The API surface differs by language:
+
+- **C#**: add subclasses of `BaseKubernetesResource` directly to the `AdditionalResources` collection. Several built-in types (such as `ConfigMap`) are available in the `Aspire.Hosting.Kubernetes.Resources` namespace, and you can subclass `BaseKubernetesResource` to model any custom resource definition (CRD).
+- **TypeScript**: call `addManifest` on the resource. It takes the manifest's `apiVersion`, `kind`, and `metadata.name`, and returns a handle for setting labels, annotations, a namespace, and arbitrary field values using dot-notation paths.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+Define a class for the custom resource by deriving from `BaseKubernetesResource`, then add an instance to `AdditionalResources`. The example below models a cert-manager `Certificate` CRD:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+using YamlDotNet.Serialization;
+
+builder.AddContainer("service", "nginx")
+    .PublishAsKubernetesService(resource =>
+    {
+        var certificate = new Certificate
+        {
+            Metadata = { Name = "service-tls" },
+            Spec =
+            {
+                SecretName = "service-tls",
+                DnsNames = { "service.example.com" },
+                IssuerRef = { Name = "letsencrypt-prod", Kind = "ClusterIssuer" },
+            },
+        };
+        certificate.Metadata.Labels["example.com/managed-by"] = "aspire";
+        resource.AdditionalResources.Add(certificate);
+    });
+
+public sealed class Certificate() : BaseKubernetesResource("cert-manager.io/v1", "Certificate")
+{
+    [YamlMember(Alias = "spec")]
+    public CertificateSpec Spec { get; set; } = new();
+}
+
+public sealed class CertificateSpec
+{
+    [YamlMember(Alias = "secretName")]
+    public string SecretName { get; set; } = "";
+
+    [YamlMember(Alias = "dnsNames")]
+    public List<string> DnsNames { get; } = [];
+
+    [YamlMember(Alias = "issuerRef")]
+    public IssuerRef IssuerRef { get; set; } = new();
+}
+
+public sealed class IssuerRef
+{
+    [YamlMember(Alias = "name")]
+    public string Name { get; set; } = "";
+
+    [YamlMember(Alias = "kind")]
+    public string Kind { get; set; } = "Issuer";
+}
+```
+
+For simple cases that map to a built-in type, instantiate the type directly — for example, `new ConfigMap { Metadata = { Name = "extra-config" }, Data = { ["key"] = "value" } }` — and add it to `AdditionalResources`.
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const service = await builder.addContainer('service', 'nginx');
+await service.publishAsKubernetesService(async (resource) => {
+    await resource.addManifest('cert-manager.io/v1', 'Certificate', 'service-tls', {
+        configure: async (manifest) => {
+            await manifest.withLabel('example.com/managed-by', 'aspire');
+            await manifest.withField('spec.secretName', 'service-tls');
+            await manifest.withField('spec.dnsNames', ['service.example.com']);
+            await manifest.withField('spec.issuerRef.name', 'letsencrypt-prod');
+            await manifest.withField('spec.issuerRef.kind', 'ClusterIssuer');
+        },
+    });
+});
+```
+</TabItem>
+</Tabs>
+
+The manifest handle returned by `addManifest` supports the following configuration methods:
+
+| Method | Description |
+|---|---|
+| `withNamespace` | Sets the Kubernetes namespace for the manifest. |
+| `withLabel` | Adds a metadata label to the manifest. |
+| `withAnnotation` | Adds a metadata annotation to the manifest. |
+| `withField` | Sets an arbitrary field using a dot-notation path (for example, `spec.maxReplicaCount`). |
+
+Each manifest is emitted as a separate template file inside the generated Helm chart.
+
+<Aside type="note">
+`addManifest` is the recommended way to attach custom Kubernetes resources from TypeScript AppHosts, where there is no strongly-typed model for arbitrary CRDs. C# AppHosts have direct access to the resource model, so they add `BaseKubernetesResource` instances to `AdditionalResources` instead.
+</Aside>
+
+## Publishing and deployment
+
+The Kubernetes integration supports both [`aspire publish`](/reference/cli/commands/aspire-publish/) (generate Helm chart artifacts) and [`aspire deploy`](/reference/cli/commands/aspire-deploy/) (deploy directly to your current cluster context).
+
+For complete walkthroughs, see [Deploy to Kubernetes clusters](/deployment/kubernetes/kubernetes/).
 
 ## See also
 
-- [Aspire GitHub repo](https://github.com/dotnet/aspire)
+- [Deploy to Kubernetes](/deployment/kubernetes/)
+- [Expose services with Ingress and Gateway API](/deployment/kubernetes-ingress/)
+- [Configure Ingress on AKS](/deployment/kubernetes-ingress-aks/)
+- [Configure Gateway API on AKS](/deployment/kubernetes-gateway-aks/)
+- [Deploy to AKS](/deployment/kubernetes/aks/)
+- [AKS integration](/integrations/cloud/azure/aks/)
 - [Kubernetes documentation](https://kubernetes.io/docs/)
 - [Helm documentation](https://helm.sh/docs/)

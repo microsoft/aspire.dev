@@ -1,16 +1,17 @@
 ---
 title: Certificate configuration
-description: Learn how to configure HTTPS endpoints and certificate trust for resources in Aspire to enable secure communication.
+seoTitle: Aspire HTTPS certificate configuration for AppHost
+description: Configure HTTPS endpoints and certificate trust for Aspire resources to enable secure local development, container-to-container TLS, and trusted browser connections.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Aspire provides two complementary sets of certificate APIs:
 
 1. **HTTPS endpoint APIs**: Configure the certificates that resources use for their own HTTPS endpoints (server authentication)
 2. **Certificate trust APIs**: Configure which certificates resources trust when making outbound HTTPS connections (client authentication)
 
-Both sets of APIs work together to enable secure HTTPS communication during local development. For example, a Vite frontend might use `WithHttpsDeveloperCertificate` to serve HTTPS traffic, while also using `WithDeveloperCertificateTrust` to trust the dashboard's OTLP endpoint certificate.
+Both sets of APIs work together to enable secure HTTPS communication during local development. For example, a Vite frontend might use `WithHttpsDeveloperCertificate` to serve HTTPS traffic, while also using `WithDeveloperCertificateTrust` to trust the dashboard's <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint certificate.
 
 <Aside type="caution">
   Certificate customization only applies at run time. Custom certificates aren't
@@ -27,7 +28,77 @@ Aspire simplifies HTTPS configuration for local development by providing APIs to
 
 - Configure HTTPS endpoints with appropriate certificates for server authentication
 - Manage certificate trust so resources can communicate with services using self-signed certificates
-- Automatically handle the .NET provided ASP.NET Core development certificate (a per-user self-signed certificate valid only for local domains) across different resource types
+- Automatically handle the development certificate (a per-user self-signed certificate valid only for local domains) across different resource types
+
+## Trusting the development certificate
+
+Many of the certificate features in Aspire rely on a development certificate. Before using these features, you need to ensure that a trusted development certificate is installed on your machine.
+
+### Using the Aspire CLI (recommended)
+
+The preferred way to manage the development certificate is to use the [Aspire CLI](/get-started/install-cli/). When you run `aspire run`, the CLI automatically ensures the development certificate is created and trusted. No additional manual steps are required.
+
+You can also manage certificates explicitly with the Aspire CLI:
+
+```bash title="Trust the development certificate"
+aspire certs trust
+```
+
+```bash title="Remove and re-trust (refresh)"
+aspire certs clean
+aspire certs trust
+```
+
+<Aside type="tip">
+  If you encounter unexpected HTTPS or certificate trust errors during local
+  development, running `aspire certs clean` followed by `aspire certs trust` is
+  a good first troubleshooting step.
+</Aside>
+
+<Aside type="note" title="Linux certificate trust">
+  On Linux, the development certificate is exported to `~/.aspnet/dev-certs/trust`, but applications using OpenSSL won't discover it unless the `SSL_CERT_DIR` environment variable includes that path. You can set `SSL_CERT_DIR` in your shell profile (~/.bashrc, ~/.zshrc, ~/.profile, etc.):
+
+  ```bash title="~/.bashrc, ~/.zshrc, or ~/.profile"
+  # Confirm /usr/lib/ssl/certs is the correct certificate directory for
+  # your Linux distribution. Common alternatives include:
+  #   /etc/ssl/certs
+  #   /etc/pki/tls/certs
+  if [ -z "$SSL_CERT_DIR" ]; then
+      export SSL_CERT_DIR="/usr/lib/ssl/certs:$HOME/.aspnet/dev-certs/trust"
+  else
+      export SSL_CERT_DIR="$SSL_CERT_DIR:$HOME/.aspnet/dev-certs/trust"
+  fi
+  ```
+
+  You may need to reload your profile or start a new terminal session for the change to take effect.
+</Aside>
+
+### Developer certificate for DCP communication
+
+By default, Aspire uses the ASP.NET Core developer certificate to secure communication with its internal Developer Control Plane (DCP) server. This replaces the ephemeral localhost certificate that DCP would otherwise generate itself, and avoids certificate trust errors caused by that certificate not being in the system trust store.
+
+If no trusted developer certificate is found, Aspire automatically falls back to DCP's ephemeral certificate.
+
+To opt out and use DCP's default ephemeral certificate instead, set `ASPIRE_DCP_USE_DEVELOPER_CERTIFICATE` to `false` in your AppHost's `launchSettings.json` or as an environment variable:
+
+```json title="Properties/launchSettings.json"
+{
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPIRE_DCP_USE_DEVELOPER_CERTIFICATE": "false"
+      }
+    }
+  }
+}
+```
+
+<Aside type="note">
+  Prior to Aspire 13.4, this setting defaulted to `false` and was only supported
+  on Windows. As of 13.4, it defaults to `true` and is supported on Windows,
+  macOS, and Linux.
+</Aside>
 
 ## HTTPS endpoint configuration
 
@@ -35,14 +106,16 @@ HTTPS endpoint configuration determines which certificate a resource presents wh
 
 ### Default behavior
 
-For resources that have a certificate configuration defined with `WithHttpsCertificateConfiguration`, Aspire attempts to configure it to use the ASP.NET Core development certificate if available. This automatic configuration works for many common resource types including YARP, Redis, and Keycloak containers; Vite based JavaScript apps; and Python apps using Uvicorn.
+For resources that have a certificate configuration defined with `WithHttpsCertificateConfiguration`, Aspire attempts to configure it to use the development certificate if available. This automatic configuration works for many common resource types including YARP, Redis, and Keycloak containers; Vite based JavaScript apps; and Python apps using Uvicorn.
 
 You can control this behavior using the HTTPS endpoint APIs described below.
 
 ### Use the development certificate
 
-To explicitly configure a resource to use the ASP.NET Core development certificate for its HTTPS endpoints:
+To explicitly configure a resource to use the development certificate for its HTTPS endpoints:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -57,10 +130,30 @@ var pythonApp = builder.AddUvicornApp("api", "../api", "app:main")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Explicitly use the developer certificate
+const nodeApp = await builder.addViteApp("frontend", "../frontend")
+    .withHttpsDeveloperCertificate();
+
+// Use developer certificate with an encrypted private key
+const certPassword = await builder.addParameter("cert-password", { secret: true });
+const pythonApp = await builder.addUvicornApp("api", "../api", "app:main")
+    .withHttpsDeveloperCertificate({ password: certPassword });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 The `WithHttpsDeveloperCertificate` method:
 
-- Configures the resource to use the ASP.NET Core development certificate
+- Configures the resource to use the development certificate
 - Only applies in run mode (local development)
 - Optionally accepts a password parameter for encrypted certificate private keys
 - Works with containers, Node.js, Python, and other resource types
@@ -69,6 +162,8 @@ The `WithHttpsDeveloperCertificate` method:
 
 To configure a resource to use a specific X.509 certificate for HTTPS endpoints:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 using System.Security.Cryptography.X509Certificates;
 
@@ -88,6 +183,13 @@ builder.AddNpmApp("frontend", "../frontend")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+<Aside type="note">
+  This API is not yet available in TypeScript AppHosts.
+</Aside>
+</TabItem>
+</Tabs>
 
 The certificate must:
 
@@ -99,6 +201,8 @@ The certificate must:
 
 To prevent Aspire from configuring any HTTPS certificate for a resource:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -108,6 +212,21 @@ var redis = builder.AddRedis("cache")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Disable automatic HTTPS certificate configuration
+const redis = await builder.addRedis("cache")
+    .withoutHttpsCertificate();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 Use `WithoutHttpsCertificate` when:
 
@@ -119,6 +238,8 @@ Use `WithoutHttpsCertificate` when:
 
 For resources that need custom certificate configuration logic, use `WithHttpsCertificateConfiguration` to specify how certificate files should be passed to the resource:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -149,6 +270,13 @@ builder.AddContainer("api", "my-api:latest")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+<Aside type="note">
+  This API is not yet available in TypeScript AppHosts.
+</Aside>
+</TabItem>
+</Tabs>
 
 The callback receives an `HttpsCertificateConfigurationCallbackAnnotationContext` that provides:
 
@@ -169,7 +297,7 @@ Certificate trust configuration determines which certificates a resource trusts 
 
 Certificate trust customization is valuable when:
 
-- Resources need to trust the ASP.NET Core development certificate for local HTTPS communication
+- Resources need to trust the development certificate for local HTTPS communication
 - Containerized services must communicate with the dashboard over HTTPS
 - Python or Node.js applications need to trust custom certificate authorities
 - You're working with services that have specific certificate trust requirements
@@ -177,7 +305,7 @@ Certificate trust customization is valuable when:
 
 ### Development certificate trust
 
-By default, Aspire attempts to add trust for the ASP.NET Core development certificate to resources that wouldn't otherwise trust it. This enables resources to communicate with the dashboard OTLP collector endpoint over HTTPS and any other HTTPS endpoints secured by the development certificate.
+By default, Aspire attempts to add trust for the development certificate to resources that wouldn't otherwise trust it. This enables resources to communicate with the dashboard OTLP collector endpoint over HTTPS and any other HTTPS endpoints secured by the development certificate.
 
 You can control this behavior per resource using the `WithDeveloperCertificateTrust` API or through AppHost configuration settings.
 
@@ -185,6 +313,8 @@ You can control this behavior per resource using the `WithDeveloperCertificateTr
 
 To explicitly enable or disable development certificate trust for a specific resource:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -198,6 +328,25 @@ var pythonApp = builder.AddPythonApp("api", "../api", "main.py")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Explicitly enable development certificate trust
+const nodeApp = await builder.addNodeApp("frontend", "../frontend", "index.js")
+    .withDeveloperCertificateTrust(true);
+
+// Disable development certificate trust
+const pythonApp = await builder.addPythonApp("api", "../api", "main.py")
+    .withDeveloperCertificateTrust(false);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 ### Certificate authority collections
 
@@ -225,6 +374,10 @@ builder.AddNpmApp("my-project", "../myapp")
 builder.Build().Run();
 ```
 
+<Aside type="note">
+  This API is not yet available in TypeScript AppHosts.
+</Aside>
+
 In the preceding example, the certificate bundle is created with custom certificates and then applied to a Node.js application, enabling it to trust those certificates.
 
 ### Certificate trust scopes
@@ -246,8 +399,10 @@ Aspire supports the following certificate trust scopes:
 
 Attempts to append the configured certificates to the default trusted certificates for a given resource. This mode is useful when you want to add trust for additional certificates while maintaining trust for the system's default certificates.
 
-This is the default scope for most resources. For Python resources, only OTEL trust configuration will be applied in this mode.
+This is the default scope for most resources. For Python resources, only <abbr title="OpenTelemetry" data-tooltip-placement="top">OTEL</abbr> trust configuration will be applied in this mode.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -256,6 +411,20 @@ builder.AddNodeApp("api", "../api")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder, CertificateTrustScope } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addNodeApp("api", "../api", "index.js")
+    .withCertificateTrustScope(CertificateTrustScope.Append);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 <Aside type="note">
   Not all languages and runtimes support Append mode. For example, Python
@@ -279,12 +448,18 @@ builder.AddPythonModule("api", "./api", "uvicorn")
 builder.Build().Run();
 ```
 
+<Aside type="note">
+  This API is not yet available in TypeScript AppHosts.
+</Aside>
+
 #### System mode
 
-Attempts to combine the configured certificates with the default system root certificates and use them to override the default trusted certificates for a resource. This mode is intended to support Python or other languages that don't work well with Append mode.
+Attempts to combine the configured certificates with the default system root certificates and use them to override the default trusted certificates for a resource. This mode is intended to support Python and similar runtimes that don't work well with Append mode.
 
 This is the default scope for Python projects because Python only has mechanisms to fully override certificate trust.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -293,6 +468,20 @@ builder.AddPythonApp("worker", "../worker", "main.py")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder, CertificateTrustScope } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addPythonApp("worker", "../worker", "main.py")
+    .withCertificateTrustScope(CertificateTrustScope.System);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 #### None mode
 
@@ -300,6 +489,8 @@ Disables all custom certificate trust for the resource, causing it to rely solel
 
 This is the default scope for .NET projects on Windows, as there's no way to automatically change the default system store source.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -308,6 +499,20 @@ builder.AddContainer("service", "myimage")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder, CertificateTrustScope } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addContainer("service", { image: "myimage", tag: "latest" })
+    .withCertificateTrustScope(CertificateTrustScope.None);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 ### Custom certificate trust configuration
 
@@ -317,6 +522,8 @@ For advanced scenarios, you can specify custom certificate trust behavior using 
 
 Use `WithCertificateTrustConfiguration` to customize how certificate trust is configured for a resource:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -338,6 +545,13 @@ builder.AddContainer("api", "myimage")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+<Aside type="note">
+  This API is not yet available in TypeScript AppHosts.
+</Aside>
+</TabItem>
+</Tabs>
 
 The callback receives a `CertificateTrustConfigurationCallbackAnnotationContext` that provides:
 
@@ -365,6 +579,10 @@ builder.AddContainer("api", "myimage")
 builder.Build().Run();
 ```
 
+<Aside type="note">
+  This API is not yet available in TypeScript AppHosts.
+</Aside>
+
 The `WithContainerCertificatePaths` API accepts three optional parameters:
 
 - `customCertificatesDestination`: Overrides the base path in the container where custom certificate files are placed. If not set or set to `null`, the default path of `/usr/lib/ssl/aspire` is used.
@@ -385,6 +603,8 @@ This section demonstrates common patterns for configuring HTTPS endpoints and ce
 
 A typical scenario is configuring a Node.js service to serve HTTPS traffic while also enabling it to send telemetry to the dashboard:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -396,6 +616,23 @@ var frontend = builder.AddNpmApp("frontend", "../frontend")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Configure the service to use developer certificate for HTTPS endpoints
+// and trust the developer certificate for outbound connections (like dashboard telemetry)
+const frontend = await builder.addNodeApp("frontend", "../frontend", "index.js")
+    .withHttpsDeveloperCertificate()         // Server cert for HTTPS endpoints
+    .withDeveloperCertificateTrust(true);    // Client trust for dashboard
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 ### Enable HTTPS with custom certificates
 
@@ -422,10 +659,16 @@ builder.AddContainer("api", "my-api:latest")
 builder.Build().Run();
 ```
 
+<Aside type="note">
+  This API is not yet available in TypeScript AppHosts.
+</Aside>
+
 ### Configure Redis with TLS
 
 Redis resources can be configured to use HTTPS (TLS) for secure connections:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -439,11 +682,32 @@ var redisNoTls = builder.AddRedis("cache-notls")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Configure Redis to use the developer certificate for TLS
+const redis = await builder.addRedis("cache")
+    .withHttpsDeveloperCertificate();
+
+// Or disable TLS entirely
+const redisNoTls = await builder.addRedis("cache-notls")
+    .withoutHttpsCertificate();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 ### Disable certificate configuration for specific resources
 
 To disable both HTTPS endpoint configuration and certificate trust for a resource that manages its own certificates:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -454,6 +718,22 @@ builder.AddPythonModule("api", "./api", "uvicorn")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder, CertificateTrustScope } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Disable all automatic certificate configuration
+await builder.addPythonModule("api", "./api", "uvicorn")
+    .withoutHttpsCertificate()             // No server cert config
+    .withCertificateTrustScope(CertificateTrustScope.None);    // No client trust config
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 ## Limitations
 
