@@ -28,7 +28,7 @@ The `IInteractionService` API is not yet available in the TypeScript AppHost SDK
 
 The `IInteractionService` interface is retrieved from the `DistributedApplication` dependency injection container. `IInteractionService` can be injected into types created from DI or resolved from `IServiceProvider`, which is usually available on a context argument passed to events.
 
-When you request `IInteractionService`, be sure to check if it's available for usage. If you attempt to use the interaction service when it's not available (`IInteractionService.IsAvailable` returns `false`), an exception is thrown.
+When you request `IInteractionService`, be sure to check if it's available for usage. If you attempt to use the interaction service when it's not available (`IInteractionService.IsAvailable` returns `false`), an exception is thrown. For example, the interaction service isn't available when a command is triggered from the CLI.
 
 ```csharp
 var interactionService = serviceProvider.GetRequiredService<IInteractionService>();
@@ -72,27 +72,43 @@ Any of the available callback-based extension methods of `IResourceBuilder<T>` c
 
 - **Custom resource commands**: Add commands to resources in the Aspire dashboard or CLI. Use the interaction service to prompt users for input or confirmation when these commands run. When you chain a call to `WithCommand` on a target `IResourceBuilder<T>`, your callback can use the interaction service to gather input or confirm actions. For more information, see [Custom resource commands](/fundamentals/custom-resource-commands/).
 
+  Commands might not be interactive when triggered from the Aspire CLI. Always check `IInteractionService.IsAvailable` before prompting and provide a fallback path when it returns `false`. [Command arguments](/fundamentals/custom-resource-commands/#command-arguments) are the best way to collect input in commands because they work in both the dashboard and CLI.
+
 - **Publish and deploy workflows**: During `aspire publish` or `aspire deploy` operations, use the interaction service to gather deployment-specific configuration and confirm destructive operations through the CLI.
 
 These approaches help you create interactive, user-friendly experiences for local development, dashboard interactions, and deployment workflows.
 
 <Aside type="tip">
-This article demonstrates the interaction service in the context of a `WithCommand` callback with a `FakeResource` type, but the same principles apply to other extension methods that support user interactions.
-
-For example:
+For example, the following code subscribes to the `ResourceStoppedEvent` on a resource and displays a notification if the resource exits with a non-zero exit code:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddFakeResource("fake-resource")
-       .WithCommand("msg-dialog", "Example Message Dialog", async context =>
-{
-    var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+builder
+    .AddProject<Projects.Api>("api")
+    .OnResourceStopped(async (resource, stoppedEvent, cancellationToken) =>
+    {
+        if (stoppedEvent.Snapshot.ExitCode is not (null or 0))
+        {
+            var interactionService = stoppedEvent.Services.GetRequiredService<IInteractionService>();
+            if (interactionService.IsAvailable)
+            {
+                var result = await interactionService.PromptNotificationAsync(
+                    title: $"Resource '{resource.Name}' crashed",
+                    message: $"Exited with code {stoppedEvent.Snapshot.ExitCode}.",
+                    options: new NotificationInteractionOptions
+                    {
+                        Intent = MessageIntent.Warning,
+                        PrimaryButtonText = "Report issue"
+                    });
 
-    // Use interaction service...
-
-    return CommandResults.Success();
-});
+                if (result.Data ?? false)
+                {
+                    // Run custom logic when the user clicks the Report issue button.
+                }
+            }
+        }
+    });
 ```
 
 For CLI specific contexts, the interaction service is retrieved from either the `PublishingContext` or `PipelineStepContext` depending on the operation being performed.
@@ -282,6 +298,11 @@ The interaction service API allows you to prompt users for input in various ways
 | `Boolean`    | Checkbox                  | Boolean choice prompt |
 | `Number`     | Number textbox            | Text prompt           |
 
+Each `InteractionInput` has a `Name` and a `Label` property:
+
+- `Label` is the user-facing text displayed in the dashboard or CLI prompt.
+- `Name` is a programmatic identifier used to access the input's value from the result collection (for example, `result.Data["MyInputName"].Value`).
+
 ### Prompt the user for input values
 
 You can prompt for a single value using the `PromptInputAsync` method, or collect multiple pieces of information with `PromptInputsAsync`. In the dashboard, multiple inputs appear together in a single dialog. In the CLI, each input is requested one after another.
@@ -301,7 +322,8 @@ var inputs = new List<InteractionInput>
 {
     new()
     {
-        Name = "Application Name",
+        Name = "AppName",
+        Label = "Application Name",
         InputType = InputType.Text,
         Required = true,
         Placeholder = "my-app"
@@ -309,6 +331,7 @@ var inputs = new List<InteractionInput>
     new()
     {
         Name = "Environment",
+        Label = "Environment",
         InputType = InputType.Choice,
         Required = true,
         Options =
@@ -320,14 +343,16 @@ var inputs = new List<InteractionInput>
     },
     new()
     {
-        Name = "Instance Count",
+        Name = "InstanceCount",
+        Label = "Instance Count",
         InputType = InputType.Number,
         Required = true,
         Placeholder = "1"
     },
     new()
     {
-        Name = "Enable Monitoring",
+        Name = "EnableMonitoring",
+        Label = "Enable Monitoring",
         InputType = InputType.Boolean,
         Required = false
     }
@@ -341,10 +366,10 @@ var appConfigurationInput = await interactionService.PromptInputsAsync(
 if (!appConfigurationInput.Canceled)
 {
     // Process the collected input values
-    var appName = appConfigurationInput.Data[0].Value;
-    var environment = appConfigurationInput.Data[1].Value;
-    var instanceCount = int.Parse(appConfigurationInput.Data[2].Value ?? "1");
-    var enableMonitoring = bool.Parse(appConfigurationInput.Data[3].Value ?? "false");
+    var appName = appConfigurationInput.Data["AppName"].Value;
+    var environment = appConfigurationInput.Data["Environment"].Value;
+    var instanceCount = int.Parse(appConfigurationInput.Data["InstanceCount"].Value ?? "1");
+    var enableMonitoring = bool.Parse(appConfigurationInput.Data["EnableMonitoring"].Value ?? "false");
 
     logger.LogInformation("""
         Application Name: {AppName}
@@ -485,7 +510,8 @@ var databaseInputs = new List<InteractionInput>
 {
     new()
     {
-        Name = "Database Name",
+        Name = "DatabaseName",
+        Label = "Database Name",
         InputType = InputType.Text,
         Required = true,
         Placeholder = "myapp-db"
@@ -493,6 +519,7 @@ var databaseInputs = new List<InteractionInput>
     new()
     {
         Name = "Username",
+        Label = "Username",
         InputType = InputType.Text,
         Required = true,
         Placeholder = "admin"
@@ -500,13 +527,15 @@ var databaseInputs = new List<InteractionInput>
     new()
     {
         Name = "Password",
+        Label = "Password",
         InputType = InputType.SecretText,
         Required = true,
         Placeholder = "Enter a strong password"
     },
     new()
     {
-        Name = "Confirm password",
+        Name = "ConfirmPassword",
+        Label = "Confirm password",
         InputType = InputType.SecretText,
         Required = true,
         Placeholder = "Confirm your password"
@@ -517,19 +546,19 @@ var validationOptions = new InputsDialogInteractionOptions
 {
     ValidationCallback = async context =>
     {
-        var passwordInput = context.Inputs.FirstOrDefault(i => i.Label == "Password");
-        var confirmPasswordInput = context.Inputs.FirstOrDefault(i => i.Label == "Confirm password");
+        var passwordInput = context.Inputs["Password"];
+        var confirmPasswordInput = context.Inputs["ConfirmPassword"];
 
         // Validate password strength
-        if (passwordInput?.Value is { Length: < 8 })
+        if (passwordInput.Value is { Length: < 8 })
         {
             context.AddValidationError(passwordInput, "Password must be at least 8 characters long");
         }
 
         // Validate password confirmation
-        if (passwordInput?.Value != confirmPasswordInput?.Value)
+        if (passwordInput.Value != confirmPasswordInput.Value)
         {
-            context.AddValidationError(confirmPasswordInput!, "Passwords do not match");
+            context.AddValidationError(confirmPasswordInput, "Passwords do not match");
         }
 
         await Task.CompletedTask;
