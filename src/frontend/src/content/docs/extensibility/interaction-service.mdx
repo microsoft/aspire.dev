@@ -20,6 +20,10 @@ The interaction service (`Aspire.Hosting.IInteractionService`) allows you to pro
 
 This is useful for scenarios where you need to gather information from the user or provide feedback on the status of operations, regardless of how the application is being launched or deployed.
 
+<Aside type="tip">
+If you need to collect input for a [custom resource command](/fundamentals/custom-resource-commands/), consider using [command arguments](/fundamentals/custom-resource-commands/#command-arguments) instead of the interaction service. Command arguments display the same input UI in the dashboard but also work when running commands from the Aspire CLI.
+</Aside>
+
 <Aside type="note">
 The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
 </Aside>
@@ -134,30 +138,32 @@ The `IInteractionService.PromptMessageBoxAsync` method displays a message with c
 ```csharp title="AppHost.cs"
 var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
 var result = await interactionService.PromptMessageBoxAsync(
-    "Simple Message Box: Example",
+    "Apply migrations",
     """
-    ##### 🤓 Nice!
+    The database schema is out of date.
+    Would you like to apply pending migrations now?
 
-    It's worth noting that **Markdown** is _supported_
-    (and demonstrated here) in the message body.
-
-    Cool, [📖 learn more](/extensibility/interaction-service/)...
+    [Learn more about migrations](/extensibility/custom-resources/)
     """,
     new MessageBoxInteractionOptions
     {
         EnableMessageMarkdown = true,
-        PrimaryButtonText = "Awesome"
+        PrimaryButtonText = "Apply",
+        SecondaryButtonText = "Skip",
+        ShowSecondaryButton = true
     }
 );
 
-if (result.Canceled)
+if (result.Data ?? false)
 {
-    return CommandResults.Failure("User cancelled.");
+    // User clicked "Apply"
+    // Run migrations.
 }
-
-return result.Data
-    ? CommandResults.Success()
-    : CommandResults.Failure("The user doesn't like the example");
+else
+{
+    // User either dismissed the dialog without making a choice, or clicked "Skip".
+    // Continue without migrating.
+}
 ```
 
 **Dashboard view:**
@@ -613,8 +619,14 @@ When you run `aspire publish` or `aspire deploy`, interactions are prompted thro
 
 - **Text prompts**: Only input prompts (`PromptInputAsync` and `PromptInputsAsync`) are available and appear as text-based prompts in the terminal.
 - **Sequential input**: Multiple inputs are requested one at a time rather than in a single dialog.
-- **Limited functionality**: Message boxes, notifications, and confirmation dialogs aren't available and throws exceptions if called.
+- **Limited functionality**: Message boxes, notifications, and confirmation dialogs aren't available and throw exceptions if called.
 
 <Aside type="caution">
 The interaction service adapts automatically to dashboard and CLI contexts. In CLI mode, only input-related methods—`PromptInputAsync` and `PromptInputsAsync`—are supported. Calling `PromptMessageBoxAsync`, `PromptNotificationAsync`, or `PromptConfirmationAsync` in CLI operations like `aspire publish` or `aspire deploy` results in an exception.
 </Aside>
+
+## See also
+
+- [Custom resource commands](/fundamentals/custom-resource-commands/) — Add commands with arguments to resources in the dashboard and CLI
+- [AppHost eventing](/app-host/eventing/) — Subscribe to resource lifecycle events
+- [Custom resources](/extensibility/custom-resources/) — Build custom resource types for the AppHost
