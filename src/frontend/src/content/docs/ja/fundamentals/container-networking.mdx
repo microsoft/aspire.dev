@@ -1,0 +1,141 @@
+---
+title: コンテナー ネットワーク
+description: Aspire において DCP コンテナー トンネルが、コンテナーからホストへの信頼性の高い通信をどのように実現するかを学びます。
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+
+ローカル開発では、Aspire アプリ モデルにコンテナー リソースとホスト ベースのサービス (C#、Python、TypeScript プロジェクトなど) が混在することがよくあります。コンテナー間通信はブリッジ ネットワーク上で自然に動作しますが、ホスト上で動作するサービスに到達する必要があるコンテナーでは別のアプローチが必要です。Aspire は **コンテナー トンネル** でこれを解決します。これは、信頼性が高く透過的なコンテナーからホストへの接続を提供する [Developer Control Plane (DCP)](/ja/architecture/overview/#developer-control-plane) の機能です。
+
+## コンテナーからホストへの問題
+
+Aspire がアプリケーションをローカルで実行すると、DCP は専用のブリッジ ネットワークを作成し、コンテナー同士が名前で検出および通信できるようにします。一方、AppHost によって開始されるプロジェクトのようなホスト ベースのサービスは、コンテナー ネットワークの外側で、マシン上で直接実行されます。
+
+特別な処理がない場合、ホスト サービスに到達しようとするコンテナーはネットワーク上の障壁に直面します:
+
+- ホスト IP アドレスは OS ごとに異なります (Docker Desktop は Windows と macOS で `host.docker.internal` を公開しますが、Linux では追加の構成が必要です)。
+- ポート マッピングとファイアウォール ルールにより、コンテナー ネットワークからホストへのトラフィックがブロックされる場合があります。
+- コンテナー ランタイム (Docker、Podman) ごとにホスト接続の扱いが異なります。
+
+こうした不整合により、コンテナーからホストへの通信は壊れやすく、エラーが起きやすくなります。コンテナー トンネルは、サポートされるすべてのプラットフォームとコンテナー ランタイムで動作する単一で一貫した仕組みを提供することで、これらの問題を解消します。
+
+## コンテナー トンネルのしくみ
+
+コンテナー トンネルは DCP によって管理され、透過的に動作するため、直接構成する必要はありません。コンテナー リソースがホスト ベースのサービス上のエンドポイントを参照すると (`WithReference` 経由)、Aspire はそのコンテナーがホストに到達する必要があることを検出し、自動的にトンネルを設定します。
+
+大まかには、トンネルは次のように動作します:
+
+<Steps>
+
+1. **依存関係の検出**: AppHost がアプリ モデルを構築するとき、ホスト ベースのリソース上のエンドポイントを参照するコンテナーを特定します。
+
+2. **トンネル コンテナー**: DCP は Aspire コンテナー ブリッジ ネットワーク上に軽量のトンネル コンテナーをデプロイします。このコンテナーは、到達が必要な各一意ホスト ポートに対して個別のポートを公開します。コンテナー ネットワークのポート値は、元のホスト ポート値とは異なる点に注意してください。
+
+3. **エンドポイント解決**: DCP は、参照式を通じて、トンネル コンテナーのアドレスとマップ済みポートを依存先コンテナーごとに提供します。リソースの種類によって、これらの値は環境変数、起動パラメーター、またはその他の構成メカニズムとして公開されます。
+
+4. **自動クリーンアップ**: AppHost プロセスが停止すると、DCP はオーケストレーションされた他のリソースとともにトンネルを破棄します。
+
+</Steps>
+
+つまり、次のようなコードを書くと、コンテナー トンネルにより `mycontainer` が OS やコンテナー ランタイムに関係なく `api` プロジェクトへ到達できます:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+builder.AddContainer("mycontainer", "myimage")
+    .WithReference(api);
+
+builder.Build().Run();
+```
+
+## ネットワーク識別子
+
+Aspire は、コンテキストに応じたエンドポイント解決を提供するために **ネットワーク識別子** を使用します。エンドポイントが解決されると、結果は呼び出し元のネットワーク コンテキスト (ホスト上、コンテナー ブリッジ ネットワーク上、またはパブリック インターネット上) に応じて変わります。
+
+`KnownNetworkIdentifiers` クラスは、一般的なシナリオ向けに定義済み識別子を提供します:
+
+- `KnownNetworkIdentifiers.LocalhostNetwork` — ホスト マシンから到達可能な形式でエンドポイントを解決します (例: `localhost:5000`)。
+- `KnownNetworkIdentifiers.DefaultAspireContainerNetwork` — Aspire コンテナー ブリッジ ネットワーク内から到達可能な形式でエンドポイントを解決します。
+- `KnownNetworkIdentifiers.PublicInternet` — 外部ネットワークから到達可能な形式でエンドポイントを解決します。
+
+特定のネットワーク コンテキスト向けのエンドポイントを取得する必要がある場合は、これらの識別子を使用できます:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+// ホスト ネットワーク向けに HTTP エンドポイントを解決
+var localhostEndpoint = api.GetEndpoint(
+    "http", KnownNetworkIdentifiers.LocalhostNetwork);
+
+// コンテナー ネットワーク向けに HTTP エンドポイントを解決
+var containerEndpoint = api.GetEndpoint(
+    "http", KnownNetworkIdentifiers.DefaultAspireContainerNetwork);
+
+builder.Build().Run();
+```
+
+<Aside type="note">
+ほとんどの場合、ネットワーク識別子を直接使う必要はありません。`WithReference` を呼び出すと、Aspire は利用側リソースに適した正しいネットワーク コンテキストでエンドポイントを自動的に解決します。
+</Aside>
+
+## コンテナー トンネルを無効にする
+
+Aspire 13.3 以降では、コンテナー トンネルは **既定で有効** です。環境内でトンネルが問題を引き起こす場合は、`ASPIRE_ENABLE_CONTAINER_TUNNEL` 環境変数を `false` に設定して無効化できます。これは AppHost の _launchSettings.json_ で設定できます:
+
+```json title="JSON — Properties/launchSettings.json"
+{
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPIRE_ENABLE_CONTAINER_TUNNEL": "false"
+      }
+    }
+  }
+}
+```
+
+または、実行前にシェルで変数を設定します:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash
+export ASPIRE_ENABLE_CONTAINER_TUNNEL=false
+aspire run
+```
+
+</div>
+<div slot="windows">
+
+```powershell
+$env:ASPIRE_ENABLE_CONTAINER_TUNNEL = "false"
+aspire run
+```
+
+</div>
+</OsAwareTabs>
+
+トンネルが無効な場合、コンテナーはホスト ベースのサービスに到達するために、プラットフォーム固有のメカニズム (`host.docker.internal` など) にフォールバックします。
+
+## コンテナー トンネルを使う場面
+
+コンテナー トンネルは、コンテナーがホスト ベースのサービスと通信する必要がある場面で有用です。一般的なシナリオは次のとおりです:
+
+- **コンテナー化されたフロントエンドがホスト ベースの API を呼び出す場合**: たとえば、ホスト上で実行される .NET API プロジェクトを呼び出す Nginx または Node.js コンテナー。
+- **コンテナー内ツールがホスト上のデータベースに接続する場合**: たとえば、コンテナーで実行される pgAdmin が、ホスト プロセスとして実行される PostgreSQL インスタンスに接続するケース。
+- **テスト用コンテナーをローカル サービスに対して実行する場合**: 開発マシン上で直接実行されるサービスに到達する必要がある統合テスト用コンテナー。
+
+コンテナー間通信については、ブリッジ ネットワークが接続を自動的に処理するため、トンネルは関与しません。Aspire がコンテナー ネットワークをどのように管理するかの詳細は、[コンテナー ネットワークの管理方法](/ja/fundamentals/networking-overview/#コンテナー-ネットワークの管理方法) を参照してください。
+
+## 関連項目
+
+- [インナーループ ネットワークの概要](/ja/fundamentals/networking-overview/)
+- [サービス検出](/ja/fundamentals/service-discovery/)
+- [アーキテクチャ概要 — Developer Control Plane](/ja/architecture/overview/#developer-control-plane)
+- [Aspire 13 の新機能 — ユニバーサルなコンテナーからホストへの通信](/ja/whats-new/aspire-13/#コンテナからホストへのユニバーサル通信)
