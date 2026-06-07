@@ -104,9 +104,10 @@ builder
                     {
                         Intent = MessageIntent.Warning,
                         PrimaryButtonText = "Report issue"
-                    });
+                    },
+                    cancellationToken);
 
-                if (result.Data ?? false)
+                if (result.Data)
                 {
                     // Run custom logic when the user clicks the Report issue button.
                 }
@@ -136,7 +137,7 @@ Dialog messages provide important information that requires user attention.
 The `IInteractionService.PromptMessageBoxAsync` method displays a message with customizable response options.
 
 ```csharp title="AppHost.cs"
-var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+var interactionService = services.GetRequiredService<IInteractionService>();
 var result = await interactionService.PromptMessageBoxAsync(
     "Apply migrations",
     """
@@ -151,10 +152,11 @@ var result = await interactionService.PromptMessageBoxAsync(
         PrimaryButtonText = "Apply",
         SecondaryButtonText = "Skip",
         ShowSecondaryButton = true
-    }
+    },
+    cancellationToken
 );
 
-if (result.Data ?? false)
+if (result.Data)
 {
     // User clicked "Apply"
     // Run migrations.
@@ -185,7 +187,7 @@ In the dashboard, notification messages appear stacked at the top, so you can sh
 The `PromptNotificationAsync` method displays informational messages with optional action links in the dashboard context. You don't have to await the result of a notification message if you don't need to. This is especially useful for notifications, since you might want to display a notification and continue without waiting for user to dismiss it.
 
 ```csharp title="AppHost.cs"
-var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+var interactionService = services.GetRequiredService<IInteractionService>();
 // Demonstrating various notification types with different intents
 var tasks = new List<Task>
 {
@@ -235,8 +237,6 @@ var tasks = new List<Task>
 };
 
 await Task.WhenAll(tasks);
-
-return CommandResults.Success();
 ```
 
 The previous example demonstrates several ways to use the notification API. Each approach displays different types of notifications, all of which are invoked in parallel and displayed in the dashboard around the same time.
@@ -258,7 +258,7 @@ Use the interaction service when you need the user to confirm an action before p
 For operations that can't be undone, such as deleting resources, always prompt for confirmation:
 
 ```csharp title="AppHost.cs"
-var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+var interactionService = services.GetRequiredService<IInteractionService>();
 // Prompt for confirmation before resetting database
 var resetConfirmation = await interactionService.PromptConfirmationAsync(
     title: "Confirm Reset",
@@ -275,12 +275,6 @@ var resetConfirmation = await interactionService.PromptConfirmationAsync(
 if (resetConfirmation.Data is true)
 {
     // Perform the reset operation...
-
-    return CommandResults.Success();
-}
-else
-{
-    return CommandResults.Failure("Database reset canceled by user.");
 }
 ```
 
@@ -320,8 +314,8 @@ It's possible to create wizard-like flows using the interaction service. By chai
 Consider the following example, which prompts the user for multiple input values:
 
 ```csharp title="AppHost.cs"
-var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
-var loggerService = context.ServiceProvider.GetRequiredService<ResourceLoggerService>();
+var interactionService = services.GetRequiredService<IInteractionService>();
+var loggerService = services.GetRequiredService<ResourceLoggerService>();
 var logger = loggerService.GetLogger(fakeResource);
 
 var inputs = new List<InteractionInput>
@@ -386,11 +380,6 @@ if (!appConfigurationInput.Canceled)
         appName, environment, instanceCount, enableMonitoring);
 
     // Use the collected values as needed
-    return CommandResults.Success();
-}
-else
-{
-    return CommandResults.Failure("User canceled application configuration input.");
 }
 ```
 
