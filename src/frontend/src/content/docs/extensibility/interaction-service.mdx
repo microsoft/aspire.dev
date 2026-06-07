@@ -92,14 +92,14 @@ builder
     .AddProject<Projects.Api>("api")
     .OnResourceStopped(async (resource, stoppedEvent, cancellationToken) =>
     {
-        if (stoppedEvent.Snapshot.ExitCode is not (null or 0))
+        if (stoppedEvent.ResourceEvent.Snapshot.ExitCode is not (null or 0))
         {
             var interactionService = stoppedEvent.Services.GetRequiredService<IInteractionService>();
             if (interactionService.IsAvailable)
             {
                 var result = await interactionService.PromptNotificationAsync(
                     title: $"Resource '{resource.Name}' crashed",
-                    message: $"Exited with code {stoppedEvent.Snapshot.ExitCode}.",
+                    message: $"Exited with code {stoppedEvent.ResourceEvent.Snapshot.ExitCode}.",
                     options: new NotificationInteractionOptions
                     {
                         Intent = MessageIntent.Warning,
