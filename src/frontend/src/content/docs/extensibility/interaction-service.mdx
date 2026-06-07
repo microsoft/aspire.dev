@@ -20,6 +20,10 @@ The interaction service (`Aspire.Hosting.IInteractionService`) allows you to pro
 
 This is useful for scenarios where you need to gather information from the user or provide feedback on the status of operations, regardless of how the application is being launched or deployed.
 
+<Aside type="tip">
+If you need to collect input for a [custom resource command](/fundamentals/custom-resource-commands/), consider using [command arguments](/fundamentals/custom-resource-commands/#command-arguments) instead of the interaction service. Command arguments display the same input UI in the dashboard but also work when running commands from the Aspire CLI.
+</Aside>
+
 <Aside type="note">
 The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
 </Aside>
@@ -28,7 +32,7 @@ The `IInteractionService` API is not yet available in the TypeScript AppHost SDK
 
 The `IInteractionService` interface is retrieved from the `DistributedApplication` dependency injection container. `IInteractionService` can be injected into types created from DI or resolved from `IServiceProvider`, which is usually available on a context argument passed to events.
 
-When you request `IInteractionService`, be sure to check if it's available for usage. If you attempt to use the interaction service when it's not available (`IInteractionService.IsAvailable` returns `false`), an exception is thrown.
+When you request `IInteractionService`, be sure to check if it's available for usage. If you attempt to use the interaction service when it's not available (`IInteractionService.IsAvailable` returns `false`), an exception is thrown. For example, the interaction service isn't available when a command is triggered from the CLI.
 
 ```csharp
 var interactionService = serviceProvider.GetRequiredService<IInteractionService>();
@@ -72,27 +76,44 @@ Any of the available callback-based extension methods of `IResourceBuilder<T>` c
 
 - **Custom resource commands**: Add commands to resources in the Aspire dashboard or CLI. Use the interaction service to prompt users for input or confirmation when these commands run. When you chain a call to `WithCommand` on a target `IResourceBuilder<T>`, your callback can use the interaction service to gather input or confirm actions. For more information, see [Custom resource commands](/fundamentals/custom-resource-commands/).
 
+  Commands might not be interactive when triggered from the Aspire CLI. Always check `IInteractionService.IsAvailable` before prompting and provide a fallback path when it returns `false`. [Command arguments](/fundamentals/custom-resource-commands/#command-arguments) are the best way to collect input in commands because they work in both the dashboard and CLI.
+
 - **Publish and deploy workflows**: During `aspire publish` or `aspire deploy` operations, use the interaction service to gather deployment-specific configuration and confirm destructive operations through the CLI.
 
 These approaches help you create interactive, user-friendly experiences for local development, dashboard interactions, and deployment workflows.
 
 <Aside type="tip">
-This article demonstrates the interaction service in the context of a `WithCommand` callback with a `FakeResource` type, but the same principles apply to other extension methods that support user interactions.
-
-For example:
+For example, the following code subscribes to the `ResourceStoppedEvent` on a resource and displays a notification if the resource exits with a non-zero exit code:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddFakeResource("fake-resource")
-       .WithCommand("msg-dialog", "Example Message Dialog", async context =>
-{
-    var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+builder
+    .AddProject<Projects.Api>("api")
+    .OnResourceStopped(async (resource, stoppedEvent, cancellationToken) =>
+    {
+        if (stoppedEvent.ResourceEvent.Snapshot.ExitCode is not (null or 0))
+        {
+            var interactionService = stoppedEvent.Services.GetRequiredService<IInteractionService>();
+            if (interactionService.IsAvailable)
+            {
+                var result = await interactionService.PromptNotificationAsync(
+                    title: $"Resource '{resource.Name}' crashed",
+                    message: $"Exited with code {stoppedEvent.ResourceEvent.Snapshot.ExitCode}.",
+                    options: new NotificationInteractionOptions
+                    {
+                        Intent = MessageIntent.Warning,
+                        PrimaryButtonText = "Report issue"
+                    },
+                    cancellationToken);
 
-    // Use interaction service...
-
-    return CommandResults.Success();
-});
+                if (result.Data)
+                {
+                    // Run custom logic when the user clicks the Report issue button.
+                }
+            }
+        }
+    });
 ```
 
 For CLI specific contexts, the interaction service is retrieved from either the `PublishingContext` or `PipelineStepContext` depending on the operation being performed.
@@ -116,32 +137,35 @@ Dialog messages provide important information that requires user attention.
 The `IInteractionService.PromptMessageBoxAsync` method displays a message with customizable response options.
 
 ```csharp title="AppHost.cs"
-var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+var interactionService = services.GetRequiredService<IInteractionService>();
 var result = await interactionService.PromptMessageBoxAsync(
-    "Simple Message Box: Example",
+    "Apply migrations",
     """
-    ##### 🤓 Nice!
+    The database schema is out of date.
+    Would you like to apply pending migrations now?
 
-    It's worth noting that **Markdown** is _supported_
-    (and demonstrated here) in the message body.
-
-    Cool, [📖 learn more](/extensibility/interaction-service/)...
+    [Learn more about migrations](/extensibility/custom-resources/)
     """,
     new MessageBoxInteractionOptions
     {
         EnableMessageMarkdown = true,
-        PrimaryButtonText = "Awesome"
-    }
+        PrimaryButtonText = "Apply",
+        SecondaryButtonText = "Skip",
+        ShowSecondaryButton = true
+    },
+    cancellationToken
 );
 
-if (result.Canceled)
+if (result.Data)
 {
-    return CommandResults.Failure("User cancelled.");
+    // User clicked "Apply"
+    // Run migrations.
 }
-
-return result.Data
-    ? CommandResults.Success()
-    : CommandResults.Failure("The user doesn't like the example");
+else
+{
+    // User either dismissed the dialog without making a choice, or clicked "Skip".
+    // Continue without migrating.
+}
 ```
 
 **Dashboard view:**
@@ -163,7 +187,7 @@ In the dashboard, notification messages appear stacked at the top, so you can sh
 The `PromptNotificationAsync` method displays informational messages with optional action links in the dashboard context. You don't have to await the result of a notification message if you don't need to. This is especially useful for notifications, since you might want to display a notification and continue without waiting for user to dismiss it.
 
 ```csharp title="AppHost.cs"
-var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+var interactionService = services.GetRequiredService<IInteractionService>();
 // Demonstrating various notification types with different intents
 var tasks = new List<Task>
 {
@@ -213,8 +237,6 @@ var tasks = new List<Task>
 };
 
 await Task.WhenAll(tasks);
-
-return CommandResults.Success();
 ```
 
 The previous example demonstrates several ways to use the notification API. Each approach displays different types of notifications, all of which are invoked in parallel and displayed in the dashboard around the same time.
@@ -236,7 +258,7 @@ Use the interaction service when you need the user to confirm an action before p
 For operations that can't be undone, such as deleting resources, always prompt for confirmation:
 
 ```csharp title="AppHost.cs"
-var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+var interactionService = services.GetRequiredService<IInteractionService>();
 // Prompt for confirmation before resetting database
 var resetConfirmation = await interactionService.PromptConfirmationAsync(
     title: "Confirm Reset",
@@ -250,15 +272,9 @@ var resetConfirmation = await interactionService.PromptConfirmationAsync(
         EnableMessageMarkdown = true
     });
 
-if (resetConfirmation.Data is true)
+if (resetConfirmation.Data)
 {
     // Perform the reset operation...
-
-    return CommandResults.Success();
-}
-else
-{
-    return CommandResults.Failure("Database reset canceled by user.");
 }
 ```
 
@@ -282,6 +298,11 @@ The interaction service API allows you to prompt users for input in various ways
 | `Boolean`    | Checkbox                  | Boolean choice prompt |
 | `Number`     | Number textbox            | Text prompt           |
 
+Each `InteractionInput` has a `Name` and a `Label` property:
+
+- `Label` is the user-facing text displayed in the dashboard or CLI prompt.
+- `Name` is a programmatic identifier used to access the input's value from the result collection (for example, `result.Data["MyInputName"].Value`).
+
 ### Prompt the user for input values
 
 You can prompt for a single value using the `PromptInputAsync` method, or collect multiple pieces of information with `PromptInputsAsync`. In the dashboard, multiple inputs appear together in a single dialog. In the CLI, each input is requested one after another.
@@ -293,15 +314,16 @@ It's possible to create wizard-like flows using the interaction service. By chai
 Consider the following example, which prompts the user for multiple input values:
 
 ```csharp title="AppHost.cs"
-var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
-var loggerService = context.ServiceProvider.GetRequiredService<ResourceLoggerService>();
+var interactionService = services.GetRequiredService<IInteractionService>();
+var loggerService = services.GetRequiredService<ResourceLoggerService>();
 var logger = loggerService.GetLogger(fakeResource);
 
 var inputs = new List<InteractionInput>
 {
     new()
     {
-        Name = "Application Name",
+        Name = "AppName",
+        Label = "Application Name",
         InputType = InputType.Text,
         Required = true,
         Placeholder = "my-app"
@@ -309,6 +331,7 @@ var inputs = new List<InteractionInput>
     new()
     {
         Name = "Environment",
+        Label = "Environment",
         InputType = InputType.Choice,
         Required = true,
         Options =
@@ -320,14 +343,16 @@ var inputs = new List<InteractionInput>
     },
     new()
     {
-        Name = "Instance Count",
+        Name = "InstanceCount",
+        Label = "Instance Count",
         InputType = InputType.Number,
         Required = true,
         Placeholder = "1"
     },
     new()
     {
-        Name = "Enable Monitoring",
+        Name = "EnableMonitoring",
+        Label = "Enable Monitoring",
         InputType = InputType.Boolean,
         Required = false
     }
@@ -341,10 +366,10 @@ var appConfigurationInput = await interactionService.PromptInputsAsync(
 if (!appConfigurationInput.Canceled)
 {
     // Process the collected input values
-    var appName = appConfigurationInput.Data[0].Value;
-    var environment = appConfigurationInput.Data[1].Value;
-    var instanceCount = int.Parse(appConfigurationInput.Data[2].Value ?? "1");
-    var enableMonitoring = bool.Parse(appConfigurationInput.Data[3].Value ?? "false");
+    var appName = appConfigurationInput.Data["AppName"].Value;
+    var environment = appConfigurationInput.Data["Environment"].Value;
+    var instanceCount = int.Parse(appConfigurationInput.Data["InstanceCount"].Value ?? "1");
+    var enableMonitoring = bool.Parse(appConfigurationInput.Data["EnableMonitoring"].Value ?? "false");
 
     logger.LogInformation("""
         Application Name: {AppName}
@@ -355,11 +380,6 @@ if (!appConfigurationInput.Canceled)
         appName, environment, instanceCount, enableMonitoring);
 
     // Use the collected values as needed
-    return CommandResults.Success();
-}
-else
-{
-    return CommandResults.Failure("User canceled application configuration input.");
 }
 ```
 
@@ -485,7 +505,8 @@ var databaseInputs = new List<InteractionInput>
 {
     new()
     {
-        Name = "Database Name",
+        Name = "DatabaseName",
+        Label = "Database Name",
         InputType = InputType.Text,
         Required = true,
         Placeholder = "myapp-db"
@@ -493,6 +514,7 @@ var databaseInputs = new List<InteractionInput>
     new()
     {
         Name = "Username",
+        Label = "Username",
         InputType = InputType.Text,
         Required = true,
         Placeholder = "admin"
@@ -500,13 +522,15 @@ var databaseInputs = new List<InteractionInput>
     new()
     {
         Name = "Password",
+        Label = "Password",
         InputType = InputType.SecretText,
         Required = true,
         Placeholder = "Enter a strong password"
     },
     new()
     {
-        Name = "Confirm password",
+        Name = "ConfirmPassword",
+        Label = "Confirm password",
         InputType = InputType.SecretText,
         Required = true,
         Placeholder = "Confirm your password"
@@ -517,19 +541,19 @@ var validationOptions = new InputsDialogInteractionOptions
 {
     ValidationCallback = async context =>
     {
-        var passwordInput = context.Inputs.FirstOrDefault(i => i.Label == "Password");
-        var confirmPasswordInput = context.Inputs.FirstOrDefault(i => i.Label == "Confirm password");
+        var passwordInput = context.Inputs["Password"];
+        var confirmPasswordInput = context.Inputs["ConfirmPassword"];
 
         // Validate password strength
-        if (passwordInput?.Value is { Length: < 8 })
+        if (passwordInput.Value is { Length: < 8 })
         {
             context.AddValidationError(passwordInput, "Password must be at least 8 characters long");
         }
 
         // Validate password confirmation
-        if (passwordInput?.Value != confirmPasswordInput?.Value)
+        if (passwordInput.Value != confirmPasswordInput.Value)
         {
-            context.AddValidationError(confirmPasswordInput!, "Passwords do not match");
+            context.AddValidationError(confirmPasswordInput, "Passwords do not match");
         }
 
         await Task.CompletedTask;
@@ -584,8 +608,14 @@ When you run `aspire publish` or `aspire deploy`, interactions are prompted thro
 
 - **Text prompts**: Only input prompts (`PromptInputAsync` and `PromptInputsAsync`) are available and appear as text-based prompts in the terminal.
 - **Sequential input**: Multiple inputs are requested one at a time rather than in a single dialog.
-- **Limited functionality**: Message boxes, notifications, and confirmation dialogs aren't available and throws exceptions if called.
+- **Limited functionality**: Message boxes, notifications, and confirmation dialogs aren't available and throw exceptions if called.
 
 <Aside type="caution">
 The interaction service adapts automatically to dashboard and CLI contexts. In CLI mode, only input-related methods—`PromptInputAsync` and `PromptInputsAsync`—are supported. Calling `PromptMessageBoxAsync`, `PromptNotificationAsync`, or `PromptConfirmationAsync` in CLI operations like `aspire publish` or `aspire deploy` results in an exception.
 </Aside>
+
+## See also
+
+- [Custom resource commands](/fundamentals/custom-resource-commands/) — Add commands with arguments to resources in the dashboard and CLI
+- [AppHost eventing](/app-host/eventing/) — Subscribe to resource lifecycle events
+- [Custom resources](/extensibility/custom-resources/) — Build custom resource types for the AppHost
