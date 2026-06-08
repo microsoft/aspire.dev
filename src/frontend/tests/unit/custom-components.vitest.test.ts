@@ -388,6 +388,24 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['Visualize your app', 'Zoomed diagram', 'Read the guide'],
   },
   {
+    name: 'ImageShowcase renders theme-aware images',
+    Component: ImageShowcase,
+    props: {
+      title: 'Debug with agents',
+      description: 'Give agents dashboard context.',
+      lightImage: heroImage,
+      darkImage: heroImage,
+      imageAlt: 'Themed dashboard dialog',
+    },
+    includes: [
+      'Debug with agents',
+      'theme-image',
+      'data-light=',
+      'data-dark=',
+      'Themed dashboard dialog',
+    ],
+  },
+  {
     name: 'LoopingVideo renders sources and toggle button state',
     Component: LoopingVideo,
     props: {
@@ -968,7 +986,9 @@ describe('custom Astro component render coverage', () => {
     //    time in the README body and the count rises to 2.
     const escaped = distinctiveSummarySentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const summaryMatches = html.match(new RegExp(escaped, 'g')) ?? [];
-    expect(summaryMatches.length, 'summary sentence should appear exactly once (hero only)').toBe(1);
+    expect(summaryMatches.length, 'summary sentence should appear exactly once (hero only)').toBe(
+      1
+    );
 
     // 2. The long emphasized label is gone from the body. Its image still
     //    surfaces in the gallery so the screenshot itself is preserved.

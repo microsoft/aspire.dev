@@ -325,6 +325,13 @@ const validImageShowcaseProps = {
   imageAlt: 'Zoomed diagram',
   cta: { label: 'Read the guide', href: '/docs/' },
 } satisfies PropsOf<typeof ImageShowcase>;
+const validThemedImageShowcaseProps = {
+  title: 'Debug with agents',
+  description: 'Give agents dashboard context.',
+  lightImage: heroImage,
+  darkImage: heroImage,
+  imageAlt: 'Themed dashboard dialog',
+} satisfies PropsOf<typeof ImageShowcase>;
 // @ts-expect-error ImageShowcase should reject unknown props.
 const invalidImageShowcaseProps: PropsOf<typeof ImageShowcase> = {
   title: 'Visualize your app',
@@ -332,6 +339,15 @@ const invalidImageShowcaseProps: PropsOf<typeof ImageShowcase> = {
   image: heroImage,
   imageAlt: 'Zoomed diagram',
   unexpected: true,
+};
+// @ts-expect-error ImageShowcase should not mix single-image and theme-image props.
+const invalidMixedImageShowcaseProps: PropsOf<typeof ImageShowcase> = {
+  title: 'Visualize your app',
+  description: 'See resources, traces and endpoints together.',
+  image: heroImage,
+  lightImage: heroImage,
+  darkImage: heroImage,
+  imageAlt: 'Zoomed diagram',
 };
 
 const validIncludeProps = {
@@ -742,7 +758,9 @@ void [
   validIconLinkCardProps,
   invalidIconLinkCardProps,
   validImageShowcaseProps,
+  validThemedImageShowcaseProps,
   invalidImageShowcaseProps,
+  invalidMixedImageShowcaseProps,
   validIncludeProps,
   invalidIncludeProps,
   validInstallCliModalProps,
