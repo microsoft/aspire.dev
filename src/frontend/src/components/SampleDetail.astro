@@ -64,13 +64,20 @@ function getStandaloneImage(token: marked.Token): SampleImage | null {
   if (themePair) {
     const light = resolveReadmeImage(themePair.light.href);
     const dark = resolveReadmeImage(themePair.dark.href);
-    if (!light || !dark) {
-      return null;
-    }
-
     const alt = normalizeThemeImageAlt(
       themePair.light.text || themePair.dark.text || `Screenshot of the ${sample.title} sample`
     );
+
+    if (!light || !dark) {
+      const fallback = light ?? dark;
+      return fallback
+        ? {
+            kind: 'single',
+            src: fallback,
+            alt,
+          }
+        : null;
+    }
 
     return {
       kind: 'theme',
@@ -444,6 +451,8 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
                   dark={image.dark}
                   alt={image.alt}
                   label={image.alt}
+                  width={image.light.width}
+                  height={image.light.height}
                 />
               ) : (
                 <starlight-image-zoom-zoomable>

@@ -599,6 +599,9 @@ const sampleDetailFixture = {
     '![Theme-aware app in light mode](~/assets/samples/aspire-shop/aspireshop-frontend-light.png#gh-light-mode-only)',
     '![Theme-aware app in dark mode](~/assets/samples/aspire-shop/aspireshop-frontend-dark.png#gh-dark-mode-only)',
     '',
+    '![Partial theme fallback in light mode](~/assets/samples/aspire-shop/aspireshop-frontend-light.png#gh-light-mode-only)',
+    '![Partial theme fallback in dark mode](~/assets/samples/aspire-shop/missing-dark.png#gh-dark-mode-only)',
+    '',
     'See the [application project](./src/RedisSample.AppHost) for implementation details.',
     '',
     '1. Open the app.',
@@ -877,6 +880,7 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('starlight-image-zoom-zoomable');
     expect(html).toContain('Zoom image: Screenshot of the sample');
     expect(html).toContain('Zoom image: Theme-aware app');
+    expect(html).toContain('Zoom image: Partial theme fallback');
     expect(html).toContain('Zoom image: Screenshot of the sample step');
     expect(html).toContain('Select an image to zoom in.');
     expect(html).toContain('theme-image');
@@ -885,6 +889,9 @@ describe('custom Astro component render coverage', () => {
     expect(html).toMatch(/<figcaption[^>]*>Theme-aware app<\/figcaption>/);
     expect(html).not.toContain('Theme-aware app in light mode');
     expect(html).not.toContain('Theme-aware app in dark mode');
+    expect(html).toMatch(/<figcaption[^>]*>Partial theme fallback<\/figcaption>/);
+    expect(html).not.toContain('Partial theme fallback in light mode');
+    expect(html).not.toContain('Partial theme fallback in dark mode');
     expect(html).toContain('View on GitHub');
     expect(html).toContain('Browse all samples');
     expect(html).toContain('href="/reference/samples/"');
