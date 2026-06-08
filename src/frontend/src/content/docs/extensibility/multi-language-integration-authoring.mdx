@@ -536,7 +536,7 @@ public static IResourceBuilder<MyDatabaseResource> AddMyDatabase(
 
 ### Validate the generated shape
 
-Use the analyzer and a TypeScript AppHost that references your integration project. After `aspire restore` or `aspire run` generates modules, inspect the generated imports and `.d.ts` signatures to confirm method names, DTO shapes, callback accessors, and docs metadata match the API you intended. Generated TypeScript APIs are promise-heavy, so await builder and fluent calls, callback property methods, and service-provider accessors where the signature returns a `Promise`. New TypeScript AppHosts use `apphost.mts` and `.aspire/modules/*.mjs` imports; legacy `apphost.ts` projects remain supported and may use `.modules/*.js` imports.
+Use the analyzer and a TypeScript AppHost that references your integration project. After `aspire restore` or `aspire run` generates modules, inspect the generated imports and `.d.ts` signatures to confirm method names, DTO shapes, callback accessors, and docs metadata match the API you intended. Generated TypeScript APIs are promise-heavy, so await builder and fluent calls, await `PropertyAccessor` reads and writes, and consult the generated `.d.ts` signatures for service-provider methods and callback accessors. New TypeScript AppHosts use `apphost.mts` and `.aspire/modules/*.mjs` imports; legacy `apphost.ts` projects remain supported and may use `.modules/*.js` imports.
 
 ```typescript title="TypeScript — Await generated AppHost APIs"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -747,7 +747,7 @@ await builder.subscribeBeforeStart(async (event) => {
   const loggerFactory = services.getLoggerFactory();
   const logger = loggerFactory.createLogger('AppHost');
 
-  await logger.logInformation('The AppHost is starting.');
+  logger.logInformation('The AppHost is starting.');
 });
 ```
 
@@ -770,7 +770,7 @@ Use `getDistributedApplicationModel()` when callback code needs to inspect or lo
 await builder.subscribeAfterResourcesCreated(async (event) => {
   const services = await event.services();
   const model = services.getDistributedApplicationModel();
-  const resources = await model.getResources();
+  const resources = model.getResources();
   const api = model.findResourceByName('api');
 });
 ```
@@ -784,7 +784,7 @@ await builder.subscribeBeforeStart(async (event) => {
   const services = await event.services();
   const logger = services.getLoggerFactory().createLogger('startup');
 
-  await logger.logInformation('Preparing resources.');
+  logger.logInformation('Preparing resources.');
 });
 ```
 
@@ -802,8 +802,8 @@ cache.onResourceReady(async (event) => {
   const notifications = services.getResourceNotificationService();
   const resourceLogs = services.getResourceLoggerService();
 
-  await notifications.waitForResourceHealthy(resourceName);
-  await resourceLogs.completeLog(resource);
+  notifications.waitForResourceHealthy(resourceName);
+  resourceLogs.completeLog(resource);
 });
 ```
 
@@ -820,10 +820,10 @@ await builder.subscribeBeforeStart(async (event) => {
   const api = model.findResourceByName('api');
 
   if (await secrets.isAvailable()) {
-    await secrets.getOrSetSecret(api, 'ApiKey', crypto.randomUUID());
+    secrets.getOrSetSecret(api, 'ApiKey', crypto.randomUUID());
   }
 
-  const generatedFile = await store.getFileNameWithContent(
+  const generatedFile = store.getFileNameWithContent(
     'seed-data.json',
     './seed-data.json'
   );
@@ -839,7 +839,7 @@ const subscription = await builder.subscribeBeforeStart(async (event) => {
   const services = await event.services();
   const eventing = services.getEventing();
 
-  await eventing.unsubscribe(subscription);
+  eventing.unsubscribe(subscription);
 });
 ```
 
@@ -859,7 +859,7 @@ const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withCommand('reset-all', 'Reset Everything', async (ctx) => {
   const cancellationToken = await ctx.cancellationToken();
 
-  return await commandService.executeCommandAsync(cache, 'clear-cache', {
+  return commandService.executeCommandAsync(cache, 'clear-cache', {
     arguments: { requestedBy: 'reset-all' },
     cancellationToken,
   });
