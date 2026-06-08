@@ -11,6 +11,12 @@ The Aspire CLI collects usage telemetry to help Microsoft improve the product. T
 
 Aspire CLI telemetry is collected when using the CLI to run commands. Telemetry is gathered during normal CLI usage, unless you have [opted out](#how-to-opt-out) of telemetry collection.
 
+### AI agent skill usage
+
+When you run `aspire agent init`, Aspire installs Aspire's AI skills and a `PostToolUse` hook into each detected agent client's user-level configuration (for example, GitHub Copilot CLI and Claude Code). The hook lets Aspire understand which of its AI skills and tools are actually used so the team can invest in the most valuable ones.
+
+After each agent tool use, the hook inspects the event and—only when an **Aspire** skill, Aspire MCP tool, or Aspire skill reference file was involved—forwards a low-cardinality usage event to the hidden `aspire agent telemetry` command, which records it through the same CLI telemetry pipeline. Tool uses that don't involve Aspire skills or tools are ignored. See [AI agent skill usage data](#ai-agent-skill-usage-data) for exactly what's recorded.
+
 ## How to opt-out
 
 To opt-out of telemetry collection, set the `ASPIRE_CLI_TELEMETRY_OPTOUT` environment variable to `true`. This will disable telemetry collection for all CLI commands:
@@ -32,6 +38,31 @@ $env:ASPIRE_CLI_TELEMETRY_OPTOUT="true"
 </div>
 </OsAwareTabs>
 
+### Opt out of AI agent skill usage only
+
+If you want to keep general CLI telemetry but disable only the [AI agent skill usage](#ai-agent-skill-usage) reporting, set the `ASPIRE_CLI_AGENT_TELEMETRY_OPTOUT` environment variable to `true`. Both the hook scripts and the `aspire agent telemetry` command honor this variable, so no agent usage events are recorded or sent:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash
+export ASPIRE_CLI_AGENT_TELEMETRY_OPTOUT=true
+```
+
+</div>
+<div slot="windows">
+
+```powershell
+$env:ASPIRE_CLI_AGENT_TELEMETRY_OPTOUT="true"
+```
+
+</div>
+</OsAwareTabs>
+
+Setting `ASPIRE_CLI_TELEMETRY_OPTOUT` to `true` also disables AI agent skill usage reporting.
+
+To skip installing the agent telemetry hooks entirely, pass `--no-telemetry-hooks` when running `aspire agent init`. Existing hooks are removed and refreshed on the next `aspire agent init` run.
+
 ## Disclosure
 
 The first time you run an Aspire CLI command, you'll see a disclosure message informing you that telemetry is being collected and how to opt out.
@@ -49,6 +80,29 @@ Aspire CLI collects the following data:
 | 13.2 | CLI launch. | Includes command name and exit code. Option and argument values are not sent to Microsoft. |
 | 13.2 | Ensure .NET SDK install. | Includes .NET SDK version installed. |
 | 13.2 | CLI-related unhandled exceptions. | — |
+| 13.5 | AI agent skill usage. | Recorded only for Aspire's own skills and tools. See [AI agent skill usage data](#ai-agent-skill-usage-data). |
+
+### AI agent skill usage data
+
+The agent telemetry hook installed by `aspire agent init` reports a single event each time one of Aspire's own AI skills or tools is used. Three event types are reported:
+
+- `skill_invocation` — an Aspire skill was invoked, or its `SKILL.md` was read.
+- `tool_invocation` — an Aspire MCP tool was called.
+- `reference_file_read` — a reference file bundled alongside an Aspire skill was read.
+
+Each event records only the following low-cardinality, Aspire-owned values:
+
+| Field | Description |
+|-------|-------------|
+| Event type | One of `skill_invocation`, `tool_invocation`, or `reference_file_read`. |
+| Client name | The agent client that produced the event, for example `copilot-cli`, `claude-code`, or `vscode`. |
+| Session ID | The agent session identifier (an opaque GUID), used to group events from one session. |
+| Skill name | The Aspire skill name, matched against the fixed list of skills Aspire ships (for example `aspire-deployment`). |
+| Tool name | The Aspire MCP tool name (for example `aspire-list_resources`). |
+| File reference | The skill-relative path of a reference file, for example `aspire/references/deploy.md`. |
+| Event timestamp | The UTC time the event occurred. |
+
+To protect your privacy, the hook only forwards an event when the skill or tool name matches the fixed set Aspire ships, and a file reference is reported only as the path **after** the skill folder. Absolute paths, repository names, user names, file contents, and tool arguments are never recorded. The `aspire agent telemetry` command independently re-validates each value and re-checks the opt-out settings before anything is sent, and discards anything it doesn't recognize.
 
 ## See also
 
