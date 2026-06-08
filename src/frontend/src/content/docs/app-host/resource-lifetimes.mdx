@@ -38,7 +38,9 @@ Use persistent lifetime for resources that are expensive to initialize, need sta
 Persistent resources are automatically recreated when the AppHost detects meaningful configuration changes. If the configuration differs, the resource is recreated with the new settings.
 :::
 
-Persistent resources default to proxyless endpoints so a stable local endpoint can remain reachable after the AppHost stops. You can still configure endpoint proxy behavior explicitly. For example, set `isProxied: true` or `IsProxied = true` when you need Aspire's proxy for a specific endpoint, or disable endpoint proxy support when you intentionally want every endpoint on a resource to be proxyless. Persistent executable endpoints must have a concrete `port` or `targetPort`; automatically persisted random executable ports aren't supported.
+Persistent containers use proxied endpoints by default, just like session containers. The proxy runs only while the AppHost is running, so the proxy address isn't reachable after the AppHost stops. Persistent executables and projects default to proxyless endpoints so their direct addresses stay stable and reachable even after the AppHost stops.
+
+You can still configure endpoint proxy behavior explicitly on any persistent resource. Set `isProxied: false` on an individual endpoint, or call `WithEndpointProxySupport(false)` to make every endpoint on a resource proxyless. Persistent executable endpoints must have a concrete `port` or `targetPort`; automatically persisted random executable ports aren't supported. For proxyless container endpoints with only a `targetPort`, Aspire immediately uses the target port as the allocated host port.
 
 :::danger[Persistent container &ne; persistent data]
 Persistent container lifetime doesn't guarantee data durability. For details, see [Container lifetime vs. data durability](#container-lifetime-vs-data-durability).
