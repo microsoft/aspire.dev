@@ -1,19 +1,18 @@
 ---
 title: SQL Database Projects integration
-description: Learn about the Aspire hosting integration for SQL Database Projects.
+description: Learn about the Aspire hosting integration for SQL Database Projects — model your schema, deploy DACPACs to SQL Server containers, and wire up CI/CD database pipelines.
 next: false
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from "@components/InstallPackage.astro";
 import { Image } from 'astro:assets';
-import sqlDatabaseProjectsIcon from '@assets/icons/sql-database-projects-icon.png';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import sqlIcon from '@assets/icons/sql-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
 <Image
-  src={sqlDatabaseProjectsIcon}
+  src={sqlIcon}
   alt="SQL Database Projects icon"
   width={100}
   height={100}
@@ -27,12 +26,39 @@ The Aspire SQL Database Projects hosting integration enables you to deploy SQL d
 
 To get started with the Aspire SQL Database Projects hosting integration, install the [CommunityToolkit.Aspire.Hosting.SqlDatabaseProjects](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.SqlDatabaseProjects) NuGet package in the app host project.
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.SqlDatabaseProjects" />
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.SqlDatabaseProjects
+```
+
+This updates your `aspire.config.json` with the SQL Database Projects hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.SqlDatabaseProjects": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+The TypeScript AppHost bindings for SQL Database Projects are provided by the Community Toolkit package. After installation, the `.aspire/modules/aspire.mjs` file in your project includes `addSqlProject` and related APIs.
 
 ### Add SQL project
 
 To deploy a SQL project to a SQL Server database, use the `AddSqlProject` extension method:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -61,11 +87,37 @@ Your SQL database project must use either [MSBuild.Sdk.SqlProj](https://github.c
 ```
 
 </Aside>
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const sql = await builder.addSqlServer("sql");
+const sqldb = await sql.addDatabase("sqldb");
+
+const databaseProject = await builder.addSqlProject("database-project");
+await databaseProject.withReference(sqldb);
+
+const exampleProject = await builder.addProject(
+    "example-project",
+    "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(sqldb);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
 
 ### Add SQL package (NuGet)
 
 To deploy a SQL database schema from a NuGet package, use the `AddSqlPackage` extension method:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -94,11 +146,22 @@ When using NuGet packages, mark them with the `IsAspirePackageResource` metadata
 ```
 
 </Aside>
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+<Aside type="note">
+  The current TypeScript AppHost bindings for this integration don't expose an `addSqlPackage` API. Use the C# AppHost to deploy a SQL database schema directly from a NuGet package.
+</Aside>
+
+</TabItem>
+</Tabs>
 
 ### Add DACPAC file
 
 To deploy a DACPAC file directly, use the `WithDacpac` extension method:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -112,11 +175,38 @@ builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const sql = await builder.addSqlServer("sql");
+const sqldb = await sql.addDatabase("sqldb");
+
+const databaseProject = await builder.addSqlProject("database-project");
+await databaseProject.withDacpac("path/to/database.dacpac");
+await databaseProject.withReference(sqldb);
+
+const exampleProject = await builder.addProject(
+    "example-project",
+    "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(sqldb);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
 
 ### Configure DAC deployment options
 
 You can customize the DACPAC deployment behavior using the `WithConfigureDacDeployOptions` method:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -132,6 +222,30 @@ sql.AddSqlProject<Projects.DatabaseProject>("database-project")
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const sql = await builder.addSqlServer("sql");
+const sqldb = await sql.addDatabase("sqldb");
+
+const databaseProject = await builder.addSqlProject("database-project");
+await databaseProject.withReference(sqldb);
+await databaseProject.withDacDeployOptions("path/to/database.publish.xml");
+
+// After adding all resources, run the app...
+```
+
+<Aside type="note">
+  The current TypeScript AppHost bindings expose `withDacDeployOptions` for publish profile paths, but don't expose the `WithConfigureDacDeployOptions` callback API. Use the C# AppHost when you need to configure DAC deployment options inline.
+</Aside>
+
+</TabItem>
+</Tabs>
 
 ### Redeploy action
 
@@ -148,6 +262,8 @@ This is useful during development when you make changes to your database schema 
 
 You can add multiple SQL projects to the same database or different databases:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -161,11 +277,36 @@ db2.AddSqlProject<Projects.Database2Project>("db2-project");
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const sql = await builder.addSqlServer("sql");
+
+const db1 = await sql.addDatabase("db1");
+const db1Project = await builder.addSqlProject("db1-project");
+await db1Project.withReference(db1);
+
+const db2 = await sql.addDatabase("db2");
+const db2Project = await builder.addSqlProject("db2-project");
+await db2Project.withReference(db2);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
 
 ### Ability to skip deployment
 
 You can use the `WithSkipWhenDeployed` method to avoid re-deploying your SQL Database Project if no changes have been made. This is useful in scenarios where the SQL container database is persisted to permanent storage and will significantly reduce the app host startup time.
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -180,6 +321,29 @@ db1.AddSqlProject<Projects.Database1Project>("db1-project")
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const sql = await builder.addSqlServer("sql");
+await sql.withDataVolume("data");
+await sql.withLifetime("Persistent");
+
+const db1 = await sql.addDatabase("db1");
+
+const db1Project = await builder.addSqlProject("db1-project");
+await db1Project.withReference(db1);
+await db1Project.withSkipWhenDeployed();
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
 
 ## See also
 

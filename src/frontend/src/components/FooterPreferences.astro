@@ -7,6 +7,12 @@ const kbdTypes = [
   { id: 'windows', label: 'Windows', detector: 'windows', default: true },
   { id: 'linux', label: 'Linux', detector: 'linux' },
 ];
+
+const themeLabels = {
+  light: Astro.locals.t('themeSelect.light' as any) || 'Light',
+  auto: Astro.locals.t('themeSelect.auto' as any) || 'Auto',
+  dark: Astro.locals.t('themeSelect.dark' as any) || 'Dark',
+};
 ---
 
 <section
@@ -22,15 +28,43 @@ const kbdTypes = [
   <div class="preference-controls">
     <!-- Theme selector -->
     <div class="preference-item">
-      <div class="select-wrapper">
-        <Icon name="sun" class="select-icon theme-icon light-icon" />
-        <Icon name="moon" class="select-icon theme-icon dark-icon" />
-        <select id="footer-theme-select" class="preference-select" aria-label="Select theme">
-          <option value="auto">{Astro.locals.t('themeSelect.auto' as any) || 'Auto'}</option>
-          <option value="dark">{Astro.locals.t('themeSelect.dark' as any) || 'Dark'}</option>
-          <option value="light">{Astro.locals.t('themeSelect.light' as any) || 'Light'}</option>
-        </select>
-        <Icon name="down-caret" class="select-caret" />
+      <div
+        id="footer-theme-toggle"
+        class="theme-toggle"
+        role="radiogroup"
+        aria-label="Select theme"
+        data-theme-choice="auto"
+      >
+        <button
+          type="button"
+          class="theme-toggle-option"
+          role="radio"
+          aria-checked="false"
+          aria-label={themeLabels.light}
+          data-theme-option="light"
+        >
+          <Icon name="sun" />
+        </button>
+        <button
+          type="button"
+          class="theme-toggle-option"
+          role="radio"
+          aria-checked="true"
+          aria-label={themeLabels.auto}
+          data-theme-option="auto"
+        >
+          <Icon name="laptop" />
+        </button>
+        <button
+          type="button"
+          class="theme-toggle-option"
+          role="radio"
+          aria-checked="false"
+          aria-label={themeLabels.dark}
+          data-theme-option="dark"
+        >
+          <Icon name="moon" />
+        </button>
       </div>
     </div>
 
@@ -107,9 +141,19 @@ const kbdTypes = [
   } from '@utils/locale-routes';
 
   function initFooterPreferences() {
-    const themeSelect = document.getElementById('footer-theme-select') as HTMLSelectElement;
+    const themeToggle = document.getElementById('footer-theme-toggle') as HTMLElement | null;
+    const themeButtons = Array.from(
+      themeToggle?.querySelectorAll<HTMLButtonElement>('[data-theme-option]') ?? []
+    );
     const languageSelect = document.getElementById('footer-language-select') as HTMLSelectElement;
     const kbdSelect = document.getElementById('footer-kbd-select') as HTMLSelectElement;
+    const themeOptions = ['light', 'auto', 'dark'] as const;
+
+    type ThemeOption = (typeof themeOptions)[number];
+
+    function isThemeOption(value: string | null | undefined): value is ThemeOption {
+      return value === 'light' || value === 'auto' || value === 'dark';
+    }
 
     function getLanguageOptionValue(locale: string): string {
       const option = Array.from(languageSelect?.options ?? []).find(
@@ -119,17 +163,18 @@ const kbdTypes = [
       return option?.value ?? locale;
     }
 
-    if (themeSelect) {
-      // Get current theme from Starlight's storage
-      const storedTheme = getStoredPreference('starlight-theme');
-      if (storedTheme) {
-        themeSelect.value = storedTheme;
+    if (themeToggle && themeButtons.length > 0) {
+      function updateThemeToggle(theme: ThemeOption) {
+        themeToggle.dataset.themeChoice = theme;
+
+        for (const button of themeButtons) {
+          const isSelected = button.dataset.themeOption === theme;
+          button.setAttribute('aria-checked', String(isSelected));
+          button.tabIndex = isSelected ? 0 : -1;
+        }
       }
 
-      themeSelect.addEventListener('change', (e) => {
-        const target = e.target as HTMLSelectElement;
-        const theme = target.value;
-
+      function applyTheme(theme: ThemeOption) {
         // Use Starlight's theme system
         setStoredPreference('starlight-theme', theme);
 
@@ -142,13 +187,56 @@ const kbdTypes = [
           root.dataset.theme = theme;
         }
 
+        updateThemeToggle(theme);
+
         // Sync with Starlight's header theme select if present
-        const headerThemeSelect = document.querySelector(
+        const headerThemeSelect = document.querySelector<HTMLSelectElement>(
           'starlight-theme-select select'
-        ) as HTMLSelectElement;
-        if (headerThemeSelect && headerThemeSelect !== themeSelect) {
+        );
+        if (headerThemeSelect) {
           headerThemeSelect.value = theme;
         }
+      }
+
+      // Get current theme from Starlight's storage
+      const storedTheme = getStoredPreference('starlight-theme');
+      updateThemeToggle(isThemeOption(storedTheme) ? storedTheme : 'auto');
+
+      for (const button of themeButtons) {
+        button.addEventListener('click', () => {
+          const theme = button.dataset.themeOption;
+
+          if (isThemeOption(theme)) {
+            applyTheme(theme);
+          }
+        });
+      }
+
+      themeToggle.addEventListener('keydown', (e) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+          return;
+        }
+
+        e.preventDefault();
+
+        const currentTheme = isThemeOption(themeToggle.dataset.themeChoice)
+          ? themeToggle.dataset.themeChoice
+          : 'auto';
+        const currentIndex = themeOptions.indexOf(currentTheme);
+        const nextIndex =
+          e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? themeOptions.length - 1
+              : e.key === 'ArrowLeft'
+                ? (currentIndex - 1 + themeOptions.length) % themeOptions.length
+                : (currentIndex + 1) % themeOptions.length;
+        const nextTheme = themeOptions[nextIndex];
+
+        applyTheme(nextTheme);
+
+        const nextButton = themeButtons.find((button) => button.dataset.themeOption === nextTheme);
+        nextButton?.focus();
       });
     }
 
@@ -158,9 +246,10 @@ const kbdTypes = [
       const storedPreferredLocale = normalizeLocale(
         getStoredPreference(PREFERRED_LOCALE_STORAGE_KEY)
       );
-      const currentLang = getLocaleFromPath(currentPath)
-        ?? (isApiReferencePath(currentPath) ? storedPreferredLocale : undefined)
-        ?? DEFAULT_LOCALE;
+      const currentLang =
+        getLocaleFromPath(currentPath) ??
+        (isApiReferencePath(currentPath) ? storedPreferredLocale : undefined) ??
+        DEFAULT_LOCALE;
       languageSelect.value = getLanguageOptionValue(currentLang);
 
       languageSelect.addEventListener('change', (e) => {
@@ -171,12 +260,19 @@ const kbdTypes = [
         setStoredPreference(PREFERRED_LOCALE_STORAGE_KEY, newLang);
 
         // Remove current language prefix if present
-        const pathWithoutLang = stripApiReferenceLocale(currentPath) ?? stripLocaleFromPath(currentPath);
+        const pathWithoutLang =
+          stripApiReferenceLocale(currentPath) ?? stripLocaleFromPath(currentPath);
 
         // Build new URL
-        const newPath = isApiReference ? pathWithoutLang : addLocaleToPath(pathWithoutLang, newLang);
+        const newPath = isApiReference
+          ? pathWithoutLang
+          : addLocaleToPath(pathWithoutLang, newLang);
 
-        window.location.href = appendSearchAndHash(newPath, window.location.search, window.location.hash);
+        window.location.href = appendSearchAndHash(
+          newPath,
+          window.location.search,
+          window.location.hash
+        );
       });
     }
 
@@ -284,21 +380,6 @@ const kbdTypes = [
     height: 1rem;
   }
 
-  /* Show/hide sun/moon based on current theme */
-  :global([data-theme='dark']) .light-icon,
-  :global(:root:not([data-theme])) .light-icon {
-    display: none;
-  }
-
-  :global([data-theme='light']) .dark-icon {
-    display: none;
-  }
-
-  :global([data-theme='dark']) .dark-icon,
-  :global(:root:not([data-theme])) .dark-icon {
-    display: flex;
-  }
-
   .preference-select {
     appearance: none;
     background: var(--sl-color-gray-6);
@@ -334,5 +415,95 @@ const kbdTypes = [
   .select-caret :global(svg) {
     width: 0.625rem;
     height: 0.625rem;
+  }
+
+  .theme-toggle {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    width: 100%;
+    min-height: 2rem;
+    padding: 0.1875rem;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.375rem;
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .theme-toggle::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    top: 0.1875rem;
+    bottom: 0.1875rem;
+    left: 0.1875rem;
+    width: calc((100% - 0.375rem) / 3);
+    box-sizing: border-box;
+    border: 1px solid var(--aspire-color-primary, #7455dd);
+    border-radius: 0.25rem;
+    background: color-mix(
+      in srgb,
+      var(--aspire-color-primary, #7455dd) 32%,
+      var(--sl-color-gray-5)
+    );
+    transition: transform 0.18s ease;
+  }
+
+  .theme-toggle[data-theme-choice='auto']::before {
+    transform: translateX(100%);
+  }
+
+  .theme-toggle[data-theme-choice='dark']::before {
+    transform: translateX(200%);
+  }
+
+  .theme-toggle:hover {
+    border-color: var(--sl-color-gray-4);
+  }
+
+  .theme-toggle:focus-within {
+    outline: 2px solid var(--aspire-color-primary, #7455dd);
+    outline-offset: 2px;
+  }
+
+  .theme-toggle-option {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    height: 1.625rem;
+    padding: 0;
+    color: var(--sl-color-gray-3);
+    background: transparent;
+    border: 0;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  .theme-toggle-option:hover {
+    color: var(--sl-color-gray-1);
+    transform: scale(1.05);
+  }
+
+  .theme-toggle-option:focus {
+    outline: none;
+  }
+
+  .theme-toggle-option[aria-checked='true'] {
+    color: var(--sl-color-white);
+  }
+
+  .theme-toggle-option :global(svg) {
+    width: 1rem;
+    height: 1rem;
   }
 </style>

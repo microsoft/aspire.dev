@@ -1,0 +1,305 @@
+﻿---
+title: Connect to Azure App Configuration
+description: Learn how to connect to Azure App Configuration from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import appConfigIcon from '@assets/icons/azure-appconfig-icon.png';
+
+<Image
+  src={appConfigIcon}
+  alt="Azure App Configuration logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure App Configuration resource that's already modeled in your AppHost. For the AppHost API surface — adding a store resource, provisioning, emulator, role assignments, and infrastructure customization — see [Azure App Configuration Hosting integration](../azure-app-configuration-host/).
+
+When you reference an Azure App Configuration resource from your AppHost, Aspire injects the store endpoint into the consuming app as an environment variable. Your app can either read that environment variable directly — the pattern works the same from any language — or, in C#, use the Aspire Azure App Configuration client integration for automatic configuration provider registration and feature flag support.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Endpoint` property of a resource called `config` becomes `CONFIG_ENDPOINT`.
+
+The Azure App Configuration resource exposes the following connection property:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Endpoint`    | The Azure App Configuration store endpoint URL, typically `https://<store-name>.azconfig.io` |
+
+**Example connection value:**
+
+```
+Endpoint: https://config-abc123.azconfig.io
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Azure App Configuration resource named `config` and references it from the consuming app.
+
+<Tabs syncKey="azure-app-configuration-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Azure App Configuration client integration. It registers an Azure App Configuration provider into the `IConfiguration` pipeline through dependency injection and supports feature flags. If you'd rather read the environment variable directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration](https://www.nuget.org/packages/Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration" />
+
+#### Add the Azure App Configuration provider
+
+In _Program.cs_, call `AddAzureAppConfiguration` on your `IHostApplicationBuilder` to register the Azure App Configuration provider and populate `IConfiguration`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration(connectionName: "config");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Azure App Configuration resource name from the AppHost. For more information, see [Add Azure App Configuration resource](../azure-app-configuration-host/#add-azure-app-configuration-resource).
+</Aside>
+
+Resolve the `IConfiguration` instance through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IConfiguration configuration)
+{
+    private readonly string _someValue = configuration["SomeKey"];
+}
+```
+
+#### Configure the App Configuration provider
+
+The `AddAzureAppConfiguration` method accepts an optional `Action<AzureAppConfigurationOptions>` delegate. This follows the same pattern as the standard `Microsoft.Extensions.Configuration.AzureAppConfiguration` package, but Aspire automatically handles the connection — you don't need to call `options.Connect`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration(
+    "config",
+    configureOptions: options =>
+    {
+        // Select specific keys or labels
+        options.Select("MyApp:*");
+        options.Select("MyApp:*", "Production");
+
+        // Configure refresh
+        options.ConfigureRefresh(refresh =>
+        {
+            refresh.Register("MyApp:Sentinel", refreshAll: true)
+                   .SetRefreshInterval(TimeSpan.FromSeconds(30));
+        });
+    });
+```
+
+For more information on available options, see the [Azure App Configuration provider reference](https://learn.microsoft.com/azure/azure-app-configuration/reference-dotnet-provider).
+
+#### Use feature flags
+
+To use feature flags, install the [📦 Microsoft.FeatureManagement](https://www.nuget.org/packages/Microsoft.FeatureManagement) NuGet package:
+
+<InstallDotNetPackage packageName="Microsoft.FeatureManagement" />
+
+Call `UseFeatureFlags()` through the `configureOptions` delegate and register feature management services:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration(
+    "config",
+    configureOptions: options => options.UseFeatureFlags());
+
+builder.Services.AddFeatureManagement();
+```
+
+Evaluate feature flags in your app using `IFeatureManager`:
+
+```csharp title="C# — Program.cs"
+app.MapGet("/", async (IFeatureManager featureManager) =>
+{
+    if (await featureManager.IsEnabledAsync("NewFeature"))
+    {
+        return Results.Ok("New feature is enabled!");
+    }
+
+    return Results.Ok("Using standard implementation.");
+});
+```
+
+For more information, see [.NET Feature Management](https://learn.microsoft.com/azure/azure-app-configuration/feature-management-dotnet-reference).
+
+#### Configuration
+
+The Aspire Azure App Configuration client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureAppConfiguration`. The endpoint is retrieved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "config": "https://{store_name}.azconfig.io"
+  }
+}
+```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureAppConfigurationSettings` from _appsettings.json_ using the `Aspire:Microsoft:Extensions:Configuration:AzureAppConfiguration` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Microsoft": {
+      "Extensions": {
+        "Configuration": {
+          "AzureAppConfiguration": {
+            "Endpoint": "YOUR_APPCONFIGURATION_ENDPOINT_URI"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+For the complete JSON schema, see [ConfigurationSchema.json](https://github.com/microsoft/aspire/blob/main/src/Components/Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration/ConfigurationSchema.json).
+
+**Inline delegates.** Pass an `Action<AzureAppConfigurationSettings>` to configure settings inline:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration(
+    "config",
+    configureSettings: settings => settings.Endpoint = new Uri("https://YOUR_URI"));
+```
+
+#### Client integration health checks
+
+The Azure App Configuration client integration doesn't register a dedicated health check. App health is monitored through the standard ASP.NET Core health check endpoints.
+
+#### Observability and telemetry
+
+**Logging** categories:
+
+- `Microsoft.Extensions.Configuration.AzureAppConfiguration.Refresh`
+
+**Tracing:** The Azure App Configuration client integration doesn't emit activity sources.
+
+**Metrics:** The Azure App Configuration client integration doesn't currently support metrics.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected endpoint from the environment and create a `ConfigurationClient` directly using the [📦 Azure.Data.AppConfiguration](https://www.nuget.org/packages/Azure.Data.AppConfiguration/) NuGet package:
+
+```csharp title="C# — Program.cs"
+using Azure.Data.AppConfiguration;
+using Azure.Identity;
+
+var endpoint = new Uri(Environment.GetEnvironmentVariable("CONFIG_ENDPOINT")!);
+var client = new ConfigurationClient(endpoint, new DefaultAzureCredential());
+
+// Use client to read configuration...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Install the Azure App Configuration client library for Go and the Azure Identity library for authentication:
+
+```bash title="Terminal"
+go get github.com/Azure/azure-sdk-for-go/sdk/data/azappconfig
+go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
+```
+
+Read the Aspire-injected endpoint and create a client:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "fmt"
+    "os"
+
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+    "github.com/Azure/azure-sdk-for-go/sdk/data/azappconfig"
+)
+
+func main() {
+    // Read the Aspire-injected endpoint
+    endpoint := os.Getenv("CONFIG_ENDPOINT")
+
+    cred, err := azidentity.NewDefaultAzureCredential(nil)
+    if err != nil {
+        panic(err)
+    }
+
+    client, err := azappconfig.NewClient(endpoint, cred, nil)
+    if err != nil {
+        panic(err)
+    }
+
+    resp, err := client.GetSetting(context.Background(), "MyApp:SomeKey", nil)
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println("Value:", *resp.Value)
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the Azure App Configuration client library and the Azure Identity library:
+
+```bash title="Terminal"
+pip install azure-appconfiguration azure-identity
+```
+
+Read the Aspire-injected endpoint and create a client:
+
+```python title="Python — app.py"
+import os
+from azure.identity import DefaultAzureCredential
+from azure.appconfiguration import AzureAppConfigurationClient
+
+# Read the Aspire-injected endpoint
+endpoint = os.getenv("CONFIG_ENDPOINT")
+
+credential = DefaultAzureCredential()
+client = AzureAppConfigurationClient(base_url=endpoint, credential=credential)
+
+setting = client.get_configuration_setting(key="MyApp:SomeKey")
+print("Value:", setting.value)
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the Azure App Configuration client library and the Azure Identity library:
+
+```bash title="Terminal"
+npm install @azure/app-configuration @azure/identity
+```
+
+Read the Aspire-injected endpoint and create a client:
+
+```typescript title="TypeScript — index.ts"
+import { AppConfigurationClient } from '@azure/app-configuration';
+import { DefaultAzureCredential } from '@azure/identity';
+
+// Read the Aspire-injected endpoint
+const endpoint = process.env.CONFIG_ENDPOINT!;
+
+const credential = new DefaultAzureCredential();
+const client = new AppConfigurationClient(endpoint, credential);
+
+const setting = await client.getConfigurationSetting({ key: 'MyApp:SomeKey' });
+console.log('Value:', setting.value);
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    All language examples above use `DefaultAzureCredential`, which automatically picks up the managed identity or developer credentials configured for the environment. In local development, ensure your developer account has the appropriate App Configuration role assigned (for example, `App Configuration Data Reader`).
+</Aside>

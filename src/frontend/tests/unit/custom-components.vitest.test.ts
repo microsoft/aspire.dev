@@ -39,6 +39,7 @@ import PivotSelector from '@components/PivotSelector.astro';
 import Placeholder from '@components/Placeholder.astro';
 import QuickStartJourney from '@components/QuickStartJourney.astro';
 import SampleCard from '@components/SampleCard.astro';
+import SampleDetail from '@components/SampleDetail.astro';
 import SampleGrid from '@components/SampleGrid.astro';
 import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
@@ -306,11 +307,7 @@ const basicRenderCases: BasicRenderCase[] = [
   {
     name: 'InstallAspireCLI renders both shell variants',
     Component: InstallAspireCLI,
-    includes: [
-      'https://aspire.dev/install.sh',
-      'https://aspire.dev/install.ps1',
-      '/casts/aspire-help.cast',
-    ],
+    includes: ['https://aspire.dev/install.sh', 'https://aspire.dev/install.ps1', 'aspire --help'],
   },
   {
     name: 'IconAside renders a translated fallback title',
@@ -463,10 +460,11 @@ const basicRenderCases: BasicRenderCase[] = [
     ],
   },
   {
-    name: 'FooterPreferences renders selectors and storage keys',
+    name: 'FooterPreferences renders theme toggle, selectors, and storage keys',
     Component: FooterPreferences,
     includes: [
-      'id="footer-theme-select"',
+      'id="footer-theme-toggle"',
+      'role="radiogroup"',
       'id="footer-language-select"',
       'id="footer-kbd-select"',
       'Select theme',
@@ -563,13 +561,88 @@ const sampleCardFixture = {
   name: 'redis-sample',
   title: 'Redis sample',
   description: [
-    'This sample shows how to connect an API and dashboard to Redis for local development.',
+    '**This sample** shows how to connect an API and dashboard to Redis for local development.',
     'It also demonstrates configuration, diagnostics, and a longer description so the card renders its read-more behavior when a thumbnail is present.',
   ].join('\n\n'),
   href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample',
+  readme: '# Redis sample\n\nThis sample shows how to connect an API and dashboard to Redis.',
   tags: ['csharp', 'redis', 'docker', 'metrics', 'postgresql', 'kafka'],
   thumbnail: '~/assets/samples/placeholder.png',
+  appHost: 'csproj' as const,
+  detailHref: '/reference/samples/redis-sample/',
   resolvedThumbnail: heroImage,
+};
+
+const sampleDetailFixture = {
+  ...sampleCardFixture,
+  appHost: 'typescript' as const,
+  appHostPath: 'apphost.ts',
+  appHostCode: [
+    'import { createBuilder } from "./.modules/aspire.js";',
+    '',
+    'const builder = await createBuilder();',
+    '',
+    'await builder.addRedis("cache");',
+    '',
+    'await builder.build().run();',
+  ].join('\n'),
+  description: '**This sample** shows how to connect an API and dashboard to Redis.',
+  readme: [
+    '# Redis sample',
+    '',
+    'This sample shows how to connect an API and dashboard to Redis.',
+    '',
+    '![Screenshot of the sample](~/assets/samples/aspire-shop/aspireshop-frontend-complete.png)',
+    '',
+    'See the [application project](./src/RedisSample.AppHost) for implementation details.',
+    '',
+    '1. Open the app.',
+    '',
+    '   ![Screenshot of the sample step](~/assets/samples/volume-mount/volume-mount-frontend-login.png)',
+    '',
+    '1. Check the Docker volume.',
+    '',
+    '   ```shell',
+    '   > docker volume ls -f name=sqlserver',
+    '   DRIVER    VOLUME NAME',
+    '   local     volume-data',
+    '   ```',
+    '',
+    '1. Play around inside the dashboard:',
+    '',
+    '   1. Change the time range.',
+    '   1. Enable auto-refresh.',
+    '',
+    '## Architecture',
+    '',
+    '```mermaid',
+    'flowchart LR',
+    '    Browser --> Api',
+    '```',
+    '',
+    '## Running The App',
+    '',
+    'Run `aspire run` from the sample directory.',
+    '',
+    '**Angular**',
+    '',
+    '![Angular app](~/assets/samples/aspire-with-javascript/angular-app.png)',
+    '',
+    '**React**',
+    '',
+    '![React app](~/assets/samples/aspire-with-javascript/react-app.png)',
+    '',
+    '> [!NOTE]',
+    '> Run with `--watch` for hot reload during development.',
+    '',
+    '> [!WARNING]',
+    '> Stop the app before deleting the docker volume.',
+    '',
+    '```csharp title="AppHost.cs"',
+    'var builder = DistributedApplication.CreateBuilder(args);',
+    'builder.Build().Run();',
+    '```',
+  ].join('\n'),
 };
 
 const sampleGridSamples = [
@@ -682,9 +755,29 @@ describe('custom Astro component render coverage', () => {
     );
 
     expect(html).toContain('Redis sample');
+    expect(html).toContain('has-thumbnail');
+    expect(html).toContain('This sample shows how to connect an API and dashboard to Redis');
+    expect(html).not.toContain('**This sample**');
+    expect(html).toContain('data-sample-detail-href="/reference/samples/redis-sample/"');
+    expect(html).toContain('href="/reference/samples/redis-sample/"');
     expect(html).toContain('data-read-more');
     expect(html).toContain('View on GitHub');
+    expect(html).toContain(
+      'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample"'
+    );
     expect(html).toContain('+1');
+    expect(html).toContain('data-apphost="csproj"');
+    expect(html).toContain('C# (csproj) AppHost');
+
+    // The AppHost pill must live in the footer next to the "View on GitHub"
+    // link rather than higher up in the card body, so the badge sits on the
+    // bottom-left opposite the GitHub link on the bottom-right.
+    const footerOpen = html.search(/class="footer\b/);
+    const apphostInFooter = html.indexOf('apphost-pill');
+    const githubLinkInFooter = html.indexOf('View on GitHub');
+    expect(footerOpen).toBeGreaterThan(-1);
+    expect(apphostInFooter).toBeGreaterThan(footerOpen);
+    expect(githubLinkInFooter).toBeGreaterThan(apphostInFooter);
   });
 
   it('renders SampleGrid controls and sample cards', async () => {
@@ -694,8 +787,222 @@ describe('custom Astro component render coverage', () => {
 
     expect(html).toContain('data-samples-browser');
     expect(html).toContain('Search samples');
+    expect(html).toContain('aria-label="1 sample"');
     expect(html).toContain('Orders sample');
     expect(html).toContain('Catalog sample');
+    expect(html).toContain('/reference/samples/orders/');
+    expect(html).toContain('/reference/samples/catalog/');
+    expect(html).toContain('Try removing a filter or adjusting your search.');
+
+    // The redesigned filter UI replaces the boxy "Filtered by" bar with a
+    // single subtle "Clear all" text link in the results header, and an
+    // embedded `X` icon button inside the search input — the same compact
+    // pattern used by the in-page API search component.
+    expect(html).not.toContain('data-active-filter-bar');
+    expect(html).not.toContain('Clear filters');
+    expect(html).toContain('data-clear-all');
+    expect(html).toContain('Clear all');
+    expect(html).toContain('aria-label="Clear search"');
+
+    // The browse view persists the active search and tag filters in the
+    // URL so a link like `/reference/samples/?q=redis&tags=cache` lands on a
+    // pre-filtered view. The inline script must wire up both directions of
+    // that sync — reading the query string on load and rewriting it via
+    // `history.replaceState` whenever the filters change.
+    expect(html).toContain('readFiltersFromUrl');
+    expect(html).toContain('URLSearchParams');
+    expect(html).toContain('history.replaceState');
+  });
+
+  it('renders SampleDetail with README content and sample actions', async () => {
+    const html = normalizeHtml(
+      await renderComponent(SampleDetail, {
+        props: {
+          sample: sampleDetailFixture,
+          samplesHref: '/reference/samples/',
+        },
+      })
+    );
+
+    expect(html).toContain('Aspire sample');
+    expect(html).toContain('TypeScript AppHost');
+    expect(html).toContain('data-apphost="typescript"');
+    expect(html).toContain('This sample shows how to connect an API and dashboard to Redis.');
+    expect(html).not.toContain('**This sample**');
+    expect(html).toContain('Running the app');
+    expect(html).not.toContain('Running The App');
+    expect(html).toContain('sl-heading-wrapper level-h2');
+    expect(html).toContain('sl-steps');
+    // Nested ordered lists must NOT be wrapped in another `<Steps>` —
+    // Starlight's `<Steps>` is meant for top-level numbered procedures, and
+    // nesting it produces double-numbered chrome and a broken visual rhythm.
+    // `<Steps>` adds the `sl-steps` class to the inner `<ol>`, so a nested
+    // `<Steps>` would produce a second `class="sl-steps"` (or `sl-steps `)
+    // occurrence in the rendered output.
+    const stepsWrapperCount = (html.match(/class="[^"]*\bsl-steps\b/g) || []).length;
+    expect(stepsWrapperCount).toBe(1);
+    expect(html).toContain('Change the time range.');
+    expect(html).toContain('Enable auto-refresh.');
+    expect(html).toContain('data-language="bash"');
+    expect(html).toContain('volume-data');
+    expect(html).toContain('id="architecture"');
+    expect(html).toContain('class="mermaid');
+    expect(html).toContain('Browser --&gt; Api');
+    expect(html).toContain('expressive-code');
+    expect(html).toContain('AppHost.cs');
+    expect(html).toContain('Sample screenshots');
+    expect(html).toContain('Screenshot of the sample');
+    expect(html).toContain('starlight-image-zoom-zoomable');
+    expect(html).toContain('Zoom image: Screenshot of the sample');
+    expect(html).toContain('Zoom image: Screenshot of the sample step');
+    expect(html).toContain('Select an image to zoom in.');
+    expect(html).toContain('View on GitHub');
+    expect(html).toContain('Browse all samples');
+    expect(html).toContain('href="/reference/samples/"');
+    expect(html).toContain(
+      'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample/src/RedisSample.AppHost"'
+    );
+
+    // The AppHost code section renders above the README with the kicker,
+    // a short blurb (no <h2>), and a "View on GitHub" link to the raw source.
+    expect(html).toContain('id="sample-apphost-kicker"');
+    expect(html).toContain('sample-apphost-blurb');
+    expect(html).not.toContain('The apphost.ts entry point');
+    expect(html).not.toContain('id="sample-apphost-heading"');
+    expect(html).toContain('data-language="typescript"');
+    expect(html).toContain('createBuilder()');
+    expect(html).toContain(
+      'href="https://github.com/dotnet/aspire-samples/blob/main/samples/redis-sample/apphost.ts"'
+    );
+
+    // GitHub-style alerts (`> [!NOTE]`, `> [!WARNING]`, etc.) in the README
+    // must render as Starlight Asides instead of leaking through as plain
+    // <blockquote> elements, and the `[!KIND]` marker must be stripped from
+    // the rendered body so it never appears as literal text.
+    expect(html).toContain('starlight-aside starlight-aside--note');
+    expect(html).toContain('starlight-aside starlight-aside--caution');
+    expect(html).toContain('Run with');
+    expect(html).toContain('hot reload during development');
+    expect(html).toContain('Stop the app before deleting the docker volume.');
+    expect(html).not.toContain('[!NOTE]');
+    expect(html).not.toContain('[!WARNING]');
+
+    // Short label paragraphs like `**Angular**` and `**React**` immediately
+    // before a standalone image must be suppressed in the README body so they
+    // don't appear as dangling text after the image is extracted into the
+    // gallery. The images themselves still surface in the screenshots grid.
+    expect(html).toContain('Zoom image: Angular app');
+    expect(html).toContain('Zoom image: React app');
+    expect(html).not.toMatch(/<p>\s*<strong>\s*Angular\s*<\/strong>\s*<\/p>/);
+    expect(html).not.toMatch(/<p>\s*<strong>\s*React\s*<\/strong>\s*<\/p>/);
+
+    // The primary "View on GitHub" CTA in the hero uses the Starlight `github`
+    // icon on the left of the label and no longer ships the external-link
+    // icon on the right. Match the unique github SVG path fragment.
+    const githubIconPath = 'M12 .3a12 12 0 0 0-3.8 23.38';
+    expect(html).toContain(githubIconPath);
+    const primaryCtaStart = html.search(/class="sample-action primary\b/);
+    const primaryCtaEnd = html.indexOf('</a>', primaryCtaStart);
+    expect(primaryCtaStart).toBeGreaterThan(-1);
+    const primaryCtaHtml = html.slice(primaryCtaStart, primaryCtaEnd);
+    expect(primaryCtaHtml).toContain(githubIconPath);
+    const ctaIconIndex = primaryCtaHtml.indexOf(githubIconPath);
+    const ctaLabelIndex = primaryCtaHtml.indexOf('View on GitHub');
+    expect(ctaIconIndex).toBeLessThan(ctaLabelIndex);
+  });
+
+  it('strips emphasized first paragraphs and long emphasized labels (paragraphPlainText doubling regression)', async () => {
+    // Regression for the marked-token doubling bug in SampleDetail's
+    // paragraphPlainText: marked carries both a `text` field and a `tokens`
+    // array on `strong`/`em`/`del`. Walking both produced "foofoo" for `**foo**`,
+    // which silently broke both consumers of paragraphPlainText:
+    //
+    //   1. dropLeadingSummaryParagraph compares the first README paragraph's
+    //      text against the hero summary via startsWith. Any inline emphasis
+    //      in that paragraph doubled its characters, the prefix match failed,
+    //      and the duplicated summary sentence leaked into the rendered body.
+    //
+    //   2. paragraphIsShortLabel bails on paragraphs longer than 60 chars.
+    //      Doubling an emphasized 40+ char label pushed it past the cap, so
+    //      paragraphIsShortLabel rejected it and the dangling label paragraph
+    //      stayed in the body after its image was extracted into the gallery.
+    //
+    // Both bugs are observable from the rendered HTML, so we exercise the
+    // real SampleDetail render rather than reaching for the private helper.
+    const distinctiveSummarySentence =
+      'Boldy Aspire production monitoring sample with realtime metrics.';
+    const longEmphasizedLabel = 'Aspire dashboard production monitoring view label';
+
+    const html = normalizeHtml(
+      await renderComponent(SampleDetail, {
+        props: {
+          sample: {
+            ...sampleCardFixture,
+            description: '**Boldy** Aspire production monitoring sample with realtime metrics.',
+            readme: [
+              '# Title',
+              '',
+              // First README paragraph: same sentence as the summary but
+              // with emphasis. dropLeadingSummaryParagraph must still
+              // recognize it and remove it from the body.
+              '**Boldy** Aspire production monitoring sample with realtime metrics.',
+              '',
+              // 49-char emphasized label preceding a standalone image.
+              // 49 ≤ 60 → paragraphIsShortLabel must classify it as a
+              // dangling label and filterDanglingLabels must drop it
+              // before the image is extracted into the gallery. With
+              // the doubling bug, plain length measures 98 and the
+              // label survives as orphan text.
+              `**${longEmphasizedLabel}**`,
+              '',
+              '![Aspire dashboard](~/assets/samples/aspire-shop/aspireshop-frontend-complete.png)',
+            ].join('\n'),
+          },
+          samplesHref: '/reference/samples/',
+        },
+      })
+    );
+
+    // 1. The summary sentence renders exactly once: in the hero block. If
+    //    the leading README paragraph isn't dropped, it appears a second
+    //    time in the README body and the count rises to 2.
+    const escaped = distinctiveSummarySentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const summaryMatches = html.match(new RegExp(escaped, 'g')) ?? [];
+    expect(summaryMatches.length, 'summary sentence should appear exactly once (hero only)').toBe(1);
+
+    // 2. The long emphasized label is gone from the body. Its image still
+    //    surfaces in the gallery so the screenshot itself is preserved.
+    expect(html).not.toContain(longEmphasizedLabel);
+    expect(html).toContain('Zoom image: Aspire dashboard');
+  });
+
+  it('builds sample markdown payload with absolute image URLs and metadata preamble', async () => {
+    const { appHostLabel, buildSampleMarkdown } = await import('@utils/samples');
+
+    const markdown = buildSampleMarkdown(
+      {
+        name: 'redis-sample',
+        title: 'Redis sample',
+        description: 'A short description.',
+        href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample',
+        readme: '# Redis sample\n\n![alt](~/assets/samples/redis-sample/foo.png)',
+        readmeRaw:
+          '# Redis sample\n\nIntro paragraph.\n\n![Screenshot](./images/screenshot.png)\n\n![External](https://example.com/x.png)\n',
+        tags: ['csharp', 'redis'],
+        thumbnail: null,
+        appHost: 'csproj',
+      },
+      { appHostLabel }
+    );
+
+    expect(markdown).toContain('**Source:** [redis-sample]');
+    expect(markdown).toContain('**AppHost:** C# AppHost');
+    expect(markdown).toContain('**Tags:** csharp, redis');
+    expect(markdown).toContain(
+      '![Screenshot](https://raw.githubusercontent.com/dotnet/aspire-samples/main/samples/redis-sample/images/screenshot.png)'
+    );
+    expect(markdown).toContain('![External](https://example.com/x.png)');
+    expect(markdown.endsWith('\n')).toBe(true);
   });
 
   it('renders SessionCard speaker metadata and time badge', async () => {
@@ -757,6 +1064,7 @@ describe('custom Astro component render coverage', () => {
         props: {
           sample: {
             ...sampleFromRepo,
+            detailHref: `/reference/samples/${sampleFromRepo.name}/`,
             resolvedThumbnail: null,
           },
         },
@@ -804,6 +1112,44 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain(`origWidth%3D${heroImage.width}`);
     expect(html).toContain(`origHeight%3D${heroImage.height}`);
     expect(html).not.toContain('h=1000');
+  });
+
+  it('renders footer community links with platform names', async () => {
+    const translations: Record<string, string> = {
+      'footer.community': 'Community',
+      'footer.blog': 'Blog',
+      'footer.collab': 'Collaborate',
+      'footer.discuss': 'Discuss',
+      'footer.watch': 'Watch',
+    };
+    const t = ((key: string) => translations[key] ?? key) as ((key: string) => string) & {
+      dir: () => 'ltr';
+    };
+    t.dir = () => 'ltr';
+
+    const html = normalizeHtml(
+      await renderComponent(FooterLinks, {
+        locals: { t },
+      })
+    );
+
+    for (const label of [
+      'X (Twitter)',
+      'BlueSky',
+      'GitHub',
+      'Discord',
+      'Reddit',
+      'YouTube',
+      'Twitch',
+      'Blog',
+    ]) {
+      expect(html).toContain(label);
+    }
+
+    expect(html).not.toContain('Follow');
+    expect(html).not.toContain('Collaborate');
+    expect(html).not.toContain('Discuss');
+    expect(html).not.toContain('Watch');
   });
 
   it('hides footer community links on localized 404 pages', async () => {

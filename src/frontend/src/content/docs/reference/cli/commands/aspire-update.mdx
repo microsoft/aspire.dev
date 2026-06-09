@@ -5,8 +5,6 @@ sidebar:
   badge: Preview
 ---
 
-import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
-
 import Include from '@components/Include.astro';
 import LearnMore from '@components/LearnMore.astro';
 
@@ -20,8 +18,6 @@ import LearnMore from '@components/LearnMore.astro';
 aspire update [options]
 ```
 
-<AsciinemaPlayer src="/casts/aspire-update.cast" poster="npt:0:01" rows={23} loop={false} speed={.5} />
-
 ## Description
 
 The `aspire update` command helps you keep your Aspire projects current by automatically detecting and updating outdated packages and templates. It finds outdated Aspire NuGet packages while respecting channel configurations and intelligently handles complex dependency graphs.
@@ -33,8 +29,56 @@ The command performs the following:
 - Detects outdated Aspire NuGet packages in your project
 - Respects your configured Aspire channel (preview, stable, etc.)
 - Resolves diamond dependencies to avoid duplicate updates
-- Validates package compatibility before applying changes
+- Applies all package version edits before running a single final `dotnet restore`, so channel switches that add NuGet source mappings don't cause restore failures mid-update
 - Provides colorized output with detailed summary of changes
+
+### Non-interactive usage
+
+When you use `--non-interactive`, also pass `--yes` to explicitly confirm the update operation. Omitting `--yes` when using `--non-interactive` is an error:
+
+```bash title="Aspire CLI"
+aspire update --yes --non-interactive
+```
+
+If you specify `--non-interactive` without `--yes`, the command exits with an error:
+
+```text title="Output"
+The update command requires --yes when the --non-interactive option is specified.
+```
+
+### Updating guest AppHost projects
+
+When updating a guest AppHost project, such as a TypeScript AppHost, `aspire update` checks the selected Aspire SDK version before modifying files. If the selected SDK is newer than the running Aspire CLI, the command prompts you to update the CLI first:
+
+```text title="Output"
+The selected Aspire SDK is newer than this Aspire CLI. Update the Aspire CLI now and re-run `aspire update` to update this project?
+```
+
+If you confirm, the CLI updates itself and skips the project update. When the CLI is installed from npm or as a .NET tool, the command prints the matching package-manager update command to run manually instead:
+
+```text title="Output"
+Project update skipped. Update the Aspire CLI, then re-run `aspire update`.
+```
+
+After updating the CLI, re-run `aspire update` to complete the project update. This check helps prevent a guest AppHost project from being left in a broken state when the CLI's bundled code generator doesn't support the selected SDK version.
+
+:::tip
+To update the CLI without being prompted, run `aspire update --self` before running `aspire update` on a guest AppHost project.
+:::
+
+### Updating the CLI based on how it was installed
+
+`aspire update --self` (and the update notice shown when a newer version is available) adapts to how the CLI was installed so it doesn't overwrite files owned by a package manager:
+
+- When the CLI was installed from **npm** (the `@microsoft/aspire-cli` package), the command prints the npm update command to run instead of downloading a new binary:
+
+  ```text title="Output"
+  To update the Aspire CLI when installed from npm, run:
+    npm install -g @microsoft/aspire-cli@latest
+  ```
+
+- When the CLI was installed with the **install script** or another **binary install**, `aspire update --self` downloads and installs the latest CLI binary directly.
+- When the CLI was installed as a **.NET tool**, the command prints the `dotnet tool update` command to run.
 
 ## Options
 
@@ -44,11 +88,13 @@ The following options are available:
 
 - **`--self`**
 
-  Update the Aspire CLI itself to the latest version.
+  Update the Aspire CLI itself to the latest version. The CLI adapts to how it was installed: npm and .NET tool installs print the matching package-manager command to run, while install-script and other binary installs download the latest binary directly. See [Updating the CLI based on how it was installed](#updating-the-cli-based-on-how-it-was-installed).
 
 - **`--channel`**
 
-  Channel to update to (`stable`, `staging`, `daily`).
+  Channel to update to (`stable`, `staging`, `daily`). When switching channels, `aspire update` applies all package version edits to your project first and then runs a single `dotnet restore`, ensuring that NuGet source mappings added for the target channel are in place before any restore is attempted.
+
+  When you switch to a persistable channel, such as `daily`, `aspire update` also rewrites the top-level `channel` key in `aspire.config.json` when the file already exists. Only channels registered as _explicit_ channels are persisted, with one exception: the `stable` channel is treated as the portable default and is intentionally not pinned. The persisted channel keeps subsequent `aspire add` and `aspire update` runs resolving packages against the channel you just switched to.
 
 - **`-y, --yes`**
 
@@ -94,4 +140,10 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire update --nuget-config-dir './config'
+  ```
+
+- Update packages to the daily preview channel:
+
+  ```bash title="Aspire CLI"
+  aspire update --channel daily
   ```

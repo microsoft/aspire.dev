@@ -91,6 +91,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       collapsed: true,
       items: [
         {
+          label: 'Aspire 13.4',
+          slug: 'whats-new/aspire-13-4',
+        },
+        {
           label: 'Aspire 13.3',
           slug: 'whats-new/aspire-13-3',
         },
@@ -427,6 +431,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Overview',
               slug: 'get-started/ai-coding-agents',
+            },
+            {
+              label: 'Aspire skills',
+              slug: 'get-started/aspire-skills',
             },
             {
               label: 'Aspire MCP server',
@@ -901,11 +909,11 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           collapsed: true,
           items: [
             {
-              label: 'Persistent containers',
-              slug: 'app-host/persistent-containers',
+              label: 'Resource lifetimes',
+              slug: 'app-host/resource-lifetimes',
               translations: {
-                en: 'Persistent containers',
-                ja: '永続コンテナー',
+                en: 'Resource lifetimes',
+                ja: 'リソースのライフタイム',
               },
             },
             {

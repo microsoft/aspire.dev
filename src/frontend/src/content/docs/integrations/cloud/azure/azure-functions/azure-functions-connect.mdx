@@ -1,0 +1,254 @@
+---
+title: Azure Functions runtime configuration
+description: Learn how Azure Functions code reads Aspire-injected environment variables to wire up triggers and bindings in .NET, TypeScript/JavaScript, and Python.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import functionsIcon from '@assets/icons/azure-functionapps-icon.png';
+
+<Image
+  src={functionsIcon}
+  alt="Azure Functions logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page explains how Azure Functions code reads the connection information that Aspire injects at run time. For the AppHost API surface — adding the Functions project, host storage, resource references, external HTTP endpoints, and Durable Task Scheduler — see [Set up Azure Functions in the AppHost](../azure-functions-host/).
+
+## Azure Functions is compute, not a backing service
+
+Most Aspire integrations follow a pattern where the AppHost provisions a backing service (a database, cache, or message broker) and consuming apps read its connection information. **Azure Functions reverses this relationship**: the Functions project is itself the consumer. Aspire injects connection strings and endpoints for the Azure resources you reference in the AppHost, and your function code reads those values from environment variables at run time.
+
+## How Aspire injects values
+
+When the AppHost calls `WithReference` on the Functions project resource, Aspire writes the referenced resource connection properties as environment variables into the Functions host process. The variable names follow the standard Aspire pattern: `[RESOURCE]_[PROPERTY]` (uppercased).
+
+For example, if the AppHost references a blob storage container named `blobs`, Aspire injects:
+
+| Environment variable | Example value |
+|---|---|
+| `BLOBS_BLOBENDPOINT` | `https://127.0.0.1:10000/devstoreaccount1` |
+| `BLOBS_QUEUEENDPOINT` | `https://127.0.0.1:10001/devstoreaccount1` |
+| `BLOBS_TABLEENDPOINT` | `https://127.0.0.1:10002/devstoreaccount1` |
+
+For a Service Bus namespace named `servicebus`, Aspire injects:
+
+| Environment variable | Example value |
+|---|---|
+| `SERVICEBUS_FULLYQUALIFIEDNAMESPACE` | `sb://servicebus.servicebus.windows.net/` |
+
+The exact set of properties depends on the resource type. See the binding-specific articles linked in the [See also](#see-also) section for the properties exposed by each resource.
+
+## Read injected values from your function
+
+Pick the language your Functions project is written in.
+
+<Tabs syncKey="functions-lang">
+<TabItem label=".NET (isolated worker)">
+
+The .NET isolated worker model starts the Functions host through a standard `HostBuilder`. You can read Aspire-injected values through `IConfiguration` (which maps environment variables automatically) or through `Environment.GetEnvironmentVariable`.
+
+#### Read through IConfiguration
+
+`IConfiguration` is available through dependency injection. Register a class that receives the configuration section you need:
+
+```csharp title="C# — Program.cs"
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+var host = new HostBuilder()
+    .ConfigureFunctionsWebApplication()
+    .ConfigureServices(services =>
+    {
+        services.AddSingleton<MyBlobService>();
+    })
+    .Build();
+
+await host.RunAsync();
+```
+
+```csharp title="C# — MyBlobService.cs"
+using Microsoft.Extensions.Configuration;
+
+public class MyBlobService(IConfiguration config)
+{
+    // Aspire injects BLOBS_BLOBENDPOINT for a resource named "blobs"
+    private readonly string _endpoint = config["BLOBS_BLOBENDPOINT"]!;
+}
+```
+
+#### Read through Environment.GetEnvironmentVariable
+
+For one-off reads, use `Environment.GetEnvironmentVariable` directly in your function class:
+
+```csharp title="C# — MyFunction.cs"
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+
+public class MyFunction
+{
+    [Function("MyHttpFunction")]
+    public HttpResponseData Run(
+        [HttpTrigger(AuthorizationLevel.Function, "get")] HttpRequestData req)
+    {
+        // Read an Aspire-injected Service Bus namespace
+        var sbNamespace = Environment.GetEnvironmentVariable(
+            "SERVICEBUS_FULLYQUALIFIEDNAMESPACE");
+
+        var response = req.CreateResponse();
+        response.WriteString($"Service Bus namespace: {sbNamespace}");
+        return response;
+    }
+}
+```
+
+#### Use connection name attributes for triggers
+
+Azure Functions trigger attributes accept a `Connection` parameter that maps to the environment variable prefix Aspire injects. For a Service Bus queue trigger using the `servicebus` resource:
+
+```csharp title="C# — MyQueueFunction.cs"
+using Microsoft.Azure.Functions.Worker;
+
+public class MyQueueFunction
+{
+    [Function("MyQueueFunction")]
+    public void Run(
+        [ServiceBusTrigger("my-queue", Connection = "servicebus")]
+        string message)
+    {
+        // 'Connection = "servicebus"' tells the Functions runtime to look for
+        // SERVICEBUS_FULLYQUALIFIEDNAMESPACE (injected by Aspire)
+        Console.WriteLine($"Received: {message}");
+    }
+}
+```
+
+<Aside type="tip">
+    The `Connection` parameter on a trigger attribute maps to the environment variable prefix. Aspire injects values under the prefix that matches the resource name you used in the AppHost `WithReference` call.
+</Aside>
+
+</TabItem>
+<TabItem label="TypeScript / JavaScript">
+
+JavaScript and TypeScript Azure Functions read environment variables via `process.env`. The Functions runtime loads environment variables from the host before invoking your function.
+
+```typescript title="TypeScript — src/functions/myHttpFunction.ts"
+import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+
+export async function myHttpFunction(
+    request: HttpRequest,
+    context: InvocationContext
+): Promise<HttpResponseInit> {
+    // Read an Aspire-injected storage endpoint
+    const blobEndpoint = process.env['BLOBS_BLOBENDPOINT'];
+
+    context.log(`Blob endpoint: ${blobEndpoint}`);
+    return { body: `Blob endpoint: ${blobEndpoint}` };
+}
+
+app.http('myHttpFunction', {
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    handler: myHttpFunction,
+});
+```
+
+For a Service Bus trigger that uses the Aspire-injected connection:
+
+```typescript title="TypeScript — src/functions/myQueueFunction.ts"
+import { app, InvocationContext } from '@azure/functions';
+
+export async function myQueueFunction(
+    message: unknown,
+    context: InvocationContext
+): Promise<void> {
+    context.log(`Queue message: ${JSON.stringify(message)}`);
+}
+
+app.serviceBusQueue('myQueueFunction', {
+    queueName: 'my-queue',
+    // 'connection' maps to the SERVICEBUS_FULLYQUALIFIEDNAMESPACE env var
+    connection: 'servicebus',
+    handler: myQueueFunction,
+});
+```
+
+<Aside type="note">
+    The TypeScript AppHost injects the same environment variable names as the C# AppHost. Use `process.env['RESOURCE_PROPERTY']` with the resource name uppercased and the property name uppercased.
+</Aside>
+
+</TabItem>
+<TabItem label="Python">
+
+Python Azure Functions read environment variables via `os.environ` or `os.getenv`. The Functions runtime loads environment variables from the host before invoking your function.
+
+```python title="Python — function_app.py"
+import azure.functions as func
+import logging
+import os
+
+app = func.FunctionApp()
+
+@app.route(route="myHttpFunction", auth_level=func.AuthLevel.ANONYMOUS)
+def my_http_function(req: func.HttpRequest) -> func.HttpResponse:
+    # Read an Aspire-injected storage endpoint
+    blob_endpoint = os.environ.get("BLOBS_BLOBENDPOINT", "not set")
+    logging.info(f"Blob endpoint: {blob_endpoint}")
+    return func.HttpResponse(f"Blob endpoint: {blob_endpoint}")
+```
+
+For a Service Bus trigger that uses the Aspire-injected connection:
+
+```python title="Python — function_app.py"
+import azure.functions as func
+import logging
+import os
+
+app = func.FunctionApp()
+
+@app.service_bus_queue_trigger(
+    arg_name="msg",
+    queue_name="my-queue",
+    # 'connection' maps to the SERVICEBUS_FULLYQUALIFIEDNAMESPACE env var
+    connection="servicebus"
+)
+def my_queue_function(msg: func.ServiceBusMessage):
+    logging.info(f"Received: {msg.get_body().decode('utf-8')}")
+```
+
+<Aside type="note">
+    The `connection` parameter on a Python trigger decorator maps to the environment variable prefix that Aspire injects. Use the resource name (uppercased) as the prefix.
+</Aside>
+
+</TabItem>
+</Tabs>
+
+## local.settings.json for local development without Aspire
+
+When running your Azure Functions project outside of Aspire (for example, in isolation with `func start`), the Functions runtime reads connection information from `local.settings.json`. You can populate this file with the same environment variable names that Aspire injects:
+
+```json title="JSON — local.settings.json"
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "BLOBS_BLOBENDPOINT": "https://127.0.0.1:10000/devstoreaccount1",
+    "SERVICEBUS_FULLYQUALIFIEDNAMESPACE": "sb://my-namespace.servicebus.windows.net/"
+  }
+}
+```
+
+When Aspire runs your project, the values in `local.settings.json` are **overridden** by the Aspire-injected environment variables, so the same trigger and binding configuration works in both modes.
+
+## See also
+
+- [Azure Service Bus integration](/integrations/cloud/azure/azure-service-bus/azure-service-bus-get-started/) — trigger and binding setup for Service Bus queues and topics.
+- [Azure Blob Storage integration](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-get-started/) — blob trigger and binding setup.
+- [Azure Cosmos DB integration](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-get-started/) — Cosmos DB trigger and binding setup.
+- [Azure Event Hubs integration](/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-get-started/) — Event Hubs trigger and binding setup.
+- [Azure Functions and Aspire integration](https://learn.microsoft.com/azure/azure-functions/dotnet-aspire-integration) — official Microsoft documentation.

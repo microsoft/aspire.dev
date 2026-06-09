@@ -1,6 +1,7 @@
 ---
 title: Deploy JavaScript apps
-description: Learn the main production deployment models for JavaScript app resources in Aspire.
+seoTitle: Deploy Aspire JavaScript apps with the Aspire AppHost
+description: Learn the main production deployment models for JavaScript app resources in Aspire — Next.js, Vite, SSR frameworks, container images, and CDN-fronted hosting targets.
 ---
 
 import { Aside, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -16,7 +17,7 @@ Use this table as the starting point:
 | Static frontend served by a gateway or BFF            | Reverse proxy               | `PublishWithStaticFiles`    |
 | Static frontend served by its own JavaScript resource | JavaScript app resource     | `PublishAsStaticWebsite`    |
 | SSR or Node.js app with a built server artifact       | JavaScript app resource     | `PublishAsNodeServer`       |
-| SSR or Node.js app started by a package script        | JavaScript app resource     | `PublishAsNpmScript`        |
+| SSR or Node.js app started by a package script        | JavaScript app resource     | `PublishAsPackageScript`    |
 | Next.js standalone app                                | Next.js app resource        | `AddNextJsApp`              |
 | Static frontend hosted separately from the backend    | Static host + separate API  | Custom topology             |
 
@@ -82,8 +83,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -165,8 +166,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -222,7 +223,7 @@ if (builder.ExecutionContext.IsRunMode)
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const frontend = await builder.addViteApp('frontend', './frontend');
 
 const gateway = await builder
@@ -281,18 +282,18 @@ Choose this shape instead of `PublishWithStaticFiles(...)` when you do not alrea
 #pragma warning disable ASPIREJAVASCRIPT001
 
 var builder = DistributedApplication.CreateBuilder(args);
+builder.AddDockerComposeEnvironment("compose");
 
-var api = builder.AddProject<Projects.Api>("api");
-var frontend = builder.AddViteApp("frontend", "./frontend");
+var api = builder
+    .AddNodeApp("api", "./frameworks/api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+var frontend = builder.AddViteApp("react", "./frameworks/react", runScriptName: "dev");
 
 frontend.PublishAsStaticWebsite(
     apiPath: "/api",
-    apiTarget: api,
-    configure: options =>
-    {
-        options.OutputPath = "dist";
-        options.StripPrefix = true;
-    })
+    apiTarget: api)
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();
@@ -301,20 +302,22 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
+await builder.addDockerComposeEnvironment('compose');
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
-const frontend = await builder.addViteApp('frontend', './frontend');
+const api = await builder
+  .addNodeApp('api', './frameworks/api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' })
+  .withExternalHttpEndpoints();
 
-await frontend
+await builder
+  .addViteApp('react', './frameworks/react', { runScriptName: 'dev' })
   .publishAsStaticWebsite({
     apiPath: '/api',
     apiTarget: api,
-    outputPath: 'dist',
-    stripPrefix: true,
   })
   .withExternalHttpEndpoints();
 
@@ -356,13 +359,13 @@ Use this shape when the JavaScript framework output should become the deployed w
 There are two common runtime shapes:
 
 - Use `PublishAsNodeServer` when the build produces a self-contained server artifact that can run directly with `node`.
-- Use `PublishAsNpmScript` when the production server starts through a package-manager script and needs production dependencies from `node_modules`.
+- Use `PublishAsPackageScript` when the production server starts through a package-manager script and needs production dependencies from `node_modules`.
 
 ### Built Node.js server artifact
 
 Use `PublishAsNodeServer` for frameworks that produce a self-contained Node.js server artifact during build, such as SvelteKit and TanStack Start. Aspire generates a runtime container that runs the built artifact directly with `node`.
 
-Choose this method instead of `PublishAsNpmScript` when the build output does not need a production `node_modules` install at runtime. The resulting image can be smaller because it copies the server artifact rather than the full application with production dependencies.
+Choose this method instead of `PublishAsPackageScript` when the build output does not need a production `node_modules` install at runtime. The resulting image can be smaller because it copies the server artifact rather than the full application with production dependencies.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -371,13 +374,19 @@ Choose this method instead of `PublishAsNpmScript` when the build output does no
 #pragma warning disable ASPIREJAVASCRIPT001
 
 var builder = DistributedApplication.CreateBuilder(args);
+builder.AddDockerComposeEnvironment("compose");
+
+var api = builder
+    .AddNodeApp("api", "./frameworks/api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+var apiEndpoint = api.GetEndpoint("http");
 
 var svelteApp = builder
-    .AddJavaScriptApp("svelte-app", "./svelte-app")
-    .WithHttpEndpoint(port: 3000, env: "PORT");
-
-svelteApp
-    .PublishAsNodeServer(entryPoint: "build/server.js", outputPath: "build")
+    .AddViteApp("sveltekit", "./frameworks/sveltekit", runScriptName: "dev")
+    .PublishAsNodeServer(entryPoint: "build/index.js", outputPath: "build")
+    .WithEnvironment("API_URL", apiEndpoint)
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();
@@ -386,17 +395,23 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
+await builder.addDockerComposeEnvironment('compose');
 
-const svelteApp = await builder
-  .addJavaScriptApp('svelte-app', './svelte-app')
-  .withHttpEndpoint({ env: 'PORT' });
+const api = await builder
+  .addNodeApp('api', './frameworks/api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' })
+  .withExternalHttpEndpoints();
 
-await svelteApp
-  .publishAsNodeServer('build/server.js', { outputPath: 'build' })
+const apiEndpoint = await api.getEndpoint('http');
+
+await builder
+  .addViteApp('sveltekit', './frameworks/sveltekit', { runScriptName: 'dev' })
+  .publishAsNodeServer('build/index.js', { outputPath: 'build' })
+  .withEnvironment('API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 
 await builder.build().run();
@@ -410,9 +425,9 @@ The generated container sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the Node.j
 
 ### Package-script server
 
-Use `PublishAsNpmScript` for SSR frameworks that start production by running an npm-compatible script, such as Nuxt, Astro SSR, and Remix. Aspire generates a multi-stage Dockerfile that installs production dependencies and uses the package manager script as the container entrypoint.
+Use `PublishAsPackageScript` for SSR frameworks that start production by running a package-manager script, such as Nuxt, Astro SSR, and Remix. Aspire generates a multi-stage Dockerfile that installs production dependencies and uses the package manager script as the container entrypoint.
 
-Choose this method instead of `PublishAsNodeServer` when the production server imports packages from `node_modules` at runtime or the framework's recommended production command is an npm script.
+Choose this method instead of `PublishAsNodeServer` when the production server imports packages from `node_modules` at runtime or the framework's recommended production command is a package script.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -421,13 +436,20 @@ Choose this method instead of `PublishAsNodeServer` when the production server i
 #pragma warning disable ASPIREJAVASCRIPT001
 
 var builder = DistributedApplication.CreateBuilder(args);
+builder.AddDockerComposeEnvironment("compose");
+
+var api = builder
+    .AddNodeApp("api", "./frameworks/api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+var apiEndpoint = api.GetEndpoint("http");
 
 var nuxtApp = builder
-    .AddJavaScriptApp("nuxt-app", "./nuxt-app")
-    .WithHttpEndpoint(port: 3000, env: "PORT");
-
-nuxtApp
-    .PublishAsNpmScript(startScriptName: "start")
+    .AddViteApp("nuxt", "./frameworks/nuxt", runScriptName: "dev")
+    .PublishAsPackageScript(scriptName: "start")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithEnvironment("NUXT_API_URL", apiEndpoint)
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();
@@ -436,17 +458,24 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
+await builder.addDockerComposeEnvironment('compose');
 
-const nuxtApp = await builder
-  .addJavaScriptApp('nuxt-app', './nuxt-app')
-  .withHttpEndpoint({ env: 'PORT' });
+const api = await builder
+  .addNodeApp('api', './frameworks/api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' })
+  .withExternalHttpEndpoints();
 
-await nuxtApp
-  .publishAsNpmScript({ startScriptName: 'start' })
+const apiEndpoint = await api.getEndpoint('http');
+
+await builder
+  .addViteApp('nuxt', './frameworks/nuxt', { runScriptName: 'dev' })
+  .publishAsPackageScript({ scriptName: 'start' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withEnvironment('NUXT_API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 
 await builder.build().run();
@@ -458,11 +487,40 @@ await builder.build().run();
 
 The generated container sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the server binds to all interfaces inside the container network.
 
+### pnpm and Bun with PublishAsPackageScript
+
+`PublishAsPackageScript` works with pnpm and Bun in addition to npm and Yarn. The generated runtime Dockerfile stage is tailored to the package manager:
+
+- **pnpm**: The runtime stage runs `corepack enable pnpm && pnpm --version` before the entrypoint, so pnpm is available when the start script executes. Without this step, the container fails at startup with exit code 127 because pnpm is not included in the base `node:alpine` image.
+- **Bun**: The runtime stage reuses the Bun build image rather than switching to a Node.js image, because `bun run <script>` requires the Bun runtime at startup.
+
+```csharp title="AppHost.cs — pnpm package-script publish"
+#pragma warning disable ASPIREJAVASCRIPT001
+
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddDockerComposeEnvironment("compose");
+
+var frontend = builder
+    .AddJavaScriptApp("frontend", "../NodeFrontend")
+    .WithPnpm()
+    .PublishAsPackageScript("start")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+The generated Dockerfile for the pnpm case includes:
+
+```dockerfile
+RUN corepack enable pnpm && pnpm --version
+ENTRYPOINT ["sh", "-c", "exec pnpm run start"]
+```
+
 ## Next.js standalone apps
 
 Use `AddNextJsApp` for Next.js apps that use [standalone output](https://nextjs.org/docs/pages/api-reference/next-config-js/output). It is more specific than `AddJavaScriptApp` because it configures the Next.js development server port argument and publish-time standalone container shape, and it validates that the Next.js configuration enables `output: "standalone"`.
 
-Choose this method instead of `AddJavaScriptApp(...).PublishAsNpmScript(...)` for Next.js standalone deployments. Use the more general npm-script publish method for frameworks where the production server should be started through the package manager and the framework does not have a dedicated Aspire resource.
+Choose this method instead of `AddJavaScriptApp(...).PublishAsPackageScript(...)` for Next.js standalone deployments. Use the more general package-script publish method for frameworks where the production server should be started through the package manager and the framework does not have a dedicated Aspire resource.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -471,12 +529,18 @@ Choose this method instead of `AddJavaScriptApp(...).PublishAsNpmScript(...)` fo
 #pragma warning disable ASPIREJAVASCRIPT001
 
 var builder = DistributedApplication.CreateBuilder(args);
+builder.AddDockerComposeEnvironment("compose");
 
-var api = builder.AddProject<Projects.Api>("api");
+var api = builder
+    .AddNodeApp("api", "./frameworks/api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+var apiEndpoint = api.GetEndpoint("http");
 
 builder
-    .AddNextJsApp("next-app", "./next-app")
-    .WithReference(api)
+    .AddNextJsApp("nextjs", "./frameworks/nextjs", runScriptName: "dev")
+    .WithEnvironment("API_URL", apiEndpoint)
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();
@@ -485,16 +549,22 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
+await builder.addDockerComposeEnvironment('compose');
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder
+  .addNodeApp('api', './frameworks/api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' })
+  .withExternalHttpEndpoints();
+
+const apiEndpoint = await api.getEndpoint('http');
 
 await builder
-  .addNextJsApp('next-app', './next-app')
-  .withReference(api)
+  .addNextJsApp('nextjs', './frameworks/nextjs', { runScriptName: 'dev' })
+  .withEnvironment('API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 
 await builder.build().run();
@@ -560,8 +630,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -573,7 +643,7 @@ const api = await builder
 await builder
   .addViteApp('frontend', './frontend')
   .withExternalHttpEndpoints()
-  .publishAsDockerFile();
+  .publishAsDockerFile(async () => {});
 
 await builder.build().run();
 ```
@@ -616,8 +686,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -630,7 +700,7 @@ await builder
   .addViteApp('frontend', './frontend')
   .withReference(api)
   .withEnvironment('VITE_API_BASE_URL', await api.getEndpoint('http'))
-  .publishAsDockerFile();
+  .publishAsDockerFile(async () => {});
 
 await builder.build().run();
 ```
@@ -681,36 +751,166 @@ The following table summarizes common framework outputs and the Aspire patterns 
 | SvelteKit             | `PublishAsNodeServer`    | `build/index.js`                                 | `@sveltejs/adapter-node`                                               |
 | TanStack Start        | `PublishAsNodeServer`    | `.output/server/index.mjs`                       | None (Nitro `node-server` preset by default)                           |
 | Next.js               | `AddNextJsApp`           | `server.js` (in `.next/standalone/`)             | `output: "standalone"` in `next.config.*`                              |
-| Nuxt                  | `PublishAsNpmScript`     | `node .output/server/index.mjs` (via `start`)    | `NUXT_` prefix on `runtimeConfig` env vars                             |
-| Astro SSR             | `PublishAsNpmScript`     | `node ./dist/server/entry.mjs` (via `start`)     | `@astrojs/node`, `prerender: false` per page                           |
-| Remix / React Router  | `PublishAsNpmScript`     | `react-router-serve` (via `start`)               | None                                                                   |
-| Qwik City             | `PublishAsNpmScript`     | `node server/entry.node-server.js` (via `start`) | Node server adapter, Node 20+                                          |
+| Nuxt                  | `PublishAsPackageScript` | `node .output/server/index.mjs` (via `start`)    | `NUXT_` prefix on `runtimeConfig` env vars                             |
+| Astro SSR             | `PublishAsPackageScript` | `node ./dist/server/entry.mjs` (via `start`)     | `@astrojs/node`, `prerender: false` per page                           |
+| Remix / React Router  | `PublishAsPackageScript` | `react-router-serve` (via `start`)               | None                                                                   |
+| Qwik City             | `PublishAsPackageScript` | `node server/entry.node-server.js` (via `start`) | Node server adapter, Node 22.x or 24.x LTS                             |
+
+<LearnMore>
+  For per-framework AppHost snippets, see [JavaScript integration — Framework
+  examples](/integrations/frameworks/javascript/#framework-examples).
+</LearnMore>
 
 ### Framework-specific gotchas
 
 These are issues that aren't always called out in framework deployment docs but matter for the corresponding publish method to actually work.
 
-The SSR examples below assume a backend resource named `api` referenced from the frontend (via `WithReference` or by passing `apiTarget` to `PublishAsStaticWebsite`). Aspire then exposes its URL as `API_HTTP` following the `<RESOURCENAME>_<SCHEME>` convention from [Dev-mode API proxying](#dev-mode-api-proxying). If your backend has a different name or scheme, substitute the matching variable.
+The SSR examples below assume the AppHost captures the backend endpoint with `api.GetEndpoint("http")` / `api.getEndpoint('http')` and passes it to the framework resource as `API_URL`. For frameworks with their own runtime-config environment variable conventions, also set the framework-specific variable.
+
+The AppHost snippets in this section assume this shared setup:
+
+```typescript title="AppHost — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addDockerComposeEnvironment('compose');
+
+const api = await builder
+  .addNodeApp('api', './frameworks/api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' })
+  .withExternalHttpEndpoints();
+
+const apiEndpoint = await api.getEndpoint('http');
+```
 
 #### Nuxt
 
 - **Directory structure**: Nuxt 4 places pages in `app/pages/`, not a root `pages/` directory.
-- **Environment variables**: Nuxt maps [`runtimeConfig`](https://nuxt.com/docs/getting-started/configuration#runtime-config) keys to env vars with a `NUXT_` prefix. To pass the backend URL, set `NUXT_API_HTTP` on the resource so Nuxt sees it as `runtimeConfig.apiHttp`.
+- **Environment variables**: Nuxt maps [`runtimeConfig`](https://nuxt.com/docs/getting-started/configuration#runtime-config) keys to env vars with a `NUXT_` prefix. To pass the backend URL, set `NUXT_API_URL` on the resource so Nuxt sees it as `runtimeConfig.apiUrl`. You can also set `API_URL` for code that reads `process.env.API_URL` directly.
 - **Server API routes**: The recommended pattern for calling external APIs from Nuxt is a [server API route](https://nuxt.com/docs/guide/directory-structure/server) (`server/api/<name>.ts`) that uses `useRuntimeConfig()`, consumed from a page via [`useAsyncData`](https://nuxt.com/docs/api/composables/use-async-data).
-- **Publish method**: Always use `PublishAsNpmScript` for Nuxt. The Nitro `.output/` looks self-contained, but server-side data fetching via `useAsyncData` / `useFetch` fails without the full `node_modules` available at runtime.
+- **Publish method**: Always use `PublishAsPackageScript` for Nuxt. The Nitro `.output/` looks self-contained, but server-side data fetching via `useAsyncData` / `useFetch` fails without the full `node_modules` available at runtime.
+
+```typescript title="AppHost — apphost.mts"
+await builder
+  .addViteApp('nuxt', './frameworks/nuxt', { runScriptName: 'dev' })
+  .publishAsPackageScript({ scriptName: 'start' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withEnvironment('NUXT_API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+```typescript title="Nuxt — nuxt.config.ts"
+export default defineNuxtConfig({
+  nitro: {
+    preset: 'node-server',
+  },
+  runtimeConfig: {
+    apiUrl: '', // Overridden by NUXT_API_URL.
+  },
+});
+```
+
+```typescript title="Nuxt — server/api/weather.ts"
+export default defineEventHandler(async () => {
+  const config = useRuntimeConfig();
+  const apiUrl = config.apiUrl;
+
+  if (!apiUrl) {
+    throw new Error('NUXT_API_URL is not configured.');
+  }
+
+  return $fetch(`${apiUrl}/api/weather`);
+});
+```
 
 #### Astro SSR
 
 - **Adapter**: Use [`@astrojs/node`](https://docs.astro.build/en/guides/integrations-guide/node/) so Astro produces a Node SSR build.
 - **Pre-rendering**: Astro [pre-renders pages](https://docs.astro.build/en/guides/on-demand-rendering/) at build time by default, even with the Node adapter. Add `export const prerender = false` to any page that needs to run at request time.
-- **Environment variables**: Use `process.env.API_HTTP`, not `import.meta.env.API_HTTP`. `import.meta.env` values are resolved at build time and baked into the output.
-- **Runtime dependencies**: The built `entry.mjs` imports unbundled `@astrojs/*` packages, so SSR Astro must use `PublishAsNpmScript`. The [official Docker recipe](https://docs.astro.build/en/recipes/docker/#multi-stage-build-using-ssr) confirms `node_modules` must be copied into the runtime image.
+- **Environment variables**: Use `process.env.API_URL`, not `import.meta.env.API_URL`. `import.meta.env` values are resolved at build time and baked into the output.
+- **Runtime dependencies**: The built `entry.mjs` imports unbundled `@astrojs/*` packages, so SSR Astro must use `PublishAsPackageScript`. The [official Docker recipe](https://docs.astro.build/en/recipes/docker/#multi-stage-build-using-ssr) confirms `node_modules` must be copied into the runtime image.
+
+```typescript title="AppHost — apphost.mts"
+await builder
+  .addViteApp('astro-ssr', './frameworks/astro-ssr', { runScriptName: 'dev' })
+  .publishAsPackageScript({ scriptName: 'start' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+```javascript title="Astro SSR — astro.config.mjs"
+import { defineConfig } from 'astro/config';
+import node from '@astrojs/node';
+
+export default defineConfig({
+  adapter: node({
+    mode: 'standalone',
+  }),
+});
+```
+
+```astro title="Astro SSR — src/pages/index.astro"
+---
+export const prerender = false;
+
+const apiUrl = process.env.API_URL;
+
+if (!apiUrl) {
+  throw new Error('API_URL is not configured.');
+}
+
+const response = await fetch(`${apiUrl}/api/weather`);
+const weather = response.ok ? await response.json() : [];
+---
+
+<h1>Astro SSR Weather</h1>
+<pre>{JSON.stringify(weather, null, 2)}</pre>
+```
 
 #### SvelteKit
 
 - **Adapter**: The default `@sveltejs/adapter-auto` does not produce a deployable Node.js artifact. Install [`@sveltejs/adapter-node`](https://svelte.dev/docs/kit/adapter-node) and update `svelte.config.js` to use it.
-- **Server-side data**: Use a [`+page.server.ts`](https://svelte.dev/docs/kit/load) `load` function for server-side fetching. `process.env.API_HTTP` is available inside the load function.
+- **Server-side data**: Use a [`+page.server.ts`](https://svelte.dev/docs/kit/load) `load` function for server-side fetching. `process.env.API_URL` is available inside the load function.
 - **Output shape**: The `build/` directory is fully self-contained, so no `node_modules` are required at runtime. This makes SvelteKit a good fit for `PublishAsNodeServer`.
+
+```typescript title="AppHost — apphost.mts"
+await builder
+  .addViteApp('sveltekit', './frameworks/sveltekit', { runScriptName: 'dev' })
+  .publishAsNodeServer('build/index.js', { outputPath: 'build' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+```javascript title="SvelteKit — svelte.config.js"
+import adapter from '@sveltejs/adapter-node';
+
+/** @type {import('@sveltejs/kit').Config} */
+const config = {
+  kit: {
+    adapter: adapter(),
+  },
+};
+
+export default config;
+```
+
+```typescript title="SvelteKit — src/routes/+page.server.ts"
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async ({ fetch }) => {
+  const apiUrl = process.env.API_URL;
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
+  const response = await fetch(`${apiUrl}/api/weather`);
+
+  return {
+    weather: response.ok ? await response.json() : [],
+  };
+};
+```
 
 #### Next.js
 
@@ -718,23 +918,179 @@ The SSR examples below assume a backend resource named `api` referenced from the
 - **Copy shape**: The standalone build produces three directories that must be copied separately into the runtime image: `.next/standalone/` (server + bundled deps), `.next/static/` (client assets), and `public/` (static files). `AddNextJsApp` handles this automatically; see the [official with-docker example](https://github.com/vercel/next.js/tree/canary/examples/with-docker) if you need to do it manually.
 - **Server components**: Default App Router components are [server components](https://nextjs.org/docs/app/getting-started/server-and-client-components). Use `async` directly in the component body to fetch data; no special loader pattern is needed.
 
+```typescript title="AppHost — apphost.mts"
+await builder
+  .addNextJsApp('nextjs', './frameworks/nextjs', { runScriptName: 'dev' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+```typescript title="Next.js — next.config.ts"
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  output: 'standalone',
+};
+
+export default nextConfig;
+```
+
+```tsx title="Next.js — app/page.tsx"
+export default async function Home() {
+  const apiUrl = process.env.API_URL;
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
+  const response = await fetch(`${apiUrl}/api/weather`, {
+    cache: 'no-store',
+  });
+  const weather = response.ok ? await response.json() : [];
+
+  return <pre>{JSON.stringify(weather, null, 2)}</pre>;
+}
+```
+
 #### TanStack Start
 
 - **Nitro preset**: Uses [Nitro](https://nitro.build/deploy/runtimes/node) with the `node-server` preset by default, which produces a self-contained `.output/server/index.mjs`. This is why TanStack Start works with `PublishAsNodeServer` out of the box. See [TanStack Start hosting](https://tanstack.com/start/latest/docs/framework/react/hosting) for other deployment targets.
 - **Server functions**: Use [`createServerFn`](https://tanstack.com/start/latest/docs/framework/react/server-functions) for server-side data loading from route loaders.
-- **Environment variables**: `process.env.API_HTTP` is available inside server functions at runtime.
+- **Environment variables**: `process.env.API_URL` is available inside server functions at runtime.
+
+```typescript title="AppHost — apphost.mts"
+await builder
+  .addViteApp('tanstack-start', './frameworks/tanstack-start', {
+    runScriptName: 'dev',
+  })
+  .publishAsNodeServer('.output/server/index.mjs', { outputPath: '.output' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+```tsx title="TanStack Start — src/routes/index.tsx"
+import { createFileRoute } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
+
+const fetchWeather = createServerFn({ method: 'GET' }).handler(async () => {
+  const apiUrl = process.env.API_URL;
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
+  const response = await fetch(`${apiUrl}/api/weather`);
+
+  return response.json();
+});
+
+export const Route = createFileRoute('/')({
+  loader: () => fetchWeather(),
+});
+```
 
 #### Remix / React Router
 
-- **Server binary**: `react-router-serve` lives in `node_modules`; it's not bundled into the build output. This is why Remix needs `PublishAsNpmScript` rather than `PublishAsNodeServer`. See the [React Router deployment guide](https://reactrouter.com/start/framework/deploying) and the [`node-custom-server` template](https://github.com/remix-run/react-router-templates/tree/main/node-custom-server) for production server patterns.
+- **Server binary**: `react-router-serve` lives in `node_modules`; it's not bundled into the build output. This is why Remix needs `PublishAsPackageScript` rather than `PublishAsNodeServer`. See the [React Router deployment guide](https://reactrouter.com/start/framework/deploying) and the [`node-custom-server` template](https://github.com/remix-run/react-router-templates/tree/main/node-custom-server) for production server patterns.
 - **Port binding**: Pass `-- --port "$PORT"` as `runScriptArguments` so the server listens on Aspire's assigned port.
+
+```typescript title="AppHost — apphost.mts"
+await builder
+  .addViteApp('remix', './frameworks/remix', { runScriptName: 'dev' })
+  .publishAsPackageScript({
+    scriptName: 'start',
+    runScriptArguments: '-- --port "$PORT"',
+  })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+```json title="Remix — package.json"
+{
+  "scripts": {
+    "build": "react-router build",
+    "dev": "react-router dev",
+    "start": "react-router-serve ./build/server/index.js"
+  }
+}
+```
+
+```tsx title="Remix — app/routes/home.tsx"
+export async function loader() {
+  const apiUrl = process.env.API_URL;
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
+  const response = await fetch(`${apiUrl}/api/weather`);
+
+  return {
+    weather: response.ok ? await response.json() : [],
+  };
+}
+```
 
 #### Qwik City
 
-- **Node version**: Qwik uses Vite 7, which requires Node 20+. Set `engines.node` in `package.json` accordingly.
+- **Node version**: Qwik uses Vite 7. Set `engines.node` in `package.json` to a supported Node.js LTS release: 22.x or 24.x.
 - **Server adapter**: Requires the [Qwik Node adapter](https://qwik.dev/docs/deployments/node/). Add `adaptors/node-server/vite.config.ts` with `nodeServerAdapter()` and a corresponding `src/entry.node-server.tsx`.
 - **Build steps**: Requires both `npm run build.client` and `npm run build.server`. The default `npm run build` runs both via `qwik build`.
-- **SSR data loading**: Use [`routeLoader$`](https://qwik.dev/docs/route-loader/) for server-side data loading. Read the backend URL via `process.env['API_HTTP']`.
+- **SSR data loading**: Use [`routeLoader$`](https://qwik.dev/docs/route-loader/) for server-side data loading. Read the backend URL via `process.env['API_URL']`.
+
+```typescript title="AppHost — apphost.mts"
+await builder
+  .addViteApp('qwik', './frameworks/qwik', { runScriptName: 'dev' })
+  .publishAsPackageScript({ scriptName: 'start' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+```json title="Qwik City — package.json"
+{
+  "engines": {
+    "node": "^22.13.0 || ^24.0.0"
+  },
+  "scripts": {
+    "build": "qwik build",
+    "build.client": "vite build",
+    "build.server": "vite build -c adaptors/node-server/vite.config.ts",
+    "start": "node server/entry.node-server.js"
+  }
+}
+```
+
+```typescript title="Qwik City — adaptors/node-server/vite.config.ts"
+import { nodeServerAdapter } from '@builder.io/qwik-city/adapters/node-server/vite';
+import { extendConfig } from '@builder.io/qwik-city/vite';
+import baseConfig from '../../vite.config';
+
+export default extendConfig(baseConfig, () => ({
+  build: {
+    ssr: true,
+    rollupOptions: {
+      input: ['src/entry.node-server.tsx', '@qwik-city-plan'],
+    },
+  },
+  plugins: [nodeServerAdapter({ name: 'node-server', ssg: null })],
+}));
+```
+
+```tsx title="Qwik City — src/routes/index.tsx"
+import { routeLoader$ } from '@builder.io/qwik-city';
+
+export const useWeatherData = routeLoader$(async () => {
+  const apiUrl = process.env['API_URL'];
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
+  const response = await fetch(`${apiUrl}/api/weather`);
+
+  return response.json();
+});
+```
 
 #### Angular
 
@@ -742,11 +1098,98 @@ The SSR examples below assume a backend resource named `api` referenced from the
 - **Dev proxy**: Angular doesn't expose `vite.config.ts`. Use a [`proxy.conf.js`](https://angular.dev/tools/cli/serve) (not `.json`) that reads `process.env.API_HTTP`, referenced from `angular.json` under `serve.options.proxyConfig`.
 - **Output path**: Set [`outputPath`](https://angular.dev/reference/configs/workspace-config) in `angular.json` to `{ "base": "dist", "browser": "" }` so the production build writes directly to `dist/` for `PublishAsStaticWebsite`.
 
+```typescript title="AppHost — apphost.mts"
+await builder
+  .addViteApp('angular', './frameworks/angular', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+```
+
+```javascript title="Angular — proxy.conf.js"
+const target = process.env.API_HTTPS || process.env.API_HTTP;
+
+if (!target) {
+  throw new Error(
+    'API endpoint is not configured. Run the app through Aspire.'
+  );
+}
+
+module.exports = {
+  '/api': {
+    target,
+    secure: false,
+    changeOrigin: true,
+  },
+};
+```
+
+```json title="Angular — angular.json"
+{
+  "projects": {
+    "angular": {
+      "architect": {
+        "build": {
+          "options": {
+            "outputPath": {
+              "base": "dist",
+              "browser": ""
+            }
+          }
+        },
+        "serve": {
+          "options": {
+            "proxyConfig": "proxy.conf.js"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
 #### Vite / React / Vue (static)
 
 - **Preview is not production**: Both [Vite](https://vite.dev/guide/cli.html#vite-preview) and the framework docs explicitly state that `vite preview` is not a production server. Always use `PublishAsStaticWebsite`.
 - **API calls**: Use the `apiPath` / `apiTarget` options on `PublishAsStaticWebsite` so the backend is reachable through YARP. Don't use `VITE_*` env vars for runtime API URLs; they're baked at build time.
 - **Dev proxy**: Add [`server.proxy`](https://vite.dev/config/server-options.html#server-proxy) in `vite.config.ts` reading `process.env.API_HTTP` to forward `/api/*` to the backend in dev mode.
+
+```typescript title="AppHost — apphost.mts"
+await builder
+  .addViteApp('react', './frameworks/react', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+```
+
+```typescript title="Vite / React / Vue — vite.config.ts"
+import { defineConfig } from 'vite';
+
+const apiTarget = process.env.API_HTTPS || process.env.API_HTTP;
+
+if (!apiTarget) {
+  throw new Error(
+    'API endpoint is not configured. Run the app through Aspire.'
+  );
+}
+
+export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: apiTarget,
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
+});
+```
+
+```typescript title="Vite / React / Vue — fetch weather"
+export async function loadWeather() {
+  const response = await fetch('/api/weather');
+  return response.json();
+}
+```
 
 ## What JavaScript app resources mean in production
 
@@ -788,8 +1231,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -805,18 +1248,62 @@ await builder.build().run();
 
 The `DisableBuildOnlyContainerValidation` method is marked experimental with the `ASPIREPIPELINES001` diagnostic.
 
-`AddNextJsApp` is different because it represents the Next.js standalone-server publish model directly. Use it when the app is a Next.js app with `output: "standalone"` rather than modeling the app with `AddJavaScriptApp` and choosing a generic npm-script publish method.
+`AddNextJsApp` is different because it represents the Next.js standalone-server publish model directly. Use it when the app is a Next.js app with `output: "standalone"` rather than modeling the app with `AddJavaScriptApp` and choosing a generic package-script publish method.
+
+### Run script and existing Dockerfile conflict
+
+When `AddJavaScriptApp` finds an existing user-authored `Dockerfile` in the app directory, Aspire uses that Dockerfile as the publish container image and cannot safely replace its `ENTRYPOINT`. If you also pass an explicit `runScriptName` to `AddJavaScriptApp` or call `.WithRunScript(...)` with a non-default script name, Aspire fails at publish time with a clear error rather than silently emitting an image that ignores the requested script:
+
+```text
+JavaScript app resource 'js' is configured to run script 'migrate', but publish is using the existing Dockerfile 'Dockerfile'. An existing Dockerfile entrypoint cannot be changed automatically from runScriptName or WithRunScript. Remove or rename the Dockerfile so Aspire can generate one, or call PublishAsDockerFile(...) and set the container entrypoint explicitly.
+```
+
+To resolve the conflict, choose one of the following options:
+
+- **Remove or rename the Dockerfile** so Aspire generates a new one that runs your requested script as the container entrypoint.
+- **Override the container entrypoint explicitly** by calling `PublishAsDockerFile(...)` and configuring the entrypoint directly on the container resource. This keeps the existing Dockerfile and gives you full control over what runs:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+builder
+    .AddJavaScriptApp("js", "./js", runScriptName: "migrate")
+    .WithBun()
+    .PublishAsDockerFile(container => container
+        .WithEntrypoint("bun")
+        .WithArgs("src/migrate.ts"));
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await builder
+  .addJavaScriptApp('js', './js', { runScriptName: 'migrate' })
+  .withBun()
+  .publishAsDockerFile(async (container) => {
+    container.withEntrypoint('bun');
+    container.withArgs(['src/migrate.ts']);
+  });
+```
+
+</TabItem>
+</Tabs>
+
+Using the implicit default `runScriptName` (`"dev"`) without any custom arguments is always allowed, even when an existing Dockerfile is present, because no script override is actually requested in that case.
 
 ## Common mistakes
 
 - Expecting `AddViteApp` or `AddJavaScriptApp` to be the deployed production web server without choosing a publish method.
-- Modeling a Next.js standalone deployment with generic npm-script publishing instead of `AddNextJsApp`.
+- Modeling a Next.js standalone deployment with generic package-script publishing instead of `AddNextJsApp`.
 - Exposing the Vite resource instead of the backend, reverse proxy, or JavaScript publish resource that serves production requests.
 - Adding `AddViteApp` plus `.WithReference(...)` and assuming that is enough to deploy the frontend.
 - Using `.WithEnvironment(...)` on `AddViteApp` to pass the API URL to the deployed SPA.
 - Calling `.WithHttpEndpoint()` on `AddViteApp`.
 - Using `VITE_*` variables for values that must be resolved at runtime in an already-built SPA.
 - Adding a Vite or JavaScript app without choosing a production serving model, which causes a publish/deploy validation error for an unconsumed build-only container.
+- Passing an explicit `runScriptName` or calling `.WithRunScript(...)` when the app directory already has a user-authored Dockerfile, which causes a publish-time conflict error. Remove the Dockerfile or use `PublishAsDockerFile(...)` with an explicit container entrypoint to resolve the conflict.
 
 <LearnMore>
   For runtime configuration guidance, see [JavaScript
@@ -827,5 +1314,5 @@ The `DisableBuildOnlyContainerValidation` method is marked experimental with the
 
 - [Deploy your first Aspire app](/get-started/deploy-first-app/)
 - [JavaScript integration](/integrations/frameworks/javascript/)
-- [Publishing and deployment overview](/deployment/overview/)
+- [Publishing and deployment overview](/deployment/deploy-with-aspire/)
 - [Node.js hosting extensions](/integrations/frameworks/nodejs-extensions/)

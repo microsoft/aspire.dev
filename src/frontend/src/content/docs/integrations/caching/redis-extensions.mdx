@@ -1,10 +1,10 @@
 ---
-title: Redis hosting extensions
+title: Use community extensions for Redis hosting
+description: Extend the functionality of your Redis hosting with community-built extensions, including management UIs like DbGate.
 next: false
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import { Aside } from '@astrojs/starlight/components';
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
 import redisIcon from '@assets/icons/redis-icon.png';
@@ -14,13 +14,13 @@ import redisIcon from '@assets/icons/redis-icon.png';
 <Image
   src={redisIcon}
   alt="Redis logo"
-  width={80}
-  height={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-The Aspire Community Toolkit Redis hosting extensions package provides extra functionality to the [Aspire.Hosting.Redis](https://www.nuget.org/packages/Aspire.Hosting.Redis) hosting package.
+The Aspire Community Toolkit Redis hosting extensions package provides extra functionality to the [Aspire.Hosting.Redis](https://www.nuget.org/packages/Aspire.Hosting.Redis) hosting package. These extensions are built and maintained by the community and are separate from the official [Redis integration](/integrations/caching/redis/redis-get-started/).
 
 This package provides the following features:
 
@@ -30,13 +30,39 @@ This package provides the following features:
 
 To get started with the Aspire Community Toolkit Redis hosting extensions, install the [CommunityToolkit.Aspire.Hosting.Redis.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Redis.Extensions) NuGet package in the app host project.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Redis.Extensions" />
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Redis.Extensions
+```
+
+This updates your `aspire.config.json` with the Redis extensions package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Redis.Extensions": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Add management UI
 
 ### DbGate management UI
 
 To add the DbGate management UI to your Redis resource, call the `WithDbGate` method on the `RedisResource` instance:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -49,6 +75,28 @@ builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const redis = await builder.addRedis("redis");
+await redis.withDbGate();
+
+const exampleProject = await builder.addProject(
+    "example-project",
+    "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(redis);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
 
 This adds a new DbGate resource to the app host which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your Redis databases.
 

@@ -75,6 +75,7 @@ const totalDownloads = integrations.reduce((total, integration) => {
     gap: 1rem;
     margin-bottom: 1rem;
     display: none;
+    flex-wrap: wrap;
   }
 
   @media (min-width: 768px) {
@@ -88,7 +89,12 @@ const totalDownloads = integrations.reduce((total, integration) => {
   }
 
   .total-card {
-    flex: 1;
+    /* Each card claims at least ~16rem so big numbers like "43,336,079"
+       don't truncate. When two cards together exceed the container width
+       (i.e. tablet ~768–1024px with sidebar visible), the third wraps to
+       its own row instead of squishing all three. */
+    flex: 1 1 16rem;
+    min-width: 0;
     background: color-mix(in srgb, var(--sl-color-gray-6) 60%, transparent);
     border: 1px solid color-mix(in srgb, var(--sl-color-gray-5) 50%, transparent);
     border-radius: 0.75rem;
@@ -107,6 +113,7 @@ const totalDownloads = integrations.reduce((total, integration) => {
     display: flex;
     align-items: center;
     gap: 1rem;
+    min-width: 0;
   }
 
   .icon-container {
@@ -131,10 +138,11 @@ const totalDownloads = integrations.reduce((total, integration) => {
     align-items: flex-start;
     text-align: left;
     flex: 1;
+    min-width: 0;
   }
 
   .total-number {
-    font-size: 2rem;
+    font-size: clamp(1.5rem, 2.2vw, 2rem);
     font-weight: 800;
     background: linear-gradient(90deg, var(--aspire-color-primary), var(--aspire-color-secondary));
     -webkit-background-clip: text;
@@ -142,6 +150,8 @@ const totalDownloads = integrations.reduce((total, integration) => {
     background-clip: text;
     line-height: 1;
     margin-bottom: 0.2rem;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   :global([data-theme='light']) .total-number {
@@ -168,6 +178,7 @@ const totalDownloads = integrations.reduce((total, integration) => {
     }
 
     .total-card {
+      flex: 1 1 auto;
       margin-bottom: 0.5rem;
     }
   }
@@ -249,4 +260,19 @@ const totalDownloads = integrations.reduce((total, integration) => {
 
   // Expose function globally so it can be called from Integrations.astro
   window.animateIntegrationTotals = animateCountUp;
+
+  // Kick off the animation on initial load. Astro hoists this script and the
+  // one in Integrations.astro independently, and there is no guaranteed order
+  // between them. Integrations.astro's `filterCards()` (called on load) will
+  // invoke `window.animateIntegrationTotals` if it's defined — but if its
+  // script runs first the function isn't registered yet and the totals stay
+  // at "0" until the user toggles a filter. Calling animateCountUp() here
+  // guarantees totals animate on first render regardless of script order;
+  // subsequent calls after filter changes are idempotent (the animation is
+  // a no-op when the current value already matches `data-target`).
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => animateCountUp(), { once: true });
+  } else {
+    animateCountUp();
+  }
 </script>

@@ -10,6 +10,7 @@ import { socialConfig } from './config/socials.config.ts';
 import catppuccin from '@catppuccin/starlight';
 import lunaria from './config/lunaria-starlight.mjs';
 import mermaid from 'astro-mermaid';
+import mdx from '@astrojs/mdx';
 import starlight from '@astrojs/starlight';
 import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightImageZoom from 'starlight-image-zoom';
@@ -20,9 +21,24 @@ import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
+import buildTiming from './config/build-timing.mjs';
 
 const modeArgIndex = process.argv.indexOf('--mode');
 const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
+const isBuildTimingEnabled = process.env.BUILD_TIMING === '1';
+
+// Astro renders pages mostly on the main JS thread. Default `build.concurrency`
+// is 1, so a multi-vCPU CI runner is largely idle during the generate phase.
+// Internal benchmarks on a 12k-page build showed:
+//   concurrency: 1 (default)  baseline
+//   concurrency: 2            -11 % wall time
+//   concurrency: 4            -16 % wall time  <- chosen default
+//   concurrency: 8            -14 % (regresses past 4)
+// `build.concurrency` is bounded by available cores and is documented as a
+// stable knob, so 4 is a safe default that scales to ubuntu-latest's 4 vCPUs.
+// Override via the `ASPIRE_BUILD_CONCURRENCY` env var if a runner has a
+// different vCPU count.
+const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 
 // https://astro.build/config
 export default defineConfig({
@@ -102,15 +118,17 @@ export default defineConfig({
         starlightSidebarTopics(sidebarTopics, {
           exclude: [
             '**/includes/**/*',
-            '/support', 
-            '/reference/api', 
+            '/support',
+            '/diagnostics/aspireats001',
+            '/**/diagnostics/aspireats001',
+            '/reference/api',
             '/reference/api/**'
           ],
         }),
         starlightLinksValidator({
           errorOnRelativeLinks: false,
           errorOnFallbackPages: false,
-          exclude: ['/i18n/'],
+          exclude: ['/i18n/', '/reference/api', '/reference/api/**'],
         }),
         starlightScrollToTop({
           // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/
@@ -141,6 +159,27 @@ export default defineConfig({
           projectName: 'Aspire',
           description:
             'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
+          // Strip transient annotations injected by expressive-code-twoslash from the
+          // rendered HTML before it's converted back to Markdown. Without this, the
+          // TypeScript hover popovers (type signatures, JSDoc, error boxes, etc.)
+          // leak into the code blocks in llms.txt / llms-full.txt / llms-small.txt
+          // and corrupt the source we hand to LLM tooling.
+          //
+          // Each selector below targets a *popup/annotation* sibling that twoslash
+          // injects next to the original token. The wrappers it places *around* the
+          // token (e.g. `.twoslash`, `.twoslash-hover`, `.twoslash-error-underline`)
+          // are deliberately not included here — they contain the author's actual
+          // code, which must survive into the Markdown output verbatim.
+          // See: ec.config.mjs (twoslash configuration).
+          customSelectors: {
+            all: [
+              '.twoslash-popup-container',
+              '.twoslash-static',
+              '.twoslash-completion',
+              '.twoslash-error-box',
+              '.twoslash-custom-box',
+            ],
+          },
           // https://delucis.github.io/starlight-llms-txt/configuration/#exclude
           exclude: [
             'includes/**',
@@ -186,6 +225,14 @@ export default defineConfig({
         }),
       ],
     }),
+    mdx({
+      optimize: true,
+      gfm: true,
+    }),
     jopSoftwarecookieconsent(cookieConfig),
+    ...(isBuildTimingEnabled ? [buildTiming()] : []),
   ],
+  build: {
+    concurrency: buildConcurrency,
+  },
 });

@@ -105,13 +105,10 @@ function cleanType(raw: string | undefined): string {
   // Collapse fully-qualified namespaced identifiers (with '.' and/or '/' separators)
   // to their trailing simple-name segment, in-place — so occurrences inside generic
   // args are handled without swallowing surrounding brackets.
-  s = s.replace(
-    /[A-Za-z_][A-Za-z0-9_]*(?:[./][A-Za-z_][A-Za-z0-9_]*)+/g,
-    (m) => {
-      const afterSlash = m.includes('/') ? m.slice(m.lastIndexOf('/') + 1) : m;
-      return lastDotted(afterSlash);
-    }
-  );
+  s = s.replace(/[A-Za-z_][A-Za-z0-9_]*(?:[./][A-Za-z_][A-Za-z0-9_]*)+/g, (m) => {
+    const afterSlash = m.includes('/') ? m.slice(m.lastIndexOf('/') + 1) : m;
+    return lastDotted(afterSlash);
+  });
   // recover from known junk produced by the upstream generator (stray `]]`)
   s = s.replace(/\]\]+/g, '');
   return s || 'unknown';
@@ -130,8 +127,22 @@ function camelCase(name: string): string {
 function sanitizeIdentifier(name: string): string {
   // JS reserved words we might collide with when a param is named e.g. 'default'
   const reserved = new Set([
-    'default', 'function', 'class', 'new', 'return', 'delete', 'enum', 'package',
-    'private', 'protected', 'public', 'static', 'interface', 'in', 'of', 'as'
+    'default',
+    'function',
+    'class',
+    'new',
+    'return',
+    'delete',
+    'enum',
+    'package',
+    'private',
+    'protected',
+    'public',
+    'static',
+    'interface',
+    'in',
+    'of',
+    'as',
   ]);
   return reserved.has(name) ? `_${name}` : name;
 }
@@ -156,9 +167,19 @@ function formatParams(params: Parameter[]): string {
 // Primitive types we're safe to collapse into an options-object overload. If any
 // param uses a richer type (resource/handle/enum) we keep the positional form.
 const PRIMITIVE_TYPES = new Set([
-  'string', 'number', 'boolean', 'bigint', 'symbol', 'unknown', 'any',
-  'string[]', 'number[]', 'boolean[]',
-  'Array<string>', 'Array<number>', 'Array<boolean>',
+  'string',
+  'number',
+  'boolean',
+  'bigint',
+  'symbol',
+  'unknown',
+  'any',
+  'string[]',
+  'number[]',
+  'boolean[]',
+  'Array<string>',
+  'Array<number>',
+  'Array<boolean>',
 ]);
 
 function isPrimitiveParamType(t: string): boolean {
@@ -184,6 +205,9 @@ const FORCE_OPTIONAL_PARAMS: Record<string, Set<string>> = {
 // Known parameter-type overrides — broaden the declared type to match what the
 // real SDK accepts but the dumped JSON doesn't encode (string overloads, etc).
 const PARAM_TYPE_OVERRIDES: Record<string, Record<string, string>> = {
+  addRoute: {
+    target: 'ExternalServiceResource | string | EndpointReference',
+  },
   withEnvironment: {
     value: 'string | IResourceWithConnectionString | IValueProvider',
   },
@@ -192,6 +216,14 @@ const PARAM_TYPE_OVERRIDES: Record<string, Record<string, string>> = {
   publishAsExisting: {
     name: 'string | ParameterResource',
     resourceGroup: 'string | ParameterResource',
+  },
+  // Current Aspire TS SDKs accept connection-string resources as wait
+  // dependencies; the 13.3 ts-modules snapshot still reports IResource only.
+  waitFor: {
+    dependency: 'IResource | IResourceWithConnectionString',
+  },
+  waitForStart: {
+    dependency: 'IResource | IResourceWithConnectionString',
   },
 };
 
@@ -330,6 +362,114 @@ const genericArity = new Map<string, number>();
 
 const FREE_FUNCTION_NAMES = new Set(['createBuilder', 'createBuilderWithOptions']);
 
+// Confirmed Aspire 13.4 API surface that may be absent from the checked-in
+// 13.3 ts-modules snapshot until package data is refreshed. Keep these shims
+// narrow and remove them when update-ts-api brings the APIs into
+// src/data/ts-modules.
+const POST_SNAPSHOT_FREE_FUNCTIONS = [
+  `/**
+ * Creates a reference expression from a tagged template literal
+ */
+export declare function refExpr(strings: TemplateStringsArray, ...values: unknown[]): ReferenceExpression;`,
+];
+
+const POST_SNAPSHOT_DECLARATIONS = [
+  `/**
+ * Enum Aspire.Hosting.ApplicationModel.InputType
+ */
+export type InputType = "Text" | "Number" | "Choice" | "SecretText";
+export declare const InputType: {
+  readonly Text: "Text";
+  readonly Number: "Number";
+  readonly Choice: "Choice";
+  readonly SecretText: "SecretText";
+};`,
+  `export interface ParameterCustomInputOptions {
+  inputType?: InputType;
+  label?: string;
+  placeholder?: string;
+  options?: Record<string, string>;
+}`,
+  `export interface BeforePublishEvent extends IDistributedApplicationEvent {
+  model: PropertyAccessor<DistributedApplicationModel>;
+  services: PropertyAccessor<IServiceProvider>;
+}`,
+  `export interface AfterPublishEvent extends IDistributedApplicationEvent {
+  model: PropertyAccessor<DistributedApplicationModel>;
+  services: PropertyAccessor<IServiceProvider>;
+}`,
+];
+
+const POST_SNAPSHOT_DECLARATION_TYPE_NAMES = new Set([
+  'BeforePublishEvent',
+  'AfterPublishEvent',
+  'InputType',
+  'ParameterCustomInputOptions',
+]);
+
+const POST_SNAPSHOT_AUGMENTATIONS = [
+  `export interface IDistributedApplicationBuilder {
+  /**
+   * Subscribes to the BeforePublish event
+   */
+  subscribeBeforePublish(callback: (arg: BeforePublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
+  /**
+   * Subscribes to the AfterPublish event
+   */
+  subscribeAfterPublish(callback: (arg: AfterPublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
+}`,
+  `export interface EventingSubscriberRegistrationContext {
+  /**
+   * Subscribes an eventing subscriber to the BeforePublish event
+   */
+  onBeforePublish(callback: (arg: BeforePublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
+  /**
+   * Subscribes an eventing subscriber to the AfterPublish event
+   */
+  onAfterPublish(callback: (arg: AfterPublishEvent) => Promise<void>): DistributedApplicationEventSubscription;
+}`,
+  `export interface IResource {
+  /**
+   * Assigns Microsoft Foundry roles for this resource
+   */
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+  /**
+   * Configures a resource to use a session lifetime
+   */
+  withSessionLifetime(): this;
+  /**
+   * Configures a resource to use a persistent lifetime
+   */
+  withPersistentLifetime(): this;
+  /**
+   * Configures a resource to match the lifetime of another resource
+   */
+  withLifetimeOf(source: IResource): this;
+  /**
+   * Configures a resource to use a persistent lifetime that ends when a parent process exits
+   */
+  withParentProcessLifetime(parentProcessId: number): this;
+}`,
+  `export interface ParameterResource {
+  /**
+   * Customizes the parameter input shown by the dashboard
+   */
+  withCustomInput(options: ParameterCustomInputOptions): this;
+}`,
+  `export interface ComposeFile {
+  /**
+   * Adds a top-level Docker Compose volume
+   */
+  addVolume(name: string, options?: { driver?: string; configure?: (volume: Volume) => Promise<void> }): Promise<Volume>;
+}`,
+  `export interface Service {
+  /**
+   * Adds a Docker Compose volume mount to a service
+   */
+  addVolume(source: string, target: string, options?: { isReadOnly?: boolean }): Promise<Volume>;
+}`,
+];
+
 // Built-in generic container types the ATS tool emits as pseudo-targets — these
 // aren't useful in user-facing docs samples (Dict is already modeled as Record<K,V>,
 // List as Array<T>), so we skip them when assigning methods to target interfaces.
@@ -388,9 +528,8 @@ for (const mod of modules) {
 function visitFn(fn: FunctionEntry): void {
   extractTypeIdentifiers(cleanType(fn.returnType), referencedTypes);
   for (const p of fn.parameters) {
-    const t = p.isCallback && p.callbackSignature
-      ? cleanType(p.callbackSignature)
-      : cleanType(p.type);
+    const t =
+      p.isCallback && p.callbackSignature ? cleanType(p.callbackSignature) : cleanType(p.type);
     extractTypeIdentifiers(t, referencedTypes);
     // track generic arity: look for Name<...> and count top-level commas
     const match = t.match(/([A-Za-z_][A-Za-z0-9_]*)<([^<>]*(?:<[^<>]*>[^<>]*)*)>/g);
@@ -448,26 +587,58 @@ for (const fn of freeFunctions) scanExprForGenerics(cleanType(fn.returnType));
 // ---------- emit ----------
 
 const BUILT_IN = new Set([
-  'string', 'number', 'boolean', 'any', 'unknown', 'void', 'never', 'null', 'undefined',
-  'object', 'true', 'false', 'this', 'symbol', 'bigint',
+  'string',
+  'number',
+  'boolean',
+  'any',
+  'unknown',
+  'void',
+  'never',
+  'null',
+  'undefined',
+  'object',
+  'true',
+  'false',
+  'this',
+  'symbol',
+  'bigint',
   // JS globals we pass through
-  'Promise', 'Array', 'Map', 'Set', 'Date', 'Error', 'RegExp', 'Record', 'Partial',
-  'Readonly', 'Required', 'Pick', 'Omit', 'Exclude', 'Extract',
+  'Promise',
+  'Array',
+  'Map',
+  'Set',
+  'Date',
+  'Error',
+  'RegExp',
+  'Record',
+  'Partial',
+  'Readonly',
+  'Required',
+  'Pick',
+  'Omit',
+  'Exclude',
+  'Extract',
   // Our utility aliases / internal helpers declared at the top of the file
-  'Dict', 'PropertyAccessor',
+  'Dict',
+  'PropertyAccessor',
 ]);
 
 const declaredTypes = new Set<string>([
-  ...dtoTypes.map((d) => d.name),
-  ...enumTypes.map((e) => e.name),
+  ...dtoTypes
+    .filter((d) => !POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(d.name))
+    .map((d) => d.name),
+  ...enumTypes
+    .filter((e) => !POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(e.name))
+    .map((e) => e.name),
   ...handleTypes.map((h) => h.name),
   ...methodsByTarget.keys(),
+  ...POST_SNAPSHOT_DECLARATION_TYPE_NAMES,
 ]);
 
 const parts: string[] = [];
 parts.push(`// Auto-generated by scripts/generate-twoslash-types.ts — do not edit.`);
 parts.push(`// This file is consumed by expressive-code-twoslash to provide hover tooltips`);
-parts.push(`// for TypeScript code samples in the docs that import './.modules/aspire.js'.`);
+parts.push(`// for TypeScript code samples in the docs that import './.aspire/modules/aspire.mjs'.`);
 parts.push(``);
 parts.push(`declare global {`);
 parts.push(`  type Dict<K extends string | number | symbol, V> = Record<K, V>;`);
@@ -481,7 +652,9 @@ parts.push(`//   \`builder.executionContext.isRunMode\`       — nested direct 
 parts.push(`// Model as an intersection covering all three. For object T we include`);
 parts.push(`// T directly so nested-property access resolves; for primitives we only`);
 parts.push(`// need the callable + accessor surface (primitive intersections collapse).`);
-parts.push(`export type PropertyAccessor<T> = (T extends object ? T : unknown) & (() => Promise<T>) & {`);
+parts.push(
+  `export type PropertyAccessor<T> = (T extends object ? T : unknown) & (() => Promise<T>) & {`
+);
 parts.push(`  get(): Promise<T>;`);
 parts.push(`  set(value: T): Promise<void>;`);
 parts.push(`  // Dict-valued accessors are sometimes set entry-wise in docs`);
@@ -490,7 +663,12 @@ parts.push(`  set(key: string, value: unknown): Promise<void>;`);
 parts.push(`};`);
 parts.push(``);
 parts.push(`// ---- enums ----`);
+for (const declaration of POST_SNAPSHOT_DECLARATIONS) {
+  parts.push(declaration);
+  parts.push('');
+}
 for (const en of enumTypes) {
+  if (POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(en.name)) continue;
   parts.push(jsdoc([`Enum ${en.fullName}`]));
   const members = en.members.map((m) => JSON.stringify(m)).join(' | ') || 'string';
   parts.push(`export type ${en.name} = ${members};`);
@@ -499,9 +677,7 @@ for (const en of enumTypes) {
   // upstream dump only gives us string-valued members, which matches how the
   // generated SDK surfaces .NET enums to TS.
   if (en.members.length > 0) {
-    const fields = en.members
-      .map((m) => `  readonly ${m}: ${JSON.stringify(m)};`)
-      .join('\n');
+    const fields = en.members.map((m) => `  readonly ${m}: ${JSON.stringify(m)};`).join('\n');
     parts.push(`export declare const ${en.name}: {\n${fields}\n};`);
   }
   parts.push('');
@@ -509,6 +685,7 @@ for (const en of enumTypes) {
 
 parts.push(`// ---- DTOs ----`);
 for (const dto of dtoTypes) {
+  if (POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(dto.name)) continue;
   parts.push(jsdoc([`DTO ${dto.fullName}`]));
   parts.push(`export interface ${dto.name} {`);
   for (const f of dto.fields) {
@@ -542,14 +719,23 @@ const NON_CONTAINER_HANDLES = new Set([
   'AzurePromptAgentResource',
 ]);
 
+const EXTRA_HANDLE_MEMBERS: Record<string, string[]> = {
+  AzureResourceInfrastructure: [
+    '  /** Gets the provisionable Azure resources produced by the infrastructure callback. */',
+    '  getProvisionableResources(): Promise<any[]>;',
+  ],
+  ProjectResource: [
+    '  /** Assigns Microsoft Foundry roles to this project resource. */',
+    '  withRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;',
+  ],
+};
+
 function isContainerBacked(h: HandleType): boolean {
   if (h.name === 'ContainerResource') return false;
   if (NON_CONTAINER_HANDLES.has(h.name)) return false;
   const pkg = handlePackage.get(h.name);
   if (pkg && NON_CONTAINER_PACKAGES.has(pkg)) return false;
-  const ifaces = new Set(
-    (h.implementedInterfaces ?? []).map((i) => lastDotted(i).split('<')[0])
-  );
+  const ifaces = new Set((h.implementedInterfaces ?? []).map((i) => lastDotted(i).split('<')[0]));
   return (
     ifaces.has('IComputeResource') &&
     ifaces.has('IResourceWithArgs') &&
@@ -581,14 +767,14 @@ for (const h of handleTypes) {
     }
     ancestor = classBaseByName.get(ancestor);
   }
-  const implementsClause =
-    uniqueParents.length > 0 ? ` extends ${uniqueParents.join(', ')}` : '';
+  const implementsClause = uniqueParents.length > 0 ? ` extends ${uniqueParents.join(', ')}` : '';
   for (const i of uniqueParents) referencedTypes.add(i);
   parts.push(jsdoc([`Handle ${h.fullName}`]));
   parts.push(`export interface ${h.name}${implementsClause} {`);
   for (const cap of h.capabilities ?? []) {
     emitMember(cap, '  ', parts);
   }
+  parts.push(...(EXTRA_HANDLE_MEMBERS[h.name] ?? []));
   parts.push(`}`);
   parts.push('');
 }
@@ -602,6 +788,12 @@ const targetNames = [...methodsByTarget.keys()].sort((a, b) => {
 });
 
 for (const target of targetNames) {
+  // Extension methods targeting the broad IResource interface include resource-
+  // specific overload groups (for example role assignments). Emitting them on
+  // IResource makes concrete resources with narrower overloads fail structural
+  // assignability back to IResource, which breaks common waitFor/withReference
+  // samples. Concrete expanded targets still receive those methods below.
+  if (target === 'IResource') continue;
   // DTOs and enums collide (different TS shape), so skip those. For handle types
   // we use interface merging — emit an augmentation with the extension methods
   // that live in per-integration packages (e.g. addRedis from Aspire.Hosting.Redis).
@@ -658,8 +850,7 @@ function emitMember(fn: FunctionEntry, indent: string, out: string[]): void {
   // polymorphic `this` so the type flows through. Applies to any method
   // flagged `returnsBuilder` that isn't actually creating a new resource.
   const isFluentPrefix = /^(with|wait|on|publish)[A-Z0-9]/.test(memberName);
-  const ret =
-    fn.returnsBuilder && isFluentPrefix ? 'this' : declaredRet;
+  const ret = fn.returnsBuilder && isFluentPrefix ? 'this' : declaredRet;
   const effectiveParams = applyParamOverrides(memberName, fn.parameters);
   // Record referenced types from overridden param types too, so the stubber sees them.
   for (const p of effectiveParams) extractTypeIdentifiers(paramType(p), referencedTypes);
@@ -704,6 +895,16 @@ for (const fn of freeFunctions) {
   parts.push(`export declare function ${fn.name}(${formatParams(effectiveParams)}): ${ret};`);
   parts.push('');
 }
+for (const declaration of POST_SNAPSHOT_FREE_FUNCTIONS) {
+  parts.push(declaration);
+  parts.push('');
+}
+
+parts.push(`// ---- confirmed post-snapshot API augmentations ----`);
+for (const declaration of POST_SNAPSHOT_AUGMENTATIONS) {
+  parts.push(declaration);
+  parts.push('');
+}
 
 // ---- stubs for referenced-but-undeclared types ----
 const missing: string[] = [];
@@ -727,7 +928,9 @@ for (const name of missing) {
   const extendsClause =
     /^IResourceWith/.test(name) && name !== 'IResource' ? ' extends IResource' : '';
   if (arity > 0) {
-    const generics = Array.from({ length: arity }, (_, i) => `T${i === 0 ? '' : i} = unknown`).join(', ');
+    const generics = Array.from({ length: arity }, (_, i) => `T${i === 0 ? '' : i} = unknown`).join(
+      ', '
+    );
     parts.push(`export interface ${name}<${generics}>${extendsClause} {}`);
   } else {
     parts.push(`export interface ${name}${extendsClause} {}`);
@@ -740,6 +943,10 @@ parts.push(`export {};`);
 mkdirSync(OUTPUT_DIR, { recursive: true });
 writeFileSync(OUTPUT_FILE, parts.join('\n'), 'utf8');
 console.log(`✅ Wrote ${OUTPUT_FILE}`);
-console.log(`   - ${dtoTypes.length} DTOs, ${enumTypes.length} enums, ${handleTypes.length} handle types`);
-console.log(`   - ${methodsByTarget.size} target interfaces, ${freeFunctions.length} free functions`);
+console.log(
+  `   - ${dtoTypes.length} DTOs, ${enumTypes.length} enums, ${handleTypes.length} handle types`
+);
+console.log(
+  `   - ${methodsByTarget.size} target interfaces, ${freeFunctions.length} free functions`
+);
 console.log(`   - ${missing.length} stub interfaces for referenced SDK types`);

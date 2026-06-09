@@ -14,13 +14,16 @@ const OFFICIAL_RELEASE_FEED_QUERIES = ['Aspire.'];
 const COMMUNITY_TOOLKIT_QUERIES = ['CommunityToolkit.Aspire'];
 const EXCLUDED_PACKAGES = [
   'Aspire.Cli',
+  'Aspire.Hosting.Azure.AIFoundry',
   'Aspire.Hosting.IncrementalMigration',
   'Aspire.Hosting.NodeJs',
+  'Aspire.Hosting.Testing',
   'Aspire.Microsoft.AspNetCore.SystemWebAdapters',
   'Aspire.MongoDB.Driver.v3',
   'Aspire.RabbitMQ.Client.v7',
   'CommunityToolkit.Aspire.Hosting.Azure.StaticWebApps',
   'CommunityToolkit.Aspire.Hosting.EventStore',
+  'CommunityToolkit.Aspire.Hosting.Golang',
   'CommunityToolkit.Aspire.EventStore',
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';

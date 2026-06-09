@@ -1,6 +1,6 @@
 ---
 title: Migrate from Docker Compose to Aspire
-description: Learn how to migrate your Docker Compose applications to Aspire and understand the key conceptual differences.
+description: Migrate your Docker Compose applications to Aspire — map services, volumes, networks, and environment variables to AppHost APIs and modernize your developer workflow.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -124,8 +124,8 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -136,14 +136,14 @@ const database = (await builder.addPostgres("postgres")
     .addDatabase("myapp");
 
 // Add the API project with proper dependencies
-const api = await builder.addProject("api", "./MyApp.Api/MyApp.Api.csproj", "https")
+const api = await builder.addProject("api", "./MyApp.Api/MyApp.Api.csproj")
     .withHttpEndpoint({ port: 5000 })
     .withHttpHealthCheck("/health")
     .withReference(database, "DefaultConnection")
     .waitFor(database);
 
 // Add the frontend project with dependencies
-const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj", "https")
+const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj")
     .withHttpEndpoint({ port: 3000 })
     .withReference(api)
     .withEnvironment("API_URL", api.getEndpoint("http"))
@@ -238,8 +238,8 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -329,8 +329,8 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -342,7 +342,7 @@ const database = (await builder.addPostgres("db"))
 
 const cache = await builder.addRedis("cache");
 
-const app = await builder.addContainer("app", "myapp:latest")
+const app = await builder.addContainer("app", { image: "myapp", tag: "latest" })
     .withReference(database)
     .withReference(cache)
     .withEnvironment("API_KEY", apiKey)
@@ -382,7 +382,7 @@ var app = builder.AddContainer("app", "myapp", "latest")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const dbPassword = builder.addParameter("dbPassword", { secret: true });
 
 const db = (await builder.addPostgres("db", { password: dbPassword }))
@@ -440,16 +440,16 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const app = await builder.addContainer("app", "myapp:latest")
+const app = await builder.addContainer("app", { image: "myapp", tag: "latest" })
     .withVolume("/data", { name: "app-data", isReadOnly: true })
     .withBindMount("./config", "/app/config", { isReadOnly: true });
 
-const worker = await builder.addContainer("worker", "myworker:latest")
+const worker = await builder.addContainer("worker", { image: "myworker", tag: "latest" })
     .withVolume("/shared", { name: "app-data" });
 
 await builder.build().run();
@@ -578,7 +578,7 @@ var app = builder.AddContainer("app", "myapp", "latest")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const dbPassword = builder.addParameter("dbPassword", { secret: true });
 
 const postgres = (await builder.addPostgres("db", { password: dbPassword }))
@@ -607,7 +607,7 @@ var api = builder.AddProject<Projects.Api>("api")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const api = await builder.addProject("api", "./Api/Api.csproj", "https")
     .withReference(database)  // Service discovery
     .waitFor(database);       // Startup ordering
@@ -635,7 +635,7 @@ var redis = builder.AddRedis("cache")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const redis = await builder.addRedis("cache")
     .withHostPort(6379);
 ```
@@ -656,7 +656,7 @@ var api = builder.AddProject<Projects.Api>("api")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const api = await builder.addProject("api", "./Api/Api.csproj", "https")
     .withHttpHealthCheck("/health");
 ```
@@ -685,7 +685,7 @@ var app = builder.AddProject<Projects.App>("app")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const rabbit = await builder.addContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpine")
     .withHealthCheck("rabbitmq-health");
 
@@ -706,6 +706,6 @@ After migrating to Aspire:
 
 - Explore [Aspire integrations](/integrations/overview/) to replace custom container configurations
 - Set up [health checks](/fundamentals/health-checks/) for better monitoring
-- Learn about [deployment options](/deployment/overview/) for production environments
+- Learn about [deployment options](/deployment/deploy-with-aspire/) for production environments
 - Consider [testing](/testing/overview/) your distributed application
 - Review [telemetry configuration](/fundamentals/telemetry/) for observability

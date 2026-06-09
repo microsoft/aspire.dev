@@ -1,6 +1,7 @@
 ---
 title: Deploy to Kubernetes
-description: Learn how to publish and deploy your Aspire application to Kubernetes using Helm charts.
+seoTitle: Deploy Aspire apps to Kubernetes clusters with Helm
+description: Publish and deploy your Aspire application to Kubernetes using Helm charts — generated manifests, configurable values, secrets, and multi-environment release strategies.
 sidebar:
   badge: Preview
 ---
@@ -10,10 +11,18 @@ import LearnMore from '@components/LearnMore.astro';
 
 Kubernetes is a supported deployment target for Aspire applications. By adding the Kubernetes hosting integration to your AppHost, you can use `aspire publish` to generate a complete set of Helm chart artifacts ready for deployment to any Kubernetes cluster.
 
+## Prerequisites
+
+Before deploying to Kubernetes with Aspire, ensure the following tools are installed and available on your `PATH`:
+
+- **[Helm](https://helm.sh/docs/intro/install/) v4.2.0 or later** — Aspire shells out to `helm upgrade --install` to deploy the generated chart. It validates the Helm version up front; missing or older versions produce a clear, actionable error rather than cryptic flag failures.
+- **[kubectl](https://kubernetes.io/docs/tasks/tools/)** — Required to interact with your cluster.
+
 <Aside type="note">
-  Kubernetes uses `aspire publish` to generate Helm charts. It does not support
-  `aspire deploy` — you deploy the generated artifacts using `helm`, `kubectl`,
-  or your existing GitOps workflow.
+  Kubernetes uses `aspire publish` to generate Helm charts and `aspire deploy`
+  to run the Helm deployment pipeline against your configured cluster. You can
+  also deploy the generated artifacts using `helm`, `kubectl`, or your existing
+  GitOps workflow.
 </Aside>
 
 <LearnMore>
@@ -36,14 +45,14 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" {5} twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" {5} twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 const k8s = await builder.addKubernetesEnvironment('k8s');
 
-const api = await builder.addProject('api', '../MyApi/MyApi.csproj', 'http');
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
 
 await builder.build().run();
 ```
@@ -173,16 +182,14 @@ builder.AddKubernetesEnvironment("k8s")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 const k8s = await builder.addKubernetesEnvironment('k8s');
 await k8s.withHelm(async (helm) => {
-  await helm.withChartName('my-aspire-app');
   await helm.withChartVersion('1.0.0');
-  await helm.withChartDescription('My Aspire application Helm chart');
 });
 ```
 </TabItem>
@@ -227,12 +234,12 @@ builder.AddContainer("service", "nginx")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const service = await builder.addContainer('service', 'nginx');
+const service = await builder.addContainer('service', { image: 'nginx', tag: 'latest' });
 await service.withEnvironment('ORIGINAL_ENV', 'value');
 await service.publishAsKubernetesService(async (resource) => {
   // Customize the generated Kubernetes resource
@@ -268,6 +275,6 @@ In Kubernetes, services discover each other using the cluster's built-in DNS. A 
 - [Configure Gateway API on AKS](/deployment/kubernetes-gateway-aks/)
 - [Kubernetes integration](/integrations/compute/kubernetes/)
 - [Pipelines and app topology](/deployment/pipelines/)
-- [Publishing and deployment overview](/deployment/overview/)
+- [Publishing and deployment overview](/deployment/deploy-with-aspire/)
 - [Kubernetes documentation](https://kubernetes.io/docs/)
 - [Helm documentation](https://helm.sh/docs/)

@@ -1,6 +1,7 @@
 ---
 title: Deploy to Docker Compose
-description: Learn how to publish and deploy your Aspire application using Docker Compose with Docker or Podman.
+seoTitle: Deploy Aspire apps with Docker Compose to any host
+description: Publish and deploy your Aspire application using Docker Compose with Docker or Podman — generate compose files, build images, and orchestrate multi-service production runs.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -72,14 +73,14 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" {5} twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" {5} twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 await builder.addDockerComposeEnvironment('env');
 
-await builder.addProject('api', '../Api/Api.csproj', 'http');
+await builder.addProject('api', '../Api/Api.csproj');
 
 await builder.build().run();
 ```
@@ -255,9 +256,9 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
-import type { DockerfileBuilderCallbackContext } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import type { DockerfileBuilderCallbackContext } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -321,8 +322,8 @@ builder.AddDockerComposeEnvironment("env")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -367,8 +368,8 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -414,8 +415,8 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -457,8 +458,8 @@ var apiHost = compose.Resource.GetHostAddressExpression(
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -487,12 +488,12 @@ builder.AddContainer("mycontainer", "myimage:latest")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder, ImagePullPolicy } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder, ImagePullPolicy } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const container = await builder.addContainer('mycontainer', 'myimage:latest');
+const container = await builder.addContainer('mycontainer', { image: 'myimage', tag: 'latest' });
 await container.withImagePullPolicy(ImagePullPolicy.Always);
 ```
 </TabItem>
@@ -538,12 +539,12 @@ var api = builder.AddProject<Projects.Api>("api")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject('api', '../Api/Api.csproj', 'http');
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.publishAsDockerComposeService(async (resource, service) => {
   await service.name.set('api');
 });
@@ -582,9 +583,22 @@ var api = builder.AddProject<Projects.Api>("api")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-:::note
-The `WithImagePushOptions` API is not yet available in the TypeScript AppHost SDK.
-:::
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api
+  .publishAsDockerComposeService(async (resource, service) => {
+    await service.name.set('api');
+  })
+  .withImagePushOptions(async (context) => {
+    const imageName = context.resource.getResourceName().toLowerCase();
+    context.options.setRemoteImageName(`myorg/${imageName}`);
+    context.options.setRemoteImageTag('latest');
+  });
+```
 </TabItem>
 </Tabs>
 
@@ -617,18 +631,18 @@ var api = builder.AddProject<Projects.Api>("api")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const registry = await builder.addContainerRegistryFromString(
+const registry = await builder.addContainerRegistry(
   'ghcr',
   'ghcr.io',
   { repository: 'your-github-username/your-repo' }
 );
 
-const api = await builder.addProject('api', '../Api/Api.csproj', 'http');
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.publishAsDockerComposeService(async (resource, service) => {
   await service.name.set('api');
 });
@@ -671,8 +685,8 @@ var api = builder.AddProject<Projects.Api>("api")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -691,7 +705,7 @@ const registry = await builder.addContainerRegistry(
   registryRepository
 );
 
-const api = await builder.addProject('api', '../Api/Api.csproj', 'http');
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.publishAsDockerComposeService(async (resource, service) => {
   await service.name.set('api');
 });

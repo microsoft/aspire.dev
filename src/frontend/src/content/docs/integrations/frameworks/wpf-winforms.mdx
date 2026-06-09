@@ -1,96 +1,117 @@
 ---
 title: WPF and Windows Forms with Aspire
-description: Learn how to use WPF and Windows Forms desktop applications with Aspire for development-time service orchestration.
+description: Learn how to orchestrate WPF and Windows Forms desktop applications alongside Aspire-managed backend services during local development.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import { Steps } from '@astrojs/starlight/components';
 import dotnetIcon from '@assets/icons/dotnet.svg';
 
 <Image
   src={dotnetIcon}
   alt=".NET logo"
-  width={80}
-  height={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-WPF (Windows Presentation Foundation) and Windows Forms are .NET desktop user interface (UI) frameworks for building Windows desktop applications. While Aspire's primary focus is on cloud-native and web workloads, you can use WPF and Windows Forms applications alongside Aspire for **development-time orchestration** of backend services.
+WPF (Windows Presentation Foundation) and Windows Forms are .NET desktop UI frameworks for building Windows applications. Because they are standard .NET projects, you can register them in an Aspire AppHost alongside your backend services using the same `AddProject` API you use for web and worker services. Aspire then starts and monitors the desktop app as a local process resource when you run the AppHost during development.
 
-<Aside type="note">
-WPF and Windows Forms applications are **not** containerized or deployed as part of `aspire deploy`. Aspire orchestrates them as local processes during development only. For production deployment, use your existing desktop deployment tooling (MSIX, ClickOnce, and so on).
-</Aside>
+:::note
+WPF and Windows Forms applications require Windows and are **not** containerized or included in [`aspire deploy`](/reference/cli/commands/aspire-deploy/) output. Aspire orchestrates them as local processes during development only. For production deployment, use your existing desktop tooling (MSIX, ClickOnce, and so on).
+:::
 
-## Add a WPF or Windows Forms app to Aspire
+## Add WPF or Windows Forms to the AppHost
 
-Because WPF and Windows Forms projects are standard .NET projects, you can reference them directly from your AppHost using `AddProject`. This starts the desktop app alongside your backend services when you run the AppHost.
+No additional NuGet package is required. Add the desktop project reference to the AppHost and call `AddProject` to register it.
 
-### Step 1: Add a project reference
+<Steps>
 
-In your AppHost `.csproj`, add a project reference to your WPF or Windows Forms app:
+1. **Add a project reference** from your AppHost `.csproj` to the WPF or Windows Forms project:
 
-```xml title="XML — AppHost.csproj"
-<ItemGroup>
-  <ProjectReference Include="..\MyWpfApp\MyWpfApp.csproj" />
-</ItemGroup>
-```
+   ```xml title="XML — AppHost.csproj"
+   <ItemGroup>
+     <ProjectReference Include="..\MyWpfApp\MyWpfApp.csproj" />
+   </ItemGroup>
+   ```
 
-### Step 2: Register the project in the Aspire AppHost
+1. **Register the project** in your AppHost and wire up any service references it needs:
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+   ```csharp title="C# — AppHost.cs"
+   var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject<Projects.ApiService>("api");
+   var api = builder.AddProject<Projects.ApiService>("api");
 
-// Start the WPF or WinForms app as a resource in local development
-var desktop = builder.AddProject<Projects.MyWpfApp>("desktop")
-    .WithReference(api);
+   builder.AddProject<Projects.MyWpfApp>("desktop")
+       .WithReference(api)
+       .WaitFor(api);
 
-// After adding all resources, run the app...
-builder.Build().Run();
-```
+   // After adding all resources, run the app...
+   builder.Build().Run();
+   ```
 
-When you run the AppHost, the WPF or Windows Forms application starts automatically as a process resource.
+   When you run the AppHost, the desktop application starts automatically as a process resource alongside all other registered services.
 
-### Step 3: Consume service URLs in the desktop app
+1. **Add service discovery** to the desktop project so it can resolve Aspire-managed service addresses at runtime. Reference the `Aspire.ServiceDefaults` project (or install `Microsoft.Extensions.ServiceDiscovery` directly), then configure the generic host in your startup code.
 
-Add the `Aspire.ServiceDefaults` (or `Microsoft.Extensions.ServiceDiscovery`) package to your desktop project to enable service discovery:
+   For **WPF**, override `OnStartup` in `App.xaml.cs`:
 
-```csharp title="C# — App.xaml.cs (WPF)"
-public partial class App : Application
-{
-    public IServiceProvider Services { get; private set; } = default!;
+   ```csharp title="C# — App.xaml.cs (WPF)"
+   public partial class App : Application
+   {
+       public IServiceProvider Services { get; private set; } = default!;
 
-    protected override void OnStartup(StartupEventArgs e)
-    {
-        base.OnStartup(e);
+       protected override void OnStartup(StartupEventArgs e)
+       {
+           base.OnStartup(e);
 
-        var host = Host.CreateDefaultBuilder()
-            .ConfigureServices(services =>
-            {
-                services.AddServiceDiscovery();
-                services.AddHttpClient<ApiClient>(client =>
-                {
-                    // Ensure that the service name in the URI matches the name in AppHost
-                    client.BaseAddress = new Uri("https+http://api");
-                }).AddServiceDiscovery();
-            })
-            .Build();
+           var host = Host.CreateDefaultBuilder()
+               .ConfigureServices(services =>
+               {
+                   services.AddServiceDiscovery();
+                   services.AddHttpClient<ApiClient>(client =>
+                   {
+                       client.BaseAddress = new Uri("https+http://api");
+                   }).AddServiceDiscovery();
+               })
+               .Build();
 
-        Services = host.Services;
-        host.Start();
-    }
-}
-```
+           Services = host.Services;
+           host.Start();
+       }
+   }
+   ```
 
-<Aside type="tip">
-The `https+http://` scheme tells the HTTP client to prefer HTTPS but fall back to HTTP. The service name (`api`) must match the resource name defined in your `AppHost.cs`.
-</Aside>
+   For **Windows Forms**, configure the host in `Program.cs`:
 
-## Dev-only resources
+   ```csharp title="C# — Program.cs (Windows Forms)"
+   var host = Host.CreateDefaultBuilder(args)
+       .ConfigureServices(services =>
+       {
+           services.AddServiceDiscovery();
+           services.AddHttpClient<ApiClient>(client =>
+           {
+               client.BaseAddress = new Uri("https+http://api");
+           }).AddServiceDiscovery();
+           services.AddTransient<MainForm>();
+       })
+       .Build();
 
-A common pattern is to start certain resources, such as databases, mock services, or dev tools, only during local development and skip them in production. Use `builder.Environment.IsDevelopment()` to add resources conditionally:
+   Application.EnableVisualStyles();
+   Application.SetCompatibleTextRenderingDefault(false);
+   Application.Run(host.Services.GetRequiredService<MainForm>());
+   ```
+
+   :::tip
+   The `https+http://` scheme tells the HTTP client to prefer HTTPS but fall back to HTTP. The service name (`api`) must match the resource name defined in your `AppHost.cs`.
+   :::
+
+</Steps>
+
+## Dev-only orchestration
+
+A common pattern is to register the desktop app only during local development and skip it in CI or staging environments. Use `builder.Environment.IsDevelopment()` to add the resource conditionally:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -103,9 +124,9 @@ var api = builder.AddProject<Projects.ApiService>("api")
 
 if (builder.Environment.IsDevelopment())
 {
-    // Only launch the desktop app during local development
     builder.AddProject<Projects.MyWpfApp>("desktop")
-        .WithReference(api);
+        .WithReference(api)
+        .WaitFor(api);
 }
 
 // After adding all resources, run the app...
@@ -114,16 +135,16 @@ builder.Build().Run();
 
 ## Limitations
 
-- **Windows only**: WPF and Windows Forms require Windows. If your team develops on macOS or Linux, the desktop resource will fail to start on non-Windows machines.
-- **No deployment support**: `aspire deploy` does not produce deployment artifacts for desktop apps. They are treated as local-only resources.
-- **No auto-launch from dashboard**: Desktop apps registered with Aspire start automatically when the AppHost runs—they cannot be manually started or stopped from the Aspire dashboard the same way containerized services can be.
+- **Windows only**: WPF and Windows Forms require Windows. On macOS or Linux, the desktop resource will fail to start because the .NET WPF/WinForms runtime is unavailable on those platforms.
+- **No deployment support**: [`aspire deploy`](/reference/cli/commands/aspire-deploy/) does not produce deployment artifacts for desktop apps. They are treated as development-time resources only.
+- **Dashboard lifecycle**: Desktop apps start automatically when the AppHost runs. They cannot be started or stopped on demand from the Aspire dashboard the same way containerized services can.
 
 ## Comparison with .NET MAUI
 
 | Feature | WPF / WinForms | .NET MAUI |
 |---------|---------------|-----------|
-| First-class Aspire support | From the `AddProject` method (manual) | From the `Aspire.Hosting.Maui` package |
-| Cross-platform | Windows only | Windows, macOS, iOS, Android |
+| Aspire hosting package | None — uses standard `AddProject` | `Aspire.Hosting.Maui` |
+| Platform support | Windows only | Windows, macOS, iOS, Android |
 | Dev Tunnels support | Not applicable | Built-in for iOS/Android |
 | Production deployment with Aspire | Not supported | Not supported |
 
@@ -133,5 +154,6 @@ For cross-platform desktop and mobile scenarios, consider [.NET MAUI integration
 
 - [.NET MAUI integration](/integrations/dotnet/maui/)
 - [AppHost overview](/get-started/app-host/)
+- [Service discovery in .NET](/fundamentals/networking-overview/)
 - [WPF documentation](https://learn.microsoft.com/dotnet/desktop/wpf/)
 - [Windows Forms documentation](https://learn.microsoft.com/dotnet/desktop/winforms/)

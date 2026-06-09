@@ -25,6 +25,10 @@ pnpm dev        # starts dev server at http://localhost:4321
 
 Search is disabled in dev mode — use `pnpm build && pnpm preview` to test search. Running `pnpm dev` is sufficient to verify documentation rendering changes; a full `pnpm build` is not required.
 
+## Two-slash TypeScript Examples
+
+Use the `twoslash-validator` skill whenever you add or edit a `twoslash` TypeScript code fence, TypeScript AppHost sample, or generated TypeScript API data. The site must not ship rendered two-slash diagnostics; run `pnpm test:unit:twoslash-blocks` from `src/frontend` and fix every reported diagnostic instead of adding allowlists or suppressions.
+
 ## Project Structure
 
 ```
@@ -230,7 +234,7 @@ Bad:
 ```md
 <!-- DON'T: bold the colon, use title case, or omit the period -->
 - **AppHost Project:** the orchestrator project
-- **integration**: A NuGet package that configures a service or client for use with .NET Aspire
+- **integration**: A NuGet package that configures a service or client for use with Aspire
 ```
 
 ### Parentheses

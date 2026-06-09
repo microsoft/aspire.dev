@@ -11,19 +11,17 @@ const outputFile = path.join(frontendRoot, 'src', 'data', 'twoslash', 'aspire.d.
 
 let output = '';
 
-// TEMP: twoslash is temporarily disabled in ec.config.mjs. Re-enable this
-// suite (and flip TWOSLASH_ENABLED back to `true` in ec.config.mjs) when the
-// twoslash integration is restored.
-describe.skip('generate-twoslash-types', () => {
-  beforeAll(() => {
-    // The output is source-controlled, so don't unlink it. Re-run the generator
-    // in place; subsequent assertions read the refreshed content.
-    // Invoke tsx directly via node to avoid cross-platform `pnpm`/`pnpm.cmd`
-    // resolution issues (and the DEP0190 warning from `shell: true`).
-    const tsxBin = path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
-    execFileSync(process.execPath, [tsxBin, generatorScript], { cwd: frontendRoot, stdio: 'pipe' });
-    output = readFileSync(outputFile, 'utf8');
-  }, 60_000);
+beforeAll(() => {
+  // The output is source-controlled, so don't unlink it. Re-run the generator
+  // in place; subsequent assertions read the refreshed content.
+  // Invoke tsx directly via node to avoid cross-platform `pnpm`/`pnpm.cmd`
+  // resolution issues (and the DEP0190 warning from `shell: true`).
+  const tsxBin = path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+  execFileSync(process.execPath, [tsxBin, generatorScript], { cwd: frontendRoot, stdio: 'pipe' });
+  output = readFileSync(outputFile, 'utf8');
+}, 60_000);
+
+describe('generate-twoslash-types', () => {
 
   test('writes aspire.d.ts to disk', () => {
     expect(existsSync(outputFile)).toBe(true);
@@ -56,5 +54,12 @@ describe.skip('generate-twoslash-types', () => {
     // withDataVolume(options?: { ... }) is the canonical shape produced when all
     // params are primitives — generator pairs it with a positional overload.
     expect(output).toMatch(/withDataVolume\(options\?: \{/);
+  });
+
+  test('does not merge post-snapshot declarations with generated DTOs', () => {
+    const declarations = output.match(/export interface ParameterCustomInputOptions\b/g) ?? [];
+
+    expect(declarations).toHaveLength(1);
+    expect(output).toMatch(/inputType\?: InputType/);
   });
 });

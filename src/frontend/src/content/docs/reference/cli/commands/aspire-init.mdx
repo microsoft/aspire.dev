@@ -1,9 +1,9 @@
 ---
 title: aspire init command
+seoTitle: aspire init command reference for the Aspire CLI
 description: Learn about the aspire init command and how it uses the aspireify agent skill to wire up Aspire support in an existing codebase.
 ---
 
-import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import { Aside } from '@astrojs/starlight/components';
 import Include from '@components/Include.astro';
 
@@ -17,8 +17,6 @@ import Include from '@components/Include.astro';
 aspire init [options]
 ```
 
-<AsciinemaPlayer src="/casts/aspire-init.cast" poster="npt:0:01" rows={26} loop={false} speed={.5} />
-
 ## Description
 
 The `aspire init` command initializes Aspire support in an existing repo or workspace. It scaffolds a minimal AppHost skeleton together with an `aspire.config.json`, then optionally installs the **`aspireify` agent skill** so your AI coding agent can complete the wiring.
@@ -26,7 +24,9 @@ The `aspire init` command initializes Aspire support in an existing repo or work
 This command defaults to **interactive** mode. When executed without any options, the command prompts you for the AppHost language when more than one path is available.
 
 <Aside type="note">
-The `--source` and `--version` options are deprecated and no longer affect `aspire init`. They are accepted for backward compatibility but will be removed in a future release.
+  The `--source` and `--version` options are deprecated and no longer affect
+  `aspire init`. They are accepted for backward compatibility but will be
+  removed in a future release.
 </Aside>
 
 ### AppHost detection
@@ -34,13 +34,49 @@ The `--source` and `--version` options are deprecated and no longer affect `aspi
 The command adapts to the repo it finds:
 
 - **C# file-based AppHost** (when selected interactively) — creates `apphost.cs` with `#:sdk` and `#:package` directives for a lightweight single-file orchestrator.
-- **TypeScript AppHost** (when selected interactively) — creates `apphost.ts` with the generated `.modules/` folder.
+- **TypeScript AppHost** (when selected interactively) — creates `apphost.mts` with the generated `.aspire/modules/` folder. If the repo already has a root `package.json`, the AppHost is created as a nested `aspire-apphost/` package and the root `aspire.config.json` points to `aspire-apphost/apphost.mts`.
 
 :::note
 When a `.sln` or `.slnx` is present, the C# option creates a **project-based AppHost** instead — an `AppHost.csproj` added to the solution with `ProjectReference` items and strongly-typed `AddProject<T>()` calls.
 :::
 
 In all cases, the AppHost language does not limit what you can orchestrate — C#, JavaScript, Python, Go, Rust, Java, containers, and more can all be modeled in the same application model.
+
+### Channel persistence in aspire.config.json
+
+When `aspire init` runs with an explicit, non-stable channel (such as `daily` or `staging`), it writes a top-level `channel` key into the generated `aspire.config.json`. This ensures that subsequent commands — `aspire add`, `aspire update`, and others — resolve packages and templates against the same channel the project was initialized with, rather than falling back to the implicit stable default.
+
+For example, running a daily CLI build produces:
+
+```json title="aspire.config.json" {5}
+{
+  "appHost": {
+    "path": "apphost.cs"
+  },
+  "channel": "daily",
+  "profiles": {
+    "https": {
+      "applicationUrl": "https://localhost:17055;http://localhost:15013",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_GRPC_ENDPOINT_URL": "https://localhost:16168",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22043"
+      }
+    },
+    "http": {
+      "applicationUrl": "http://localhost:15013",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_GRPC_ENDPOINT_URL": "http://localhost:19147",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20216",
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true"
+      }
+    }
+  }
+}
+```
+
+If `aspire.config.json` already contains a `channel` value (for example, because you edited it manually or migrated from an older project), the value is preserved and not overwritten.
+
+Only channels that are registered as _explicit_ in the packaging service are persisted, with one exception: the `stable` channel is treated as the portable default and is intentionally not pinned.
 
 ### The aspireify skill
 
@@ -85,7 +121,6 @@ The following options are available:
   ```bash title="Aspire CLI"
   aspire init
   ```
-
 
 - Initialize Aspire support with a TypeScript AppHost:
 

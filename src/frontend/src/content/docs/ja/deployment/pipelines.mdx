@@ -295,9 +295,29 @@ var api = builder.AddProject<Api>("api").WithReference(database);
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-:::note
-TypeScript AppHost SDK では `builder.pipeline` API はまだ利用できないため、このカスタムパイプラインの例は現在 C# のみです。
-:::
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// カスタムデプロイ検証を追加
+builder.pipeline.addStep("validate-deployment", async (context) => {
+  // カスタム検証ロジック
+  await validateApiHealth(context);
+  await validateDatabaseConnection(context);
+}, { requiredBy: ["deploy"] });
+
+// リソースを定義
+const database = await builder.addPostgres("myapp-db");
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(database);
+
+async function validateApiHealth(_context: unknown) {
+}
+
+async function validateDatabaseConnection(_context: unknown) {
+}
+```
 </TabItem>
 </Tabs>
 
