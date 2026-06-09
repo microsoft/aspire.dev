@@ -517,9 +517,11 @@ builder.AddProject<Projects.AspireReferenceExpressions_CustomerAPI>("customerapi
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var db = builder.AddSqlServer("sql")
-                .PublishAsConnectionString()
-                .AddDatabase("db");
+// 実行モードでは実際の SQL Server リソースを追加します。
+// 発行モードでは外部 SQL Server インスタンスを表す接続文字列を使用します。
+IResourceBuilder<IResourceWithConnectionString> db = builder.ExecutionContext.IsRunMode
+    ? builder.AddSqlServer("sql").AddDatabase("db")
+    : builder.AddConnectionString("db");
 
 var insertionRows = builder.AddParameter("insertionRows");
 
@@ -557,12 +559,11 @@ await builder.build().run();
 
 <Steps>
 
-1. `sql` という名前の SQL Server リソースを追加し、接続文字列として公開します。
-2. `db` という名前のデータベースを追加します。
-3. `insertionRows` という名前のパラメーターを追加します。
-4. `api` という名前のプロジェクトを追加し、それを `Projects.Parameters_ApiService` のプロジェクト リソース型として関連付けます。
-5. `insertionRows` パラメーターを `api` プロジェクトに渡します。
-6. `db` データベースを参照します。
+1. 実行モードでは `sql` という名前の SQL Server リソースと `db` という名前のデータベースを追加します。発行モードでは `db` という名前の外部接続文字列を使用します。
+2. `insertionRows` という名前のパラメーターを追加します。
+3. `api` という名前のプロジェクトを追加し、それを `Projects.Parameters_ApiService` のプロジェクト リソース型として関連付けます。
+4. `insertionRows` パラメーターを `api` プロジェクトに渡します。
+5. `db` データベースを参照します。
 
 </Steps>
 
