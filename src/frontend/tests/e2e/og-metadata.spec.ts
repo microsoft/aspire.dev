@@ -100,6 +100,59 @@ for (const page of PAGES) {
   });
 }
 
+test('emits a stable, hash-free og:image for sample detail pages', async ({ request, baseURL }) => {
+  // Sample detail pages (`src/pages/reference/samples/[sample]/index.astro`)
+  // are `src/pages` routes, so the dynamic `/og/<slug>.png` card generator
+  // skips them. They instead point `og:image` at the primary thumbnail served
+  // by `src/pages/og/reference/samples/[sample].png.ts`. This must be a stable,
+  // hash-free URL — referencing the optimized `_astro/<name>.<hash>.webp` asset
+  // bakes a per-build content hash into the absolute (aspire.dev) `og:image`
+  // that 404s on any deployment whose build hash differs from production's.
+  const ogImagePath = '/og/reference/samples/node-express-redis.png';
+  const response = await request.get('/reference/samples/node-express-redis/');
+  expect(response.ok(), 'sample detail page should return 200').toBe(true);
+  const html = await response.text();
+
+  expect(html).not.toMatch(/<meta\b[^>]*property="og:image"[^>]*content="[^"]*\/_astro\//i);
+  expect(html).toMatch(
+    new RegExp(`<meta\\b[^>]*property="og:image"[^>]*content="[^"]*${escape(ogImagePath)}"`, 'i')
+  );
+  expect(html).toMatch(metaTagPattern('property', 'og:image:width', '1200'));
+  expect(html).toMatch(metaTagPattern('property', 'og:image:height', '630'));
+  expect(html).toMatch(
+    new RegExp(`<meta\\b[^>]*name="twitter:image"[^>]*content="[^"]*${escape(ogImagePath)}"`, 'i')
+  );
+
+  // The thumbnail-backed card must actually resolve to a real PNG.
+  const imageUrl = new URL(ogImagePath, baseURL).toString();
+  const imageResponse = await request.get(imageUrl);
+  expect(imageResponse.ok(), `${imageUrl} should resolve to a real PNG`).toBe(true);
+  expect(imageResponse.headers()['content-type']).toMatch(/image\/png/i);
+});
+
+test('emits a resolvable og:image for samples without a primary thumbnail', async ({
+  request,
+  baseURL,
+}) => {
+  // Samples without a primary thumbnail still need a social card. The endpoint
+  // renders the same branded fallback the dynamic docs cards use, so the
+  // stable og:image URL resolves instead of 404ing.
+  const ogImagePath = '/og/reference/samples/custom-resources.png';
+  const response = await request.get('/reference/samples/custom-resources/');
+  expect(response.ok(), 'thumbnail-less sample page should return 200').toBe(true);
+  const html = await response.text();
+
+  expect(html).not.toMatch(/<meta\b[^>]*property="og:image"[^>]*content="[^"]*\/_astro\//i);
+  expect(html).toMatch(
+    new RegExp(`<meta\\b[^>]*property="og:image"[^>]*content="[^"]*${escape(ogImagePath)}"`, 'i')
+  );
+
+  const imageUrl = new URL(ogImagePath, baseURL).toString();
+  const imageResponse = await request.get(imageUrl);
+  expect(imageResponse.ok(), `${imageUrl} should resolve to a real PNG`).toBe(true);
+  expect(imageResponse.headers()['content-type']).toMatch(/image\/png/i);
+});
+
 test('falls back to the site-wide image for the home page', async ({ request, baseURL }) => {
   const response = await request.get('/');
   expect(response.ok(), 'home page should return 200').toBe(true);
