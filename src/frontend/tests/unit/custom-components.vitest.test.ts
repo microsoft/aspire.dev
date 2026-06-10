@@ -612,6 +612,14 @@ const sampleDetailFixture = {
     '',
     '![Screenshot of the sample](~/assets/samples/aspire-shop/aspireshop-frontend-complete.png)',
     '',
+    '**Theme-aware view**',
+    '',
+    '![Theme-aware app in light mode](~/assets/samples/aspire-shop/aspireshop-frontend-light.png#gh-light-mode-only)',
+    '![Theme-aware app in dark mode](~/assets/samples/aspire-shop/aspireshop-frontend-dark.png#gh-dark-mode-only)',
+    '',
+    '![Partial theme fallback in light mode](~/assets/samples/aspire-shop/aspireshop-frontend-light.png#gh-light-mode-only)',
+    '![Partial theme fallback in dark mode](~/assets/samples/aspire-shop/missing-dark.png#gh-dark-mode-only)',
+    '',
     'See the [application project](./src/RedisSample.AppHost) for implementation details.',
     '',
     '1. Open the app.',
@@ -681,6 +689,18 @@ const sampleGridSamples = [
     readme: 'README.md',
     tags: ['metrics', 'postgresql'],
     thumbnail: null,
+  },
+  {
+    name: 'aspire-shop',
+    title: 'Aspire Shop',
+    description: 'Catalog and cart sample.',
+    href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/aspire-shop',
+    readme: 'README.md',
+    tags: ['blazor'],
+    thumbnail: {
+      light: '~/assets/samples/aspire-shop/aspireshop-frontend-light.png#gh-light-mode-only',
+      dark: '~/assets/samples/aspire-shop/aspireshop-frontend-dark.png#gh-dark-mode-only',
+    },
   },
 ];
 
@@ -808,8 +828,13 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('aria-label="1 sample"');
     expect(html).toContain('Orders sample');
     expect(html).toContain('Catalog sample');
+    expect(html).toContain('Aspire Shop');
     expect(html).toContain('/reference/samples/orders/');
     expect(html).toContain('/reference/samples/catalog/');
+    expect(html).toContain('/reference/samples/aspire-shop/');
+    expect(html).toContain('theme-image');
+    expect(html).toContain('data-light=');
+    expect(html).toContain('data-dark=');
     expect(html).toContain('Try removing a filter or adjusting your search.');
 
     // The redesigned filter UI replaces the boxy "Filtered by" bar with a
@@ -872,8 +897,19 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('Screenshot of the sample');
     expect(html).toContain('starlight-image-zoom-zoomable');
     expect(html).toContain('Zoom image: Screenshot of the sample');
+    expect(html).toContain('Zoom image: Theme-aware app');
+    expect(html).toContain('Zoom image: Partial theme fallback');
     expect(html).toContain('Zoom image: Screenshot of the sample step');
     expect(html).toContain('Select an image to zoom in.');
+    expect(html).toContain('theme-image');
+    expect(html).toContain('data-light=');
+    expect(html).toContain('data-dark=');
+    expect(html).toMatch(/<figcaption[^>]*>Theme-aware app<\/figcaption>/);
+    expect(html).not.toContain('Theme-aware app in light mode');
+    expect(html).not.toContain('Theme-aware app in dark mode');
+    expect(html).toMatch(/<figcaption[^>]*>Partial theme fallback<\/figcaption>/);
+    expect(html).not.toContain('Partial theme fallback in light mode');
+    expect(html).not.toContain('Partial theme fallback in dark mode');
     expect(html).toContain('View on GitHub');
     expect(html).toContain('Browse all samples');
     expect(html).toContain('href="/reference/samples/"');
@@ -913,6 +949,7 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('Zoom image: React app');
     expect(html).not.toMatch(/<p>\s*<strong>\s*Angular\s*<\/strong>\s*<\/p>/);
     expect(html).not.toMatch(/<p>\s*<strong>\s*React\s*<\/strong>\s*<\/p>/);
+    expect(html).not.toMatch(/<p>\s*<strong>\s*Theme-aware view\s*<\/strong>\s*<\/p>/);
 
     // The primary "View on GitHub" CTA in the hero uses the Starlight `github`
     // icon on the left of the label and no longer ships the external-link

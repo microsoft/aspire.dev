@@ -5,7 +5,16 @@ import { getImage } from 'astro:assets';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import SampleDetail from '@components/SampleDetail.astro';
 import samplesJson from '@data/samples.json';
-import { sampleDescriptionText, sampleSlug, type Sample } from '@utils/samples';
+import {
+  isResolvedThemeAwareSampleImage,
+  isThemeAwareSampleImage,
+  sampleDescriptionText,
+  sampleSlug,
+  stripSampleImageUrlSuffix,
+  type ResolvedSampleThumbnail,
+  type Sample,
+  type SampleThumbnail,
+} from '@utils/samples';
 
 export function getStaticPaths() {
   return (samplesJson as Sample[]).map((sample) => ({
@@ -22,16 +31,34 @@ const allImages = import.meta.glob<{ default: ImageMetadata }>(
   { eager: true }
 );
 
-function resolveImage(thumbnail: string | null): ImageMetadata | null {
-  if (!thumbnail) return null;
-  const importPath = thumbnail.replace('~/assets/', '/src/assets/');
+function resolveImagePath(imagePath: string | null): ImageMetadata | null {
+  if (!imagePath) return null;
+  const importPath = stripSampleImageUrlSuffix(imagePath).replace('~/assets/', '/src/assets/');
   const entry = allImages[importPath];
   return entry?.default ?? null;
 }
 
-const resolvedThumbnail = resolveImage(sample.thumbnail);
-const sampleOgImage = resolvedThumbnail
-  ? (await getImage({ src: resolvedThumbnail, width: 1200 })).src
+function resolveThumbnail(thumbnail: SampleThumbnail): ResolvedSampleThumbnail {
+  if (isThemeAwareSampleImage(thumbnail)) {
+    const light = resolveImagePath(thumbnail.light);
+    const dark = resolveImagePath(thumbnail.dark);
+
+    if (light && dark) {
+      return { light, dark };
+    }
+
+    return light ?? dark ?? null;
+  }
+
+  return resolveImagePath(thumbnail);
+}
+
+const resolvedThumbnail = resolveThumbnail(sample.thumbnail);
+const resolvedOgThumbnail = isResolvedThemeAwareSampleImage(resolvedThumbnail)
+  ? resolvedThumbnail.light
+  : resolvedThumbnail;
+const sampleOgImage = resolvedOgThumbnail
+  ? (await getImage({ src: resolvedOgThumbnail, width: 1200 })).src
   : undefined;
 const description =
   sampleDescriptionText(sample.description)

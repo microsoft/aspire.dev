@@ -5,6 +5,8 @@ import { Code } from 'astro-expressive-code/components';
 import { marked } from 'marked';
 
 import SampleReadmeBlocks from '@components/SampleReadmeBlocks.astro';
+import ThemeAwareImage from '@components/ThemeImage.astro';
+import { getStandaloneImageTokens, getThemeImageTokenPair } from '@utils/sample-readme-images';
 import { tagLabel } from '@utils/sample-tags';
 import { stripReadmeTitle } from '@utils/sample-readme-headings';
 import {
@@ -12,7 +14,9 @@ import {
   appHostCodeTitle,
   appHostIconName,
   appHostLabel,
+  normalizeThemeImageAlt,
   sampleDescriptionText,
+  stripSampleImageUrlSuffix,
   type Sample,
 } from '@utils/samples';
 
@@ -28,36 +32,74 @@ const allImages = import.meta.glob<{ default: ImageMetadata }>(
   { eager: true }
 );
 
-type SampleImage = {
-  src: ImageMetadata;
-  alt: string;
-};
+type SampleImage =
+  | {
+      kind: 'single';
+      src: ImageMetadata;
+      alt: string;
+    }
+  | {
+      kind: 'theme';
+      light: ImageMetadata;
+      dark: ImageMetadata;
+      alt: string;
+    };
 
-function getStandaloneImage(token: marked.Token): SampleImage | null {
-  if (token.type !== 'paragraph') {
+function resolveReadmeImage(href: string): ImageMetadata | null {
+  if (!href.startsWith('~/assets/')) {
     return null;
   }
 
-  const paragraph = token as marked.Tokens.Paragraph;
-  const tokens = paragraph.tokens ?? [];
-  const imageTokens = tokens.filter((child) => child.type === 'image') as marked.Tokens.Image[];
-  const hasOnlyImageAndWhitespace = tokens.every(
-    (child: any) => child.type === 'image' || (child.type === 'text' && child.text.trim() === '')
-  );
+  const importPath = stripSampleImageUrlSuffix(href).replace('~/assets/', '/src/assets/');
+  return allImages[importPath]?.default ?? null;
+}
 
-  if (imageTokens.length !== 1 || !hasOnlyImageAndWhitespace) {
+function getStandaloneImage(token: marked.Token): SampleImage | null {
+  const imageTokens = getStandaloneImageTokens(token);
+  if (!imageTokens) {
+    return null;
+  }
+
+  const themePair = getThemeImageTokenPair(imageTokens);
+  if (themePair) {
+    const light = resolveReadmeImage(themePair.light.href);
+    const dark = resolveReadmeImage(themePair.dark.href);
+    const alt = normalizeThemeImageAlt(
+      themePair.light.text || themePair.dark.text || `Screenshot of the ${sample.title} sample`
+    );
+
+    if (!light || !dark) {
+      const fallback = light ?? dark;
+      return fallback
+        ? {
+            kind: 'single',
+            src: fallback,
+            alt,
+          }
+        : null;
+    }
+
+    return {
+      kind: 'theme',
+      light,
+      dark,
+      alt,
+    };
+  }
+
+  if (imageTokens.length !== 1) {
     return null;
   }
 
   const imageToken = imageTokens[0];
-  const importPath = imageToken.href.replace('~/assets/', '/src/assets/');
-  const entry = imageToken.href.startsWith('~/assets/') ? allImages[importPath] : undefined;
-  if (!entry) {
+  const image = resolveReadmeImage(imageToken.href);
+  if (!image) {
     return null;
   }
 
   return {
-    src: entry.default,
+    kind: 'single',
+    src: image,
     alt: imageToken.text || `Screenshot of the ${sample.title} sample`,
   };
 }
@@ -85,10 +127,7 @@ function collectStandaloneImages(tokens: marked.Token[]): SampleImage[] {
 }
 
 function normalizeForCompare(value: string): string {
-  return value
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
+  return value.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 function paragraphPlainText(token: marked.Tokens.Paragraph): string {
@@ -111,7 +150,15 @@ function paragraphPlainText(token: marked.Tokens.Paragraph): string {
         case 'strong':
         case 'del':
         case 'link':
-          walk((node as marked.Tokens.Em | marked.Tokens.Strong | marked.Tokens.Del | marked.Tokens.Link).tokens);
+          walk(
+            (
+              node as
+                | marked.Tokens.Em
+                | marked.Tokens.Strong
+                | marked.Tokens.Del
+                | marked.Tokens.Link
+            ).tokens
+          );
           break;
         case 'br':
           parts.push(' ');
@@ -127,7 +174,7 @@ function paragraphPlainText(token: marked.Tokens.Paragraph): string {
 
 function dropLeadingSummaryParagraph(
   blocks: marked.Token[],
-  summary: string | undefined,
+  summary: string | undefined
 ): marked.Token[] {
   if (!summary) return blocks;
   const summaryHead = normalizeForCompare(summary).slice(0, 80);
@@ -135,7 +182,7 @@ function dropLeadingSummaryParagraph(
   const firstContent = blocks.find((token) => token.type !== 'space');
   if (!firstContent || firstContent.type !== 'paragraph') return blocks;
   const paragraphText = normalizeForCompare(
-    paragraphPlainText(firstContent as marked.Tokens.Paragraph),
+    paragraphPlainText(firstContent as marked.Tokens.Paragraph)
   );
   if (!paragraphText.startsWith(summaryHead)) return blocks;
   const startIndex = blocks.indexOf(firstContent);
@@ -164,8 +211,7 @@ function paragraphIsShortLabel(token: marked.Token): boolean {
   // when it lacks trailing sentence punctuation. This avoids stripping a
   // full sentence that happens to precede an extracted screenshot.
   const hasEmphasis = tokens.some(
-    (child) =>
-      child.type === 'strong' || child.type === 'em' || child.type === 'codespan',
+    (child) => child.type === 'strong' || child.type === 'em' || child.type === 'codespan'
   );
   if (hasEmphasis) return true;
   return !/[.!?:]$/.test(text);
@@ -224,7 +270,7 @@ const sampleSummary = sampleDescriptionText(sample.description)
 
 const rawReadmeBlocks = marked.lexer(stripReadmeTitle(sample.readme), { gfm: true });
 const readmeBlocks = filterDanglingLabels(
-  dropLeadingSummaryParagraph(rawReadmeBlocks, sampleSummary),
+  dropLeadingSummaryParagraph(rawReadmeBlocks, sampleSummary)
 );
 const readmeImages = collectStandaloneImages(readmeBlocks);
 const visibleTags = sample.tags;
@@ -253,18 +299,38 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
       viewBox="0 0 480 260"
       preserveAspectRatio="xMaxYMid slice"
     >
-      <path class="mesh-edge" d="M 60 80 Q 150 60 230 110" />
-      <path class="mesh-edge mesh-edge-strong" d="M 230 110 Q 320 70 410 130" />
-      <path class="mesh-edge" d="M 60 80 Q 110 160 200 200" />
-      <path class="mesh-edge" d="M 200 200 Q 290 180 410 130" />
-      <path class="mesh-edge mesh-edge-soft" d="M 230 110 Q 220 160 200 200" />
-      <path class="mesh-edge mesh-edge-soft" d="M 410 130 Q 440 200 380 230" />
+      <path class="mesh-edge" d="M 60 80 Q 150 60 230 110"></path>
+      <path class="mesh-edge mesh-edge-strong" d="M 230 110 Q 320 70 410 130"></path>
+      <path class="mesh-edge" d="M 60 80 Q 110 160 200 200"></path>
+      <path class="mesh-edge" d="M 200 200 Q 290 180 410 130"></path>
+      <path class="mesh-edge mesh-edge-soft" d="M 230 110 Q 220 160 200 200"></path>
+      <path class="mesh-edge mesh-edge-soft" d="M 410 130 Q 440 200 380 230"></path>
 
-      <circle class={`mesh-node ${primaryNodeIndex === 0 ? 'is-primary' : ''}`} cx="60" cy="80" r="9" />
-      <circle class={`mesh-node ${primaryNodeIndex === 1 ? 'is-primary' : ''}`} cx="230" cy="110" r="13" />
-      <circle class={`mesh-node ${primaryNodeIndex === 2 ? 'is-primary' : ''}`} cx="410" cy="130" r="10" />
-      <circle class={`mesh-node ${primaryNodeIndex === 3 ? 'is-primary' : ''}`} cx="200" cy="200" r="11" />
-      <circle class={`mesh-node mesh-node-small ${primaryNodeIndex === 4 ? 'is-primary' : ''}`} cx="380" cy="230" r="6" />
+      <circle
+        class={`mesh-node ${primaryNodeIndex === 0 ? 'is-primary' : ''}`}
+        cx="60"
+        cy="80"
+        r="9"></circle>
+      <circle
+        class={`mesh-node ${primaryNodeIndex === 1 ? 'is-primary' : ''}`}
+        cx="230"
+        cy="110"
+        r="13"></circle>
+      <circle
+        class={`mesh-node ${primaryNodeIndex === 2 ? 'is-primary' : ''}`}
+        cx="410"
+        cy="130"
+        r="10"></circle>
+      <circle
+        class={`mesh-node ${primaryNodeIndex === 3 ? 'is-primary' : ''}`}
+        cx="200"
+        cy="200"
+        r="11"></circle>
+      <circle
+        class={`mesh-node mesh-node-small ${primaryNodeIndex === 4 ? 'is-primary' : ''}`}
+        cx="380"
+        cy="230"
+        r="6"></circle>
     </svg>
 
     <div class="sample-hero-copy">
@@ -325,18 +391,15 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
 
   {
     appHostCode && appHostCodeFilename && (
-      <section
-        class="sample-apphost not-content"
-        aria-labelledby="sample-apphost-kicker"
-      >
+      <section class="sample-apphost not-content" aria-labelledby="sample-apphost-kicker">
         <header class="sample-apphost-header">
           <div class="sample-apphost-heading">
             <div id="sample-apphost-kicker" class="sample-kicker">
               AppHost
             </div>
             <p class="sample-apphost-blurb">
-              The entry point that composes every resource and dependency in
-              this sample's distributed application.
+              The entry point that composes every resource and dependency in this sample's
+              distributed application.
             </p>
           </div>
           {appHostSourceUrl && (
@@ -382,24 +445,35 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
         <div class="sample-media-grid">
           {readmeImages.map((image) => (
             <figure class="sample-readme-image">
-              <starlight-image-zoom-zoomable>
-                <Image
-                  src={image.src}
+              {image.kind === 'theme' ? (
+                <ThemeAwareImage
+                  light={image.light}
+                  dark={image.dark}
                   alt={image.alt}
-                  loading="lazy"
-                  widths={[480, 800, 1200]}
-                  sizes="(min-width: 72rem) 52rem, 100vw"
+                  label={image.alt}
+                  width={image.light.width}
+                  height={image.light.height}
                 />
-                <button
-                  aria-label={`Zoom image${image.alt ? `: ${image.alt}` : ''}`}
-                  class="starlight-image-zoom-control"
-                  type="button"
-                >
-                  <svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
-                    <use href="#starlight-image-zoom-icon-zoom" />
-                  </svg>
-                </button>
-              </starlight-image-zoom-zoomable>
+              ) : (
+                <starlight-image-zoom-zoomable>
+                  <Image
+                    src={image.src}
+                    alt={image.alt}
+                    loading="lazy"
+                    widths={[480, 800, 1200]}
+                    sizes="(min-width: 72rem) 52rem, 100vw"
+                  />
+                  <button
+                    aria-label={`Zoom image${image.alt ? `: ${image.alt}` : ''}`}
+                    class="starlight-image-zoom-control"
+                    type="button"
+                  >
+                    <svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+                      <use href="#starlight-image-zoom-icon-zoom" />
+                    </svg>
+                  </button>
+                </starlight-image-zoom-zoomable>
+              )}
               {image.alt && <figcaption>{image.alt}</figcaption>}
             </figure>
           ))}
@@ -506,9 +580,7 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
     fill: color-mix(in srgb, var(--aspire-color-primary) 38%, var(--sl-color-bg));
     stroke: var(--aspire-color-secondary);
     stroke-width: 2;
-    filter: drop-shadow(
-      0 0 6px color-mix(in srgb, var(--aspire-color-primary) 60%, transparent)
-    );
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--aspire-color-primary) 60%, transparent));
     animation: mesh-pulse 3.6s ease-in-out infinite;
   }
 
@@ -795,7 +867,7 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
     margin: 0;
   }
 
-  .sample-readme-image img {
+  .sample-readme-image :global(img) {
     display: block;
     max-width: 100%;
     height: auto;
