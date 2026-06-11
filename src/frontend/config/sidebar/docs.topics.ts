@@ -943,9 +943,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Interactive terminals',
               slug: 'app-host/withterminal',
-              translations: {
-                en: 'Interactive terminals',
-              },
             },
           ],
         },
