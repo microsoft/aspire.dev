@@ -4,7 +4,7 @@ seoTitle: Aspire interaction service (Preview) for AppHost authors
 description: Use the Aspire interaction service to prompt users for input, request confirmation, and display messages from AppHost extensions, integrations, and custom resources.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import messageDialog from '@assets/extensibility/interaction-service-message-dialog.png';
 import messageBar from '@assets/extensibility/interaction-service-message-bar.png';
@@ -20,12 +20,10 @@ The interaction service (`Aspire.Hosting.IInteractionService`) allows you to pro
 
 This is useful for scenarios where you need to gather information from the user or provide feedback on the status of operations, regardless of how the application is being launched or deployed.
 
+The interaction service is available in both C# app hosts and polyglot app hosts (TypeScript, Python, Go, Java, and Rust). In polyglot app hosts, the service is resolved through the command context's service provider instead of through the .NET dependency injection container.
+
 <Aside type="tip">
 If you need to collect input for a [custom resource command](/fundamentals/custom-resource-commands/), consider using [command arguments](/fundamentals/custom-resource-commands/#command-arguments) instead of the interaction service. Command arguments display the same input UI in the dashboard but also work when running commands from the Aspire CLI.
-</Aside>
-
-<Aside type="note">
-The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
 </Aside>
 
 ## The `IInteractionService` API
@@ -614,8 +612,148 @@ When you run `aspire publish` or `aspire deploy`, interactions are prompted thro
 The interaction service adapts automatically to dashboard and CLI contexts. In CLI mode, only input-related methods—`PromptInputAsync` and `PromptInputsAsync`—are supported. Calling `PromptMessageBoxAsync`, `PromptNotificationAsync`, or `PromptConfirmationAsync` in CLI operations like `aspire publish` or `aspire deploy` results in an exception.
 </Aside>
 
+## TypeScript app hosts
+
+The interaction service is available in TypeScript app hosts through the command context's service provider. The TypeScript API uses an input-handle pattern: inputs are created through factory methods that return opaque server-side builder handles, so delegate-based callbacks (such as dynamic option loading and dialog validation) never have to serialize across the JSON-RPC boundary.
+
+### Resolve the service
+
+Call `getInteractionService()` on the service provider obtained from the command callback context. Always check `isAvailable()` before prompting — for example, the interaction service is unavailable when a command runs from the CLI.
+
+```typescript title="apphost.mts"
+await container.withCommand("greet", "Greet", async (ctx) => {
+    const interactionService = await ctx.serviceProvider().getInteractionService();
+    if (!(await interactionService.isAvailable())) {
+        return { success: true, message: "Interaction service is not available." };
+    }
+    // Use the interaction service here...
+});
+```
+
+### Message-style prompts
+
+Use `promptConfirmation`, `promptMessageBox`, and `promptNotification` for dialogs and notifications. These methods are only available in the dashboard context.
+
+```typescript title="apphost.mts"
+// Confirmation dialog
+const confirmation = await interactionService.promptConfirmation("Confirm", "Proceed?", {
+    primaryButtonText: "Yes", secondaryButtonText: "No", showSecondaryButton: true
+});
+
+// Message box
+await interactionService.promptMessageBox("Migration ready", "Apply pending database migrations now?", {
+    primaryButtonText: "Apply", secondaryButtonText: "Skip", showSecondaryButton: true
+});
+
+// Non-modal notification
+await interactionService.promptNotification("Heads up", "Something happened.", {
+    intent: MessageIntent.Warning, linkText: "Learn more", linkUrl: "https://aspire.dev"
+});
+```
+
+### Create inputs
+
+Create inputs using factory methods. Each factory returns a server-side builder handle. You can chain `.withValue()` and `.withChoiceOptions()` to set defaults:
+
+```typescript title="apphost.mts"
+const name = await interactionService.createTextInput("name", {
+    label: "Name", required: true, placeholder: "Jane Doe", maxLength: 64
+});
+const password = await interactionService.createSecretInput("password", { required: true });
+const enabled = await interactionService.createBooleanInput("enabled", { value: "true" });
+const count = await interactionService.createNumberInput("count", { value: "1" });
+// Choices are an ordered array of { value, label } entries.
+const color = await interactionService.createChoiceInput("color", {
+    choices: [{ value: "r", label: "Red" }, { value: "g", label: "Green" }],
+    options: { allowCustomChoice: true }
+});
+
+// Builder methods chain off the handle.
+const greeting = await (await interactionService.createTextInput("greeting")).withValue("hello");
+const size = await (await interactionService.createChoiceInput("size"))
+    .withChoiceOptions([{ value: "s", label: "Small" }, { value: "l", label: "Large" }]);
+```
+
+### Single and multi-input prompts
+
+Pass one or more input handles to `promptInput` or `promptInputs`. The result is a handle: call `result.canceled()` to check for cancellation, and `result.inputs().value(name)` to read submitted values by name.
+
+```typescript title="apphost.mts"
+const single = await interactionService.promptInput(
+    "Enter a value",
+    "Provide a name for the deployment.",
+    await interactionService.createTextInput("deploymentName", { required: true })
+);
+const deploymentName = single.input?.value;
+
+// Multi-input prompt
+const result = await interactionService.promptInputs(
+    "Deployment settings",
+    "Configure your application.",
+    [name, color]
+);
+
+if (!(await result.canceled())) {
+    const selectedName = await result.inputs().value("name");
+    const selectedColor = await result.inputs().value("color");
+}
+```
+
+### Dynamic inputs
+
+Use `withDynamicLoading` to populate options based on other inputs. The callback runs server-side, receives a `loadContext`, and updates the loading input through `loadContext.input()` (a handle) so no delegate ever serializes across the wire. Read other inputs with `loadContext.inputs().value(name)`:
+
+```typescript title="apphost.mts"
+const region = await interactionService.createChoiceInput("region", {
+    choices: [{ value: "us", label: "United States" }, { value: "eu", label: "Europe" }]
+});
+
+const zone = await (await interactionService.createChoiceInput("zone"))
+    .withDynamicLoading(async (loadContext) => {
+        const selectedRegion = await loadContext.inputs().value("region");
+        await loadContext.input().setChoiceOptions(selectedRegion === "eu"
+            ? [{ value: "eu-west", label: "EU West" }, { value: "eu-north", label: "EU North" }]
+            : [{ value: "us-east", label: "US East" }, { value: "us-west", label: "US West" }]);
+    }, { alwaysLoadOnStart: true, dependsOnInputs: ["region"] });
+
+const result = await interactionService.promptInputs(
+    "Pick a zone",
+    "Choose a region, then pick a zone.",
+    [region, zone]
+);
+
+if (!(await result.canceled())) {
+    const selectedZone = await result.inputs().value("zone");
+}
+```
+
+### Validation callback
+
+Supply a `validationCallback` on the options object to implement cross-input validation. The callback runs server-side, reads submitted values through `validationContext.inputs().value(name)`, and registers per-field errors through `validationContext.addValidationError(field, message)`:
+
+```typescript title="apphost.mts"
+const password = await interactionService.createSecretInput("password", { required: true });
+const confirm = await interactionService.createSecretInput("confirmPassword", { required: true });
+
+const result = await interactionService.promptInputs(
+    "Set password",
+    "Enter and confirm your password.",
+    [password, confirm],
+    {
+        validationCallback: async (validationContext) => {
+            const pw = await validationContext.inputs().value("password");
+            const cpw = await validationContext.inputs().value("confirmPassword");
+            if (pw !== cpw) {
+                await validationContext.addValidationError("confirmPassword", "Passwords do not match.");
+            }
+        }
+    }
+);
+```
+
 ## See also
 
 - [Custom resource commands](/fundamentals/custom-resource-commands/) — Add commands with arguments to resources in the dashboard and CLI
 - [AppHost eventing](/app-host/eventing/) — Subscribe to resource lifecycle events
 - [Custom resources](/extensibility/custom-resources/) — Build custom resource types for the AppHost
+- [Multi-language architecture](/architecture/multi-language-architecture/) — How polyglot app hosts communicate with the Aspire hosting layer
