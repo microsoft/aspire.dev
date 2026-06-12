@@ -181,7 +181,7 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'deployment/azure/container-apps',
             },
             {
-              label: 'Azure Kubernetes Service',
+              label: 'Azure Kubernetes Service (AKS)',
               slug: 'deployment/kubernetes/aks',
             },
             {
