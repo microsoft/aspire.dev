@@ -61,11 +61,26 @@ interface ImageReference {
   src: string;
 }
 
+type ImageTheme = 'light' | 'dark';
+
+interface ImageSourceParts {
+  downloadSrc: string;
+  filenameSrc: string;
+  hash: string;
+}
+
 interface DownloadedImage {
   filename: string;
   localPath: string;
   remoteUrl: string;
 }
+
+interface ThemeAwareSampleImage {
+  light: string;
+  dark: string;
+}
+
+type SampleThumbnail = string | ThemeAwareSampleImage | null;
 
 interface GitHubContentEntry {
   type: string;
@@ -90,7 +105,7 @@ interface SampleResult {
   readme: string;
   readmeRaw: string;
   tags: string[];
-  thumbnail: string | null;
+  thumbnail: SampleThumbnail;
   appHost: AppHostKind | null;
   appHostPath: string | null;
   appHostCode: string | null;
@@ -196,9 +211,7 @@ function detectAppHost(paths: readonly string[]): AppHostInfo | null {
   for (const p of paths) {
     if (/(?:^|\/)[^/]*apphost\.csproj$/i.test(p)) {
       const dir = p.slice(0, p.lastIndexOf('/') + 1);
-      const siblings = paths.filter(
-        (q) => q.startsWith(dir) && !q.slice(dir.length).includes('/')
-      );
+      const siblings = paths.filter((q) => q.startsWith(dir) && !q.slice(dir.length).includes('/'));
       const appHostCs = siblings.find((q) => /(?:^|\/)apphost\.cs$/i.test(q));
       const programCs = siblings.find((q) => /(?:^|\/)program\.cs$/i.test(q));
       return { kind: 'csproj', entryPath: appHostCs ?? programCs ?? p };
@@ -268,6 +281,33 @@ function resolveRemoteImageUrl(name: string, src: string): string {
   return `${RAW_BASE}/${SAMPLES_DIR}/${name}/${relative}`;
 }
 
+function splitImageSource(src: string): ImageSourceParts {
+  const hashIndex = src.indexOf('#');
+  const withoutHash = hashIndex === -1 ? src : src.slice(0, hashIndex);
+  const hash = hashIndex === -1 ? '' : src.slice(hashIndex);
+  const queryIndex = withoutHash.indexOf('?');
+  const filenameSrc = queryIndex === -1 ? withoutHash : withoutHash.slice(0, queryIndex);
+
+  return {
+    downloadSrc: withoutHash,
+    filenameSrc,
+    hash,
+  };
+}
+
+function imageTheme(src: string): ImageTheme | null {
+  const hash = splitImageSource(src).hash.toLowerCase();
+  if (hash === '#gh-light-mode-only') {
+    return 'light';
+  }
+
+  if (hash === '#gh-dark-mode-only') {
+    return 'dark';
+  }
+
+  return null;
+}
+
 function ensureDir(dir: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -329,27 +369,49 @@ async function downloadAndRewriteImages(
   const sampleAssetsDir = path.join(ASSETS_DIR, name);
   let rewritten = readme;
   const downloadedImages: DownloadedImage[] = [];
+  const downloadedLocalPaths = new Set<string>();
 
   for (const ref of imageRefs) {
-    const remoteUrl = resolveRemoteImageUrl(name, ref.src);
-    const filename = path.basename(ref.src.split('?')[0]);
+    const source = splitImageSource(ref.src);
+    const remoteUrl = resolveRemoteImageUrl(name, source.downloadSrc);
+    const filename = path.basename(source.filenameSrc);
     const localPath = path.join(sampleAssetsDir, filename);
-    const assetImportPath = `${ASSETS_IMPORT_PREFIX}/${name}/${filename}`;
+    const assetImportPath = `${ASSETS_IMPORT_PREFIX}/${name}/${filename}${source.hash}`;
 
-    const ok = await downloadImage(remoteUrl, localPath);
+    const ok = downloadedLocalPaths.has(localPath) || (await downloadImage(remoteUrl, localPath));
     if (ok) {
-      rewritten = rewritten.replace(ref.full, `![${ref.alt}](${assetImportPath})`);
-      downloadedImages.push({ filename, localPath, remoteUrl });
-      console.log(`  🖼️  Downloaded: ${filename}`);
+      rewritten = rewritten.split(ref.full).join(`![${ref.alt}](${assetImportPath})`);
+      if (!downloadedLocalPaths.has(localPath)) {
+        downloadedImages.push({ filename, localPath, remoteUrl });
+        downloadedLocalPaths.add(localPath);
+        console.log(`  🖼️  Downloaded: ${filename}`);
+      }
     }
   }
 
   return { readme: rewritten, images: downloadedImages };
 }
 
-function extractThumbnail(_name: string, readme: string): string | null {
-  const match = readme.match(/!\[.*?\]\((.+?)\)/);
-  return match ? match[1] : null;
+function extractThumbnail(_name: string, readme: string): SampleThumbnail {
+  const refs = collectImageRefs(readme);
+  for (let index = 0; index < refs.length; index++) {
+    const current = refs[index];
+    const currentTheme = imageTheme(current.src);
+
+    if (!currentTheme) {
+      return current.src;
+    }
+
+    const next = refs[index + 1];
+    const nextTheme = next ? imageTheme(next.src) : null;
+    if (next && nextTheme && nextTheme !== currentTheme) {
+      return currentTheme === 'light'
+        ? { light: current.src, dark: next.src }
+        : { light: next.src, dark: current.src };
+    }
+  }
+
+  return refs[0]?.src ?? null;
 }
 
 function rewriteAspireDocLinks(readme: string): string {
@@ -402,9 +464,7 @@ async function fetchSamplePaths(): Promise<Map<string, string[]>> {
   );
 
   if (tree.truncated) {
-    console.warn(
-      '⚠️  GitHub returned a truncated git tree; AppHost detection may be incomplete.'
-    );
+    console.warn('⚠️  GitHub returned a truncated git tree; AppHost detection may be incomplete.');
   }
 
   const prefix = `${SAMPLES_DIR}/`;
@@ -437,16 +497,16 @@ async function fetchReadme(sampleName: string): Promise<string | null> {
   return fetchText(url);
 }
 
-async function fetchAppHostCode(
-  sampleName: string,
-  entryPath: string
-): Promise<string | null> {
+async function fetchAppHostCode(sampleName: string, entryPath: string): Promise<string | null> {
   const url = `${RAW_BASE}/${SAMPLES_DIR}/${sampleName}/${entryPath}`;
   const content = await fetchText(url);
   if (!content) return null;
   // Normalize line endings and trim trailing whitespace per line so the
   // rendered code block is stable across runs.
-  return content.replace(/\r\n/g, '\n').replace(/[ \t]+\n/g, '\n').trimEnd();
+  return content
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .trimEnd();
 }
 
 async function processSample(
@@ -463,9 +523,7 @@ async function processSample(
   const readme = rewriteAspireDocLinks(imageRewrittenReadme);
 
   const appHostInfo = detectAppHost(filePaths);
-  const appHostCode = appHostInfo
-    ? await fetchAppHostCode(name, appHostInfo.entryPath)
-    : null;
+  const appHostCode = appHostInfo ? await fetchAppHostCode(name, appHostInfo.entryPath) : null;
 
   const title = extractTitle(readme) || name;
   const description = extractDescription(readme);
@@ -491,7 +549,9 @@ async function processSample(
 async function main(): Promise<void> {
   console.log(`📦 Fetching sample directories from ${REPO}@${BRANCH}...`);
   if (BRANCH !== DEFAULT_BRANCH) {
-    console.log(`   (branch override via SAMPLES_BRANCH; href links stay anchored to ${DEFAULT_BRANCH})`);
+    console.log(
+      `   (branch override via SAMPLES_BRANCH; href links stay anchored to ${DEFAULT_BRANCH})`
+    );
   }
   const [dirs, pathsBySample] = await Promise.all([listSampleDirs(), fetchSamplePaths()]);
   console.log(`📂 Found ${dirs.length} sample directories`);

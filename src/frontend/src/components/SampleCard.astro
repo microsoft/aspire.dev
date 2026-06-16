@@ -1,10 +1,12 @@
 ---
 import { Badge, Icon } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import ThemeAwareImage from '@components/ThemeImage.astro';
 import { tagLabel } from '@utils/sample-tags';
 import {
   appHostIconName,
   appHostShortLabel,
+  isResolvedThemeAwareSampleImage,
   sampleDescriptionText,
   type ResolvedSample,
 } from '@utils/samples';
@@ -95,13 +97,24 @@ const appHostIcon = appHostIconName(sample.appHost);
   {
     sample.resolvedThumbnail && (
       <div class="thumbnail">
-        <Image
-          src={sample.resolvedThumbnail}
-          alt={`Screenshot of the ${sample.title} sample`}
-          loading="lazy"
-          widths={[400, 800]}
-          sizes="(min-width: 768px) 50vw, 100vw"
-        />
+        {isResolvedThemeAwareSampleImage(sample.resolvedThumbnail) ? (
+          <ThemeAwareImage
+            light={sample.resolvedThumbnail.light}
+            dark={sample.resolvedThumbnail.dark}
+            alt={`Screenshot of the ${sample.title} sample`}
+            width={sample.resolvedThumbnail.light.width}
+            height={sample.resolvedThumbnail.light.height}
+            zoomable={false}
+          />
+        ) : (
+          <Image
+            src={sample.resolvedThumbnail}
+            alt={`Screenshot of the ${sample.title} sample`}
+            loading="lazy"
+            widths={[400, 800]}
+            sizes="(min-width: 768px) 50vw, 100vw"
+          />
+        )}
       </div>
     )
   }
@@ -259,14 +272,14 @@ const appHostIcon = appHostIconName(sample.appHost);
       transform: translateY(-2px);
     }
 
-    .sample-card.has-thumbnail .thumbnail img {
+    .sample-card.has-thumbnail .thumbnail :global(img) {
       transition:
         transform 0.35s ease,
         filter 0.35s ease;
     }
 
-    .sample-card.has-thumbnail:hover .thumbnail img,
-    .sample-card.has-thumbnail:focus-within .thumbnail img {
+    .sample-card.has-thumbnail:hover .thumbnail :global(img),
+    .sample-card.has-thumbnail:focus-within .thumbnail :global(img) {
       transform: scale(1.025);
       filter: saturate(1.05) contrast(1.03);
     }
@@ -281,7 +294,7 @@ const appHostIcon = appHostIconName(sample.appHost);
     box-shadow: inset 0 -4px 8px -4px rgba(0, 0, 0, 0.15);
   }
 
-  .thumbnail img {
+  .thumbnail :global(img) {
     width: 100%;
     height: auto;
     display: block;
@@ -318,9 +331,18 @@ const appHostIcon = appHostIconName(sample.appHost);
     gap: 0.3rem;
     padding: 0.18rem 0.5rem;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 50%, transparent);
-    background: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 14%, var(--sl-color-bg));
-    color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 35%, var(--sl-color-white));
+    border: 1px solid
+      color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 50%, transparent);
+    background: color-mix(
+      in srgb,
+      var(--apphost-color, var(--sl-color-accent)) 14%,
+      var(--sl-color-bg)
+    );
+    color: color-mix(
+      in srgb,
+      var(--apphost-color, var(--sl-color-accent)) 35%,
+      var(--sl-color-white)
+    );
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.02em;
@@ -329,7 +351,11 @@ const appHostIcon = appHostIconName(sample.appHost);
 
   .apphost-pill :global(svg),
   .apphost-pill .apphost-glyph {
-    color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent-high)) 80%, var(--sl-color-white));
+    color: color-mix(
+      in srgb,
+      var(--apphost-color, var(--sl-color-accent-high)) 80%,
+      var(--sl-color-white)
+    );
   }
 
   .apphost-glyph {
@@ -347,7 +373,11 @@ const appHostIcon = appHostIconName(sample.appHost);
   }
 
   :global([data-theme='light']) .apphost-pill {
-    color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 80%, var(--sl-color-black));
+    color: color-mix(
+      in srgb,
+      var(--apphost-color, var(--sl-color-accent)) 80%,
+      var(--sl-color-black)
+    );
     background: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 12%, white);
     border-color: color-mix(in srgb, var(--apphost-color, var(--sl-color-accent)) 55%, transparent);
   }

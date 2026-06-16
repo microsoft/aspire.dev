@@ -8,6 +8,7 @@ import {
   slugifyHeading,
   toSentenceCase,
 } from '@utils/sample-readme-headings';
+import { isStandaloneSampleImageBlock } from '@utils/sample-readme-images';
 
 interface Props {
   blocks: marked.Token[];
@@ -101,21 +102,6 @@ const markdownRenderer = createRenderer();
 
 function renderBlockHtml(token: marked.Token): string {
   return marked.parser([token], { renderer: markdownRenderer });
-}
-
-function getStandaloneImage(token: marked.Token): boolean {
-  if (token.type !== 'paragraph') {
-    return false;
-  }
-
-  const paragraph = token as marked.Tokens.Paragraph;
-  const tokens = paragraph.tokens ?? [];
-  const imageTokens = tokens.filter((child) => child.type === 'image');
-  const hasOnlyImageAndWhitespace = tokens.every(
-    (child: any) => child.type === 'image' || (child.type === 'text' && child.text.trim() === '')
-  );
-
-  return imageTokens.length === 1 && hasOnlyImageAndWhitespace;
 }
 
 function getCodeProps(token: marked.Token): { code: string; lang: string; meta: string } {
@@ -221,7 +207,7 @@ function matchGitHubAlert(block: marked.Token): GitHubAlert | null {
       return <Code code={code.code} lang={code.lang} meta={code.meta} />;
     }
 
-    if (getStandaloneImage(block)) {
+    if (isStandaloneSampleImageBlock(block)) {
       return null;
     }
 

@@ -1,4 +1,19 @@
 export type AppHostKind = 'typescript' | 'csproj' | 'file-based';
+export type SampleImageTheme = 'light' | 'dark';
+
+export interface ThemeAwareSampleImage {
+  light: string;
+  dark: string;
+}
+
+export type SampleThumbnail = string | ThemeAwareSampleImage | null;
+
+export interface ResolvedThemeAwareSampleImage {
+  light: ImageMetadata;
+  dark: ImageMetadata;
+}
+
+export type ResolvedSampleThumbnail = ImageMetadata | ResolvedThemeAwareSampleImage | null;
 
 export interface Sample {
   name: string;
@@ -8,7 +23,7 @@ export interface Sample {
   readme: string;
   readmeRaw?: string;
   tags: string[];
-  thumbnail: string | null;
+  thumbnail: SampleThumbnail;
   appHost?: AppHostKind | null;
   appHostPath?: string | null;
   appHostCode?: string | null;
@@ -16,7 +31,52 @@ export interface Sample {
 
 export interface ResolvedSample extends Sample {
   detailHref: string;
-  resolvedThumbnail: ImageMetadata | null;
+  resolvedThumbnail: ResolvedSampleThumbnail;
+}
+
+export function isThemeAwareSampleImage(image: SampleThumbnail): image is ThemeAwareSampleImage {
+  return (
+    typeof image === 'object' &&
+    image !== null &&
+    typeof image.light === 'string' &&
+    typeof image.dark === 'string'
+  );
+}
+
+export function isResolvedThemeAwareSampleImage(
+  image: ResolvedSampleThumbnail
+): image is ResolvedThemeAwareSampleImage {
+  return typeof image === 'object' && image !== null && 'light' in image && 'dark' in image;
+}
+
+export function sampleImageTheme(src: string): SampleImageTheme | null {
+  const hashIndex = src.indexOf('#');
+  if (hashIndex === -1) {
+    return null;
+  }
+
+  const hash = src.slice(hashIndex + 1).toLowerCase();
+  if (hash === 'gh-light-mode-only') {
+    return 'light';
+  }
+
+  if (hash === 'gh-dark-mode-only') {
+    return 'dark';
+  }
+
+  return null;
+}
+
+export function stripSampleImageUrlSuffix(src: string): string {
+  const suffixIndex = src.search(/[?#]/);
+  return suffixIndex === -1 ? src : src.slice(0, suffixIndex);
+}
+
+export function normalizeThemeImageAlt(alt: string): string {
+  return alt
+    .replace(/\s*\((?:light|dark)(?:\s+mode)?\)\s*$/i, '')
+    .replace(/\s+in\s+(?:light|dark)\s+mode\s*$/i, '')
+    .trim();
 }
 
 export function appHostLabel(kind: AppHostKind): string {
@@ -51,9 +111,7 @@ export function appHostShortLabel(kind: AppHostKind): string {
  */
 export type SampleAppHostIcon = 'seti:typescript' | 'seti:c-sharp';
 
-export function appHostIconName(
-  kind: AppHostKind | null | undefined,
-): SampleAppHostIcon | null {
+export function appHostIconName(kind: AppHostKind | null | undefined): SampleAppHostIcon | null {
   if (kind === 'typescript') return 'seti:typescript';
   if (kind === 'file-based') return 'seti:c-sharp';
   return null;
@@ -134,10 +192,7 @@ interface BuildSampleMarkdownOptions {
  * paths are rewritten to absolute GitHub raw URLs so they resolve when the
  * markdown is opened in a browser or pasted into another tool.
  */
-export function buildSampleMarkdown(
-  sample: Sample,
-  options: BuildSampleMarkdownOptions
-): string {
+export function buildSampleMarkdown(sample: Sample, options: BuildSampleMarkdownOptions): string {
   const body = rewriteSampleImageUrls(sample.readmeRaw ?? sample.readme, sample.name);
 
   const metaLines = [
@@ -164,16 +219,19 @@ export function buildSampleMarkdown(
 function rewriteSampleImageUrls(markdown: string, sampleName: string): string {
   const baseUrl = `${SAMPLES_RAW_BASE}/${sampleName}`;
 
-  return markdown.replace(/!\[([^\]]*)\]\(([^)\s]+)(\s+"[^"]*")?\)/g, (_match, alt: string, src: string, title?: string) => {
-    if (/^(?:https?:)?\/\//.test(src) || src.startsWith('data:')) {
-      return `![${alt}](${src}${title ?? ''})`;
-    }
+  return markdown.replace(
+    /!\[([^\]]*)\]\(([^)\s]+)(\s+"[^"]*")?\)/g,
+    (_match, alt: string, src: string, title?: string) => {
+      if (/^(?:https?:)?\/\//.test(src) || src.startsWith('data:')) {
+        return `![${alt}](${src}${title ?? ''})`;
+      }
 
-    if (src.startsWith('~/')) {
-      return `![${alt}](${src}${title ?? ''})`;
-    }
+      if (src.startsWith('~/')) {
+        return `![${alt}](${src}${title ?? ''})`;
+      }
 
-    const cleaned = src.replace(/^\.\//, '').replace(/^\//, '');
-    return `![${alt}](${baseUrl}/${cleaned}${title ?? ''})`;
-  });
+      const cleaned = src.replace(/^\.\//, '').replace(/^\//, '');
+      return `![${alt}](${baseUrl}/${cleaned}${title ?? ''})`;
+    }
+  );
 }
