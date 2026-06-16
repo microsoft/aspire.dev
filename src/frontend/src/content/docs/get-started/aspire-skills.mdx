@@ -256,6 +256,30 @@ Use `dotnet-inspect` only when an agent needs to inspect .NET code or packages o
 
 The `playwright-cli` skill works best alongside the `aspire` skill. The agent will first use Aspire to discover the running app and the correct frontend endpoint, especially when multiple web resources exist. After it has the target URL, it can use the Playwright CLI to automate browser testing.
 
+## Pin the Playwright CLI version
+
+By default, `aspire agent init` resolves the Playwright CLI version from the npm registry according to the range bundled with your installed Aspire CLI. You can override this with an exact version by setting `playwrightCliVersion` in your `aspire.config.json`:
+
+```json title="aspire.config.json"
+{
+  "playwrightCliVersion": "1.52.0"
+}
+```
+
+Or via the CLI:
+
+```bash title="Aspire CLI"
+aspire config set playwrightCliVersion 1.52.0
+```
+
+The value must be a valid [SemVer 2.0](https://semver.org/spec/v2.0.0.html) version in strict `MAJOR.MINOR.PATCH` form. Values that are not valid strict SemVer — such as dist-tags (`latest`), npm version ranges (`>=1.0.0`), or prefixed versions (`v1.52.0`) — are rejected with a clear error message:
+
+```text title="Error"
+The value of configuration setting 'playwrightCliVersion' ('latest') is not a valid SemVer 2.0 version.
+```
+
+Correct the value to an exact version such as `1.52.0` and re-run `aspire agent init`.
+
 ## Skill locations
 
 Aspire installs each selected skill into the selected skill locations. For example, a standard location can contain every Aspire workflow skill and selected companion skills:
