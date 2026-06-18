@@ -147,10 +147,6 @@ export const communityTopics: StarlightSidebarTopicsUserConfig = {
           },
           slug: 'community/translation-guide',
         },
-        {
-          label: 'LOC breakdown canvas',
-          slug: 'community/loc-breakdown-canvas',
-        },
       ],
     },
     {
