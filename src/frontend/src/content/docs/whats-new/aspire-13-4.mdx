@@ -837,7 +837,7 @@ Update references that assumed an HTTP primary endpoint to use the HTTPS endpoin
 
 The default PostgreSQL container image used by `AddPostgres` moved from 17.6 to 18.3. PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`.
 
-As a result, an existing `WithDataVolume()` (or `WithDataBindMount()`) data volume created on PostgreSQL 17 (Aspire 13.3 or earlier) is incompatible with PostgreSQL 18 after upgrading to 13.4. The container fails to start with an error similar to:
+As a result, existing PostgreSQL data persisted with `WithDataVolume()` (a Docker volume) or `WithDataBindMount()` (a host bind mount) on PostgreSQL 17 (Aspire 13.3 or earlier) is incompatible with PostgreSQL 18 after upgrading to 13.4. The container fails to start with an error similar to:
 
 ```text
 Error: in 18+, these Docker images are configured to store database data in a format which is compatible with "pg_ctlcluster" ... Counter to that, there appears to be PostgreSQL data in: /var/lib/postgresql
@@ -851,7 +851,7 @@ You have two ways to recover:
   var db = builder.AddPostgres("pgsql").WithImageTag("17.6").WithDataVolume();
   ```
 
-- **Upgrade the data volume to PostgreSQL 18.** Follow the official [PostgreSQL upgrade documentation](https://www.postgresql.org/docs/current/upgrading.html) using `pg_dumpall`/restore or `pg_upgrade`, and always back up the volume first. If the data is disposable, stop the app, remove any container still referencing the volume, then remove the volume so Aspire creates a fresh PostgreSQL 18 volume on the next run.
+- **Upgrade the persisted data to PostgreSQL 18.** Follow the official [PostgreSQL upgrade documentation](https://www.postgresql.org/docs/current/upgrading.html) using `pg_dumpall`/restore or `pg_upgrade`, and always back up the data first. If the data is disposable, stop the app, remove any container still referencing it, then remove the volume or bind mount data so Aspire creates fresh PostgreSQL 18 data on the next run.
 
 For full guidance and the container path mapping, see [PostgreSQL 18 data directory change](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
 
@@ -862,7 +862,7 @@ For full guidance and the container path mapping, see [PostgreSQL 18 data direct
 - TypeScript AppHosts are validated before startup, so invalid TypeScript fails earlier.
 - `CreateHttpClient` and `GetEndpointUriString` in `Aspire.Hosting.Testing` now prefer the `https` endpoint when no endpoint name is given; pass an explicit endpoint name if your tests relied on the previous `http`-first behavior.
 - The default RabbitMQ container image moved from 4.2 to 4.3, which rejects transient non-exclusive queue declarations by default.
-- The default PostgreSQL container image moved from 17.6 to 18.3, which changes the on-disk data layout and breaks data volumes created on PostgreSQL 17.
+- The default PostgreSQL container image moved from 17.6 to 18.3, which changes the on-disk data layout and breaks PostgreSQL 17 data persisted with `WithDataVolume()` or `WithDataBindMount()`.
 - `AddNatsClient` now also registers `INatsClient` and a default serializer registry; user-provided registries still take precedence.
 
 #### Migration from Aspire 13.3 to 13.4
@@ -877,7 +877,7 @@ For full guidance and the container path mapping, see [PostgreSQL 18 data direct
 6. **Update renamed APIs** — `PublishAsNpmPackageScript` → `PublishAsPackageScript`, and Foundry hosted agents `PublishAsHostedAgent` → `WithComputeEnvironment` (with the new `AddPromptAgent` parameter order).
 7. **Review Keycloak references** for the HTTPS primary endpoint, and **review Azure Front Door deployments**, setting explicit names if existing resources conflict with Azure.Provisioning name generation.
 8. **Review RabbitMQ queue declarations** if your app creates transient, non-exclusive queues. The default RabbitMQ image is now 4.3, which rejects that deprecated queue pattern by default. For migration guidance, see [RabbitMQ 4.3 queue declaration requirements](/integrations/messaging/rabbitmq/rabbitmq-host/#rabbitmq-4-3-queue-declaration-requirements).
-9. **Review PostgreSQL data volumes** if your app uses `WithDataVolume()` or `WithDataBindMount()`. The default PostgreSQL image is now 18.3, which changes the on-disk data layout and breaks volumes created on PostgreSQL 17. Pin `WithImageTag("17.6")` before `WithDataVolume()` to keep using the existing volume, or migrate the data. See [PostgreSQL 18 data directory change](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
+9. **Review PostgreSQL data persistence** if your app uses `WithDataVolume()` or `WithDataBindMount()`. The default PostgreSQL image is now 18.3, which changes the on-disk data layout and breaks PostgreSQL 17 data persisted by either API. Pin `WithImageTag("17.6")` before `WithDataVolume()` to keep using the existing volume, or migrate the data. See [PostgreSQL 18 data directory change](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
 
 </Steps>
 
