@@ -1,8 +1,10 @@
 ---
 title: Perl integration
+seoTitle: Perl hosting integration for Aspire · Community Toolkit
+description: Run Perl scripts and API servers in Aspire with the Community Toolkit hosting integration — cpanm, Carton, local::lib, and perlbrew support.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
+import { Badge, Steps, FileTree } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import perlIcon from '@assets/icons/perl-096-1500.svg';
 
@@ -22,24 +24,6 @@ import perlIcon from '@assets/icons/perl-096-1500.svg';
 A guide for developers using `CommunityToolkit.Aspire.Hosting.Perl` for the first time, or as a
 reference when revisiting the API. This document explains how key hosting API calls map to on-disk
 directory layout, environment variable configuration, and runtime behavior.
-
----
-
-## Table of Contents
-
-1. [Quick Start](#quick-start)
-2. [Core Concepts](#core-concepts)
-3. [The `appDirectory` Parameter](#the-appdirectory-parameter)
-4. [WithLocalLib](#withlocallib)
-5. [Package Management](#package-management)
-   - [WithCpanMinus + WithPackage](#withcpanminus--withpackage)
-   - [WithCpanMinus + WithProjectDependencies](#withcpanminus--withprojectdependencies)
-   - [WithCarton + WithProjectDependencies](#withcarton--withprojectdependencies)
-6. [WithPerlbrewEnvironment](#withperlbrewenvironment)
-7. [Common Pitfalls](#common-pitfalls)
-8. [Reporting an Issue](#reporting-issues)
-
----
 
 ## Quick Start
 
@@ -62,8 +46,6 @@ builder.AddPerlScript("my-worker", "scripts", "Worker.pl")
 builder.Build().Run();
 ```
 
----
-
 ## Core Concepts
 
 The integration provides two entry points for adding Perl resources:
@@ -75,8 +57,6 @@ The integration provides two entry points for adding Perl resources:
 
 Both create a `PerlAppResource` that appears in the Aspire dashboard. All subsequent configuration
 methods (`.WithCpanMinus()`, `.WithLocalLib()`, etc.) chain off the resource builder.
-
----
 
 ## The `appDirectory` Parameter
 
@@ -95,46 +75,49 @@ the `.csproj`).
 When `appDirectory` is `"."`, the working directory is the AppHost project folder itself. Files like
 `cpanfile`, `cpanfile.snapshot`, and the `local/` directory all live alongside the `.csproj`:
 
-```
-MyApp.AppHost/
-├── AppHost.cs
-├── MyApp.AppHost.csproj
-├── cpanfile              ← discovered here
-├── cpanfile.snapshot
-├── local/                ← WithLocalLib("local") resolves here
-│   └── lib/perl5/...
-└── Properties/
-scripts/
-└── API.pl                ← script path "../scripts/API.pl"
-```
+<FileTree>
+
+- MyApp.AppHost
+  - AppHost.cs
+  - MyApp.AppHost.csproj
+  - cpanfile  discovered here
+  - cpanfile.snapshot
+  - local  WithLocalLib("local") resolves here
+    - lib/perl5
+  - Properties
+- scripts
+  - API.pl  script path "../scripts/API.pl"
+
+</FileTree>
 
 ### `"../scripts"` — sibling folder
 
 When `appDirectory` is `"../scripts"`, the working directory shifts to a sibling `scripts/` folder.
 Everything resolves relative to that folder:
 
-```
-MyApp.AppHost/
-├── AppHost.cs
-├── MyApp.AppHost.csproj
-└── Properties/
-scripts/                   ← working directory
-├── Worker.pl              ← script path "Worker.pl"
-└── local/                 ← WithLocalLib("local") resolves here
-    └── lib/perl5/...
-```
+<FileTree>
 
+- MyApp.AppHost
+  - AppHost.cs
+  - MyApp.AppHost.csproj
+  - Properties/
+- scripts  working directory
+  - Worker.pl  script path "Worker.pl"
+  - local  WithLocalLib("local") resolves here
+    - lib/perl5
+
+</FileTree>
+
+> [!NOTE]
 > **Key insight:** The script path in `AddPerlScript` / `AddPerlApi` is relative to `appDirectory`,
 > and so is everything else — `WithLocalLib`, cpanfile discovery, and the process working directory.
-
----
 
 ## WithLocalLib
 
 ```csharp
 .WithLocalLib("local")         // relative path — resolved against appDirectory
 .WithLocalLib("/opt/lib")      // rooted Unix-style path — used as-is
-.WithLocalLib("C:\\perl-lib") // rooted Windows path — used as-is
+.WithLocalLib("C:\\perl-lib")  // rooted Windows path — used as-is
 ```
 
 `WithLocalLib` configures [local::lib](https://metacpan.org/pod/local::lib)-style module isolation.
@@ -168,9 +151,7 @@ These ensure that:
 | `"."` | `"/opt/perl-libs"` | `/opt/perl-libs` (Linux/macOS) |
 | `"."` | `"C:\\perl-libs"` | `C:\\perl-libs` (Windows) |
 
----
-
-## Package Management
+## Package management
 
 While I highly recommend you use cpanm or Carton, the integration aims to support three package managers and two installation strategies:
 
@@ -202,19 +183,21 @@ builder.AddPerlScript("worker", "../scripts", "Worker.pl")
 
 **Resulting directory structure:**
 
-```
-my-example/
-├── MyExample.AppHost/
-│   ├── AppHost.cs
-│   └── MyExample.AppHost.csproj
-└── scripts/                       ← working directory (appDirectory = "../scripts")
-    ├── Worker.pl
-    └── local/
-        └── lib/
-            └── perl5/
-                └── OpenTelemetry/
-                    └── SDK.pm
-```
+<FileTree>
+
+- my-example
+  - MyExample.AppHost/
+    - AppHost.cs
+    - MyExample.AppHost.csproj
+  - scripts  working directory (appDirectory = "../scripts")
+    - Worker.pl
+      - local
+        - lib
+          - perl5
+            - OpenTelemetry/
+              - SDK.pm
+
+</FileTree>
 
 **Options:**
 
@@ -235,9 +218,14 @@ builder.AddPerlApi("api", ".", "../scripts/API.pl")
 ```
 
 **What happens at startup:**
+
+<Steps>
+
 1. The integration looks for `cpanfile` in the working directory
 2. Runs `cpanm --installdeps --notest .` (with `--local-lib` if configured)
 3. All dependencies from the cpanfile are installed
+
+</Steps>
 
 **Expected cpanfile location:** `<appDirectory>/cpanfile`
 
@@ -254,36 +242,41 @@ builder.AddPerlApi("api", ".", "../scripts/API.pl")
 ```
 
 **What happens at startup:**
+
+<Steps>
+
 1. The integration looks for `cpanfile` and optionally `cpanfile.snapshot` in the working directory
 2. Runs `carton install` (or `carton install --deployment` if `cartonDeployment: true`)
 3. Carton creates `local/` adjacent to the `cpanfile`
+
+</Steps>
 
 **Deployment mode (`cartonDeployment: true`):** Installs exact versions from `cpanfile.snapshot`,
 ensuring production builds match development. Fails if the snapshot is missing or out of date.
 
 **Resulting directory structure (appDirectory = "."):**
 
-```
-my-example/
-├── MyApp.AppHost/                ← working directory (appDirectory = ".")
-│   ├── AppHost.cs
-│   ├── MyApp.AppHost.csproj
-│   ├── cpanfile
-│   ├── cpanfile.snapshot
-│   └── local/
-│       └── lib/
-│           └── perl5/
-│               ├── Mojolicious/
-│               └── ...
-└── scripts/
-    └── API.pl                    ← script path "../scripts/API.pl"
-```
+<FileTree>
 
-> **Important:** Carton only supports project-level dependency installation. Calling `.WithPackage()`
+- my-example
+  - MyApp.AppHost  working directory (appDirectory = ".")
+    - AppHost.cs
+    - MyApp.AppHost.csproj
+    - cpanfile
+    - cpanfile.snapshot
+    - local
+      - lib
+        - perl5
+          - Mojolicious
+  - scripts
+    - API.pl  script path "../scripts/API.pl"
+
+</FileTree>
+
+> [!IMPORTANT]
+> Carton only supports project-level dependency installation. Calling `.WithPackage()`
 > after `.WithCarton()` will throw an `InvalidOperationException`. If you need to install individual
 > modules alongside Carton-managed dependencies, use `.WithCpanMinus()` on a separate resource.
-
----
 
 ## WithPerlbrewEnvironment
 
@@ -304,11 +297,10 @@ builder.AddPerlScript("perlbrew-worker", "../scripts", "Worker.pl")
 into the local directory, not the perlbrew tree. This keeps the perlbrew installation clean and
 allows per-project isolation. `WithLocalLib` is optional when using perlbrew.
 
-> **Note:** Perlbrew is Linux-only. On Windows, the integration will display a notification
+> [!NOTE]
+> Perlbrew is Linux-only. On Windows, the integration will display a notification
 > recommending [Berrybrew](https://github.com/stevieb9/berrybrew). Windows support for Berrybrew
 > is on the roadmap.
-
----
 
 ## Common Pitfalls
 
@@ -384,7 +376,3 @@ on 'test' => sub {
 
 Further reading:
 - [CPAN::cpanfile reference](https://github.com/miyagawa/cpanfile/blob/master/README.md)
-
-## Reporting Issues
-
-If you notice an issue with these docs while using the integration, please file an issue at [microsoft/aspire.dev](https://github.com/microsoft/aspire.dev)
