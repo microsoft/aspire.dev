@@ -2,11 +2,6 @@ import { expect, type Page } from '@playwright/test';
 
 export async function resetCookieConsentState(page: Page): Promise<void> {
   await page.context().clearCookies();
-  await page.addInitScript(() => {
-    localStorage.removeItem('cc_cookie');
-    sessionStorage.removeItem('cc_cookie');
-    document.cookie = 'cc_cookie=; Max-Age=0; path=/';
-  });
 }
 
 export async function openCookiePreferences(page: Page): Promise<void> {
@@ -28,6 +23,20 @@ export async function dismissCookieConsentIfVisible(page: Page): Promise<void> {
   if (await rejectAllButton.isVisible().catch(() => false)) {
     await rejectAllButton.click();
   }
+}
+
+export async function clickCookiePreferencesAction(
+  page: Page,
+  actionName: RegExp
+): Promise<void> {
+  const actionButton = page.getByRole('button', { name: actionName }).last();
+  await Promise.all([
+    page.waitForEvent('framenavigated', {
+      predicate: (frame) => frame === page.mainFrame(),
+    }),
+    actionButton.click(),
+  ]);
+  await page.waitForLoadState('domcontentloaded');
 }
 
 export async function waitForAccessibilityEnhancements(page: Page): Promise<void> {
