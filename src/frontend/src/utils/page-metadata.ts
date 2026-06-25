@@ -1,4 +1,5 @@
 import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+import { locales } from '../../config/locales';
 import { isApiReferencePath } from '@utils/api-reference-routes';
 
 /**
@@ -41,30 +42,11 @@ export const FALLBACK_DESCRIPTION =
 /** Maximum length we trim Open Graph descriptions to. */
 const OG_DESCRIPTION_MAX_LENGTH = 200;
 
-/**
- * Known locale path segments. Mirrors `config/locales.ts` but lives here so
- * the OG image endpoint (which runs at build time outside the Astro/Starlight
- * route context) can detect translated entries without importing the locale
- * config from a different module graph.
- */
-const NON_DEFAULT_LOCALE_PREFIXES = [
-  'da',
-  'de',
-  'es',
-  'fr',
-  'hi',
-  'id',
-  'it',
-  'ja',
-  'ko',
-  'pt-br',
-  'ru',
-  'tr',
-  'uk',
-  'zh-cn',
-] as const;
-
-const localePrefixPattern = new RegExp(`^(?:${NON_DEFAULT_LOCALE_PREFIXES.join('|')})(?:/|$)`, 'i');
+const nonDefaultLocalePrefixes = Object.keys(locales).filter((locale) => locale !== 'root');
+const localePrefixPattern = new RegExp(
+  `^(?:${nonDefaultLocalePrefixes.map(escapeRegExp).join('|')})(?:/|$)`,
+  'i'
+);
 
 const releaseNotePattern = /^whats-new\/aspire-/i;
 
@@ -344,6 +326,10 @@ export function resolveSiteUrl(site: URL | string | undefined, currentUrl: URL):
 
 function normalizeEntryId(entryId: string): string {
   return entryId.replace(/\\/g, '/');
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function isPagesRoute(route: MinimalRoute): boolean {
