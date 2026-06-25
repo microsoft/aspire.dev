@@ -18,7 +18,7 @@ Unless the caller says otherwise, the PR belongs to this `aspire.dev` repository
 
 # IMPORTANT — phase discipline
 
-This skill has three phases (A, B, C). Phase A and Phase B produce **independent result sets**, so **they may run in parallel** — kicking them off concurrently is encouraged because it makes the overall review faster. Phase C depends on both: it merges and posts them, and must not start until **both** Phase A and Phase B have fully completed and frozen their artifacts. You MUST complete all three before posting anything.
+This skill has three phases (A, B, C). Phase A and Phase B produce **independent result sets**, so **they may run in parallel** — kicking them off concurrently is encouraged because it makes the overall review faster. Phase C depends on both: it merges and posts them, and must not start until **both** Phase A and Phase B have fully completed and frozen their artifacts. You MUST complete all three before posting a **complete** review. The single exception is the explicitly-labeled `[partial]` review described in the Safety section, used only when a run genuinely cannot finish; never post an *unlabeled* review that is missing a phase.
 
 > **Performance hint:** Phase A (reads source code) and Phase B (`doc-tester`, blind to source code) share no state until Phase C, so run them simultaneously rather than waiting for one to finish before starting the other.
 
@@ -78,7 +78,7 @@ For each non-`narrative` claim:
    - `verified-with-nuance` — substance matches but wording is imprecise (e.g., omits an overload, simplifies a default); include the nuance
    - `unverifiable` — cannot find the referenced symbol/behavior on this branch
    - `contradicted` — the source code says something different than the PR claims; include both texts
-4. Do not infer from documentation, blog posts, or other branches. The release branch of the owning repo is the only source of truth.
+4. Do not infer from documentation, blog posts, or other branches. The branch you actually checked out and recorded for that repo (per the **Source of truth** section — the PR's matching branch, or the documented fallback when none matches) is the only source of truth.
 
 ## Phase A artifact
 
@@ -112,7 +112,7 @@ Record (in memory) a frozen Phase B result containing the doc-tester report exac
 
 ## Pre-post self-check (MANDATORY)
 
-Before posting anything, verify ALL of the following are true. If any check fails, do NOT post; re-run the missing phase first.
+Before posting a complete review, verify ALL of the following are true. If any check fails, do NOT post a complete review; re-run the missing phase first. (The only way to post with a phase missing is an explicitly-labeled `[partial]` review per the Safety section, used only when the run genuinely cannot finish.)
 
 - [ ] Phase A artifact exists and includes at least one claim verdict (or a documented "no claims found" note with the SHA).
 - [ ] Phase B artifact exists and includes the doc-tester report (or a documented reason the tester could not run, e.g., the docs site was unreachable).
