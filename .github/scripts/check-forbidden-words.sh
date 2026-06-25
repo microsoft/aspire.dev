@@ -18,6 +18,7 @@ set -euo pipefail
 
 BASE_SHA="${1:?base SHA required}"
 HEAD_SHA="${2:?head SHA required}"
+MERGE_BASE="$(git merge-base "$BASE_SHA" "$HEAD_SHA")" || { echo "::error::Unable to compute merge-base of $BASE_SHA and $HEAD_SHA"; exit 2; }
 CONFIG_FILE="${CONFIG_FILE:-.github/forbidden-words.json}"
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
@@ -30,7 +31,7 @@ command -v jq >/dev/null 2>&1 || { echo "::error::jq is required"; exit 2; }
 # Read global exclude globs (newline separated).
 mapfile -t GLOBAL_EXCLUDES < <(jq -r '.excludePaths // [] | .[]' "$CONFIG_FILE")
 
-rule_count=$(jq '.rules | length' "$CONFIG_FILE")
+rule_count=$(jq '(.rules // []) | length' "$CONFIG_FILE")
 if [[ "$rule_count" -eq 0 ]]; then
   echo "No rules defined in $CONFIG_FILE; nothing to check."
   exit 0
@@ -53,7 +54,7 @@ matches_any_glob() {
 violations=0
 
 # List the files changed between base and head (added/copied/modified/renamed).
-mapfile -t CHANGED_FILES < <(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA")
+mapfile -t CHANGED_FILES < <(git diff --name-only --diff-filter=ACMR "$MERGE_BASE" "$HEAD_SHA")
 
 for file in "${CHANGED_FILES[@]}"; do
   [[ -z "$file" ]] && continue
@@ -65,7 +66,7 @@ for file in "${CHANGED_FILES[@]}"; do
 
   # Collect added lines as "<line_number>:<content>". --unified=0 keeps hunks
   # tight so we can track new-file line numbers from the @@ headers.
-  diff_output=$(git diff --unified=0 "$BASE_SHA" "$HEAD_SHA" -- "$file" || true)
+  diff_output=$(git diff --unified=0 "$MERGE_BASE" "$HEAD_SHA" -- "$file")
   [[ -z "$diff_output" ]] && continue
 
   added_lines=$(awk '
@@ -101,7 +102,7 @@ for file in "${CHANGED_FILES[@]}"; do
       continue
     fi
 
-    grep_opts=(-E)
+    grep_opts=(-P)
     if [[ "$case_sensitive" != "true" ]]; then
       grep_opts+=(-i)
     fi

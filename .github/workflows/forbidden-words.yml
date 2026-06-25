@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Resolve base and head SHAs
         id: shas
@@ -42,16 +42,14 @@ jobs:
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             base="$PR_BASE_SHA"
             head="$PR_HEAD_SHA"
-            git fetch --depth=1 origin "$base"
-            git fetch --depth=1 origin "$head"
           else
             base="$INPUT_BASE_SHA"
             head="${INPUT_HEAD_SHA:-$(git rev-parse HEAD)}"
             if [[ -z "$base" ]]; then
-              git fetch --depth=1 origin "${GITHUB_REF_NAME}" || true
+              git fetch origin "${GITHUB_REF_NAME}" || true
               base="$(git rev-parse "origin/${GITHUB_REF_NAME}" 2>/dev/null || git rev-parse HEAD~1)"
             else
-              git fetch --depth=1 origin "$base" || true
+              git fetch origin "$base" || true
             fi
           fi
           echo "base=$base" >> "$GITHUB_OUTPUT"
