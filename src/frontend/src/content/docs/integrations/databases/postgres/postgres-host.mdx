@@ -399,7 +399,11 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-The data volume is used to persist the PostgreSQL server data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/postgresql/data` path in the PostgreSQL server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-postgresql-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+The data volume is used to persist the PostgreSQL server data outside the lifecycle of its container. The container data directory depends on the PostgreSQL image version: PostgreSQL 17 and earlier use `/var/lib/postgresql/data`, while PostgreSQL 18 and later use `/var/lib/postgresql`. `WithDataVolume(...)` selects the correct path automatically based on the configured image tag. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-postgresql-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+<Aside type="caution">
+  Aspire 13.4 bumped the default PostgreSQL image to 18, which uses a different on-disk data layout than PostgreSQL 17. A data volume or data bind mount created on PostgreSQL 17 (Aspire 13.3 or earlier) is incompatible after upgrading. See [PostgreSQL 18 data directory change](#postgresql-18-data-directory-change) for recovery options.
+</Aside>
 
 <Aside type="caution">
     Some database integrations, including the Aspire PostgreSQL integration, can't successfully use data volumes after deployment to Azure Container Apps (ACA). This is because ACA uses Server Message Block (SMB) to connect containers to data volumes, and some systems can't use this connection. In the Aspire Dashboard, a database affected by this issue has a status of **Activating** or **Activation Failed** but is never listed as **Running**.
@@ -588,6 +592,68 @@ await builder.build().run();
 ```
 </TabItem>
 </Tabs>
+
+## PostgreSQL 18 data directory change
+
+Starting with Aspire 13.4, the default PostgreSQL container image used by `AddPostgres` is **18.3** (previously 17.6). PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`. For upstream details, see [docker-library/postgres#1259](https://github.com/docker-library/postgres/issues/1259) and [docker-library/postgres#37](https://github.com/docker-library/postgres/issues/37).
+
+`WithDataVolume(...)` and `WithDataBindMount(...)` are version-aware: Aspire chooses the container data directory from the configured image tag at the time the method is called. PostgreSQL 17 and earlier map to `/var/lib/postgresql/data`; PostgreSQL 18 and later map to `/var/lib/postgresql`.
+
+Because of this layout change, PostgreSQL 17 data persisted with `WithDataVolume(...)` or `WithDataBindMount(...)` (Aspire 13.3 or earlier) is incompatible with PostgreSQL 18 after upgrading to Aspire 13.4. The container fails to start with an error similar to:
+
+```text
+Error: in 18+, these Docker images are configured to store database data in a format which is compatible with "pg_ctlcluster" ... Counter to that, there appears to be PostgreSQL data in: /var/lib/postgresql
+```
+
+You have two ways to recover.
+
+### Option 1: Stay on PostgreSQL 17 (recommended, no migration)
+
+Pin the image back to a PostgreSQL 17 tag with `WithImageTag(...)` **before** calling `WithDataVolume(...)`. Aspire then selects the legacy `/var/lib/postgresql/data` path and your existing volume keeps working with no migration:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("pgsql")
+    .WithImageTag("17.6")
+    .WithDataVolume();
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("pgsql");
+await postgres.withImageTag("17.6");
+await postgres.withDataVolume();
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  Call `WithImageTag(...)` **before** `WithDataVolume(...)`. The data directory is chosen from the configured tag at the time `WithDataVolume(...)` runs, so the tag must be set first.
+</Aside>
+
+### Option 2: Upgrade the data volume to PostgreSQL 18
+
+Follow the official [PostgreSQL upgrade documentation](https://www.postgresql.org/docs/current/upgrading.html) using `pg_dumpall`/restore or `pg_upgrade`. Always back up the volume before migrating.
+
+If the data is disposable, you can start fresh. Stop the app, remove any container still referencing the old volume (`docker volume rm` fails while the volume is in use), then remove the volume so Aspire creates a new PostgreSQL 18 volume on the next run:
+
+```bash
+docker volume ls
+docker ps -a --filter volume=<old-volume-name>
+docker rm -f <container-id>
+docker volume rm <old-volume-name>
+```
 
 ## Connection properties
 
