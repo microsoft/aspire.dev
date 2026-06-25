@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  clickCookiePreferencesAction,
   dismissCookieConsentIfVisible,
   isNarrowViewport,
   openCookiePreferences,
@@ -219,10 +220,7 @@ test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
   await page.goto('/get-started/prerequisites/');
   await openCookiePreferences(page);
 
-  await page
-    .getByRole('button', { name: /reject all/i })
-    .last()
-    .click();
+  await clickCookiePreferencesAction(page, /reject all/i);
   await waitForConsentRecorded(page);
   await waitForAnalyticsConsent(page, false);
   await waitForConsentCategories(page, ['necessary']);
@@ -233,10 +231,7 @@ test('cookie preferences and accept-all enable analytics tracking consent', asyn
   await page.goto('/get-started/prerequisites/');
   await openCookiePreferences(page);
 
-  await page
-    .getByRole('button', { name: /accept all/i })
-    .last()
-    .click();
+  await clickCookiePreferencesAction(page, /accept all/i);
 
   await waitForConsentRecorded(page);
   await waitForAnalyticsConsent(page, true);
