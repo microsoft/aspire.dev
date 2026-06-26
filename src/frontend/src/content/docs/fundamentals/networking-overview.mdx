@@ -262,6 +262,50 @@ await web.withHttpEndpoint({ targetPort: 80, isProxied: false });
 </TabItem>
 </Tabs>
 
+### Allocate ports for dynamic proxyless endpoints
+
+Proxyless endpoints can define a `targetPort` without defining a public host `port`. Starting in Aspire 13.5, Aspire allocates a public host port for each dynamic proxyless endpoint before workload resources are created. The allocated port is then available to configuration that resolves endpoint properties, such as `GetEndpoint(...).Property(EndpointProperty.Port)`.
+
+If you set `port`, Aspire uses that value as the public host port. If you omit `port`, Aspire allocates one from the proxyless endpoint port range. The default range is `10000-32767`, and you can override it with the `ASPIRE_PROXYLESS_ENDPOINT_PORT_RANGE` environment variable in `start-end` format.
+
+This lets you write patterns like the following, where a container exposes its allocated public port in an environment variable:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var database = builder.AddContainer("database", "image")
+    .WithEndpoint(name: "tcp", targetPort: 5432, isProxied: false);
+
+database.WithEnvironment("PUBLIC_PORT", database.GetEndpoint("tcp").Property(EndpointProperty.Port));
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { EndpointProperty, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const database = await builder.addContainer('database', {
+  image: 'image',
+  tag: 'latest',
+});
+await database.withEndpoint({ name: 'tcp', targetPort: 5432, isProxied: false });
+
+await database.withEnvironment('PUBLIC_PORT', database.getEndpoint('tcp').property(EndpointProperty.Port));
+```
+
+</TabItem>
+</Tabs>
+
+In this example, `PUBLIC_PORT` is set to the endpoint's allocated public host port before the container is created. Because the endpoint is proxyless and doesn't specify `port`, Aspire allocates a port from the proxyless endpoint port range.
+
+:::note
+For persistent resources, Aspire persists allocated proxyless endpoint ports in user secrets and reuses them on later AppHost runs.
+:::
+
 ## Omit the host port
 
 For proxied endpoints, when you omit the host port, Aspire generates a random port for both host and service port. This is useful when you want to avoid port conflicts and don't care about the host or service port. Consider the following code:
