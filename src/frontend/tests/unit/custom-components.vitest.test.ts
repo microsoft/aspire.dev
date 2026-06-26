@@ -423,9 +423,9 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['data-lang-name="TypeScript"', 'data-lang-name="C#"', 'And more...'],
   },
   {
-    name: 'FreeAndOpenSourceAside renders translated copy',
+    name: 'FreeAndOpenSourceAside renders localized title',
     Component: FreeAndOpenSourceAside,
-    includes: ['landing.freeAndOSS', 'landing.aspirePromise'],
+    includes: ['landing.freeAndOSS'],
   },
   {
     name: 'OsAwareTabs renders shell tabs and sync key script',
@@ -756,6 +756,15 @@ describe('custom Astro component render coverage', () => {
       }
     });
   }
+
+  it('renders the quote randomization script and quote pool', async () => {
+    const html = normalizeHtml(await renderComponent(FreeAndOpenSourceAside));
+
+    expect(html).toContain('data-random-aspire-quote');
+    expect(html).toContain('Math.floor(Math.random() * quotes.length)');
+    expect(html).toContain('Aspire is the cloud-native app model for .NET.');
+    expect(html).toContain('Aspire is open source from app model to deployment artifacts.');
+  });
 
   it('filters GitHubRepoStats by repository name when multiple stats are provided', async () => {
     const html = normalizeHtml(
