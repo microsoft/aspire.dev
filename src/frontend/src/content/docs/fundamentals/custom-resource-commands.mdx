@@ -676,7 +676,7 @@ return { success: false, message: err instanceof Error ? err.message : String(er
 </TabItem>
 </Tabs>
 
-## Return structured output from a command
+## Returning a result from a command
 
 Resource commands can return a structured payload — plain text, JSON, or Markdown — alongside the success/failure signal. The payload flows automatically through the entire Aspire pipeline:
 
@@ -825,6 +825,47 @@ await builder.build().run();
 
 </TabItem>
 </Tabs>
+
+### Return Markdown
+
+When a command needs rich output (for example headings, tables, and lists), return `CommandResultData` with `Format = CommandResultFormat.Markdown`:
+
+```csharp title="C# — AppHost.cs"
+builder
+    .AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "migrate-database",
+        displayName: "Migrate Database",
+        executeCommand: _ =>
+        {
+            var markdown = """
+                # ⚙️ Database Migration Summary
+
+                | Table      | Result                     |
+                |------------|----------------------------|
+                | Customers  | ✅ 1,200 rows              |
+                | Products   | ✅ 850 rows                |
+                | Orders     | ✅ 3,400 rows              |
+                | OrderItems | ✅ 8,750 rows              |
+                | Categories | ✅ 45 rows                 |
+                | Reviews    | ❌ FK constraint violation |
+                | Inventory  | ✅ 850 rows                |
+                | Shipping   | ✅ 3,400 rows              |
+                | Payments   | ❌ Timeout after 30s       |
+                | Coupons    | ✅ 120 rows                |
+
+                **Summary:** 8 of 10 tables migrated successfully. 2 tables failed.
+                """;
+
+            return Task.FromResult(CommandResults.Success(
+                "Database migrated.",
+                new CommandResultData
+                {
+                    Value = markdown,
+                    Format = CommandResultFormat.Markdown,
+                }));
+        });
+```
 
 ### Choose a result format
 
