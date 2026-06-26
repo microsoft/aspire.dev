@@ -1,5 +1,6 @@
 ﻿// @ts-check
 import { defineConfig } from 'astro/config';
+import { unified } from '@astrojs/markdown-remark';
 import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
 import { redirects } from './config/redirects.mjs';
 import { iconPacks } from './config/icon-packs.mjs';
@@ -46,14 +47,12 @@ export default defineConfig({
   prefetch: true,
   site: 'https://aspire.dev',
   trailingSlash: 'always',
+  markdown: {
+    processor: unified(),
+  },
   redirects: redirects,
   integrations: [
     UnoCSS(),
-    mermaid({
-      theme: 'forest',
-      autoTheme: true,
-      iconPacks,
-    }),
     Icons({
       extractSafelist: true,
       starlight: {
@@ -227,6 +226,11 @@ export default defineConfig({
           }),
         ],
       },
+    }),
+    mermaid({
+      theme: 'forest',
+      autoTheme: true,
+      iconPacks,
     }),
     mdx({
       optimize: true,
