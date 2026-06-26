@@ -1,0 +1,72 @@
+---
+title: Set up development certificates
+description: Learn how Aspire manages HTTPS development certificate trust with aspire run and aspire start, and how to use dotnet dev-certs when you need .NET-specific certificate commands.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Aspire uses a local HTTPS development certificate for secure local endpoints such as the dashboard and app resources. This page explains the recommended Aspire CLI flow for polyglot apps and the .NET-specific `dotnet dev-certs` workflow.
+
+## Use Aspire CLI trust flow (polyglot and .NET)
+
+For most teams, the Aspire CLI is the best option because it works consistently across AppHost languages and doesn't require you to run certificate setup manually each time.
+
+When you run either of these commands, Aspire ensures a development certificate exists and is trusted:
+
+```bash title="Aspire CLI"
+aspire run
+```
+
+```bash title="Aspire CLI"
+aspire start
+```
+
+If you want to manage certificate trust explicitly (for example, after rotating certificates), use:
+
+```bash title="Aspire CLI"
+aspire certs trust
+```
+
+If certificate trust appears stale or broken, refresh it:
+
+```bash title="Aspire CLI"
+aspire certs clean
+aspire certs trust
+```
+
+## Use dotnet dev-certs (.NET-specific)
+
+If you already use the .NET SDK tooling directly, you can manage the same local development certificate with `dotnet dev-certs`:
+
+```bash title=".NET CLI"
+dotnet dev-certs https --trust
+```
+
+To reset and trust again:
+
+```bash title=".NET CLI"
+dotnet dev-certs https --clean
+dotnet dev-certs https --trust
+```
+
+<Aside type="note">
+  The Aspire CLI certificate commands and `dotnet dev-certs` operate on the same
+  developer certificate concept. Most users should prefer the Aspire CLI flow
+  because it integrates directly into `aspire run` and `aspire start`.
+</Aside>
+
+## Troubleshooting certificate trust
+
+If your browser or local apps still report certificate trust errors:
+
+1. Re-run `aspire certs clean` and `aspire certs trust`.
+2. Restart terminals and local app processes.
+3. On Linux, ensure OpenSSL-aware tooling can find the trust directory.
+
+<LearnMore>
+  For Linux-specific trust setup and deeper certificate APIs, see [Certificate
+  configuration](/app-host/certificate-configuration/) and [Troubleshoot
+  untrusted localhost
+  certificate](https://learn.microsoft.com/dotnet/aspire/troubleshooting/untrusted-localhost-certificate).
+</LearnMore>
