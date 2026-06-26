@@ -33,7 +33,7 @@ This command is useful for troubleshooting when you encounter issues with Aspire
 - **AppHost checks**: Reports the AppHost Aspire SDK version when an AppHost project is present in the current directory
 - **SDK checks**: Verifies .NET SDK installation and version requirements
 - **Container checks**: Validates container runtime (Docker and/or Podman) availability, running status, and version. Reports which runtime is active and why (explicit configuration, auto-detected default, or auto-detected only runtime running)
-- **Environment checks**: Validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun)
+- **Environment checks**: Reports operating system information (type, version, and Linux distro details when available) and validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun)
 
 The command displays results with clear status indicators:
 
@@ -100,9 +100,10 @@ Container Runtime
   ✅ Docker v28.5.1: running (auto-detected (default)) ← active
 
 Environment
+  ✅ Operating system: macOS 15.5.0
   ✅ HTTPS development certificate is trusted
 
-Summary: 5 passed, 0 warnings, 0 failed
+Summary: 6 passed, 0 warnings, 0 failed
 ```
 
 After the summary, table output also includes an `Aspire CLI Installations`
@@ -167,19 +168,31 @@ When using the `--format Json` option, the output includes a structured response
       "category": "aspire",
       "name": "cli-version",
       "status": "pass",
-      "message": "Aspire CLI version 13.4.0",
+      "message": "Aspire CLI version 13.5.0",
       "metadata": {
-        "currentVersion": "13.4.0"
+        "currentVersion": "13.5.0"
       }
     },
     {
       "category": "apphost",
       "name": "apphost-version",
       "status": "pass",
-      "message": "AppHost version 13.4.0 (MyApp.AppHost.csproj)",
+      "message": "AppHost version 13.5.0 (MyApp.AppHost.csproj)",
       "metadata": {
         "appHostPath": "MyApp.AppHost.csproj",
-        "version": "13.4.0"
+        "version": "13.5.0"
+      }
+    },
+    {
+      "category": "environment",
+      "name": "operating-system",
+      "status": "pass",
+      "message": "Operating system: Linux Ubuntu 24.04",
+      "metadata": {
+        "osType": "Linux",
+        "displayName": "Linux Ubuntu",
+        "version": "24.04",
+        "description": "Ubuntu 24.04.2 LTS"
       }
     },
     {
@@ -190,7 +203,7 @@ When using the `--format Json` option, the output includes a structured response
     }
   ],
   "summary": {
-    "passed": 5,
+    "passed": 6,
     "warnings": 0,
     "failed": 0
   }
@@ -214,6 +227,15 @@ When the CLI is out of date, the `cli-version` check has `"status": "warning"` a
 ```
 
 The `apphost-version` check is only present in the JSON output when an AppHost project is discovered in the current directory.
+
+The `operating-system` check is always present and includes the following metadata fields:
+
+| Field | Description |
+| ----- | ----------- |
+| `osType` | The platform family: `Windows`, `macOS`, or `Linux`. |
+| `displayName` | A human-readable OS name, for example `Windows`, `macOS`, or `Linux Ubuntu`. |
+| `version` | The OS version string. On Linux this is the `VERSION_ID` from `/etc/os-release` when available; on Windows and macOS it is the value from `Environment.OSVersion`. |
+| `description` | A longer description of the OS. On Linux this is the `PRETTY_NAME` value from `/etc/os-release` (for example `Ubuntu 24.04.2 LTS`); on other platforms it is the runtime OS description string. |
 
 ## See also
 
