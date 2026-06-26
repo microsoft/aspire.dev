@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { pluginCollapsibleSections } from '@expressive-code/plugin-collapsible-sections';
 import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers';
 import ecTwoSlash from 'expressive-code-twoslash';
@@ -13,10 +15,20 @@ import {
 
 // starlight-plugin-icons publishes this EC plugin as TypeScript source.
 // Load the package implementation directly so we do not duplicate its icon logic.
-const { pluginIcon } = await tsImport(
-  new URL('./node_modules/starlight-plugin-icons/src/lib/expressive-code.ts', import.meta.url).href,
-  import.meta.url
-);
+//
+// Resolve the path from the project root (cwd) rather than `import.meta.url`.
+// During the build's prerender phase, Astro bundles this config into
+// `dist/.prerender/chunks/`, which moves `import.meta.url` away from the project
+// root. A chunk-relative `./node_modules/...` URL then points at a non-existent
+// path, the import throws, and the `<Code>` component renderer silently falls
+// back to a default Expressive Code config. That mismatched config produces a
+// different asset hash than the markdown renderer, so pages reference EC
+// stylesheet/script files that are never emitted (404s). A cwd-anchored absolute
+// path stays valid in both the integration and bundled prerender contexts.
+const pluginIconSource = pathToFileURL(
+  path.resolve(process.cwd(), 'node_modules/starlight-plugin-icons/src/lib/expressive-code.ts')
+).href;
+const { pluginIcon } = await tsImport(pluginIconSource, import.meta.url);
 
 if (TWOSLASH_ENABLED && !readAspireTypes().exists) {
   // Non-fatal — twoslash blocks that import the SDK will just show `any`.
