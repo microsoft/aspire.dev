@@ -1,0 +1,192 @@
+---
+title: Set up EF Core migration management in the AppHost
+description: Learn how to use Aspire.Hosting.EntityFrameworkCore to model EF Core migrations, dashboard commands, and startup or publish workflows from your AppHost.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import dotnetIcon from '@assets/icons/dotnet.svg';
+
+<Image
+  src={dotnetIcon}
+  alt="Entity Framework Core logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the AppHost reference for [`Aspire.Hosting.EntityFrameworkCore`](https://www.nuget.org/packages/Aspire.Hosting.EntityFrameworkCore). Unlike the existing EF Core database pages, which focus on registering a `DbContext` inside a consuming .NET app, this package lives in the [`AppHost`](/get-started/app-host/) and models EF Core migration management for a project resource. It doesn't provision a database or replace the per-database EF Core client packages — instead, it adds a provider-agnostic EF Core migration resource that you can orchestrate alongside your existing database and app resources.
+
+If you're new to EF Core in Aspire, start with the [EF Core integrations overview](/integrations/databases/efcore/overview/) and the [Apply EF Core migrations in Aspire](/integrations/databases/efcore/migrations/) guide.
+
+## Installation
+
+To start building an Aspire app that uses EF Core migration management from the AppHost, install the [📦 Aspire.Hosting.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.Hosting.EntityFrameworkCore) package in your AppHost project:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.EntityFrameworkCore
+```
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.EntityFrameworkCore@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.EntityFrameworkCore" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.EntityFrameworkCore
+```
+
+This updates your `aspire.config.json` with the EF Core hosting package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.EntityFrameworkCore": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  The project that contains the `DbContext` must reference
+  `Microsoft.EntityFrameworkCore.Design`. If you add that package with `dotnet
+  add package`, make sure the resulting reference works for EF Core tools in
+  your solution.
+</Aside>
+
+## Add an EF Core migration resource
+
+Call `AddEFMigrations` on the project resource that hosts your `DbContext`. If that project contains multiple `DbContext` types, pass the fully qualified type name for the one you want the migration resource to manage.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres")
+    .AddDatabase("appdb");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(db);
+
+var migrations = api.AddEFMigrations("api-migrations", "MyApp.Data.AppDbContext")
+    .RunDatabaseUpdateOnStart();
+
+api.WaitForCompletion(migrations);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const db = await postgres.addDatabase('appdb');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(db);
+
+const migrations = await api.addEFMigrations(
+  'api-migrations',
+  'MyApp.Data.AppDbContext'
+);
+await migrations.runDatabaseUpdateOnStart();
+
+await api.waitForCompletion(migrations);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+If the project contains only one `DbContext`, you can omit the type name and let Aspire auto-detect it.
+
+## Configure migrations
+
+The migration resource is an `EFMigrationResource`. Use it to model where migrations live, where new migrations should be created, and what publish-time artifacts Aspire should generate.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.AppDbContext")
+    .WithMigrationsProject<Projects.Data>()
+    .WithMigrationOutputDirectory("Data/Migrations")
+    .WithMigrationNamespace("MyApp.Data.Migrations")
+    .PublishAsMigrationScript();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+const data = await builder.addProject('data', '../Data/Data.csproj');
+
+const apiMigrations = await api.addEFMigrations(
+  'api-migrations',
+  'MyApp.Data.AppDbContext'
+);
+await apiMigrations.withMigrationsProject(data);
+await apiMigrations.withMigrationOutputDirectory('Data/Migrations');
+await apiMigrations.withMigrationNamespace('MyApp.Data.Migrations');
+await apiMigrations.publishAsMigrationScript();
+```
+
+</TabItem>
+</Tabs>
+
+For local runs, `RunDatabaseUpdateOnStart()` applies pending migrations when you start the AppHost. For publish workflows, `PublishAsMigrationScript()` and `PublishAsMigrationBundle()` generate migration artifacts during [`aspire publish`](/reference/cli/commands/aspire-publish/). When other resources must wait until migrations finish, use `WaitForCompletion(...)` on those resources.
+
+For the end-to-end migration guidance — including worker-service patterns, automatic startup migrations, and publish-time migration bundles — see [Apply EF Core migrations in Aspire](/integrations/databases/efcore/migrations/).
+
+## Dashboard operations
+
+When you add an EF migration resource, Aspire surfaces EF Core operations in the dashboard. These commands are executed through the EF Core operation executor for that migration resource:
+
+| Command             | Description                                                            |
+| ------------------- | ---------------------------------------------------------------------- |
+| Update Database     | Apply pending migrations to the database.                              |
+| Drop Database       | Delete the database after confirmation.                                |
+| Reset Database      | Drop and recreate the database with all migrations after confirmation. |
+| Add Migration...    | Create a new migration.                                                |
+| Remove Migration    | Remove the last migration.                                             |
+| Get Database Status | Show the current migration status.                                     |
+
+Aspire downloads and runs `dotnet-ef` automatically for these commands. After you add or remove a migration, rebuild the target project before running more EF Core operations so the dashboard doesn't execute against stale assemblies.
+
+## See also
+
+- [EF Core integrations overview](/integrations/databases/efcore/overview/)
+- [Apply EF Core migrations in Aspire](/integrations/databases/efcore/migrations/)
+- [Entity Framework Core documentation](https://learn.microsoft.com/ef/core)
+- [Aspire.Hosting.EntityFrameworkCore on NuGet](https://www.nuget.org/packages/Aspire.Hosting.EntityFrameworkCore)
