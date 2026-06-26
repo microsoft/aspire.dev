@@ -2,7 +2,7 @@
 
 The official home of Aspire: a single experience that is both the public product/marketing site and the full documentation hub at [aspire.dev](https://aspire.dev).
 
-The source code of Aspire is at [microsoft/aspire](https://github.com/microsoft/aspire) repository.
+The Aspire source code is in the [microsoft/aspire](https://github.com/microsoft/aspire) repository.
 
 ## 🌟 About
 
