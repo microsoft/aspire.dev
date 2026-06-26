@@ -5,6 +5,7 @@ description: Learn how Azure Functions code reads Aspire-injected environment va
 
 import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import functionsIcon from '@assets/icons/azure-functionapps-icon.png';
 
 <Image
@@ -226,6 +227,113 @@ def my_queue_function(msg: func.ServiceBusMessage):
 
 </TabItem>
 </Tabs>
+
+## Durable Task Scheduler client integration
+
+For Durable Functions workloads that use [Durable Task Scheduler](https://learn.microsoft.com/azure/azure-functions/durable/durable-task-scheduler/durable-task-scheduler), use the Aspire client integration package to register workers and clients with health checks and OpenTelemetry tracing.
+Use this integration when your app directly hosts Durable Task workers or clients outside the Azure Functions runtime process; for AppHost scheduler and task hub resource setup, continue to use the hosting APIs documented in [Set up Azure Functions in the AppHost](../azure-functions-host/#durable-task-scheduler-integration).
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.DurableTask.AzureManaged" />
+
+### Minimal end-to-end setup
+
+Add a Durable Task Scheduler resource and task hub in your AppHost, then reference the task hub from your worker project:
+
+:::note
+The AppHost snippet uses a pragma to suppress `ASPIREDURABLETASK001` because the Durable Task Scheduler hosting APIs are currently marked as experimental.
+:::
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREDURABLETASK001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var scheduler = builder.AddDurableTaskScheduler("scheduler")
+    .RunAsEmulator();
+
+var taskHub = scheduler.AddTaskHub("taskhub");
+
+builder.AddProject<Projects.Worker>("worker")
+    .WithReference(taskHub);
+
+builder.Build().Run();
+
+#pragma warning restore ASPIREDURABLETASK001
+```
+
+In your worker project's _Program.cs_, call `AddDurableTaskSchedulerWorker` to register a worker and (by default) a `DurableTaskClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddDurableTaskSchedulerWorker("taskhub", worker =>
+{
+    worker.AddTasks(tasks =>
+    {
+        tasks.AddOrchestrator<MyOrchestrator>();
+        tasks.AddActivity<MyActivity>();
+    });
+});
+```
+
+The connection name (`"taskhub"`) must match the task hub resource name from the AppHost.
+
+If your app only needs to start and manage orchestrations (without hosting a worker), use `AddDurableTaskSchedulerClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddDurableTaskSchedulerClient("taskhub");
+```
+
+### Keyed registrations
+
+Use keyed registrations when you need multiple scheduler connections in one app:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedDurableTaskSchedulerWorker("orders", worker =>
+{
+    worker.AddTasks(tasks => tasks.AddOrchestrator<OrdersOrchestrator>());
+});
+
+builder.AddKeyedDurableTaskSchedulerClient("billing");
+```
+
+### Configuration
+
+The package reads `DurableTaskSchedulerSettings` from `Aspire:Microsoft:DurableTask:AzureManaged`. For keyed registrations, named settings at `Aspire:Microsoft:DurableTask:AzureManaged:{name}` override the top-level settings.
+
+#### Connection strings
+
+`AddDurableTaskSchedulerWorker` and `AddDurableTaskSchedulerClient` read connection strings from `ConnectionStrings:{connectionName}`:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "taskhub": "Endpoint=https://my-scheduler.durabletask.io;Authentication=DefaultAzure;TaskHub=MyHub"
+  }
+}
+```
+
+#### Configuration providers
+
+You can also configure settings from configuration providers:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Microsoft": {
+      "DurableTask": {
+        "AzureManaged": {
+          "ConnectionString": "Endpoint=https://my-scheduler.durabletask.io;Authentication=DefaultAzure;TaskHub=MyHub",
+          "DisableHealthChecks": false,
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+### Health checks and telemetry
+
+By default, the integration adds a Durable Task Scheduler health check and OpenTelemetry tracing for `Microsoft.DurableTask` sources. Set `DisableHealthChecks` or `DisableTracing` to `true` in `DurableTaskSchedulerSettings` (or via code) to disable either feature.
 
 ## local.settings.json for local development without Aspire
 
