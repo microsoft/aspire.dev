@@ -62,7 +62,7 @@ Install the [📦 Aspire.Confluent.Kafka](https://www.nuget.org/packages/Aspire.
 
 In _Program.cs_, call `AddKafkaProducer` on your `IHostApplicationBuilder` to register an `IProducer<TKey, TValue>`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKafkaProducer<string, string>(connectionName: "kafka");
 ```
 
@@ -72,7 +72,7 @@ The `connectionName` must match the Kafka resource name from the AppHost. For mo
 
 Resolve the producer through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IProducer<string, string> producer)
 {
     // Use producer...
@@ -83,7 +83,7 @@ public class ExampleService(IProducer<string, string> producer)
 
 Call `AddKafkaConsumer` to register an `IConsumer<TKey, TValue>`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKafkaConsumer<string, string>(connectionName: "kafka");
 ```
 
@@ -93,7 +93,7 @@ builder.AddKafkaConsumer<string, string>(connectionName: "kafka");
 
 Resolve the consumer through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IConsumer<string, string> consumer)
 {
     // Use consumer...
@@ -104,14 +104,14 @@ public class ExampleService(IConsumer<string, string> consumer)
 
 To register multiple producer or consumer instances with different connection names, use the keyed variants:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedKafkaProducer<string, string>(name: "orders");
 builder.AddKeyedKafkaConsumer<string, string>(name: "events");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("orders")] IProducer<string, string> ordersProducer,
     [FromKeyedServices("events")] IConsumer<string, string> eventsConsumer)
@@ -126,13 +126,13 @@ The Aspire Confluent Kafka client integration offers multiple ways to provide co
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddKafkaProducer` or `AddKafkaConsumer`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKafkaProducer<string, string>("kafka");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "kafka": "localhost:9092"
@@ -142,7 +142,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `KafkaProducerSettings` or `KafkaConsumerSettings` from _appsettings.json_ (or any other configuration source) using the `Aspire:Confluent:Kafka:Producer` and `Aspire:Confluent:Kafka:Consumer` keys:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Confluent": {
@@ -170,7 +170,7 @@ The `Config` properties bind to instances of `ProducerConfig` and `ConsumerConfi
 
 **Named configuration.** The integration supports named configuration for multiple instances:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Confluent": {
@@ -191,7 +191,7 @@ The `Config` properties bind to instances of `ProducerConfig` and `ConsumerConfi
 
 **Inline delegates.** Pass an `Action<KafkaProducerSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKafkaProducer<string, string>(
     "kafka",
     static settings => settings.DisableHealthChecks = true);
@@ -199,7 +199,7 @@ builder.AddKafkaProducer<string, string>(
 
 To configure the underlying `Confluent.Kafka` builder, pass an `Action<ProducerBuilder<TKey, TValue>>`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKafkaProducer<string, MyMessage>(
     "kafka",
     static producerBuilder =>
@@ -242,7 +242,7 @@ The Aspire Confluent Kafka client integration automatically configures logging, 
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected bootstrap server address from the environment and pass it directly to `Confluent.Kafka`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Confluent.Kafka;
 
 var bootstrapServers = Environment.GetEnvironmentVariable("KAFKA_HOST") + ":"
@@ -270,7 +270,7 @@ go get github.com/confluentinc/confluent-kafka-go/v2/kafka
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -308,7 +308,7 @@ pip install confluent-kafka
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from confluent_kafka import Producer, Consumer
 
@@ -325,7 +325,7 @@ producer.flush()
 
 To consume messages:
 
-```python title="Python — consumer.py"
+```python title="consumer.py"
 import os
 from confluent_kafka import Consumer
 
@@ -361,7 +361,7 @@ npm install kafkajs
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { Kafka } from 'kafkajs';
 
 // Read Aspire-injected connection properties
@@ -379,7 +379,7 @@ await producer.disconnect();
 
 To consume messages:
 
-```typescript title="TypeScript — consumer.ts"
+```typescript title="consumer.ts"
 import { Kafka } from 'kafkajs';
 
 const kafka = new Kafka({

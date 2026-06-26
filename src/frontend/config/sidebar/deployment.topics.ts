@@ -140,7 +140,7 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'Kubernetes clusters',
-          slug: 'deployment/kubernetes/kubernetes',
+          slug: 'deployment/kubernetes/clusters',
         },
         {
           label: 'Azure Kubernetes Service (AKS)',
