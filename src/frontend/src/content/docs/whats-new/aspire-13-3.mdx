@@ -670,6 +670,14 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
+### `WithEnvironment` API unification and compatibility shims
+
+Aspire 13.3 unifies polyglot AppHost environment assignment behind a single `withEnvironment(name, value)` method. Older per-kind helpers are still available as compatibility shims and map directly to the new method:
+
+- `withEnvironmentEndpoint(name, endpoint)` → `withEnvironment(name, endpoint)`
+- `withEnvironmentParameter(name, parameter)` → `withEnvironment(name, parameter)`
+- `withEnvironmentConnectionString(name, resource)` → `withEnvironment(name, resource)`
+
 ### `ASPIRE_ENVIRONMENT` variable
 
 The AppHost now honors a top-level `ASPIRE_ENVIRONMENT` environment variable that selects an environment-specific configuration profile, controlling which `appsettings.{environment}.json` is loaded and which environment is reported in dashboard telemetry.
@@ -694,9 +702,26 @@ Aspire 13.3 closes most of the remaining functional gap between C# AppHosts and 
 
 ### Unified `withEnvironment` API
 
-Aspire 13.3 introduces a unified `withEnvironment(name, value)` API for polyglot AppHosts (TypeScript, Java, Python, Go, Rust). Previously, environment variable injection required separate methods for each value kind (`withEnvironmentEndpoint`, `withEnvironmentParameter`, `withEnvironmentConnectionString`, and so on). Now, a single call handles all value types:
+Aspire 13.3 introduces a unified `withEnvironment(name, value)` API for polyglot AppHosts (TypeScript, Java, Python, Go, Rust). The unified signature accepts a `value` of:
 
-```typescript title="TypeScript — apphost.mts"
+- `string`
+- `ReferenceExpression`
+- `EndpointReference`
+- `IResourceBuilder<ParameterResource>`
+- `IResourceBuilder<IResourceWithConnectionString>`
+- `IExpressionValue`
+
+Before:
+
+```typescript title="TypeScript — before (older helpers)"
+await api.withEnvironmentEndpoint('SERVICE_URL', cache.primaryEndpoint);
+await api.withEnvironmentParameter('API_KEY', apiKeyParam);
+await api.withEnvironmentConnectionString('DB', database);
+```
+
+After:
+
+```typescript title="TypeScript — after (unified API)"
 const api = await builder.addProject('api', '../Api/Api.csproj');
 await api
   .withEnvironment('SERVICE_URL', cache.primaryEndpoint)
@@ -704,9 +729,13 @@ await api
   .withEnvironment('DB', database);
 ```
 
-The `value` argument accepts any of: a plain `string`, a `ReferenceExpression`, an `EndpointReference`, a parameter builder, a connection string resource builder, or an `IExpressionValue`.
+Compatibility shims continue to work for existing call sites and map as follows:
 
-The previous per-kind helpers are still generated for backward compatibility but are marked `@deprecated` in the SDK. See the [Breaking changes](#breaking-changes) section for migration details.
+- `withEnvironmentEndpoint(name, endpoint)` → `withEnvironment(name, endpoint)`
+- `withEnvironmentParameter(name, parameter)` → `withEnvironment(name, parameter)`
+- `withEnvironmentConnectionString(name, resource)` → `withEnvironment(name, resource)`
+
+Use the unified method for new code, and migrate shimmed helpers incrementally.
 
 <LearnMore>
   For more details, see [Authoring multi-language
