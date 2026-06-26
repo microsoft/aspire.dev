@@ -20,7 +20,7 @@ import mongodbIcon from '@assets/icons/mongodb-icon.png';
 
 This article is the reference for the Aspire MongoDB Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model MongoDB server and database resources in your [`AppHost`](/get-started/app-host/) project.
 
-If you're new to the MongoDB integration, start with the [Get started with MongoDB integrations](/integrations/databases/mongodb/mongodb-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to MongoDB](../mongodb-connect/).
+If you're new to the MongoDB integration, start with the [Get started with MongoDB integrations](/integrations/databases/mongodb/mongodb-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to MongoDB](../mongodb-connect/). If your app needs transactions or change streams, see [Enable replica set mode](#enable-replica-set-mode).
 
 ## Installation
 
@@ -130,6 +130,61 @@ If you'd rather connect to an existing MongoDB server, call `AddConnectionString
 <Aside type="note">
     When you reference a MongoDB resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, and port numbers. For a complete list of these properties and per-language connection examples, see [Connect to MongoDB](../mongodb-connect/).
 </Aside>
+
+## Enable replica set mode
+
+Use replica set mode when your app uses MongoDB transactions or change streams. For everyday CRUD-only workloads, keep the default standalone configuration.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+    .WithReplicaSet();
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(mongodb)
+    .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withReplicaSet();
+
+const mongodb = await mongo.addDatabase("mongodb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mongodb)
+    .waitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+`WithReplicaSet()` uses `rs0` as the default replica set name. In both C# and TypeScript, the optional replica set name argument is a string. Pass a name to override it, for example `WithReplicaSet("myset")`.
+
+When replica set mode is enabled, the connection string your consuming app receives includes `directConnection=true`:
+
+```text title="Connection string example"
+mongodb://admin:{mongo-password}@{mongo-host}:{mongo-port}/mongodb?authSource=admin&authMechanism=SCRAM-SHA-256&directConnection=true
+```
+
+The `{...}` values are placeholders for the runtime host, port, and secret values that Aspire injects into your consuming app.
+
+:::note
+Aspire still provisions a local MongoDB container, but it starts it as a one-node replica set and initializes the replica set during startup.
+:::
 
 ## Add MongoDB server resource with parameters
 
