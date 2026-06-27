@@ -66,7 +66,7 @@ Install the [📦 CommunityToolkit.Aspire.SurrealDb](https://nuget.org/packages/
 
 In _Program.cs_, call `AddSurrealClient` on your `IHostApplicationBuilder` to register a `SurrealDbClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSurrealClient(connectionName: "db");
 ```
 
@@ -76,7 +76,7 @@ The `connectionName` must match the SurrealDB database resource name from the Ap
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(SurrealDbClient client)
 {
     // Use client...
@@ -87,14 +87,14 @@ public class ExampleService(SurrealDbClient client)
 
 To register multiple `SurrealDbClient` instances with different connection names, use `AddKeyedSurrealClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedSurrealClient(name: "products");
 builder.AddKeyedSurrealClient(name: "orders");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("products")] SurrealDbClient productsClient,
     [FromKeyedServices("orders")] SurrealDbClient ordersClient)
@@ -111,13 +111,13 @@ The Aspire SurrealDB client integration offers multiple ways to provide configur
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddSurrealClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSurrealClient("db");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "db": "Endpoint=ws://localhost:8000/;Namespace=ns;Database=db;Username=root;Password=s3cr3t"
@@ -127,7 +127,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads settings from _appsettings.json_ (or any other configuration source) by using the `Aspire:Surreal:Client` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Surreal": {
@@ -145,7 +145,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Inline delegates.** Pass an action to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSurrealClient(
     "db",
     static settings => settings.DisableHealthChecks = true);
@@ -159,7 +159,7 @@ Aspire client integrations enable health checks by default. The SurrealDB client
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection string from the environment and use the [📦 SurrealDB.Net](https://www.nuget.org/packages/SurrealDb.Net/) NuGet package to construct a client directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using SurrealDb.Net;
 
 var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTIONSTRING");
@@ -181,7 +181,7 @@ go get github.com/surrealdb/surrealdb.go
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -229,7 +229,7 @@ pip install surrealdb
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import asyncio
 from surrealdb import AsyncSurrealDB
@@ -262,7 +262,7 @@ npm install surrealdb
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import Surreal from 'surrealdb';
 
 // Read Aspire-injected connection properties

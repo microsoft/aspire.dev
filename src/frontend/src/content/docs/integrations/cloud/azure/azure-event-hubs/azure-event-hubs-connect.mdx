@@ -97,7 +97,7 @@ The following Event Hubs client types are supported, along with their correspond
 
 In _Program.cs_, call `AddAzureEventHubProducerClient` to register an `EventHubProducerClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureEventHubProducerClient(connectionName: "messages");
 ```
 
@@ -107,7 +107,7 @@ The `connectionName` must match the Event Hub resource name from the AppHost. Fo
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(EventHubProducerClient producerClient)
 {
     // Use producerClient...
@@ -118,13 +118,13 @@ public class ExampleService(EventHubProducerClient producerClient)
 
 To consume events, register an `EventProcessorClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureEventProcessorClient(connectionName: "messages");
 ```
 
 Resolve it through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(EventProcessorClient processorClient)
 {
     // Use processorClient...
@@ -147,14 +147,14 @@ When you need to register a different client type, use the corresponding API:
 
 To register multiple client instances with different connection names, use the keyed APIs:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedAzureEventHubProducerClient(name: "messages");
 builder.AddKeyedAzureEventHubProducerClient(name: "commands");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [KeyedService("messages")] EventHubProducerClient messagesClient,
     [KeyedService("commands")] EventHubProducerClient commandsClient)
@@ -181,7 +181,7 @@ The Aspire Azure Messaging Event Hubs library supports multiple configuration ap
 
 **Fully Qualified Namespace (recommended).** Use a fully qualified namespace with the default credential:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "messages": "{your_namespace}.servicebus.windows.net"
@@ -193,7 +193,7 @@ If no credential is configured, a [default credential](/integrations/cloud/azure
 
 **Connection string.** Alternatively, provide a full connection string:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "messages": "Endpoint=sb://mynamespace.servicebus.windows.net/;SharedAccessKeyName=accesskeyname;SharedAccessKey=accesskey;EntityPath=messages"
@@ -203,7 +203,7 @@ If no credential is configured, a [default credential](/integrations/cloud/azure
 
 **Configuration providers.** The library loads `AzureMessagingEventHubsSettings` and the associated client options from the `Aspire:Azure:Messaging:EventHubs:` key prefix, followed by the specific client name. For example, to configure an `EventProcessorClient`:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Azure": {
@@ -224,7 +224,7 @@ If no credential is configured, a [default credential](/integrations/cloud/azure
 
 **Named configuration.** To configure multiple instances of the same client type with different settings, use named configuration:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Azure": {
@@ -249,14 +249,14 @@ If no credential is configured, a [default credential](/integrations/cloud/azure
 
 Then use the connection names when registering:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureEventProcessorClient("processor1");
 builder.AddAzureEventProcessorClient("processor2");
 ```
 
 **Inline delegates.** Pass an `Action<IAzureClientBuilder<...>>` to configure the client builder inline:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureEventProcessorClient(
     "messages",
     configureClientBuilder: clientBuilder => clientBuilder.ConfigureOptions(
@@ -288,7 +288,7 @@ The Aspire Azure Messaging Event Hubs client integration automatically configure
 
 If you prefer not to use the Aspire client integration, you can read the connection URI from the environment and use the Azure SDK directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Azure.Messaging.EventHubs.Producer;
 
 var fullyQualifiedNamespace = Environment.GetEnvironmentVariable("EVENT_HUBS_HOST");
@@ -311,7 +311,7 @@ go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
 
 Read the Aspire-injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -344,7 +344,7 @@ func main() {
 
 To consume events, use the `EventProcessorClient` or `ConsumerClient`:
 
-```go title="Go — consumer.go"
+```go title="consumer.go"
 package main
 
 import (
@@ -398,7 +398,7 @@ pip install azure-eventhub azure-identity
 
 Read the Aspire-injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from azure.eventhub import EventHubProducerClient, EventData
 from azure.identity import DefaultAzureCredential
@@ -421,7 +421,7 @@ with EventHubProducerClient(
 
 To consume events, use `EventHubConsumerClient`:
 
-```python title="Python — consumer.py"
+```python title="consumer.py"
 import os
 from azure.eventhub import EventHubConsumerClient
 from azure.identity import DefaultAzureCredential
@@ -456,7 +456,7 @@ npm install @azure/event-hubs @azure/identity
 
 Read the Aspire-injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { EventHubProducerClient } from '@azure/event-hubs';
 import { DefaultAzureCredential } from '@azure/identity';
 
@@ -480,7 +480,7 @@ await producer.close();
 
 To consume events, use `EventHubConsumerClient`:
 
-```typescript title="TypeScript — consumer.ts"
+```typescript title="consumer.ts"
 import { EventHubConsumerClient } from '@azure/event-hubs';
 import { DefaultAzureCredential } from '@azure/identity';
 
