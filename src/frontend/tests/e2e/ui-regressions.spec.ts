@@ -95,6 +95,16 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
     'This regression is covered once from the desktop project with explicit narrow widths.'
   );
 
+  // This test loops over narrow widths and, at each one, clicks the install
+  // button — which navigates to /get-started/install-cli/ — before looping
+  // back to the homepage. Starlight's view transitions animate each of those
+  // navigations, and in headless Chromium a transition kicked off on the
+  // second homepage visit can stall the compositor (requestAnimationFrame
+  // stops firing), leaving the whole page frozen and unclickable. Disabling
+  // motion makes Starlight skip the view-transition animations, which keeps
+  // the page interactive across the repeated navigations.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
   const expectedCompactHeaderOrder = [
     'Aspire',
     'Search',
