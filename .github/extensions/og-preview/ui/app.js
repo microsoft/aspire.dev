@@ -243,6 +243,9 @@ async function load(rawUrl) {
         if (data.resolved.url || data.requestedUrl) {
             input.value = data.requestedUrl || url;
         }
+        document.title = data.requestedUrl
+            ? `OG · ${(data.resolved && data.resolved.hostname) || data.requestedUrl}`
+            : "OpenGraph Preview";
         renderPreviews(data);
         renderRaw(data);
         renderDiagnostics(data);

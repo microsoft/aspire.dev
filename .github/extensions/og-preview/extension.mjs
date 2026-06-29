@@ -26,7 +26,7 @@ const CONTENT_TYPES = {
     ".js": "text/javascript; charset=utf-8",
 };
 
-// instanceId -> { server, url, currentUrl, clients:Set<res> }
+// instanceId -> { instanceId, server, url, currentUrl, titleKey, clients:Set<res> }
 const instances = new Map();
 
 let sessionRef = null;
@@ -73,6 +73,48 @@ function sendJson(res, status, obj) {
     res.end(JSON.stringify(obj));
 }
 
+/** Human-readable panel title for the host chrome (scheme stripped for brevity). */
+function displayTitle(url) {
+    if (!url) return "OpenGraph Preview";
+    try {
+        const u = new URL(url);
+        const path = u.pathname === "/" ? "" : u.pathname.replace(/\/+$/, "");
+        return `OG · ${u.host}${path}${u.search}`;
+    } catch {
+        return `OG · ${url}`;
+    }
+}
+
+/** Canonical comparison key so trailing-slash / case differences don't loop. */
+function titleKey(url) {
+    try {
+        const u = new URL(normalizeUrl(url));
+        return `${u.protocol}//${u.host}${u.pathname.replace(/\/+$/, "")}${u.search}`.toLowerCase();
+    } catch {
+        return String(url || "").trim().toLowerCase();
+    }
+}
+
+// Re-opening the same instance is the only SDK path to refresh the host panel
+// title. Guard on a canonical key so it fires at most once per distinct URL and
+// never feedback-loops (re-open reloads the iframe -> /api/fetch -> here again).
+async function syncTitle(entry, url) {
+    if (!entry || !url) return;
+    const key = titleKey(url);
+    if (key === entry.titleKey) return;
+    entry.titleKey = key;
+    entry.currentUrl = url;
+    try {
+        await sessionRef?.rpc?.canvas?.open({
+            canvasId: "og-preview",
+            instanceId: entry.instanceId,
+            input: { url },
+        });
+    } catch (err) {
+        log(`Title sync skipped: ${err && err.message ? err.message : err}`, "warning");
+    }
+}
+
 function broadcast(entry, payload) {
     const data = `data: ${JSON.stringify(payload)}\n\n`;
     for (const client of entry.clients) {
@@ -103,9 +145,6 @@ async function handleRequest(entry, req, res) {
         });
         res.write(": connected\n\n");
         entry.clients.add(res);
-        if (entry.currentUrl) {
-            res.write(`data: ${JSON.stringify({ type: "load", url: entry.currentUrl })}\n\n`);
-        }
         req.on("close", () => entry.clients.delete(res));
         return;
     }
@@ -116,7 +155,11 @@ async function handleRequest(entry, req, res) {
         try {
             const data = await loadMetadata(u);
             entry.currentUrl = data.requestedUrl;
-            return sendJson(res, 200, data);
+            sendJson(res, 200, data);
+            // Refresh the host panel title to the resolved URL (fire-and-forget;
+            // guarded against loops by syncTitle).
+            syncTitle(entry, data.requestedUrl).catch(() => {});
+            return;
         } catch (err) {
             return sendJson(res, 200, { error: err.message });
         }
@@ -145,7 +188,14 @@ async function handleRequest(entry, req, res) {
 }
 
 async function startServer(instanceId, currentUrl) {
-    const entry = { server: null, url: "", currentUrl: currentUrl || "", clients: new Set() };
+    const entry = {
+        instanceId,
+        server: null,
+        url: "",
+        currentUrl: currentUrl || "",
+        titleKey: currentUrl ? titleKey(currentUrl) : "",
+        clients: new Set(),
+    };
     const server = createServer((req, res) => {
         Promise.resolve(handleRequest(entry, req, res)).catch((err) => {
             if (!res.headersSent) res.statusCode = 500;
@@ -202,6 +252,7 @@ const ogCanvas = createCanvas({
                 const data = await loadMetadata(url);
                 entry.currentUrl = data.requestedUrl;
                 broadcast(entry, { type: "load", url: data.requestedUrl });
+                syncTitle(entry, data.requestedUrl).catch(() => {});
                 return { requestedUrl: data.requestedUrl, resolved: data.resolved };
             },
         },
@@ -237,9 +288,10 @@ const ogCanvas = createCanvas({
             entry.currentUrl = inputUrl;
             broadcast(entry, { type: "load", url: inputUrl });
         }
+        if (inputUrl) entry.titleKey = titleKey(inputUrl);
         log(`OpenGraph Preview canvas opened (${ctx.instanceId}).`);
         return {
-            title: entry.currentUrl ? `OG · ${entry.currentUrl}` : "OpenGraph Preview",
+            title: displayTitle(entry.currentUrl),
             status: entry.currentUrl ? "Loaded" : "Ready",
             url: instanceUrl(entry),
         };
