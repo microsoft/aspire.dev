@@ -60,7 +60,7 @@ Install the [📦 Aspire.Npgsql.EntityFrameworkCore.PostgreSQL](https://www.nuge
 
 In _Program.cs_, call `AddNpgsqlDbContext<T>` on your `IHostApplicationBuilder` to register your `DbContext` subclass in the dependency injection container:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDbContext<YourDbContext>(connectionName: "postgresdb");
 ```
 
@@ -70,7 +70,7 @@ The `connectionName` must match the PostgreSQL database resource name from the A
 
 Resolve the `DbContext` through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(YourDbContext context)
 {
     // Use context to interact with the database...
@@ -81,14 +81,14 @@ public class ExampleService(YourDbContext context)
 
 To register more than one `DbContext` targeting different databases, use the keyed services overload:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDbContext<CatalogDbContext>(connectionName: "catalogdb");
 builder.AddNpgsqlDbContext<OrdersDbContext>(connectionName: "ordersdb");
 ```
 
 Then resolve each instance by key using `[FromKeyedServices]`:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("catalogdb")] CatalogDbContext catalogContext,
     [FromKeyedServices("ordersdb")] OrdersDbContext ordersContext)
@@ -101,7 +101,7 @@ public class ExampleService(
 
 If you already register your `DbContext` using the standard EF Core approach, you can enhance it with Aspire-style retries, health checks, logging, and telemetry by calling `EnrichNpgsqlDbContext`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddDbContext<YourDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("postgresdb")
         ?? throw new InvalidOperationException("Connection string 'postgresdb' not found.")));
@@ -118,7 +118,7 @@ builder.EnrichNpgsqlDbContext<YourDbContext>(
 
 The client integration loads `NpgsqlEntityFrameworkCorePostgreSQLSettings` from configuration files such as _appsettings.json_ using the `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Npgsql": {
@@ -137,7 +137,7 @@ The client integration loads `NpgsqlEntityFrameworkCorePostgreSQLSettings` from 
 
 To configure multiple `DbContext` classes with separate settings, use the context type name as a sub-key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Npgsql": {
@@ -159,7 +159,7 @@ For the complete JSON schema, see [Aspire.Npgsql.EntityFrameworkCore.PostgreSQL/
 
 You can also pass inline configuration using an `Action<NpgsqlEntityFrameworkCorePostgreSQLSettings>` delegate:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDbContext<YourDbContext>(
     "postgresdb",
     static settings => settings.DisableHealthChecks = true);

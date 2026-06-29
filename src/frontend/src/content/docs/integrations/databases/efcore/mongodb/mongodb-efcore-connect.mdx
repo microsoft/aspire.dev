@@ -34,7 +34,7 @@ Add the Aspire MongoDB EF Core client integration to your C# consuming app to re
 
 In the `Program.cs` file of your client-consuming project, call the `AddMongoDbContext` extension method on any `IHostApplicationBuilder` to register your `Microsoft.EntityFrameworkCore.DbContext` subclass for use via the dependency injection container. The method takes a connection name parameter, and optionally a database name.
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMongoDbContext<MyDbContext>(
     connectionName: "mydb");
 ```
@@ -62,7 +62,7 @@ MongoDB connection strings don't always include a database name, so you may need
 2. **Configuration**: Set the `DatabaseName` property in the `Aspire:MongoDB:EntityFrameworkCore` configuration section.
 3. **Connection string**: If the connection string includes a database name (e.g., `mongodb://server:port/mydb`), it's extracted automatically.
 
-```csharp title="C# — Explicit database name"
+```csharp title="Explicit database name"
 builder.AddMongoDbContext<MyDbContext>("mongodb", "mydb");
 ```
 
@@ -74,7 +74,7 @@ builder.AddMongoDbContext<MyDbContext>("mongodb", "mydb");
 
 You may prefer to use the standard EF Core method to obtain a database context and add it to the dependency injection container:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddDbContextPool<MyDbContext>(options =>
     options.UseMongoDB(
         builder.Configuration.GetConnectionString("mydb")!,
@@ -93,7 +93,7 @@ You have more flexibility when you create the database context in this way, for 
 
 If you use this method, you can enhance the database context with Aspire-style health checks, logging, and telemetry features by calling the `EnrichMongoDbContext` method:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.EnrichMongoDbContext<MyDbContext>(
     configureSettings: settings =>
     {
@@ -112,13 +112,13 @@ The Aspire MongoDB EF Core integration provides multiple configuration approache
 
 When using a connection string from the `ConnectionStrings` configuration section, you provide the name of the connection string when calling the `AddMongoDbContext` method:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMongoDbContext<MyDbContext>("mydb");
 ```
 
 The connection string is retrieved from the `ConnectionStrings` configuration section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "mydb": "mongodb://server:port/mydb"
@@ -128,7 +128,7 @@ The connection string is retrieved from the `ConnectionStrings` configuration se
 
 If your connection string doesn't include a database name, you can provide it as the second parameter:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMongoDbContext<MyDbContext>("mongodb", "mydb");
 ```
 
@@ -142,7 +142,7 @@ The Aspire MongoDB EF Core integration supports `Microsoft.Extensions.Configurat
 
 The following example shows an `appsettings.json` file that configures some of the available options:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "MongoDB": {
@@ -163,7 +163,7 @@ For the complete MongoDB EF Core client integration JSON schema, see [Aspire.Mon
 
 You can also pass the `Action<MongoDBEntityFrameworkCoreSettings>` delegate to set up some or all the options inline, for example to disable health checks from code:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMongoDbContext<MyDbContext>(
     "mydb",
     configureSettings: static settings =>
@@ -172,7 +172,7 @@ builder.AddMongoDbContext<MyDbContext>(
 
 or
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.EnrichMongoDbContext<MyDbContext>(
     settings => settings.DisableHealthChecks = true);
 ```
@@ -181,7 +181,7 @@ builder.EnrichMongoDbContext<MyDbContext>(
 
 If you want to register more than one `DbContext` with different configuration, you can use `$"Aspire:MongoDB:EntityFrameworkCore:{typeof(TContext).Name}"` configuration section name. The json configuration would look like:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "MongoDB": {
@@ -202,7 +202,7 @@ If you want to register more than one `DbContext` with different configuration, 
 
 Then calling the `AddMongoDbContext` method with `AnotherDbContext` type parameter would load the settings from `AnotherDbContext` section.
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMongoDbContext<AnotherDbContext>("mongodb");
 ```
 

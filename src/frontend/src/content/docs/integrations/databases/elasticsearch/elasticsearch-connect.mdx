@@ -79,7 +79,7 @@ Install the [📦 Aspire.Elastic.Clients.Elasticsearch](https://www.nuget.org/pa
 
 In _Program.cs_, call `AddElasticsearchClient` on your `IHostApplicationBuilder` to register an `ElasticsearchClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddElasticsearchClient(connectionName: "elasticsearch");
 ```
 
@@ -89,7 +89,7 @@ The `connectionName` must match the Elasticsearch resource name from the AppHost
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(ElasticsearchClient client)
 {
     // Use client...
@@ -100,14 +100,14 @@ public class ExampleService(ElasticsearchClient client)
 
 To register multiple `ElasticsearchClient` instances with different connection names, use `AddKeyedElasticsearchClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedElasticsearchClient(name: "products");
 builder.AddKeyedElasticsearchClient(name: "orders");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("products")] ElasticsearchClient productsClient,
     [FromKeyedServices("orders")] ElasticsearchClient ordersClient)
@@ -124,13 +124,13 @@ The Aspire Elasticsearch client integration offers multiple ways to provide conf
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddElasticsearchClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddElasticsearchClient("elasticsearch");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "elasticsearch": "http://elastic:password@localhost:9200"
@@ -140,7 +140,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `ElasticClientsElasticsearchSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Elastic:Clients:Elasticsearch` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Elastic": {
@@ -161,7 +161,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Inline delegates.** Pass an `Action<ElasticClientsElasticsearchSettings>` to configure settings inline:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddElasticsearchClient(
     "elasticsearch",
     static settings =>
@@ -170,7 +170,7 @@ builder.AddElasticsearchClient(
 
 **Elastic Cloud.** When using [Elastic Cloud](https://www.elastic.co/cloud), you can provide the `CloudId` and `ApiKey`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddElasticsearchClient(
     "elasticsearch",
     static settings =>
@@ -182,7 +182,7 @@ builder.AddElasticsearchClient(
 
 Or via configuration providers:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Elastic": {
@@ -215,7 +215,7 @@ Any of these telemetry features can be disabled through the configuration option
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to the [📦 Elastic.Clients.Elasticsearch](https://www.nuget.org/packages/Elastic.Clients.Elasticsearch/) NuGet package directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Elastic.Clients.Elasticsearch;
 
 var uri = Environment.GetEnvironmentVariable("ELASTICSEARCH_URI");
@@ -236,7 +236,7 @@ go get github.com/elastic/go-elasticsearch/v8
 
 Read the injected environment variable and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -274,7 +274,7 @@ pip install elasticsearch
 
 Read the injected environment variable and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from elasticsearch import Elasticsearch
 
@@ -297,7 +297,7 @@ npm install @elastic/elasticsearch
 
 Read the injected environment variable and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { Client } from '@elastic/elasticsearch';
 
 // Read the Aspire-injected connection URI

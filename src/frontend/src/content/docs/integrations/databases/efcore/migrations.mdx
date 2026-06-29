@@ -49,7 +49,7 @@ Accept: application/json
 
 To do this, expand the **GET /api/SupportTickets/1** endpoint by expanding the operation and selecting **Try it out**. Select **Execute** to send the request and view the response:
 
-```json title="JSON — example response"
+```json title="example response"
 [
   {
     "id": 1,
@@ -109,7 +109,7 @@ Start by creating some migrations to apply.
 
 1. Modify the model so that it includes a new property. Open `SupportTicketApi.Data/Models/SupportTicket.cs` and add a new property to the `SupportTicket` class:
 
-    ```csharp title="C# — SupportTicket.cs" {12}
+    ```csharp title="SupportTicket.cs" {12}
     using System.ComponentModel.DataAnnotations;
 
     namespace SupportTicketApi.Data.Models;
@@ -160,7 +160,7 @@ If you get an error like "No database provider has been configured for this DbCo
 1. In your API project (where the DbContext is registered), open or create an `appsettings.json` file.
 1. Add a connection string with the same name used in your Aspire AppHost:
 
-    ```json title="JSON — appsettings.json"
+    ```json title="appsettings.json"
     {
       "ConnectionStrings": {
         "ticketdb": "Server=(localdb)\\mssqllocaldb;Database=TicketDb;Trusted_Connection=true"
@@ -244,7 +244,7 @@ To create a service that applies the migrations:
 
 1. Add the highlighted lines to the *`Program.cs`* file in the *`SupportTicketApi.MigrationService`* project:
 
-    ```csharp title="C# — Program.cs" {6,9-10,12}
+    ```csharp title="Program.cs" {6,9-10,12}
     using SupportTicketApi.Data.Contexts;
     using SupportTicketApi.MigrationService;
 
@@ -270,7 +270,7 @@ To create a service that applies the migrations:
 
 1. Replace the contents of the `Worker.cs` file in the *`SupportTicketApi.MigrationService`* project with the following code:
 
-    ```csharp title="C# — Worker.cs"
+    ```csharp title="Worker.cs"
     using System.Diagnostics;
 
     using Microsoft.EntityFrameworkCore;
@@ -372,7 +372,7 @@ The migration service is created, but it needs to be added to the Aspire AppHost
 1. In the *`SupportTicketApi.AppHost`* project, open the *`AppHost.cs`* file.
 1. Add the following highlighted code:
 
-    ```csharp title="C# — AppHost.cs" {6-8,12-13}
+    ```csharp title="AppHost.cs" {6-8,12-13}
     var builder = DistributedApplication.CreateBuilder(args);
 
     var sql = builder.AddSqlServer("sql")
@@ -432,7 +432,7 @@ Create a dedicated migration service for each database. This approach provides b
 1. Configure each migration service to handle its specific database context.
 1. Add both migration services to your AppHost:
 
-    ```csharp title="C# — AppHost.cs"
+    ```csharp title="AppHost.cs"
     var firstDb = sqlServer.AddDatabase("firstdb");
     var secondDb = postgres.AddDatabase("seconddb");
 
@@ -464,7 +464,7 @@ Alternatively, you can create one migration service that handles multiple databa
 1. Register all DbContexts in the migration service's `Program.cs`.
 1. Modify the `Worker.cs` to apply migrations for each context:
 
-    ```csharp title="C# — Worker.cs"
+    ```csharp title="Worker.cs"
     public async Task<bool> RunMigrationAsync(IServiceProvider serviceProvider)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
@@ -490,7 +490,7 @@ Since the migration service seeds the database, you should remove the existing d
 1. In the *`SupportTicketApi.Api`* project, open the *`Program.cs`* file.
 1. Delete the highlighted lines.
 
-    ```csharp title="C# — Program.cs" {6-21}
+    ```csharp title="Program.cs" {6-21}
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
@@ -559,7 +559,7 @@ dotnet add package Aspire.Hosting.EntityFrameworkCore
 
 Call `AddEFMigrations` on any project resource that hosts an EF Core `DbContext`:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var db = builder.AddPostgres("pg").AddDatabase("appdb");
 
 var api = builder.AddProject<Projects.Api>("api")
@@ -572,7 +572,7 @@ The first argument is a resource name for the migration resource. The optional s
 
 If your migrations live in a separate project (for example, `Projects.Data`), reference that project from your AppHost and point to it using `.WithMigrationsProject<Projects.Data>()`:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var apiMigrations = api.AddEFMigrations("api-migrations")
     .WithMigrationsProject<Projects.Data>();
 ```
@@ -581,7 +581,7 @@ var apiMigrations = api.AddEFMigrations("api-migrations")
 
 To apply migrations automatically when running locally with [`aspire run`](/reference/cli/commands/aspire-run/), chain `RunDatabaseUpdateOnStart()`:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var apiMigrations = api.AddEFMigrations("api-migrations")
     .RunDatabaseUpdateOnStart();
 
@@ -606,7 +606,7 @@ When `RunDatabaseUpdateOnStart()` is called, a health check is registered for th
 
 To generate migration artifacts during [`aspire publish`](/reference/cli/commands/aspire-publish/), use `PublishAsMigrationScript` or `PublishAsMigrationBundle`:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 // Generate both a SQL script and a self-contained bundle during publish
 var apiMigrations = api.AddEFMigrations("api-migrations")
     .PublishAsMigrationScript()
@@ -619,7 +619,7 @@ Both methods add pipeline steps that run during [`aspire publish`](/reference/cl
 
 Pass `publishContainer: true` to `PublishAsMigrationBundle` to wrap the generated bundle in a container image. The migration resource becomes a compute resource that each compute environment (Docker Compose, Azure Container Apps, Kubernetes, and so on) deploys like any other container:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var db  = builder.AddPostgres("pg").AddDatabase("appdb");
 var api = builder.AddProject<Projects.Api>("api").WithReference(db);
 
@@ -650,7 +650,7 @@ A migration bundle is idempotent (running it twice is safe), but different compu
 
 Publish the migration resource as an [Azure Container App Job](https://learn.microsoft.com/azure/container-apps/jobs) so it runs once and stops:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var apiMigrations = api.AddEFMigrations("api-migrations")
     .WithReference(db)
     .WaitFor(db)
@@ -663,7 +663,7 @@ var apiMigrations = api.AddEFMigrations("api-migrations")
 
 Tell Compose not to restart the container after it exits:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var apiMigrations = api.AddEFMigrations("api-migrations")
     .WithReference(db)
     .WaitFor(db)
