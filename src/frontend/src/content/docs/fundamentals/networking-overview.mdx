@@ -55,7 +55,7 @@ The inner loop is the process of developing and testing your app locally before 
 
 - **Endpoints/Endpoint configurations**: Endpoints are the connections between your app and the services it depends on, such as databases, message queues, or APIs. Endpoints provide information such as the service name, host port, scheme, and environment variable. Aspire can create endpoints automatically from resource configuration, and you can also add them explicitly by calling `WithEndpoint`.
 - **Proxies**: Aspire automatically launches a proxy for each proxied service binding you add to your app, and assigns a port for the proxy to listen on. The proxy then forwards the requests to the port that your app listens on, which might be different from the proxy port. This way, you can avoid port conflicts and access your app and services using consistent and predictable URLs.
-- **Proxyless endpoints**: Endpoints with `IsProxied` set to `false` connect directly to the resource instead of routing through an Aspire-managed proxy. Starting in Aspire 13.4, endpoints on persistent executables and projects are proxyless by default. Persistent containers use proxied endpoints by default, the same as session containers. Proxyless container endpoints must specify a target port so Aspire knows which port the container listens on.
+- **Proxyless endpoints**: Endpoints with `IsProxied` set to `false` connect directly to the resource instead of routing through an Aspire-managed proxy. Starting in Aspire 13.4, endpoints on persistent executables and projects are proxyless by default. Persistent containers use proxied endpoints by default, the same as session containers.
 - **Container networks**: Aspire creates and manages dedicated networks for container resources so containers can discover and communicate with each other during local development.
 
 ## How endpoints work
@@ -234,7 +234,7 @@ Starting in Aspire 13.4, endpoints on persistent executables and projects are pr
 
 For proxyless container endpoints, Aspire resolves the host port before creating the container when only a `targetPort` is specified. For example, `.WithEndpoint(targetPort: 6379, isProxied: false)` allocates a public host port from the proxyless endpoint port range and maps it to target port `6379`.
 
-Because there's no proxy to listen on one port and forward to another, every proxyless container endpoint must include a target port. The target port tells Aspire which port the container listens on. You can also set `port` when you need a specific host port, but `targetPort` is still required for proxyless container endpoints.
+For containers, `targetPort` always identifies the port inside the container that receives traffic. Proxyless endpoints change how the public host port is selected: set `port` when you need a specific host port, or omit it to let Aspire allocate one from the proxyless endpoint port range.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
