@@ -16,7 +16,7 @@ import {
   Tabs,
 } from '@astrojs/starlight/components';
 
-Aspire provides a command-line interface (CLI) tool to help you create and manage Aspire-based apps. The CLI streamlines your development workflow with an interactive-first experience. This guide shows you how to install the Aspire CLI on your system. Choose the package manager that fits your environment — Homebrew, npm, NuGet, WinGet, or mise — or use the install script for direct setup.
+Aspire provides a command-line interface (CLI) tool to help you create and manage Aspire-based apps. The CLI streamlines your development workflow with an interactive-first experience. This guide shows you how to install the Aspire CLI on your system. Choose the package manager that fits your environment — Homebrew, npm, NuGet, WinGet, mise, or Nix — or use the install script for direct setup.
 
 :::tip[Using VS Code?]
 The [Aspire VS Code extension](/get-started/aspire-vscode-extension/) can install the CLI for you. From the Command Palette, run:
@@ -94,6 +94,68 @@ Install the Aspire CLI with [mise](https://mise.jdx.dev/) when you manage develo
 ```bash title="Install with mise"
 mise use -g aspire
 ```
+
+</TabItem>
+<TabItem label='Nix'>
+
+Install or run the Aspire CLI from the official Nix flake on Linux and macOS. Nix 2.4 or later with flakes enabled is required.
+
+Run the Aspire CLI directly without installing it:
+
+```bash title="Run with Nix"
+nix run github:microsoft/aspire#aspire-cli
+```
+
+Add the Aspire CLI to your Nix profile for persistent access:
+
+```bash title="Add to Nix profile"
+nix profile add github:microsoft/aspire#aspire-cli
+```
+
+To use the Aspire CLI in a project's `flake.nix`, consume the package output directly:
+
+```nix title="flake.nix — package output"
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/";
+    aspire.url = "github:microsoft/aspire";
+    aspire.inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  outputs =
+    { nixpkgs, aspire, ... }:
+    let
+      systems = [
+        "aarch64-darwin"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "x86_64-linux"
+      ];
+      forAllSystems = nixpkgs.lib.genAttrs systems;
+    in
+    {
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          default = pkgs.mkShell {
+            packages = [
+              aspire.packages.${system}.aspire-cli
+            ];
+          };
+        }
+      );
+    };
+}
+```
+
+The Aspire CLI version is pinned by the `aspire` flake input revision and the `eng/nix/versions.json` manifest at that commit. Pin a specific CLI version by locking the `aspire` input to a particular Git revision.
+
+:::note
+When installed via Nix, `aspire update --self` prints the Nix update commands to run rather than downloading a new binary, because the Nix store is read-only. See [`aspire update`](/reference/cli/commands/aspire-update/) for details.
+:::
 
 </TabItem>
 </Tabs>
