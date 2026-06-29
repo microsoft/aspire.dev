@@ -125,15 +125,28 @@ To use the Aspire CLI in a project's `flake.nix`, consume the package output dir
   outputs =
     { nixpkgs, aspire, ... }:
     let
-      system = builtins.currentSystem;
-      pkgs = nixpkgs.legacyPackages.${system};
+      systems = [
+        "aarch64-darwin"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "x86_64-linux"
+      ];
+      forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
-      devShells.${system}.default = pkgs.mkShell {
-        packages = [
-          aspire.packages.${system}.aspire-cli
-        ];
-      };
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          default = pkgs.mkShell {
+            packages = [
+              aspire.packages.${system}.aspire-cli
+            ];
+          };
+        }
+      );
     };
 }
 ```
