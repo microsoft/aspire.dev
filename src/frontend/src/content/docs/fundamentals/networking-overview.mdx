@@ -55,7 +55,7 @@ The inner loop is the process of developing and testing your app locally before 
 
 - **Endpoints/Endpoint configurations**: Endpoints are the connections between your app and the services it depends on, such as databases, message queues, or APIs. Endpoints provide information such as the service name, host port, scheme, and environment variable. Aspire can create endpoints automatically from resource configuration, and you can also add them explicitly by calling `WithEndpoint`.
 - **Proxies**: Aspire automatically launches a proxy for each proxied service binding you add to your app, and assigns a port for the proxy to listen on. The proxy then forwards the requests to the port that your app listens on, which might be different from the proxy port. This way, you can avoid port conflicts and access your app and services using consistent and predictable URLs.
-- **Proxyless endpoints**: Endpoints with `IsProxied` set to `false` connect directly to the resource instead of routing through an Aspire-managed proxy. Starting in Aspire 13.4, endpoints on persistent executables and projects are proxyless by default. Persistent containers use proxied endpoints by default, the same as session containers. Proxyless endpoints must specify a target port so Aspire knows which port the resource listens on.
+- **Proxyless endpoints**: Endpoints with `IsProxied` set to `false` connect directly to the resource instead of routing through an Aspire-managed proxy. Starting in Aspire 13.4, endpoints on persistent executables and projects are proxyless by default. Persistent containers use proxied endpoints by default, the same as session containers. Proxyless container endpoints must specify a target port so Aspire knows which port the container listens on.
 - **Container networks**: Aspire creates and manages dedicated networks for container resources so containers can discover and communicate with each other during local development.
 
 ## How endpoints work
@@ -232,9 +232,9 @@ Most endpoints are proxied by default. A proxyless endpoint skips the Aspire-man
 
 Starting in Aspire 13.4, endpoints on persistent executables and projects are proxyless by default. This lets the persistent resource keep using its direct endpoint across AppHost runs instead of depending on a new proxy instance each time. This also ensures that the ports your service is reachable on stay stable whether the AppHost is running or not. Persistent containers use proxied endpoints by default, the same as session containers, so integrations that depend on endpoint allocation before startup continue to work.
 
-For proxyless container endpoints, Aspire resolves the host port immediately when only a `targetPort` is specified — there is no deferred allocation. For example, `.WithEndpoint(targetPort: 6379, isProxied: false)` allocates host port `6379` right away.
+For proxyless container endpoints, Aspire resolves the host port before creating the container when only a `targetPort` is specified. For example, `.WithEndpoint(targetPort: 6379, isProxied: false)` allocates a public host port from the proxyless endpoint port range and maps it to target port `6379`.
 
-Because there's no proxy to listen on one port and forward to another, every proxyless endpoint must include a target port. The target port tells Aspire which port the resource listens on. You can also set `port` when you need a specific host port, but `targetPort` is still required for proxyless endpoints.
+Because there's no proxy to listen on one port and forward to another, every proxyless container endpoint must include a target port. The target port tells Aspire which port the container listens on. You can also set `port` when you need a specific host port, but `targetPort` is still required for proxyless container endpoints.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -264,9 +264,9 @@ await web.withHttpEndpoint({ targetPort: 80, isProxied: false });
 
 ### Allocate ports for dynamic proxyless endpoints
 
-Proxyless endpoints can define a `targetPort` without defining a public host `port`. Starting in Aspire 13.5, Aspire allocates a public host port for each dynamic proxyless endpoint before workload resources are created. The allocated port is then available to configuration that resolves endpoint properties, such as `GetEndpoint(...).Property(EndpointProperty.Port)`.
+Proxyless endpoints can omit the public host `port`. Starting in Aspire 13.5, Aspire allocates a public host port for each dynamic proxyless endpoint before workload resources are created. The allocated port is then available to configuration that resolves endpoint properties, such as `GetEndpoint(...).Property(EndpointProperty.Port)`.
 
-If you set `port`, Aspire uses that value as the public host port. If you omit `port`, Aspire allocates one from the proxyless endpoint port range. The default range is `10000-32767`, and you can override it with the `ASPIRE_PROXYLESS_ENDPOINT_PORT_RANGE` environment variable in `start-end` format.
+If you set `port`, Aspire uses that value as the public host port. If you omit `port`, Aspire allocates one from the proxyless endpoint port range. The default range is `10000-32767`, and you can override it with the `ASPIRE_PROXYLESS_ENDPOINT_PORT_RANGE` environment variable in `start-end` format. Container endpoints still require `targetPort` so Aspire knows which port inside the container receives traffic.
 
 This lets you write patterns like the following, where a container exposes its allocated public port in an environment variable:
 
@@ -303,7 +303,7 @@ await database.withEnvironment('PUBLIC_PORT', database.getEndpoint('tcp').proper
 In this example, `PUBLIC_PORT` is set to the endpoint's allocated public host port before the container is created. Because the endpoint is proxyless and doesn't specify `port`, Aspire allocates a port from the proxyless endpoint port range.
 
 :::note
-For persistent resources, Aspire persists allocated proxyless endpoint ports in user secrets and reuses them on later AppHost runs.
+For persistent resources, Aspire stores allocated proxyless endpoint ports in user secrets when user secrets are available and reuses them on later AppHost runs. If Aspire can't persist the allocated port, configure a fixed public `port` or use a proxied endpoint to avoid recreating the persistent resource on each run.
 :::
 
 ## Omit the host port

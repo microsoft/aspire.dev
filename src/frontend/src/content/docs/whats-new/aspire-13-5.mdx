@@ -45,6 +45,7 @@ This release introduces:
 - **VS Code extension renamed to "Aspire"** and rebranded for clarity on the Marketplace.
 - **AppHost discovery efficiency** in VS Code respects exclusion settings and debounces file changes to reduce background scanning.
 - **Foundry Local integration CLI update** now uses the foundry CLI for lifecycle management, requiring foundry 1.1.0+.
+- **Proxyless endpoint port allocation** assigns dynamic public host ports before resources are created, so endpoint property references resolve consistently.
 - …and much more.
 
 ## 🆙 Upgrade to Aspire 13.5
@@ -199,6 +200,8 @@ The following breaking changes are included in Aspire 13.5:
 3. **aspire ps --resources flag removed**: The `--resources` and `--include-hidden` flags have been removed from `aspire ps`, which now focuses on AppHost-level summaries. Use `aspire describe` for detailed resource data.
 
 4. **GitHub Models integration deprecated**: The GitHub Models service is no longer available to new customers, so the `Aspire.Hosting.GitHub.Models` integration is sunset as of Aspire 13.5. All public APIs are marked `[Obsolete]`, and the package no longer appears in `aspire add` output. One final obsolete release will ship on NuGet, and the package will be removed entirely in a future version. Migrate to the [Azure AI Foundry integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/) instead. See [microsoft/aspire#18402](https://github.com/microsoft/aspire/issues/18402) for details.
+
+5. **Proxyless endpoint port allocation timing changed**: Proxyless endpoints without an explicit public `port` now receive one during service preparation, before workload resources are created. Executable proxyless endpoints that previously failed without a public port, and container proxyless endpoints that expected the public port to be assigned later during container startup, should expect Aspire to assign the port earlier. The default allocation range is `10000-32767` and can be overridden with `ASPIRE_PROXYLESS_ENDPOINT_PORT_RANGE=start-end`. Persistent resources reuse allocated ports from user secrets when available.
 
 <Aside type="caution" title="Review deprecated APIs">
   Review your code for uses of `ServiceProvider` on hosting context types and `PublishAsConnectionString` extension methods. These will generate compiler warnings in Aspire 13.5 and may become harder errors in future releases. If you use the `Aspire.Hosting.GitHub.Models` integration, plan to migrate off it before the package is removed.
