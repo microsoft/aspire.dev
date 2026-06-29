@@ -185,9 +185,27 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-<Aside type="note">
-  This API is not yet available in TypeScript AppHosts.
-</Aside>
+```typescript title="apphost.mts" twoslash
+import { createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addContainer("api", {
+  image: "my-api",
+  tag: "latest",
+});
+
+api.createExecutionConfiguration()
+  .withArgumentsConfig()
+  .withEnvironmentVariablesConfig()
+  .withHttpsCertificateConfig(async () => ({
+    certificatePath: refExpr`/certs/tls.crt`,
+    keyPath: refExpr`/certs/tls.key`,
+    pfxPath: refExpr`/certs/tls.pfx`,
+  }));
+
+await builder.build().run();
+```
 </TabItem>
 </Tabs>
 
@@ -272,9 +290,28 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-<Aside type="note">
-  This API is not yet available in TypeScript AppHosts.
-</Aside>
+```typescript title="apphost.mts" twoslash
+import { createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addContainer("api", {
+  image: "myimage",
+  tag: "latest",
+});
+
+api.createExecutionConfiguration()
+  .withArgumentsConfig()
+  .withEnvironmentVariablesConfig()
+  .withCertificateTrustConfig(async () => ({
+    certificateBundlePath: refExpr`/certs/ca-bundle.crt`,
+    certificateDirectoriesPath: refExpr`/certs`,
+    rootCertificatesPath: "/etc/ssl/certs",
+    isContainer: true,
+  }));
+
+await builder.build().run();
+```
 </TabItem>
 </Tabs>
 

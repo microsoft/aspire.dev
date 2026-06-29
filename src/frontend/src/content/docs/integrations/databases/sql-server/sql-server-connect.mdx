@@ -54,7 +54,7 @@ The SQL Server database resource inherits all properties from its parent server 
 | ---------------------- | ----------- |
 | `Uri`                  | The connection URI with the database name, with the format `mssql://{Username}:{Password}@{Host}:{Port}/{DatabaseName}` |
 | `JdbcConnectionString` | JDBC connection string with the database name, with the format `jdbc:sqlserver://{Host}:{Port};trustServerCertificate=true;databaseName={DatabaseName}`. User and password credentials are provided as separate `Username` and `Password` properties. |
-| `Database`             | The name of the database |
+| `DatabaseName`         | The name of the database |
 
 **Example connection strings:**
 
@@ -82,7 +82,7 @@ Install the [📦 Aspire.Microsoft.Data.SqlClient](https://www.nuget.org/package
 
 In _Program.cs_, call `AddSqlServerClient` on your `IHostApplicationBuilder` to register a `SqlConnection`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSqlServerClient(connectionName: "sqldb");
 ```
 
@@ -92,7 +92,7 @@ The `connectionName` must match the SQL Server database resource name from the A
 
 Resolve the connection through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(SqlConnection connection)
 {
     // Use connection...
@@ -105,14 +105,14 @@ For more information on dependency injection, see [.NET dependency injection](ht
 
 To register multiple `SqlConnection` instances with different connection names, use `AddKeyedSqlServerClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedSqlServerClient(name: "mainDb");
 builder.AddKeyedSqlServerClient(name: "loggingDb");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("mainDb")] SqlConnection mainDbConnection,
     [FromKeyedServices("loggingDb")] SqlConnection loggingDbConnection)
@@ -129,13 +129,13 @@ The Aspire SQL Server client integration offers multiple ways to provide configu
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddSqlServerClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSqlServerClient("sqldb");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "sqldb": "Data Source=myserver;Initial Catalog=sqldb"
@@ -147,7 +147,7 @@ For more information on connection string format, see [SqlConnection.ConnectionS
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `MicrosoftDataSqlClientSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Microsoft:Data:SqlClient` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Microsoft": {
@@ -167,7 +167,7 @@ For the complete SQL Server client integration JSON schema, see [Aspire.Microsof
 
 **Inline delegates.** Pass an `Action<MicrosoftDataSqlClientSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSqlServerClient(
     "sqldb",
     static settings => settings.DisableHealthChecks = true);
@@ -215,7 +215,7 @@ Any of these telemetry features can be disabled through the configuration option
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and open a connection using [📦 Microsoft.Data.SqlClient](https://www.nuget.org/packages/Microsoft.Data.SqlClient/):
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Microsoft.Data.SqlClient;
 
 var connectionString = Environment.GetEnvironmentVariable("SQLDB_URI");
@@ -237,7 +237,7 @@ go get github.com/microsoft/go-mssqldb
 
 Read the injected environment variable and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -279,7 +279,7 @@ You also need to install the ODBC driver separately. For platform-specific instr
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import pyodbc
 
@@ -288,7 +288,7 @@ sql_host = os.getenv("SQLDB_HOST")
 sql_port = os.getenv("SQLDB_PORT", "1433")
 sql_user = os.getenv("SQLDB_USERNAME")
 sql_password = os.getenv("SQLDB_PASSWORD")
-sql_database = os.getenv("SQLDB_DATABASE")
+sql_database = os.getenv("SQLDB_DATABASENAME")
 
 connection_string = (
     f"DRIVER={{ODBC Driver 18 for SQL Server}};"
@@ -306,7 +306,7 @@ cursor = conn.cursor()
 
 Or use the connection URI directly:
 
-```python title="Python — Connect with URI"
+```python title="Connect with URI"
 import os
 import pyodbc
 
@@ -329,7 +329,7 @@ npm install --save-dev @types/mssql
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import sql from 'mssql';
 
 // Read Aspire-injected connection properties
@@ -338,7 +338,7 @@ const config: sql.config = {
     port: Number(process.env.SQLDB_PORT),
     user: process.env.SQLDB_USERNAME,
     password: process.env.SQLDB_PASSWORD,
-    database: process.env.SQLDB_DATABASE,
+    database: process.env.SQLDB_DATABASENAME,
     options: {
         trustServerCertificate: true,
     },
@@ -351,7 +351,7 @@ const pool = await sql.connect(config);
 
 Or use the connection URI directly:
 
-```typescript title="TypeScript — Connect with URI"
+```typescript title="Connect with URI"
 import sql from 'mssql';
 
 const pool = await sql.connect(process.env.SQLDB_URI!);

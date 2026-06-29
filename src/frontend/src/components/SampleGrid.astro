@@ -1,7 +1,14 @@
 ---
 import SampleCard from '@components/SampleCard.astro';
 import { tagLabel } from '@utils/sample-tags';
-import { sampleDetailHref, type Sample } from '@utils/samples';
+import {
+  isThemeAwareSampleImage,
+  sampleDetailHref,
+  stripSampleImageUrlSuffix,
+  type ResolvedSampleThumbnail,
+  type Sample,
+  type SampleThumbnail,
+} from '@utils/samples';
 
 interface Props {
   samples: Sample[];
@@ -17,18 +24,33 @@ const allImages = import.meta.glob<{ default: ImageMetadata }>(
 );
 
 // Build a lookup from the ~/assets/... path to the resolved image
-function resolveImage(thumbnail: string | null): ImageMetadata | null {
-  if (!thumbnail) return null;
+function resolveImagePath(imagePath: string | null): ImageMetadata | null {
+  if (!imagePath) return null;
   // Convert ~/assets/samples/... to /src/assets/samples/...
-  const importPath = thumbnail.replace('~/assets/', '/src/assets/');
+  const importPath = stripSampleImageUrlSuffix(imagePath).replace('~/assets/', '/src/assets/');
   const entry = allImages[importPath];
   return entry?.default ?? null;
+}
+
+function resolveThumbnail(thumbnail: SampleThumbnail): ResolvedSampleThumbnail {
+  if (isThemeAwareSampleImage(thumbnail)) {
+    const light = resolveImagePath(thumbnail.light);
+    const dark = resolveImagePath(thumbnail.dark);
+
+    if (light && dark) {
+      return { light, dark };
+    }
+
+    return light ?? dark ?? null;
+  }
+
+  return resolveImagePath(thumbnail);
 }
 
 const resolvedSamples = samples.map((s) => ({
   ...s,
   detailHref: sampleDetailHref(base, s.name),
-  resolvedThumbnail: resolveImage(s.thumbnail),
+  resolvedThumbnail: resolveThumbnail(s.thumbnail),
 }));
 
 // Collect all unique tags, sorted alphabetically
@@ -66,13 +88,7 @@ const tagCounts = new Map(
       placeholder="Search samples..."
       data-search-input
     />
-    <button
-      type="button"
-      class="search-clear"
-      aria-label="Clear search"
-      data-clear-btn
-      hidden
-    >
+    <button type="button" class="search-clear" aria-label="Clear search" data-clear-btn hidden>
       <svg
         aria-hidden="true"
         width="14"
@@ -141,9 +157,7 @@ const tagCounts = new Map(
       {samples.length}
       {samples.length === 1 ? 'sample' : 'samples'}
     </span>
-    <button class="clear-all" type="button" data-clear-all hidden>
-      Clear all
-    </button>
+    <button class="clear-all" type="button" data-clear-all hidden>Clear all</button>
   </div>
 
   <!-- Card grid -->
@@ -441,7 +455,9 @@ const tagCounts = new Map(
     color: var(--sl-color-white);
     font-size: 0.95rem;
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
 
   .search-box::placeholder {
@@ -473,7 +489,9 @@ const tagCounts = new Map(
     background: transparent;
     color: var(--sl-color-gray-3);
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
   }
 
   .search-clear:hover,
@@ -502,7 +520,10 @@ const tagCounts = new Map(
     color: var(--sl-color-gray-2);
     font-size: 0.78rem;
     cursor: pointer;
-    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      color 0.15s ease;
     white-space: nowrap;
     user-select: none;
   }

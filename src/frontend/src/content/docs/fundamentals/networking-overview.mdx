@@ -5,6 +5,7 @@ description: Learn how Aspire handles inner-loop networking, endpoints, and serv
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
 import { Image } from 'astro:assets';
 import networkingProxies from '@assets/fundamentals/networking/networking-proxies-1x.png';
@@ -54,7 +55,7 @@ The inner loop is the process of developing and testing your app locally before 
 
 - **Endpoints/Endpoint configurations**: Endpoints are the connections between your app and the services it depends on, such as databases, message queues, or APIs. Endpoints provide information such as the service name, host port, scheme, and environment variable. Aspire can create endpoints automatically from resource configuration, and you can also add them explicitly by calling `WithEndpoint`.
 - **Proxies**: Aspire automatically launches a proxy for each proxied service binding you add to your app, and assigns a port for the proxy to listen on. The proxy then forwards the requests to the port that your app listens on, which might be different from the proxy port. This way, you can avoid port conflicts and access your app and services using consistent and predictable URLs.
-- **Proxyless endpoints**: Endpoints with `IsProxied` set to `false` connect directly to the resource instead of routing through an Aspire-managed proxy. Starting in Aspire 13.4, endpoints on persistent resources are proxyless by default. Proxyless endpoints must specify a target port so Aspire knows which port the resource listens on.
+- **Proxyless endpoints**: Endpoints with `IsProxied` set to `false` connect directly to the resource instead of routing through an Aspire-managed proxy. Starting in Aspire 13.4, endpoints on persistent executables and projects are proxyless by default. Persistent containers use proxied endpoints by default, the same as session containers. Proxyless endpoints must specify a target port so Aspire knows which port the resource listens on.
 - **Container networks**: Aspire creates and manages dedicated networks for container resources so containers can discover and communicate with each other during local development.
 
 ## How endpoints work
@@ -229,7 +230,9 @@ The underlying service still listens on its own port, and Aspire makes that allo
 
 Most endpoints are proxied by default. A proxyless endpoint skips the Aspire-managed proxy and exposes the resource's listener directly. Use a proxyless endpoint when a proxy would interfere with the resource's lifetime or networking behavior.
 
-Starting in Aspire 13.4, endpoints on persistent resources are proxyless by default. This lets the persistent resource keep using its direct endpoint across AppHost runs instead of depending on a new proxy instance each time. This also ensures that the ports your service is reachable on stay stable whether the AppHost is running or not.
+Starting in Aspire 13.4, endpoints on persistent executables and projects are proxyless by default. This lets the persistent resource keep using its direct endpoint across AppHost runs instead of depending on a new proxy instance each time. This also ensures that the ports your service is reachable on stay stable whether the AppHost is running or not. Persistent containers use proxied endpoints by default, the same as session containers, so integrations that depend on endpoint allocation before startup continue to work.
+
+For proxyless container endpoints, Aspire resolves the host port immediately when only a `targetPort` is specified — there is no deferred allocation. For example, `.WithEndpoint(targetPort: 6379, isProxied: false)` allocates host port `6379` right away.
 
 Because there's no proxy to listen on one port and forward to another, every proxyless endpoint must include a target port. The target port tells Aspire which port the resource listens on. You can also set `port` when you need a specific host port, but `targetPort` is still required for proxyless endpoints.
 
@@ -448,7 +451,7 @@ The `AllocatedEndpoint` property allows you to get or set the endpoint for a ser
   on.
 </Aside>
 
-The `Name` property identifies the service, whereas the `Port` and `TargetPort` properties specify the desired and listening ports, respectively. `TargetPort` is required for proxyless endpoints, including endpoints with `IsProxied` set to `false` and, starting in Aspire 13.4, endpoints on persistent resources by default.
+The `Name` property identifies the service, whereas the `Port` and `TargetPort` properties specify the desired and listening ports, respectively. `TargetPort` is required for proxyless endpoints, including endpoints with `IsProxied` set to `false` and, starting in Aspire 13.4, endpoints on persistent executables and projects by default.
 
 For network communication, the `Protocol` property supports **TCP** and **UDP**, with potential for more in the future, and the `Transport` property indicates the transport protocol (**HTTP**, **HTTP2**, **HTTP3**). Lastly, if the service is URI-addressable, the `UriScheme` property provides the URI scheme for constructing the service URI.
 
@@ -564,8 +567,7 @@ The following built-in Aspire integrations already apply this pattern to their a
 - Another application is using the same port
 
 **Solutions**:
-
-1. Stop any running Aspire sessions with `Ctrl+C` or close the dashboard
+1. Stop any running Aspire sessions with <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> or close the dashboard
 2. Check for processes using the port: `netstat -ano | findstr :5000` (Windows) or `lsof -i :5000` (macOS/Linux)
 3. Let Aspire assign random ports by removing explicit port numbers from `WithEndpoint`
 

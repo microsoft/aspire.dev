@@ -1,0 +1,63 @@
+name: Forbidden Words
+
+on:
+  pull_request:
+    branches: [ main, release/* ]
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: 'Base SHA to diff from (defaults to origin/<default branch>)'
+        required: false
+      head_sha:
+        description: 'Head SHA to diff to (defaults to HEAD)'
+        required: false
+
+# Group by PR so new commits cancel the in-flight run for the same PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  forbidden-words:
+    name: Check forbidden words
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Resolve base and head SHAs
+        id: shas
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          INPUT_BASE_SHA: ${{ github.event.inputs.base_sha }}
+          INPUT_HEAD_SHA: ${{ github.event.inputs.head_sha }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base="$PR_BASE_SHA"
+            head="$PR_HEAD_SHA"
+          else
+            base="$INPUT_BASE_SHA"
+            head="${INPUT_HEAD_SHA:-$(git rev-parse HEAD)}"
+            if [[ -z "$base" ]]; then
+              git fetch origin "${GITHUB_REF_NAME}" || true
+              base="$(git rev-parse "origin/${GITHUB_REF_NAME}" 2>/dev/null || git rev-parse HEAD~1)"
+            else
+              git fetch origin "$base" || true
+            fi
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+
+      - name: Scan added lines for forbidden words
+        shell: bash
+        run: |
+          .github/scripts/check-forbidden-words.sh \
+            "${{ steps.shas.outputs.base }}" \
+            "${{ steps.shas.outputs.head }}"

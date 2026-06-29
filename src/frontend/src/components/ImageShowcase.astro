@@ -6,17 +6,36 @@
 import { Icon } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import { Zoom } from 'starlight-image-zoom/components';
+import ThemeImage from '@components/ThemeImage.astro';
 
-interface Props {
+type BaseProps = {
   title: string;
   description: string;
-  image: ImageMetadata;
   imageAlt: string;
   imagePosition?: 'left' | 'right';
   cta?: { label: string; href: string };
-}
+};
 
-const { title, description, image, imageAlt, imagePosition = 'right', cta } = Astro.props;
+type Props = BaseProps &
+  (
+    | {
+        image: ImageMetadata;
+        lightImage?: never;
+        darkImage?: never;
+      }
+    | {
+        image?: never;
+        lightImage: ImageMetadata;
+        darkImage: ImageMetadata;
+      }
+  );
+
+const { title, description, imageAlt, imagePosition = 'right', cta } = Astro.props;
+const themedImages =
+  'lightImage' in Astro.props && 'darkImage' in Astro.props
+    ? { light: Astro.props.lightImage, dark: Astro.props.darkImage }
+    : undefined;
+const singleImage = 'image' in Astro.props ? Astro.props.image : undefined;
 ---
 
 <section class:list={['image-showcase not-content', { reversed: imagePosition === 'left' }]}>
@@ -33,9 +52,22 @@ const { title, description, image, imageAlt, imagePosition = 'right', cta } = As
     }
   </div>
   <div class="showcase-image">
-    <Zoom label={imageAlt}>
-      <Image src={image} alt={imageAlt} loading="lazy" />
-    </Zoom>
+    {
+      themedImages ? (
+        <ThemeImage
+          light={themedImages.light}
+          dark={themedImages.dark}
+          alt={imageAlt}
+          label={imageAlt}
+        />
+      ) : (
+        singleImage && (
+          <Zoom label={imageAlt}>
+            <Image src={singleImage} alt={imageAlt} loading="lazy" />
+          </Zoom>
+        )
+      )
+    }
   </div>
 </section>
 

@@ -1,0 +1,171 @@
+---
+title: Interactive terminal sessions
+description: Attach an interactive terminal to any Aspire resource using WithTerminal — access live PTY sessions from the dashboard or the `aspire terminal` CLI commands.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+:::danger[Experimental feature]
+`WithTerminal()` is an experimental API. Reference the `ASPIRETERMINAL001` diagnostic ID to opt in:
+
+```csharp
+#pragma warning disable ASPIRETERMINAL001
+builder.AddExecutable("repl", "my-repl", ".")
+    .WithTerminal();
+```
+:::
+
+The `WithTerminal()` extension method attaches an interactive pseudo-terminal (PTY) to any Aspire resource. When a resource is configured with `WithTerminal()`, the Aspire Dashboard replaces the standard console log view with a live terminal session, and the `aspire terminal` CLI command lets you connect directly from your local shell.
+
+## Enable interactive terminals
+
+Call `WithTerminal()` on any executable or project resource in your AppHost:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIRETERMINAL001
+var builder = DistributedApplication.CreateBuilder(args);
+
+var repl = builder.AddExecutable("repl", "my-repl", ".")
+    .WithTerminal();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const repl = await builder
+    .addNodeApp("guessing-game", "./guessing-game", "game.mjs")
+    .withTerminal();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## Configure terminal dimensions
+
+Use the optional `configure` callback to set the initial column and row count for the terminal window:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIRETERMINAL001
+var builder = DistributedApplication.CreateBuilder(args);
+
+var repl = builder.AddExecutable("repl", "my-repl", ".")
+    .WithTerminal(options =>
+    {
+        options.Columns = 100;
+        options.Rows = 28;
+    });
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const repl = await builder
+    .addNodeApp("guessing-game", "./guessing-game", "game.mjs")
+    .withTerminal();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+TypeScript AppHost currently supports only the parameterless `withTerminal()` call. Support for configuring dimensions in TypeScript is tracked by [microsoft/aspire#18105](https://github.com/microsoft/aspire/issues/18105).
+
+The default dimensions are **120 columns × 30 rows**. The dashboard terminal panel auto-fits to the browser window, so these values primarily affect the PTY allocation on the host side.
+
+## Use with replicated resources
+
+Use `WithTerminal()` with `WithReplicas()` to give each replica its own interactive terminal session:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIRETERMINAL001
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Three replicas, each with its own interactive terminal.
+var agent = builder.AddExecutable("agent", "my-agent", ".")
+    .WithReplicas(3)
+    .WithTerminal();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const agent = await builder
+    .addNodeApp("agent", "./agent", "index.mjs");
+await agent.withReplicas(3);
+await agent.withTerminal();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+Each replica gets its own independent terminal session and appears as a separate entry in the dashboard resource list (for example, `agent-r0`, `agent-r1`, `agent-r2`).
+
+## Access terminals from the dashboard
+
+When a resource has `WithTerminal()` applied, the **Console Logs** tab for that resource in the Aspire Dashboard is replaced by a live terminal session. You can interact with the running process directly in the browser — type commands, scroll the scrollback buffer, and switch between replicas using the replica selector.
+
+## Access terminals from the CLI
+
+The `aspire terminal` command lets you attach to or inspect terminal sessions from your local shell.
+
+### List terminal-enabled resources
+
+```bash
+aspire terminal ps
+```
+
+This displays a table of every `WithTerminal()`-enabled resource in the connected AppHost, including the current terminal dimensions, the number of attached viewers, and per-replica health status.
+
+To emit structured JSON output for scripting:
+
+```bash
+aspire terminal ps --format json
+```
+
+### Attach to a terminal session
+
+```bash
+aspire terminal attach <resource-name>
+```
+
+If the resource has a single replica, the CLI attaches immediately. For multi-replica resources, pass `--replica` with the 0-based index:
+
+```bash
+aspire terminal attach agent --replica 1
+```
+
+To connect as a secondary viewer — receiving output without driving the session dimensions — add `--viewer`:
+
+```bash
+aspire terminal attach agent --viewer
+```
+
+## See also
+
+- [Executable resources](/app-host/executable-resources/)
+- [Resource lifetimes](/app-host/resource-lifetimes/)
+- [Aspire CLI reference](/reference/cli/overview/)

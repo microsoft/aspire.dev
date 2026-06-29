@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  clickCookiePreferencesAction,
   dismissCookieConsentIfVisible,
   isNarrowViewport,
   openCookiePreferences,
@@ -93,6 +94,16 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
     page.viewportSize()?.width !== 1440,
     'This regression is covered once from the desktop project with explicit narrow widths.'
   );
+
+  // This test loops over narrow widths and, at each one, clicks the install
+  // button — which navigates to /get-started/install-cli/ — before looping
+  // back to the homepage. Starlight's view transitions animate each of those
+  // navigations, and in headless Chromium a transition kicked off on the
+  // second homepage visit can stall the compositor (requestAnimationFrame
+  // stops firing), leaving the whole page frozen and unclickable. Disabling
+  // motion makes Starlight skip the view-transition animations, which keeps
+  // the page interactive across the repeated navigations.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
 
   const expectedCompactHeaderOrder = [
     'Aspire',
@@ -219,10 +230,7 @@ test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
   await page.goto('/get-started/prerequisites/');
   await openCookiePreferences(page);
 
-  await page
-    .getByRole('button', { name: /reject all/i })
-    .last()
-    .click();
+  await clickCookiePreferencesAction(page, /reject all/i);
   await waitForConsentRecorded(page);
   await waitForAnalyticsConsent(page, false);
   await waitForConsentCategories(page, ['necessary']);
@@ -233,10 +241,7 @@ test('cookie preferences and accept-all enable analytics tracking consent', asyn
   await page.goto('/get-started/prerequisites/');
   await openCookiePreferences(page);
 
-  await page
-    .getByRole('button', { name: /accept all/i })
-    .last()
-    .click();
+  await clickCookiePreferencesAction(page, /accept all/i);
 
   await waitForConsentRecorded(page);
   await waitForAnalyticsConsent(page, true);

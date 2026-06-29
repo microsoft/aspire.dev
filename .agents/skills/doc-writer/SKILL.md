@@ -105,7 +105,7 @@ draft can land slightly off-target and tighten in follow-ups.
 
 ### Required Imports
 
-Import Starlight components at the top of your MDX file:
+Import Starlight components at the top of your MDX file, or custom components as needed:
 
 ```tsx
 import {
@@ -115,8 +115,8 @@ import {
   Tabs,
   TabItem,
   Icon,
-  FileTree,
 } from "@astrojs/starlight/components";
+import FileTree from "starlight-plugin-icons/components/FileTree.astro";
 ```
 
 Additional commonly used imports:
@@ -145,6 +145,18 @@ When you introduce or change a custom component that is used by docs pages:
 - Reuse existing aliases such as `@components/*` and `@assets/*` rather than deep relative imports.
 - Prefer moving heavier shared logic into colocated `.ts` helpers when the `.astro` frontmatter becomes large or is duplicated across components.
 - Treat user-visible behavior, accessibility, and responsive behavior as part of the documentation contract, not as optional polish.
+
+### Common Markdown syntax
+
+Use the rendered examples in `src/frontend/src/content/docs/community/contributor-guide.mdx` as the canonical reference for common Markdown syntax. When adding tables, use padded pipes, a separator row with at least three hyphens per cell, and blank lines before and after the table:
+
+```md
+| Feature | Description | Status |
+| ------- | ----------- | ------ |
+| Dashboard | Web-based monitoring | Available |
+```
+
+Do not replace standard Markdown with ad hoc HTML unless a component or layout requirement cannot be expressed clearly in Markdown.
 
 #### Aside (Callouts)
 

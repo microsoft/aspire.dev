@@ -1,4 +1,6 @@
 import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+import { locales } from '../../config/locales';
+import { isApiReferencePath } from '@utils/api-reference-routes';
 
 /**
  * Shared page-metadata helpers used by both the structured-data JSON-LD
@@ -40,31 +42,9 @@ export const FALLBACK_DESCRIPTION =
 /** Maximum length we trim Open Graph descriptions to. */
 const OG_DESCRIPTION_MAX_LENGTH = 200;
 
-/**
- * Known locale path segments. Mirrors `config/locales.ts` but lives here so
- * the OG image endpoint (which runs at build time outside the Astro/Starlight
- * route context) can detect translated entries without importing the locale
- * config from a different module graph.
- */
-const NON_DEFAULT_LOCALE_PREFIXES = [
-  'da',
-  'de',
-  'es',
-  'fr',
-  'hi',
-  'id',
-  'it',
-  'ja',
-  'ko',
-  'pt-br',
-  'ru',
-  'tr',
-  'uk',
-  'zh-cn',
-] as const;
-
+const nonDefaultLocalePrefixes = Object.keys(locales).filter((locale) => locale !== 'root');
 const localePrefixPattern = new RegExp(
-  `^(?:${NON_DEFAULT_LOCALE_PREFIXES.join('|')})(?:/|$)`,
+  `^(?:${nonDefaultLocalePrefixes.map(escapeRegExp).join('|')})(?:/|$)`,
   'i'
 );
 
@@ -81,7 +61,13 @@ type RouteEntryData = {
   template?: string;
 };
 
-type MinimalRoute = Pick<StarlightRouteData, 'entry' | 'entryMeta' | 'head' | 'lang' | 'locale'>;
+type MinimalRoute = Pick<StarlightRouteData, 'entryMeta' | 'head' | 'lang' | 'locale'> & {
+  entry: {
+    id: string;
+    data: Record<string, unknown>;
+    filePath?: string;
+  };
+};
 
 export type OgType = 'website' | 'article';
 
@@ -275,6 +261,8 @@ export function shouldSkipDynamicOgImage(route: MinimalRoute, contentBasePath: s
   const data = route.entry.data as RouteEntryData;
   if (data.og === false) return true;
   if (data.template === 'splash') return true;
+  if (isPagesRoute(route)) return true;
+  if (isApiReferencePath(contentBasePath)) return true;
   if (isHomePagePath(contentBasePath)) return true;
   if (contentBasePath === '404') return true;
   return false;
@@ -338,6 +326,15 @@ export function resolveSiteUrl(site: URL | string | undefined, currentUrl: URL):
 
 function normalizeEntryId(entryId: string): string {
   return entryId.replace(/\\/g, '/');
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function isPagesRoute(route: MinimalRoute): boolean {
+  const filePath = normalizeEntryId(route.entry.filePath ?? '').replace(/^\/+/, '');
+  return filePath.startsWith('src/pages/');
 }
 
 function stripMarkdownExtension(value: string): string {
