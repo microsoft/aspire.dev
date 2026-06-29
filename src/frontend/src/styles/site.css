@@ -1215,16 +1215,6 @@ li a.external-link::after {
     gap: 0;
   }
 
-  /* Drop the floating toggle's overlap-shoulder when collapsed — the rail
-     leaves enough room on its own (and the toggle still floats off the
-     rail's right edge thanks to left: var(--sl-sidebar-width)). */
-  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) .content-panel > .sl-container,
-  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
-    .content-panel
-    > .sl-container {
-    padding-inline-start: 5rem;
-  }
-
   /* Subtle blur-in for the filter row and sidebar entries as the rail
      expands. JS sets `data-sidebar-expanding` / `data-topic-sidebar-expanding`
      on <html> for ~320ms (just past the 250ms width transition), so this
@@ -1387,16 +1377,39 @@ li a.external-link::after {
   }
 }
 
-/* Reserve a "shoulder" of space on the main content area for the floating
-   sidebar toggle so it doesn't overlap the page H1. The toggle is 3rem wide
-   and anchored to the sidebar's right edge (or to the left viewport edge when
-   collapsed); reserving ~3.5rem of inline-start padding keeps the H1 and all
-   subsequent content cleanly to the right of it. Only applies on pages that
-   actually render the topics-sidebar (and only at the breakpoint where the
-   toggle is visible). */
+/* Reserve a "shoulder" of inline-start space on the main content column for the
+   floating sidebar collapse/expand toggle so it never overlaps the page H1 —
+   but only by as much as is actually needed, so wide viewports stay flush.
+
+   The toggle is anchored to the sidebar's right edge
+   (`left: var(--sl-sidebar-width)`) and floats over the content panel's
+   inline-start gutter. The `.sl-container` is right-aligned within that panel
+   (`margin-inline-start: auto`, see the rules below), so its inline-start edge
+   sits one full slack in from the panel edge: `max(0, 100% - --sl-content-width)`.
+   The header search box aligns to that same edge, so whenever the gutter already
+   clears the toggle we want zero shoulder and the H1 lands flush with the search
+   box.
+
+   shoulder = toggleWidth + gap − panelPad − gutter, floored at 0:
+     - toggleWidth + gap : how far the toggle reaches past the panel's edge.
+     - panelPad          : the panel's own inline padding (`--sl-content-pad-x`),
+                           already sitting in front of the toggle.
+     - gutter            : the column's natural inline-start gap.
+   The sidebar width cancels out (the toggle and the panel share its right edge),
+   so the one expression is correct for every sidebar width (topic-nav, C#/TS
+   API-ref) AND for both the expanded and collapsed/rail states — when collapsed
+   the rail is narrower, the panel is wider, the gutter grows and the shoulder
+   collapses to 0 on its own. Only applies on pages that render the
+   topics-sidebar, at the breakpoint where the toggle is visible. */
 @media (min-width: 72rem) {
   :root:has(.topics-sidebar) .content-panel > .sl-container {
-    padding-inline-start: 3.5rem;
+    padding-inline-start: max(
+      0px,
+      calc(
+        var(--aspire-sidebar-toggle-width) + 0.5rem - var(--sl-content-pad-x) -
+          max(0px, calc(100% - var(--sl-content-width)))
+      )
+    );
   }
 }
 
