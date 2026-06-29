@@ -16,8 +16,9 @@ The [📦 Aspire.AppHost.Sdk](https://www.nuget.org/packages/Aspire.AppHost.Sdk)
 
 The `Aspire.AppHost.Sdk` is defined in the top-level `Project` node's `Sdk` attribute:
 
-```xml title='*.csproj file' {1}
-<Project Sdk="Aspire.AppHost.Sdk/13.1">
+```xml
+title='*.csproj file' {1}
+<Project Sdk="Aspire.AppHost.Sdk/%ASPIRE_VERSION%">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -34,8 +35,9 @@ The `Aspire.AppHost.Sdk` is defined in the top-level `Project` node's `Sdk` attr
 
 The `Aspire.AppHost.Sdk` is defined in a file-based app's source file using the `#:sdk` directive:
 
-```csharp title='file-based app' {1}
-#:sdk Aspire.AppHost.Sdk@13.3.0
+```csharp
+title='file-based app' {1}
+#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -87,7 +89,8 @@ For example, if you have two microservices with the same project name (like `Pre
 
 This generates `Projects.MicroService1` and `Projects.MicroService2` classes, allowing you to reference each project distinctly in your AppHost:
 
-```csharp title="AppHost.cs"
+```csharp
+title="AppHost.cs"
 var microservice1 = builder.AddProject<Projects.MicroService1>("micro1");
 var microservice2 = builder.AddProject<Projects.MicroService2>("micro2");
 ```
@@ -115,15 +118,16 @@ When `AspireUseCliBundle` is `true`:
 - `Aspire.AppHost.Sdk` still sets AppHost properties and adds the implicit `Aspire.Hosting.AppHost` package.
 - Your AppHost uses the DCP and Dashboard versions installed with the Aspire CLI.
 - At build time, the SDK resolves the DCP and Dashboard executables in this priority order:
-  1. Explicit `AspireCliBundlePath` / `AspireCliPath` properties in the project file.
-  2. The `aspire` executable on `PATH`.
+    1. Explicit `AspireCliBundlePath` / `AspireCliPath` properties in the project file.
+    2. The `aspire` executable on `PATH`.
 - If the bundle cannot be found, the build emits error `ASPIRE009` with a message directing you to [get.aspire.dev](https://get.aspire.dev) to install the Aspire CLI.
 
 #### Enable the opt-in
 
 Set `AspireUseCliBundle` in your AppHost `.csproj`:
 
-```xml title="MyApp.AppHost.csproj"
+```xml
+title="MyApp.AppHost.csproj"
 <PropertyGroup>
   <AspireUseCliBundle>true</AspireUseCliBundle>
 </PropertyGroup>
@@ -132,7 +136,8 @@ Set `AspireUseCliBundle` in your AppHost `.csproj`:
 :::note[Advanced scenario: Override the bundle path]
 Most apps don't need to set the CLI bundle path. If the Aspire CLI isn't on `PATH`, provide an explicit path using `AspireCliBundlePath` (path to the CLI bundle directory) or `AspireCliPath` (path to the `aspire` executable):
 
-```xml title="MyApp.AppHost.csproj"
+```xml
+title="MyApp.AppHost.csproj"
 <PropertyGroup>
   <AspireUseCliBundle>true</AspireUseCliBundle>
   <!-- Either set the path to the aspire executable: -->
