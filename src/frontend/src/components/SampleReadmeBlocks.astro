@@ -67,12 +67,17 @@ function resolveReadmeHref(href: string): string {
 
 /**
  * Custom `mdast-util-to-hast` handler for links. Mirrors the previous marked
- * `renderer.link`: README links are resolved against the sample's source path
- * (so `./relative` paths point at the right file on GitHub) and external links
- * open in a new tab with a safe `rel`.
+ * `renderer.link`: links with no destination are dropped entirely (rather than
+ * being rewritten to a broken sample-relative URL), README links are resolved
+ * against the sample's source path (so `./relative` paths point at the right
+ * file on GitHub) and external links open in a new tab with a safe `rel`.
  */
-function linkHandler(state: State, node: Link): HastElement {
-  const resolvedHref = resolveReadmeHref(node.url ?? '');
+function linkHandler(state: State, node: Link): HastElement | undefined {
+  if (!node.url || node.url.trim() === '') {
+    return undefined;
+  }
+
+  const resolvedHref = resolveReadmeHref(node.url);
   const isExternal = /^(?:https?:)?\/\//i.test(resolvedHref);
   const properties: Record<string, string> = { href: resolvedHref };
 

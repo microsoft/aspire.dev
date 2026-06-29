@@ -622,6 +622,8 @@ const sampleDetailFixture = {
     '',
     'See the [application project](./src/RedisSample.AppHost) for implementation details.',
     '',
+    'A [broken empty link]() must be dropped, not rewritten.',
+    '',
     '1. Open the app.',
     '',
     '   ![Screenshot of the sample step](~/assets/samples/volume-mount/volume-mount-frontend-login.png)',
@@ -915,6 +917,14 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('href="/reference/samples/"');
     expect(html).toContain(
       'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample/src/RedisSample.AppHost"'
+    );
+
+    // A link with an empty destination (`[text]()`) must be dropped entirely —
+    // matching the previous marked renderer — rather than being rewritten to a
+    // broken sample-relative URL pointing at the sample root (PR #1311 review).
+    expect(html).not.toContain('broken empty link');
+    expect(html).not.toContain(
+      'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample/"'
     );
 
     // The AppHost code section renders above the README with the kicker,
