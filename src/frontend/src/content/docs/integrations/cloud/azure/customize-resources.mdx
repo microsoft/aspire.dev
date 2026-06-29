@@ -388,22 +388,31 @@ servicebus.ConfigureInfrastructure(infra =>
 
 ### Add Azure resources to the infrastructure
 
-You can inject additional Azure constructs (for example, a private endpoint) into an integration's generated infrastructure:
+You can inject additional Azure constructs into an integration's generated infrastructure when no first-class Aspire API exists for them. Call `infra.Add(...)` inside `ConfigureInfrastructure` with any strongly-typed [Azure.Provisioning](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning) construct.
+
+<Aside type="tip" title="Private endpoints have a first-class API">
+For private endpoints, prefer the higher-level [`AddPrivateEndpoint`](/integrations/cloud/azure/azure-virtual-network/#add-private-endpoints) extension from the `Aspire.Hosting.Azure.Network` package. It creates the Private DNS Zone, VNet link, and DNS zone group for you, and configures the target resource to deny public network access automatically.
+</Aside>
+
+The following example shows the lower-level pattern using `infra.Add(...)` with a strongly-typed [`PrivateEndpoint`](https://learn.microsoft.com/dotnet/api/azure.provisioning.network.privateendpoint) construct from `Azure.Provisioning.Network`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
+using Azure.Provisioning.Network;
+
 storage.ConfigureInfrastructure(infra =>
 {
-    var privateEndpoint = new PrivateEndpoint("storagepe")
-    {
-        Location = "eastus",
-        Subnet = new SubnetReference
+    var privateEndpoint = new PrivateEndpoint("storagepe");
+    privateEndpoint.Subnet.Id = "/subscriptions/.../subnets/mysubnet";
+    privateEndpoint.PrivateLinkServiceConnections.Add(
+        new NetworkPrivateLinkServiceConnection
         {
-            Id = "/subscriptions/.../subnets/mysubnet"
-        }
-    };
+            Name = "storage-connection",
+            PrivateLinkServiceId = "/subscriptions/.../storageAccounts/mystorage",
+            GroupIds = ["blob"]
+        });
 
     infra.Add(privateEndpoint);
 });
@@ -520,9 +529,7 @@ Reference it from the AppHost:
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var storage = builder.AddAzureBicepResource(
-    name: "storage",
-    bicepFilePath: "./custom-storage.bicep")
+var storage = builder.AddBicepTemplate("storage", "./custom-storage.bicep")
     .WithParameter("storageAccountName", "mystorageaccount");
 
 builder.AddProject<Projects.WebApp>("webapp")
@@ -554,11 +561,13 @@ await builder.build().run();
 
 ### Inspect generated Bicep
 
-After customizing with `ConfigureInfrastructure`, inspect the Bicep that Aspire generates:
+To inspect the Bicep that Aspire generates from your customizations, publish the AppHost to a directory and review the emitted files:
 
-1. Run your AppHost locally.
-2. Open the `./infra` directory inside your AppHost project.
-3. Review the generated `.bicep` files to verify your customizations.
+```bash title="Terminal"
+aspire publish -o ./publish
+```
+
+Aspire writes a `main.bicep` for the deployment, plus a `<resource-name>.module.bicep` file per Azure resource, into the output directory you specify. Open each `.module.bicep` to verify that your `ConfigureInfrastructure` changes were applied.
 
 <Aside type="tip">
 Use the Azure Portal's **Export template** feature to view Bicep for manually configured resources, then adapt it for Aspire.
@@ -572,3 +581,4 @@ Use the Azure Portal's **Export template** feature to view Bicep for manually co
 - [Azure.Provisioning API reference](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning)
 - [Deploy to Azure Container Apps](/deployment/azure/container-apps/)
 - [Deploy to Azure App Service](/deployment/azure/app-service/)
+- [Bicep samples in the dotnet/aspire repo](https://github.com/dotnet/aspire/tree/main/playground/bicep)
