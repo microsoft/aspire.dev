@@ -77,15 +77,84 @@ function sendJson(res, status, obj) {
     res.end(JSON.stringify(obj));
 }
 
+function escapeHtmlAttr(s) {
+    return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
+// Small in-frame bridge injected into proxied pages. Runs in a sandboxed
+// (opaque-origin) iframe, so it can't touch the host canvas document but can
+// postMessage navigation events to the parent. It also keeps link clicks and
+// SPA history changes flowing back through /api/proxy so the browse frame stays
+// embeddable and the parent can mirror the live route into the preview.
+function browseBridgeScript(finalUrl, proxyBase) {
+    const real = JSON.stringify(finalUrl).replace(/</g, "\\u003c");
+    const base = JSON.stringify(proxyBase).replace(/</g, "\\u003c");
+    return `<script>(function(){
+var REAL=${real};
+var PROXY=${base};
+function post(u){try{parent.postMessage({source:"og-browse",type:"nav",url:u},"*");}catch(e){}}
+function px(a){return PROXY+"?u="+encodeURIComponent(a);}
+document.addEventListener("click",function(e){
+ if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+ var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;
+ if(!a)return;
+ var href=a.getAttribute("href");
+ if(!href||href.charAt(0)==="#")return;
+ if(/^(mailto:|tel:|javascript:|data:)/i.test(href))return;
+ if(a.target&&a.target!==""&&a.target!=="_self")return;
+ var abs;try{abs=new URL(a.href,REAL).toString();}catch(_){return;}
+ if(!/^https?:/i.test(abs))return;
+ e.preventDefault();post(abs);
+},true);
+function wrap(n){var o=history[n];if(typeof o!=="function")return;history[n]=function(){var r=o.apply(this,arguments);try{var u=arguments[2];if(u!=null)post(new URL(String(u),REAL).toString());}catch(_){}return r;};}
+wrap("pushState");wrap("replaceState");
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){post(REAL);});else post(REAL);
+})();<\/script>`;
+}
+
+// Rewrite a fetched HTML document so it renders inside the browse frame: drop
+// the page's own <base> and any CSP <meta> (so our inline bridge isn't blocked),
+// then inject a <base href> pointing at the real origin plus the bridge script.
+function injectBrowseBridge(html, finalUrl, proxyBase) {
+    let out = html
+        .replace(/<base\b[^>]*>/gi, "")
+        .replace(/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, "");
+    const inject = `<base href="${escapeHtmlAttr(finalUrl)}">` + browseBridgeScript(finalUrl, proxyBase);
+    if (/<head[^>]*>/i.test(out)) {
+        out = out.replace(/<head[^>]*>/i, (m) => m + inject);
+    } else if (/<html[^>]*>/i.test(out)) {
+        out = out.replace(/<html[^>]*>/i, (m) => m + "<head>" + inject + "</head>");
+    } else {
+        out = "<head>" + inject + "</head>" + out;
+    }
+    return out;
+}
+
+function browseErrorPage(rawUrl, message) {
+    return (
+        `<!doctype html><html><head><meta charset="utf-8"><style>` +
+        `body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;` +
+        `color:#59636e;background:#fff;display:flex;align-items:center;justify-content:center;` +
+        `height:100vh;text-align:center;padding:24px}.b{max-width:360px}b{color:#1f2328}` +
+        `code{word-break:break-all}</style></head><body><div class="b">` +
+        `<p><b>Couldn't load this page</b></p><p>${escapeHtmlAttr(message)}</p>` +
+        `<p><code>${escapeHtmlAttr(rawUrl)}</code></p></div></body></html>`
+    );
+}
+
 /** Human-readable panel title for the host chrome (scheme stripped for brevity). */
 function displayTitle(url) {
     if (!url) return "OpenGraph Preview";
     try {
         const u = new URL(url);
         const path = u.pathname === "/" ? "" : u.pathname.replace(/\/+$/, "");
-        return `OG · ${u.host}${path}${u.search}`;
+        return `OG Viewer - ${u.host}${path}${u.search}`;
     } catch {
-        return `OG · ${url}`;
+        return `OG Viewer - ${url}`;
     }
 }
 
@@ -156,13 +225,18 @@ async function handleRequest(entry, req, res) {
     if (path === "/api/fetch") {
         const u = reqUrl.searchParams.get("u");
         if (!u) return sendJson(res, 400, { error: "Missing 'u' query parameter." });
+        // `silent` loads (e.g. driven by in-canvas browsing) update the metadata
+        // but DON'T re-open the canvas to refresh the host title — re-opening
+        // focuses the panel and reloads the whole iframe, which would yank the
+        // user out of the Browse tab on every in-page navigation.
+        const silent = reqUrl.searchParams.get("silent") === "1";
         try {
             const data = await loadMetadata(u);
             entry.currentUrl = data.requestedUrl;
             sendJson(res, 200, data);
             // Refresh the host panel title to the resolved URL (fire-and-forget;
             // guarded against loops by syncTitle).
-            syncTitle(entry, data.requestedUrl).catch(() => {});
+            if (!silent) syncTitle(entry, data.requestedUrl).catch(() => {});
             return;
         } catch (err) {
             return sendJson(res, 200, { error: err.message });
@@ -224,6 +298,41 @@ async function handleRequest(entry, req, res) {
         }
     }
 
+    if (path === "/api/proxy") {
+        const u = reqUrl.searchParams.get("u");
+        if (!u) {
+            res.statusCode = 400;
+            return res.end("Missing 'u'");
+        }
+        try {
+            const r = await fetchUrl(normalizeUrl(u), {
+                accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                timeoutMs: 15000,
+            });
+            const ct = r.contentType || "";
+            const isHtml = !ct || /text\/html|application\/xhtml\+xml|\/xml|text\/plain/i.test(ct);
+            res.setHeader("Cache-Control", "no-store");
+            if (!isHtml) {
+                // Serve non-HTML targets (images, PDFs, …) verbatim so links to
+                // them still render inside the browse frame.
+                res.statusCode = r.status >= 400 ? r.status : 200;
+                res.setHeader("Content-Type", ct || "application/octet-stream");
+                return res.end(r.body);
+            }
+            // Build our own response and intentionally DO NOT forward
+            // X-Frame-Options / CSP, so the page is embeddable in the canvas.
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "text/html; charset=utf-8");
+            const appOrigin = "http://" + (req.headers.host || "127.0.0.1");
+            return res.end(injectBrowseBridge(r.body.toString("utf8"), r.url, appOrigin + "/api/proxy"));
+        } catch (err) {
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "text/html; charset=utf-8");
+            res.setHeader("Cache-Control", "no-store");
+            return res.end(browseErrorPage(u, err && err.message ? err.message : String(err)));
+        }
+    }
+
     res.statusCode = 404;
     res.end("Not found");
 }
@@ -259,9 +368,9 @@ function instanceUrl(entry) {
 
 const ogCanvas = createCanvas({
     id: "og-preview",
-    displayName: "OpenGraph Preview",
+    displayName: "OG Viewer",
     description:
-        "Preview how a URL unfurls on Facebook, X, LinkedIn, Slack, and Discord, with a raw OpenGraph metadata and diagnostics view. Supports localhost.",
+        "Preview how a URL unfurls on Facebook, X, Bluesky, LinkedIn, Slack, Teams, and Discord, with a raw OpenGraph metadata and diagnostics view. Supports localhost.",
     inputSchema: {
         type: "object",
         properties: {

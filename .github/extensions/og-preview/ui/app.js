@@ -32,6 +32,69 @@ function prettyDomain(host) {
     return String(host || "").replace(/^www\./i, "");
 }
 
+/* ---------------- Iconography (Octicons, MIT-licensed) ---------------- */
+
+const OCTICONS = {
+    image:
+        '<path fill="currentColor" d="M16 13.25A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75ZM1.75 2.5a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h.94l.03-.03 6.077-6.078a1.75 1.75 0 0 1 2.412-.06L14.5 10.31V2.75a.25.25 0 0 0-.25-.25Zm12.5 11a.25.25 0 0 0 .25-.25v-.917l-4.298-3.889a.25.25 0 0 0-.344.009L4.81 13.5ZM7 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"/>',
+    code:
+        '<path fill="currentColor" d="m11.28 3.22 4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L13.94 8l-3.72-3.72a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215Zm-6.56 0a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L2.06 8l3.72 3.72a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L.47 8.53a.75.75 0 0 1 0-1.06Z"/>',
+    checklist:
+        '<path fill="currentColor" d="M2.5 1.75v11.5c0 .138.112.25.25.25h3.17a.75.75 0 0 1 0 1.5H2.75A1.75 1.75 0 0 1 1 13.25V1.75C1 .784 1.784 0 2.75 0h8.5C12.216 0 13 .784 13 1.75v7.736a.75.75 0 0 1-1.5 0V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13.274 9.537-4.557 4.45a.75.75 0 0 1-1.055-.008l-1.943-1.95a.75.75 0 0 1 1.062-1.058l1.419 1.425 4.026-3.932a.75.75 0 1 1 1.048 1.073ZM4.75 4h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM4 7.75A.75.75 0 0 1 4.75 7h2a.75.75 0 0 1 0 1.5h-2A.75.75 0 0 1 4 7.75Z"/>',
+    globe:
+        '<path fill="currentColor" d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM5.78 8.75a9.64 9.64 0 0 0 1.363 4.177c.255.426.542.832.857 1.215.245-.296.551-.705.857-1.215A9.64 9.64 0 0 0 10.22 8.75Zm4.44-1.5a9.64 9.64 0 0 0-1.363-4.177c-.307-.51-.612-.919-.857-1.215a9.927 9.927 0 0 0-.857 1.215A9.64 9.64 0 0 0 5.78 7.25Zm-5.944 1.5H1.543a6.507 6.507 0 0 0 4.666 5.5c-.123-.181-.24-.365-.352-.552-.715-1.192-1.437-2.874-1.581-4.948Zm-2.733-1.5h2.733c.144-2.074.866-3.756 1.58-4.948.12-.197.237-.381.353-.552a6.507 6.507 0 0 0-4.666 5.5Zm10.181 1.5c-.144 2.074-.866 3.756-1.58 4.948-.12.197-.237.381-.353.552a6.507 6.507 0 0 0 4.666-5.5Zm2.733-1.5a6.507 6.507 0 0 0-4.666-5.5c.123.181.24.365.353.552.714 1.192 1.436 2.874 1.58 4.948Z"/>',
+    mention:
+        '<path fill="currentColor" d="M8 .25a8 8 0 1 0 4.034 14.907.75.75 0 0 0-.756-1.295A6.5 6.5 0 1 1 14.5 8v.5a1.25 1.25 0 0 1-2.5 0V4.75a.75.75 0 0 0-1.5 0v.06A4 4 0 1 0 11 11.197 2.75 2.75 0 0 0 16 8.5V8A8 8 0 0 0 8 .25Zm0 5.25a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"/>',
+    tag:
+        '<path fill="currentColor" d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/>',
+    link:
+        '<path fill="currentColor" d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 2 2 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a2 2 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 2 2 0 0 0-2.83 0l-2.5 2.5a2 2 0 0 0 0 2.83Z"/>',
+    "link-external":
+        '<path fill="currentColor" d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5C2 13.22 2.78 14 3.75 14h8.5A1.75 1.75 0 0 0 14 12.25v-3a.75.75 0 0 0-1.5 0v3a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5a.25.25 0 0 1 .25-.25h3a.75.75 0 0 0 0-1.5h-3Z"/><path fill="currentColor" d="M8.5 1.75A.75.75 0 0 1 9.25 1h5a.75.75 0 0 1 .75.75v5a.75.75 0 0 1-1.5 0V3.56L8.78 8.28a.75.75 0 1 1-1.06-1.06l4.72-4.72H9.25a.75.75 0 0 1-.75-.75Z"/>',
+};
+
+function octicon(name, size, cls) {
+    const span = el("span", { class: "octicon" + (cls ? " " + cls : ""), "aria-hidden": "true" });
+    span.innerHTML = `<svg width="${size || 16}" height="${size || 16}" viewBox="0 0 16 16">${
+        OCTICONS[name] || ""
+    }</svg>`;
+    return span;
+}
+
+// Platform brand marks (simple-icons, CC0). 24×24 viewBox, single path.
+const BRAND_ICONS = {
+    facebook:
+        "M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z",
+    x:
+        "M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z",
+    linkedin:
+        "M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z",
+    slack:
+        "M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z",
+    discord:
+        "M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z",
+    bluesky:
+        "M5.202 2.857C7.954 4.922 10.913 9.11 12 11.358c1.087-2.247 4.046-6.436 6.798-8.501C20.783 1.366 24 .213 24 3.883c0 .732-.42 6.156-.667 7.037-.856 3.061-3.978 3.842-6.755 3.37 4.854.826 6.089 3.562 3.422 6.299-5.065 5.196-7.28-1.304-7.847-2.97-.104-.305-.152-.448-.153-.327 0-.121-.05.022-.153.327-.568 1.666-2.782 8.166-7.847 2.97-2.667-2.737-1.432-5.473 3.422-6.3-2.777.473-5.899-.308-6.755-3.369C.42 10.04 0 4.615 0 3.883c0-3.67 3.217-2.517 5.202-1.026",
+    teams:
+        "M20.625 8.127q-.55 0-1.025-.205-.475-.205-.832-.563-.358-.357-.563-.832Q18 6.053 18 5.502q0-.54.205-1.02t.563-.837q.357-.358.832-.563.474-.205 1.025-.205.54 0 1.02.205t.837.563q.358.357.563.837.205.48.205 1.02 0 .55-.205 1.025-.205.475-.563.832-.357.358-.837.563-.48.205-1.02.205zm0-3.75q-.469 0-.797.328-.328.328-.328.797 0 .469.328.797.328.328.797.328.469 0 .797-.328.328-.328.328-.797 0-.469-.328-.797-.328-.328-.797-.328zM24 10.002v5.578q0 .774-.293 1.46-.293.685-.803 1.194-.51.51-1.195.803-.686.293-1.459.293-.445 0-.908-.105-.463-.106-.85-.329-.293.95-.855 1.729-.563.78-1.319 1.336-.756.557-1.67.861-.914.305-1.898.305-1.148 0-2.162-.398-1.014-.399-1.805-1.102-.79-.703-1.312-1.664t-.674-2.086h-5.8q-.411 0-.704-.293T0 16.881V6.873q0-.41.293-.703t.703-.293h8.59q-.34-.715-.34-1.5 0-.727.275-1.365.276-.639.75-1.114.475-.474 1.114-.75.638-.275 1.365-.275t1.365.275q.639.276 1.114.75.474.475.75 1.114.275.638.275 1.365t-.275 1.365q-.276.639-.75 1.113-.475.475-1.114.75-.638.276-1.365.276-.188 0-.375-.024-.188-.023-.375-.058v1.078h10.875q.469 0 .797.328.328.328.328.797zM12.75 2.373q-.41 0-.78.158-.368.158-.638.434-.27.275-.428.639-.158.363-.158.773 0 .41.158.78.159.368.428.638.27.27.639.428.369.158.779.158.41 0 .773-.158.364-.159.64-.428.274-.27.433-.639.158-.369.158-.779 0-.41-.158-.773-.159-.364-.434-.64-.275-.275-.639-.433-.363-.158-.773-.158zM6.937 9.814h2.25V7.94H2.814v1.875h2.25v6h1.875zm10.313 7.313v-6.75H12v6.504q0 .41-.293.703t-.703.293H8.309q.152.809.556 1.5.405.691.985 1.19.58.497 1.318.779.738.281 1.582.281.926 0 1.746-.352.82-.351 1.436-.966.615-.616.966-1.43.352-.815.352-1.752zm5.25-1.547v-5.203h-3.75v6.855q.305.305.691.452.387.146.809.146.469 0 .879-.176.41-.175.715-.48.304-.305.48-.715t.176-.879Z",
+};
+
+function brandIcon(name) {
+    const span = el("span", { class: `brand-ico brand-${name}`, "aria-hidden": "true" });
+    span.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24"><path fill="currentColor" d="${
+        BRAND_ICONS[name] || ""
+    }"/></svg>`;
+    return span;
+}
+
+function previewChevron() {
+    return el("span", {
+        class: "preview-chevron",
+        "aria-hidden": "true",
+        html: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    });
+}
+
 /* ---------------- Motion / view transitions ---------------- */
 
 const reduceMotion = window.matchMedia
@@ -478,14 +541,17 @@ function bindCodeHover(node, url) {
 
 /* ---------------- Previews ---------------- */
 
-function labeledCard(name, color, card) {
-    return el("div", { class: "preview" }, [
-        el("div", { class: "preview-label" }, [
-            el("span", { class: "dot", style: `background:${color}` }),
-            name,
+function labeledCard(brand, name, card) {
+    const details = el("details", { class: "preview", open: "" });
+    details.appendChild(
+        el("summary", { class: "preview-label" }, [
+            brandIcon(brand),
+            el("span", { class: "preview-name", text: name }),
+            previewChevron(),
         ]),
-        card,
-    ]);
+    );
+    details.appendChild(el("div", { class: "preview-body" }, [card]));
+    return details;
 }
 
 function facebookCard(d, domain) {
@@ -501,22 +567,23 @@ function facebookCard(d, domain) {
 
 function twitterCard(d, domain) {
     const isSmall = (d.twitterCard || "").toLowerCase() === "summary";
-    if (isSmall) {
+    // Without an image X always falls back to the small (square-thumb) summary card.
+    if (isSmall || !d.image) {
         return el("div", { class: "x small" }, [
             makeImage(d.image, "card-img"),
             el("div", { class: "meta" }, [
-                el("div", { class: "domain", text: domain }),
                 el("div", { class: "title", text: d.title || "(no title)" }),
                 d.description ? el("div", { class: "desc", text: d.description }) : null,
+                el("div", { class: "domain", text: domain }),
             ]),
         ]);
     }
-    return el("div", { class: "x" }, [
-        makeImage(d.image, "card-img"),
-        d.image ? el("span", { class: "domain-pill", text: domain }) : null,
-        el("div", { class: "meta" }, [
-            el("div", { class: "title", text: d.title || "(no title)" }),
-            d.description ? el("div", { class: "desc", text: d.description }) : null,
+    // summary_large_image: X renders just the image with the domain overlaid at
+    // the bottom-left — it strips the headline and description text entirely.
+    return el("div", { class: "x large" }, [
+        el("div", { class: "x-media" }, [
+            makeImage(d.image, "card-img"),
+            el("span", { class: "domain-pill", text: domain }),
         ]),
     ]);
 }
@@ -555,16 +622,40 @@ function discordCard(d, domain) {
     ]);
 }
 
+function blueskyCard(d, domain) {
+    return el("div", { class: "bsky" }, [
+        makeImage(d.image, "card-img"),
+        el("div", { class: "meta" }, [
+            el("div", { class: "title", text: d.title || "(no title)" }),
+            d.description ? el("div", { class: "desc", text: d.description }) : null,
+            el("div", { class: "domain" }, [octicon("globe", 13, "bsky-globe"), domain]),
+        ]),
+    ]);
+}
+
+function teamsCard(d, domain) {
+    return el("div", { class: "teams" }, [
+        el("div", { class: "site" }, [d.favicon ? makeImage(d.favicon, "") : null, d.siteName || domain]),
+        d.image ? makeImage(d.image, "card-img") : null,
+        el("div", { class: "meta" }, [
+            el("div", { class: "title", text: d.title || "(no title)" }),
+            d.description ? el("div", { class: "desc", text: d.description }) : null,
+        ]),
+    ]);
+}
+
 function renderPreviews(data) {
     const d = data.resolved;
     const domain = prettyDomain(d.hostname);
     const grid = $("#previews");
     grid.replaceChildren(
-        labeledCard("OpenGraph · Facebook", "#1877f2", facebookCard(d, domain)),
-        labeledCard("X · Twitter", "#000000", twitterCard(d, domain)),
-        labeledCard("LinkedIn", "#0a66c2", linkedinCard(d, domain)),
-        labeledCard("Slack", "#4a154b", slackCard(d, domain)),
-        labeledCard("Discord", "#5865f2", discordCard(d, domain)),
+        labeledCard("facebook", "OpenGraph · Facebook", facebookCard(d, domain)),
+        labeledCard("x", "X · Twitter", twitterCard(d, domain)),
+        labeledCard("bluesky", "Bluesky", blueskyCard(d, domain)),
+        labeledCard("linkedin", "LinkedIn", linkedinCard(d, domain)),
+        labeledCard("slack", "Slack", slackCard(d, domain)),
+        labeledCard("teams", "Microsoft Teams", teamsCard(d, domain)),
+        labeledCard("discord", "Discord", discordCard(d, domain)),
     );
     // Retrigger the staggered entrance animation.
     grid.classList.remove("enter");
@@ -779,16 +870,17 @@ function kvTable(rows) {
 function rawChevron() {
     return el("span", {
         class: "raw-chevron",
-        html: '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6 4l4 4-4 4V4z"/></svg>',
+        html: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     });
 }
 
-function rawGroup(title, rows) {
+function rawGroup(title, rows, icon) {
     if (!rows || rows.length === 0) return null;
     const details = el("details", { class: "raw-group", open: "" });
     details.appendChild(
         el("summary", null, [
             rawChevron(),
+            icon ? octicon(icon, 16, "raw-ico") : null,
             el("span", { class: "raw-title", text: title }),
             el("span", { class: "count", text: String(rows.length) }),
         ]),
@@ -804,10 +896,10 @@ function renderRaw(data) {
         value: i.href,
     }));
     host.replaceChildren(
-        rawGroup("OpenGraph", data.groups.openGraph),
-        rawGroup("Twitter / X", data.groups.twitter),
-        rawGroup("Other meta", data.groups.other),
-        rawGroup("Icons & links", iconRows),
+        rawGroup("OpenGraph", data.groups.openGraph, "globe"),
+        rawGroup("Twitter / X", data.groups.twitter, "mention"),
+        rawGroup("Other meta", data.groups.other, "tag"),
+        rawGroup("Icons & links", iconRows, "link"),
     );
     if (!host.childElementCount) {
         host.appendChild(el("p", { class: "muted", text: "No metadata tags found." }));
@@ -816,6 +908,135 @@ function renderRaw(data) {
 }
 
 /* ---------------- Diagnostics ---------------- */
+
+// Two-tone semantic status icon: outer shape in the semantic color
+// (via currentColor) + inner mark forced white so it reads in dark mode.
+const DIAG_SHAPES = {
+    circle: "M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0Z",
+    check:
+        "M11.78 5.97a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L4.22 9.03a.75.75 0 1 1 1.06-1.06l1.72 1.72 3.72-3.72a.75.75 0 0 1 1.06 0Z",
+    x:
+        "M5.72 5.72a.75.75 0 0 1 1.06 0L8 6.94l1.22-1.22a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L9.06 8l1.22 1.22a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018L8 9.06 6.78 10.28a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 5.72 6.78a.75.75 0 0 1 0-1.06Z",
+    triangle:
+        "M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Z",
+    bang:
+        "M9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-.25-5.25a.75.75 0 0 0-1.5 0v2.5a.75.75 0 0 0 1.5 0Z",
+};
+
+function diagIcon(kind) {
+    const span = el("span", { class: `diag-ico ${kind}`, "aria-hidden": "true" });
+    const outer = kind === "warn" ? DIAG_SHAPES.triangle : DIAG_SHAPES.circle;
+    const inner = kind === "warn" ? DIAG_SHAPES.bang : kind === "req" ? DIAG_SHAPES.x : DIAG_SHAPES.check;
+    span.innerHTML =
+        `<svg width="16" height="16" viewBox="0 0 16 16">` +
+        `<path fill="currentColor" d="${outer}"/>` +
+        `<path fill="var(--color-white,#fff)" d="${inner}"/></svg>`;
+    return span;
+}
+
+function diagChevron() {
+    return el("span", {
+        class: "diag-chevron",
+        "aria-hidden": "true",
+        html: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    });
+}
+
+const OGP = "https://ogp.me/";
+const XCARDS = "https://developer.x.com/en/docs/twitter-for-websites/cards";
+
+// Client-side guidance keyed by diagnostic id. Kept here (not in the wire
+// payload) so parse-og.mjs stays a pure parser.
+const DIAG_HELP = {
+    "og:title": {
+        why: "Platforms use og:title as the bold headline of the link card. Without it they fall back to the page <title> or show nothing.",
+        fix: "Add an og:title in the document <head> with a concise, descriptive headline (~40–60 characters).",
+        example: '<meta property="og:title" content="Your headline" />',
+        docs: { href: OGP + "#metadata", label: "Open Graph protocol" },
+    },
+    "og:type": {
+        why: "og:type tells platforms what kind of object the page is (website, article, video…), which controls how the card is rendered.",
+        fix: 'Add og:type — most pages should use "website"; use "article" for posts and news.',
+        example: '<meta property="og:type" content="website" />',
+        docs: { href: OGP + "#types", label: "Open Graph object types" },
+    },
+    "og:image": {
+        why: "The preview image is the most eye-catching part of a shared link. Without og:image the card renders as plain text.",
+        fix: "Add og:image pointing to an absolute https URL. Recommended size is 1200×630 (1.91:1).",
+        example: '<meta property="og:image" content="https://example.com/preview.png" />',
+        docs: { href: OGP + "#metadata", label: "Open Graph protocol" },
+    },
+    "og:url": {
+        why: "og:url is the canonical URL platforms attribute the share to, deduplicating tracking params and URL variants.",
+        fix: "Add og:url with the clean, canonical absolute URL of the page.",
+        example: '<meta property="og:url" content="https://example.com/page" />',
+        docs: { href: OGP + "#metadata", label: "Open Graph protocol" },
+    },
+    "og:description": {
+        why: "The description is the supporting copy shown under the title on most platforms.",
+        fix: "Add og:description with a 1–2 sentence summary (~55–200 characters).",
+        example: '<meta property="og:description" content="A short summary of the page." />',
+        docs: { href: OGP + "#metadata", label: "Open Graph protocol" },
+    },
+    "og:site_name": {
+        why: "og:site_name labels which site the content belongs to — shown as a small eyebrow on several platforms.",
+        fix: "Add og:site_name with your site or brand name.",
+        example: '<meta property="og:site_name" content="Your Site" />',
+        docs: { href: OGP + "#optional", label: "Open Graph optional metadata" },
+    },
+    "twitter:card": {
+        why: "twitter:card selects the X / Twitter card layout. Without it X uses a minimal fallback.",
+        fix: 'Add twitter:card — use "summary_large_image" when you have a wide preview image, otherwise "summary".',
+        example: '<meta name="twitter:card" content="summary_large_image" />',
+        docs: { href: XCARDS, label: "X Cards documentation" },
+    },
+    "Absolute og:image URL": {
+        why: "Relative image paths can't be resolved by external crawlers, so the preview image silently fails on most platforms.",
+        fix: "Use a fully-qualified absolute URL (https://…) for og:image, not a relative path.",
+        example: '<meta property="og:image" content="https://example.com/preview.png" />',
+        docs: { href: OGP + "#metadata", label: "Open Graph protocol" },
+    },
+    "Description length OK": {
+        why: "Long descriptions get truncated mid-sentence; very short ones look empty. ~55–200 characters renders cleanly across platforms.",
+        fix: "Trim or expand og:description to roughly 55–200 characters.",
+        example: '<meta property="og:description" content="A concise, complete summary that fits in about 160 characters." />',
+        docs: { href: OGP + "#metadata", label: "Open Graph protocol" },
+    },
+};
+
+function diagDetail(help) {
+    const detail = el("div", { class: "diag-detail" });
+    detail.appendChild(
+        el("div", { class: "diag-block" }, [
+            el("div", { class: "diag-block-h", text: "Why it matters" }),
+            el("p", { class: "diag-block-p", text: help.why }),
+        ]),
+    );
+    detail.appendChild(
+        el("div", { class: "diag-block" }, [
+            el("div", { class: "diag-block-h", text: "How to fix it" }),
+            el("p", { class: "diag-block-p", text: help.fix }),
+        ]),
+    );
+    if (help.example) {
+        const snippet = el("div", { class: "diag-snippet" }, [
+            el("code", { text: help.example }),
+            copyButton(help.example, "Copy snippet"),
+        ]);
+        detail.appendChild(snippet);
+    }
+    if (help.docs) {
+        const link = el("a", {
+            class: "diag-docs",
+            href: help.docs.href,
+            target: "_blank",
+            rel: "noreferrer",
+        });
+        link.append(octicon("link-external", 14, "diag-docs-ico"), document.createTextNode(help.docs.label));
+        detail.appendChild(link);
+    }
+    return detail;
+}
 
 function diagnosticCounts(diagnostics) {
     const counts = { ok: 0, warn: 0, req: 0 };
@@ -831,25 +1052,43 @@ function renderDiagnostics(data) {
     const host = $("#diagnostics");
     host.replaceChildren(
         ...data.diagnostics.map((c) => {
-            let cls = "ok";
-            let glyph = "\u2713";
-            if (!c.ok) {
-                if (c.level === "required") {
-                    cls = "req";
-                    glyph = "\u2715";
-                } else {
-                    cls = "warn";
-                    glyph = "!";
-                }
+            const kind = c.ok ? "ok" : c.level === "required" ? "req" : "warn";
+            const levelText = c.ok ? "passed" : c.level;
+
+            // Passing checks render as plain, non-expandable rows.
+            if (c.ok) {
+                return el("div", { class: "diag-item" }, [
+                    el("div", { class: "diag-row" }, [
+                        diagIcon(kind),
+                        el("div", { class: "diag-text" }, [
+                            el("span", { class: "diag-id", text: c.id }),
+                            el("span", { class: `diag-level ${kind}`, text: levelText }),
+                            c.note ? el("div", { class: "diag-note", text: c.note }) : null,
+                        ]),
+                    ]),
+                ]);
             }
-            return el("div", { class: "diag-item" }, [
-                el("div", { class: `diag-mark ${cls}`, text: glyph }),
-                el("div", null, [
-                    el("span", { class: "diag-id", text: c.id }),
-                    el("span", { class: "diag-level", text: c.level }),
-                    el("div", { class: "muted", text: c.note || "" }),
+
+            // Failing checks expand to show what's wrong and how to fix it.
+            const help =
+                DIAG_HELP[c.id] || {
+                    why: c.note || "This recommended metadata is missing or invalid.",
+                    fix: "Add or correct this metadata tag in the document <head>.",
+                };
+            const details = el("details", { class: `diag-item diag-${kind}` });
+            details.appendChild(
+                el("summary", { class: "diag-row" }, [
+                    diagIcon(kind),
+                    el("div", { class: "diag-text" }, [
+                        el("span", { class: "diag-id", text: c.id }),
+                        el("span", { class: `diag-level ${kind}`, text: levelText }),
+                        c.note ? el("div", { class: "diag-note", text: c.note }) : null,
+                    ]),
+                    diagChevron(),
                 ]),
-            ]);
+            );
+            details.appendChild(diagDetail(help));
+            return details;
         }),
     );
 }
@@ -944,9 +1183,10 @@ function setStatus(kind, message) {
     statusEl.textContent = message;
 }
 
-async function load(rawUrl) {
+async function load(rawUrl, opts) {
     const url = withScheme(rawUrl);
     if (!url) return;
+    const silent = !!(opts && opts.silent);
     hideImgTip();
     hideCodeCard();
     input.value = url;
@@ -956,7 +1196,9 @@ async function load(rawUrl) {
     // Show realistic shaped skeletons immediately so the layout is stable.
     renderSkeleton();
     try {
-        const res = await fetch("/api/fetch?u=" + encodeURIComponent(url));
+        const res = await fetch(
+            "/api/fetch?u=" + encodeURIComponent(url) + (silent ? "&silent=1" : ""),
+        );
         const data = await res.json();
         if (!res.ok || data.error) {
             throw new Error(data.error || `Request failed (${res.status})`);
@@ -965,6 +1207,8 @@ async function load(rawUrl) {
         if (data.resolved.url || data.requestedUrl) {
             input.value = data.requestedUrl || url;
         }
+        pendingBrowseUrl = data.requestedUrl || url;
+        if (!(opts && opts.skipBrowse)) syncBrowseFrame(pendingBrowseUrl);
         document.title = data.requestedUrl
             ? `OG · ${(data.resolved && data.resolved.hostname) || data.requestedUrl}`
             : "OpenGraph Preview";
@@ -1008,16 +1252,147 @@ document.querySelectorAll("[data-example]").forEach((btn) => {
     });
 });
 
+const TAB_KEY = "og-preview:tab";
+const TAB_ICONS = { previews: "image", raw: "code", diagnostics: "checklist", browse: "globe" };
+
+function activateTab(name) {
+    const tab = document.querySelector(`.tab[data-tab="${name}"]`);
+    const panel = $("#panel-" + name);
+    if (!tab || !panel) return;
+    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+    tab.classList.add("active");
+    panel.classList.add("active");
+    document.body.classList.toggle("browse-active", name === "browse");
+    try {
+        sessionStorage.setItem(TAB_KEY, name);
+    } catch {
+        /* storage unavailable */
+    }
+    if (name === "browse") syncBrowseFrame(pendingBrowseUrl || input.value);
+}
+
 document.querySelectorAll(".tab").forEach((tab) => {
+    const iconName = TAB_ICONS[tab.dataset.tab];
+    if (iconName && !tab.querySelector(".octicon")) {
+        tab.insertBefore(octicon(iconName, 16, "tab-ico"), tab.firstChild);
+    }
     tab.addEventListener("click", () => {
         if (tab.classList.contains("active")) return;
-        withTransition(() => {
-            document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
-            document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
-            tab.classList.add("active");
-            $("#panel-" + tab.dataset.tab).classList.add("active");
-        });
+        withTransition(() => activateTab(tab.dataset.tab));
     });
+});
+
+/* ---------------- Browse tab (live page + route mirroring) ----------------
+   A sandboxed iframe renders the live page through the same-origin /api/proxy
+   (so any site embeds and its in-page navigation can flow back here). Editing
+   the route or clicking links updates the previews live, and toolbar loads are
+   mirrored into the frame. */
+
+const browseFrame = $("#browse-frame");
+const browseInput = $("#browse-input");
+const browsePanel = $("#panel-browse");
+let browseFrameUrl = ""; // canonical URL the frame currently points at
+let pendingBrowseUrl = ""; // latest loaded URL the frame should show
+let browseLoadTimer = null;
+let browseNavToken = 0; // guards against out-of-order srcdoc fetches
+
+function canonUrl(u) {
+    try {
+        const x = new URL(withScheme(u));
+        return (x.protocol + "//" + x.host + x.pathname.replace(/\/+$/, "") + x.search).toLowerCase();
+    } catch {
+        return String(u || "").trim().toLowerCase();
+    }
+}
+
+function browseActive() {
+    return browsePanel.classList.contains("active");
+}
+
+// Render a URL inside the embedded frame by fetching the proxied HTML and
+// inlining it via srcdoc. We deliberately DON'T point the iframe at the loopback
+// /api/proxy URL: the canvas host blocks the nested frame from connecting to
+// 127.0.0.1 ("refused to connect"). Inlining the already-proxied HTML sidesteps
+// that entirely — the fetch runs from our own document (which works), and the
+// frame just renders a string. Relative assets resolve via the injected <base>.
+async function navBrowseFrame(rawUrl) {
+    const u = withScheme(rawUrl);
+    if (!u) return;
+    browseFrameUrl = canonUrl(u);
+    browseInput.value = u;
+    browsePanel.classList.add("has-browse");
+    const token = ++browseNavToken;
+    try {
+        const res = await fetch("/api/proxy?u=" + encodeURIComponent(u));
+        const html = await res.text();
+        if (token !== browseNavToken) return; // a newer navigation superseded us
+        browseFrame.srcdoc = html;
+    } catch {
+        if (token !== browseNavToken) return;
+        browseFrame.srcdoc =
+            '<!doctype html><meta charset="utf-8"><body style="margin:0;font:14px/1.5 system-ui;padding:28px;color:#8b949e">Couldn\u2019t load this page in the browse view.</body>';
+    }
+}
+
+// Mirror the currently-loaded URL into the frame when it's worth doing (Browse
+// tab visible or already initialised), skipping a redundant reload.
+function syncBrowseFrame(rawUrl) {
+    const u = withScheme(rawUrl);
+    if (u) pendingBrowseUrl = u;
+    if (!pendingBrowseUrl) return;
+    if (!browseActive() && !browsePanel.classList.contains("has-browse")) return;
+    if (canonUrl(pendingBrowseUrl) === browseFrameUrl) return;
+    navBrowseFrame(pendingBrowseUrl);
+}
+
+// Debounced preview refresh driven by genuine in-frame navigation. Silent (never
+// re-opens the canvas) and skipBrowse (the message handler already advanced the
+// frame, so we don't want load() to re-fetch it).
+function scheduleBrowsePreview(url) {
+    clearTimeout(browseLoadTimer);
+    browseLoadTimer = setTimeout(() => {
+        load(url, { silent: true, skipBrowse: true });
+    }, 300);
+}
+
+$("#browse-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const u = browseInput.value;
+    if (!u || !u.trim()) return;
+    input.value = withScheme(u); // keep the top-level URL bound to the route bar
+    navBrowseFrame(u);
+    load(u, { silent: true, skipBrowse: true });
+});
+
+$("#browse-reload").addEventListener("click", () => {
+    const u = browseInput.value || pendingBrowseUrl;
+    if (u && u.trim()) navBrowseFrame(u);
+});
+
+$("#browse-open").addEventListener("click", () => {
+    const u = withScheme(browseInput.value || pendingBrowseUrl);
+    if (!u) return;
+    try {
+        window.open(u, "_blank", "noopener");
+    } catch {
+        /* host may block popups */
+    }
+});
+
+// Navigation reported from inside the sandboxed proxy frame. Browsing is the
+// primary driver: we bind the landed route to BOTH the route bar and the
+// top-level URL input, advance the embedded frame to the new page, and refresh
+// every preview from it.
+window.addEventListener("message", (e) => {
+    const m = e && e.data;
+    if (!m || m.source !== "og-browse" || m.type !== "nav" || !m.url) return;
+    browseInput.value = m.url;
+    if (canonUrl(m.url) === browseFrameUrl) return; // echo from our own render
+    browseFrameUrl = canonUrl(m.url); // genuine in-frame route change
+    input.value = m.url; // bind the top-level URL to the browsed route
+    navBrowseFrame(m.url); // advance the embedded frame to the clicked page
+    scheduleBrowsePreview(m.url); // refresh the previews (skipBrowse)
 });
 
 $("#footer-toggle").addEventListener("click", () => {
@@ -1088,6 +1463,16 @@ const initial = new URLSearchParams(location.search).get("u");
 if (initial) {
     input.value = initial;
     load(initial);
+}
+
+// Default to the Browse tab — it's the primary driver for the previews.
+// Restore a different tab only if the user explicitly switched away this session.
+try {
+    const savedTab = sessionStorage.getItem(TAB_KEY);
+    const startTab = savedTab && $("#panel-" + savedTab) ? savedTab : "browse";
+    activateTab(startTab);
+} catch {
+    activateTab("browse");
 }
 
 /* ---------------- Theme awareness for preview cards ----------------
