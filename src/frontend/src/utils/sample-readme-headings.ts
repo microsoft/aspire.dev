@@ -1,4 +1,4 @@
-import type { Token } from 'marked';
+import type { PhrasingContent } from 'mdast';
 
 /**
  * Drops the leading `# Title` line from a sample README so the page's own
@@ -73,44 +73,55 @@ export function toSentenceCase(value: string): string {
 }
 
 /**
- * Marked's inline token types all expose a `text` field but the union type
- * doesn't declare a common shape, so we narrow to the few token variants
- * the README headings use ({@link Tokens.Text}, {@link Tokens.Codespan},
- * etc.) when concatenating raw heading text. `raw` is the fallback for
- * tokens where `text` is empty (e.g. some inline HTML tokens).
+ * Concatenates the visible text of a heading's inline MDAST nodes. Leaf nodes
+ * (`text`, `inlineCode`) carry the characters on `value`; wrapping nodes
+ * (`emphasis`, `strong`, `delete`, `link`, …) carry them on nested `children`,
+ * so we recurse to collect each leaf's contribution exactly once.
  */
-type HeadingChildToken = { text?: unknown; raw?: unknown };
+export function headingPlainText(nodes: readonly PhrasingContent[]): string {
+  return nodes.map(nodeText).join('');
+}
 
-function tokenText(token: Token): string {
-  const candidate = token as HeadingChildToken;
-  if (typeof candidate.text === 'string' && candidate.text.length > 0) return candidate.text;
-  if (typeof candidate.raw === 'string') return candidate.raw;
-  if (typeof candidate.text === 'string') return candidate.text;
+function nodeText(node: PhrasingContent): string {
+  if (node.type === 'text' || node.type === 'inlineCode') {
+    return node.value;
+  }
+
+  if ('children' in node && Array.isArray(node.children)) {
+    return node.children.map(nodeText).join('');
+  }
+
   return '';
 }
 
 /**
- * Rewrites a heading's inline tokens so their visible text matches the
- * sentence-cased heading. Preserves token order and lengths so each token's
- * share of the heading text stays aligned with the original token (e.g. a
- * `<strong>` over the second word still wraps the second word).
+ * Rewrites a heading's inline MDAST nodes so their visible text matches the
+ * sentence-cased heading. Preserves node order, nesting, and per-leaf lengths
+ * so each node's share of the heading text stays aligned with the original
+ * (e.g. a `strong` over the second word still wraps the second word). Sentence
+ * casing never changes string length, so slicing the rewritten text by each
+ * leaf's original `value.length` keeps every node in register.
  */
-export function normalizeHeadingTokens(tokens: Token[] = []): Token[] {
-  let remainingText: string | null = toSentenceCase(tokens.map(tokenText).join(''));
+export function normalizeHeadingNodes(nodes: readonly PhrasingContent[] = []): PhrasingContent[] {
+  let remaining: string | null = toSentenceCase(headingPlainText(nodes));
 
-  return tokens.map((token) => {
-    const original = token as HeadingChildToken;
-    if (remainingText === null || typeof original.text !== 'string') {
-      return token;
+  const rewrite = (node: PhrasingContent): PhrasingContent => {
+    if (remaining === null) {
+      return node;
     }
 
-    const normalized = remainingText.slice(0, original.text.length);
-    remainingText = remainingText.slice(original.text.length);
-    return {
-      ...token,
-      raw: normalized,
-      text: normalized,
-    };
-  });
-}
+    if (node.type === 'text' || node.type === 'inlineCode') {
+      const normalized = remaining.slice(0, node.value.length);
+      remaining = remaining.slice(node.value.length);
+      return { ...node, value: normalized };
+    }
 
+    if ('children' in node && Array.isArray(node.children)) {
+      return { ...node, children: node.children.map(rewrite) };
+    }
+
+    return node;
+  };
+
+  return nodes.map(rewrite);
+}
