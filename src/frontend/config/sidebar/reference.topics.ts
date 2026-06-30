@@ -494,6 +494,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-resource',
             },
             {
+              label: 'aspire resources',
+              slug: 'reference/cli/commands/aspire-resources',
+            },
+            {
               label: 'aspire restore',
               slug: 'reference/cli/commands/aspire-restore',
             },
