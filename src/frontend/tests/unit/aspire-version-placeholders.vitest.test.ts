@@ -75,8 +75,11 @@ describe('Aspire version placeholders', () => {
         `Aspire ${currentAspireMajorMinorVersion}: ${currentAspireVersion}`
       );
 
-      // `.html`/`.txt`/`.mdx` already have placeholders replaced by the remark
-      // pipeline, and `.json` is never a placeholder target — all are left as-is.
+      // The post-build pass intentionally rewrites only `.md` files. In the real
+      // build `.html`/`.txt`/`.mdx` are produced through the remark pipeline (so
+      // they're already replaced before this pass runs) and `.json` is never a
+      // placeholder target; this test seeds them with raw placeholders to assert
+      // that this pass leaves every non-`.md` extension untouched.
       await expect(readFile(htmlPath, 'utf8')).resolves.toBe(placeholderContent);
       await expect(readFile(textPath, 'utf8')).resolves.toBe(placeholderContent);
       await expect(readFile(mdxPath, 'utf8')).resolves.toBe(placeholderContent);
@@ -128,6 +131,25 @@ describe('Aspire version placeholders', () => {
         ignoredPaths.map(async (ignoredPath) => {
           await expect(readFile(ignoredPath, 'utf8')).resolves.toBe(placeholderContent);
         })
+      );
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('falls back to a valid worker count when given a non-finite concurrency', async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'aspire-version-placeholders-'));
+
+    try {
+      const markdownPath = path.join(tempDir, 'example.md');
+      await writeFile(markdownPath, 'Aspire %ASPIRE_VERSION_MAJOR_MINOR%: %ASPIRE_VERSION%');
+
+      // A non-finite concurrency must not collapse the worker pool to an empty
+      // array and silently skip every file.
+      await replaceAspireVersionPlaceholdersInDirectory(tempDir, Number.NaN);
+
+      await expect(readFile(markdownPath, 'utf8')).resolves.toBe(
+        `Aspire ${currentAspireMajorMinorVersion}: ${currentAspireVersion}`
       );
     } finally {
       await rm(tempDir, { recursive: true, force: true });

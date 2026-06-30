@@ -48,7 +48,10 @@ export async function replaceAspireVersionPlaceholdersInDirectory(
     return;
   }
 
-  const workerCount = Math.min(Math.max(1, concurrency), files.length);
+  // Normalize to a finite positive integer so a stray NaN/0/negative value can't
+  // collapse the worker pool to an empty array and silently skip every file.
+  const limit = Number.isFinite(concurrency) ? Math.floor(concurrency) : DEFAULT_CONCURRENCY;
+  const workerCount = Math.min(Math.max(1, limit), files.length);
   let cursor = 0;
 
   const runWorker = async () => {
