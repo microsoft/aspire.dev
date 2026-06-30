@@ -29,6 +29,10 @@ const CONTENT_TYPES = {
 // instanceId -> { instanceId, server, url, currentUrl, titleKey, clients:Set<res> }
 const instances = new Map();
 
+// Default panel handle used when the agent opens the canvas via the
+// `open_og_preview` tool without specifying one.
+const DEFAULT_INSTANCE = "og-main";
+
 let sessionRef = null;
 function log(message, level = "info") {
     try {
@@ -311,4 +315,54 @@ const ogCanvas = createCanvas({
     },
 });
 
-sessionRef = await joinSession({ canvases: [ogCanvas] });
+// Agent-facing tool so the canvas can be opened "on command" (e.g. the user
+// says "open the OG preview" or "show how aspire.dev unfurls"). Tool names must
+// be globally unique across loaded extensions.
+const agentTools = [
+    {
+        name: "open_og_preview",
+        description:
+            "Open (or focus) the OpenGraph Preview canvas in the side panel, optionally loading a URL immediately. Supports localhost. Use whenever the user asks to open/show/add the OpenGraph (OG) preview, or to preview how a URL unfurls on social platforms.",
+        parameters: {
+            type: "object",
+            properties: {
+                url: {
+                    type: "string",
+                    description:
+                        "Optional URL to load immediately. Scheme is optional — https:// is assumed (http:// for localhost).",
+                },
+                instanceId: {
+                    type: "string",
+                    description:
+                        "Optional panel handle (defaults to 'og-main'). Reuse the same value to refocus the same panel; pass a new value to open an additional panel.",
+                },
+            },
+            additionalProperties: false,
+        },
+        handler: async (args) => {
+            const instanceId =
+                (args && typeof args.instanceId === "string" && args.instanceId.trim()) ||
+                DEFAULT_INSTANCE;
+            const url = args && typeof args.url === "string" ? args.url.trim() : "";
+            try {
+                await sessionRef?.rpc?.canvas?.open({
+                    canvasId: "og-preview",
+                    instanceId,
+                    input: url ? { url } : {},
+                });
+            } catch (err) {
+                return {
+                    textResultForLlm: `Failed to open the OpenGraph Preview canvas: ${
+                        err && err.message ? err.message : err
+                    }`,
+                    resultType: "failure",
+                };
+            }
+            return url
+                ? `Opened the OpenGraph Preview canvas (panel "${instanceId}") and started loading ${url}.`
+                : `Opened the OpenGraph Preview canvas (panel "${instanceId}"). Enter a URL in the panel to preview it.`;
+        },
+    },
+];
+
+sessionRef = await joinSession({ canvases: [ogCanvas], tools: agentTools });
