@@ -8,6 +8,8 @@ import { cookieConfig } from './config/cookie.config';
 import { locales } from './config/locales.ts';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
+import { aspireVersionPlaceholdersIntegration } from './config/aspire-version-placeholders-integration.mjs';
+import { remarkAspireVersionPlaceholders } from './config/remark-aspire-version-placeholders.mjs';
 import catppuccin from '@catppuccin/starlight';
 import lunaria from './config/lunaria-starlight.mjs';
 import mermaid from 'astro-mermaid';
@@ -48,7 +50,9 @@ export default defineConfig({
   site: 'https://aspire.dev',
   trailingSlash: 'always',
   markdown: {
-    processor: unified(),
+    processor: unified({
+      remarkPlugins: [remarkAspireVersionPlaceholders],
+    }),
   },
   redirects: redirects,
   integrations: [
@@ -238,6 +242,7 @@ export default defineConfig({
     }),
     jopSoftwarecookieconsent(cookieConfig),
     ...(isBuildTimingEnabled ? [buildTiming()] : []),
+    aspireVersionPlaceholdersIntegration(),
   ],
   build: {
     concurrency: buildConcurrency,
