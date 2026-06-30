@@ -82,7 +82,7 @@ export function parseMetadata(html, baseUrl) {
         const a = parseAttrs(tag);
         const rel = (a.rel || "").toLowerCase();
         if (!rel || !a.href) continue;
-        if (rel.includes("canonical")) canonical = a.href;
+        if (rel.includes("canonical")) canonical = resolveUrl(a.href, baseUrl);
         if (rel.includes("icon")) {
             icons.push({ rel, href: resolveUrl(a.href, baseUrl), sizes: a.sizes || "" });
         }

@@ -294,6 +294,26 @@ async function handleRequest(entry, req, res) {
             }
             const MAX_CHARS = 200000;
             let text = r.body.toString("utf8");
+            // Surface upstream errors and HTML fallback/error pages instead of
+            // dumping a rendered web page into the code preview. A code/markdown
+            // value (e.g. a .mdx path) that resolves to an HTML document is almost
+            // always a 404/redirect or SPA shell, not the raw file.
+            if (r.status >= 400) {
+                return sendJson(res, 200, {
+                    error: `The server returned HTTP ${r.status} for this file.`,
+                });
+            }
+            const rawExt = (
+                (r.url.split(/[?#]/)[0].match(/\.([a-z0-9]+)$/i) || [])[1] || ""
+            ).toLowerCase();
+            const looksHtml =
+                /text\/html|application\/xhtml\+xml/i.test(ct) ||
+                /^\s*(?:<!doctype\s+html|<html[\s>])/i.test(text.slice(0, 256));
+            if (looksHtml && !["html", "htm", "xhtml"].includes(rawExt)) {
+                return sendJson(res, 200, {
+                    error: "The server returned an HTML page, not the raw file (likely an error or redirect).",
+                });
+            }
             // Reject content that is clearly binary (NUL byte in the sample).
             if (text.slice(0, 4096).includes("\u0000")) {
                 return sendJson(res, 200, { error: "File appears to be binary." });

@@ -4,12 +4,84 @@
 
 import http from "node:http";
 import https from "node:https";
+import dns from "node:dns/promises";
+import net from "node:net";
 
 const USER_AGENT =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 CopilotOGPreview/1.0";
 
 const LOCAL_HOST_RE = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1|.*\.localhost)(:|\/|$)/i;
+
+// SSRF guard. The tool intentionally supports localhost, but every other
+// private / link-local / unique-local / carrier-grade-NAT range is denied by
+// default so the agent-callable actions and the loopback proxy can't be turned
+// into a request-forgery primitive against the developer's machine/network
+// (e.g. the 169.254.169.254 cloud metadata endpoint). Set
+// OG_ALLOW_PRIVATE_NETWORK=1 to opt in to private destinations beyond localhost.
+const ALLOW_PRIVATE_NETWORK = /^(1|true|yes|on)$/i.test(
+    String(process.env.OG_ALLOW_PRIVATE_NETWORK || ""),
+);
+
+function ipv4Allowed(ip, allowPrivate) {
+    const o = ip.split(".").map((n) => Number(n));
+    if (o.length !== 4 || o.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
+        return false;
+    }
+    const [a, b] = o;
+    if (a === 127) return true; // loopback (localhost) — always allowed
+    if (allowPrivate) return true;
+    if (a === 0) return false; // "this" network
+    if (a === 10) return false; // private
+    if (a === 172 && b >= 16 && b <= 31) return false; // private
+    if (a === 192 && b === 168) return false; // private
+    if (a === 169 && b === 254) return false; // link-local + cloud metadata
+    if (a === 100 && b >= 64 && b <= 127) return false; // carrier-grade NAT
+    return true;
+}
+
+function ipv6Allowed(ip, allowPrivate) {
+    const s = ip.toLowerCase();
+    const mapped = s.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (mapped) return ipv4Allowed(mapped[1], allowPrivate);
+    if (s === "::1") return true; // loopback
+    if (allowPrivate) return true;
+    if (s === "::") return false; // unspecified
+    if (/^fe[89ab]/.test(s)) return false; // fe80::/10 link-local
+    if (/^f[cd]/.test(s)) return false; // fc00::/7 unique-local
+    return true;
+}
+
+function addressAllowed(ip, allowPrivate) {
+    const v = net.isIP(ip);
+    if (v === 4) return ipv4Allowed(ip, allowPrivate);
+    if (v === 6) return ipv6Allowed(ip, allowPrivate);
+    return false;
+}
+
+// Resolve a hostname to its addresses and confirm none land in a denied range.
+// Literal IPs are checked directly; explicit localhost names are always allowed.
+async function assertHostAllowed(hostname, allowPrivate) {
+    const host = hostname.startsWith("[") ? hostname.slice(1, -1) : hostname;
+    if (LOCAL_HOST_RE.test(host)) return; // localhost / *.localhost / 127.* / ::1
+    if (net.isIP(host)) {
+        if (!addressAllowed(host, allowPrivate)) {
+            throw new Error(`Blocked non-public address: ${host}`);
+        }
+        return;
+    }
+    let addrs;
+    try {
+        addrs = await dns.lookup(host, { all: true });
+    } catch {
+        throw new Error(`Could not resolve host: ${host}`);
+    }
+    for (const a of addrs) {
+        if (!addressAllowed(a.address, allowPrivate)) {
+            throw new Error(`Blocked non-public address for ${host}: ${a.address}`);
+        }
+    }
+}
 
 /**
  * Normalize user input into an absolute URL. Bare localhost-ish hosts default
@@ -35,12 +107,13 @@ export function fetchUrl(rawUrl, options = {}) {
         timeoutMs = 15000,
         accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         maxBytes = MAX_BYTES,
+        allowPrivateNetwork = ALLOW_PRIVATE_NETWORK,
     } = options;
 
     return new Promise((resolve, reject) => {
         let redirects = 0;
 
-        const visit = (urlStr) => {
+        const visit = async (urlStr) => {
             let parsed;
             try {
                 parsed = new URL(urlStr);
@@ -49,6 +122,11 @@ export function fetchUrl(rawUrl, options = {}) {
             }
             if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
                 return reject(new Error(`Unsupported protocol: ${parsed.protocol}`));
+            }
+            try {
+                await assertHostAllowed(parsed.hostname, allowPrivateNetwork);
+            } catch (err) {
+                return reject(err);
             }
 
             const lib = parsed.protocol === "https:" ? https : http;
@@ -78,7 +156,8 @@ export function fetchUrl(rawUrl, options = {}) {
                         } catch {
                             return reject(new Error(`Bad redirect target: ${location}`));
                         }
-                        return visit(next);
+                        visit(next).catch(reject);
+                        return;
                     }
 
                     const chunks = [];
@@ -90,7 +169,9 @@ export function fetchUrl(rawUrl, options = {}) {
                             aborted = true;
                             req.destroy();
                             res.destroy();
-                            return;
+                            return reject(
+                                new Error(`Response exceeded the ${maxBytes}-byte limit.`),
+                            );
                         }
                         chunks.push(chunk);
                     });
@@ -117,6 +198,6 @@ export function fetchUrl(rawUrl, options = {}) {
             req.end();
         };
 
-        visit(rawUrl);
+        visit(rawUrl).catch(reject);
     });
 }

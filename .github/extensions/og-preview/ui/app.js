@@ -1272,7 +1272,17 @@ $("#url-form").addEventListener("submit", (e) => {
     e.preventDefault();
     load(input.value);
 });
-$("#refresh").addEventListener("click", () => load(input.value));
+$("#refresh").addEventListener("click", () => {
+    if (browseActive()) {
+        // Force the embedded frame to re-fetch (syncBrowseFrame would skip an
+        // unchanged URL), then refresh the previews without re-driving the frame.
+        const u = withScheme(input.value || pendingBrowseUrl);
+        if (u) navBrowseFrame(u);
+        load(input.value, { skipBrowse: true });
+    } else {
+        load(input.value);
+    }
+});
 
 // Keep a scheme prefilled so the user never has to type it.
 input.addEventListener("focus", () => {
@@ -1297,9 +1307,13 @@ function activateTab(name) {
     const tab = document.querySelector(`.tab[data-tab="${name}"]`);
     const panel = $("#panel-" + name);
     if (!tab || !panel) return;
-    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach((t) => {
+        const on = t === tab;
+        t.classList.toggle("active", on);
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        t.tabIndex = on ? 0 : -1;
+    });
     document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
-    tab.classList.add("active");
     panel.classList.add("active");
     document.body.classList.toggle("browse-active", name === "browse");
     try {
@@ -1310,6 +1324,8 @@ function activateTab(name) {
     if (name === "browse") syncBrowseFrame(pendingBrowseUrl || input.value);
 }
 
+const TAB_ORDER = ["browse", "previews", "raw", "diagnostics"];
+
 document.querySelectorAll(".tab").forEach((tab) => {
     const iconName = TAB_ICONS[tab.dataset.tab];
     if (iconName && !tab.querySelector(".octicon")) {
@@ -1318,6 +1334,26 @@ document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => {
         if (tab.classList.contains("active")) return;
         withTransition(() => activateTab(tab.dataset.tab));
+    });
+    tab.addEventListener("keydown", (e) => {
+        const i = TAB_ORDER.indexOf(tab.dataset.tab);
+        if (i < 0) return;
+        let next = null;
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+            next = TAB_ORDER[(i + 1) % TAB_ORDER.length];
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            next = TAB_ORDER[(i - 1 + TAB_ORDER.length) % TAB_ORDER.length];
+        } else if (e.key === "Home") {
+            next = TAB_ORDER[0];
+        } else if (e.key === "End") {
+            next = TAB_ORDER[TAB_ORDER.length - 1];
+        } else {
+            return;
+        }
+        e.preventDefault();
+        const nextTab = document.querySelector(`.tab[data-tab="${next}"]`);
+        if (nextTab) nextTab.focus();
+        withTransition(() => activateTab(next));
     });
 });
 
@@ -1371,7 +1407,6 @@ function setPreviewsLayout(mode) {
    mirrored into the frame. */
 
 const browseFrame = $("#browse-frame");
-const browseInput = $("#browse-input");
 const browsePanel = $("#panel-browse");
 let browseFrameUrl = ""; // canonical URL the frame currently points at
 let pendingBrowseUrl = ""; // latest loaded URL the frame should show
@@ -1401,7 +1436,6 @@ async function navBrowseFrame(rawUrl) {
     const u = withScheme(rawUrl);
     if (!u) return;
     browseFrameUrl = canonUrl(u);
-    browseInput.value = u;
     browsePanel.classList.add("has-browse");
     const token = ++browseNavToken;
     try {
@@ -1437,22 +1471,8 @@ function scheduleBrowsePreview(url) {
     }, 300);
 }
 
-$("#browse-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const u = browseInput.value;
-    if (!u || !u.trim()) return;
-    input.value = withScheme(u); // keep the top-level URL bound to the route bar
-    navBrowseFrame(u);
-    load(u, { silent: true, skipBrowse: true });
-});
-
-$("#browse-reload").addEventListener("click", () => {
-    const u = browseInput.value || pendingBrowseUrl;
-    if (u && u.trim()) navBrowseFrame(u);
-});
-
 $("#browse-open").addEventListener("click", () => {
-    const u = withScheme(browseInput.value || pendingBrowseUrl);
+    const u = withScheme(input.value || pendingBrowseUrl);
     if (!u) return;
     try {
         window.open(u, "_blank", "noopener");
@@ -1469,7 +1489,6 @@ window.addEventListener("message", (e) => {
     const m = e && e.data;
     if (!m || m.source !== "og-browse" || m.type !== "nav" || !m.url) return;
     if (!/^https?:\/\//i.test(m.url)) return; // ignore non-http targets (e.g. about:srcdoc)
-    browseInput.value = m.url;
     if (canonUrl(m.url) === browseFrameUrl) return; // echo from our own render
     browseFrameUrl = canonUrl(m.url); // genuine in-frame route change
     input.value = m.url; // bind the top-level URL to the browsed route
