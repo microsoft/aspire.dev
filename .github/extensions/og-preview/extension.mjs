@@ -187,6 +187,43 @@ async function handleRequest(entry, req, res) {
         }
     }
 
+    if (path === "/api/raw") {
+        const u = reqUrl.searchParams.get("u");
+        if (!u) return sendJson(res, 400, { error: "Missing 'u' query parameter." });
+        try {
+            const r = await fetchUrl(u, {
+                accept: "text/plain,text/markdown,application/json,text/*;q=0.9,*/*;q=0.5",
+                timeoutMs: 12000,
+                maxBytes: 1024 * 1024,
+            });
+            const ct = r.contentType || "";
+            if (/^(image|video|audio|font)\//i.test(ct)) {
+                return sendJson(res, 200, { error: `Not a text file (Content-Type: ${ct}).` });
+            }
+            const MAX_CHARS = 200000;
+            let text = r.body.toString("utf8");
+            // Reject content that is clearly binary (NUL byte in the sample).
+            if (text.slice(0, 4096).includes("\u0000")) {
+                return sendJson(res, 200, { error: "File appears to be binary." });
+            }
+            let truncated = false;
+            if (text.length > MAX_CHARS) {
+                text = text.slice(0, MAX_CHARS);
+                truncated = true;
+            }
+            return sendJson(res, 200, {
+                url: r.url,
+                status: r.status,
+                contentType: ct,
+                bytes: r.body.length,
+                truncated,
+                text,
+            });
+        } catch (err) {
+            return sendJson(res, 200, { error: err.message || "Couldn't load file preview." });
+        }
+    }
+
     res.statusCode = 404;
     res.end("Not found");
 }

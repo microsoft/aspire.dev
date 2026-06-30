@@ -196,6 +196,286 @@ function makeImage(url, className) {
     return img;
 }
 
+/* ---------------- Image hover preview ----------------
+   A single floating tooltip that previews an image asset and follows the
+   cursor while hovering an image-like value. Stylized with theme tokens. */
+
+let imgTip = null;
+let imgTipImg = null;
+let imgTipMeta = null;
+
+function ensureImgTip() {
+    if (imgTip) return imgTip;
+    imgTipImg = el("img", { alt: "" });
+    imgTipImg.referrerPolicy = "no-referrer";
+    imgTipMeta = el("div", { class: "img-tip-meta" });
+    imgTip = el("div", { class: "img-tip", hidden: "" }, [imgTipImg, imgTipMeta]);
+    document.body.appendChild(imgTip);
+    return imgTip;
+}
+
+function positionImgTip(x, y) {
+    if (!imgTip || imgTip.hidden) return;
+    const pad = 16;
+    const w = imgTip.offsetWidth || 272;
+    const h = imgTip.offsetHeight || 200;
+    let left = x + pad;
+    let top = y + pad;
+    if (left + w + 8 > window.innerWidth) left = x - w - pad;
+    if (top + h + 8 > window.innerHeight) top = y - h - pad;
+    imgTip.style.left = Math.max(8, left) + "px";
+    imgTip.style.top = Math.max(8, top) + "px";
+}
+
+function showImgTip(url, x, y) {
+    const real = url.startsWith("//") ? "https:" + url : url;
+    const tip = ensureImgTip();
+    imgTipMeta.textContent = "Loading…";
+    imgTipImg.dataset.stage = "direct";
+    imgTipImg.onload = () => {
+        const { naturalWidth: nw, naturalHeight: nh } = imgTipImg;
+        imgTipMeta.textContent = nw && nh ? `${nw} × ${nh}` : "";
+    };
+    imgTipImg.onerror = () => {
+        if (imgTipImg.dataset.stage === "direct") {
+            imgTipImg.dataset.stage = "proxy";
+            imgTipImg.src = "/api/img?u=" + encodeURIComponent(real);
+        } else {
+            imgTipMeta.textContent = "Preview unavailable";
+        }
+    };
+    imgTipImg.src = real;
+    tip.hidden = false;
+    positionImgTip(x, y);
+    requestAnimationFrame(() => tip.classList.add("visible"));
+}
+
+function hideImgTip() {
+    if (!imgTip) return;
+    imgTip.classList.remove("visible");
+    imgTip.hidden = true;
+    imgTipImg.removeAttribute("src");
+}
+
+function bindImageHover(node, url) {
+    node.addEventListener("mouseenter", (e) => showImgTip(url, e.clientX, e.clientY));
+    node.addEventListener("mousemove", (e) => positionImgTip(e.clientX, e.clientY));
+    node.addEventListener("mouseleave", hideImgTip);
+}
+
+/* ---------------- Code / .mdx hover preview ----------------
+   Anchored, interactive (scrollable) hovercard that fetches and renders the
+   source of a code/markdown file referenced by a value, so it can be explored
+   without leaving the canvas. Unlike the image tooltip it accepts pointer
+   events, so the user can move into it and scroll. */
+
+const CODE_EXT_RE =
+    /\.(mdx?|markdown|jsx?|mjs|cjs|tsx?|json5?|jsonc|ya?ml|toml|ini|cfg|conf|env|css|scss|sass|less|html?|xml|rss|atom|sh|bash|zsh|fish|ps1|psm1|py|rb|go|rs|java|kt|kts|swift|c|h|hpp|cc|cpp|cxx|cs|php|sql|graphql|gql|proto|vue|svelte|astro|txt|text|log|lock|gradle|dockerfile|makefile|cmake)(\?|#|$)/i;
+
+const LANG_LABELS = {
+    mdx: "MDX", md: "Markdown", markdown: "Markdown", js: "JavaScript", mjs: "JavaScript",
+    cjs: "JavaScript", jsx: "JSX", ts: "TypeScript", tsx: "TSX", json: "JSON", json5: "JSON5",
+    jsonc: "JSON", yaml: "YAML", yml: "YAML", toml: "TOML", ini: "INI", cfg: "Config",
+    conf: "Config", env: "Env", css: "CSS", scss: "SCSS", sass: "Sass", less: "Less",
+    html: "HTML", htm: "HTML", xml: "XML", rss: "RSS", atom: "Atom", sh: "Shell", bash: "Shell",
+    zsh: "Shell", fish: "Shell", ps1: "PowerShell", psm1: "PowerShell", py: "Python", rb: "Ruby",
+    go: "Go", rs: "Rust", java: "Java", kt: "Kotlin", kts: "Kotlin", swift: "Swift", c: "C",
+    h: "C", hpp: "C++", cc: "C++", cpp: "C++", cxx: "C++", cs: "C#", php: "PHP", sql: "SQL",
+    graphql: "GraphQL", gql: "GraphQL", proto: "Protobuf", vue: "Vue", svelte: "Svelte",
+    astro: "Astro", txt: "Text", text: "Text", log: "Log", lock: "Lockfile", gradle: "Gradle",
+    dockerfile: "Dockerfile", makefile: "Makefile", cmake: "CMake",
+};
+
+function urlExt(url) {
+    const m = String(url || "").toLowerCase().match(/\.([a-z0-9]+)(?:[?#]|$)/);
+    return m ? m[1] : "";
+}
+
+function looksLikeCode(value) {
+    if (!/^(https?:)?\/\//i.test(value || "")) return false;
+    if (/\.svg(\?|#|$)/i.test(value)) return false; // SVG is previewed as an image
+    return CODE_EXT_RE.test(value);
+}
+
+function codeLang(url) {
+    const ext = urlExt(url);
+    return LANG_LABELS[ext] || (ext ? ext.toUpperCase() : "Code");
+}
+
+function codeFileName(url) {
+    try {
+        const u = new URL(url.startsWith("//") ? "https:" + url : url);
+        return u.pathname.split("/").filter(Boolean).pop() || u.host;
+    } catch {
+        return url;
+    }
+}
+
+function formatBytes(n) {
+    if (n == null) return "";
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB`;
+    return `${(n / 1048576).toFixed(1)} MB`;
+}
+
+const codeCache = new Map(); // url -> payload | { error }
+let codeCard = null;
+let codeHead = null;
+let codeBody = null;
+let codeHideTimer = null;
+let codeShowTimer = null;
+let codeReqId = 0;
+
+function ensureCodeCard() {
+    if (codeCard) return codeCard;
+    codeHead = el("div", { class: "code-card-head" });
+    codeBody = el("div", { class: "code-card-body" });
+    codeCard = el("div", { class: "code-card", hidden: "" }, [codeHead, codeBody]);
+    codeCard.addEventListener("mouseenter", () => clearTimeout(codeHideTimer));
+    codeCard.addEventListener("mouseleave", scheduleHideCode);
+    document.body.appendChild(codeCard);
+    return codeCard;
+}
+
+function positionCodeCard(rect) {
+    if (!codeCard || codeCard.hidden) return;
+    const m = 8;
+    const w = codeCard.offsetWidth || 520;
+    const h = codeCard.offsetHeight || 320;
+    let left = rect.left;
+    if (left + w + m > window.innerWidth) left = window.innerWidth - w - m;
+    left = Math.max(m, left);
+    let top = rect.bottom + 6;
+    if (top + h + m > window.innerHeight) {
+        const above = rect.top - 6 - h;
+        top = above > m ? above : Math.max(m, window.innerHeight - h - m);
+    }
+    codeCard.style.left = left + "px";
+    codeCard.style.top = top + "px";
+}
+
+function codeIconButton(cls, label, svg) {
+    const b = el("button", { class: cls, type: "button", title: label, "aria-label": label });
+    b.innerHTML = svg;
+    return b;
+}
+
+function renderCodeHeader(url, payload) {
+    const lang = el("span", { class: "code-lang", text: codeLang(url) });
+    const name = el("span", { class: "code-name", text: codeFileName(url) });
+    const meta = el("span", {
+        class: "code-meta muted",
+        text: payload && !payload.error
+            ? `${formatBytes(payload.bytes)}${payload.truncated ? " · truncated" : ""}`
+            : "",
+    });
+    const open = el("a", {
+        class: "code-open",
+        href: url.startsWith("//") ? "https:" + url : url,
+        target: "_blank",
+        rel: "noreferrer",
+        title: "Open raw",
+        "aria-label": "Open raw",
+    });
+    open.innerHTML =
+        '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5C2 13.22 2.78 14 3.75 14h8.5A1.75 1.75 0 0 0 14 12.25v-3a.75.75 0 0 0-1.5 0v3a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5a.25.25 0 0 1 .25-.25h3a.75.75 0 0 0 0-1.5h-3Z"/><path fill="currentColor" d="M8.5 1.75A.75.75 0 0 1 9.25 1h5a.75.75 0 0 1 .75.75v5a.75.75 0 0 1-1.5 0V3.56L8.78 8.28a.75.75 0 1 1-1.06-1.06l4.72-4.72H9.25a.75.75 0 0 1-.75-.75Z"/></svg>';
+    const copy = codeIconButton(
+        "code-copy",
+        "Copy file",
+        '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M4 2.75A1.75 1.75 0 0 1 5.75 1h5.5A1.75 1.75 0 0 1 13 2.75v7.5A1.75 1.75 0 0 1 11.25 12h-5.5A1.75 1.75 0 0 1 4 10.25v-7.5Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .14.11.25.25.25h5.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25h-5.5ZM2 5.75A.75.75 0 0 1 2.75 5H3v1.5h-.25v6.75c0 .14.11.25.25.25h6.75V13H3.75A1.75 1.75 0 0 1 2 11.25v-5.5Z"/></svg>',
+    );
+    if (payload && !payload.error) {
+        copy.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            copyText(payload.text, copy);
+        });
+    } else {
+        copy.disabled = true;
+    }
+    codeHead.replaceChildren(lang, name, meta, open, copy);
+}
+
+function renderCodeBody(text, truncated) {
+    const MAX_LINES = 600;
+    const allLines = text.replace(/\n$/, "").split("\n");
+    const lines = allLines.slice(0, MAX_LINES);
+    const wrap = el("div", { class: "code-lines" });
+    const frag = document.createDocumentFragment();
+    lines.forEach((ln, i) => {
+        frag.appendChild(
+            el("div", { class: "cl" }, [
+                el("span", { class: "cl-n", text: String(i + 1) }),
+                el("span", { class: "cl-t", text: ln.length ? ln : " " }),
+            ]),
+        );
+    });
+    wrap.appendChild(frag);
+    codeBody.replaceChildren(el("div", { class: "code-scroll" }, [wrap]));
+    if (truncated || allLines.length > MAX_LINES) {
+        codeBody.appendChild(
+            el("div", {
+                class: "code-more muted",
+                text: `Showing ${lines.length} of ${allLines.length}${truncated ? "+" : ""} lines — open raw to see all.`,
+            }),
+        );
+    }
+}
+
+async function showCodeCard(url, node) {
+    hideImgTip();
+    const card = ensureCodeCard();
+    const token = ++codeReqId;
+    renderCodeHeader(url, null);
+    codeBody.replaceChildren(el("div", { class: "code-loading", text: "Loading…" }));
+    card.hidden = false;
+    positionCodeCard(node.getBoundingClientRect());
+    requestAnimationFrame(() => card.classList.add("visible"));
+
+    let payload = codeCache.get(url);
+    if (!payload) {
+        try {
+            const res = await fetch("/api/raw?u=" + encodeURIComponent(url));
+            payload = await res.json();
+        } catch {
+            payload = { error: "Couldn't load file." };
+        }
+        codeCache.set(url, payload);
+    }
+    if (token !== codeReqId || card.hidden) return; // superseded or dismissed
+    renderCodeHeader(url, payload);
+    if (payload.error) {
+        codeBody.replaceChildren(el("div", { class: "code-error", text: payload.error }));
+    } else {
+        renderCodeBody(payload.text, payload.truncated);
+    }
+    positionCodeCard(node.getBoundingClientRect());
+}
+
+function scheduleHideCode() {
+    clearTimeout(codeHideTimer);
+    codeHideTimer = setTimeout(hideCodeCard, 180);
+}
+
+function hideCodeCard() {
+    codeReqId += 1; // invalidate any in-flight fill
+    if (!codeCard) return;
+    codeCard.classList.remove("visible");
+    codeCard.hidden = true;
+}
+
+function bindCodeHover(node, url) {
+    node.addEventListener("mouseenter", () => {
+        clearTimeout(codeHideTimer);
+        clearTimeout(codeShowTimer);
+        codeShowTimer = setTimeout(() => showCodeCard(url, node), 200);
+    });
+    node.addEventListener("mouseleave", () => {
+        clearTimeout(codeShowTimer);
+        scheduleHideCode();
+    });
+}
+
 /* ---------------- Previews ---------------- */
 
 function labeledCard(name, color, card) {
@@ -294,34 +574,227 @@ function renderPreviews(data) {
 
 /* ---------------- Raw ---------------- */
 
-function valueCell(value) {
-    const td = el("td", { class: "v" });
-    const text = el("span", { class: "v-text" });
-    if (/^https?:\/\//i.test(value)) {
-        text.appendChild(el("a", { href: value, target: "_blank", rel: "noreferrer", text: value }));
-    } else {
-        text.textContent = value;
+/* ---------------- Rich value formatting ----------------
+   Emphasize well-known structured bits (colors, dimensions, booleans, locales,
+   types, handles, dates, links) so the raw table reads at a glance. */
+
+const HEX_COLOR_RE = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const FN_COLOR_RE = /^(?:rgb|rgba|hsl|hsla)\([^)]*\)$/i;
+const MIME_RE = /^[a-z]+\/[a-z0-9.+-]+$/i;
+const LOCALE_RE = /^[a-z]{2,3}(?:[_-][A-Za-z]{2,4})?$/;
+const ISO_DT_RE =
+    /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+
+function vtext(children, extraCls) {
+    return el("span", { class: "v-text" + (extraCls ? " " + extraCls : "") }, children);
+}
+
+/** Resolve "owner/repo" from a github.com URL, or null. */
+function nwoFromUrl(u) {
+    if (!u) return null;
+    try {
+        const url = new URL(/^https?:\/\//i.test(u) ? u : "https://" + u);
+        if (!/(^|\.)github\.com$/i.test(url.hostname)) return null;
+        const parts = url.pathname.split("/").filter(Boolean);
+        const reserved = ["orgs", "sponsors", "features", "about", "marketplace", "topics", "collections"];
+        if (parts.length >= 2 && !reserved.includes(parts[0].toLowerCase())) {
+            return `${parts[0]}/${parts[1]}`.replace(/\.git$/i, "");
+        }
+    } catch {
+        /* not a URL */
     }
-    td.appendChild(el("div", { class: "v-row" }, [text, copyButton(value, "Copy value")]));
+    return null;
+}
+
+/** Best-effort GitHub repo (owner/repo) for the currently loaded page. */
+function githubRepoNwo() {
+    const d = lastData;
+    if (!d) return null;
+    const groups = d.groups || {};
+    const metas = [...(groups.other || []), ...(groups.openGraph || []), ...(groups.twitter || [])];
+    const nwoMeta = metas.find(
+        (m) => /repository[_-]nwo|github:repo/i.test(m.key) && /^[\w.-]+\/[\w.-]+$/.test(m.value),
+    );
+    if (nwoMeta) return nwoMeta.value;
+    for (const u of [d.resolved && d.resolved.url, d.requestedUrl, d.resolved && d.resolved.hostname]) {
+        const nwo = nwoFromUrl(u);
+        if (nwo) return nwo;
+    }
+    return null;
+}
+
+function formatValue(key, value) {
+    const raw = String(value);
+    const v = raw.trim();
+    const lk = String(key).toLowerCase();
+
+    // Links
+    if (/^https?:\/\//i.test(v) || /^\/\//.test(v)) {
+        return vtext([
+            el("a", {
+                href: v.startsWith("//") ? "https:" + v : v,
+                target: "_blank",
+                rel: "noreferrer",
+                text: v,
+            }),
+        ]);
+    }
+
+    // Colors (hex / rgb / hsl, or color-named keys CSS can parse)
+    const colorish =
+        HEX_COLOR_RE.test(v) ||
+        FN_COLOR_RE.test(v) ||
+        (/color/.test(lk) && typeof CSS !== "undefined" && CSS.supports && CSS.supports("color", v));
+    if (colorish) {
+        return vtext(
+            [
+                el("span", { class: "color-swatch", style: `background:${v}` }),
+                el("code", { class: "vt-mono", text: v }),
+            ],
+            "vt-color",
+        );
+    }
+
+    // Numbers (dimensions, counts)
+    if (/^-?\d+(?:\.\d+)?$/.test(v)) {
+        const parts = [el("span", { class: "vt-num", text: v })];
+        if (/(width|height)/.test(lk)) parts.push(el("span", { class: "vt-unit", text: "px" }));
+        return vtext(parts);
+    }
+
+    // Booleans
+    if (/^(true|false|yes|no)$/i.test(v)) {
+        const on = /^(true|yes)$/i.test(v);
+        return vtext([el("span", { class: `vt-bool ${on ? "on" : "off"}`, text: v })]);
+    }
+
+    // Twitter/X handles -> link to the profile on x.com
+    const isHandleKey = /twitter/.test(lk) && /(?:^|[:._-])(site|creator)$/i.test(lk);
+    if (/^@[A-Za-z0-9_]{1,30}$/.test(v) || (isHandleKey && /^@?[A-Za-z0-9_]{1,30}$/.test(v))) {
+        const handle = v.replace(/^@/, "");
+        return vtext([
+            el("a", {
+                class: "vt-handle",
+                href: "https://x.com/" + handle,
+                target: "_blank",
+                rel: "noreferrer",
+                text: "@" + handle,
+            }),
+        ]);
+    }
+
+    // Git commit SHAs -> link to the GitHub commit when a repo is resolvable.
+    if (/^[0-9a-f]{7,40}$/i.test(v)) {
+        const shaKey = /(commit|sha|revision|changeset|\bgit\b|\brev\b)/i.test(lk);
+        const nwo = shaKey || v.length >= 20 ? githubRepoNwo() : null;
+        if (shaKey || nwo) {
+            const short = v.length > 12 ? v.slice(0, 10) : v;
+            if (nwo) {
+                return vtext([
+                    el("a", {
+                        class: "vt-commit",
+                        href: `https://github.com/${nwo}/commit/${v}`,
+                        target: "_blank",
+                        rel: "noreferrer",
+                        title: `${nwo}@${v}`,
+                        text: short,
+                    }),
+                ]);
+            }
+            return vtext([el("code", { class: "vt-mono", title: v, text: short })]);
+        }
+    }
+
+    // ISO date / time -> friendly, with the raw value preserved for copy/hover
+    if (ISO_DT_RE.test(v)) {
+        const d = new Date(v);
+        if (!Number.isNaN(d.getTime())) {
+            const nice = d.toLocaleString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+            });
+            return vtext([el("time", { class: "vt-time", datetime: v, title: v, text: nice })]);
+        }
+    }
+
+    // MIME types
+    if (MIME_RE.test(v)) {
+        return vtext([el("span", { class: "vt-token mono", text: v })]);
+    }
+
+    // Enumerated tokens on known structured keys
+    if (/(?:^|[:._-])(type|card|determiner)$/i.test(lk) && /^[a-z][\w.-]{0,40}$/i.test(v)) {
+        return vtext([el("span", { class: "vt-token accent", text: v })]);
+    }
+    if (/(?:^|[:._-])locale(?::alternate)?$/i.test(lk) && LOCALE_RE.test(v)) {
+        return vtext([el("span", { class: "vt-token mono", text: v })]);
+    }
+    if (/(?:^|[:._-])(charset|encoding|robots|googlebot|referrer|rating)$/i.test(lk)) {
+        return vtext([el("span", { class: "vt-token", text: v })]);
+    }
+
+    // Default
+    return vtext([raw]);
+}
+
+function valueCell(key, value) {
+    const td = el("td", { class: "v" });
+    const content = formatValue(key, value);
+    const row = el("div", { class: "v-row" }, [content, copyButton(value, "Copy value")]);
+    if (looksLikeImage(key, value) && /^(https?:)?\/\//i.test(value)) {
+        row.classList.add("has-img");
+        bindImageHover(content, value);
+    } else if (looksLikeCode(value)) {
+        row.classList.add("has-code");
+        bindCodeHover(content, value);
+    }
+    td.appendChild(row);
     return td;
+}
+
+/** Heuristic: does this key/value name an image asset we can preview? */
+function looksLikeImage(key, value) {
+    if (/(image|icon|favicon|logo|thumbnail|banner|photo|avatar|apple-touch)/i.test(key || "")) {
+        return true;
+    }
+    return /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico|tiff?)(\?|#|$)/i.test(value || "");
 }
 
 function kvTable(rows) {
     const table = el("table", { class: "kv" });
     for (const { key, value } of rows) {
         table.appendChild(
-            el("tr", null, [el("td", { class: "k", text: key }), valueCell(value)]),
+            el("tr", null, [
+                el("td", { class: "k", text: key }),
+                valueCell(key, value),
+            ]),
         );
     }
     return table;
 }
 
+function rawChevron() {
+    return el("span", {
+        class: "raw-chevron",
+        html: '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6 4l4 4-4 4V4z"/></svg>',
+    });
+}
+
 function rawGroup(title, rows) {
     if (!rows || rows.length === 0) return null;
-    return el("div", { class: "raw-group" }, [
-        el("h3", null, [title, el("span", { class: "count muted", text: `(${rows.length})` })]),
-        kvTable(rows),
-    ]);
+    const details = el("details", { class: "raw-group", open: "" });
+    details.appendChild(
+        el("summary", null, [
+            rawChevron(),
+            el("span", { class: "raw-title", text: title }),
+            el("span", { class: "count", text: String(rows.length) }),
+        ]),
+    );
+    details.appendChild(kvTable(rows));
+    return details;
 }
 
 function renderRaw(data) {
@@ -383,13 +856,6 @@ function renderDiagnostics(data) {
 
 /* ---------------- Footer (page info) ---------------- */
 
-function fact(label, valueNode) {
-    return el("div", { class: "fact" }, [
-        el("div", { class: "fact-label", text: label }),
-        el("div", { class: "fact-value" }, [valueNode]),
-    ]);
-}
-
 function statusPill(httpStatus) {
     const cls = !httpStatus ? "warn" : httpStatus < 300 ? "ok" : httpStatus < 400 ? "warn" : "req";
     return el("span", { class: `pill ${cls}`, text: httpStatus ? String(httpStatus) : "—" });
@@ -402,28 +868,54 @@ function renderFooter(data) {
         data.tagCount
     } tags`;
 
-    const urlNode = el("a", {
-        href: data.requestedUrl,
-        target: "_blank",
-        rel: "noreferrer",
-        text: data.requestedUrl,
-    });
-
-    const diagNode = el("span", null, [
+    // Compact stat strip: HTTP status, tag count, and diagnostics roll-up.
+    const stats = el("div", { class: "footer-stats" }, [
+        statusPill(data.httpStatus),
+        el("span", { class: "stat-chip" }, [
+            el("span", { class: "stat-num", text: String(data.tagCount) }),
+            el("span", { class: "stat-lbl", text: data.tagCount === 1 ? "tag" : "tags" }),
+        ]),
+        el("span", { class: "stat-sep" }),
         el("span", { class: "pill ok", text: `${counts.ok} ok` }),
-        " ",
         counts.warn ? el("span", { class: "pill warn", text: `${counts.warn} warn` }) : null,
-        counts.warn ? " " : null,
         counts.req ? el("span", { class: "pill req", text: `${counts.req} missing` }) : null,
     ]);
 
-    const body = $("#footer-body");
-    body.replaceChildren(
-        fact("Final URL", el("span", { class: "v-row" }, [urlNode, copyButton(data.requestedUrl, "Copy URL")])),
-        fact("HTTP status", statusPill(data.httpStatus)),
-        fact("Meta tags", el("span", { text: String(data.tagCount) })),
-        fact("Diagnostics", diagNode),
+    const rows = [stats];
+
+    rows.push(
+        el("div", { class: "footer-line" }, [
+            el("span", { class: "footer-line-label", text: "URL" }),
+            el("a", {
+                class: "footer-line-val",
+                href: data.requestedUrl,
+                target: "_blank",
+                rel: "noreferrer",
+                text: data.requestedUrl,
+            }),
+            copyButton(data.requestedUrl, "Copy URL"),
+        ]),
     );
+
+    // Only surface a canonical line when it actually differs from the request.
+    const canon = data.resolved && data.resolved.url;
+    if (canon && canon !== data.requestedUrl) {
+        rows.push(
+            el("div", { class: "footer-line" }, [
+                el("span", { class: "footer-line-label", text: "Canonical" }),
+                el("a", {
+                    class: "footer-line-val",
+                    href: canon,
+                    target: "_blank",
+                    rel: "noreferrer",
+                    text: canon,
+                }),
+                copyButton(canon, "Copy canonical URL"),
+            ]),
+        );
+    }
+
+    $("#footer-body").replaceChildren(...rows);
 }
 
 function setFooterOpen(open) {
@@ -455,6 +947,8 @@ function setStatus(kind, message) {
 async function load(rawUrl) {
     const url = withScheme(rawUrl);
     if (!url) return;
+    hideImgTip();
+    hideCodeCard();
     input.value = url;
     document.body.classList.add("has-data", "is-busy");
     setStatus("loading", `Fetching ${url} …`);
@@ -530,6 +1024,17 @@ $("#footer-toggle").addEventListener("click", () => {
     setFooterOpen($("#footer").dataset.collapsed === "true");
 });
 
+// Dismiss floating hover surfaces (image tip + code card) when context shifts.
+function dismissHovers() {
+    hideImgTip();
+    hideCodeCard();
+}
+$(".content").addEventListener("scroll", dismissHovers, { passive: true });
+window.addEventListener("blur", dismissHovers);
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") dismissHovers();
+});
+
 $("#copy-json").addEventListener("click", async () => {
     if (!lastData) return;
     const payload = JSON.stringify(
@@ -583,4 +1088,46 @@ const initial = new URLSearchParams(location.search).get("u");
 if (initial) {
     input.value = initial;
     load(initial);
+}
+
+/* ---------------- Theme awareness for preview cards ----------------
+   The brand cards mimic each platform, but should still read like that
+   platform's DARK UI when the app is in dark mode (instead of glaring white).
+   We can't trust data-color-mode (it may be "auto"), so derive the effective
+   mode from the actual computed background luminance and expose it as
+   body[data-mode]; CSS supplies brand dark variants under that selector. */
+function channelLuminance(rgb) {
+    const m = String(rgb).match(/[\d.]+/g);
+    if (!m || m.length < 3) return 1;
+    const [r, g, b] = m.slice(0, 3).map(Number);
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+
+function applyPreviewMode() {
+    try {
+        const bg = getComputedStyle(document.body).backgroundColor;
+        document.body.dataset.mode = channelLuminance(bg) < 0.5 ? "dark" : "light";
+    } catch {
+        /* getComputedStyle unavailable */
+    }
+}
+
+applyPreviewMode();
+try {
+    const themeObserver = new MutationObserver(applyPreviewMode);
+    const opts = {
+        attributes: true,
+        attributeFilter: [
+            "data-color-mode",
+            "data-visual-mode",
+            "data-dark-theme",
+            "data-light-theme",
+            "class",
+            "style",
+        ],
+    };
+    themeObserver.observe(document.documentElement, opts);
+    themeObserver.observe(document.body, opts);
+} catch {
+    /* MutationObserver unavailable */
 }
