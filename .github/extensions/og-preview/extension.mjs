@@ -134,14 +134,140 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 })();<\/script>`;
 }
 
-// Rewrite a fetched HTML document so it renders inside the browse frame: drop
-// the page's own <base> and any CSP <meta> (so our inline bridge isn't blocked),
-// then inject a <base href> pointing at the real origin plus the bridge script.
-function injectBrowseBridge(html, finalUrl, proxyBase) {
+// --- Browse proxy URL rewriting --------------------------------------------
+// To make a framed page interactive, its scripts/styles must load from OUR
+// loopback origin (same-origin-secure: we add Access-Control-Allow-Origin so the
+// sandboxed opaque-origin frame can fetch them — no allow-same-origin needed, so
+// the page still can't reach the host canvas). We use a PATH-style proxy URL,
+// /api/proxy/<scheme>/<host>/<path>, instead of ?u=<encoded>, specifically so a
+// bundled module's RELATIVE imports (./chunk.js) resolve against the proxied URL
+// and transparently route back through us — no JS import rewriting required for
+// the common case.
+
+/** Build a path-style proxy URL for an absolute http(s) URL (others pass through). */
+function proxyEncode(absUrl, appOrigin) {
+    let u;
+    try {
+        u = new URL(absUrl);
+    } catch {
+        return absUrl;
+    }
+    if (!/^https?:$/i.test(u.protocol)) return absUrl; // data:, mailto:, blob: …
+    const scheme = u.protocol.replace(/:$/, "");
+    return `${appOrigin}/api/proxy/${scheme}/${u.host}${u.pathname}${u.search}${u.hash}`;
+}
+
+/** Resolve a (possibly relative) spec against baseUrl and proxy it, or null. */
+function proxyResolve(spec, baseUrl, appOrigin) {
+    const s = String(spec || "").trim();
+    if (!s || s.charAt(0) === "#") return null;
+    if (/^(data:|blob:|mailto:|tel:|javascript:|about:|#)/i.test(s)) return null;
+    let abs;
+    try {
+        abs = new URL(s, baseUrl).toString();
+    } catch {
+        return null;
+    }
+    if (!/^https?:/i.test(abs)) return null;
+    return proxyEncode(abs, appOrigin);
+}
+
+/** Decode a path-style proxy path back to the real target URL (or null). */
+function proxyDecodePath(pathname, search) {
+    const rest = pathname.slice("/api/proxy/".length);
+    const i1 = rest.indexOf("/");
+    if (i1 < 0) return null;
+    const scheme = rest.slice(0, i1);
+    if (!/^https?$/i.test(scheme)) return null;
+    const after = rest.slice(i1 + 1);
+    const i2 = after.indexOf("/");
+    const host = i2 < 0 ? after : after.slice(0, i2);
+    const realPath = i2 < 0 ? "/" : after.slice(i2);
+    if (!host) return null;
+    return `${scheme}://${host}${realPath}${search || ""}`;
+}
+
+/** Rewrite root-relative / absolute ES-module import specifiers in JS to proxied
+ *  URLs. Relative (./, ../) specifiers are left alone — they resolve correctly
+ *  against the proxied module URL on their own. Conservative by design. */
+function rewriteJs(code, baseUrl, appOrigin) {
+    let out = code.replace(
+        /(\bfrom\s*|\bimport\s*|\bexport\s*(?:\*|\{[^}]*\})\s*from\s*)(["'])((?:\/|https?:\/\/)[^"']+)\2/g,
+        (m, pre, q, spec) => {
+            const px = proxyResolve(spec, baseUrl, appOrigin);
+            return px ? `${pre}${q}${px}${q}` : m;
+        }
+    );
+    out = out.replace(
+        /\bimport\(\s*(["'])((?:\/|https?:\/\/)[^"']+)\1\s*\)/g,
+        (m, q, spec) => {
+            const px = proxyResolve(spec, baseUrl, appOrigin);
+            return px ? `import(${q}${px}${q})` : m;
+        }
+    );
+    return out;
+}
+
+/** Rewrite url(...) and @import targets in CSS to proxied URLs (fixes web fonts,
+ *  which are CORS-fetched and otherwise blocked from the opaque-origin frame). */
+function rewriteCss(css, baseUrl, appOrigin) {
+    let out = css.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi, (m, q, spec) => {
+        if (/^data:/i.test(spec)) return m;
+        const px = proxyResolve(spec, baseUrl, appOrigin);
+        return px ? `url(${q}${px}${q})` : m;
+    });
+    out = out.replace(/@import\s+(["'])([^"']+)\1/gi, (m, q, spec) => {
+        const px = proxyResolve(spec, baseUrl, appOrigin);
+        return px ? `@import ${q}${px}${q}` : m;
+    });
+    return out;
+}
+
+// Rewrite a fetched HTML document so it renders AND runs inside the browse frame:
+// drop the page's own <base>/CSP, route scripts + stylesheets + fonts through our
+// ACAO proxy, rewrite inline module imports and inline-style urls, then inject our
+// <base href> (for un-rewritten relative links/images) and the nav bridge.
+function rewriteBrowseDoc(html, finalUrl, appOrigin) {
     let out = html
         .replace(/<base\b[^>]*>/gi, "")
         .replace(/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, "");
-    const inject = `<base href="${escapeHtmlAttr(finalUrl)}">` + browseBridgeScript(finalUrl, proxyBase);
+
+    // <script src="…"> (classic + module) → proxied
+    out = out.replace(
+        /<script\b([^>]*?)\ssrc\s*=\s*("([^"]*)"|'([^']*)')([^>]*)>/gi,
+        (m, pre, _raw, dq, sq, post) => {
+            const spec = dq !== undefined ? dq : sq;
+            const px = proxyResolve(spec, finalUrl, appOrigin);
+            return px ? `<script${pre} src="${escapeHtmlAttr(px)}"${post}>` : m;
+        }
+    );
+
+    // <link rel="stylesheet|preload|modulepreload" href="…"> → proxied
+    out = out.replace(/<link\b[^>]*>/gi, (tag) => {
+        if (!/\brel\s*=\s*["']?\s*(?:stylesheet|preload|modulepreload)/i.test(tag)) return tag;
+        return tag.replace(/\shref\s*=\s*("([^"]*)"|'([^']*)')/i, (hm, _raw, dq, sq) => {
+            const spec = dq !== undefined ? dq : sq;
+            const px = proxyResolve(spec, finalUrl, appOrigin);
+            return px ? ` href="${escapeHtmlAttr(px)}"` : hm;
+        });
+    });
+
+    // Inline <style>…</style> → rewrite url()/@import (web fonts)
+    out = out.replace(
+        /<style\b([^>]*)>([\s\S]*?)<\/style>/gi,
+        (m, attrs, body) => `<style${attrs}>${rewriteCss(body, finalUrl, appOrigin)}</style>`
+    );
+
+    // Inline <script type="module">…</script> (no src) → rewrite import specifiers
+    out = out.replace(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi, (m, attrs, body) => {
+        if (/\ssrc\s*=/i.test(attrs)) return m; // external handled above
+        if (!/type\s*=\s*["']?module/i.test(attrs)) return m; // classic scripts unaffected
+        return `<script${attrs}>${rewriteJs(body, finalUrl, appOrigin)}</script>`;
+    });
+
+    const inject =
+        `<base href="${escapeHtmlAttr(finalUrl)}">` +
+        browseBridgeScript(finalUrl, appOrigin + "/api/proxy");
     if (/<head[^>]*>/i.test(out)) {
         out = out.replace(/<head[^>]*>/i, (m) => m + inject);
     } else if (/<html[^>]*>/i.test(out)) {
@@ -336,6 +462,61 @@ async function handleRequest(entry, req, res) {
         }
     }
 
+    // Path-style proxy for browse subresources: /api/proxy/<scheme>/<host>/<path>.
+    // Used for scripts, stylesheets, fonts, images referenced by a proxied page.
+    // Serves with Access-Control-Allow-Origin so the opaque-origin frame can load
+    // them, and rewrites JS imports / CSS urls so the dependency graph stays inside
+    // the proxy. The path layout makes relative module imports resolve correctly.
+    if (path.startsWith("/api/proxy/")) {
+        const target = proxyDecodePath(path, reqUrl.search);
+        if (!target) {
+            res.statusCode = 400;
+            return res.end("Bad proxy path");
+        }
+        const appOrigin = "http://" + (req.headers.host || "127.0.0.1");
+        try {
+            const r = await fetchUrl(target, { accept: "*/*", timeoutMs: 15000 });
+            const ct = r.contentType || "";
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            res.setHeader("Cache-Control", "public, max-age=300");
+            const realPath = (() => {
+                try {
+                    return new URL(r.url).pathname;
+                } catch {
+                    return "";
+                }
+            })();
+            const isJs =
+                /javascript|ecmascript/i.test(ct) || /\.m?js($|\?)/i.test(realPath);
+            const isCss = /text\/css/i.test(ct) || /\.css($|\?)/i.test(realPath);
+            const isHtml =
+                /text\/html|application\/xhtml\+xml/i.test(ct) ||
+                (!ct && /<!doctype|<html/i.test(r.body.slice(0, 256).toString("utf8")));
+            if (isJs) {
+                res.statusCode = r.status >= 400 ? r.status : 200;
+                res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+                return res.end(rewriteJs(r.body.toString("utf8"), r.url, appOrigin));
+            }
+            if (isCss) {
+                res.statusCode = r.status >= 400 ? r.status : 200;
+                res.setHeader("Content-Type", "text/css; charset=utf-8");
+                return res.end(rewriteCss(r.body.toString("utf8"), r.url, appOrigin));
+            }
+            if (isHtml) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", "text/html; charset=utf-8");
+                return res.end(rewriteBrowseDoc(r.body.toString("utf8"), r.url, appOrigin));
+            }
+            res.statusCode = r.status >= 400 ? r.status : 200;
+            res.setHeader("Content-Type", ct || "application/octet-stream");
+            return res.end(r.body);
+        } catch (err) {
+            res.statusCode = 502;
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            return res.end(String(err && err.message ? err.message : err));
+        }
+    }
+
     if (path === "/api/proxy") {
         const u = reqUrl.searchParams.get("u");
         if (!u) {
@@ -350,6 +531,8 @@ async function handleRequest(entry, req, res) {
             const ct = r.contentType || "";
             const isHtml = !ct || /text\/html|application\/xhtml\+xml|\/xml|text\/plain/i.test(ct);
             res.setHeader("Cache-Control", "no-store");
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            const appOrigin = "http://" + (req.headers.host || "127.0.0.1");
             if (!isHtml) {
                 // Serve non-HTML targets (images, PDFs, …) verbatim so links to
                 // them still render inside the browse frame.
@@ -361,8 +544,7 @@ async function handleRequest(entry, req, res) {
             // X-Frame-Options / CSP, so the page is embeddable in the canvas.
             res.statusCode = 200;
             res.setHeader("Content-Type", "text/html; charset=utf-8");
-            const appOrigin = "http://" + (req.headers.host || "127.0.0.1");
-            return res.end(injectBrowseBridge(r.body.toString("utf8"), r.url, appOrigin + "/api/proxy"));
+            return res.end(rewriteBrowseDoc(r.body.toString("utf8"), r.url, appOrigin));
         } catch (err) {
             res.statusCode = 200;
             res.setHeader("Content-Type", "text/html; charset=utf-8");
