@@ -96,8 +96,27 @@ function browseBridgeScript(finalUrl, proxyBase) {
     return `<script>(function(){
 var REAL=${real};
 var PROXY=${base};
-function post(u){try{parent.postMessage({source:"og-browse",type:"nav",url:u},"*");}catch(e){}}
+/* This frame is sandboxed without allow-same-origin (so it can't escape to the
+   host canvas), which gives it an opaque origin. On an opaque origin, touching
+   localStorage / sessionStorage / document.cookie throws SecurityError, which
+   crashes most frameworks during boot and stops hydration. Shim them with
+   in-memory stores so JS-driven content can render. */
+function memStore(){var m={};var api={getItem:function(k){return Object.prototype.hasOwnProperty.call(m,k)?m[k]:null;},setItem:function(k,v){m[String(k)]=String(v);},removeItem:function(k){delete m[String(k)];},clear:function(){for(var k in m){if(Object.prototype.hasOwnProperty.call(m,k))delete m[k];}},key:function(i){return Object.keys(m)[i]||null;}};try{Object.defineProperty(api,"length",{get:function(){return Object.keys(m).length;}});}catch(_){}return api;}
+function shimStore(name){try{window[name].getItem("__og_probe__");return;}catch(e){}try{Object.defineProperty(window,name,{value:memStore(),configurable:true});}catch(_){}}
+shimStore("localStorage");shimStore("sessionStorage");
+try{document.cookie;}catch(ce){var _ck="";try{Object.defineProperty(document,"cookie",{configurable:true,get:function(){return _ck;},set:function(v){var p=String(v).split(";")[0];if(p)_ck=_ck?_ck+"; "+p:p;}});}catch(_){}}
+function post(u,mode){try{parent.postMessage({source:"og-browse",type:"nav",url:u,mode:mode||"hard"},"*");}catch(e){}}
 function px(a){return PROXY+"?u="+encodeURIComponent(a);}
+/* Map a navigation target to a real http(s) URL. SPAs often build URLs from
+   window.location (which is about:srcdoc in this frame), yielding values like
+   "about:srcdoc?aspire-lang=csharp". Re-apply such a URL's query/hash onto the
+   real page URL so navigation points at a real page, not about:srcdoc. */
+function resolveNav(u){
+ var x;try{x=new URL(String(u),REAL);}catch(_){return null;}
+ if(/^https?:$/i.test(x.protocol))return x.toString();
+ if(x.protocol==="about:"){try{var b=new URL(REAL);b.search=x.search||"";b.hash=x.hash||"";return b.toString();}catch(_){return null;}}
+ return null;
+}
 document.addEventListener("click",function(e){
  if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
  var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;
@@ -106,13 +125,12 @@ document.addEventListener("click",function(e){
  if(!href||href.charAt(0)==="#")return;
  if(/^(mailto:|tel:|javascript:|data:)/i.test(href))return;
  if(a.target&&a.target!==""&&a.target!=="_self")return;
- var abs;try{abs=new URL(a.href,REAL).toString();}catch(_){return;}
- if(!/^https?:/i.test(abs))return;
- e.preventDefault();post(abs);
+ var abs=resolveNav(a.href);if(!abs)return;
+ e.preventDefault();post(abs,"hard");
 },true);
-function wrap(n){var o=history[n];if(typeof o!=="function")return;history[n]=function(){var r=o.apply(this,arguments);try{var u=arguments[2];if(u!=null)post(new URL(String(u),REAL).toString());}catch(_){}return r;};}
+function wrap(n){var o=history[n];if(typeof o!=="function")return;history[n]=function(){var r=o.apply(this,arguments);try{var u=arguments[2];if(u!=null){var nav=resolveNav(u);if(nav)post(nav,"soft");}}catch(_){}return r;};}
 wrap("pushState");wrap("replaceState");
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){post(REAL);});else post(REAL);
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){post(REAL,"init");});else post(REAL,"init");
 })();<\/script>`;
 }
 

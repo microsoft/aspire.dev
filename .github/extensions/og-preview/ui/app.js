@@ -51,6 +51,10 @@ const OCTICONS = {
         '<path fill="currentColor" d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 2 2 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a2 2 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 2 2 0 0 0-2.83 0l-2.5 2.5a2 2 0 0 0 0 2.83Z"/>',
     "link-external":
         '<path fill="currentColor" d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5C2 13.22 2.78 14 3.75 14h8.5A1.75 1.75 0 0 0 14 12.25v-3a.75.75 0 0 0-1.5 0v3a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5a.25.25 0 0 1 .25-.25h3a.75.75 0 0 0 0-1.5h-3Z"/><path fill="currentColor" d="M8.5 1.75A.75.75 0 0 1 9.25 1h5a.75.75 0 0 1 .75.75v5a.75.75 0 0 1-1.5 0V3.56L8.78 8.28a.75.75 0 1 1-1.06-1.06l4.72-4.72H9.25a.75.75 0 0 1-.75-.75Z"/>',
+    "list-unordered":
+        '<path fill="currentColor" d="M5.75 2.5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5ZM2 14a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm1-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM2 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>',
+    apps:
+        '<path fill="currentColor" d="M2.75 2.5a.25.25 0 0 0-.25.25v1.5c0 .138.112.25.25.25h1.5a.25.25 0 0 0 .25-.25v-1.5a.25.25 0 0 0-.25-.25Zm-1.75.25C1 1.784 1.784 1 2.75 1h1.5c.966 0 1.75.784 1.75 1.75v1.5A1.75 1.75 0 0 1 4.25 6h-1.5A1.75 1.75 0 0 1 1 4.25Zm9-.25a.25.25 0 0 0-.25.25v1.5c0 .138.112.25.25.25h1.5a.25.25 0 0 0 .25-.25v-1.5a.25.25 0 0 0-.25-.25ZM10 2.75C10 1.784 10.784 1 11.75 1h1.5C14.216 1 15 1.784 15 2.75v1.5A1.75 1.75 0 0 1 13.25 6h-1.5A1.75 1.75 0 0 1 10 4.25Zm-7.25 7.75a.25.25 0 0 0-.25.25v1.5c0 .138.112.25.25.25h1.5a.25.25 0 0 0 .25-.25v-1.5a.25.25 0 0 0-.25-.25ZM1 11.75C1 10.784 1.784 10 2.75 10h1.5c.966 0 1.75.784 1.75 1.75v1.5A1.75 1.75 0 0 1 4.25 15h-1.5A1.75 1.75 0 0 1 1 13.25Zm10.75-1.75a.25.25 0 0 0-.25.25v1.5c0 .138.112.25.25.25h1.5a.25.25 0 0 0 .25-.25v-1.5a.25.25 0 0 0-.25-.25ZM10 11.75c0-.966.784-1.75 1.75-1.75h1.5c.966 0 1.75.784 1.75 1.75v1.5A1.75 1.75 0 0 1 13.25 15h-1.5A1.75 1.75 0 0 1 10 13.25Z"/>',
 };
 
 function octicon(name, size, cls) {
@@ -1283,6 +1287,49 @@ document.querySelectorAll(".tab").forEach((tab) => {
     });
 });
 
+/* ---------------- Previews layout toggle (List default / Grid compact) ----
+   The #previews element is persistent (renderPreviews only swaps its children),
+   so a layout-* class set here survives re-renders. */
+const LAYOUT_KEY = "og-preview:layout";
+
+function setPreviewsLayout(mode) {
+    const m = mode === "grid" ? "grid" : "list";
+    const grid = $("#previews");
+    if (grid) {
+        grid.classList.toggle("layout-grid", m === "grid");
+        grid.classList.toggle("layout-list", m === "list");
+    }
+    const lb = $("#layout-list");
+    const gb = $("#layout-grid");
+    if (lb && gb) {
+        lb.classList.toggle("active", m === "list");
+        gb.classList.toggle("active", m === "grid");
+        lb.setAttribute("aria-pressed", String(m === "list"));
+        gb.setAttribute("aria-pressed", String(m === "grid"));
+    }
+    try {
+        localStorage.setItem(LAYOUT_KEY, m);
+    } catch {
+        /* storage unavailable */
+    }
+}
+
+(function initPreviewsLayout() {
+    const lb = $("#layout-list");
+    const gb = $("#layout-grid");
+    if (lb && !lb.querySelector(".octicon")) lb.appendChild(octicon("list-unordered", 16));
+    if (gb && !gb.querySelector(".octicon")) gb.appendChild(octicon("apps", 16));
+    if (lb) lb.addEventListener("click", () => setPreviewsLayout("list"));
+    if (gb) gb.addEventListener("click", () => setPreviewsLayout("grid"));
+    let saved = "list";
+    try {
+        saved = localStorage.getItem(LAYOUT_KEY) || "list";
+    } catch {
+        /* storage unavailable */
+    }
+    setPreviewsLayout(saved);
+})();
+
 /* ---------------- Browse tab (live page + route mirroring) ----------------
    A sandboxed iframe renders the live page through the same-origin /api/proxy
    (so any site embeds and its in-page navigation can flow back here). Editing
@@ -1387,11 +1434,20 @@ $("#browse-open").addEventListener("click", () => {
 window.addEventListener("message", (e) => {
     const m = e && e.data;
     if (!m || m.source !== "og-browse" || m.type !== "nav" || !m.url) return;
+    if (!/^https?:\/\//i.test(m.url)) return; // ignore non-http targets (e.g. about:srcdoc)
     browseInput.value = m.url;
     if (canonUrl(m.url) === browseFrameUrl) return; // echo from our own render
     browseFrameUrl = canonUrl(m.url); // genuine in-frame route change
     input.value = m.url; // bind the top-level URL to the browsed route
-    navBrowseFrame(m.url); // advance the embedded frame to the clicked page
+    if (m.mode === "soft") {
+        // SPA history change (pushState/replaceState): the frame already updated
+        // its own DOM in place. Re-rendering it via /api/proxy would wipe that
+        // client-side state (e.g. aspire.dev's selected language tab snapping back
+        // to the default), so only refresh the previews — never reload the frame.
+        scheduleBrowsePreview(m.url);
+        return;
+    }
+    navBrowseFrame(m.url); // hard nav (link click) / initial: advance the frame
     scheduleBrowsePreview(m.url); // refresh the previews (skipBrowse)
 });
 
