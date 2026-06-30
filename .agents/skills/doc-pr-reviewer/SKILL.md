@@ -80,6 +80,40 @@ For each non-`narrative` claim:
    - `contradicted` — the source code says something different than the PR claims; include both texts
 4. Do not infer from documentation, blog posts, or other branches. The branch you actually checked out and recorded for that repo (per the **Source of truth** section — the PR's matching branch, or the documented fallback when none matches) is the only source of truth.
 
+## Current-version placeholder review
+
+When a docs PR adds or edits Aspire version strings, check whether the version
+is intended to represent the current release or an intentionally fixed version.
+The docs site provides placeholders for current-version values:
+
+| Placeholder | Use for |
+|-------------|---------|
+| `%ASPIRE_VERSION%` | Full current Aspire version, including patch (for example, `13.5.0`) |
+| `%ASPIRE_VERSION_MAJOR_MINOR%` | Current Aspire major/minor display version (for example, `13.5`) |
+
+Flag hard-coded Aspire versions as a review finding when they appear in current
+copy/paste guidance that should track the active release, including:
+
+- `Aspire.AppHost.Sdk` declarations in project files or file-based apps.
+- `#:package Aspire.*@...` file-based app package directives.
+- Aspire CLI or AppHost sample output that reports the current CLI/AppHost
+  version.
+- Getting started, installation, or "use this today" examples that should move
+  with the release branch.
+
+Do **not** require placeholders for intentionally fixed versions, including:
+
+- What's-new or release-note pages that describe a specific historical release.
+- Upgrade examples that deliberately compare old and new versions.
+- CLI examples where the point is pinning a specific version with `--version`,
+  `-Version`, or `Aspire.ProjectTemplates::...`.
+- Versioned schema URLs, package compatibility notes, minimum-version
+  requirements, third-party dependency versions, container image tags, or issue
+  reproduction snippets.
+
+If the intent is ambiguous, leave a `COMMENT` asking whether the version should
+track the current release instead of requesting changes outright.
+
 ## Phase A artifact
 
 When Phase A finishes, write down (in memory) a frozen Phase A result containing:
