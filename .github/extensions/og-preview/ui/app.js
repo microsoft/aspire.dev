@@ -1221,6 +1221,51 @@ function setStatus(kind, message) {
     statusEl.textContent = message;
 }
 
+/* Slim top trickle bar (replaces the old "Fetching…" status card). Real
+   byte-progress isn't meaningful here — the server fetches the page and returns
+   a small JSON blob — so we ease toward a ~90% cap while waiting and snap to
+   100% on completion. Visibility (fade in/out) is driven by body.is-busy in CSS;
+   this only animates the fill width. */
+const progressBar = $("#progress-bar");
+let progressTimer = null;
+let progressResetTimer = null;
+let progressValue = 0;
+
+function setProgressWidth(pct) {
+    progressValue = pct;
+    progressBar.style.width = pct + "%";
+}
+
+function resetProgressWidth() {
+    // Snap to 0 without animating, so the next load fills from the left edge.
+    progressBar.style.transition = "none";
+    setProgressWidth(0);
+    void progressBar.offsetWidth; // force reflow before re-enabling transition
+    progressBar.style.transition = "";
+}
+
+function startProgress() {
+    clearInterval(progressTimer);
+    clearTimeout(progressResetTimer);
+    resetProgressWidth();
+    setProgressWidth(10);
+    progressTimer = setInterval(() => {
+        const remaining = 90 - progressValue;
+        if (remaining <= 0.5) return;
+        // Decelerating trickle: bigger steps early, smaller near the cap.
+        setProgressWidth(progressValue + Math.max(0.5, remaining * 0.12));
+    }, 220);
+}
+
+function finishProgress() {
+    clearInterval(progressTimer);
+    clearTimeout(progressResetTimer);
+    setProgressWidth(100);
+    // After the fill completes and the container fades (body.is-busy removed),
+    // snap back to 0 so a subsequent load starts clean.
+    progressResetTimer = setTimeout(resetProgressWidth, 450);
+}
+
 async function load(rawUrl, opts) {
     const url = withScheme(rawUrl);
     if (!url) return;
@@ -1229,7 +1274,7 @@ async function load(rawUrl, opts) {
     hideCodeCard();
     input.value = url;
     document.body.classList.add("has-data", "is-busy");
-    setStatus("loading", `Fetching ${url} …`);
+    startProgress();
     $("#footer-summary").textContent = `Loading ${url} …`;
     // Show realistic shaped skeletons immediately so the layout is stable.
     renderSkeleton();
@@ -1262,6 +1307,7 @@ async function load(rawUrl, opts) {
         setStatus("error", `Couldn't load metadata: ${err.message}`);
         $("#footer-summary").textContent = `Failed to load ${url}`;
     } finally {
+        finishProgress();
         document.body.classList.remove("is-busy");
     }
 }
