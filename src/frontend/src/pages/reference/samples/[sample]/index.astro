@@ -1,6 +1,5 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import { getImage } from 'astro:assets';
 
 import Breadcrumb from '@components/Breadcrumb.astro';
 import SampleDetail from '@components/SampleDetail.astro';
@@ -17,22 +16,15 @@ export function getStaticPaths() {
 const { sample } = Astro.props as { sample: Sample };
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const samplesHref = `${base}/reference/samples/`;
-const allImages = import.meta.glob<{ default: ImageMetadata }>(
-  '/src/assets/samples/**/*.{png,jpg,jpeg,gif,svg,webp}',
-  { eager: true }
-);
 
-function resolveImage(thumbnail: string | null): ImageMetadata | null {
-  if (!thumbnail) return null;
-  const importPath = thumbnail.replace('~/assets/', '/src/assets/');
-  const entry = allImages[importPath];
-  return entry?.default ?? null;
-}
-
-const resolvedThumbnail = resolveImage(sample.thumbnail);
-const sampleOgImage = resolvedThumbnail
-  ? (await getImage({ src: resolvedThumbnail, width: 1200 })).src
-  : undefined;
+// Point `og:image` at the stable, hash-free PNG served by
+// `pages/og/reference/samples/[sample].png.ts`. Referencing the optimized
+// `_astro/<name>.<hash>.webp` asset here would bake a per-build content hash
+// into the absolute (https://aspire.dev) `og:image`, which 404s on any
+// deployment whose build hash differs from production's (e.g. staging). The
+// endpoint serves a card for every sample (thumbnail when present, branded
+// fallback otherwise), so this is always set.
+const sampleOgImage = `${base}/og/reference/samples/${sampleSlug(sample.name)}.png`;
 const description =
   sampleDescriptionText(sample.description)
     ?.split('\n')
@@ -44,7 +36,7 @@ const description =
   frontmatter={{
     title: sample.title,
     description,
-    ...(sampleOgImage ? { ogImage: sampleOgImage } : {}),
+    ogImage: sampleOgImage,
     topic: 'reference',
     category: 'sample',
     prev: false,

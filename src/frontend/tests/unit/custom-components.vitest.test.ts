@@ -388,6 +388,24 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['Visualize your app', 'Zoomed diagram', 'Read the guide'],
   },
   {
+    name: 'ImageShowcase renders theme-aware images',
+    Component: ImageShowcase,
+    props: {
+      title: 'Debug with agents',
+      description: 'Give agents dashboard context.',
+      lightImage: heroImage,
+      darkImage: heroImage,
+      imageAlt: 'Themed dashboard dialog',
+    },
+    includes: [
+      'Debug with agents',
+      'theme-image',
+      'data-light=',
+      'data-dark=',
+      'Themed dashboard dialog',
+    ],
+  },
+  {
     name: 'LoopingVideo renders sources and toggle button state',
     Component: LoopingVideo,
     props: {
@@ -594,7 +612,17 @@ const sampleDetailFixture = {
     '',
     '![Screenshot of the sample](~/assets/samples/aspire-shop/aspireshop-frontend-complete.png)',
     '',
+    '**Theme-aware view**',
+    '',
+    '![Theme-aware app in light mode](~/assets/samples/aspire-shop/aspireshop-frontend-light.png#gh-light-mode-only)',
+    '![Theme-aware app in dark mode](~/assets/samples/aspire-shop/aspireshop-frontend-dark.png#gh-dark-mode-only)',
+    '',
+    '![Partial theme fallback in light mode](~/assets/samples/aspire-shop/aspireshop-frontend-light.png#gh-light-mode-only)',
+    '![Partial theme fallback in dark mode](~/assets/samples/aspire-shop/missing-dark.png#gh-dark-mode-only)',
+    '',
     'See the [application project](./src/RedisSample.AppHost) for implementation details.',
+    '',
+    'A [broken empty link]() must be dropped, not rewritten.',
     '',
     '1. Open the app.',
     '',
@@ -663,6 +691,18 @@ const sampleGridSamples = [
     readme: 'README.md',
     tags: ['metrics', 'postgresql'],
     thumbnail: null,
+  },
+  {
+    name: 'aspire-shop',
+    title: 'Aspire Shop',
+    description: 'Catalog and cart sample.',
+    href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/aspire-shop',
+    readme: 'README.md',
+    tags: ['blazor'],
+    thumbnail: {
+      light: '~/assets/samples/aspire-shop/aspireshop-frontend-light.png#gh-light-mode-only',
+      dark: '~/assets/samples/aspire-shop/aspireshop-frontend-dark.png#gh-dark-mode-only',
+    },
   },
 ];
 
@@ -790,8 +830,13 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('aria-label="1 sample"');
     expect(html).toContain('Orders sample');
     expect(html).toContain('Catalog sample');
+    expect(html).toContain('Aspire Shop');
     expect(html).toContain('/reference/samples/orders/');
     expect(html).toContain('/reference/samples/catalog/');
+    expect(html).toContain('/reference/samples/aspire-shop/');
+    expect(html).toContain('theme-image');
+    expect(html).toContain('data-light=');
+    expect(html).toContain('data-dark=');
     expect(html).toContain('Try removing a filter or adjusting your search.');
 
     // The redesigned filter UI replaces the boxy "Filtered by" bar with a
@@ -854,13 +899,32 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('Screenshot of the sample');
     expect(html).toContain('starlight-image-zoom-zoomable');
     expect(html).toContain('Zoom image: Screenshot of the sample');
+    expect(html).toContain('Zoom image: Theme-aware app');
+    expect(html).toContain('Zoom image: Partial theme fallback');
     expect(html).toContain('Zoom image: Screenshot of the sample step');
     expect(html).toContain('Select an image to zoom in.');
+    expect(html).toContain('theme-image');
+    expect(html).toContain('data-light=');
+    expect(html).toContain('data-dark=');
+    expect(html).toMatch(/<figcaption[^>]*>Theme-aware app<\/figcaption>/);
+    expect(html).not.toContain('Theme-aware app in light mode');
+    expect(html).not.toContain('Theme-aware app in dark mode');
+    expect(html).toMatch(/<figcaption[^>]*>Partial theme fallback<\/figcaption>/);
+    expect(html).not.toContain('Partial theme fallback in light mode');
+    expect(html).not.toContain('Partial theme fallback in dark mode');
     expect(html).toContain('View on GitHub');
     expect(html).toContain('Browse all samples');
     expect(html).toContain('href="/reference/samples/"');
     expect(html).toContain(
       'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample/src/RedisSample.AppHost"'
+    );
+
+    // A link with an empty destination (`[text]()`) must be dropped entirely —
+    // matching the previous marked renderer — rather than being rewritten to a
+    // broken sample-relative URL pointing at the sample root (PR #1311 review).
+    expect(html).not.toContain('broken empty link');
+    expect(html).not.toContain(
+      'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample/"'
     );
 
     // The AppHost code section renders above the README with the kicker,
@@ -895,6 +959,7 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('Zoom image: React app');
     expect(html).not.toMatch(/<p>\s*<strong>\s*Angular\s*<\/strong>\s*<\/p>/);
     expect(html).not.toMatch(/<p>\s*<strong>\s*React\s*<\/strong>\s*<\/p>/);
+    expect(html).not.toMatch(/<p>\s*<strong>\s*Theme-aware view\s*<\/strong>\s*<\/p>/);
 
     // The primary "View on GitHub" CTA in the hero uses the Starlight `github`
     // icon on the left of the label and no longer ships the external-link
@@ -968,7 +1033,9 @@ describe('custom Astro component render coverage', () => {
     //    time in the README body and the count rises to 2.
     const escaped = distinctiveSummarySentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const summaryMatches = html.match(new RegExp(escaped, 'g')) ?? [];
-    expect(summaryMatches.length, 'summary sentence should appear exactly once (hero only)').toBe(1);
+    expect(summaryMatches.length, 'summary sentence should appear exactly once (hero only)').toBe(
+      1
+    );
 
     // 2. The long emphasized label is gone from the body. Its image still
     //    surfaces in the gallery so the screenshot itself is preserved.

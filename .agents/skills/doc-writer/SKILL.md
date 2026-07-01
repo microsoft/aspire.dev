@@ -105,7 +105,7 @@ draft can land slightly off-target and tighten in follow-ups.
 
 ### Required Imports
 
-Import Starlight components at the top of your MDX file:
+Import Starlight components at the top of your MDX file, or custom components as needed:
 
 ```tsx
 import {
@@ -115,8 +115,8 @@ import {
   Tabs,
   TabItem,
   Icon,
-  FileTree,
 } from "@astrojs/starlight/components";
+import FileTree from "starlight-plugin-icons/components/FileTree.astro";
 ```
 
 Additional commonly used imports:

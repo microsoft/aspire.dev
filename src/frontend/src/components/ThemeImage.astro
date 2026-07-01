@@ -11,6 +11,9 @@ export interface Props {
   href?: string;
 }
 
+import { Image, getImage } from 'astro:assets';
+import { Zoom } from 'starlight-image-zoom/components';
+
 const {
   light,
   dark,
@@ -23,50 +26,37 @@ const {
   href,
 } = Astro.props as Props;
 
-import { Zoom } from 'starlight-image-zoom/components';
+const imageWidth = width ?? dark.width;
+const imageHeight = height ?? dark.height;
+const imageClass = [classOverride, 'theme-image'].filter(Boolean).join(' ');
+const imageOptions = { width: imageWidth, height: imageHeight };
+const optimizedLight = await getImage({ src: light, ...imageOptions });
+const optimizedDark = await getImage({ src: dark, ...imageOptions });
+const themedImageProps = {
+  src: dark,
+  alt,
+  'data-light': optimizedLight.src,
+  'data-dark': optimizedDark.src,
+  'data-light-srcset': optimizedLight.srcSet.attribute,
+  'data-dark-srcset': optimizedDark.srcSet.attribute,
+  width: imageWidth,
+  height: imageHeight,
+  decoding: 'async' as const,
+  loading: 'lazy' as const,
+};
 ---
 
 {
   href ? (
     <a href={href} title={href} class="theme-image-link">
-      <img
-        class:list={[classOverride, 'theme-image']}
-        src={dark.src}
-        alt={alt}
-        data-light={light.src}
-        data-dark={dark.src}
-        {...(height ? { height } : {})}
-        {...(width ? { width } : {})}
-        decoding="async"
-        loading="lazy"
-      />
+      <Image class={imageClass} {...themedImageProps} />
     </a>
   ) : zoomable ? (
     <Zoom label={label ?? alt}>
-      <img
-        class:list={[classOverride, 'theme-image']}
-        src={dark.src}
-        alt={alt}
-        data-light={light.src}
-        data-dark={dark.src}
-        {...(height ? { height } : {})}
-        {...(width ? { width } : {})}
-        decoding="async"
-        loading="lazy"
-      />
+      <Image class={imageClass} {...themedImageProps} />
     </Zoom>
   ) : (
-    <img
-      class:list={[classOverride, 'theme-image']}
-      src={dark.src}
-      alt={alt}
-      data-light={light.src}
-      data-dark={dark.src}
-      {...(height ? { height } : {})}
-      {...(width ? { width } : {})}
-      decoding="async"
-      loading="lazy"
-    />
+    <Image class={imageClass} {...themedImageProps} />
   )
 }
 
@@ -78,8 +68,13 @@ import { Zoom } from 'starlight-image-zoom/components';
     document.querySelectorAll('.theme-image').forEach((img) => {
       if (img instanceof HTMLImageElement) {
         const targetSrc = (theme === 'dark' ? img.dataset.dark : img.dataset.light) || '';
+        const targetSrcset =
+          (theme === 'dark' ? img.dataset.darkSrcset : img.dataset.lightSrcset) || '';
         if (targetSrc && img.src !== targetSrc) {
           img.src = targetSrc;
+        }
+        if (img.srcset !== targetSrcset) {
+          img.srcset = targetSrcset;
         }
       }
     });

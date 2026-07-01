@@ -58,7 +58,7 @@ For C# apps, use the OpenFeature SDK with the flagd provider. Install the [📦 
 
 In _Program.cs_, read the Aspire-injected connection string and register the flagd provider with the OpenFeature SDK:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using OpenFeature;
 using OpenFeature.Contrib.Providers.Flagd;
 
@@ -74,7 +74,7 @@ The connection name passed to `GetConnectionString` must match the flagd resourc
 
 Obtain a client and evaluate feature flags:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 var flagClient = OpenFeature.Api.Instance.GetClient();
 
 var welcomeBanner = await flagClient.GetBooleanValueAsync(
@@ -90,7 +90,7 @@ var backgroundColor = await flagClient.GetStringValueAsync(
 
 If you prefer to read the connection URI from environment variables directly rather than through `IConfiguration`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using OpenFeature;
 using OpenFeature.Contrib.Providers.Flagd;
 
@@ -114,7 +114,7 @@ go get github.com/open-feature/go-sdk-contrib/providers/flagd/pkg
 
 Read the injected environment variable, parse the URI, and configure the provider:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -166,7 +166,7 @@ pip install openfeature-sdk openfeature-provider-flagd
 
 Read the injected environment variable, parse the URI, and configure the provider:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from urllib.parse import urlparse
 from openfeature import api
@@ -199,7 +199,7 @@ npm install @openfeature/server-sdk @openfeature/flagd-provider
 
 Read the injected environment variable, parse the URI, and configure the provider:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { OpenFeature } from '@openfeature/server-sdk';
 import { FlagdProvider } from '@openfeature/flagd-provider';
 
@@ -221,3 +221,69 @@ For more information, see the [OpenFeature JavaScript SDK](https://openfeature.d
 
 </TabItem>
 </Tabs>
+
+## Use OFREP provider
+
+As an alternative to the native provider, you can connect to flagd using the [OFREP (OpenFeature Remote Evaluation Protocol)](https://openfeature.dev/specification/appendix-c/). OFREP is a standardized HTTP/REST-based protocol for remote feature flag evaluation, making it language-agnostic and well-suited for polyglot environments.
+
+### Install the OFREP provider
+
+Install the [📦 OpenFeature.Providers.Ofrep](https://www.nuget.org/packages/OpenFeature.Providers.Ofrep) NuGet package in the client-consuming project:
+
+```powershell
+dotnet add package OpenFeature.Providers.Ofrep
+```
+
+### Configure the AppHost
+
+In your AppHost, retrieve the OFREP endpoint from the flagd resource and pass it to your consuming project as an environment variable:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var flagd = builder.AddFlagd("flagd")
+                   .WithBindFileSync("./flags/");
+
+var ofrepEndpoint = flagd.GetEndpoint("ofrep");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WaitFor(flagd)
+       .WithEnvironment("OFREP_ENDPOINT", ofrepEndpoint);
+
+// After adding all resources, run the app...
+```
+
+### Configure the client
+
+In the `Program.cs` file of your client-consuming project, register the OpenFeature SDK with the OFREP provider using dependency injection:
+
+```csharp
+using OpenFeature.Providers.Ofrep;
+using OpenFeature.Providers.Ofrep.DependencyInjection;
+
+builder.Services.AddOpenFeature(featureBuilder =>
+{
+    featureBuilder.AddOfrepProvider();
+});
+```
+
+The OFREP provider automatically reads the `OFREP_ENDPOINT` environment variable to discover the flagd OFREP endpoint. You can then evaluate feature flags by injecting `IFeatureClient`:
+
+```csharp
+using OpenFeature;
+
+app.MapGet("/", async (IFeatureClient flagClient) =>
+{
+    var welcomeBanner = await flagClient.GetBooleanValueAsync(
+        "welcome-banner",
+        defaultValue: false);
+
+    var backgroundColor = await flagClient.GetStringValueAsync(
+        "background-color",
+        defaultValue: "#000000");
+
+    return Results.Ok(new { welcomeBanner, backgroundColor });
+});
+```
+
+For more information on the OFREP specification, see the [OFREP specification](https://openfeature.dev/specification/appendix-c/).

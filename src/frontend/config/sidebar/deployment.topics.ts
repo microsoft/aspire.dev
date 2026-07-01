@@ -140,7 +140,7 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'Kubernetes clusters',
-          slug: 'deployment/kubernetes/kubernetes',
+          slug: 'deployment/kubernetes/clusters',
         },
         {
           label: 'Azure Kubernetes Service (AKS)',
@@ -179,6 +179,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Azure Container Apps',
               slug: 'deployment/azure/container-apps',
+            },
+            {
+              label: 'Azure Kubernetes Service (AKS)',
+              slug: 'deployment/kubernetes/aks',
             },
             {
               label: 'Azure App Service',

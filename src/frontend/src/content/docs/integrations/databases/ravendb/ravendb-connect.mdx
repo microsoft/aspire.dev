@@ -79,7 +79,7 @@ The RavenDB client integration registers an `IDocumentStore` instance, which ser
 
 In _Program.cs_, call `AddRavenDBClient` on your `IHostApplicationBuilder` to register an `IDocumentStore`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRavenDBClient(connectionName: "ravendb");
 ```
 
@@ -89,7 +89,7 @@ The `connectionName` must match the RavenDB database resource name from the AppH
 
 Resolve the document store through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IDocumentStore store)
 {
     // Use store...
@@ -100,7 +100,7 @@ public class ExampleService(IDocumentStore store)
 
 The `AddRavenDBClient` method provides overloads that accept a `RavenDBClientSettings` object for connecting to an existing RavenDB instance without relying on the hosting integration:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 var settings = new RavenDBClientSettings
 {
     Urls = new[] { serverUrl },
@@ -115,14 +115,14 @@ builder.AddRavenDBClient(settings: settings);
 
 To register multiple `IDocumentStore` instances with different connection configurations, use `AddKeyedRavenDBClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedRavenDBClient(serviceKey: "production", connectionName: "production");
 builder.AddKeyedRavenDBClient(serviceKey: "testing", connectionName: "testing");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("production")] IDocumentStore production,
     [FromKeyedServices("testing")] IDocumentStore testing)
@@ -137,13 +137,13 @@ The Aspire RavenDB client integration offers multiple ways to provide configurat
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddRavenDBClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRavenDBClient("ravendb");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "ravendb": "URL=http://localhost:8080;Database=ravendb"
@@ -153,7 +153,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `RavenDBClientSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:RavenDB:Client` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "RavenDB": {
@@ -170,7 +170,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Inline delegates.** Pass an `Action<RavenDBClientSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRavenDBClient(
     connectionName: "ravendb",
     configureSettings: settings =>
@@ -189,7 +189,7 @@ Aspire client integrations enable health checks by default. The RavenDB client i
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected URI from the environment and connect directly using the [`RavenDB.Client`](https://www.nuget.org/packages/RavenDB.Client/) NuGet package:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Raven.Client.Documents;
 
 var uri = Environment.GetEnvironmentVariable("RAVENDB_URI");
@@ -215,7 +215,7 @@ go get github.com/ravendb/ravendb-go-client
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -254,7 +254,7 @@ pip install ravendb
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from ravendb import DocumentStore
 
@@ -279,7 +279,7 @@ npm install ravendb
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { DocumentStore } from 'ravendb';
 
 // Read Aspire-injected connection properties

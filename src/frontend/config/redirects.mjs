@@ -46,6 +46,7 @@ export const redirects = {
   // '/original/path/': '/new/path'
   '/cli/': '/reference/cli/overview/',
   '/deployment/overview/': '/deployment/deploy-with-aspire/',
+  '/deployment/kubernetes/kubernetes/': '/deployment/kubernetes/clusters/',
   '/compatibility/': '/whats-new/upgrade-aspire/',
   // `/whats-new/` has no index page; redirect it to the latest release notes
   // (computed from the filenames in src/content/docs/whats-new/). Uses 302
