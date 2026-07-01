@@ -24,6 +24,26 @@ During development, Aspire automatically starts the dashboard and configures you
 
 After deploying, configure your app to send telemetry to a persistent backend. Any OTEL-compatible backend will work. For Azure-hosted apps, Azure Monitor with Application Insights is the recommended production telemetry solution.
 
+## Export to an OpenTelemetry-compatible backend
+
+Because Aspire's service defaults use the standard OpenTelemetry Protocol (OTLP) exporter, you can send telemetry to any OTLP-compatible backend without changing your app code. Backends such as [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/), [Jaeger](https://www.jaegertracing.io/), or an [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) all accept OTLP data.
+
+Aspire's service defaults enable the OTLP exporter whenever the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable is set. To target a different backend, point that variable at your collector or backend endpoint in your deployment environment:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: The OTLP endpoint of your backend or collector, for example `https://otel-collector.example.com:4318`.
+- `OTEL_EXPORTER_OTLP_HEADERS`: Optional headers for authentication, such as an API key required by a hosted backend.
+- `OTEL_EXPORTER_OTLP_PROTOCOL`: Set to `http/protobuf` for HTTP OTLP endpoints or `grpc` for gRPC endpoints.
+
+A common production pattern is to route telemetry through an [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/), which receives OTLP data from your services and forwards it to one or more backends. This keeps your app configuration backend-agnostic: your services always export to the collector, and you change only the collector's configuration to add or swap backends.
+
+<Aside type="note">
+OTLP exporting is disabled when `OTEL_EXPORTER_OTLP_ENDPOINT` isn't set. When you deploy an Aspire app, configure this variable for your target environment so telemetry reaches your chosen backend.
+</Aside>
+
+<LearnMore>
+For more information about how Aspire configures OpenTelemetry, see [Aspire telemetry](/fundamentals/telemetry/) and [OpenTelemetry configuration](/get-started/csharp-service-defaults/#opentelemetry-configuration).
+</LearnMore>
+
 ## Configure Azure Monitor for production telemetry
 
 [Azure Monitor](https://learn.microsoft.com/azure/azure-monitor/overview) collects, analyzes, and responds to telemetry data from your cloud applications. Aspire has built-in support for Azure Application Insights, which is the Azure Monitor feature for application telemetry.
@@ -32,7 +52,7 @@ After deploying, configure your app to send telemetry to a persistent backend. A
 
 Add the Application Insights resource to your AppHost project:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var insights = builder.AddAzureApplicationInsights("app-insights");
@@ -57,7 +77,7 @@ The Application Insights resource provisions an Azure Application Insights compo
 
 Add the [📦 Azure.Monitor.OpenTelemetry.AspNetCore](https://www.nuget.org/packages/Azure.Monitor.OpenTelemetry.AspNetCore) package to each service project to enable OTEL-based export to Azure Monitor:
 
-```csharp title="C# — Program.cs (service)"
+```csharp title="Program.cs (service)"
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -93,7 +113,7 @@ For Azure Container Apps deployments, verify variables in the [Azure Portal](htt
 
 Verify that your app is configured to export telemetry. All service projects should call `AddServiceDefaults()` in their `Program.cs`, which sets up OpenTelemetry:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 var builder = WebApplication.CreateBuilder(args);
 
 // This configures OpenTelemetry with logging, metrics, and tracing
