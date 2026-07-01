@@ -2227,7 +2227,6 @@ const LUCKY_SITES = [
     "https://grpc.io",
     "https://www.docker.com",
     "https://www.typescriptlang.org",
-    "https://www.reddit.com",
     "https://vercel.com",
     "https://nextjs.org",
     "https://developer.mozilla.org",
@@ -2235,7 +2234,6 @@ const LUCKY_SITES = [
     "https://www.cloudflare.com",
     "https://www.nasa.gov",
     "https://nodejs.org",
-    "https://bsky.app",
 ];
 
 function luckyHostLabel(url) {
