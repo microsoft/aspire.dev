@@ -135,7 +135,9 @@ function buildOpenSessionMessage(repo, pageUrl, title, prompt) {
     if (title) lines.push(`Diagnostic: ${title}`);
     lines.push(
         "",
-        `Please open a GitHub Copilot App coding session for \`${repo}\`. Match it to one of my configured projects; if a project/checkout for this repo already exists, add a new session to it, otherwise create the session for that repo. Use the AI fix prompt below verbatim as the session's kickoff prompt so it starts working on the fix, and follow my usual account, branch-naming, and PR/push conventions.`,
+        `Please open a GitHub Copilot App coding session for \`${repo}\`. First check whether \`${repo}\` maps to one of my configured projects: if a project/checkout for this repo already exists, add a new session to it; if it exists but has no session yet, create one for it. Use the AI fix prompt below verbatim as the session's kickoff prompt so it starts working on the fix, and follow my usual account, branch-naming, and PR/push conventions.`,
+        "",
+        `If \`${repo}\` is NOT one of my configured projects, do not improvise a sandbox/scratch session for it. Instead, tell me plainly that it isn't configured and offer alternatives — e.g. use the "Create issue" button to file an issue on the repo and assign Copilot, or add \`${repo}\` as a project first and then open the session.`,
         "",
         "AI fix prompt to seed the new session with:",
         "----------------------------------------",
