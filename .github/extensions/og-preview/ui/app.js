@@ -2208,13 +2208,81 @@ input.addEventListener("blur", () => {
     if (input.value.trim() === "https://" || input.value.trim() === "http://") input.value = "https://";
 });
 
-document.querySelectorAll("[data-example]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-        const url = btn.getAttribute("data-example");
+// "I'm feeling lucky" — a rotating set of sites with rich OG metadata. The main
+// button previews the current target; the shuffle button retargets to another.
+const LUCKY_SITES = [
+    "https://aspire.dev",
+    "https://github.com",
+    "https://microsoft.com",
+    "https://astro.build",
+    "https://grpc.io",
+    "https://www.docker.com",
+    "https://www.typescriptlang.org",
+    "https://www.reddit.com",
+    "https://vercel.com",
+    "https://nextjs.org",
+    "https://developer.mozilla.org",
+    "https://stripe.com",
+    "https://www.cloudflare.com",
+    "https://www.nasa.gov",
+    "https://nodejs.org",
+    "https://bsky.app",
+];
+
+function luckyHostLabel(url) {
+    try {
+        return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+        return url;
+    }
+}
+
+function pickLuckySite(exclude) {
+    const pool = LUCKY_SITES.filter((s) => s !== exclude);
+    const list = pool.length ? pool : LUCKY_SITES;
+    return list[Math.floor(Math.random() * list.length)];
+}
+
+let luckyTarget = pickLuckySite();
+
+function setLuckyTarget(url) {
+    luckyTarget = url;
+    const hostEl = $("#lucky-host");
+    if (hostEl) hostEl.textContent = luckyHostLabel(url);
+    const go = $("#lucky-go");
+    if (go) go.setAttribute("title", `Preview ${luckyHostLabel(url)}`);
+}
+
+setLuckyTarget(luckyTarget);
+
+const luckyGo = $("#lucky-go");
+if (luckyGo) {
+    luckyGo.addEventListener("click", () => {
+        input.value = luckyTarget;
+        load(luckyTarget);
+    });
+}
+
+const luckyShuffle = $("#lucky-shuffle");
+if (luckyShuffle) {
+    luckyShuffle.addEventListener("click", () => {
+        setLuckyTarget(pickLuckySite(luckyTarget));
+        luckyShuffle.classList.remove("spin");
+        // reflow so the animation restarts on every click
+        void luckyShuffle.offsetWidth;
+        luckyShuffle.classList.add("spin");
+    });
+}
+
+// Empty-state lucky button loads a fresh random site each click.
+const luckyEmpty = $("#lucky-empty");
+if (luckyEmpty) {
+    luckyEmpty.addEventListener("click", () => {
+        const url = pickLuckySite();
         input.value = url;
         load(url);
     });
-});
+}
 
 const TAB_KEY = "og-preview:tab";
 const TAB_ICONS = { previews: "image", raw: "code", diagnostics: "checklist", browse: "globe" };
