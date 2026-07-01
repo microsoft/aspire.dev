@@ -1732,21 +1732,30 @@ function ogDiagItem(c, data) {
     return details;
 }
 
+function secChevron() {
+    return el("span", {
+        class: "diag-sec-chevron",
+        "aria-hidden": "true",
+        html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    });
+}
+
 function diagSectionHead(iconName, title, badge) {
-    return el("div", { class: "diag-sec-head" }, [
+    return el("summary", { class: "diag-sec-head" }, [
         octicon(iconName, 15, "diag-sec-ico"),
         el("span", { class: "diag-sec-title", text: title }),
         badge ? el("span", { class: "diag-sec-badge", text: badge }) : null,
+        secChevron(),
     ]);
 }
 
 function renderDiagnostics(data) {
     const host = $("#diagnostics");
-    const ogSection = el("div", { class: "diag-section" }, [
+    const ogSection = el("details", { class: "diag-section", open: "open" }, [
         diagSectionHead("checklist", "Social & OpenGraph metadata"),
         el("div", { class: "diag-list" }, data.diagnostics.map((c) => ogDiagItem(c, data))),
     ]);
-    const arSection = el("div", { class: "diag-section" }, [
+    const arSection = el("details", { class: "diag-section", open: "open" }, [
         diagSectionHead("rocket", "Agent readiness", "experimental"),
         el("div", { class: "ar-intro" }, [
             document.createTextNode(
