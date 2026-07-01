@@ -17,6 +17,7 @@ import { joinSession, createCanvas, CanvasError } from "@github/copilot-sdk/exte
 
 import { fetchUrl, normalizeUrl } from "./lib/http-fetch.mjs";
 import { parseMetadata } from "./lib/parse-og.mjs";
+import { checkAgentReadiness } from "./lib/agent-readiness.mjs";
 
 const UI_DIR = new URL("./ui/", import.meta.url);
 
@@ -475,6 +476,18 @@ async function handleRequest(entry, req, res) {
             // guarded against loops by syncTitle).
             if (!silent) syncTitle(entry, data.requestedUrl).catch(() => {});
             return;
+        } catch (err) {
+            return sendJson(res, 200, { error: err.message });
+        }
+    }
+
+    if (path === "/api/agent-readiness") {
+        const u = reqUrl.searchParams.get("u");
+        if (!u) return sendJson(res, 400, { error: "Missing 'u' query parameter." });
+        try {
+            const target = normalizeUrl(u);
+            const report = await checkAgentReadiness(target);
+            return sendJson(res, 200, report);
         } catch (err) {
             return sendJson(res, 200, { error: err.message });
         }

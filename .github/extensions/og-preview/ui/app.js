@@ -61,6 +61,20 @@ const OCTICONS = {
         '<path fill="currentColor" d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/><path fill="currentColor" d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/>',
     copilot:
         '<path fill="currentColor" d="M7.998 15.035c-4.562 0-7.873-2.914-7.998-3.749V9.338c.085-.628.677-1.686 1.588-2.065.013-.07.024-.143.036-.218.029-.183.06-.384.126-.612-.201-.508-.254-1.084-.254-1.656 0-.87.128-1.769.693-2.484.579-.733 1.494-1.124 2.724-1.261 1.206-.134 2.262.034 2.944.765.05.053.096.108.139.165.044-.057.094-.112.143-.165.682-.731 1.738-.899 2.944-.765 1.23.137 2.145.528 2.724 1.261.566.715.693 1.614.693 2.484 0 .572-.053 1.148-.254 1.656.066.228.098.429.126.612.012.076.024.148.037.218.924.385 1.522 1.471 1.591 2.095v1.872c0 .766-3.351 3.795-8.002 3.795Zm0-1.485c2.28 0 4.584-1.11 5.002-1.433V7.862l-.023-.116c-.49.21-1.075.291-1.727.291-1.146 0-2.059-.327-2.71-.991A3.222 3.222 0 0 1 8 6.303a3.24 3.24 0 0 1-.544.743c-.65.664-1.563.991-2.71.991-.652 0-1.236-.081-1.727-.291l-.023.116v4.255c.419.323 2.722 1.433 5.002 1.433ZM6.762 2.83c-.193-.206-.637-.413-1.682-.297-1.019.113-1.479.404-1.713.7-.247.312-.369.789-.369 1.554 0 .793.129 1.171.308 1.371.162.181.519.379 1.442.379.853 0 1.339-.235 1.638-.54.315-.322.527-.827.617-1.553.117-.935-.037-1.395-.241-1.614Zm4.155-.297c-1.044-.116-1.488.091-1.681.297-.204.219-.359.679-.242 1.614.091.726.303 1.231.618 1.553.299.305.784.54 1.638.54.922 0 1.28-.198 1.442-.379.179-.2.308-.578.308-1.371 0-.765-.123-1.242-.37-1.554-.233-.296-.693-.587-1.713-.7Z"/><path fill="currentColor" d="M6.25 9.037a.75.75 0 0 1 .75.75v1.501a.75.75 0 0 1-1.5 0V9.787a.75.75 0 0 1 .75-.75Zm4.25.75v1.501a.75.75 0 0 1-1.5 0V9.787a.75.75 0 0 1 1.5 0Z"/>',
+    rocket:
+        '<path fill="currentColor" d="M14.064 0h.186C15.216 0 16 .784 16 1.75v.186a8.752 8.752 0 0 1-2.564 6.186l-.458.459c-.314.314-.641.616-.979.904v3.207c0 .608-.315 1.172-.833 1.49l-2.774 1.707a.749.749 0 0 1-1.11-.418l-.954-3.102a1.214 1.214 0 0 1-.145-.125L3.754 9.816a1.218 1.218 0 0 1-.124-.145L.528 8.717a.749.749 0 0 1-.418-1.11l1.71-2.774A1.748 1.748 0 0 1 3.31 4h3.204c.288-.338.59-.665.904-.979l.459-.458A8.749 8.749 0 0 1 14.064 0ZM8.938 3.623h-.002l-.458.458c-.76.76-1.437 1.598-2.02 2.5l-1.5 2.317 2.143 2.143 2.317-1.5c.902-.583 1.74-1.26 2.499-2.02l.459-.458a7.25 7.25 0 0 0 2.123-5.127V1.75a.25.25 0 0 0-.25-.25h-.186a7.249 7.249 0 0 0-5.125 2.123ZM3.56 14.56c-.732.732-2.334 1.045-3.005 1.148a.234.234 0 0 1-.201-.064.234.234 0 0 1-.064-.201c.103-.671.416-2.273 1.15-3.003a1.502 1.502 0 1 1 2.12 2.12Zm6.94-3.935c-.088.06-.177.118-.266.175l-2.35 1.521.548 1.783 1.949-1.2a.25.25 0 0 0 .119-.213ZM3.678 8.116 5.2 5.766c.058-.09.117-.178.176-.266H3.309a.25.25 0 0 0-.213.119l-1.2 1.95ZM12 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/>',
+    telescope:
+        '<path fill="currentColor" d="M14.184 1.143v-.001l1.422 2.464a1.75 1.75 0 0 1-.757 2.451L3.104 11.713a1.75 1.75 0 0 1-2.275-.702l-.447-.775a1.75 1.75 0 0 1 .53-2.32L11.682.573a1.748 1.748 0 0 1 2.502.57Zm-4.709 9.32h-.001l2.644 3.863a.75.75 0 1 1-1.238.848l-1.881-2.75v2.826a.75.75 0 0 1-1.5 0v-2.826l-1.881 2.75a.75.75 0 1 1-1.238-.848l2.049-2.992a.746.746 0 0 1 .293-.253l1.809-.87a.749.749 0 0 1 .944.252ZM9.436 3.92h-.001l-4.97 3.39.942 1.63 5.42-2.61Zm3.091-2.108h.001l-1.85 1.26 1.505 2.605 2.016-.97a.247.247 0 0 0 .13-.151.247.247 0 0 0-.022-.199l-1.422-2.464a.253.253 0 0 0-.161-.119.254.254 0 0 0-.197.038ZM1.756 9.157a.25.25 0 0 0-.075.33l.447.775a.25.25 0 0 0 .325.1l1.598-.769-.83-1.436-1.465 1Z"/>',
+    book:
+        '<path fill="currentColor" d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"/>',
+    law:
+        '<path fill="currentColor" d="M8.75.75V2h.985c.304 0 .603.08.867.231l1.29.736c.038.022.08.033.124.033h2.234a.75.75 0 0 1 0 1.5h-.427l2.111 4.692a.75.75 0 0 1-.154.838l-.53-.53.529.531-.001.002-.002.002-.006.006-.006.005-.01.01-.045.04c-.21.176-.441.327-.686.45C14.556 10.78 13.88 11 13 11a4.498 4.498 0 0 1-2.023-.454 3.544 3.544 0 0 1-.686-.45l-.045-.04-.016-.015-.006-.006-.004-.004v-.001a.75.75 0 0 1-.154-.838L12.178 4.5h-.162c-.305 0-.604-.079-.868-.231l-1.29-.736a.245.245 0 0 0-.124-.033H8.75V13h2.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5h2.5V3.5h-.984a.245.245 0 0 0-.124.033l-1.289.737c-.265.15-.564.23-.869.23h-.162l2.112 4.692a.75.75 0 0 1-.154.838l-.53-.53.529.531-.001.002-.002.002-.006.006-.016.015-.045.04c-.21.176-.441.327-.686.45C4.556 10.78 3.88 11 3 11a4.498 4.498 0 0 1-2.023-.454 3.544 3.544 0 0 1-.686-.45l-.045-.04-.016-.015-.006-.006-.004-.004v-.001a.75.75 0 0 1-.154-.838L2.178 4.5H1.75a.75.75 0 0 1 0-1.5h2.234a.249.249 0 0 0 .125-.033l1.288-.737c.265-.15.564-.23.869-.23h.984V.75a.75.75 0 0 1 1.5 0Zm2.945 8.477c.285.135.718.273 1.305.273s1.02-.138 1.305-.273L13 6.327Zm-10 0c.285.135.718.273 1.305.273s1.02-.138 1.305-.273L3 6.327Z"/>',
+    plug:
+        '<path fill="currentColor" d="M4 8H2.5a1 1 0 0 0-1 1v5.25a.75.75 0 0 1-1.5 0V9a2.5 2.5 0 0 1 2.5-2.5H4V5.133a1.75 1.75 0 0 1 1.533-1.737l2.831-.353.76-.913c.332-.4.825-.63 1.344-.63h.782c.966 0 1.75.784 1.75 1.75V4h2.25a.75.75 0 0 1 0 1.5H13v4h2.25a.75.75 0 0 1 0 1.5H13v.75a1.75 1.75 0 0 1-1.75 1.75h-.782c-.519 0-1.012-.23-1.344-.63l-.761-.912-2.83-.354A1.75 1.75 0 0 1 4 9.867Zm6.276-4.91-.95 1.14a.753.753 0 0 1-.483.265l-3.124.39a.25.25 0 0 0-.219.248v4.734c0 .126.094.233.219.249l3.124.39a.752.752 0 0 1 .483.264l.95 1.14a.25.25 0 0 0 .192.09h.782a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-.782a.25.25 0 0 0-.192.09Z"/>',
+    key:
+        '<path fill="currentColor" d="M10.5 0a5.499 5.499 0 1 1-1.288 10.848l-.932.932a.749.749 0 0 1-.53.22H7v.75a.749.749 0 0 1-.22.53l-.5.5a.749.749 0 0 1-.53.22H5v.75a.749.749 0 0 1-.22.53l-.5.5a.749.749 0 0 1-.53.22h-2A1.75 1.75 0 0 1 0 14.25v-2c0-.199.079-.389.22-.53l4.932-4.932A5.5 5.5 0 0 1 10.5 0Zm-4 5.5c-.001.431.069.86.205 1.269a.75.75 0 0 1-.181.768L1.5 12.56v1.69c0 .138.112.25.25.25h1.69l.06-.06v-1.19a.75.75 0 0 1 .75-.75h1.19l.06-.06v-1.19a.75.75 0 0 1 .75-.75h1.19l1.023-1.025a.75.75 0 0 1 .768-.18A4 4 0 1 0 6.5 5.5ZM11 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>',
+    info:
+        '<path fill="currentColor" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>',
 };
 
 function octicon(name, size, cls) {
@@ -1447,8 +1461,34 @@ function buildAiFixPrompt(check, help, url) {
     return lines.join("\n");
 }
 
-function diagAiPrompt(check, help, url, repo) {
-    const prompt = buildAiFixPrompt(check, help, url);
+// Prompt for the agent-readiness checks: describe the emerging standard and ask
+// the coding agent to add the corresponding file/config to the site's repo.
+function buildAgentFixPrompt(check, help, url) {
+    const lines = [];
+    lines.push("Make my website more agent-ready (AI-agent / crawler friendly).");
+    lines.push("");
+    lines.push(`Site: ${url || "(unknown)"}`);
+    lines.push(`Standard: ${check.label || check.id}${check.level ? ` (${check.level})` : ""}`);
+    if (check.detail) lines.push(`Current status: ${check.detail}`);
+    if (help && help.why) lines.push(`Why it matters: ${help.why}`);
+    if (help && help.fix) lines.push(`Goal: ${help.fix}`);
+    if (help && help.example) {
+        lines.push("");
+        lines.push("Reference:");
+        lines.push(help.example);
+    }
+    lines.push("");
+    lines.push(
+        "Give me the exact file(s) or server config to add to implement this on my site — " +
+        "include the correct path (e.g. /.well-known/…, /robots.txt, /llms.txt) and the full " +
+        "file contents, using real values inferred from the site above. If you can infer the " +
+        "framework or host (Astro, Next.js, Hugo, Cloudflare, static hosting, …), show exactly " +
+        "where the file/route goes; otherwise give a host-agnostic version. Keep it concise.",
+    );
+    return lines.join("\n");
+}
+
+function aiPromptHead(prompt, copyLabel) {
     const head = el("div", { class: "diag-ai-head" });
     const ico = el("span", { class: "diag-ai-ico", "aria-hidden": "true" });
     ico.innerHTML =
@@ -1456,10 +1496,26 @@ function diagAiPrompt(check, help, url, repo) {
     head.append(
         ico,
         el("span", { class: "diag-ai-title", text: "AI fix prompt" }),
-        copyButton(prompt, "Copy AI prompt"),
+        copyButton(prompt, copyLabel || "Copy AI prompt"),
     );
-    const children = [head, el("pre", { class: "diag-ai-body", text: prompt })];
+    return head;
+}
+
+function diagAiPrompt(check, help, url, repo) {
+    const prompt = buildAiFixPrompt(check, help, url);
+    const children = [aiPromptHead(prompt), el("pre", { class: "diag-ai-body", text: prompt })];
     children.push(diagAiFooter(check, prompt, url, repo));
+    return el("div", { class: "diag-ai" }, children);
+}
+
+// Agent-readiness variant: same layout, but the prompt asks the agent to add the
+// missing agent-readiness file/config and the footer action title reflects that.
+function agentAiPrompt(check, help, url, repo) {
+    const prompt = buildAgentFixPrompt(check, help, url);
+    const children = [aiPromptHead(prompt), el("pre", { class: "diag-ai-body", text: prompt })];
+    children.push(
+        diagAiFooter(check, prompt, url, repo, { title: `Improve agent readiness: ${check.label || check.id}` }),
+    );
     return el("div", { class: "diag-ai" }, children);
 }
 
@@ -1467,7 +1523,7 @@ function diagAiPrompt(check, help, url, repo) {
 // offers two Copilot actions: open a coding session seeded with the prompt, or
 // file an issue and hand it to the Copilot agent. Both round-trip through the
 // extension's loopback API, which asks the host chat session to do the work.
-function diagAiFooter(check, prompt, url, repo) {
+function diagAiFooter(check, prompt, url, repo, opts) {
     const foot = el("div", { class: "diag-ai-foot" });
     if (!repo || !repo.owner || !repo.repo) {
         foot.classList.add("diag-ai-foot-empty");
@@ -1480,7 +1536,7 @@ function diagAiFooter(check, prompt, url, repo) {
         return foot;
     }
     const slug = `${repo.owner}/${repo.repo}`;
-    const title = `Fix OpenGraph metadata: ${check.id}`;
+    const title = (opts && opts.title) || `Fix OpenGraph metadata: ${check.id}`;
     const repoTag = el("a", {
         class: "diag-ai-repo",
         href: repo.url || `https://github.com/${slug}`,
@@ -1606,49 +1662,313 @@ function diagnosticCounts(diagnostics) {
     return counts;
 }
 
+function ogDiagItem(c, data) {
+    const kind = c.ok ? "ok" : c.level === "required" ? "req" : "warn";
+    const levelText = c.ok ? "passed" : c.level;
+
+    // Passing checks render as plain, non-expandable rows.
+    if (c.ok) {
+        return el("div", { class: "diag-item" }, [
+            el("div", { class: "diag-row" }, [
+                diagIcon(kind),
+                el("div", { class: "diag-text" }, [
+                    el("span", { class: "diag-id", text: c.id }),
+                    el("span", { class: `diag-level ${kind}`, text: levelText }),
+                    c.note ? el("div", { class: "diag-note", text: c.note }) : null,
+                ]),
+            ]),
+        ]);
+    }
+
+    // Failing checks expand to show what's wrong and how to fix it.
+    const help =
+        DIAG_HELP[c.id] || {
+            why: c.note || "This recommended metadata is missing or invalid.",
+            fix: "Add or correct this metadata tag in the document <head>.",
+        };
+    const details = el("details", { class: `diag-item diag-${kind}` });
+    details.appendChild(
+        el("summary", { class: "diag-row" }, [
+            diagIcon(kind),
+            el("div", { class: "diag-text" }, [
+                el("span", { class: "diag-id", text: c.id }),
+                el("span", { class: `diag-level ${kind}`, text: levelText }),
+                c.note ? el("div", { class: "diag-note", text: c.note }) : null,
+            ]),
+            diagChevron(),
+        ]),
+    );
+    details.appendChild(diagDetail(help, { check: c, url: data.requestedUrl, repo: data.repository }));
+    return details;
+}
+
+function diagSectionHead(iconName, title, badge) {
+    return el("div", { class: "diag-sec-head" }, [
+        octicon(iconName, 15, "diag-sec-ico"),
+        el("span", { class: "diag-sec-title", text: title }),
+        badge ? el("span", { class: "diag-sec-badge", text: badge }) : null,
+    ]);
+}
+
 function renderDiagnostics(data) {
     const host = $("#diagnostics");
-    host.replaceChildren(
-        ...data.diagnostics.map((c) => {
-            const kind = c.ok ? "ok" : c.level === "required" ? "req" : "warn";
-            const levelText = c.ok ? "passed" : c.level;
+    const ogSection = el("div", { class: "diag-section" }, [
+        diagSectionHead("checklist", "Social & OpenGraph metadata"),
+        el("div", { class: "diag-list" }, data.diagnostics.map((c) => ogDiagItem(c, data))),
+    ]);
+    const arSection = el("div", { class: "diag-section" }, [
+        diagSectionHead("rocket", "Agent readiness", "experimental"),
+        el("div", { class: "ar-intro" }, [
+            document.createTextNode(
+                "Emerging standards that help AI agents discover, read, and act on this site. ",
+            ),
+            el("a", {
+                class: "ar-intro-link",
+                href: "https://isitagentready.com/",
+                target: "_blank",
+                rel: "noreferrer",
+                text: "Learn more",
+            }),
+        ]),
+        el("div", { id: "ar-body", class: "ar-body" }, [arLoading()]),
+    ]);
+    host.replaceChildren(ogSection, arSection);
+    refreshAgentReadiness(data);
+}
 
-            // Passing checks render as plain, non-expandable rows.
-            if (c.ok) {
-                return el("div", { class: "diag-item" }, [
-                    el("div", { class: "diag-row" }, [
-                        diagIcon(kind),
-                        el("div", { class: "diag-text" }, [
-                            el("span", { class: "diag-id", text: c.id }),
-                            el("span", { class: `diag-level ${kind}`, text: levelText }),
-                            c.note ? el("div", { class: "diag-note", text: c.note }) : null,
-                        ]),
-                    ]),
-                ]);
-            }
+/* ---------------- Agent readiness ---------------- */
 
-            // Failing checks expand to show what's wrong and how to fix it.
-            const help =
-                DIAG_HELP[c.id] || {
-                    why: c.note || "This recommended metadata is missing or invalid.",
-                    fix: "Add or correct this metadata tag in the document <head>.",
-                };
-            const details = el("details", { class: `diag-item diag-${kind}` });
-            details.appendChild(
-                el("summary", { class: "diag-row" }, [
-                    diagIcon(kind),
-                    el("div", { class: "diag-text" }, [
-                        el("span", { class: "diag-id", text: c.id }),
-                        el("span", { class: `diag-level ${kind}`, text: levelText }),
-                        c.note ? el("div", { class: "diag-note", text: c.note }) : null,
-                    ]),
-                    diagChevron(),
-                ]),
-            );
-            details.appendChild(diagDetail(help, { check: c, url: data.requestedUrl, repo: data.repository }));
-            return details;
+const AR_CAT_ICON = {
+    discoverability: "telescope",
+    content: "book",
+    bots: "law",
+    protocols: "plug",
+    auth: "key",
+};
+
+const OGP_AR = "https://isitagentready.com/";
+
+// Client-side guidance for each agent-readiness check id (why / fix / example /
+// docs). Kept here so the server probe stays a pure prober.
+const AGENT_HELP = {
+    robots: {
+        why: "robots.txt is the first file agents and crawlers look for. It advertises what they may fetch and where to find your sitemap.",
+        fix: "Publish /robots.txt at the site root with at least a default User-agent rule and a Sitemap directive.",
+        example: "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        docs: { href: "https://www.rfc-editor.org/rfc/rfc9309.html", label: "RFC 9309 — Robots Exclusion Protocol" },
+    },
+    sitemap: {
+        why: "An XML sitemap lets agents enumerate your pages instead of guessing links, so they index content completely and efficiently.",
+        fix: "Publish a sitemap.xml (or a sitemap index) and reference it from robots.txt with a Sitemap: line.",
+        example: '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://example.com/</loc></url>\n</urlset>',
+        docs: { href: "https://www.sitemaps.org/protocol.html", label: "sitemaps.org protocol" },
+    },
+    "link-headers": {
+        why: "Link response headers (RFC 8288) let agents discover related resources — canonical URLs, Markdown alternates, API catalogs — without parsing HTML.",
+        fix: 'Emit a Link header on key responses, e.g. an alternate Markdown representation or rel="api-catalog".',
+        example: 'Link: </index.md>; rel="alternate"; type="text/markdown"',
+        docs: { href: "https://www.rfc-editor.org/rfc/rfc8288.html", label: "RFC 8288 — Web Linking" },
+    },
+    llms: {
+        why: "llms.txt is an emerging convention that gives LLMs a curated, Markdown map of your most important content and docs.",
+        fix: "Add /llms.txt (and optionally /llms-full.txt) at the site root: a short H1, a blockquote summary, then curated Markdown links.",
+        example: "# Example\n> One-line summary of the site.\n\n## Docs\n- [Getting started](https://example.com/start): quick intro",
+        docs: { href: "https://llmstxt.org/", label: "llmstxt.org" },
+    },
+    markdown: {
+        why: "Serving a Markdown representation when an agent sends Accept: text/markdown gives clean, token-efficient content instead of noisy HTML.",
+        fix: "Content-negotiate text/markdown for your pages (many frameworks/CDNs support a .md alternate or Cloudflare's Markdown-for-agents).",
+        example: "GET /page  Accept: text/markdown  →  200 Content-Type: text/markdown",
+        docs: {
+            href: "https://developers.cloudflare.com/fundamentals/reference/markdown-for-agents/",
+            label: "Cloudflare — Markdown for agents",
+        },
+    },
+    "ai-bots": {
+        why: "Explicit rules for AI user-agents (GPTBot, ClaudeBot, Google-Extended, PerplexityBot, …) let you allow or disallow AI training and answering on your terms.",
+        fix: "Add per-agent User-agent groups in robots.txt for the AI crawlers you want to allow or block.",
+        example: "User-agent: GPTBot\nAllow: /\n\nUser-agent: CCBot\nDisallow: /",
+        docs: { href: "https://platform.openai.com/docs/bots", label: "AI crawler user-agents" },
+    },
+    "content-signals": {
+        why: "Cloudflare Content Signals express how your content may be used (search, AI input, AI training) as a machine-readable policy in robots.txt.",
+        fix: "Add a Content-Signal policy block to robots.txt declaring your search / ai-input / ai-train preferences.",
+        example: "User-agent: *\nContent-Signal: search=yes, ai-train=no\nAllow: /",
+        docs: { href: "https://blog.cloudflare.com/content-signals/", label: "Cloudflare — Content Signals" },
+    },
+    mcp: {
+        why: "A Model Context Protocol endpoint lets agents call your site's tools/resources directly instead of scraping.",
+        fix: "Expose an MCP server and advertise it (e.g. at /.well-known/mcp) so agents can discover and connect to it.",
+        example: '{ "mcpServers": { "example": { "url": "https://example.com/mcp" } } }',
+        docs: { href: "https://modelcontextprotocol.io/", label: "modelcontextprotocol.io" },
+    },
+    a2a: {
+        why: "An A2A Agent Card describes an agent's identity, skills, and endpoint so other agents can discover and delegate to it.",
+        fix: "Publish an Agent Card JSON at /.well-known/agent-card.json (or /.well-known/agent.json).",
+        example: '{ "name": "Example Agent", "url": "https://example.com/a2a", "skills": [] }',
+        docs: { href: "https://a2a-protocol.org/", label: "Agent2Agent (A2A) protocol" },
+    },
+    "agent-skills": {
+        why: "A published skills manifest lets agents load reusable, portable skills your site or product exposes.",
+        fix: "Publish a skills manifest at a well-known path describing each skill and how to invoke it.",
+        example: '{ "skills": [ { "name": "example", "path": "/skills/example" } ] }',
+        docs: { href: "https://agentskills.io/", label: "agentskills.io" },
+    },
+    "ai-plugin": {
+        why: "An AI plugin manifest (ai-plugin.json) is a legacy but still-recognized way to describe an API for AI tools to call.",
+        fix: "Publish /.well-known/ai-plugin.json pointing to your OpenAPI spec and describing the plugin.",
+        example: '{ "schema_version": "v1", "name_for_model": "example", "api": { "url": "https://example.com/openapi.json" } }',
+        docs: { href: "https://platform.openai.com/docs/plugins/getting-started", label: "AI plugin manifest" },
+    },
+    "dns-aid": {
+        why: "DNS for AI Discovery (DNS-AID) advertises an agent endpoint via a DNS TXT record, so agents can find you before ever fetching a page.",
+        fix: "Add a TXT record (e.g. at _agent.<domain>) describing your agent endpoint and version.",
+        example: '_agent.example.com  TXT  "v=aid1; endpoint=https://example.com/agent"',
+        docs: { href: "https://datatracker.ietf.org/wg/spawn/about/", label: "IETF SPAWN — agent discovery" },
+    },
+    "oauth-pr": {
+        why: "An OAuth Protected Resource document tells agents which authorization server guards your API and what scopes it needs.",
+        fix: "Publish /.well-known/oauth-protected-resource per RFC 9728 pointing at your authorization server.",
+        example: '{ "resource": "https://api.example.com", "authorization_servers": ["https://auth.example.com"] }',
+        docs: { href: "https://www.rfc-editor.org/rfc/rfc9728.html", label: "RFC 9728" },
+    },
+    "oauth-as": {
+        why: "OAuth Authorization Server metadata lets agents dynamically discover token, authorization, and registration endpoints.",
+        fix: "Publish /.well-known/oauth-authorization-server per RFC 8414.",
+        example: '{ "issuer": "https://auth.example.com", "token_endpoint": "https://auth.example.com/token" }',
+        docs: { href: "https://www.rfc-editor.org/rfc/rfc8414.html", label: "RFC 8414" },
+    },
+    "api-catalog": {
+        why: "An API Catalog lists the APIs you offer and links to their descriptions, so agents can find machine-usable endpoints.",
+        fix: "Publish /.well-known/api-catalog (a linkset) per RFC 9727 listing your API description documents.",
+        example: '{ "linkset": [ { "anchor": "https://api.example.com", "service-desc": [ { "href": "https://api.example.com/openapi.json" } ] } ] }',
+        docs: { href: "https://www.rfc-editor.org/rfc/rfc9727.html", label: "RFC 9727" },
+    },
+};
+
+function arLoading() {
+    return el("div", { class: "ar-loading" }, [
+        el("span", { class: "ar-spinner", "aria-hidden": "true" }),
+        el("span", { text: "Probing agent-readiness signals…" }),
+    ]);
+}
+
+function arIcon(status) {
+    if (status === "info") {
+        const s = el("span", { class: "diag-ico info", "aria-hidden": "true" });
+        s.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16">${OCTICONS.info}</svg>`;
+        return s;
+    }
+    return diagIcon(status === "warn" ? "warn" : "ok");
+}
+
+function arLevelText(status) {
+    return status === "pass" ? "detected" : status === "warn" ? "recommended" : "emerging";
+}
+
+function arRow(c, ar, repo) {
+    const kind = c.status === "pass" ? "ok" : c.status === "warn" ? "warn" : "info";
+    const textCol = () =>
+        el("div", { class: "diag-text" }, [
+            el("span", { class: "diag-id", text: c.label }),
+            el("span", { class: `diag-level ${kind}`, text: arLevelText(c.status) }),
+            c.detail ? el("div", { class: "diag-note", text: c.detail }) : null,
+        ]);
+
+    // Detected signals render as plain, non-expandable rows.
+    if (c.status === "pass") {
+        return el("div", { class: "diag-item" }, [el("div", { class: "diag-row" }, [arIcon(c.status), textCol()])]);
+    }
+
+    // Missing / not-yet-detected signals expand to guidance + an AI fix prompt.
+    const help = AGENT_HELP[c.id] || { why: c.detail || "", fix: "Add support for this standard to your site." };
+    const details = el("details", { class: `diag-item diag-${kind}` });
+    details.appendChild(el("summary", { class: "diag-row" }, [arIcon(c.status), textCol(), diagChevron()]));
+    details.appendChild(
+        arDetail(help, {
+            check: { id: c.id, label: c.label, detail: c.detail, level: c.status === "warn" ? "recommended" : "emerging" },
+            url: ar.url,
+            repo,
         }),
     );
+    return details;
+}
+
+function arDetail(help, ctx) {
+    const detail = el("div", { class: "diag-detail" });
+    detail.appendChild(
+        el("div", { class: "diag-block" }, [
+            el("div", { class: "diag-block-h", text: "Why it matters" }),
+            el("p", { class: "diag-block-p", text: help.why }),
+        ]),
+    );
+    detail.appendChild(
+        el("div", { class: "diag-block" }, [
+            el("div", { class: "diag-block-h", text: "How to add it" }),
+            el("p", { class: "diag-block-p", text: help.fix }),
+        ]),
+    );
+    if (help.example) {
+        detail.appendChild(
+            el("div", { class: "diag-snippet" }, [
+                el("code", { text: help.example }),
+                copyButton(help.example, "Copy snippet"),
+            ]),
+        );
+    }
+    detail.appendChild(agentAiPrompt(ctx.check, help, ctx.url, ctx.repo));
+    if (help.docs) {
+        const link = el("a", { class: "diag-docs", href: help.docs.href, target: "_blank", rel: "noreferrer" });
+        link.append(octicon("link-external", 14, "diag-docs-ico"), document.createTextNode(help.docs.label));
+        detail.appendChild(link);
+    }
+    return detail;
+}
+
+function renderAgentReadiness(body, ar, repo) {
+    const s = ar.summary || { detected: 0, recommendedMissing: 0, total: 0 };
+    const summary = el("div", { class: "ar-summary" }, [
+        el("span", { class: "pill ok", text: `${s.detected} detected` }),
+        s.recommendedMissing ? el("span", { class: "pill warn", text: `${s.recommendedMissing} recommended missing` }) : null,
+        el("span", { class: "ar-summary-total", text: `of ${s.total} checks` }),
+    ]);
+    const groups = (ar.categories || []).map((cat) =>
+        el("div", { class: "ar-group" }, [
+            el("div", { class: "ar-group-h" }, [
+                octicon(AR_CAT_ICON[cat.id] || "info", 13, "ar-group-ico"),
+                el("span", { text: cat.label }),
+            ]),
+            el("div", { class: "diag-list" }, cat.checks.map((c) => arRow(c, ar, repo))),
+        ]),
+    );
+    body.replaceChildren(summary, ...groups);
+}
+
+let arSeq = 0;
+
+async function refreshAgentReadiness(data) {
+    const body = $("#ar-body");
+    if (!body) return;
+    const seq = ++arSeq;
+    const targetUrl = data.requestedUrl;
+    if (!targetUrl) {
+        body.replaceChildren(el("div", { class: "ar-error", text: "No URL to analyze." }));
+        return;
+    }
+    try {
+        const res = await fetch("/api/agent-readiness?u=" + encodeURIComponent(targetUrl));
+        const ar = await res.json();
+        if (seq !== arSeq) return; // a newer load superseded this probe
+        if (!res.ok || ar.error) throw new Error(ar.error || `Request failed (${res.status})`);
+        renderAgentReadiness(body, ar, data.repository);
+    } catch (err) {
+        if (seq !== arSeq) return;
+        body.replaceChildren(
+            el("div", { class: "ar-error" }, [
+                el("span", { text: `Couldn't run agent-readiness checks: ${err.message}` }),
+            ]),
+        );
+    }
 }
 
 /* ---------------- Footer (page info) ---------------- */
