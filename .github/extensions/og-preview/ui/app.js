@@ -334,6 +334,351 @@ function bindImageHover(node, url) {
     node.addEventListener("mouseleave", hideImgTip);
 }
 
+/* ---------------- Syntax highlighting (compact, dependency-free) ----------------
+   A small tokenizer that colorizes source shown in the code hovercard. It's not a
+   full parser — it recognizes comments, strings, numbers, keywords, markup tags
+   and the common Markdown/MDX constructs well enough to read at a glance. Every
+   token is emitted as { c: className|null, v: text } and later rendered with
+   textContent (never innerHTML), so fetched source can't inject markup. */
+
+const HL_KEYWORDS = new Set([
+    "abstract", "as", "async", "await", "break", "case", "catch", "class", "const", "continue",
+    "debugger", "declare", "default", "delete", "do", "else", "enum", "export", "extends", "false",
+    "finally", "for", "from", "function", "get", "if", "implements", "import", "in", "instanceof",
+    "interface", "is", "keyof", "let", "namespace", "new", "null", "of", "override", "package",
+    "private", "protected", "public", "readonly", "return", "satisfies", "set", "static", "super",
+    "switch", "this", "throw", "true", "try", "type", "typeof", "undefined", "var", "void", "while",
+    "with", "yield", "auto", "bool", "boolean", "byte", "char", "struct", "union", "func", "fn",
+    "impl", "trait", "pub", "use", "mod", "match", "move", "ref", "where", "defer", "chan", "select",
+    "map", "range", "nil", "fun", "val", "when", "object", "sealed", "open", "internal", "operator",
+    "guard", "final", "throws", "using", "unsafe", "virtual", "volatile", "sizeof", "typename",
+    "template", "constexpr", "nullptr", "string", "int", "long", "short", "float", "double",
+    "unsigned", "signed", "decimal", "dynamic", "go",
+]);
+
+const HL_HASH_KEYWORDS = new Set([
+    "def", "class", "return", "if", "elif", "else", "for", "while", "in", "not", "and", "or", "is",
+    "import", "from", "as", "with", "try", "except", "finally", "raise", "pass", "break", "continue",
+    "lambda", "yield", "global", "nonlocal", "async", "await", "self", "end", "do", "then", "fi",
+    "done", "esac", "case", "function", "local", "export", "echo", "source", "require", "module",
+    "begin", "ensure", "unless", "until", "puts", "true", "false", "True", "False", "None", "nil",
+    "let", "set", "foreach", "param", "process", "switch",
+]);
+
+const HL_LITERALS = new Set([
+    "true", "false", "null", "undefined", "nil", "None", "True", "False", "NaN", "Infinity",
+]);
+
+const HL_PUNCT_RE = /[{}()[\].,;:?=+\-*/%<>!&|^~]/;
+const HL_ID_START = /[A-Za-z_$@]/;
+const HL_ID_CHAR = /[A-Za-z0-9_$]/;
+const HL_NUM_RE =
+    /^(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|\d[\d_]*\.?\d*(?:[eE][+-]?\d+)?|\.\d[\d_]*(?:[eE][+-]?\d+)?)[a-zA-Z%]*/;
+
+function hlLang(ext) {
+    const l = String(ext || "").toLowerCase();
+    if (["md", "markdown", "mdx"].includes(l)) return "markdown";
+    if (["html", "htm", "xhtml", "xml", "rss", "atom", "svg", "vue", "svelte"].includes(l)) return "markup";
+    if (["json", "json5", "jsonc"].includes(l)) return "json";
+    if (l === "css") return "css";
+    if (["scss", "sass", "less"].includes(l)) return "scss";
+    if (["sql", "graphql", "gql"].includes(l)) return "sql";
+    if (["yaml", "yml", "toml", "ini", "cfg", "conf", "env", "properties", "sh", "bash", "zsh",
+        "fish", "ps1", "psm1", "py", "rb", "dockerfile", "makefile", "cmake", "lock", "gradle"].includes(l)) {
+        return "hash";
+    }
+    if (["txt", "text", "log"].includes(l)) return "text";
+    return "clike";
+}
+
+function hlTokens(text, ext) {
+    switch (hlLang(ext)) {
+        case "text": return [{ c: null, v: text }];
+        case "markdown": return hlMarkdown(text, ext);
+        case "markup": return hlMarkup(text);
+        case "json": return hlGeneric(text, { line: ["//"], block: ["/*", "*/"], quotes: ['"'] });
+        case "css": return hlGeneric(text, { line: [], block: ["/*", "*/"], quotes: ['"', "'"] });
+        case "scss": return hlGeneric(text, { line: ["//"], block: ["/*", "*/"], quotes: ['"', "'"] });
+        case "sql": return hlGeneric(text, { line: ["--"], block: ["/*", "*/"], quotes: ["'", '"'] });
+        case "hash": return hlGeneric(text, { line: ["#"], quotes: ['"', "'"], keywords: HL_HASH_KEYWORDS });
+        default:
+            return hlGeneric(text, {
+                line: ["//"], block: ["/*", "*/"], quotes: ['"', "'"], template: true, keywords: HL_KEYWORDS,
+            });
+    }
+}
+
+function hlGeneric(text, cfg) {
+    const out = [];
+    const push = (c, v) => { if (v) out.push({ c, v }); };
+    const n = text.length;
+    const kw = cfg.keywords || null;
+    const lits = cfg.literals || HL_LITERALS;
+    const lineC = cfg.line || [];
+    const block = cfg.block || null;
+    const quotes = cfg.quotes || ['"', "'"];
+    const template = cfg.template ? "`" : null;
+    let i = 0;
+    while (i < n) {
+        const ch = text[i];
+        if (ch === "\n") { push(null, "\n"); i++; continue; }
+        if (block && text.startsWith(block[0], i)) {
+            let e = text.indexOf(block[1], i + block[0].length);
+            e = e === -1 ? n : e + block[1].length;
+            push("hl-com", text.slice(i, e)); i = e; continue;
+        }
+        let lc = "";
+        for (const p of lineC) { if (p && text.startsWith(p, i)) { lc = p; break; } }
+        if (lc) {
+            let e = text.indexOf("\n", i);
+            if (e === -1) e = n;
+            push("hl-com", text.slice(i, e)); i = e; continue;
+        }
+        if (template && ch === template) {
+            let j = i + 1;
+            while (j < n) { if (text[j] === "\\") { j += 2; continue; } if (text[j] === template) { j++; break; } j++; }
+            push("hl-str", text.slice(i, j)); i = j; continue;
+        }
+        if (quotes.includes(ch)) {
+            let j = i + 1;
+            while (j < n) {
+                const c = text[j];
+                if (c === "\\") { j += 2; continue; }
+                if (c === "\n") break;
+                if (c === ch) { j++; break; }
+                j++;
+            }
+            push("hl-str", text.slice(i, j)); i = j; continue;
+        }
+        if ((ch >= "0" && ch <= "9") || (ch === "." && text[i + 1] >= "0" && text[i + 1] <= "9")) {
+            const m = HL_NUM_RE.exec(text.substr(i, 48));
+            const v = m ? m[0] : ch;
+            push("hl-num", v); i += v.length; continue;
+        }
+        if (HL_ID_START.test(ch)) {
+            let j = i + 1;
+            while (j < n && HL_ID_CHAR.test(text[j])) j++;
+            const word = text.slice(i, j);
+            let cls = null;
+            if (lits.has(word)) cls = "hl-lit";
+            else if (kw && kw.has(word)) cls = "hl-kw";
+            else if (text[j] === "(") cls = "hl-fn";
+            push(cls, word); i = j; continue;
+        }
+        if (HL_PUNCT_RE.test(ch)) { push("hl-punct", ch); i++; continue; }
+        let j = i;
+        while (j < n) {
+            const c = text[j];
+            if (c === "\n" || HL_ID_START.test(c) || HL_PUNCT_RE.test(c) || quotes.includes(c)) break;
+            if (template && c === template) break;
+            if (block && text.startsWith(block[0], j)) break;
+            let brk = false;
+            for (const p of lineC) { if (p && text.startsWith(p, j)) { brk = true; break; } }
+            if (brk) break;
+            j++;
+        }
+        if (j === i) j = i + 1;
+        push(null, text.slice(i, j)); i = j;
+    }
+    return out;
+}
+
+function hlMarkup(text) {
+    const out = [];
+    const push = (c, v) => { if (v) out.push({ c, v }); };
+    const n = text.length;
+    let i = 0;
+    while (i < n) {
+        const ch = text[i];
+        if (text.startsWith("<!--", i)) {
+            let e = text.indexOf("-->", i);
+            e = e === -1 ? n : e + 3;
+            push("hl-com", text.slice(i, e)); i = e; continue;
+        }
+        if (ch === "<" && /[A-Za-z/!?]/.test(text[i + 1] || "")) {
+            let j = i + 1;
+            let lead = "<";
+            if (text[j] === "/") { lead = "</"; j++; }
+            push("hl-punct", lead);
+            let s = j;
+            while (j < n && /[A-Za-z0-9:_.-]/.test(text[j])) j++;
+            push("hl-tag", text.slice(s, j));
+            while (j < n && text[j] !== ">") {
+                const c = text[j];
+                if (c === "\n") { push(null, "\n"); j++; continue; }
+                if (/\s/.test(c)) {
+                    let k = j;
+                    while (k < n && /\s/.test(text[k]) && text[k] !== "\n") k++;
+                    push(null, text.slice(j, k)); j = k; continue;
+                }
+                if (c === "/" || c === "=") { push("hl-punct", c); j++; continue; }
+                if (c === '"' || c === "'") {
+                    let k = j + 1;
+                    while (k < n && text[k] !== c && text[k] !== "\n") k++;
+                    if (text[k] === c) k++;
+                    push("hl-str", text.slice(j, k)); j = k; continue;
+                }
+                if (c === "{") {
+                    let depth = 1;
+                    let k = j + 1;
+                    while (k < n && depth) { if (text[k] === "{") depth++; else if (text[k] === "}") depth--; k++; }
+                    push("hl-punct", "{"); push(null, text.slice(j + 1, k - 1)); push("hl-punct", "}");
+                    j = k; continue;
+                }
+                let k = j;
+                while (k < n && /[A-Za-z0-9:_.@-]/.test(text[k])) k++;
+                if (k > j) { push("hl-attr", text.slice(j, k)); j = k; } else { push(null, text[j]); j++; }
+            }
+            if (text[j] === ">") { push("hl-punct", ">"); j++; }
+            i = j; continue;
+        }
+        if (ch === "\n") { push(null, "\n"); i++; continue; }
+        let j = i;
+        while (j < n && text[j] !== "<" && text[j] !== "\n") j++;
+        push(null, text.slice(i, j)); i = j;
+    }
+    return out;
+}
+
+function hlMdSpans(s) {
+    const out = [];
+    const n = s.length;
+    let i = 0;
+    let plainStart = 0;
+    const flush = (end) => { if (end > plainStart) out.push({ c: null, v: s.slice(plainStart, end) }); };
+    while (i < n) {
+        const ch = s[i];
+        if (ch === "`") {
+            let j = i + 1;
+            while (j < n && s[j] !== "`") j++;
+            if (j < n) j++;
+            flush(i); out.push({ c: "hl-code", v: s.slice(i, j) }); i = j; plainStart = i; continue;
+        }
+        if (s.startsWith("**", i) || s.startsWith("__", i)) {
+            const d = s.substr(i, 2);
+            let j = s.indexOf(d, i + 2);
+            if (j !== -1) { j += 2; flush(i); out.push({ c: "hl-strong", v: s.slice(i, j) }); i = j; plainStart = i; continue; }
+        }
+        if (ch === "*" || ch === "_") {
+            const j = s.indexOf(ch, i + 1);
+            if (j > i + 1) { flush(i); out.push({ c: "hl-em", v: s.slice(i, j + 1) }); i = j + 1; plainStart = i; continue; }
+        }
+        if (ch === "[" || (ch === "!" && s[i + 1] === "[")) {
+            const lb = ch === "!" ? i + 1 : i;
+            const close = s.indexOf("]", lb + 1);
+            if (close !== -1 && s[close + 1] === "(") {
+                const paren = s.indexOf(")", close + 2);
+                if (paren !== -1) {
+                    flush(i);
+                    out.push({ c: "hl-punct", v: s.slice(i, close + 1) });
+                    out.push({ c: "hl-punct", v: "(" });
+                    out.push({ c: "hl-link", v: s.slice(close + 2, paren) });
+                    out.push({ c: "hl-punct", v: ")" });
+                    i = paren + 1; plainStart = i; continue;
+                }
+            }
+        }
+        i++;
+    }
+    flush(n);
+    return out;
+}
+
+function hlMdInline(line, ext) {
+    let m;
+    if ((m = line.match(/^(\s*)(#{1,6})(\s.*)?$/))) {
+        return [{ c: null, v: m[1] }, { c: "hl-heading", v: m[2] + (m[3] || "") }];
+    }
+    if ((m = line.match(/^(\s*>+\s?)(.*)$/))) {
+        return [{ c: "hl-punct", v: m[1] }].concat(hlMdSpans(m[2]));
+    }
+    if ((m = line.match(/^(\s*)([-*+]|\d+[.)])(\s+)(.*)$/))) {
+        return [{ c: null, v: m[1] }, { c: "hl-punct", v: m[2] }, { c: null, v: m[3] }].concat(hlMdSpans(m[4]));
+    }
+    if (String(ext).toLowerCase() === "mdx" && /^(import|export)\b/.test(line)) {
+        return hlTokens(line, "ts");
+    }
+    if (String(ext).toLowerCase() === "mdx" && /^\s*<[A-Za-z/]/.test(line)) {
+        return hlMarkup(line);
+    }
+    return hlMdSpans(line);
+}
+
+function hlMarkdown(text, ext) {
+    const out = [];
+    const lines = text.split("\n");
+    let inFence = false;
+    let fenceLang = "";
+    let buf = [];
+    const nl = () => out.push({ c: null, v: "\n" });
+    for (let idx = 0; idx < lines.length; idx++) {
+        const line = lines[idx];
+        const fm = line.match(/^(\s*)(```|~~~)([^`~]*)$/);
+        if (fm) {
+            if (!inFence) {
+                if (idx > 0) nl();
+                out.push({ c: "hl-punct", v: fm[1] + fm[2] });
+                if (fm[3]) out.push({ c: "hl-kw", v: fm[3] });
+                inFence = true;
+                fenceLang = (fm[3] || "").trim().split(/\s+/)[0] || "";
+                buf = [];
+            } else {
+                const inner = buf.join("\n");
+                const toks = fenceLang ? hlTokens(inner, fenceLang) : [{ c: null, v: inner }];
+                nl();
+                for (const t of toks) out.push(t);
+                nl();
+                out.push({ c: "hl-punct", v: fm[1] + fm[2] });
+                inFence = false; fenceLang = ""; buf = [];
+            }
+            continue;
+        }
+        if (inFence) { buf.push(line); continue; }
+        if (idx > 0) nl();
+        for (const t of hlMdInline(line, ext)) out.push(t);
+    }
+    if (inFence && buf.length) {
+        const inner = buf.join("\n");
+        const toks = fenceLang ? hlTokens(inner, fenceLang) : [{ c: null, v: inner }];
+        nl();
+        for (const t of toks) out.push(t);
+    }
+    return out;
+}
+
+/* ---------------- GitHub blob → raw ----------------
+   A github.com "/blob/" (or "/raw/") URL serves an HTML page, not the file. Map
+   it to raw.githubusercontent.com so the hovercard fetches and highlights the
+   actual source. Returns the input unchanged for any non-GitHub URL. */
+function isGithubCodeUrl(value) {
+    try {
+        const u = new URL(String(value).startsWith("//") ? "https:" + value : value);
+        const h = u.hostname.toLowerCase();
+        if (h === "raw.githubusercontent.com") return true;
+        if ((h === "github.com" || h === "www.github.com") && /^\/[^/]+\/[^/]+\/(?:blob|raw)\//.test(u.pathname)) {
+            return true;
+        }
+    } catch {
+        /* not a URL */
+    }
+    return false;
+}
+
+function githubRawUrl(value) {
+    const s = String(value == null ? "" : value).trim();
+    try {
+        const u = new URL(s.startsWith("//") ? "https:" + s : s);
+        const h = u.hostname.toLowerCase();
+        if (h === "github.com" || h === "www.github.com") {
+            const m = u.pathname.match(/^\/([^/]+)\/([^/]+)\/(?:blob|raw)\/(.+)$/);
+            if (m) return "https://raw.githubusercontent.com/" + m[1] + "/" + m[2] + "/" + m[3];
+        }
+    } catch {
+        /* not a URL */
+    }
+    return s;
+}
+
 /* ---------------- Code / .mdx hover preview ----------------
    Anchored, interactive (scrollable) hovercard that fetches and renders the
    source of a code/markdown file referenced by a value, so it can be explored
@@ -365,6 +710,7 @@ function urlExt(url) {
 function looksLikeCode(value) {
     if (!/^(https?:)?\/\//i.test(value || "")) return false;
     if (/\.svg(\?|#|$)/i.test(value)) return false; // SVG is previewed as an image
+    if (isGithubCodeUrl(value)) return true;
     return CODE_EXT_RE.test(value);
 }
 
@@ -431,9 +777,10 @@ function codeIconButton(cls, label, svg) {
     return b;
 }
 
-function renderCodeHeader(url, payload) {
-    const lang = el("span", { class: "code-lang", text: codeLang(url) });
-    const name = el("span", { class: "code-name", text: codeFileName(url) });
+function renderCodeHeader(url, payload, rawUrl) {
+    const src = rawUrl || url;
+    const lang = el("span", { class: "code-lang", text: codeLang(src) });
+    const name = el("span", { class: "code-name", text: codeFileName(src) });
     const meta = el("span", {
         class: "code-meta muted",
         text: payload && !payload.error
@@ -442,7 +789,7 @@ function renderCodeHeader(url, payload) {
     });
     const open = el("a", {
         class: "code-open",
-        href: url.startsWith("//") ? "https:" + url : url,
+        href: src.startsWith("//") ? "https:" + src : src,
         target: "_blank",
         rel: "noreferrer",
         title: "Open raw",
@@ -467,18 +814,42 @@ function renderCodeHeader(url, payload) {
     codeHead.replaceChildren(lang, name, meta, open, copy);
 }
 
-function renderCodeBody(text, truncated) {
+function renderCodeBody(text, truncated, ext) {
     const MAX_LINES = 600;
     const allLines = text.replace(/\n$/, "").split("\n");
-    const lines = allLines.slice(0, MAX_LINES);
+    const shown = allLines.slice(0, MAX_LINES);
+    const tokens = hlTokens(shown.join("\n"), ext);
+
+    // Split tokens across line boundaries so multi-line tokens (block comments,
+    // template strings, fenced code) keep their class on every line they cover.
+    const lineToks = [[]];
+    for (const tok of tokens) {
+        const parts = tok.v.split("\n");
+        for (let p = 0; p < parts.length; p++) {
+            if (p > 0) lineToks.push([]);
+            if (parts[p]) lineToks[lineToks.length - 1].push({ c: tok.c, v: parts[p] });
+        }
+    }
+
     const wrap = el("div", { class: "code-lines" });
     const frag = document.createDocumentFragment();
-    lines.forEach((ln, i) => {
+    lineToks.forEach((toks, i) => {
+        const tline = el("span", { class: "cl-t" });
+        if (!toks.length) {
+            tline.textContent = " ";
+        } else {
+            for (const t of toks) {
+                if (t.c) {
+                    const s = el("span", { class: t.c });
+                    s.textContent = t.v;
+                    tline.appendChild(s);
+                } else {
+                    tline.appendChild(document.createTextNode(t.v));
+                }
+            }
+        }
         frag.appendChild(
-            el("div", { class: "cl" }, [
-                el("span", { class: "cl-n", text: String(i + 1) }),
-                el("span", { class: "cl-t", text: ln.length ? ln : " " }),
-            ]),
+            el("div", { class: "cl" }, [el("span", { class: "cl-n", text: String(i + 1) }), tline]),
         );
     });
     wrap.appendChild(frag);
@@ -487,7 +858,7 @@ function renderCodeBody(text, truncated) {
         codeBody.appendChild(
             el("div", {
                 class: "code-more muted",
-                text: `Showing ${lines.length} of ${allLines.length}${truncated ? "+" : ""} lines — open raw to see all.`,
+                text: `Showing ${shown.length} of ${allLines.length}${truncated ? "+" : ""} lines — open raw to see all.`,
             }),
         );
     }
@@ -495,30 +866,32 @@ function renderCodeBody(text, truncated) {
 
 async function showCodeCard(url, node) {
     hideImgTip();
+    const raw = githubRawUrl(url);
+    const ext = urlExt(raw) || urlExt(url);
     const card = ensureCodeCard();
     const token = ++codeReqId;
-    renderCodeHeader(url, null);
+    renderCodeHeader(url, null, raw);
     codeBody.replaceChildren(el("div", { class: "code-loading", text: "Loading…" }));
     card.hidden = false;
     positionCodeCard(node.getBoundingClientRect());
     requestAnimationFrame(() => card.classList.add("visible"));
 
-    let payload = codeCache.get(url);
+    let payload = codeCache.get(raw);
     if (!payload) {
         try {
-            const res = await fetch("/api/raw?u=" + encodeURIComponent(url));
+            const res = await fetch("/api/raw?u=" + encodeURIComponent(raw));
             payload = await res.json();
         } catch {
             payload = { error: "Couldn't load file." };
         }
-        codeCache.set(url, payload);
+        codeCache.set(raw, payload);
     }
     if (token !== codeReqId || card.hidden) return; // superseded or dismissed
-    renderCodeHeader(url, payload);
+    renderCodeHeader(url, payload, raw);
     if (payload.error) {
         codeBody.replaceChildren(el("div", { class: "code-error", text: payload.error }));
     } else {
-        renderCodeBody(payload.text, payload.truncated);
+        renderCodeBody(payload.text, payload.truncated, ext);
     }
     positionCodeCard(node.getBoundingClientRect());
 }
@@ -1042,7 +1415,47 @@ const DIAG_HELP = {
     },
 };
 
-function diagDetail(help) {
+// Compose a copy-pasteable prompt a user can drop into any AI assistant to fix a
+// failing diagnostic, seeded with the page URL and the specific issue/guidance.
+function buildAiFixPrompt(check, help, url) {
+    const lines = [];
+    lines.push("Fix an OpenGraph / social-share metadata issue on my web page.");
+    lines.push("");
+    lines.push(`Page URL: ${url || "(unknown)"}`);
+    lines.push(`Issue: ${check.id}${check.level ? ` (${check.level})` : ""}`);
+    const why = (help && help.why) || check.note;
+    if (why) lines.push(`Problem: ${why}`);
+    if (help && help.fix) lines.push(`Goal: ${help.fix}`);
+    if (help && help.example) {
+        lines.push("");
+        lines.push("Reference tag:");
+        lines.push(help.example);
+    }
+    lines.push("");
+    lines.push(
+        "Give me the exact HTML <meta> tag(s) to add or change in the page <head>, " +
+        "using real values inferred from the page above. If you can tell the site's " +
+        "framework (Astro, Next.js, Hugo, plain HTML, …), show where/how to add it there; " +
+        "otherwise give plain HTML. Keep it concise.",
+    );
+    return lines.join("\n");
+}
+
+function diagAiPrompt(check, help, url) {
+    const prompt = buildAiFixPrompt(check, help, url);
+    const head = el("div", { class: "diag-ai-head" });
+    const ico = el("span", { class: "diag-ai-ico", "aria-hidden": "true" });
+    ico.innerHTML =
+        '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7.53 1.282a.5.5 0 0 1 .94 0l.478 1.306a7.492 7.492 0 0 0 4.464 4.464l1.305.478a.5.5 0 0 1 0 .94l-1.305.478a7.492 7.492 0 0 0-4.464 4.464l-.478 1.305a.5.5 0 0 1-.94 0l-.478-1.305a7.492 7.492 0 0 0-4.464-4.464L1.282 8.47a.5.5 0 0 1 0-.94l1.306-.478a7.492 7.492 0 0 0 4.464-4.464Z"/></svg>';
+    head.append(
+        ico,
+        el("span", { class: "diag-ai-title", text: "AI fix prompt" }),
+        copyButton(prompt, "Copy AI prompt"),
+    );
+    return el("div", { class: "diag-ai" }, [head, el("pre", { class: "diag-ai-body", text: prompt })]);
+}
+
+function diagDetail(help, ctx) {
     const detail = el("div", { class: "diag-detail" });
     detail.appendChild(
         el("div", { class: "diag-block" }, [
@@ -1062,6 +1475,9 @@ function diagDetail(help) {
             copyButton(help.example, "Copy snippet"),
         ]);
         detail.appendChild(snippet);
+    }
+    if (ctx && ctx.check) {
+        detail.appendChild(diagAiPrompt(ctx.check, help, ctx.url));
     }
     if (help.docs) {
         const link = el("a", {
@@ -1125,7 +1541,7 @@ function renderDiagnostics(data) {
                     diagChevron(),
                 ]),
             );
-            details.appendChild(diagDetail(help));
+            details.appendChild(diagDetail(help, { check: c, url: data.requestedUrl }));
             return details;
         }),
     );

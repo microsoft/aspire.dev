@@ -20,6 +20,25 @@ import { parseMetadata } from "./lib/parse-og.mjs";
 
 const UI_DIR = new URL("./ui/", import.meta.url);
 
+// GitHub "blob" (and "raw") web URLs render an HTML page, not the file itself.
+// Rewrite them to raw.githubusercontent.com so /api/raw fetches the actual
+// source. Idempotent and a no-op for every other URL.
+function githubBlobToRaw(value) {
+    try {
+        const u = new URL(value);
+        const host = u.hostname.toLowerCase();
+        if (host === "github.com" || host === "www.github.com") {
+            const m = u.pathname.match(/^\/([^/]+)\/([^/]+)\/(?:blob|raw)\/(.+)$/);
+            if (m) {
+                return `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}`;
+            }
+        }
+    } catch {
+        /* not an absolute URL — leave as-is */
+    }
+    return value;
+}
+
 const CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
     ".css": "text/css; charset=utf-8",
@@ -409,7 +428,8 @@ async function handleRequest(entry, req, res) {
         const u = reqUrl.searchParams.get("u");
         if (!u) return sendJson(res, 400, { error: "Missing 'u' query parameter." });
         try {
-            const r = await fetchUrl(u, {
+            const target = githubBlobToRaw(u);
+            const r = await fetchUrl(target, {
                 accept: "text/plain,text/markdown,application/json,text/*;q=0.9,*/*;q=0.5",
                 timeoutMs: 12000,
                 maxBytes: 1024 * 1024,
