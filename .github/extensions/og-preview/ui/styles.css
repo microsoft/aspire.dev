@@ -61,11 +61,15 @@
 }
 
 /* App-style scrollbars: thin, rounded thumb, transparent track, and NO stepper
-   (up/down chevron) buttons at the ends. Applied to every scroll container. */
-* {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) transparent;
-}
+   (up/down chevron) buttons at the ends. Applied to every scroll container.
+
+   NOTE: Chromium (M121+) — which the Copilot App WebView uses — DISABLES all
+   ::-webkit-scrollbar pseudo-elements on any element that also sets the standard
+   `scrollbar-width` or `scrollbar-color`. That standard scrollbar renders stepper
+   carets on Windows. So we must NOT set those standard props globally; we scope
+   them to Firefox only (via @supports) and let Chromium/WebKit use the fully
+   custom ::-webkit-scrollbar below, where `-button { display:none }` truly
+   removes the carets. */
 *::-webkit-scrollbar {
     width: 11px;
     height: 11px;
@@ -83,13 +87,25 @@
     background: var(--scrollbar-thumb-hover);
     background-clip: padding-box;
 }
-*::-webkit-scrollbar-button {
+*::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button:single-button,
+*::-webkit-scrollbar-button:vertical:decrement,
+*::-webkit-scrollbar-button:vertical:increment,
+*::-webkit-scrollbar-button:horizontal:decrement,
+*::-webkit-scrollbar-button:horizontal:increment {
     display: none;
     width: 0;
     height: 0;
 }
 *::-webkit-scrollbar-corner {
     background: transparent;
+}
+/* Firefox only: standardized scrollbar (naturally has no stepper buttons). */
+@supports (-moz-appearance: none) {
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
 }
 
 html,
@@ -1923,6 +1939,23 @@ details.diag-item[open] > summary .diag-chevron {
     font-family: var(--font-mono, "SFMono-Regular", Consolas, "Liberation Mono", monospace);
     font-size: 11.5px;
     color: var(--text-color-muted, #59636e);
+    text-decoration: none;
+    border-radius: 6px;
+    transition: color 0.12s ease;
+}
+a.diag-ai-repo:hover {
+    color: var(--accent, var(--color-accent-fg, #0969da));
+}
+a.diag-ai-repo:hover .diag-ai-repo-slug {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+a.diag-ai-repo:hover .diag-ai-repo-ico {
+    opacity: 1;
+}
+a.diag-ai-repo:focus-visible {
+    outline: 2px solid var(--accent, var(--color-focus-outline, #0969da));
+    outline-offset: 2px;
 }
 
 .diag-ai-repo-ico {
