@@ -208,6 +208,14 @@ export function parseMetadata(html, baseUrl) {
         else groups.other.push(item);
     }
 
+    const hasImage = !!ogImageRaw;
+    const imgAlt = first("og:image:alt");
+    const imgWidth = first("og:image:width");
+    const imgHeight = first("og:image:height");
+    const imgType = first("og:image:type");
+    const imgSecure = first("og:image:secure_url");
+    const isHttpsImage = /^https:\/\//i.test(image);
+
     const diagnostics = [
         check("og:title", !!first("og:title"), "required", "Primary title shown in shares."),
         check("og:type", !!first("og:type"), "recommended", "e.g. website, article, video."),
@@ -215,6 +223,7 @@ export function parseMetadata(html, baseUrl) {
         check("og:url", !!first("og:url"), "recommended", "Canonical URL of the object."),
         check("og:description", !!first("og:description"), "recommended", "Short summary (<200 chars)."),
         check("og:site_name", !!resolved.siteName, "optional", "Human-readable site name."),
+        check("og:locale", !!resolved.locale, "optional", "Content locale, e.g. en_US (defaults to en_US)."),
         check("twitter:card", !!resolved.twitterCard, "recommended", "Controls X/Twitter card layout."),
         check(
             "Absolute og:image URL",
@@ -222,13 +231,51 @@ export function parseMetadata(html, baseUrl) {
             "recommended",
             "Crawlers require absolute image URLs.",
         ),
+    ];
+
+    // Structured og:image sub-properties only matter when an og:image exists —
+    // otherwise the required og:image failure already covers it.
+    if (hasImage) {
+        diagnostics.push(
+            check(
+                "og:image:alt",
+                !!imgAlt,
+                "recommended",
+                "Alt text describing the image — ogp.me recommends it whenever og:image is set.",
+            ),
+            check(
+                "og:image dimensions",
+                !!imgWidth && !!imgHeight,
+                "recommended",
+                imgWidth && imgHeight
+                    ? `Declared ${imgWidth}×${imgHeight} — lets platforms render the card before fetching the image.`
+                    : "Add og:image:width and og:image:height so platforms size the card instantly.",
+            ),
+            check(
+                "og:image:type",
+                !!imgType,
+                "optional",
+                imgType ? `MIME type ${imgType}.` : "MIME type of the image, e.g. image/png.",
+            ),
+            check(
+                "og:image:secure_url",
+                isHttpsImage || !!imgSecure,
+                "optional",
+                isHttpsImage
+                    ? "Preview image is served over HTTPS."
+                    : "og:image is HTTP — add an HTTPS og:image:secure_url.",
+            ),
+        );
+    }
+
+    diagnostics.push(
         check(
             "Description length OK",
             !resolved.description || resolved.description.length <= 300,
             "optional",
             `Description is ${resolved.description.length} chars.`,
         ),
-    ];
+    );
 
     return {
         requestedUrl: baseUrl,

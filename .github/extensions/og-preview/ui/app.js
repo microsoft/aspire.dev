@@ -1415,6 +1415,12 @@ const DIAG_HELP = {
         example: '<meta property="og:site_name" content="Your Site" />',
         docs: { href: OGP + "#optional", label: "Open Graph optional metadata" },
     },
+    "og:locale": {
+        why: "og:locale tells platforms the language/territory of the content so they can localize the card and pick alternates. It defaults to en_US when omitted.",
+        fix: "Add og:locale in language_TERRITORY form, and og:locale:alternate for any other languages the page is available in.",
+        example: '<meta property="og:locale" content="en_US" />',
+        docs: { href: OGP + "#optional", label: "Open Graph optional metadata" },
+    },
     "twitter:card": {
         why: "twitter:card selects the X / Twitter card layout. Without it X uses a minimal fallback.",
         fix: 'Add twitter:card — use "summary_large_image" when you have a wide preview image, otherwise "summary".',
@@ -1426,6 +1432,30 @@ const DIAG_HELP = {
         fix: "Use a fully-qualified absolute URL (https://…) for og:image, not a relative path.",
         example: '<meta property="og:image" content="https://example.com/preview.png" />',
         docs: { href: OGP + "#metadata", label: "Open Graph protocol" },
+    },
+    "og:image:alt": {
+        why: "og:image:alt describes the preview image for screen readers and low-bandwidth fallbacks. ogp.me states that if a page specifies og:image it should also specify og:image:alt.",
+        fix: "Add og:image:alt with a short description of what's in the image (a description, not a caption).",
+        example: '<meta property="og:image:alt" content="A shiny red apple with a bite taken out" />',
+        docs: { href: OGP + "#structured", label: "Open Graph structured properties" },
+    },
+    "og:image dimensions": {
+        why: "Declaring og:image:width and og:image:height lets platforms lay out and render the card immediately, before the image is fetched — avoiding layout shift and wrong cropping.",
+        fix: "Add og:image:width and og:image:height (in pixels) matching your preview image — 1200×630 is the common 1.91:1 size.",
+        example: '<meta property="og:image:width" content="1200" />\n<meta property="og:image:height" content="630" />',
+        docs: { href: OGP + "#structured", label: "Open Graph structured properties" },
+    },
+    "og:image:type": {
+        why: "og:image:type advertises the image's MIME type so crawlers can validate and decode it without sniffing.",
+        fix: "Add og:image:type with the image's MIME type (e.g. image/png, image/jpeg).",
+        example: '<meta property="og:image:type" content="image/png" />',
+        docs: { href: OGP + "#structured", label: "Open Graph structured properties" },
+    },
+    "og:image:secure_url": {
+        why: "Some platforms require an HTTPS image URL to display the preview. If og:image is HTTP, og:image:secure_url provides the HTTPS alternative.",
+        fix: "Serve og:image over HTTPS, or add og:image:secure_url with the HTTPS version of the image.",
+        example: '<meta property="og:image:secure_url" content="https://secure.example.com/preview.png" />',
+        docs: { href: OGP + "#structured", label: "Open Graph structured properties" },
     },
     "Description length OK": {
         why: "Long descriptions get truncated mid-sentence; very short ones look empty. ~55–200 characters renders cleanly across platforms.",
