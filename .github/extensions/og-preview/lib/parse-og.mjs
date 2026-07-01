@@ -52,6 +52,75 @@ function resolveUrl(value, baseUrl) {
     }
 }
 
+// GitHub path segments that are never a real "owner" (site pages, product
+// areas, etc.). Used to filter false positives when sniffing a repo link.
+const GH_RESERVED_OWNERS = new Set([
+    "about", "account", "admin", "apps", "assets", "blog", "business", "careers",
+    "cdn", "collections", "contact", "customer-stories", "dashboard", "enterprise",
+    "events", "explore", "features", "fluidicon", "github", "home", "join", "login",
+    "logout", "marketplace", "mobile", "new", "notifications", "open-source", "orgs",
+    "personal", "pricing", "pulls", "readme", "search", "security", "sessions",
+    "settings", "showcases", "signup", "site", "sponsors", "stars", "team", "teams",
+    "topics", "trending", "user", "users", "watching", "wiki", "codespaces", "copilot",
+]);
+
+function scoreRepoPath(rest) {
+    // "Edit this page" links are the strongest signal that a repo builds THIS
+    // page; blob/tree/raw and commit links are next; issue/release links weakest.
+    if (/^\/edit\//i.test(rest)) return 100;
+    if (/^\/(?:blob|tree|raw|blame)\//i.test(rest)) return 60;
+    if (/^\/(?:commit|commits)\b/i.test(rest)) return 40;
+    if (/^\/(?:releases|tags|issues|pull|pulls|wiki|actions|discussions|graphs|network)\b/i.test(rest)) return 8;
+    return 4; // bare repo link
+}
+
+function addRepoCandidate(scores, owner, repo, score) {
+    if (!owner || !repo) return;
+    owner = owner.trim();
+    repo = repo.replace(/\.git$/i, "").replace(/[.\-_]+$/, "").trim();
+    if (!owner || !repo) return;
+    if (GH_RESERVED_OWNERS.has(owner.toLowerCase())) return;
+    if (/^(?:sponsors|apps|orgs|followers|following)$/i.test(repo)) return;
+    const key = `${owner}/${repo}`;
+    const cur = scores.get(key) || { owner, repo, score: 0, hits: 0 };
+    cur.score += score;
+    cur.hits += 1;
+    scores.set(key, cur);
+}
+
+/**
+ * Best-effort detection of the GitHub source repository for a page by scanning
+ * its full HTML for repo links (not just OpenGraph tags). "Edit this page",
+ * blob/tree, and commit links are the strongest signals for the repo that
+ * actually builds the page.
+ * @param {string} html
+ * @returns {{ owner: string, repo: string, slug: string, url: string } | null}
+ */
+export function detectRepository(html) {
+    if (!html) return null;
+    const scores = new Map();
+    const ghRe = /\bgithub\.com\/([A-Za-z0-9][A-Za-z0-9-]{0,38})\/([A-Za-z0-9._-]+)((?:\/[^\s"'<>)]*)?)/gi;
+    let m;
+    while ((m = ghRe.exec(html)) !== null) {
+        addRepoCandidate(scores, m[1], m[2], scoreRepoPath(m[3] || ""));
+    }
+    // raw.githubusercontent.com/<owner>/<repo>/<ref>/... — treat like a blob link.
+    const rawRe = /\braw\.githubusercontent\.com\/([A-Za-z0-9][A-Za-z0-9-]{0,38})\/([A-Za-z0-9._-]+)\//gi;
+    while ((m = rawRe.exec(html)) !== null) {
+        addRepoCandidate(scores, m[1], m[2], 60);
+    }
+    if (scores.size === 0) return null;
+    let best = null;
+    for (const v of scores.values()) {
+        if (!best || v.score > best.score || (v.score === best.score && v.hits > best.hits)) {
+            best = v;
+        }
+    }
+    if (!best) return null;
+    const slug = `${best.owner}/${best.repo}`;
+    return { owner: best.owner, repo: best.repo, slug, url: `https://github.com/${slug}` };
+}
+
 /**
  * Parse OpenGraph and related metadata out of an HTML document.
  * @param {string} html
@@ -170,6 +239,7 @@ export function parseMetadata(html, baseUrl) {
         diagnostics,
         htmlTitle,
         tagCount: all.length,
+        repository: detectRepository(html),
     };
 }
 

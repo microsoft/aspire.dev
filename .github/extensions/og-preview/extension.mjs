@@ -96,6 +96,78 @@ function sendJson(res, status, obj) {
     res.end(JSON.stringify(obj));
 }
 
+function readJsonBody(req, limit = 512 * 1024) {
+    return new Promise((resolve, reject) => {
+        let size = 0;
+        const chunks = [];
+        req.on("data", (c) => {
+            size += c.length;
+            if (size > limit) {
+                reject(new Error("Request body too large."));
+                req.destroy();
+                return;
+            }
+            chunks.push(c);
+        });
+        req.on("end", () => {
+            if (!chunks.length) return resolve({});
+            try {
+                resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+            } catch {
+                reject(new Error("Invalid JSON body."));
+            }
+        });
+        req.on("error", reject);
+    });
+}
+
+// Instruction posted back into the host chat session (via session.send) when the
+// user clicks "Open in Copilot" on a diagnostics fix prompt. The agent turns this
+// into a real coding session for the repo, seeded with the fix prompt.
+function buildOpenSessionMessage(repo, pageUrl, title, prompt) {
+    const lines = [
+        "[OG Viewer canvas action: open-session]",
+        `The user clicked "Open in Copilot" on an OpenGraph diagnostics fix prompt in the OG Viewer canvas.`,
+        "",
+        `Target repository: ${repo}`,
+        `Page URL: ${pageUrl || "(unknown)"}`,
+    ];
+    if (title) lines.push(`Diagnostic: ${title}`);
+    lines.push(
+        "",
+        `Please open a GitHub Copilot App coding session for \`${repo}\`. Match it to one of my configured projects; if a project/checkout for this repo already exists, add a new session to it, otherwise create the session for that repo. Use the AI fix prompt below verbatim as the session's kickoff prompt so it starts working on the fix, and follow my usual account, branch-naming, and PR/push conventions.`,
+        "",
+        "AI fix prompt to seed the new session with:",
+        "----------------------------------------",
+        prompt,
+        "----------------------------------------",
+    );
+    return lines.join("\n");
+}
+
+// Instruction posted back into the host chat session when the user clicks
+// "Create issue". The agent files the issue and assigns it to Copilot.
+function buildCreateIssueMessage(repo, pageUrl, title, prompt) {
+    const lines = [
+        "[OG Viewer canvas action: create-issue]",
+        `The user clicked "Create issue" on an OpenGraph diagnostics fix prompt in the OG Viewer canvas.`,
+        "",
+        `Target repository: ${repo}`,
+        `Page URL: ${pageUrl || "(unknown)"}`,
+    ];
+    if (title) lines.push(`Suggested issue title: ${title}`);
+    lines.push(
+        "",
+        `Please create a new GitHub issue on \`${repo}\` describing this OpenGraph metadata problem. Use the AI fix prompt below as the issue body (prepend a short line noting it came from the OG Viewer for ${pageUrl || "the page"}). After creating it, assign the issue to the Copilot coding agent, then reply with the issue URL. Use the correct account for that repo per my conventions.`,
+        "",
+        "Issue body (AI fix prompt):",
+        "----------------------------------------",
+        prompt,
+        "----------------------------------------",
+    );
+    return lines.join("\n");
+}
+
 function escapeHtmlAttr(s) {
     return String(s)
         .replace(/&/g, "&amp;")
@@ -570,6 +642,47 @@ async function handleRequest(entry, req, res) {
             res.setHeader("Content-Type", "text/html; charset=utf-8");
             res.setHeader("Cache-Control", "no-store");
             return res.end(browseErrorPage(u, err && err.message ? err.message : String(err)));
+        }
+    }
+
+    if (path === "/api/open-session" || path === "/api/create-issue") {
+        if (req.method !== "POST") {
+            return sendJson(res, 405, { error: "Use POST." });
+        }
+        let body;
+        try {
+            body = await readJsonBody(req);
+        } catch (err) {
+            return sendJson(res, 400, { error: err.message });
+        }
+        const repo = typeof body.repo === "string" ? body.repo.trim() : "";
+        const pageUrl = typeof body.url === "string" ? body.url.trim() : "";
+        const prompt = typeof body.prompt === "string" ? body.prompt : "";
+        const title = typeof body.title === "string" ? body.title.trim() : "";
+        if (!repo || !/^[^/\s]+\/[^/\s]+$/.test(repo)) {
+            return sendJson(res, 400, { error: "A valid 'owner/repo' is required." });
+        }
+        if (!prompt) {
+            return sendJson(res, 400, { error: "A 'prompt' is required." });
+        }
+        const kind = path === "/api/open-session" ? "open-session" : "create-issue";
+        const message =
+            kind === "open-session"
+                ? buildOpenSessionMessage(repo, pageUrl, title, prompt)
+                : buildCreateIssueMessage(repo, pageUrl, title, prompt);
+        try {
+            if (!sessionRef || typeof sessionRef.send !== "function") {
+                return sendJson(res, 200, { ok: false, error: "Session bridge unavailable." });
+            }
+            // Fire the request into the host chat session; the agent acts on it.
+            sessionRef.send(message).catch(() => {});
+            log(`OG Viewer: requested ${kind} for ${repo}.`);
+            return sendJson(res, 200, { ok: true });
+        } catch (err) {
+            return sendJson(res, 200, {
+                ok: false,
+                error: err && err.message ? err.message : String(err),
+            });
         }
     }
 

@@ -55,6 +55,12 @@ const OCTICONS = {
         '<path fill="currentColor" d="M5.75 2.5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5ZM2 14a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm1-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM2 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>',
     grid:
         '<rect x="1.75" y="1.75" width="5.25" height="5.25" rx="1.4" fill="currentColor"/><rect x="9" y="1.75" width="5.25" height="5.25" rx="1.4" fill="currentColor"/><rect x="1.75" y="9" width="5.25" height="5.25" rx="1.4" fill="currentColor"/><rect x="9" y="9" width="5.25" height="5.25" rx="1.4" fill="currentColor"/>',
+    "mark-github":
+        '<path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A8.013 8.013 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/>',
+    "device-desktop":
+        '<path fill="currentColor" d="M14.25 1c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12h-3.727c.099 1.041.52 1.872 1.263 2.516a.75.75 0 0 1-.49 1.317h-6.6a.75.75 0 0 1-.49-1.317c.744-.644 1.164-1.475 1.263-2.516H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1ZM1.75 2.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/>',
+    "issue-opened":
+        '<path fill="currentColor" d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/><path fill="currentColor" d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/>',
 };
 
 function octicon(name, size, cls) {
@@ -1441,7 +1447,7 @@ function buildAiFixPrompt(check, help, url) {
     return lines.join("\n");
 }
 
-function diagAiPrompt(check, help, url) {
+function diagAiPrompt(check, help, url, repo) {
     const prompt = buildAiFixPrompt(check, help, url);
     const head = el("div", { class: "diag-ai-head" });
     const ico = el("span", { class: "diag-ai-ico", "aria-hidden": "true" });
@@ -1452,7 +1458,99 @@ function diagAiPrompt(check, help, url) {
         el("span", { class: "diag-ai-title", text: "AI fix prompt" }),
         copyButton(prompt, "Copy AI prompt"),
     );
-    return el("div", { class: "diag-ai" }, [head, el("pre", { class: "diag-ai-body", text: prompt })]);
+    const children = [head, el("pre", { class: "diag-ai-body", text: prompt })];
+    children.push(diagAiFooter(check, prompt, url, repo));
+    return el("div", { class: "diag-ai" }, children);
+}
+
+// Footer under the AI prompt. When a source repo was detected in the page, it
+// offers two Copilot actions: open a coding session seeded with the prompt, or
+// file an issue and hand it to the Copilot agent. Both round-trip through the
+// extension's loopback API, which asks the host chat session to do the work.
+function diagAiFooter(check, prompt, url, repo) {
+    const foot = el("div", { class: "diag-ai-foot" });
+    if (!repo || !repo.owner || !repo.repo) {
+        foot.classList.add("diag-ai-foot-empty");
+        foot.append(
+            el("span", {
+                class: "diag-ai-foot-note",
+                text: "No source GitHub repo found in this page — copy the prompt above to use it manually.",
+            }),
+        );
+        return foot;
+    }
+    const slug = `${repo.owner}/${repo.repo}`;
+    const title = `Fix OpenGraph metadata: ${check.id}`;
+    const repoTag = el("span", { class: "diag-ai-repo", title: repo.url || slug }, [
+        octicon("mark-github", 13, "diag-ai-repo-ico"),
+        el("span", { class: "diag-ai-repo-slug", text: slug }),
+    ]);
+
+    const openBtn = diagActionButton("Open in Copilot", "device-desktop", (btn) => {
+        copyText(prompt);
+        postAction("/api/open-session", { repo: slug, url, prompt, title }, btn, "Opening…", "Session requested");
+    });
+    openBtn.title = `Copy the prompt and open a Copilot session for ${slug}`;
+
+    const issueBtn = diagActionButton("Create issue", "issue-opened", (btn) => {
+        postAction("/api/create-issue", { repo: slug, url, prompt, title }, btn, "Filing…", "Issue requested");
+    });
+    issueBtn.title = `Open an issue on ${slug} and assign it to Copilot`;
+
+    foot.append(repoTag, el("span", { class: "diag-ai-foot-spacer" }), openBtn, issueBtn);
+    return foot;
+}
+
+function diagActionButton(label, iconName, onClick) {
+    const btn = el("button", { class: "diag-ai-btn", type: "button" });
+    btn.append(
+        octicon(iconName, 14, "diag-ai-btn-ico"),
+        el("span", { class: "diag-ai-btn-label", text: label }),
+    );
+    btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (btn.disabled) return;
+        onClick(btn);
+    });
+    return btn;
+}
+
+async function postAction(path, payload, btn, busyLabel, doneLabel) {
+    const labelEl = btn.querySelector(".diag-ai-btn-label");
+    const orig = labelEl ? labelEl.textContent : "";
+    const reset = (delay) =>
+        setTimeout(() => {
+            btn.classList.remove("busy", "done", "error");
+            btn.disabled = false;
+            if (labelEl) labelEl.textContent = orig;
+        }, delay);
+    btn.disabled = true;
+    btn.classList.add("busy");
+    if (labelEl && busyLabel) labelEl.textContent = busyLabel;
+    try {
+        const res = await fetch(path, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        let ok = res.ok;
+        try {
+            const data = await res.json();
+            if (data && data.ok === false) ok = false;
+        } catch {
+            /* ignore body parse errors */
+        }
+        btn.classList.remove("busy");
+        btn.classList.add(ok ? "done" : "error");
+        if (labelEl) labelEl.textContent = ok ? doneLabel || "Done" : "Failed";
+        reset(ok ? 3200 : 2600);
+    } catch {
+        btn.classList.remove("busy");
+        btn.classList.add("error");
+        if (labelEl) labelEl.textContent = "Failed";
+        reset(2600);
+    }
 }
 
 function diagDetail(help, ctx) {
@@ -1477,7 +1575,7 @@ function diagDetail(help, ctx) {
         detail.appendChild(snippet);
     }
     if (ctx && ctx.check) {
-        detail.appendChild(diagAiPrompt(ctx.check, help, ctx.url));
+        detail.appendChild(diagAiPrompt(ctx.check, help, ctx.url, ctx && ctx.repo));
     }
     if (help.docs) {
         const link = el("a", {
@@ -1541,7 +1639,7 @@ function renderDiagnostics(data) {
                     diagChevron(),
                 ]),
             );
-            details.appendChild(diagDetail(help, { check: c, url: data.requestedUrl }));
+            details.appendChild(diagDetail(help, { check: c, url: data.requestedUrl, repo: data.repository }));
             return details;
         }),
     );
