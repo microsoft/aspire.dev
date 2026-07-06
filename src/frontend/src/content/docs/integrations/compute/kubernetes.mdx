@@ -213,6 +213,49 @@ await k8s.withContainerRegistry(registry);
   The container registry APIs are currently in preview. In C#, suppress the `ASPIRECOMPUTE003` diagnostic to use them.
 </Aside>
 
+## Persistent volumes
+
+Model durable storage as a first-class `KubernetesPersistentVolumeResource` with `AddPersistentVolume`, configure its storage class, capacity, and access modes, then bind it to workloads. At publish time the volume renders as a `v1.PersistentVolumeClaim`, and any workload bound to it is promoted to a `StatefulSet`.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes;
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var pgData = k8s.AddPersistentVolume("pg-data")
+    .WithStorageClass("managed-csi")
+    .WithCapacity("20Gi");
+
+builder.AddPostgres("pg")
+    .WithDataVolume("pg-data")
+    .WithPersistentVolume(pgData);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const pgData = await k8s.addPersistentVolume('pg-data');
+await pgData.withStorageClass('managed-csi');
+await pgData.withCapacity('20Gi');
+
+const pg = await builder.addPostgres('pg');
+await pg.withDataVolume('pg-data');
+await pg.withKubernetesPersistentVolume(pgData);
+```
+
+</TabItem>
+</Tabs>
+
+<LearnMore>
+  For the full configuration surface, binding overloads, access modes, and generated output, see [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/).
+</LearnMore>
+
 ## Customize individual resources
 
 Use `PublishAsKubernetesService` to modify the generated Kubernetes resources for individual services:
@@ -356,6 +399,7 @@ For complete walkthroughs, see [Deploy to Kubernetes clusters](/deployment/kuber
 ## See also
 
 - [Deploy to Kubernetes](/deployment/kubernetes/)
+- [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/)
 - [Expose services with Ingress and Gateway API](/deployment/kubernetes-ingress/)
 - [Configure Ingress on AKS](/deployment/kubernetes-ingress-aks/)
 - [Configure Gateway API on AKS](/deployment/kubernetes-gateway-aks/)
