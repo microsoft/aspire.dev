@@ -7,9 +7,34 @@ description: Model durable storage as first-class persistent volume resources in
 import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-Stateful workloads — databases, message brokers, or any service that writes durable data — need storage that survives pod restarts and rescheduling. A `KubernetesPersistentVolumeResource` lets you describe a durable disk once in your AppHost, with its own storage class, capacity, access modes, and metadata annotations, then bind it to one or more workloads. At publish time, the volume renders as a `v1.PersistentVolumeClaim` in the generated Helm chart.
+Stateful workloads — databases, message brokers, or any service that writes durable data — need storage that survives pod restarts and rescheduling. Call `AddPersistentVolume` on a Kubernetes environment to describe a durable disk once in your AppHost, configure its storage class, capacity, access modes, and annotations with fluent methods, then bind it to one or more workloads:
 
-This mirrors how [ingress and gateway resources](/deployment/kubernetes-ingress/) work: the volume is a first-class resource you configure once and reference from workloads, rather than relying on a single environment-wide storage shape for every mount.
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var pgData = k8s.AddPersistentVolume("pg-data")
+    .WithStorageClass("managed-csi")
+    .WithCapacity("20Gi");
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const pgData = await k8s.addPersistentVolume('pg-data');
+await pgData.withStorageClass('managed-csi');
+await pgData.withCapacity('20Gi');
+```
+
+</TabItem>
+</Tabs>
+
+At publish time, the volume renders as a `v1.PersistentVolumeClaim` in the generated Helm chart. Like [ingress and gateway resources](/deployment/kubernetes-ingress/), you configure the volume once and reference it from workloads, rather than relying on a single environment-wide storage shape for every mount.
 
 <Aside type="note">
   The persistent volume APIs are experimental. In C#, suppress the `ASPIRECOMPUTE002` diagnostic to use them.
@@ -23,7 +48,7 @@ This mirrors how [ingress and gateway resources](/deployment/kubernetes-ingress/
 
 ## Add a persistent volume
 
-Call `AddPersistentVolume` on a Kubernetes environment, then configure its shape with the fluent methods:
+The full set of configuration methods lets you pin the storage class, capacity, access modes, and provisioner annotations. A complete AppHost that defines a volume looks like this:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
