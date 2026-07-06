@@ -8,6 +8,9 @@ import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 If you have a terminal user interface (TUI) application or a shell-based experience that you want to exercise while it runs under Aspire, add `WithTerminal(...)` to the resource. Aspire then exposes an interactive terminal session that you can attach to from the [Aspire dashboard](/dashboard/overview/) or from the [`aspire terminal`](/reference/cli/commands/aspire-terminal/) CLI command.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -16,6 +19,23 @@ var agent = builder.AddExecutable("agent", "my-agent", ".")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const agent = await builder.addExecutable("agent", "my-agent", ".")
+    .withTerminal();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 Once the app is running, open the resource's terminal page in the dashboard—or run `aspire terminal attach agent`—to interact with the process just as you would in a local shell.
 
@@ -47,7 +67,19 @@ One peer holds the **primary** role and drives the terminal's dimensions, while 
 
 ## Configure the terminal
 
-Pass a callback to customize the terminal session:
+The terminal session is described by a set of options with sensible defaults:
+
+| Option              | Default | Description                                                                                                                                                     |
+| ------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Columns`           | `120`   | The initial number of columns for the terminal grid.                                                                                                            |
+| `Rows`              | `30`    | The initial number of rows for the terminal grid.                                                                                                               |
+| `Shell`             | `null`  | The shell to launch for the session. When `null`, the default is used: for containers this is typically `/bin/sh`; for executables the process itself is the terminal program. |
+| `ShowTerminalHost`  | `false` | Whether the hidden per-replica terminal host resources appear in the dashboard and CLI resource lists. Set to `true` to diagnose terminal-host startup or connectivity issues. |
+
+In C#, pass a callback to override any of these options:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var agent = builder.AddExecutable("agent", "my-agent", ".")
@@ -58,18 +90,27 @@ var agent = builder.AddExecutable("agent", "my-agent", ".")
     });
 ```
 
-The `TerminalOptions` you can set are:
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-| Option              | Default | Description                                                                                                                                                     |
-| ------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Columns`           | `120`   | The initial number of columns for the terminal grid.                                                                                                            |
-| `Rows`              | `30`    | The initial number of rows for the terminal grid.                                                                                                               |
-| `Shell`             | `null`  | The shell to launch for the session. When `null`, the default is used: for containers this is typically `/bin/sh`; for executables the process itself is the terminal program. |
-| `ShowTerminalHost`  | `false` | Whether the hidden per-replica terminal host resources appear in the dashboard and CLI resource lists. Set to `true` to diagnose terminal-host startup or connectivity issues. |
+```typescript title="apphost.ts"
+const agent = await builder.addExecutable("agent", "my-agent", ".")
+    .withTerminal();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+In TypeScript AppHosts, `withTerminal()` currently applies the default options shown above. Configurable options are coming to the polyglot API as `WithTerminal` is finalized.
+</Aside>
 
 ## Terminals and replicas
 
-Each replica of a resource gets its own independent terminal session. Aspire creates one terminal host per parent replica, so `WithReplicas(3).WithTerminal()` yields three separate terminals. The order of `WithReplicas` and `WithTerminal` does not matter—the final replica count is always honored:
+Each replica of a resource gets its own independent terminal session. Aspire creates one terminal host per parent replica, so requesting three replicas yields three separate terminals. The order of `WithReplicas` and `WithTerminal` does not matter—the final replica count is always honored:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var agent = builder.AddExecutable("agent", "my-agent", ".")
@@ -77,28 +118,23 @@ var agent = builder.AddExecutable("agent", "my-agent", ".")
     .WithTerminal();
 ```
 
-When a resource has more than one replica, choose which one to attach to with `aspire terminal attach <resource> --replica <index>` (indices are 0-based), or pick interactively when prompted.
-
-<Aside type="note">
-Call `WithTerminal()` only once per resource. Calling it more than once throws an exception.
-</Aside>
-
-## Use WithTerminal from other languages
-
-`WithTerminal` is also available to non-C# AppHosts. The polyglot export takes no arguments and applies the default terminal options (120×30, default shell):
-
-<Tabs syncKey='aspire-lang'>
+</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts"
-const agent = builder.addExecutable("agent", "my-agent", ".")
+const agent = await builder.addExecutable("agent", "my-agent", ".")
+    .withReplicas(3)
     .withTerminal();
 ```
 
 </TabItem>
 </Tabs>
 
-To customize columns, rows, or the shell, use the C# `WithTerminal(options => ...)` overload.
+When a resource has more than one replica, choose which one to attach to with `aspire terminal attach <resource> --replica <index>` (indices are 0-based), or pick interactively when prompted.
+
+<Aside type="note">
+Add a terminal to a resource only once. Calling `WithTerminal()` more than once on the same resource throws an exception.
+</Aside>
 
 ## Work with terminals from the CLI
 
