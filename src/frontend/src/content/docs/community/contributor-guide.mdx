@@ -1,5 +1,6 @@
 ---
 title: Contributor guide for aspire.dev
+description: "Learn how to contribute to aspire.dev: clone the repo, run the docs site locally, write Starlight MDX, follow the style guide, and open a pull request."
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 3
@@ -112,11 +113,15 @@ Before you begin, ensure you have the following installed:
     pnpm dev
     ```
 
-    This starts the Vite development server for the front end and provide hot-reload capabilities.
+    This starts the Vite development server for the frontend and provide hot-reload capabilities.
 
 1. View the site locally
 
     Open your browser to `http://localhost:4321` (or the port shown in your terminal)
+
+    :::tip
+    During local development, the site search functionality is disabled. This is normal behavior as the search index is built during the production build process. To test search functionality, run a production build locally using `pnpm build` and then preview it with `pnpm preview`.
+    :::
 
 </Steps>
 
@@ -170,6 +175,48 @@ Without the blank lines between steps, the inner content won't render correctly.
 
 </Steps>
 
+## 🧩 Adding a new framework integration
+
+If you've built a new Community Toolkit hosting integration (e.g. `CommunityToolkit.Aspire.Hosting.<Framework>`) and want to document it on `aspire.dev`, you'll need to touch several files. Here's a summary of the steps, using the Perl integration as an example:
+
+<Steps>
+
+1. **Create the documentation page**
+
+    Add a new MDX file at `src/frontend/src/content/docs/integrations/frameworks/<framework>.mdx`. Use an existing framework page (such as `python.mdx` or `java.mdx`) as a template. Include frontmatter with a `title`, any required component imports, and a `Badge` indicating it's a Community Toolkit integration.
+
+1. **Add an icon asset**
+
+    Place an SVG icon for the framework in `src/frontend/src/assets/icons/`. Reference it in your MDX page with an `Image` component import.
+
+1. **Register the sidebar entry**
+
+    In `src/frontend/config/sidebar/integrations.topics.ts`, add a new entry for your framework in the frameworks list (keep alphabetical order):
+
+    ```ts
+    { label: '<Framework>', slug: 'integrations/frameworks/<framework>' },
+    ```
+
+1. **Add the NuGet package name**
+
+    In `src/frontend/src/data/aspire-integration-names.json`, add the full NuGet package name for your integration (keep alphabetical order):
+
+    ```json
+    "CommunityToolkit.Aspire.Hosting.<Framework>",
+    ```
+
+1. **Add license attribution**
+
+    If your integration uses assets or technologies with specific licenses, add entries in `src/frontend/src/data/thanks-license-titles.ts`:
+
+    ```ts
+    '<key>': '<License>: <URL>',
+    ```
+
+</Steps>
+
+After making these changes, run `pnpm dev` (or `aspire start`) locally to verify the page renders correctly, the sidebar navigation works, and the icon displays as expected.
+
 ## ✍️ Writing style guide
 
 <span id='-writing-style-guide'></span>
@@ -187,6 +234,16 @@ When contributing to `aspire.dev`, follow these writing guidelines to ensure con
 - **Link to relevant resources** - When mentioning concepts, tools, or related documentation, provide links to help readers find more information.
 - **Follow formatting conventions** - Use consistent formatting for code snippets, commands, and technical terms. Refer to the examples in this guide for guidance.
 - **Review existing content** - Before adding new content, review existing documentation to avoid duplication and ensure coherence.
+
+### AppHost-specific C# and TypeScript content
+
+When you are documenting AppHost-specific content that changes between C# and TypeScript, use synced `Tabs` and `TabItem` blocks with `syncKey='aspire-lang'`. Each code snippet should have its own C# and TypeScript selector, and the shared sync key keeps the selected language consistent across the page.
+
+Use `Tabs` for other choices such as package managers, deployment targets, IDEs, or CLI variants.
+
+If a feature is only available in the C# AppHost today, show the C# example by itself and add an explanatory note. Do not add a language selector for a single-language example.
+
+For the **On this page** table of contents to pick up a heading reliably, define the heading outside `Pivot` and `Tabs`. Headings inside those components are often missed or can produce incomplete results in the generated table of contents.
 
 ## 📝 Write Markdown
 
@@ -206,6 +263,28 @@ Page content follows the second `---`.
 ```
 
 Every page must include at least a `title`. See the [frontmatter reference](https://starlight.astro.build/reference/frontmatter/) for all available fields and how to add custom fields.
+
+#### Social card metadata (Open Graph)
+
+Aspire automatically generates a per-page Open Graph image at build time. Each card uses the site-wide `og-image.png` as a full-bleed background and overlays a topic pill (with the same icon you see in the topics sidebar), the page `title`, and — if the page has one — its `description`. Long titles and descriptions are truncated with an ellipsis so previews stay readable at small social-card sizes. The generated image lives at `/og/<slug>.png` and is referenced by the page's `og:image` and `twitter:image` meta tags so links shared on Discord, Slack, Twitter/X, LinkedIn, and other platforms render a unique preview.
+
+To customize the social card for a specific page, set one of the following optional frontmatter fields:
+
+```md title="src/content/docs/example.mdx"
+---
+title: My page title
+description: A short summary rendered on the card and shown next to the
+  social-card image on most platforms.
+# Use a custom image instead of the auto-generated one. Accepts an absolute URL
+# or a site-relative path.
+ogImage: /img/custom-card.png
+# Or opt out of dynamic image generation entirely and fall back to the
+# site-wide og-image.png.
+og: false
+---
+```
+
+Pages that intentionally have no description (such as the home page or splash landing pages) fall back to the site-wide marketing description. Translated pages reuse the site-wide `og-image.png` so the same imagery is shown across locales.
 
 ### Headings
 
@@ -311,7 +390,7 @@ Renders as:
 Use triple backticks with a language identifier for syntax highlighting:
 
 ````md title="src/content/docs/example.md"
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 builder.AddProject<Projects.ApiService>("apiservice");
 ```
@@ -319,7 +398,7 @@ builder.AddProject<Projects.ApiService>("apiservice");
 
 Renders as:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 builder.AddProject<Projects.ApiService>("apiservice");
 ```
@@ -354,23 +433,23 @@ Renders as:
 
 ### Tables
 
-Create tables using pipes `|` and hyphens `-`:
+Create tables using pipes `|` and hyphens `-`. Keep a blank line before and after the table, include one separator cell for each heading, and use at least three hyphens in each separator cell:
 
 ```md title="src/content/docs/example.md"
 | Feature | Description | Status |
-|--|--|--|
-| Dashboard | Web-based monitoring | ✅ Available |
-| Telemetry | OpenTelemetry support | ✅ Available |
-| Deployment | Kubernetes deployment | 🚧 Preview |
+| ------- | ----------- | ------ |
+| Dashboard | Web-based monitoring | Available |
+| Telemetry | OpenTelemetry support | Available |
+| Deployment | Kubernetes deployment | Preview |
 ```
 
 Renders as:
 
 | Feature | Description | Status |
-|--|--|--|
-| Dashboard | Web-based monitoring | ✅ Available |
-| Telemetry | OpenTelemetry support | ✅ Available |
-| Deployment | Kubernetes deployment | 🚧 Preview |
+| ------- | ----------- | ------ |
+| Dashboard | Web-based monitoring | Available |
+| Telemetry | OpenTelemetry support | Available |
+| Deployment | Kubernetes deployment | Preview |
 
 <Aside type="tip">
   You can align columns using colons: `| :--- |` for left, `| :---: |` for center, and `| ---: |` for right alignment.
@@ -503,6 +582,8 @@ graph TD
 
 The `:::` syntax creates asides given a type of `note`, `tip`, `caution`, or `danger` in both Markdown and [MDX](#write-mdx):
 
+Use the `:::` syntax as the default pattern in `aspire.dev` docs, including `.mdx` pages. Prefer the `Aside` component only when you specifically need a JSX-only composition pattern that fenced callouts cannot express cleanly.
+
 ````md title="src/content/docs/example.md"
 :::note
 Some content in an aside.
@@ -570,7 +651,7 @@ Renders as:
 See the full demo here: [Starlight: GitHub Alerts](https://starlight-github-alerts.netlify.app/demo/).
 
 <LearnMore>
-For the Starlight component, see the [Aside component](#aside-component) section below.
+If you need a JSX-only fallback, see the [Aside component](#aside-component) section below.
 </LearnMore>
 
 ## ☑️ Write MDX
@@ -613,9 +694,30 @@ Here's an example of an MDX page with a custom button:
 For all available components, see: [Starlight: Components](https://starlight.astro.build/components/using-components/).
 </LearnMore>
 
+### FileTree component
+
+Use the `FileTree` component from `starlight-plugin-icons` so file and folder entries render with icons:
+
+````mdx title="src/content/docs/example.mdx"
+---
+title: Example MDX Page
+---
+
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
+
+<FileTree>
+- src/
+  - components/
+    - Example.astro
+  - content/
+    - docs/
+      - example.mdx
+</FileTree>
+````
+
 ### Aside component
 
-The `Aside` component from Starlight can be used to create asides in your documentation:
+Prefer `:::` callouts for new docs content. The `Aside` component from Starlight is the fallback option when you need JSX composition inside a callout:
 
 ````mdx title="src/content/docs/example.mdx"
 ---
@@ -665,7 +767,7 @@ import tsConfig from "../../../../tsconfig.json?raw";
 
 To use custom components available in `aspire.dev`, import them at the top of your MDX file. Custom component imports rely on configured aliases—have a look at the `tsconfig.json` file for more information:
 
-<Code code={tsConfig} lang="json" title="JSON — tsconfig.json" mark={8} />
+<Code code={tsConfig} lang="json" title="tsconfig.json" mark={8} />
 
 By using the `@components` alias, you can easily import any custom component from the `frontend/src/components/` directory. For example, to import the `LearnMore` component used in this guide:
 
@@ -682,6 +784,57 @@ Here's an example of using the `LearnMore` component:
   Please give our [repository a star on GitHub! ⭐](https://github.com/microsoft/aspire.dev)
 </LearnMore>
 ```
+
+### Aspire language selectors
+
+Use synced `Tabs` and `TabItem` blocks for AppHost content that switches between C# and TypeScript. Each AppHost code snippet should have its own selector, and every AppHost language selector on the page should share `syncKey='aspire-lang'` so a reader's language choice applies to the whole page.
+
+Keep shared section headings outside the tabs. For example, write `## Add a Redis resource` before the `Tabs` block, then place the language-specific code inside the `csharp` and `typescript` tab items. This helps the **On this page** navigation stay accurate.
+
+````mdx title="src/content/docs/example.mdx"
+---
+title: Example MDX Page
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(cache);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+````
+
+If the difference is not about AppHost language, keep using regular `Tabs`.
+
+The same TOC rule applies to `Tabs`: if a heading should appear in **On this page**, keep that heading outside the component and only put the variant-specific body content inside.
 
 Renders as:
 

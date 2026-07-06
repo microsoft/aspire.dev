@@ -1,15 +1,13 @@
 ---
 title: AppHost eventing APIs
-description: Learn how to use the Aspire AppHost eventing features.
+seoTitle: AppHost eventing APIs in your Aspire AppHost project
+description: Use the Aspire AppHost eventing APIs for lifecycle events, custom event publishing, and reactive integrations that respond to resource state transitions at runtime.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 
 In Aspire, eventing allows you to publish and subscribe to events during various AppHost life cycles. Eventing is more flexible than life cycle events. Both let you run arbitrary code during event callbacks, but eventing offers finer control of event timing, publishing, and provides supports for custom events.
-
-The eventing mechanisms in Aspire are part of the [📦 Aspire.Hosting](https://www.nuget.org/packages/Aspire.Hosting) NuGet package. This package provides a set of interfaces and classes in the `Aspire.Hosting.Eventing` namespace that you use to publish and subscribe to events in your Aspire AppHost project. Eventing is scoped to the AppHost itself and the resources within.
-
-In this article, you learn how to use the eventing features in Aspire.
 
 ## AppHost eventing
 
@@ -19,13 +17,16 @@ The following events are available in the AppHost and occur in the following ord
 
 1. `BeforeStartEvent`: This event is raised before the AppHost starts.
 1. `ResourceEndpointsAllocatedEvent`: This event is raised per resource after its endpoints are allocated.
-1. `AfterResourcesCreatedEvent`: This event is raised after the AppHost created resources.
+1. `AfterResourcesCreatedEvent`: This event is raised after resources are created.
 
 </Steps>
 
 ### Subscribe to AppHost events
 
-To subscribe to the built-in AppHost events, use the eventing API. After you have a distributed application builder instance, walk up to the `IDistributedApplicationBuilder.Eventing` property and call the `Subscribe` API. Consider the following sample AppHost _AppHost.cs_ file:
+To subscribe to built-in AppHost events, use the convenience extension methods directly on the builder. These methods return the same `IDistributedApplicationBuilder` instance so calls can be chained:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 using Microsoft.Extensions.DependencyInjection;
@@ -33,31 +34,62 @@ using Microsoft.Extensions.Logging;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var cache = builder.AddRedis("cache");
+builder.OnBeforeStart(static (@event, cancellationToken) =>
+{
+    var logger = @event.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("BeforeStartEvent");
+    return Task.CompletedTask;
+});
 
-var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice");
+builder.OnAfterResourcesCreated(static (@event, cancellationToken) =>
+{
+    var logger = @event.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("AfterResourcesCreatedEvent");
+    return Task.CompletedTask;
+});
 
-builder.AddProject<Projects.AspireApp_Web>("webfrontend")
-    .WithExternalHttpEndpoints()
-    .WithReference(cache)
-    .WaitFor(cache)
-    .WithReference(apiService)
-    .WaitFor(apiService);
+builder.Build().Run();
+```
 
-builder.Eventing.Subscribe<ResourceEndpointsAllocatedEvent>(
-    static (@event, cancellationToken) =>
-    {
-        var logger = @event.Services.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("2. \"{ResourceName}\" ResourceEndpointsAllocatedEvent", @event.Resource.Name);
-        return Task.CompletedTask;
-    });
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.subscribeBeforeStart(async () => {
+  console.log('BeforeStartEvent');
+});
+
+await builder.subscribeAfterResourcesCreated(async () => {
+  console.log('AfterResourcesCreatedEvent');
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The following builder-level extension methods are available for AppHost events:
+
+| Method                    | Event                                                             |
+| ------------------------- | ----------------------------------------------------------------- |
+| `OnBeforeStart`           | `BeforeStartEvent` — raised before the AppHost starts             |
+| `OnAfterResourcesCreated` | `AfterResourcesCreatedEvent` — raised after resources are created |
+| `OnBeforePublish`         | `BeforePublishEvent` — raised before manifest publishing begins   |
+| `OnAfterPublish`          | `AfterPublishEvent` — raised after manifest publishing completes  |
+
+If you need to subscribe via `IDistributedApplicationEventing` directly (for example, inside an `IDistributedApplicationEventingSubscriber`), you can use the lower-level `Eventing.Subscribe<T>()` API:
+
+```csharp title="AppHost.cs"
 builder.Eventing.Subscribe<BeforeStartEvent>(
     static (@event, cancellationToken) =>
     {
         var logger = @event.Services.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("1. BeforeStartEvent");
-
+        logger.LogInformation("BeforeStartEvent");
         return Task.CompletedTask;
     });
 
@@ -65,46 +97,41 @@ builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(
     static (@event, cancellationToken) =>
     {
         var logger = @event.Services.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("3. AfterResourcesCreatedEvent");
-
+        logger.LogInformation("AfterResourcesCreatedEvent");
         return Task.CompletedTask;
     });
-
-builder.Build().Run();
 ```
 
-The preceding code is based on the starter template with the addition of the calls to the `Subscribe` API. The `Subscribe<T>` API returns a `DistributedApplicationEventSubscription` instance that you can use to unsubscribe from the event. It's common to discard the returned subscriptions, as you don't usually need to unsubscribe from events as the entire app is torn down when the AppHost is shut down.
+<Aside type="note">
+  TypeScript AppHosts don't expose the generic
+  `builder.Eventing.Subscribe<TEvent>()` API. Use the named callback APIs
+  generated for each supported event, such as `subscribeBeforeStart`,
+  `subscribeAfterResourcesCreated`, `addEventingSubscriber`, and resource
+  callbacks like `onResourceReady`.
+</Aside>
 
 When the AppHost is run, by the time the Aspire dashboard is displayed, you should see the following log output in the console:
 
-```plaintext {2,10,12,14,16,22} data-disable-copy
+```plaintext {2,12} data-disable-copy
 info: Program[0]
-      1. BeforeStartEvent
+      BeforeStartEvent
 info: Aspire.Hosting.DistributedApplication[0]
       Aspire version: 13.1.0
 info: Aspire.Hosting.DistributedApplication[0]
       Distributed application starting.
 info: Aspire.Hosting.DistributedApplication[0]
       Application host directory is: ../AspireApp/AspireApp.AppHost
-info: Program[0]
-      2. "cache" ResourceEndpointsAllocatedEvent
-info: Program[0]
-      2. "apiservice" ResourceEndpointsAllocatedEvent
-info: Program[0]
-      2. "webfrontend" ResourceEndpointsAllocatedEvent
-info: Program[0]
-      2. "aspire-dashboard" ResourceEndpointsAllocatedEvent
 info: Aspire.Hosting.DistributedApplication[0]
       Now listening on: https://localhost:17178
 info: Aspire.Hosting.DistributedApplication[0]
       Login to the dashboard at https://localhost:17178/login?t=<YOUR_TOKEN>
 info: Program[0]
-      3. AfterResourcesCreatedEvent
+      AfterResourcesCreatedEvent
 info: Aspire.Hosting.DistributedApplication[0]
       Distributed application started. Press Ctrl+C to shut down.
 ```
 
-The log output confirms that event handlers are executed in the order of the AppHost life cycle events. The subscription order doesn't affect execution order. The `BeforeStartEvent` is triggered first, followed by each resource's `ResourceEndpointsAllocatedEvent`, and finally `AfterResourcesCreatedEvent`.
+The log output confirms that event handlers are executed in the order of the AppHost life cycle events. The subscription order doesn't affect execution order. The `BeforeStartEvent` is triggered before the AppHost starts, and `AfterResourcesCreatedEvent` is triggered after resources are created.
 
 ## Resource eventing
 
@@ -122,7 +149,10 @@ In addition to the AppHost events, you can also subscribe to resource events. Re
 
 ### Subscribe to resource events
 
-To subscribe to resource events, use the convenience-based extension methods—`On*`. After you have a distributed application builder instance, and a resource builder, walk up to the instance and chain a call to the desired `On*` event API. Consider the following sample _AppHost.cs_ file:
+To subscribe to resource events, use the convenience-based extension methods. After you have a distributed application builder instance, and a resource builder, walk up to the instance and chain a call to the desired event API:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 using Microsoft.Extensions.DependencyInjection;
@@ -189,13 +219,58 @@ builder.AddProject<Projects.AspireApp_Web>("webfrontend")
 builder.Build().Run();
 ```
 
-The preceding code subscribes to the `InitializeResourceEvent`, `ResourceReadyEvent`, `ResourceEndpointsAllocatedEvent`, `ConnectionStringAvailableEvent`, and `BeforeResourceStartedEvent` events on the `cache` resource. When `AddRedis` is called, it returns an `IResourceBuilder<T>` where `T` is a `RedisResource`. Chain calls to the `On*` methods to subscribe to the events. The `On*` methods return the same `IResourceBuilder<T>` instance, so you can chain multiple calls:
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-- `OnInitializeResource`: Subscribes to the `InitializeResourceEvent`.
-- `OnResourceEndpointsAllocated`: Subscribes to the `ResourceEndpointsAllocatedEvent` event.
-- `OnConnectionStringAvailable`: Subscribes to the `ConnectionStringAvailableEvent` event.
-- `OnBeforeResourceStarted`: Subscribes to the `BeforeResourceStartedEvent` event.
-- `OnResourceReady`: Subscribes to the `ResourceReadyEvent` event.
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis('cache');
+
+await cache.onInitializeResource(async () => {
+  console.log('1. onInitializeResource');
+});
+
+await cache.onResourceEndpointsAllocated(async (event) => {
+  const resource = await event.resource();
+  console.log(`2. endpoints allocated for ${resource.getResourceName()}`);
+});
+
+await cache.onConnectionStringAvailable(async (event) => {
+  const resource = await event.resource();
+  console.log(
+    `3. connection string available for ${resource.getResourceName()}`
+  );
+});
+
+await cache.onBeforeResourceStarted(async () => {
+  console.log('4. onBeforeResourceStarted');
+});
+
+await cache.onResourceReady(async () => {
+  console.log('5. onResourceReady');
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The preceding code subscribes to the `InitializeResourceEvent`, `ResourceReadyEvent`, `ResourceEndpointsAllocatedEvent`, `ConnectionStringAvailableEvent`, and `BeforeResourceStartedEvent` events on the `cache` resource. Chain calls to the event methods to subscribe to multiple events on the same resource.
+
+<Aside type="note">
+  TypeScript callbacks receive the event object. Use `await event.resource()`
+  and `await event.services()` when you need the resource or service provider.
+</Aside>
+
+- `OnInitializeResource` / `onInitializeResource`: Subscribes to the `InitializeResourceEvent`.
+- `OnResourceEndpointsAllocated` / `onResourceEndpointsAllocated`: Subscribes to the `ResourceEndpointsAllocatedEvent` event.
+- `OnConnectionStringAvailable` / `onConnectionStringAvailable`: Subscribes to the `ConnectionStringAvailableEvent` event.
+- `OnBeforeResourceStarted` / `onBeforeResourceStarted`: Subscribes to the `BeforeResourceStartedEvent` event.
+- `OnResourceReady` / `onResourceReady`: Subscribes to the `ResourceReadyEvent` event.
 
 When the AppHost is run, by the time the Aspire dashboard is displayed, you should see the following log output in the console:
 
@@ -225,7 +300,11 @@ info: Aspire.Hosting.DistributedApplication[0]
 ```
 
 <Aside type="note">
-Some events block execution. For example, when the `BeforeResourceStartedEvent` is published, the resource startup blocks until all subscriptions for that event on a given resource finish executing. Whether an event blocks or not depends on how you publish it (see the following section).
+  Some events block execution. For example, when the
+  `BeforeResourceStartedEvent` is published, the resource startup blocks until
+  all subscriptions for that event on a given resource finish executing. Whether
+  an event blocks or not depends on how you publish it (see the following
+  section).
 </Aside>
 
 ## Publish events
@@ -295,6 +374,30 @@ internal sealed class LifecycleLoggerSubscriber(ILogger<LifecycleLoggerSubscribe
 }
 ```
 
+<Aside type="note">
+  C# eventing subscriber service classes are specific to the C# AppHost hosting
+  model. TypeScript AppHosts can register callback-based subscribers with
+  `addEventingSubscriber` or `tryAddEventingSubscriber`.
+</Aside>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+builder.addEventingSubscriber(async (events) => {
+  events.onBeforeStart(async () => {
+    console.log('1. BeforeStartEvent');
+  });
+
+  events.onAfterResourcesCreated(async () => {
+    console.log('3. AfterResourcesCreatedEvent');
+  });
+});
+
+await builder.build().run();
+```
+
 The subscriber approach keeps builder code minimal while still letting you respond to the same lifecycle moments as inline subscriptions:
 
 - `AddEventingSubscriber<T>()` (or `TryAddEventingSubscriber()`) ensures the subscriber participates whenever the AppHost starts.
@@ -302,3 +405,166 @@ The subscriber approach keeps builder code minimal while still letting you respo
 - You can register handlers for any built-in event (AppHost or resource) or for your own custom `IDistributedApplicationEvent` types.
 
 Use this pattern whenever you previously relied on `IDistributedApplicationLifecycleHook`. The lifecycle hook APIs remain only for backward compatibility and will be removed in a future release.
+
+### Migrating from lifecycle hooks
+
+If you're migrating from the deprecated `IDistributedApplicationLifecycleHook` interface, use the following mapping:
+
+| Old pattern (deprecated)         | New pattern                                    |
+| -------------------------------- | ---------------------------------------------- |
+| `BeforeStartAsync()`             | Subscribe to `BeforeStartEvent`                |
+| `AfterEndpointsAllocatedAsync()` | Subscribe to `ResourceEndpointsAllocatedEvent` |
+| `AfterResourcesCreatedAsync()`   | Subscribe to `AfterResourcesCreatedEvent`      |
+| `TryAddLifecycleHook<T>()`       | `TryAddEventingSubscriber<T>()`                |
+
+**Before (deprecated):**
+
+```csharp title="OldLifecycleHook.cs"
+public class MyHook : IDistributedApplicationLifecycleHook
+{
+    public Task AfterResourcesCreatedAsync(
+        DistributedApplicationModel model,
+        CancellationToken cancellationToken)
+    {
+        // Handle event
+        return Task.CompletedTask;
+    }
+}
+
+// Registration
+builder.Services.TryAddLifecycleHook<MyHook>();
+```
+
+**After (recommended):**
+
+```csharp title="NewEventingSubscriber.cs"
+public class MySubscriber : IDistributedApplicationEventingSubscriber
+{
+    public Task SubscribeAsync(
+        IDistributedApplicationEventing eventing,
+        DistributedApplicationExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        eventing.Subscribe<AfterResourcesCreatedEvent>((@event, ct) =>
+        {
+            // Handle event using context.Model
+            return Task.CompletedTask;
+        });
+
+        return Task.CompletedTask;
+    }
+}
+
+// Registration
+builder.Services.TryAddEventingSubscriber<MySubscriber>();
+```
+
+<Aside type="caution">
+  The `IDistributedApplicationLifecycleHook` interface is deprecated as of
+  Aspire 9.0 and will be removed in a future release. Migrate to
+  `IDistributedApplicationEventingSubscriber` for new code.
+</Aside>
+
+## Additional events
+
+Beyond the core lifecycle events, Aspire provides additional events for specific scenarios:
+
+### Publishing events
+
+When publishing your application (generating deployment manifests), these events are raised:
+
+| Event                | When raised                | Purpose                                                 |
+| -------------------- | -------------------------- | ------------------------------------------------------- |
+| `BeforePublishEvent` | Before publishing begins   | Validate or modify resources before manifest generation |
+| `AfterPublishEvent`  | After publishing completes | Perform cleanup or post-publish actions                 |
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+builder.OnBeforePublish((@event, ct) =>
+{
+    // Validate resources before publishing
+    return Task.CompletedTask;
+});
+
+builder.OnAfterPublish((@event, ct) =>
+{
+    // Post-publish actions
+    return Task.CompletedTask;
+});
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.subscribeBeforePublish(async (event) => {
+  const model = await event.model();
+  console.log(`Publishing ${model.getResources().length} resources`);
+});
+
+await builder.subscribeAfterPublish(async (event) => {
+  const services = await event.services();
+  console.log('Publish completed', services);
+});
+```
+
+</TabItem>
+</Tabs>
+
+<LearnMore>
+  For details on what happens during publishing, see [Publishing and deployment
+  overview](/deployment/deploy-with-aspire/).
+</LearnMore>
+
+### Resource stopped event
+
+The `ResourceStoppedEvent` is raised when a resource stops execution:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+builder.Eventing.Subscribe<ResourceStoppedEvent>(
+    cache,
+    (@event, ct) =>
+    {
+        logger.LogInformation("Resource {Name} stopped", @event.Resource.Name);
+        return Task.CompletedTask;
+    });
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis('cache');
+
+await cache.onResourceStopped(async (event) => {
+  const resource = await event.resource();
+  console.log(`Resource ${resource.getResourceName()} stopped`);
+});
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+  Event publishing is **synchronous and blocking** — event handlers can delay
+  further execution. Keep handlers lightweight and avoid long-running
+  operations.
+</Aside>
+
+## See also
+
+- [Custom resources](/extensibility/custom-resources/)
+- [Resource annotations](/fundamentals/annotations-overview/)

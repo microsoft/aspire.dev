@@ -5,6 +5,9 @@
 @import '@fontsource/poppins/700.css';
 @import '@fontsource-variable/fira-code/wght.css';
 @import './cookieconsent-custom.css';
+@import './utils.css';
+@import './api-reference.css';
+@import './mermaid.css';
 
 :root {
   --aspire-color-purple: #512bd4;
@@ -29,7 +32,7 @@
   --sl-color-gray-3: #a0a4ab;
   --sl-color-gray-4: #55585f;
   --sl-color-gray-5: #35383e;
-  --sl-color-gray-6: #24272d;
+  --sl-color-gray-6: #181825;
   --sl-color-black: var(--aspire-color-black);
 
   --sl-color-bg: var(--aspire-color-black) !important;
@@ -40,10 +43,28 @@
   --color-dotnet-purple: #2c256b;
 
   --color-purple: var(--aspire-color-primary);
-  --color-magenta: #d600aa;
+  --color-magenta: hsl(316, 65%, 78%); /* catppuccin-aligned pastel magenta */
   --color-flamingo: #f65163;
   --color-blue: #0078d7;
-  --color-cyan: #28c2d1;
+  --color-cyan: hsl(183, 55%, 75%); /* catppuccin-aligned pastel teal */
+  --color-yellow: hsl(50, 55%, 75%); /* catppuccin-aligned pastel gold */
+
+  /* Inline code surface (dark theme).
+     bg uses currentColor (= the chip's text accent) mixed with #000 so the
+     chip surface always reads as a darker shade of the accent, regardless
+     of what surface it sits on (page bg, aside bg, etc.). Borders use
+     currentColor-on-transparent so they overlay whatever's behind them.
+     The 22% mix keeps text contrast > 6:1 (AAA) for every accent we use. */
+  --aspire-inline-code-bg: color-mix(in srgb, currentColor 22%, #000);
+  --aspire-inline-code-text: var(--sl-color-accent-high);
+  --aspire-inline-code-border: color-mix(in srgb, currentColor 35%, transparent);
+
+  /* Inline code inside an aside adopts the aside's accent so the chip
+     feels native to the alert. Only the text color needs to change —
+     bg and border use currentColor and follow automatically. */
+  .starlight-aside {
+    --aspire-inline-code-text: var(--sl-color-asides-text-accent);
+  }
 
   --gradient-purple-magenta: linear-gradient(90deg, var(--color-purple), var(--color-magenta));
   --gradient-magenta-flamingo: linear-gradient(90deg, var(--color-magenta), var(--color-flamingo));
@@ -70,23 +91,24 @@
     color: var(--sl-color-gray-1);
   }
 
+  .sl-link-card > svg.icon,
+  .sl-link-card:hover > svg.icon {
+    color: var(--aspire-color-secondary);
+  }
+
   .sl-banner {
     background-color: var(--aspire-color-secondary);
   }
 
-  .starlight-aside .starlight-aside--note>.starlight-aside__title {
+  .starlight-aside .starlight-aside--note > .starlight-aside__title {
     color: var(--sl-color-blue);
   }
 
-  aside.starlight-aside.starlight-aside--tip>.starlight-aside__title {
-    color: var(--sl-color-purple);
-  }
-
-  aside.starlight-aside.starlight-aside--caution>.starlight-aside__title {
+  aside.starlight-aside.starlight-aside--caution > .starlight-aside__title {
     color: var(--sl-color-orange);
   }
 
-  aside.starlight-aside.starlight-aside--danger>.starlight-aside__title {
+  aside.starlight-aside.starlight-aside--danger > .starlight-aside__title {
     color: var(--sl-color-red);
   }
 
@@ -96,6 +118,12 @@
 
   .starlight-aside__content li.tab [role='tab'][aria-selected='false'] {
     color: var(--sl-color-gray-2);
+  }
+
+  --spi-filetree-icon-size: 1.2rem;
+
+  abbr[title] {
+    cursor: help; /* Shows a question mark cursor */
   }
 }
 
@@ -116,12 +144,48 @@
   --sl-color-bg: var(--aspire-color-white) !important;
   --sl-color-text: var(--aspire-color-black) !important;
 
+  /* WCAG AA contrast-safe text colors (catppuccin latte --sl-color-gray-2 #6c6f85 fails 4.5:1) */
+  --aspire-color-muted: #66697e; /* 4.91:1 on #f3f4f7, 4.78:1 on #eff1f5 */
+  --aspire-color-muted-strong: #515465; /* 4.85:1 on #ccd0da (kbd backgrounds) */
+
   /* Override green and orange-high for WCAG AA compliance (catppuccin defaults fail 4.5:1 threshold) */
   --sl-hue-green: 109;
   --sl-hue-orange: 22;
   --sl-color-green-low: hsl(var(--sl-hue-green), 40%, 85%) !important;
   --sl-color-green-high: hsl(var(--sl-hue-green), 70%, 28%) !important;
   --sl-color-orange-high: hsl(var(--sl-hue-orange), 99%, 38%) !important;
+
+  --color-magenta: hsl(316, 85%, 38%); /* catppuccin-aligned deep magenta */
+  --color-cyan: hsl(183, 85%, 28%); /* catppuccin-aligned deep teal */
+  --color-yellow: hsl(50, 90%, 32%); /* catppuccin-aligned deep gold */
+
+  /* Inline code surface (light theme).
+     Same currentColor + neutral pattern as dark mode, but mixed with #fff
+     so the chip is a lighter tint of the accent on any surface (page bg,
+     aside bg). The 11% mix keeps text contrast > 4.5:1 (AA) for every
+     accent and pins below cover the two Catppuccin Latte accents that
+     dip below AA on a self-tinted chip. */
+  --aspire-inline-code-bg: color-mix(in srgb, currentColor 11%, #fff);
+  --aspire-inline-code-text: var(--sl-color-accent-high);
+  --aspire-inline-code-border: color-mix(in srgb, currentColor 30%, transparent);
+
+  /* Inline code inside an aside adopts the aside's accent. */
+  .starlight-aside {
+    --aspire-inline-code-text: var(--sl-color-asides-text-accent);
+  }
+
+  /* Catppuccin Latte note blue (#1e66f4) drops below AA on a self-tinted
+     chip. Pin to a deeper blue. */
+  .starlight-aside--note {
+    --aspire-inline-code-text: #1e40af;
+  }
+
+  /* --sl-color-orange-high (#c08400) is too light to clear AA on a
+     white-ish chip, so caution uses the same darker orange (#ab3f00)
+     the site already uses for the caution title. */
+  .starlight-aside--caution {
+    --aspire-inline-code-text: #ab3f00;
+  }
 
   --gradient-purple-magenta: linear-gradient(90deg, var(--color-purple), var(--color-magenta));
   --gradient-magenta-flamingo: linear-gradient(90deg, var(--color-magenta), var(--color-flamingo));
@@ -140,19 +204,24 @@
     color: var(--aspire-color);
   }
 
-  aside.starlight-aside.starlight-aside--note>.starlight-aside__title {
+  .sl-link-card > svg.icon,
+  .sl-link-card:hover > svg.icon {
+    color: var(--aspire-color-purple);
+  }
+
+  aside.starlight-aside.starlight-aside--note > .starlight-aside__title {
     color: var(--sl-color-blue);
   }
 
-  aside.starlight-aside.starlight-aside--tip>.starlight-aside__title {
+  aside.starlight-aside.starlight-aside--tip > .starlight-aside__title {
     color: var(--sl-color-purple);
   }
 
-  aside.starlight-aside.starlight-aside--caution>.starlight-aside__title {
+  aside.starlight-aside.starlight-aside--caution > .starlight-aside__title {
     color: #ab3f00;
   }
 
-  aside.starlight-aside.starlight-aside--danger>.starlight-aside__title {
+  aside.starlight-aside.starlight-aside--danger > .starlight-aside__title {
     color: var(--sl-color-red);
   }
 
@@ -175,6 +244,14 @@
   .starlight-aside__content li.tab [role='tab'][aria-selected='false'] {
     color: #575a71;
   }
+
+  /* WCAG AA contrast fixes for search button */
+  site-search button[data-open-modal] {
+    color: var(--aspire-color-muted);
+  }
+  site-search button[data-open-modal] kbd {
+    color: var(--aspire-color-muted-strong);
+  }
 }
 
 .starlight-aside {
@@ -188,6 +265,44 @@
 
 .sl-markdown-content code:not(:where(.not-content *)) {
   font-size: var(--sl-text-body);
+}
+
+/* Inline code: theme-aware accent surface with a hairline border.
+   - Background uses --aspire-inline-code-bg, which mixes currentColor with
+     #000/#fff (theme-dependent) to create a subtle shade/tint that stays
+     clearly distinct without depending on the surrounding surface.
+   - Text uses --sl-color-accent-high (or the aside's text-accent inside an
+     aside), which clears WCAG AA against the tinted surface.
+   - Border is a low-alpha accent so it reads as a hairline, not a frame.
+   - Padding is inherited from Starlight's base inline-code rule.
+   - Scoped to :not(pre) so fenced code blocks (handled by expressive-code)
+     are unaffected. */
+.sl-markdown-content :not(pre) > code:not(:where(.not-content *)) {
+  background-color: var(--aspire-inline-code-bg);
+  color: var(--aspire-inline-code-text);
+  border: 1px solid var(--aspire-inline-code-border);
+}
+
+/* Inline code inside links keeps the link color so the affordance stays
+   obvious, while still sitting on the accent surface. */
+.sl-markdown-content a:not(:where(.not-content *)) > code {
+  color: inherit;
+}
+
+/* Aside links normally render as a tinted pill (padding + bg + radius),
+   but when the link's sole child is inline code the chip already carries
+   that styling — stacking both produces a wider link pill with a second,
+   lighter border around the code chip. Suppress the link pill in that
+   case so only the code chip is visible.
+   :is(:root[data-theme='light']) anchors specificity high enough to
+   beat both the dark (:root …) and light (:root[data-theme='light'] …)
+   variants of the aside-link rule. */
+:is(:root[data-theme='light'], :root)
+  .starlight-aside__content
+  a:not([role='tab']):has(> code:only-child) {
+  background: none;
+  padding: 0;
+  border-radius: 0;
 }
 
 .poppins-light {
@@ -220,26 +335,31 @@
   font-style: normal;
 }
 
-pre[data-language='bash']>code,
-pre[data-language='powershell']>code,
-pre[data-language='console']>code {
+pre[data-language='bash'] > code,
+pre[data-language='powershell'] > code,
+pre[data-language='console'] > code {
   line-height: initial;
-}
-
-pre.mermaid[data-processed='true'] {
-  border: 1px solid var(--sl-color-gray-5);
 }
 
 .sl-markdown-content code {
   border-radius: 0.25rem;
 }
 
-.sl-markdown-content :is(h1, h2, h3, h4, h5, h6) code:not(:where(.not-content *)) {
-  font-size: inherit;
+/* Keep inline code together when it fits, but allow long tokens to wrap if needed. */
+/* Exclude td/th so code inside table cells keeps its default nowrap behavior. */
+:root:not(:has(.topics-sidebar[data-api-ref]))
+  .sl-markdown-content
+  :not(pre):not(td):not(th)
+  > code:not(:where(.not-content *)) {
+  max-width: 100%;
+  vertical-align: baseline;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
-.sl-markdown-content a>code {
-  white-space: pre;
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6) code:not(:where(.not-content *)) {
+  font-size: inherit;
 }
 
 .float-inline-left {
@@ -252,8 +372,20 @@ aside {
   border-radius: 0.5rem;
 }
 
+.action-button {
+  border-radius: 0.5rem !important;
+}
+
 .mb-1 {
   margin-bottom: 1rem;
+}
+
+.sl-steps:has(> li:first-child > div.sl-heading-wrapper) {
+  padding-top: 1rem;
+}
+
+.sl-steps ul:not([role='tablist']) {
+  padding-bottom: 1rem;
 }
 
 starlight-toc a,
@@ -269,6 +401,7 @@ starlight-file-tree {
 
 starlight-file-tree .comment {
   color: var(--sl-color-green-high);
+  max-width: 100%;
 }
 
 html[data-theme='light'] starlight-file-tree .comment {
@@ -285,20 +418,20 @@ starlight-file-tree .comment::before {
   transform-origin: center;
 }
 
-starlight-file-tree .directory>details>summary::marker,
-starlight-file-tree .directory>details>summary::-webkit-details-marker {
+starlight-file-tree .directory > details > summary::marker,
+starlight-file-tree .directory > details > summary::-webkit-details-marker {
   display: none !important;
 }
 
-starlight-file-tree .directory>details>summary {
+starlight-file-tree .directory > details > summary {
   list-style: none;
 }
 
-starlight-file-tree .directory>details>summary::-webkit-details-marker {
+starlight-file-tree .directory > details > summary::-webkit-details-marker {
   display: none !important;
 }
 
-starlight-file-tree .directory>details>summary::before {
+starlight-file-tree .directory > details > summary::before {
   content: '';
   display: inline-block;
   width: 1.25em;
@@ -307,12 +440,18 @@ starlight-file-tree .directory>details>summary::before {
   vertical-align: middle;
   background-color: currentColor;
   transition: transform 0.25s ease;
-  -webkit-mask: no-repeat center / contain url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path fill='currentColor' d='M8.59 16.58L13.17 12L8.59 7.41L10 6l6 6l-6 6z'/></svg>");
-  mask: no-repeat center / contain url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path fill='currentColor' d='M8.59 16.58L13.17 12L8.59 7.41L10 6l6 6l-6 6z'/></svg>");
+  -webkit-mask: no-repeat center / contain
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path fill='currentColor' d='M8.59 16.58L13.17 12L8.59 7.41L10 6l6 6l-6 6z'/></svg>");
+  mask: no-repeat center / contain
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path fill='currentColor' d='M8.59 16.58L13.17 12L8.59 7.41L10 6l6 6l-6 6z'/></svg>");
 }
 
-starlight-file-tree .directory>details[open]>summary::before {
+starlight-file-tree .directory > details[open] > summary::before {
   transform: rotate(90deg);
+}
+
+#starlight__sidebar ul {
+  --sl-sidebar-item-padding-inline: 0.375rem;
 }
 
 #starlight__sidebar ul.top-level li a {
@@ -321,6 +460,10 @@ starlight-file-tree .directory>details[open]>summary::before {
 
 #starlight__sidebar ul.top-level li details ul li {
   font-size: var(--sl-text-sm) !important;
+}
+
+#starlight__sidebar [aria-current='page'] {
+  border-radius: 0.5rem;
 }
 
 footer .meta,
@@ -351,6 +494,14 @@ h6,
 .sl-link-button {
   font-family: var(--font-heading);
   font-weight: 600;
+}
+
+.sl-link-card a {
+  color: inherit;
+}
+
+.sl-link-card a > .title {
+  color: var(--sl-color-text);
 }
 
 a:not(:disabled):hover,
@@ -454,6 +605,11 @@ figure.frame {
   min-height: 1rem;
 }
 
+.expressive-code .copy button:not([data-disable-copy]) {
+  opacity: 1;
+  visibility: visible;
+}
+
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
@@ -486,14 +642,6 @@ textarea:focus-visible {
   }
 }
 
-/* Show copy button on mobile for better accessibility */
-@media (max-width: 768px) {
-  .expressive-code .copy button:not([data-disable-copy]) {
-    opacity: 1;
-    visibility: visible;
-  }
-}
-
 :root:has(meta[name='page'][content='404']) #_top {
   font-size: 12rem;
   font-weight: 900;
@@ -519,10 +667,12 @@ textarea:focus-visible {
 }
 
 :root:has(meta[name='page'][content='404']) #_top:hover {
-  background: linear-gradient(90deg,
-      var(--aspire-color) 0%,
-      var(--aspire-color-black) 50%,
-      var(--aspire-color) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--aspire-color) 0%,
+    var(--aspire-color-black) 50%,
+    var(--aspire-color) 100%
+  );
   background-size: 200% 100%;
   background-clip: text;
   -webkit-background-clip: text;
@@ -532,10 +682,12 @@ textarea:focus-visible {
 }
 
 :root[data-theme='dark']:has(meta[name='page'][content='404']) #_top:hover {
-  background: linear-gradient(90deg,
-      var(--aspire-color) 0%,
-      var(--aspire-color-white) 50%,
-      var(--aspire-color) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--aspire-color) 0%,
+    var(--aspire-color-white) 50%,
+    var(--aspire-color) 100%
+  );
   background-size: 200% 100%;
   background-clip: text;
   -webkit-background-clip: text;
@@ -575,7 +727,6 @@ textarea:focus-visible {
 
 /* Keyframes: quick squish (blink), then a gentle bounce with random flips */
 @keyframes blink-bounce {
-
   0%,
   15%,
   85%,
@@ -613,27 +764,33 @@ textarea:focus-visible {
   transform: translateY(-10%);
 }
 
-.hero>img {
+.hero > img {
   max-width: 100%;
   max-height: 15rem;
   height: auto;
 }
 
+/* Topic list styling — mirrors the original starlight-sidebar-topics
+   plugin: each link has no background or border, colour-only active/
+   hover state, boxed icons that fill with accent on active/hover.
+   The list itself sits inside a soft card container that visually
+   anchors the topic group within the sidebar. */
 .starlight-sidebar-topics {
   list-style: none;
   margin: 0 0 1rem 0;
   padding: 0.25rem;
-  border: 1px solid var(--sl-color-hairline-light);
-  border-radius: 0.75rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
   background: var(--sl-color-bg);
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.125rem;
 }
 
 .starlight-sidebar-topics li {
   margin: 0;
   padding: 0;
+  overflow-wrap: anywhere;
 }
 
 .starlight-sidebar-topics::after {
@@ -645,51 +802,71 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  border-radius: 0.5rem;
-  text-decoration: none;
-  color: var(--sl-color-text);
+  padding: 0.3em;
+  font-size: var(--sl-text-base);
   font-weight: 600;
-  transition: all 0.15s;
+  line-height: 1.5;
+  color: var(--sl-color-white);
+  text-decoration: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .starlight-sidebar-topics a:hover,
 .starlight-sidebar-topics a:focus-visible {
-  background: var(--sl-color-gray-4);
-  color: var(--sl-color-white);
+  background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+  color: var(--sl-color-accent-high);
 }
 
 .starlight-sidebar-topics-current,
 .starlight-sidebar-topics a.starlight-sidebar-topics-current {
-  background: var(--sl-color-bg-nav);
-  border: 1px solid var(--sl-color-gray-5);
+  background: color-mix(in srgb, var(--sl-color-accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sl-color-accent) 45%, transparent);
   color: var(--sl-color-accent-high);
+}
+
+.starlight-sidebar-topics a.starlight-sidebar-topics-current:hover,
+.starlight-sidebar-topics a.starlight-sidebar-topics-current:focus-visible {
+  background: color-mix(in srgb, var(--sl-color-accent) 22%, transparent);
 }
 
 .starlight-sidebar-topics-icon {
-  width: 2rem;
-  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 0.25rem;
-  border: none !important;
-}
-
-.starlight-sidebar-topics a:hover .starlight-sidebar-topics-icon,
-.starlight-sidebar-topics a:focus-visible .starlight-sidebar-topics-icon {
-  color: var(--sl-color-white);
-  background: initial;
+  padding: 0.25rem;
+  margin-right: 0;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: inherit;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .starlight-sidebar-topics a.starlight-sidebar-topics-current .starlight-sidebar-topics-icon {
-  color: var(--sl-color-accent-high);
-  background: initial;
+  background-color: var(--sl-color-text-accent);
+  border-color: var(--sl-color-text-accent);
+  color: var(--sl-color-text-invert);
 }
 
-site-search svg,
-.social-icons svg,
-.starlight-sidebar-topics-icon svg {
+site-search svg {
   --sl-icon-size: 1.25rem !important;
+}
+
+.social-icons svg {
+  --sl-icon-size: 1.5em !important;
+}
+
+.starlight-sidebar-topics-icon svg {
+  --sl-icon-size: 1.25em !important;
 }
 
 .card-grid .card .icon {
@@ -705,7 +882,7 @@ site-search svg,
 
 .sl-card .sl-card-icon,
 .card .icon,
-[data-icon] {
+[data-icon]:not(.code-block-icon):not(.tree-icon) {
   width: 2rem !important;
   height: 2rem !important;
   min-width: 2rem;
@@ -713,25 +890,14 @@ site-search svg,
 }
 
 :root[data-theme='light'] {
-  .starlight-sidebar-topics {
-    background: var(--sl-color-bg-nav);
-    border: 1px solid var(--sl-color-gray-6);
-  }
-
   .starlight-sidebar-topics a {
     color: var(--sl-color-white);
   }
 
   .starlight-sidebar-topics a:hover,
-  .starlight-sidebar-topics a:focus-visible {
-    background: var(--sl-color-gray-4);
-  }
-
-  .starlight-sidebar-topics-current,
+  .starlight-sidebar-topics a:focus-visible,
   .starlight-sidebar-topics a.starlight-sidebar-topics-current {
-    background: var(--sl-color-black);
-    border: 1px solid var(--sl-color-gray-4);
-    color: var(--sl-color-accent);
+    color: var(--sl-color-accent-high);
   }
 
   /* Link hover effects */
@@ -742,13 +908,21 @@ site-search svg,
 
 /* Hero page specific styling */
 :root[data-has-hero] {
-  .sl-markdown-content>.sl-heading-wrapper {
-    margin-top: 5rem;
+  .hero {
+    padding-bottom: 1rem !important;
+  }
+
+  .sl-markdown-content > .sl-heading-wrapper {
+    margin-top: 2rem;
     scroll-margin-top: 6rem;
   }
 
-  .sl-markdown-content>.languages-supported+p,
-  .sl-markdown-content>.sl-heading-wrapper+p {
+  .sl-markdown-content > .sl-heading-wrapper:first-child {
+    margin-top: 0;
+  }
+
+  .sl-markdown-content > .languages-supported + p,
+  .sl-markdown-content > .sl-heading-wrapper + p {
     max-width: 80%;
   }
 
@@ -797,8 +971,8 @@ site-search svg,
       padding: 0.75rem 1.5rem;
     }
 
-    .sl-markdown-content>.languages-supported+p,
-    .sl-markdown-content>.sl-heading-wrapper+p {
+    .sl-markdown-content > .languages-supported + p,
+    .sl-markdown-content > .sl-heading-wrapper + p {
       max-width: 100%;
     }
 
@@ -813,10 +987,6 @@ site-search svg,
   --sl-color-text: var(--aspire-color-black);
   --sl-color-bg: var(--aspire-color-white);
 
-  header.header {
-    --sl-color-bg-nav: var(--aspire-color-white);
-  }
-
   .tagline {
     color: var(--aspire-color-black);
   }
@@ -826,10 +996,6 @@ site-search svg,
   --sl-color-text: var(--aspire-color-white);
   --sl-color-bg: var(--aspire-color-black);
 
-  header.header {
-    --sl-color-bg-nav: var(--aspire-color-black);
-  }
-
   .tagline {
     color: var(--aspire-color-white);
   }
@@ -838,7 +1004,7 @@ site-search svg,
 .d-inline {
   display: inline;
   vertical-align: middle;
-  padding: .1rem;
+  padding: 0.1rem;
 }
 
 #scroll-to-top-button {
@@ -871,17 +1037,397 @@ li a.external-link::after {
   pointer-events: none;
   transition: transform 120ms ease;
 
-  -webkit-mask: no-repeat center / contain url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3z'/><path d='M5 5h7v2H7v10h10v-5h2v7H5z'/></svg>");
-  mask: no-repeat center / contain url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3z'/><path d='M5 5h7v2H7v10h10v-5h2v7H5z'/></svg>");
+  -webkit-mask: no-repeat center / contain
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3z'/><path d='M5 5h7v2H7v10h10v-5h2v7H5z'/></svg>");
+  mask: no-repeat center / contain
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3z'/><path d='M5 5h7v2H7v10h10v-5h2v7H5z'/></svg>");
 }
 
 :root {
   --sl-content-width: 68rem;
+  /* Width (and height) of the floating sidebar collapse/expand toggle.
+     Shared between Sidebar.astro (button size) and the mobile TOC
+     summary padding shift below so the two stay in lock-step if the
+     toggle is ever resized. The toggle is currently a square button,
+     so the same value drives both axes. */
+  --aspire-sidebar-toggle-width: 3rem;
 }
 
-/* 
+:root:has(.topics-sidebar[data-topic-nav]) {
+  --sl-sidebar-width: 20.625rem;
+}
+
+/* Widen sidebar for API reference pages (long package names) */
+:root:has(.topics-sidebar[data-api-ref]) {
+  --sl-sidebar-width: 40rem;
+}
+
+/* Narrower sidebar for TypeScript API reference pages */
+:root:has(.topics-sidebar[data-api-lang='ts']) {
+  --sl-sidebar-width: 30rem;
+}
+
+/* Remove parent top padding so the sticky wrapper sits flush at the top */
+:root:has(.topics-sidebar[data-api-ref]) #starlight__sidebar .sidebar-content {
+  padding-top: 0;
+}
+
+:root:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar .sidebar-content {
+  padding-top: 0;
+}
+
+/* ── API sidebar collapse/expand (desktop only, ≥ 72rem) ──────── */
+
+/* Animate the sidebar panel width */
+@media (min-width: 72rem) {
+  :root:has(.topics-sidebar[data-api-ref]) #starlight__sidebar {
+    transition: width 0.25s ease;
+  }
+  :root:has(.topics-sidebar[data-api-ref]) .main-frame {
+    transition: padding-inline-start 0.25s ease;
+  }
+
+  :root:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar {
+    transition: width 0.25s ease;
+  }
+
+  :root:has(.topics-sidebar[data-topic-nav]) .main-frame {
+    transition: padding-inline-start 0.25s ease;
+  }
+
+  :root[data-has-toc]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar,
+  :root[data-has-toc]:has(.topics-sidebar[data-api-ref]) .main-frame,
+  :root[data-has-toc]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar,
+  :root[data-has-toc]:has(.topics-sidebar[data-topic-nav]) .main-frame {
+    transition: none;
+  }
+}
+
+:root[data-has-toc] {
+  --aspire-toc-panel-width: clamp(13.5rem, 16vw, 16rem);
+}
+
+/* Collapsed sidebar = narrow "icon rail" showing just the topic icons.
+   The expand button still floats off the rail's right edge (left: var(--sl-sidebar-width)).
+
+   The width shrinker (`--sl-sidebar-width: 5rem`) lives inside the same
+   media query as the rail-mode rules on purpose. If the persisted collapsed
+   preference is replayed at a narrower viewport (where the mobile/tablet
+   overlay sidebar takes over and the rail-mode rules below don't apply),
+   the sidebar must stay at its default width — otherwise the contents get
+   squished into one-letter-per-line columns instead of being hidden. */
+@media (min-width: 72rem) {
+  :root:has(.topics-sidebar[data-api-ref])[data-sidebar-collapsed] {
+    --sl-sidebar-width: 5rem;
+  }
+
+  :root:has(.topics-sidebar[data-topic-nav])[data-topic-sidebar-collapsed] {
+    --sl-sidebar-width: 5rem;
+  }
+
+  :root[data-has-toc] .right-sidebar-panel {
+    flex: 0 0 var(--aspire-toc-panel-width);
+    min-width: var(--aspire-toc-panel-width);
+  }
+
+  :root[data-has-toc] .right-sidebar-panel > .sl-container {
+    width: var(--aspire-toc-panel-width);
+    max-width: var(--aspire-toc-panel-width);
+  }
+
+  /* In rail mode, give the sidebar a distinct bg so it reads as a panel
+     against the main content area (the page bg is white in light mode,
+     near-equal to the sidebar's normal white, so we lean on bg-nav).
+     Keep a right-edge border so the rail has a defined boundary. Also
+     drop the scrollbar gutter that the expanded sidebar reserves —
+     rail icons never overflow, and the gutter creates an asymmetric
+     right inset that pushes the card to the left. */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar,
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar {
+    background: var(--sl-color-bg-nav);
+    border-inline-end: 1px solid var(--sl-color-gray-5);
+    scrollbar-gutter: auto;
+    overflow-y: hidden;
+  }
+
+  /* In rail mode, hide everything inside the sidebar except the topics
+     card, the divider (so the footer floats to the bottom), and the
+     bottom footer (GitHub icon). */
+  :root[data-sidebar-collapsed]
+    .topics-sidebar[data-api-ref]
+    > *:not(.api-sidebar-sticky):not(.divider):not(.sidebar-bottom),
+  :root[data-topic-sidebar-collapsed]
+    .topics-sidebar[data-topic-nav]
+    > *:not(.topic-sidebar-sticky):not(.divider):not(.sidebar-bottom) {
+    display: none !important;
+  }
+
+  :root[data-sidebar-collapsed]
+    .topics-sidebar[data-api-ref]
+    .api-sidebar-sticky
+    > *:not(.starlight-sidebar-topics),
+  :root[data-topic-sidebar-collapsed]
+    .topics-sidebar[data-topic-nav]
+    .topic-sidebar-sticky
+    > *:not(.starlight-sidebar-topics) {
+    display: none !important;
+  }
+
+  /* In rail mode, centre the icon and hide the text label. Everything
+     else (card border/bg, icon-box, active treatment, row dimensions)
+     is inherited from the expanded styles so the rail matches. */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) .starlight-sidebar-topics a,
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .starlight-sidebar-topics
+    a {
+    justify-content: center;
+    gap: 0;
+  }
+
+  /* Hide the text labels inside the topics card and the footer link in
+     rail mode. For the footer, we wrap the "aspire.dev" text in a
+     <span> so we can target it cleanly here. */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref])
+    .starlight-sidebar-topics
+    a
+    > div:not(.starlight-sidebar-topics-icon),
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .starlight-sidebar-topics
+    a
+    > div:not(.starlight-sidebar-topics-icon),
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref])
+    .sidebar-bottom
+    .sl-link-button
+    > span,
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .sidebar-bottom
+    .sl-link-button
+    > span {
+    display: none;
+  }
+
+  /* Centre the GitHub footer link's icon in rail mode. */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) .sidebar-bottom .sl-link-button,
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .sidebar-bottom
+    .sl-link-button {
+    justify-content: center;
+    gap: 0;
+  }
+
+  /* Subtle blur-in for the filter row and sidebar entries as the rail
+     expands. JS sets `data-sidebar-expanding` / `data-topic-sidebar-expanding`
+     on <html> for ~320ms (just past the 250ms width transition), so this
+     animation only plays on collapsed → expanded — not on initial load. */
+  :root[data-sidebar-expanding]:has(.topics-sidebar[data-api-ref])
+    .topics-sidebar[data-api-ref]
+    .sidebar-filter,
+  :root[data-sidebar-expanding]:has(.topics-sidebar[data-api-ref])
+    .topics-sidebar[data-api-ref]
+    > *:not(.api-sidebar-sticky):not(.divider):not(.sidebar-bottom),
+  :root[data-topic-sidebar-expanding]:has(.topics-sidebar[data-topic-nav])
+    .topics-sidebar[data-topic-nav]
+    .sidebar-filter,
+  :root[data-topic-sidebar-expanding]:has(.topics-sidebar[data-topic-nav])
+    .topics-sidebar[data-topic-nav]
+    > *:not(.topic-sidebar-sticky):not(.divider):not(.sidebar-bottom) {
+    animation: aspire-sidebar-blur-in 0.28s ease-out both;
+    /* Hint the compositor so the filter+opacity animation runs on the
+       GPU. Scoped to the brief window the flag is set so we don't keep
+       a layer pinned in memory long-term. */
+    will-change: filter, opacity;
+  }
+}
+
+@keyframes aspire-sidebar-blur-in {
+  from {
+    filter: blur(3px);
+    opacity: 0;
+  }
+  to {
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-sidebar-expanding] .topics-sidebar[data-api-ref] .sidebar-filter,
+  :root[data-sidebar-expanding] .topics-sidebar[data-api-ref] > *,
+  :root[data-topic-sidebar-expanding] .topics-sidebar[data-topic-nav] .sidebar-filter,
+  :root[data-topic-sidebar-expanding] .topics-sidebar[data-topic-nav] > * {
+    animation: none !important;
+  }
+}
+
+/* Topic-nav rail mode at 50rem–71.999rem.
+   The persistent sidebar (and therefore the collapse/expand toggle) is
+   visible on `[data-topic-nav]` pages from 50rem upward, so clicking
+   the toggle needs to drive the same rail-mode visuals here that the
+   `@media (min-width: 72rem)` block applies higher up. Each rule is
+   the topic-nav half of a comma-separated selector in that block; the
+   `--sl-sidebar-width: 5rem` shrinker is scoped to topic-nav only so
+   it can't bleed onto API-ref pages (which stay in mobile-overlay
+   mode below 72rem and would otherwise get a 5rem-wide overlay). */
+@media (min-width: 50rem) and (max-width: 71.999rem) {
+  :root:has(.topics-sidebar[data-topic-nav])[data-topic-sidebar-collapsed] {
+    --sl-sidebar-width: 5rem;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar {
+    background: var(--sl-color-bg-nav);
+    border-inline-end: 1px solid var(--sl-color-gray-5);
+    scrollbar-gutter: auto;
+    overflow-y: hidden;
+  }
+
+  :root[data-topic-sidebar-collapsed]
+    .topics-sidebar[data-topic-nav]
+    > *:not(.topic-sidebar-sticky):not(.divider):not(.sidebar-bottom) {
+    display: none !important;
+  }
+
+  :root[data-topic-sidebar-collapsed]
+    .topics-sidebar[data-topic-nav]
+    .topic-sidebar-sticky
+    > *:not(.starlight-sidebar-topics) {
+    display: none !important;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .starlight-sidebar-topics
+    a {
+    justify-content: center;
+    gap: 0;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .starlight-sidebar-topics
+    a
+    > div:not(.starlight-sidebar-topics-icon),
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .sidebar-bottom
+    .sl-link-button
+    > span {
+    display: none;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .sidebar-bottom
+    .sl-link-button {
+    justify-content: center;
+    gap: 0;
+  }
+
+  :root[data-topic-sidebar-expanding]:has(.topics-sidebar[data-topic-nav])
+    .topics-sidebar[data-topic-nav]
+    .sidebar-filter,
+  :root[data-topic-sidebar-expanding]:has(.topics-sidebar[data-topic-nav])
+    .topics-sidebar[data-topic-nav]
+    > *:not(.topic-sidebar-sticky):not(.divider):not(.sidebar-bottom) {
+    animation: aspire-sidebar-blur-in 0.28s ease-out both;
+    will-change: filter, opacity;
+  }
+}
+
+/* API reference: keep mobile sidebar until 72rem (40rem sidebar is too wide for 50rem breakpoint) */
+@media (min-width: 50rem) and (max-width: 71.999rem) {
+  /* Reset content offset — no fixed sidebar in this range for API ref */
+  :root:has(.topics-sidebar[data-api-ref])[data-has-sidebar] {
+    --sl-content-inline-start: 0;
+  }
+
+  /* Show the hamburger menu button */
+  :root:has(.topics-sidebar[data-api-ref]) starlight-menu-button button {
+    display: flex;
+  }
+
+  /* Keep header padding to make room for hamburger button */
+  :root:has(.topics-sidebar[data-api-ref])[data-has-sidebar] header {
+    padding-inline-end: calc(var(--sl-nav-gap) + var(--sl-nav-pad-x) + var(--sl-menu-button-size));
+  }
+
+  /* Reset inner header back to flex layout — the Starlight grid formula breaks
+     when --sl-content-inline-start is 0 (no fixed sidebar in this range).
+     Use `header > .header` to target only the inner div, not the outer <header>. */
+  :root:has(.topics-sidebar[data-api-ref]) header > .header {
+    display: flex;
+  }
+
+  /* Reset sidebar pane to mobile overlay mode */
+  :root:has(.topics-sidebar[data-api-ref]) #starlight__sidebar {
+    --sl-sidebar-visibility: hidden;
+    width: 100%;
+    background-color: var(--sl-color-black);
+    border-inline-end: none;
+  }
+
+  /* Show sidebar when hamburger menu is expanded */
+  :root:has(.topics-sidebar[data-api-ref]) [aria-expanded='true'] ~ #starlight__sidebar {
+    --sl-sidebar-visibility: visible;
+  }
+
+  /* Prevent body scroll when mobile menu is open */
+  :root:has(.topics-sidebar[data-api-ref]) body[data-mobile-menu-expanded] {
+    overflow: hidden;
+  }
+
+  /* Keep MobileMenuFooter visible in mobile sidebar */
+  :root:has(.topics-sidebar[data-api-ref]) .topics-sidebar > .md\:sl-hidden {
+    display: block;
+  }
+}
+
+/* Reserve a "shoulder" of inline-start space on the main content column for the
+   floating sidebar collapse/expand toggle so it never overlaps the page H1 —
+   but only by as much as is actually needed, so wide viewports stay flush.
+
+   The toggle is anchored to the sidebar's right edge
+   (`left: var(--sl-sidebar-width)`) and floats over the content panel's
+   inline-start gutter. The `.sl-container` is right-aligned within that panel
+   (`margin-inline-start: auto`, see the rules below), so its inline-start edge
+   sits one full slack in from the panel edge: `max(0, 100% - --sl-content-width)`.
+   The header search box aligns to that same edge, so whenever the gutter already
+   clears the toggle we want zero shoulder and the H1 lands flush with the search
+   box.
+
+   shoulder = toggleWidth + gap − panelPad − gutter, floored at 0:
+     - toggleWidth + gap : how far the toggle reaches past the panel's edge.
+     - panelPad          : the panel's own inline padding (`--sl-content-pad-x`),
+                           already sitting in front of the toggle.
+     - gutter            : the column's natural inline-start gap.
+   The sidebar width cancels out (the toggle and the panel share its right edge),
+   so the one expression is correct for every sidebar width (topic-nav, C#/TS
+   API-ref) AND for both the expanded and collapsed/rail states — when collapsed
+   the rail is narrower, the panel is wider, the gutter grows and the shoulder
+   collapses to 0 on its own. Only applies on pages that render the
+   topics-sidebar, at the breakpoint where the toggle is visible. */
+@media (min-width: 72rem) {
+  :root:has(.topics-sidebar) .content-panel > .sl-container {
+    padding-inline-start: max(
+      0px,
+      calc(
+        var(--aspire-sidebar-toggle-width) + 0.5rem - var(--sl-content-pad-x) -
+          max(0px, calc(100% - var(--sl-content-width)))
+      )
+    );
+  }
+}
+
+/* Expressive-code ships `:root .main-pane { z-index: 1 }`, which — because
+   `.main-pane` is a flex item at ≥72rem — creates a stacking context at z=1
+   in the root. At that same breakpoint Starlight makes `.right-sidebar`
+   `position: fixed` (a stacking context at z=auto), so the mobile TOC nested
+   inside it gets trapped below main-pane and page content bleeds through.
+   Promote `.right-sidebar` above main-pane so the TOC paints correctly. */
+@media (min-width: 72rem) {
+  .right-sidebar {
+    z-index: var(--sl-z-index-toc, 10);
+  }
+}
+
+/*
 see: https://github.com/withastro/starlight/issues/3513#issuecomment-3638588654
-here the second rem value can be configured to your needs, 
+here the second rem value can be configured to your needs,
 it configures at which point the mobile toc should be replaced with the normal toc */
 @media (min-width: 72rem) and (max-width: 99.999rem) {
   :root[data-has-toc] {
@@ -902,8 +1448,63 @@ it configures at which point the mobile toc should be replaced with the normal t
     display: flex;
   }
 
-  :root[data-has-toc] .content-panel>.sl-container {
+  :root[data-has-toc] .content-panel > .sl-container {
     margin-inline: 0;
+  }
+
+  /* The sidebar collapse/expand toggle (.sidebar-collapse-btn /
+     .sidebar-expand-btn) is repositioned into this same row by
+     Sidebar.astro at this breakpoint and shares the sidebar's
+     right-edge X coordinate with the mobile TOC summary. Push the
+     dropdown content right by the toggle's width so the
+     "On this page > <current heading>" trigger no longer renders
+     underneath the toggle. */
+  :root[data-has-toc] mobile-starlight-toc summary {
+    padding-inline-start: calc(1rem + var(--aspire-sidebar-toggle-width));
+  }
+}
+
+/* Topic-nav pages only: at 50rem–71.999rem the persistent sidebar (and
+   therefore the toggle) is still visible (see Sidebar.astro), and
+   Starlight's default mobile TOC bar is visible too. Apply the same
+   "shift the summary right by the toggle's width" rule as the
+   72–99.999rem block does, but scoped to `[data-topic-nav]` because
+   API-ref pages have the toggle hidden in this range. */
+@media (min-width: 50rem) and (max-width: 71.999rem) {
+  :root[data-has-toc]:has(.topics-sidebar[data-topic-nav]) mobile-starlight-toc summary {
+    padding-inline-start: calc(1rem + var(--aspire-sidebar-toggle-width));
+  }
+}
+
+/* Landing pages without a mobile TOC bar (`tableOfContents: false` in
+   frontmatter, e.g. `/deployment/`) still render the persistent
+   sidebar collapse/expand toggle at sub-desktop widths. Sidebar.astro
+   anchors it into the same row position the TOC bar would occupy,
+   but there is no bar element to push the page H1 down. Without this
+   padding the toggle's leftmost ~48px overlap the H1's first letter
+   at 1024×600. Reserve a TOC-bar-height row at the top of the page-
+   title container so the H1 starts cleanly below the toggle. Targets
+   the first `.content-panel` (the title-row container) only, to
+   avoid introducing a gap between the title and the body content
+   that lives in the second `.content-panel`.
+
+   Sample detail pages (`.sample-detail`) are excluded — they use the
+   base floating-tab toggle styling (see Sidebar.astro) which sits at
+   the sidebar's right edge rather than spanning a synthetic bar row,
+   so the synthetic-bar padding would just leave a gap above the hero. */
+@media (min-width: 50rem) and (max-width: 99.999rem) {
+  :root:not([data-has-toc]):not(:has(.sample-detail)):has(.topics-sidebar[data-topic-nav])
+    .content-panel:first-of-type
+    > .sl-container {
+    padding-block-start: 3rem;
+  }
+}
+
+@media (min-width: 72rem) and (max-width: 99.999rem) {
+  :root:not([data-has-toc]):not(:has(.sample-detail)):has(.topics-sidebar[data-api-ref])
+    .content-panel:first-of-type
+    > .sl-container {
+    padding-block-start: 3rem;
   }
 }
 
@@ -926,13 +1527,19 @@ it configures at which point the mobile toc should be replaced with the normal t
     display: block;
   }
 
-  :root[data-has-toc] .right-sidebar-panel>.sl-container {
-    max-width: calc(((100vw - var(--sl-sidebar-width) - 2 * var(--sl-content-pad-x) - 2 * var(--sl-sidebar-pad-x)) * .2
-          /* MAGIC NUMBER 🥲 */
-        ));
+  :root[data-has-toc] .right-sidebar-panel > .sl-container {
+    max-width: calc(
+      (
+        (
+            100vw - var(--sl-sidebar-width) - 2 * var(--sl-content-pad-x) - 2 *
+              var(--sl-sidebar-pad-x)
+          ) *
+          0.2 /* MAGIC NUMBER 🥲 */
+      )
+    );
   }
 
-  :root[data-has-toc] .content-panel>.sl-container {
+  :root[data-has-toc] .content-panel > .sl-container {
     margin-inline: var(--sl-content-margin-inline, auto);
   }
 }
@@ -940,6 +1547,27 @@ it configures at which point the mobile toc should be replaced with the normal t
 @media (prefers-reduced-motion: no-preference) {
   @view-transition {
     navigation: auto;
+  }
+
+  /* Give the sidebar pane its own view-transition group and disable its
+     animation so it doesn't participate in the cross-fade between topic
+     pages. Without this, sidebar items briefly flash an unstyled border
+     during the swap.
+
+     Important: target `#starlight__sidebar` (the sidebar pane) rather
+     than `nav.sidebar` (the wrapper that ALSO contains the mobile menu
+     toggle). `view-transition-name` creates a stacking context — putting
+     it on the nav traps the mobile menu button inside a z-auto context
+     and the fixed top header (z-index: 10) paints over it, leaving
+     mobile users with no way to open the sidebar. */
+  #starlight__sidebar {
+    view-transition-name: aspire-sidebar;
+  }
+
+  ::view-transition-old(aspire-sidebar),
+  ::view-transition-new(aspire-sidebar) {
+    animation: none !important;
+    mix-blend-mode: normal;
   }
 }
 
@@ -974,6 +1602,85 @@ table th {
   scrollbar-color: var(--aspire-color-secondary) var(--sl-color-bg-nav);
 }
 
-#dropdown-menu {
-  min-width: 260px !important;
+/* Try Aspire button in header */
+.header-wrapper {
+  position: relative;
+}
+
+header .try-aspire-btn,
+.header .try-aspire-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  background: var(--aspire-color-light, #dcd5f6);
+  color: var(--aspire-color-black, #1f1e33) !important;
+  font-weight: 600;
+  font-size: var(--sl-text-sm);
+  text-decoration: none;
+  border-radius: 0.5rem;
+  transition:
+    background-color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+  white-space: nowrap;
+  margin-inline-start: 0.5rem;
+}
+
+.header-try-btn {
+  position: absolute;
+  right: 1rem;
+  top: 0.75rem;
+  z-index: 10;
+}
+
+header .try-aspire-btn:hover,
+.header .try-aspire-btn:hover,
+.header-try-btn:hover {
+  background: var(--aspire-color-primary, #7455dd);
+  color: var(--aspire-color-white, #fff) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(116, 85, 221, 0.4);
+}
+
+header .try-aspire-btn:active,
+.header .try-aspire-btn:active,
+.header-try-btn:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 50rem) {
+  header .try-aspire-btn,
+  .header .try-aspire-btn,
+  .header-try-btn {
+    display: none;
+  }
+}
+
+/* Hide theme and language selectors from header - moved to footer */
+header starlight-theme-select,
+header starlight-lang-select {
+  display: none !important;
+}
+
+/* Hide social icons from header - moved to footer */
+header .social-icons,
+header starlight-social-icons {
+  display: none !important;
+}
+
+sl-sidebar-state-persist > span.sl-badge.small {
+  padding-right: 0.2rem;
+}
+
+.pagination-links a {
+  color: var(--aspire-color-secondary);
+}
+
+.pagination-links .link-title {
+  color: var(--sl-color-text);
+}
+
+:root[data-theme='light'] .pagination-links a {
+  color: var(--aspire-color-purple);
 }

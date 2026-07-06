@@ -1,6 +1,6 @@
 ---
 title: aspire doctor command
-description: Learn about the aspire doctor command and its usage. This command checks the Aspire development environment for common issues.
+description: Learn about the aspire doctor command and its usage. This command diagnoses Aspire environment issues and verifies setup.
 ---
 
 import Include from '@components/Include.astro';
@@ -20,17 +20,26 @@ aspire doctor [options]
 
 The `aspire doctor` command runs a series of diagnostic checks to verify that your development environment is properly configured for Aspire development. It checks prerequisites such as the .NET SDK, container runtime, and environment settings.
 
+<Aside type="note">
+  The `aspire doctor` command replaces the hidden `aspire setup` command. If you
+  previously used `aspire setup` or `aspire setup --force`, use `aspire doctor`
+  instead. The `aspire setup` command is still available for backward
+  compatibility but is hidden from help output.
+</Aside>
+
 This command is useful for troubleshooting when you encounter issues with Aspire or when setting up a new development environment. The checks are grouped by category:
 
+- **Aspire checks**: Reports the current Aspire CLI version and whether a newer CLI version is available, and suggests running `aspire update` when a newer one is available
+- **AppHost checks**: Reports the AppHost Aspire SDK version when an AppHost project is present in the current directory
 - **SDK checks**: Verifies .NET SDK installation and version requirements
-- **Container checks**: Validates container runtime (Docker/Podman) availability and configuration
-- **Environment checks**: Validates environment variables and other settings
+- **Container checks**: Validates container runtime (Docker and/or Podman) availability, running status, and version. Reports which runtime is active and why (explicit configuration, auto-detected default, or auto-detected only runtime running)
+- **Environment checks**: Validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun)
 
 The command displays results with clear status indicators:
 
-- ✓ (green) - Check passed
-- ⚠ (yellow) - Warning (non-blocking issue)
-- ✗ (red) - Check failed (blocking issue)
+- ✅ (green) - Check passed
+- ⚠️ (yellow) - Warning (non-blocking issue)
+- ❌ (red) - Check failed (blocking issue)
 
 If any checks fail, the command provides suggestions for how to fix the issues and links to relevant documentation.
 
@@ -38,13 +47,19 @@ If any checks fail, the command provides suggestions for how to fix the issues a
 
 The following options are available:
 
-- **`--json`**
+- **`--format <Table|Json>`**
 
-  Outputs the check results in JSON format. This is useful for automation scenarios or when you need to parse the results programmatically.
+  Output format (Table or Json). Use `Json` for automation scenarios or when you need to parse the results programmatically. Defaults to `Table`.
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
-- <Include relativePath="reference/cli/includes/option-debug.md" />
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
 
 - <Include relativePath="reference/cli/includes/option-wait.md" />
 
@@ -59,51 +74,119 @@ The following options are available:
 - Run diagnostic checks with JSON output:
 
   ```bash title="Aspire CLI"
-  aspire doctor --json
+  aspire doctor --format Json
   ```
 
 ## Sample output
 
-When you run `aspire doctor`, you see output similar to the following:
+When you run `aspire doctor` from a directory containing an AppHost project, you see output similar to the following:
 
 ```bash title="Aspire CLI"
-Environment Check
-=================
+Checking Aspire environment...
 
-SDK
-✓  .NET SDK 10.0.100 or later is installed
-✓  Aspire templates are available
+Aspire Environment Check
+========================
+
+Aspire
+  ✅ Aspire CLI version 13.4.0
+
+AppHost
+  ✅ AppHost version 13.4.0 (MyApp.AppHost.csproj)
+
+.NET SDK
+  ✅ .NET 10.0.203 installed (arm64)
 
 Container Runtime
-✓  Docker is installed and running
-✓  Docker Compose is available
+  ✅ Docker v28.5.1: running (auto-detected (default)) ← active
 
 Environment
-✓  ASPNETCORE_ENVIRONMENT is set correctly
+  ✅ HTTPS development certificate is trusted
 
 Summary: 5 passed, 0 warnings, 0 failed
 ```
+
+After the summary, table output also includes an `Aspire CLI Installations`
+table that lists discovered CLI binaries with their path, version, channel,
+install route, and PATH status.
+
+When the CLI is out of date, the Aspire section shows a warning with the latest available version and a suggestion to run `aspire update`:
+
+```bash title="Aspire CLI"
+Aspire
+  ⚠️ Aspire CLI version 13.4.0-dev is out of date. Latest version is 13.4.0-preview.1.26262.10
+       Run 'aspire update' to update Aspire CLI.
+
+AppHost
+  ✅ AppHost version 13.4.0 (MyApp.AppHost.csproj)
+```
+
+This warning snippet is abbreviated. In complete table output, a summary follows
+the check results. When any warning or failure is present, Aspire also prints
+`For detailed prerequisites: https://aka.ms/aspire-prerequisites`. Some CLI and
+AppHost version messages include an inline `(channel: <name>)` suffix; the same
+channel data appears in JSON metadata as `identityChannel`,
+`latestVersionChannel`, or `pinnedChannel` when available.
+
+When only Podman is running:
+
+```bash title="Aspire CLI"
+Container Runtime
+  ✅ Podman v5.3.0: running (auto-detected (only runtime running)) ← active
+  ❌ Docker is not installed
+```
+
+When you set `ASPIRE_CONTAINER_RUNTIME=podman`, Aspire honors the explicit
+configuration and Podman becomes active even when Docker is also running:
+
+```bash title="Aspire CLI"
+Container Runtime
+  ✅ Podman v5.3.0: running (explicit configuration) ← active
+  ✅ Docker v27.3.1: running (available)
+```
+
+The active runtime is annotated with `← active`. Other detected runtimes are
+shown with `(available)`.
 
 ## Exit codes
 
 The command returns the following exit codes:
 
-| Exit code | Description                                       |
-| --------- | ------------------------------------------------- |
-| `0`       | All checks passed (warnings are allowed)          |
-| `1`       | One or more checks failed                         |
+| Exit code | Description                              |
+| --------- | ---------------------------------------- |
+| `0`       | All checks passed (warnings are allowed) |
+| `1`       | One or more checks failed                |
 
 ## JSON output format
 
-When using the `--json` option, the output includes a structured response with all check results and a summary:
+When using the `--format Json` option, the output includes a structured response with all check results, a summary, and discovered Aspire CLI installations. The following example is abbreviated to focus on selected checks; actual output includes an entry for every check and can include additional metadata, such as `updateCommand`, `identityChannel`, `latestVersionChannel`, and `pinnedChannel`.
 
-```json
+```json title="JSON output"
 {
   "checks": [
     {
+      "category": "aspire",
+      "name": "cli-version",
+      "status": "pass",
+      "message": "Aspire CLI version 13.4.0",
+      "metadata": {
+        "currentVersion": "13.4.0"
+      }
+    },
+    {
+      "category": "apphost",
+      "name": "apphost-version",
+      "status": "pass",
+      "message": "AppHost version 13.4.0 (MyApp.AppHost.csproj)",
+      "metadata": {
+        "appHostPath": "MyApp.AppHost.csproj",
+        "version": "13.4.0"
+      }
+    },
+    {
       "category": "sdk",
-      "message": ".NET SDK 10.0.100 or later is installed",
-      "status": "Pass"
+      "name": "dotnet-sdk",
+      "status": "pass",
+      "message": ".NET 10.0.203 installed (arm64)"
     }
   ],
   "summary": {
@@ -113,6 +196,24 @@ When using the `--json` option, the output includes a structured response with a
   }
 }
 ```
+
+When the CLI is out of date, the `cli-version` check has `"status": "warning"` and the `metadata` includes the latest available version:
+
+```json title="JSON output"
+{
+  "category": "aspire",
+  "name": "cli-version",
+  "status": "warning",
+  "message": "Aspire CLI version 13.4.0-dev is out of date. Latest version is 13.4.0-preview.1.26262.10",
+  "fix": "Run 'aspire update' to update Aspire CLI.",
+  "metadata": {
+    "currentVersion": "13.4.0-dev",
+    "latestVersion": "13.4.0-preview.1.26262.10"
+  }
+}
+```
+
+The `apphost-version` check is only present in the JSON output when an AppHost project is discovered in the current directory.
 
 ## See also
 

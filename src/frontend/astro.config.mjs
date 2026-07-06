@@ -1,5 +1,6 @@
 ﻿// @ts-check
 import { defineConfig } from 'astro/config';
+import { unified } from '@astrojs/markdown-remark';
 import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
 import { redirects } from './config/redirects.mjs';
 import { iconPacks } from './config/icon-packs.mjs';
@@ -8,9 +9,9 @@ import { locales } from './config/locales.ts';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
 import catppuccin from '@catppuccin/starlight';
-import lunaria from '@lunariajs/starlight';
+import lunaria from './config/lunaria-starlight.mjs';
 import mermaid from 'astro-mermaid';
-import starlight from '@astrojs/starlight';
+import mdx from '@astrojs/mdx';
 import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightImageZoom from 'starlight-image-zoom';
 import starlightKbd from 'starlight-kbd';
@@ -20,159 +21,225 @@ import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
+import buildTiming from './config/build-timing.mjs';
+import UnoCSS from 'unocss/astro';
+import Icons from 'starlight-plugin-icons';
+
+const modeArgIndex = process.argv.indexOf('--mode');
+const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
+const isBuildTimingEnabled = process.env.BUILD_TIMING === '1';
+
+// Astro renders pages mostly on the main JS thread. Default `build.concurrency`
+// is 1, so a multi-vCPU CI runner is largely idle during the generate phase.
+// Internal benchmarks on a 12k-page build showed:
+//   concurrency: 1 (default)  baseline
+//   concurrency: 2            -11 % wall time
+//   concurrency: 4            -16 % wall time  <- chosen default
+//   concurrency: 8            -14 % (regresses past 4)
+// `build.concurrency` is bounded by available cores and is documented as a
+// stable knob, so 4 is a safe default that scales to ubuntu-latest's 4 vCPUs.
+// Override via the `ASPIRE_BUILD_CONCURRENCY` env var if a runner has a
+// different vCPU count.
+const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 
 // https://astro.build/config
 export default defineConfig({
   prefetch: true,
   site: 'https://aspire.dev',
   trailingSlash: 'always',
+  markdown: {
+    processor: unified(),
+  },
   redirects: redirects,
   integrations: [
+    UnoCSS(),
+    Icons({
+      extractSafelist: true,
+      starlight: {
+        pagefind: !isSkipSearchBuild,
+        title: 'Aspire',
+        routeMiddleware: ['./src/route-data-middleware'],
+        defaultLocale: 'root',
+        locales,
+        logo: {
+          src: './src/assets/aspire-logo-32.svg',
+          replacesTitle: false,
+        },
+        editLink: {
+          baseUrl: 'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/',
+        },
+        favicon: 'favicon.svg',
+        head: headAttrs,
+        social: socialConfig,
+        customCss: [
+          '@fontsource-variable/outfit',
+          'starlight-plugin-icons/styles/main.css',
+          './src/styles/site.css',
+        ],
+        components: {
+          Banner: './src/components/starlight/Banner.astro',
+          EditLink: './src/components/starlight/EditLink.astro',
+          Footer: './src/components/starlight/Footer.astro',
+          Head: './src/components/starlight/Head.astro',
+          Header: './src/components/starlight/Header.astro',
+          Hero: './src/components/starlight/Hero.astro',
+          MarkdownContent: './src/components/starlight/MarkdownContent.astro',
+          PageTitle: './src/components/starlight/PageTitle.astro',
+          Search: './src/components/starlight/Search.astro',
+          Sidebar: './src/components/starlight/Sidebar.astro',
+          SocialIcons: './src/components/starlight/SocialIcons.astro',
+        },
+        plugins: [
+          starlightPageActions({
+            share: true,
+            actions: {
+              chatgpt: false,
+              claude: false,
+              custom: {
+                copilot: {
+                  label: 'Open in GitHub Copilot',
+                  href: 'https://github.com/copilot/?prompt=',
+                },
+                claude: {
+                  label: 'Open in Claude',
+                  href: 'https://claude.ai/new?q=',
+                },
+                chatGpt: {
+                  label: 'Open in ChatGPT',
+                  href: 'https://chatgpt.com/?q=',
+                },
+              },
+            },
+          }),
+          lunaria({
+            route: '/i18n',
+            sync: false,
+          }),
+          catppuccin(),
+          starlightSidebarTopics(sidebarTopics, {
+            exclude: [
+              '**/includes/**/*',
+              '/support',
+              '/diagnostics/aspireats001',
+              '/**/diagnostics/aspireats001',
+              '/reference/api',
+              '/reference/api/**',
+            ],
+          }),
+          starlightLinksValidator({
+            errorOnRelativeLinks: false,
+            errorOnFallbackPages: false,
+            exclude: ['/i18n/', '/reference/api', '/reference/api/**'],
+          }),
+          starlightScrollToTop({
+            // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/
+            svgPath: 'M4 16L12 8L20 16',
+            showTooltip: true,
+            threshold: 10,
+            showOnHomepage: true,
+            tooltipText: {
+              da: 'Rul op',
+              de: 'Nach oben scrollen',
+              en: 'Scroll to top',
+              es: 'Ir arriba',
+              fr: 'Retour en haut',
+              hi: 'ऊपर स्क्रॉल करें',
+              id: 'Gulir ke atas',
+              it: 'Torna su',
+              ja: 'トップへ戻る',
+              ko: '맨 위로',
+              'pt-br': 'Voltar ao topo',
+              ru: 'Наверх',
+              tr: 'Başa dön',
+              uk: 'Прокрутити вгору',
+              'zh-cn': '回到顶部',
+            },
+          }),
+          starlightGitHubAlerts(),
+          starlightLlmsTxt({
+            projectName: 'Aspire',
+            description:
+              'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
+            // Strip transient annotations injected by expressive-code-twoslash from the
+            // rendered HTML before it's converted back to Markdown. Without this, the
+            // TypeScript hover popovers (type signatures, JSDoc, error boxes, etc.)
+            // leak into the code blocks in llms.txt / llms-full.txt / llms-small.txt
+            // and corrupt the source we hand to LLM tooling.
+            //
+            // Each selector below targets a *popup/annotation* sibling that twoslash
+            // injects next to the original token. The wrappers it places *around* the
+            // token (e.g. `.twoslash`, `.twoslash-hover`, `.twoslash-error-underline`)
+            // are deliberately not included here — they contain the author's actual
+            // code, which must survive into the Markdown output verbatim.
+            // See: ec.config.mjs (twoslash configuration).
+            customSelectors: {
+              all: [
+                '.twoslash-popup-container',
+                '.twoslash-static',
+                '.twoslash-completion',
+                '.twoslash-error-box',
+                '.twoslash-custom-box',
+              ],
+            },
+            // https://delucis.github.io/starlight-llms-txt/configuration/#exclude
+            exclude: [
+              'includes/**',
+              'index',
+              '404',
+              'docs',
+              'dashboard/index',
+              'deployment/index',
+              'community/index',
+              'integrations/index',
+              'integrations/gallery',
+              'reference/overview',
+              'community/contributors',
+              'community/videos',
+              'community/thanks',
+              'reference/api/**',
+              'da/**',
+              'de/**',
+              'es/**',
+              'fr/**',
+              'hi/**',
+              'id/**',
+              'it/**',
+              'ja/**',
+              'ko/**',
+              'pt-br/**',
+              'ru/**',
+              'tr/**',
+              'uk/**',
+              'zh-cn/**',
+            ],
+          }),
+          starlightImageZoom({
+            showCaptions: true,
+          }),
+          starlightKbd({
+            globalPicker: false, // We manually place the picker in the footer preferences
+            types: [
+              { id: 'mac', label: 'macOS', detector: 'apple' },
+              { id: 'windows', label: 'Windows', detector: 'windows', default: true },
+              { id: 'linux', label: 'Linux', detector: 'linux' },
+            ],
+          }),
+        ],
+      },
+    }),
     mermaid({
       theme: 'forest',
       autoTheme: true,
       iconPacks,
     }),
-    starlight({
-      title: 'Aspire',
-      defaultLocale: 'root',
-      locales,
-      logo: {
-        src: './src/assets/aspire-logo-32.svg',
-        replacesTitle: true,
-      },
-      editLink: {
-        baseUrl: 'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/',
-      },
-      favicon: 'favicon.svg',
-      head: headAttrs,
-      social: socialConfig,
-      customCss: ['@fontsource-variable/outfit', './src/styles/site.css'],
-      components: {
-        EditLink: './src/components/starlight/EditLink.astro',
-        Footer: './src/components/starlight/Footer.astro',
-        Head: './src/components/starlight/Head.astro',
-        Header: './src/components/starlight/Header.astro',
-        Hero: './src/components/starlight/Hero.astro',
-        MarkdownContent: './src/components/starlight/MarkdownContent.astro',
-        Search: './src/components/starlight/Search.astro',
-        Sidebar: './src/components/starlight/Sidebar.astro',
-        SocialIcons: './src/components/starlight/SocialIcons.astro',
-      },
-      expressiveCode: {
-        // https://expressive-code.com/guides/themes/#using-bundled-themes
-        // preview themes here: https://textmate-grammars-themes.netlify.app/
-        themes: ['laserwave', 'slack-ochin'],
-        styleOverrides: { borderRadius: '0.5rem', codeFontSize: '1rem' },
-      },
-      plugins: [
-        starlightPageActions({
-          actions: {
-            chatgpt: false,
-            claude: false,
-            custom: {
-              copilot: {
-                label: 'Open in GitHub Copilot',
-                href: 'https://github.com/copilot/?prompt=',
-              },
-              chatGpt: {
-                label: 'Open in ChatGPT',
-                href: 'https://chatgpt.com/?q=',
-              },
-              claude: {
-                label: 'Open in Claude',
-                href: 'https://claude.ai/new?q=',
-              }
-            },
-          },
-        }),
-        lunaria({
-          route: '/i18n',
-          sync: false,
-        }),
-        catppuccin(),
-        starlightSidebarTopics(sidebarTopics, {
-          exclude: ['**/includes/**/*', '/support'],
-        }),
-        ...(process.env.CHECK_LINKS
-          ? [
-              starlightLinksValidator({
-                errorOnRelativeLinks: false,
-                errorOnFallbackPages: false,
-              }),
-            ]
-          : []),
-        starlightScrollToTop({
-          // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/
-          svgPath: 'M4 16L12 8L20 16',
-          showTooltip: true,
-          threshold: 10,
-          showOnHomepage: true,
-          tooltipText: {
-            da: 'Rul op',
-            de: 'Nach oben scrollen',
-            en: 'Scroll to top',
-            es: 'Ir arriba',
-            fr: 'Retour en haut',
-            hi: 'ऊपर स्क्रॉल करें',
-            id: 'Gulir ke atas',
-            it: 'Torna su',
-            ja: 'トップへ戻る',
-            ko: '맨 위로',
-            'pt-br': 'Voltar ao topo',
-            'pt-pt': 'Voltar ao início',
-            ru: 'Наверх',
-            tr: 'Başa dön',
-            uk: 'Прокрутити вгору',
-            'zh-cn': '回到顶部',
-          },
-        }),
-        starlightGitHubAlerts(),
-        starlightLlmsTxt({
-          projectName: 'Aspire',
-          description:
-            'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
-          // https://delucis.github.io/starlight-llms-txt/configuration/#exclude
-          exclude: [
-            'includes/**',
-            'index',
-            '404',
-            'docs',
-            'integrations/gallery',
-            'reference/overview',
-            'reference/api/browser',
-            'community/contributors',
-            'community/posts',
-            'community/videos',
-            'da/**',
-            'de/**',
-            'es/**',
-            'fr/**',
-            'hi/**',
-            'id/**',
-            'it/**',
-            'ja/**',
-            'ko/**',
-            'pt-br/**',
-            'pt-pt/**',
-            'ru/**',
-            'tr/**',
-            'uk/**',
-            'zh-cn/**',
-          ],
-        }),
-        starlightImageZoom({
-          showCaptions: true,
-        }),
-        starlightKbd({
-          types: [
-            { id: 'mac', label: 'macOS', detector: 'apple' },
-            { id: 'windows', label: 'Windows', detector: 'windows', default: true },
-            { id: 'linux', label: 'Linux', detector: 'linux' },
-          ],
-        }),
-      ],
+    mdx({
+      optimize: true,
+      gfm: true,
     }),
     jopSoftwarecookieconsent(cookieConfig),
+    ...(isBuildTimingEnabled ? [buildTiming()] : []),
   ],
+  build: {
+    concurrency: buildConcurrency,
+  },
 });

@@ -1,0 +1,442 @@
+---
+title: Set up Azure Web PubSub in the AppHost
+description: Learn how to use the Aspire Azure Web PubSub hosting integration to orchestrate and configure an Azure Web PubSub resource in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import webPubSubIcon from '@assets/icons/azure-webpubsub-icon.png';
+
+<Image
+  src={webPubSubIcon}
+  alt="Azure Web PubSub logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the reference for the Aspire Azure Web PubSub hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Azure Web PubSub resources in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Azure Web PubSub integration, start with the [Get started with the Azure Web PubSub integrations](/integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Web PubSub](../azure-web-pubsub-connect/).
+
+## Installation
+
+To start building an Aspire app that uses Azure Web PubSub, install the [📦 Aspire.Hosting.Azure.WebPubSub](https://www.nuget.org/packages/Aspire.Hosting.Azure.WebPubSub) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add azure-web-pubsub
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Azure.WebPubSub@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.WebPubSub" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-web-pubsub
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Web PubSub hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.WebPubSub": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add Azure Web PubSub resource
+
+Once you've installed the hosting integration in your AppHost project, you can add an Azure Web PubSub resource as shown in the following examples:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(webPubSub);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const webPubSub = await builder.addAzureWebPubSub("web-pubsub");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(webPubSub);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. The `AddAzureWebPubSub` (or `addAzureWebPubSub`) call declares an Azure Web PubSub resource named `web-pubsub` in the AppHost.
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced resource, such as `web-pubsub` in the preceding example.
+
+</Steps>
+
+<Aside type="caution">
+  When you call `AddAzureWebPubSub`, it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+<Aside type="note">
+    When you reference an Azure Web PubSub resource from the AppHost, Aspire makes the service endpoint available to the consuming project as an environment variable. For a complete list of these properties and per-language connection examples, see [Connect to Azure Web PubSub](../azure-web-pubsub-connect/).
+</Aside>
+
+## Add Azure Web PubSub hub resource
+
+A hub is a logical grouping of connections and event handlers in Azure Web PubSub. To add a hub to a Web PubSub resource, chain a call to `AddHub` (or `addHub`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub");
+var messagesHub = webPubSub.AddHub(name: "messages", hubName: "messageHub");
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const webPubSub = await builder.addAzureWebPubSub("web-pubsub");
+const messagesHub = await webPubSub.addHub("messages", { hubName: "messageHub" });
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The preceding code adds a hub resource named `messages` with a hub name of `messageHub` to the `web-pubsub` resource.
+
+## Add event handler to a hub
+
+Event handlers allow your backend services to receive events from Azure Web PubSub. To add an event handler to a hub, chain a call to `AddEventHandler` (or `addEventHandler`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var worker = builder.AddProject<Projects.WorkerService>("worker")
+    .WithExternalHttpEndpoints();
+
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub");
+var messagesHub = webPubSub.AddHub(name: "messages", hubName: "messageHub");
+
+messagesHub.AddEventHandler(
+    $"{worker.GetEndpoint("https")}/eventhandler/",
+    systemEvents: ["connected"]);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const worker = await builder.addNodeApp("worker", "./worker", "index.js");
+await worker.withExternalHttpEndpoints();
+const workerEndpoint = await worker.getEndpoint("https");
+
+const webPubSub = await builder.addAzureWebPubSub("web-pubsub");
+const messagesHub = await webPubSub.addHub("messages", { hubName: "messageHub" });
+
+await messagesHub.addEventHandler(workerEndpoint, {
+    systemEvents: ["connected"],
+});
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The preceding code registers an event handler URL pointing to the worker service's external HTTPS endpoint. For more information, see [Azure Web PubSub event handlers](https://learn.microsoft.com/azure-web-pubsub/howto-develop-eventhandler).
+
+## Assign Azure Web PubSub roles
+
+By default, Azure Web PubSub resources are provisioned with the `WebPubSubServiceOwner` role assigned to the consuming service's identity. To customize role assignments, call `WithRoleAssignments` (or `withRoleAssignments`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub");
+
+var api = builder.AddProject<Projects.ApiService>("api")
+    .WithReference(webPubSub);
+
+// Assign WebPubSubServiceReader role (read-only access)
+builder.AddAzureWebPubSub("web-pubsub")
+    .WithRoleAssignments(api, [AzureWebPubSubRole.WebPubSubServiceReader]);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder, AzureWebPubSubRole } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const webPubSub = await builder.addAzureWebPubSub("web-pubsub");
+
+const api = await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(webPubSub);
+
+// Assign WebPubSubServiceReader role (read-only access)
+await builder.addAzureEnvironment()
+    .withRoleAssignments(webPubSub, [AzureWebPubSubRole.WebPubSubServiceReader]);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The available roles for Azure Web PubSub are:
+
+| Role | Description |
+| ---- | ----------- |
+| `WebPubSubContributor` | Contributes to Azure Web PubSub resources |
+| `WebPubSubServiceOwner` | Full access to the Web PubSub service, including data and management operations |
+| `WebPubSubServiceReader` | Read-only access to the Web PubSub service |
+
+## Connect to an existing Azure Web PubSub instance
+
+You might have an existing Azure Web PubSub service that you want to connect to. Chain a call to `AsExisting` (or `asExisting`) to annotate that your resource is externally managed:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingPubSubName = builder.AddParameter("existingPubSubName");
+var existingPubSubResourceGroup = builder.AddParameter("existingPubSubResourceGroup");
+
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub")
+    .AsExisting(existingPubSubName, existingPubSubResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(webPubSub);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const existingPubSubName = await builder.addParameter("existingPubSubName");
+
+const webPubSub = await builder.addAzureWebPubSub("web-pubsub");
+await webPubSub.asExisting(existingPubSubName);
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(webPubSub);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+For more information on treating Azure resources as existing, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+<Aside type="note">
+  Alternatively, you can add a connection string to the AppHost. This approach is weakly typed and
+  doesn't work with role assignments or infrastructure customizations.
+</Aside>
+
+## Provisioning-generated Bicep
+
+When you publish your app, the Aspire provisioning APIs generate Bicep alongside the manifest file. Bicep is a domain-specific language for defining Azure resources. For more information, see [Bicep Overview](https://learn.microsoft.com/azure-resource-manager/bicep/overview).
+
+When you add an Azure Web PubSub resource, the following Bicep is generated:
+
+```bicep title="web-pubsub.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param sku string = 'Free_F1'
+
+param capacity int = 1
+
+param messages_url_0 string
+
+resource web_pubsub 'Microsoft.SignalRService/webPubSub@2024-03-01' = {
+  name: take('webpubsub-${uniqueString(resourceGroup().id)}', 63)
+  location: location
+  properties: {
+    disableLocalAuth: true
+  }
+  sku: {
+    name: sku
+    capacity: capacity
+  }
+  tags: {
+    'aspire-resource-name': 'web-pubsub'
+  }
+}
+
+resource messages 'Microsoft.SignalRService/webPubSub/hubs@2024-03-01' = {
+  name: 'messages'
+  properties: {
+    eventHandlers: [
+      {
+        urlTemplate: messages_url_0
+        userEventPattern: '*'
+        systemEvents: [
+          'connected'
+        ]
+      }
+    ]
+  }
+  parent: web_pubsub
+}
+
+output endpoint string = 'https://${web_pubsub.properties.hostName}'
+
+output name string = web_pubsub.name
+```
+
+The preceding Bicep provisions an Azure Web PubSub resource. Additionally, role assignments are created for the Azure resource in a separate module:
+
+```bicep title="web-pubsub-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param web_pubsub_outputs_name string
+
+param principalType string
+
+param principalId string
+
+resource web_pubsub 'Microsoft.SignalRService/webPubSub@2024-03-01' existing = {
+  name: web_pubsub_outputs_name
+}
+
+resource web_pubsub_WebPubSubServiceOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(web_pubsub.id, principalId, subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '12cf5a90-567b-43ae-8102-96cf46c7d9b4'))
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '12cf5a90-567b-43ae-8102-96cf46c7d9b4')
+    principalType: principalType
+  }
+  scope: web_pubsub
+}
+```
+
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+## Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureWebPubSub("web-pubsub")
+    .ConfigureInfrastructure(infra =>
+    {
+        var webPubSubService = infra.GetProvisionableResources()
+                                    .OfType<WebPubSubService>()
+                                    .Single();
+
+        webPubSubService.Sku.Name = "Standard_S1";
+        webPubSubService.Sku.Capacity = 5;
+        webPubSubService.Tags.Add("ExampleKey", "Example value");
+    });
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const webPubSub = await builder.addAzureWebPubSub("web-pubsub");
+await webPubSub.configureInfrastructure(async (infra) => {
+    const resources = await infra.getProvisionableResources();
+    const service = resources.find(r => r.$type === "WebPubSubService");
+    if (service) {
+        service.sku = { name: "Standard_S1", capacity: 5 };
+        service.tags = { ExampleKey: "Example value" };
+    }
+});
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` (or `configureInfrastructure`) API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `WebPubSubService` resource is retrieved.
+  - The `Sku` has its name and capacity set to `Standard_S1` and `5`, respectively.
+  - A tag is added with key `ExampleKey` and value `Example value`.
+
+There are many more configuration options available. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+
+## Connection properties
+
+For the full reference of Azure Web PubSub connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Azure Web PubSub](../azure-web-pubsub-connect/).
+
+## Hosting integration health checks
+
+The Azure Web PubSub hosting integration registers a health check that verifies the service endpoint is reachable. The health check is wired into the Aspire dashboard so you can monitor the status of your Azure Web PubSub resource alongside other services.

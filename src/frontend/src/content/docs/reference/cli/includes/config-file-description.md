@@ -2,12 +2,18 @@
 title: Config File Description
 ---
 
-Aspire supports a local and global settings file. Settings defined in a local settings file override those set in the global settings file.
+Starting in Aspire 13.2, Aspire prefers a rooted `aspire.config.json` file for
+project-scoped configuration. The CLI can also read and write user-scoped global
+defaults.
 
-- **Local settings**
+- **Project-scoped configuration**
 
-  A local settings file is stored at `.aspire/settings.json` under the current directory.
+  Project-scoped settings live in a rooted `aspire.config.json` file. This
+  replaces the older `.aspire/settings.json` model.
 
-- **Global settings**
+- **Global configuration**
 
-  The global settings file is stored at `$HOME/.aspire/settings.json`.
+  User-scoped defaults can be set with `aspire config set --global ...`.
+  Project-scoped settings override global values when both are present.
+  Project-specific values such as `appHost.path` must be configured locally in
+  `aspire.config.json`.

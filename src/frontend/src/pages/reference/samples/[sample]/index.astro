@@ -1,0 +1,61 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+import Breadcrumb from '@components/Breadcrumb.astro';
+import SampleDetail from '@components/SampleDetail.astro';
+import samplesJson from '@data/samples.json';
+import { sampleDescriptionText, sampleSlug, type Sample } from '@utils/samples';
+
+export function getStaticPaths() {
+  return (samplesJson as Sample[]).map((sample) => ({
+    params: { sample: sampleSlug(sample.name) },
+    props: { sample },
+  }));
+}
+
+const { sample } = Astro.props as { sample: Sample };
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const samplesHref = `${base}/reference/samples/`;
+
+// Point `og:image` at the stable, hash-free PNG served by
+// `pages/og/reference/samples/[sample].png.ts`. Referencing the optimized
+// `_astro/<name>.<hash>.webp` asset here would bake a per-build content hash
+// into the absolute (https://aspire.dev) `og:image`, which 404s on any
+// deployment whose build hash differs from production's (e.g. staging). The
+// endpoint serves a card for every sample (thumbnail when present, branded
+// fallback otherwise), so this is always set.
+const sampleOgImage = `${base}/og/reference/samples/${sampleSlug(sample.name)}.png`;
+const description =
+  sampleDescriptionText(sample.description)
+    ?.split('\n')
+    .find((line) => line.trim().length > 0)
+    ?.trim() ?? `Explore the ${sample.title} Aspire sample.`;
+---
+
+<StarlightPage
+  frontmatter={{
+    title: sample.title,
+    description,
+    ogImage: sampleOgImage,
+    topic: 'reference',
+    category: 'sample',
+    prev: false,
+    next: false,
+    tableOfContents: false,
+    lastUpdated: false,
+    editUrl: false,
+    giscus: false,
+    pageActions: true,
+  }}
+>
+  <Breadcrumb
+    crumbs={[
+      { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+      { label: 'Reference', href: `${base}/reference/overview/` },
+      { label: 'Samples', href: samplesHref },
+      { label: sample.title },
+    ]}
+  />
+
+  <SampleDetail sample={sample} samplesHref={samplesHref} />
+</StarlightPage>

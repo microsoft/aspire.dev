@@ -1,0 +1,195 @@
+---
+title: Set up GO Feature Flag in the AppHost
+description: Learn how to use the Aspire GO Feature Flag Hosting integration to orchestrate and configure a GO Feature Flag relay proxy resource in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Badge, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import InstallPackage from '@components/InstallPackage.astro';
+import goffIcon from '@assets/icons/go-feature-flag.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={goffIcon}
+  alt="GO Feature Flag logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the reference for the Aspire GO Feature Flag Hosting integration. It enumerates the AppHost APIs that you use to model a GO Feature Flag relay proxy resource in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the GO Feature Flag integration, start with the [Get started with GO Feature Flag integrations](/integrations/devtools/goff/goff-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to GO Feature Flag](../goff-connect/).
+
+## Installation
+
+To start building an Aspire app that uses GO Feature Flag, install the [📦 CommunityToolkit.Aspire.Hosting.GoFeatureFlag](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.GoFeatureFlag) NuGet package:
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.GoFeatureFlag
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.GoFeatureFlag@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.GoFeatureFlag" Version="*" />
+```
+
+:::note
+TypeScript AppHost support for this integration is not yet available.
+:::
+
+## Add goff resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a GO Feature Flag relay proxy resource as shown in the following example:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag("goff")
+    .WithGoffBindMount("./goff");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(goff);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+<Steps>
+
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/gofeatureflag/go-feature-flag` image, it creates a new GO Feature Flag relay proxy instance on your local machine.
+
+1. The `WithGoffBindMount` call mounts a local folder into the `/goff` path inside the container, where the relay proxy reads its flag and proxy configuration files.
+
+1. The `WithReference` call configures a connection in the consuming project named after the referenced resource (`goff` in the preceding example).
+
+</Steps>
+
+:::note
+When you reference a GO Feature Flag resource from the AppHost, Aspire makes several properties available to the consuming project, such as the relay proxy URI, hostname, and port. For a complete list of these properties and per-language connection examples, see [Connect to GO Feature Flag](../goff-connect/).
+:::
+
+## Add goff resource with configuration path
+
+To point the relay proxy to a specific configuration file inside the container, pass the `pathToConfigFile` parameter to `AddGoFeatureFlag`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag("goff", pathToConfigFile: "/goff/goff-proxy.yaml")
+    .WithGoffBindMount("./goff");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(goff);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+The `pathToConfigFile` parameter sets the `--config` argument passed to the relay proxy entrypoint. If this parameter is omitted, the relay proxy looks for a default configuration file in its working directory.
+
+## Add goff resource with data volume
+
+To persist relay proxy data (such as cached flag evaluations) across container restarts, add a named data volume:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag("goff")
+    .WithGoffBindMount("./goff")
+    .WithDataVolume();
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(goff);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+The data volume is mounted at the `/goff_data` path in the container. When a `name` parameter isn't provided, a name is generated automatically. For more information on data volumes, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+## Flag configuration format
+
+The relay proxy reads feature flag definitions from configuration files. GO Feature Flag supports `YAML`, `JSON`, and `TOML` formats. Here is a minimal example to get started:
+
+```yaml title="goff/flags.yaml"
+display-banner:
+  variations:
+    enabled: true
+    disabled: false
+  defaultRule:
+    variation: enabled
+```
+
+For the full syntax, see [Create flags with GO Feature Flag](https://gofeatureflag.org/docs/configure_flag/create-flags).
+
+## Relay proxy configuration
+
+In addition to flag definition files, the relay proxy requires a configuration file that tells it where to load flags from. Create a `goff-proxy.yaml` file in the same bind-mounted folder:
+
+```yaml title="goff/goff-proxy.yaml"
+retrievers:
+  - kind: file
+    path: /goff/flags.yaml
+```
+
+This instructs the relay proxy to load flags from the `flags.yaml` file inside the `/goff` folder (the bind-mounted local folder). For all relay proxy configuration options, see the [GO Feature Flag relay proxy documentation](https://gofeatureflag.org/docs/relay-proxy/configure-relay-proxy).
+
+## Configure logging
+
+To configure the log level for the GO Feature Flag container resource, call `WithLogLevel`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag("goff")
+    .WithGoffBindMount("./goff")
+    .WithLogLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(goff);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+The `WithLogLevel` method sets the `LOGLEVEL` environment variable on the container. The supported log levels are `Debug`, `Information`, `Warning`, and `Error`.
+
+## Customize ports
+
+To use a specific host port for the relay proxy HTTP endpoint, pass the `port` parameter to `AddGoFeatureFlag`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag(name: "goff", port: 1031)
+    .WithGoffBindMount("./goff");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(goff);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+The `port` parameter specifies the host port bound to the relay proxy's internal port. If not provided, Aspire assigns a random port.
+
+## Connection properties
+
+For the full reference of GO Feature Flag connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to GO Feature Flag](../goff-connect/).
+
+## Hosting integration health checks
+
+The GO Feature Flag hosting integration automatically adds a health check for the relay proxy resource. The health check verifies that the relay proxy is running and reachable by calling its `/health` endpoint.

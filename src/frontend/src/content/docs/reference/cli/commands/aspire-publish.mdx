@@ -6,8 +6,6 @@ sidebar:
 ---
 
 import Include from '@components/Include.astro';
-import LearnMore from '@components/LearnMore.astro';
-import { Aside } from '@astrojs/starlight/components';
 
 ## Name
 
@@ -21,17 +19,44 @@ aspire publish [options] [[--] <additional arguments>...]
 
 ## Description
 
-The `aspire publish` command publishes resources by serializing them to disk. When this command is run, Aspire invokes registered `PublishingCallbackAnnotation` annotations for resources, in the order they're declared. These annotations serialize a resource so that it can be consumed by deployment tools.
+The `aspire publish` command publishes resources by serializing them to disk. When this command is run, Aspire executes publishing pipeline steps that have been registered in the app model (for example, by environment resources). These steps serialize resources so that they can be consumed by deployment tools.
 
 <Include relativePath="reference/cli/includes/project-search-logic-description.md" />
 
 The command performs the following steps to run an Aspire AppHost:
 
-- Creates or modifies the `.aspire/settings.json` config file in the current directory, and sets the `appHostPath` config value to the path of the AppHost project file.
+- Creates or updates the rooted `aspire.config.json` file and records the
+  selected AppHost there. Legacy `.aspire/settings.json` files are still read
+  during migration.
 - Installs or verifies that Aspire's local hosting certificates are installed and trusted.
 - Builds the AppHost project and its resources.
 - Starts the AppHost and its resources.
-- Invokes all `PublishingCallbackAnnotation` annotations for resources.
+- Executes all publishing pipeline steps registered in the app model.
+
+## Pipeline summary output
+
+After the pipeline finishes, `aspire publish` prints a result summary and a step-by-step breakdown. The summary shows how many steps succeeded, the total pipeline duration, and a `Steps Summary:` table.
+
+The `Steps Summary:` table lists pipeline steps in their execution hierarchy. Top-level steps appear at the left edge of the step-name column, and child steps are indented under their parent steps. Each row includes the step duration, final status, step name, and, when the terminal is wide enough, a timeline bar that shows when the step started and finished relative to the whole pipeline.
+
+```text title="Output"
+------------------------------------------------------------
+✅ 5/5 steps succeeded • Total time: 0.43s
+
+Steps Summary:
+                Step timeline:                 0s                       0.41s
+                                               │───────┬──────┬─────┬───────│
+      0.57ms  ✓ validate-compute-environments  │╴                           │
+      0.16ms  ✓   before-start                 │╴                           │
+       0.41s  ✓ pipeline-execution             │╶──────────────────────────╴│
+       0.41s  ✓ custom-publish-prereq          │╶──────────────────────────╴│
+      0.55ms  ✓   publish                      │                           ╴│
+
+✅ Pipeline succeeded
+------------------------------------------------------------
+```
+
+The `Step timeline:` header shows the start and end of the overall pipeline duration. The ruler divides that duration into equal intervals, and each step row uses a bar to show the step's relative start and end times. Very short steps can appear as a single point marker (`╴`). If the terminal isn't wide enough to preserve readable step names, Aspire omits the timeline columns and keeps the hierarchical step list.
 
 ## Options
 
@@ -45,9 +70,9 @@ The following options are available:
 
 - **`-o, --output-path`**
 
-  The output path for the generated artifacts. Defaults to `./aspire-output` if not specified.
+  The output path for the generated artifacts. Defaults to the AppHost directory's `aspire-output` folder if not specified.
 
-- **`--log-level`**
+- **`--pipeline-log-level`**
 
   Set the minimum log level for pipeline logging. Valid values are: `trace`, `debug`, `information`, `warning`, `error`, `critical`. The default is `information`.
 
@@ -59,9 +84,19 @@ The following options are available:
 
   Include exception details (stack traces) in pipeline logs.
 
+- <Include relativePath="reference/cli/includes/option-list-steps.md" />
+
+- <Include relativePath="reference/cli/includes/option-no-build.md" />
+
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
-- <Include relativePath="reference/cli/includes/option-debug.md" />
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
 
 - <Include relativePath="reference/cli/includes/option-wait.md" />
 
@@ -76,11 +111,11 @@ The following options are available:
 - Publish a specific AppHost project:
 
   ```bash title="Aspire CLI"
-  aspire publish --project './projects/apphost/orchestration.AppHost.csproj'
+  aspire publish --apphost './projects/apphost/orchestration.AppHost.csproj'
   ```
 
 - Publish a specific AppHost project with arguments:
 
   ```bash title="Aspire CLI"
-  aspire publish --project './projects/apphost/orchestration.AppHost.csproj' -- -fast
+  aspire publish --apphost './projects/apphost/orchestration.AppHost.csproj' -- -fast
   ```

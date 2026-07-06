@@ -1,10 +1,9 @@
 ---
-title: PostgreSQL hosting extensions
-next: false
+title: Use community extensions for PostgreSQL hosting
+description: Extend the functionality of your PostgreSQL hosting with community-built extensions, including management UIs like Adminer and DbGate.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import { Aside } from '@astrojs/starlight/components';
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
 import postgresqlIcon from '@assets/icons/postgresql-icon.png';
@@ -33,23 +32,58 @@ To get started with the Aspire Community Toolkit PostgreSQL hosting extensions, 
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions" />
 
+For TypeScript AppHosts, add the Community Toolkit PostgreSQL extensions package to `aspire.config.json`:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions": "*"
+  }
+}
+```
+
 ## Add management UI
 
 ### DbGate management UI
 
 To add the DbGate management UI to your PostgreSQL resource, call the `WithDbGate` method on the `PostgresServerResource` instance:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
-                      .WithDbGate();
+    .WithDbGate();
 
 builder.AddProject<Projects.ExampleProject>()
-       .WithReference(postgres);
+    .WithReference(postgres);
 
 // After adding all resources, run the app...
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres");
+await postgres.withDbGate();
+
+const exampleProject = await builder.addProject(
+    "example-project",
+    "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(postgres);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
 
 This adds a new DbGate resource to the app host which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your PostgreSQL databases.
 
@@ -57,17 +91,42 @@ This adds a new DbGate resource to the app host which is available from the Aspi
 
 To add the Adminer management UI to your PostgreSQL resource, call the `WithAdminer` method on the `PostgresServerResource` instance:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
-                      .WithAdminer();
+    .WithAdminer();
 
 builder.AddProject<Projects.ExampleProject>()
-       .WithReference(postgres);
+    .WithReference(postgres);
 
 // After adding all resources, run the app...
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres");
+await postgres.withAdminer();
+
+const exampleProject = await builder.addProject(
+    "example-project",
+    "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(postgres);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
 
 This adds a new Adminer resource to the app host which is available from the Aspire dashboard. Adminer is a lightweight database management tool that provides a simple web interface for database operations.
 
@@ -75,18 +134,44 @@ This adds a new Adminer resource to the app host which is available from the Asp
 
 You can use both management UIs together on the same PostgreSQL resource:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
-                      .WithDbGate()
-                      .WithAdminer();
+    .WithDbGate()
+    .WithAdminer();
 
 builder.AddProject<Projects.ExampleProject>()
-       .WithReference(postgres);
+    .WithReference(postgres);
 
 // After adding all resources, run the app...
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres");
+await postgres.withDbGate();
+await postgres.withAdminer();
+
+const exampleProject = await builder.addProject(
+    "example-project",
+    "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(postgres);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
 
 ## See also
 
@@ -95,4 +180,4 @@ builder.AddProject<Projects.ExampleProject>()
 - [PostgreSQL integration](/integrations/databases/postgres/postgres-host/)
 - [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
 - [Aspire integrations overview](/integrations/overview/)
-- [Aspire GitHub repo](https://github.com/dotnet/aspire)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)

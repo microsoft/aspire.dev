@@ -11,7 +11,7 @@ export const headAttrs: HeadAttr[] = [
     attrs: {
       name: 'description',
       content:
-        'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
+        'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
     },
   },
   {
@@ -22,9 +22,10 @@ export const headAttrs: HeadAttr[] = [
 					Aspire, .NET Aspire, dotnet aspire,
 					distributed applications, cloud-native, microservices, orchestration,
 					.NET, observability, otel, opentelemetry, dashboard, service discovery, integrations,
-					C#, csharp, polyglot, python, go, node.js, javascript, typescript,
+					C#, csharp, multi-language, polyglot, python, go, node.js, javascript, typescript,
 					vite, react, blazor, wasm, webassembly, aspnetcore, minimal apis,
-					docker, containers, kubernetes, compose
+					docker, containers, kubernetes, compose,
+					AI, MCP, model context protocol, AI coding agents, agentic development, copilot, cursor, claude code, vibe coding
 				`
         .replace(/\s*\n\s*/g, ' ')
         .trim(),
@@ -32,34 +33,16 @@ export const headAttrs: HeadAttr[] = [
   },
   { tag: 'meta', attrs: { name: 'alternate-name', content: '.NET Aspire' } },
 
-  // Open Graph meta tags
-  { tag: 'meta', attrs: { property: 'og:title', content: 'Aspire—Your Stack, Streamlined' } },
-  {
-    tag: 'meta',
-    attrs: {
-      property: 'og:description',
-      content:
-        'Aspire streamlines your development workflow with code-first control, modularity, and observability for distributed applications.',
-    },
-  },
-  { tag: 'meta', attrs: { property: 'og:image', content: 'https://aspire.dev/og-image.png' } },
-  { tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
+  // Open Graph / Twitter card meta tags — only truly-global tags live here.
+  // Per-page `og:title`, `og:description`, `og:url`, `og:image`,
+  // `og:image:alt`, `og:image:width`, `og:image:height`, `og:type`,
+  // `twitter:title`, `twitter:description`, `twitter:url`, `twitter:image`,
+  // and `twitter:image:alt` are emitted dynamically by
+  // `src/components/starlight/Head.astro` based on each page's frontmatter
+  // (see `src/utils/page-metadata.ts` for the resolution logic).
   { tag: 'meta', attrs: { property: 'og:site_name', content: 'Aspire' } },
-
-  // Twitter Card meta tags
   { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
-  { tag: 'meta', attrs: { property: 'twitter:domain', content: 'aspire.dev' } },
-  { tag: 'meta', attrs: { property: 'twitter:url', content: 'https://aspire.dev' } },
-  { tag: 'meta', attrs: { name: 'twitter:title', content: 'Aspire—Your Stack, Streamlined' } },
-  {
-    tag: 'meta',
-    attrs: {
-      name: 'twitter:description',
-      content:
-        'Aspire (formerly .NET Aspire) streamlines your development workflow with code-first control, modularity, and observability.',
-    },
-  },
-  { tag: 'meta', attrs: { name: 'twitter:image', content: 'https://aspire.dev/og-image.png' } },
+  { tag: 'meta', attrs: { name: 'twitter:domain', content: 'aspire.dev' } },
 
   // Favicons and icons (ordered: SVG → PNG → ICO → Apple Touch Icon)
   { tag: 'link', attrs: { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' } },
@@ -97,7 +80,7 @@ export const headAttrs: HeadAttr[] = [
     tag: 'script',
     attrs: {
       type: 'text/plain',
-      src: '/1ds/',
+      src: '/scripts/analytics/1ds.js',
       defer: true,
       'data-category': 'analytics',
     },
@@ -106,7 +89,7 @@ export const headAttrs: HeadAttr[] = [
     tag: 'script',
     attrs: {
       type: 'text/plain',
-      src: '/track/',
+      src: '/scripts/analytics/track.js',
       defer: true,
       'data-category': 'analytics',
     },

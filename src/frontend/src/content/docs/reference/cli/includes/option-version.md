@@ -2,6 +2,6 @@
 title: Option Version
 ---
 
-**`--version`**
+**`-v, --version`**
 
 Prints the version of the Aspire CLI tool.

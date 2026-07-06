@@ -1,0 +1,108 @@
+---
+title: カスタム リソース URL を定義する
+description: Aspire リソース用のカスタム URL を作成する方法を学びます。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Aspire では、エンドポイントを公開するリソースはホストとポートのみを構成しますが、これらは実行時まで確定しません。これらのエンドポイントの特定パスにアクセスする必要がある場合、特に [ダッシュボード](/ja/dashboard/overview/) からアクセスしたい場合は、カスタム リソース URL を定義できます。任意のエンドポイントに紐付かないカスタム URL を追加することも可能です。カスタム URL はダッシュボードで使うことを目的としているため、すべて "run" モードでのみ利用できます。この記事では、カスタム URL の定義方法を説明します。
+
+## 既定のエンドポイント動作
+
+既定では、Aspire プロジェクト リソースは Kestrel や起動プロファイルなどの既存構成に基づいて、構成済みエンドポイント向けリソースのホストとポートを決定します。エンドポイントは常にダッシュボードに表示されます。
+
+同様に、`WithEndpoint` API を使ってエンドポイントを明示的に公開することもできます。この API ではリソースのホストとポートを指定でき、これを使ってそのリソースの既定 URL が作成されます。既定 URL は通常、`<scheme>://<host>:<port>` 形式です。ホスト ポートを省略するには、次のいずれかのメソッドを使います。
+
+- `WithHttpEndpoint`
+- `WithHttpsEndpoint`
+
+詳細は、[エンドポイント拡張メソッド](/ja/fundamentals/networking-overview/#エンドポイント拡張メソッド) を参照してください。
+
+## サポートされるリソースの種類
+
+カスタム リソース URL は、次のリソースの種類でサポートされます。
+
+- `ContainerResource`
+- `ExecutableResource`
+- `ProjectResource`
+
+## リソース URL をカスタマイズする
+
+サポートされる任意のリソース ビルダーで、適切な `WithUrl` オーバーロード、`WithUrls`、または `WithUrlForEndpoint` API を使うと、リソースのカスタム URL を定義できます。次の例は、プロジェクト リソースにカスタム URL を設定する方法を示しています。
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.AspireApp_Api>("api");
+
+api.WithUrl("/admin", "Admin Portal");
+
+builder.Build().Run();
+```
+
+<Aside type="tip">
+  任意の URL を渡せる `string` を受け取るオーバーロードもあります。この
+  オーバーロードは、リソースのエンドポイントに直接関連しない
+  カスタム URL を定義するときに便利です。
+</Aside>
+
+前述のコードでは、プロジェクト参照を `api` 変数に代入し、その変数を使って `Admin Portal` ルートのカスタム URL を作成しています。`WithUrl` メソッドは、`ReferenceExpression` と表示名をパラメーターとして受け取ります。生成された URL はダッシュボードで利用できます。
+
+### エンドポイント URL をカスタマイズする
+
+[Scalar](https://scalar.com/) と [Swagger](https://swagger.io/tools/swagger-ui/) はどちらも、エンドポイントの使いやすさを高める一般的な API サービスです。これらのサービスには、宣言済みエンドポイントに紐付く URL でアクセスします。
+
+最初に関連付けられたリソース エンドポイントの URL をカスタマイズするには、`WithUrlForEndpoint` メソッドを使います。別の URL（同じエンドポイント向けであっても）を追加したい場合は、`ReferenceExpression` または補間文字列を受け取る `WithUrl` オーバーロードを呼び出すか、`WithUrls` を呼び出してコンテキスト上の `Urls` リストに URL を追加する必要があります。
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.AspireApp_Api>("api")
+    .WithUrlForEndpoint("https", url =>
+    {
+        url.DisplayText = "Scalar (HTTPS)";
+        url.Url = "/scalar";
+    });
+
+builder.Build().Run();
+```
+
+前述の例は、`api` プロジェクト リソースに `https` エンドポイントが構成されていることを前提にしています。`WithUrlForEndpoint` メソッドは、エンドポイントに関連付けられた `ResourceUrlAnnotation` を更新します。この場合、表示テキストに `Scalar (HTTPS)` を設定し、URL に相対パス `/scalar` を設定します。
+
+リソースが開始されると、URL はダッシュボードで利用できます。
+
+または、コールバックとして `Func<EndpointReference, ResourceUrlAnnotation>` を受け取るオーバーロードを使うこともできます。これにより、対象 `EndpointReference` インスタンスのディープ リンクを指定できます。
+
+### 複数のリソース URL をカスタマイズする
+
+リソースの複数 URL をカスタマイズするには、`WithUrls` メソッドを使います。このメソッドでは、各 URL に独自の表示テキストを設定しながら、リソースに対して複数 URL を指定できます。次の例は、プロジェクト リソースに複数 URL を設定する方法を示しています。
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.AspireApp_Api>("api")
+    .WithUrls(context =>
+    {
+        foreach (var url in context.Urls)
+        {
+            if (string.IsNullOrEmpty(url.DisplayText))
+            {
+                url.DisplayText = $"API ({url.Endpoint?.Scheme?.ToUpper()})";
+            }
+        }
+    });
+
+builder.Build().Run();
+```
+
+前述のコードは、`api` プロジェクト リソースに定義された URL を走査し、スキーム付きの表示テキストを割り当てます。
+
+<Aside type="tip">
+  `ResourceUrlsCallbackContext` には、基盤となるリソースの名前付きエンドポイントへ
+  簡単にアクセスできる拡張メソッドが公開されています。これを行うには、
+  コンテキスト インスタンスで `GetEndpoint` API を呼び出します。
+</Aside>
+
+## URL カスタマイズのライフサイクル
+
+URL カスタマイズ コールバックは、アプリケーション モデルのライフサイクル内、具体的には `BeforeResourceStartedEvent` イベント処理中に実行されます。エンドポイントに関連付けられた URL は、エンドポイント自体がアクティブになった時点で有効化され、ダッシュボードに表示されます。エンドポイントに関連付けられていない URL は、リソースが "Running" 状態に入ったときにのみ有効になります。これにより、アプリケーション リソースが完全に稼働した時点で、すべてのカスタム URL が正しく表現され利用可能になることが保証されます。

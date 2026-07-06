@@ -1,0 +1,309 @@
+---
+/**
+ * TypeHero — shared hero card for type detail pages
+ * (class, record, struct, interface, enum, delegate).
+ *
+ * Matches the visual patterns of the package hero (deemphasized framework badge,
+ * responsive badge row, source link beneath the code signature).
+ */
+import TypeSignature from '@components/api-reference/TypeSignature.astro';
+import DocContent from '@components/api-reference/DocContent.astro';
+
+interface Props {
+  type: any;
+  pkg: any;
+  allTypes: any[];
+  modifierBadges: string[];
+  kindLabel: string;
+  /** Obsolete / experimental metadata */
+  obsolete?: { message?: string | null };
+  experimental?: {
+    id?: string | null;
+    diagnosticsHref?: string | null;
+  };
+  /** Pre-resolved inheritance chain (base → current). */
+  inheritChain?: { name: string; href: string | null }[];
+  /** Pre-resolved interface links. */
+  interfaces?: { name: string; href: string | null }[];
+}
+
+const {
+  type,
+  pkg,
+  allTypes,
+  modifierBadges,
+  kindLabel,
+  obsolete,
+  experimental,
+  inheritChain = [],
+  interfaces = [],
+} = Astro.props;
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+// Build source link
+const sourceHref = (() => {
+  if (!pkg.package.sourceRepository || !pkg.package.sourceCommit) return null;
+  const baseUrl = `${pkg.package.sourceRepository}/blob/${pkg.package.sourceCommit}`;
+  if (type.sourceFile) {
+    return `${baseUrl}/${type.sourceFile}`;
+  }
+  return `${pkg.package.sourceRepository}/tree/${pkg.package.sourceCommit}`;
+})();
+---
+
+<div class="api-hero type-hero not-content">
+  <div class="type-hero-top">
+    <div class="type-hero-badges">
+      <span class={`api-kind-pill kind-${type.kind.replace(/\s+/g, '-')}`}>{kindLabel}</span>
+      {modifierBadges.map(b => <span class="api-mod-badge">{b}</span>)}
+      <span class="type-hero-framework">{pkg.package.targetFramework}</span>
+    </div>
+  </div>
+
+  <span class="type-hero-pkg">📦 {pkg.package.name} <span class="type-hero-ver">v{pkg.package.version}</span></span>
+
+  {type.docs?.summary && (
+    <div class="api-hero-summary type-hero-summary">
+      <DocContent content={type.docs.summary} allTypes={allTypes} packageName={pkg.package.name} />
+    </div>
+  )}
+
+  {obsolete && (
+    <aside class="api-obsolete-aside">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <div>
+        <strong>Obsolete</strong>
+        {obsolete.message && <span> — {obsolete.message}</span>}
+      </div>
+    </aside>
+  )}
+
+  {experimental && (
+    <aside class="api-experimental-aside">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
+        <path d="M8.5 2h7"/>
+        <path d="M7 16.5h10"/>
+      </svg>
+      <div>
+        <strong>Experimental</strong>
+        {experimental.id && <span> — {experimental.id}</span>}
+        {experimental.diagnosticsHref && (
+          <span> · <a href={experimental.diagnosticsHref}>Learn more</a></span>
+        )}
+      </div>
+    </aside>
+  )}
+
+  {/* Definition (signature) */}
+  <TypeSignature type={type} allTypes={allTypes} packageName={pkg.package.name} />
+
+  {/* Inheritance + Source row */}
+  <div class="type-hero-footer">
+    {/* Inheritance / Implements — only render if there's content */}
+    {(inheritChain.length > 1 || interfaces.length > 0) && (
+      <div class="type-hero-footer-left">
+        {inheritChain.length > 1 && (
+          <div class="type-hero-inherit">
+            <span class="api-meta-label type-hero-section-label">Inherits</span>
+            <div class="inherit-chain">
+              {inheritChain.map((item, i) => (
+                <>
+                  {i > 0 && <span class="chain-arrow">→</span>}
+                  {item.href ? (
+                    <a href={item.href} class="api-type-link">{item.name}</a>
+                  ) : (
+                    <span class="chain-current">{item.name}</span>
+                  )}
+                </>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {interfaces.length > 0 && (
+          <div class="type-hero-implements">
+            <span class="api-meta-label type-hero-section-label">Implements</span>
+            <ul class="impl-list">
+              {interfaces.map((iface) => (
+                <li>
+                  {iface.href ? (
+                    <a href={iface.href} class="api-type-link">{iface.name}</a>
+                  ) : (
+                    <span class="muted">{iface.name}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Source link — right-aligned */}
+    {sourceHref && (
+      <a
+        href={sourceHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="api-source-link type-hero-source"
+        title="View source on GitHub"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        Source
+      </a>
+    )}
+  </div>
+</div>
+
+<style>
+  /* Hero card accent */
+  .type-hero {
+    border-color: transparent;
+    border-top: 3px solid var(--kind-tint, var(--api-border));
+    position: relative;
+  }
+
+  .type-hero-top {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .type-hero-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  /* Framework badge — deemphasized, matching package hero style */
+  .type-hero-framework {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--sl-color-gray-3);
+    background: color-mix(in srgb, var(--sl-color-gray-3) 12%, transparent);
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--api-radius-sm, 0.25rem);
+    letter-spacing: 0.02em;
+  }
+
+  .type-hero-pkg {
+    font-size: var(--api-text-sm);
+    color: var(--sl-color-gray-3);
+    font-family: var(--sl-font-system-mono, monospace);
+  }
+  .type-hero-ver {
+    color: var(--sl-color-gray-3);
+    font-weight: 600;
+  }
+
+  /* Summary with extra top spacing */
+  .type-hero-summary {
+    padding-top: 0.35rem;
+  }
+
+  /* Reduce TypeSignature bottom margin when followed by footer */
+  .type-hero :global(.ts) {
+    margin-bottom: 0;
+  }
+
+  /* Hide the redundant base-type chips rendered by TypeSignature */
+  .type-hero :global(.ts-bases) {
+    display: none;
+  }
+
+  /* Footer: inheritance/implements on the left, source link on the right */
+  .type-hero-footer {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.5rem;
+  }
+  .type-hero-footer-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .type-hero-source {
+    flex-shrink: 0;
+    margin-left: auto;
+    align-self: flex-start;
+  }
+
+  /* Inheritance / Implements sections within the hero */
+  .type-hero-inherit,
+  .type-hero-implements {
+    /* no border — sits cleanly inside the footer */
+  }
+  .type-hero-section-label {
+    color: var(--aspire-color-secondary);
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+  .inherit-chain {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: var(--api-text-base);
+  }
+  .chain-arrow {
+    color: var(--sl-color-gray-4);
+    font-size: var(--api-text-sm);
+  }
+  .chain-current {
+    font-weight: 600;
+    color: var(--sl-color-text);
+  }
+  .impl-list {
+    list-style: disc;
+    padding-left: 1.5rem;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .impl-list li {
+    font-size: var(--api-text-base);
+  }
+
+  /* ── Responsive ─────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .type-hero-top {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .type-hero-pkg {
+      font-size: var(--api-text-sm);
+    }
+    .type-hero-footer {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .type-hero-source {
+      align-self: flex-end;
+    }
+    .inherit-chain {
+      gap: 0.35rem;
+      font-size: var(--api-text-sm);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .type-hero-source {
+      align-self: flex-end;
+    }
+  }
+</style>

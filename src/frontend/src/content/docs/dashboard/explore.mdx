@@ -1,12 +1,12 @@
 ---
-title: Explore Aspire dashboard
-description: Explore the Aspire dashboard features through the Aspire Starter app.
+title: Explore the Aspire dashboard with the Starter app
+description: Explore Aspire dashboard features — resource graph, console logs, traces, metrics, and the GenAI visualizer — using the Aspire Starter app as a guided tour.
 ---
 
 import { Image } from 'astro:assets';
 import { Aside, Steps } from '@astrojs/starlight/components';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
-import { Kbd } from 'starlight-kbd/components'
+import { Kbd } from 'starlight-kbd/components';
 
 import LearnMore from '@components/LearnMore.astro';
 import LoopingImage from '@components/LoopingImage.astro';
@@ -57,7 +57,13 @@ import metricsPageExemplars from '@assets/dashboard/explore/metrics-page-exempla
 import tracePageFromExemplars from '@assets/dashboard/explore/trace-page-from-exemplars.png';
 import pauseTelemetry from '@assets/dashboard/explore/pause-telemetry.png';
 import removeTelemetryData from '@assets/dashboard/explore/remove-telemetry-data.png';
-import removeAllTelemetry from '@assets/dashboard/explore/remove-all-telemetry.png';
+
+import manageDataDialog from '@assets/dashboard/explore/manage-data-dialog.png';
+import manageDataExpanded from '@assets/dashboard/explore/manage-data-expanded.png';
+import settingsManageTelemetry from '@assets/dashboard/explore/settings-manage-telemetry.png';
+import notificationCenterBell from '@assets/dashboard/explore/notification-center-bell.png';
+import notificationCenterOpen from '@assets/dashboard/explore/notification-center-open.png';
+import notificationCenterResponse from '@assets/dashboard/explore/notification-center-response.png';
 import themeSelection from '@assets/dashboard/explore/theme-selection.png';
 import themeSelectionLight from '@assets/dashboard/explore/theme-selection-light.png';
 import dashboardHelp from '@assets/dashboard/explore/dashboard-help.png';
@@ -69,13 +75,11 @@ In the upcoming sections, you discover how to create an Aspire project and embar
 
 The screenshots featured in this article showcase the dark theme. For more information on theme selection, see [Theme selection](#theme-selection).
 
-The Aspire dashboard also includes **GitHub Copilot**, your AI debugging assistant, which can help you analyze resources, logs, traces, and telemetry data. Copilot is available when you launch your app from VS Code or Visual Studio with a GitHub account that has a Copilot subscription. For complete details, see [GitHub Copilot in the Aspire dashboard](copilot).
-
 ## Dashboard authentication
 
 When you run an Aspire AppHost, the orchestrator starts up all the app's dependent resources and then opens a browser window to the dashboard. The Aspire dashboard requires token-based authentication for its users because it displays environment variables and other sensitive information.
 
-When the dashboard is launched from Visual Studio or Visual Studio Code (with the [C# Dev Kit extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit)), the browser is automatically logged in, and the dashboard opens directly. This is the typical developer F5 experience, and the authentication login flow is automated by the Aspire tooling.
+When the dashboard is launched from Visual Studio or Visual Studio Code (with the [Aspire extension](https://aka.ms/aspire/vscode) or [C# Dev Kit extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit)), the browser is automatically logged in, and the dashboard opens directly. This is the typical developer F5 experience, and the authentication login flow is automated by the Aspire tooling.
 
 However, if you start the AppHost from the command line, you're presented with the login page. The console window displays a URL that you can select on to open the dashboard in your browser.
 
@@ -96,7 +100,7 @@ apphost.cs
                 Press CTRL+C to stop the apphost and exit.
     ```
 
-The URL contains a token query string (with the token value mapped to the `t` name part) that's used to _log in_ to the dashboard. If your console supports it, you can hold the <Kbd windows="Control" mac="Command" linux="Control" /> key and then select the link to open the dashboard in your browser. This method is easier than copying the token from the console and pasting it into the login page. If you end up on the dashboard login page without either of the previously described methods, you can always return to the console to copy the token.
+The URL contains a token query string (with the token value mapped to the `t` name part) that's used to _log in_ to the dashboard. If your console supports it, you can hold the <Kbd windows="Ctrl" mac="Command" linux="Ctrl" /> key and then select the link to open the dashboard in your browser. This method is easier than copying the token from the console and pasting it into the login page. If you end up on the dashboard login page without either of the previously described methods, you can always return to the console to copy the token.
 
 <Image src={aspireLogin} alt="Aspire dashboard login page." />
 
@@ -118,8 +122,8 @@ You can also obtain the login token from the container logs. For more informatio
 
 The **Resources** page is the default home page of the Aspire dashboard. This page lists all of the projects, containers, and executables included in your Aspire solution. For example, the starter application includes two projects:
 
-- **apiservice**: A back-end API project built using Minimal APIs.
-- **webfrontend**: The front-end UI project built using Blazor.
+- **apiservice**: A backend API project built using Minimal APIs.
+- **webfrontend**: The frontend UI project built using Blazor.
 
 The dashboard also provides essential details about each resource:
 
@@ -168,11 +172,11 @@ When you select **Stop**, the resource stops running, and the **State** column u
 For project resources, when the debugger is attached, it's reattached on restart.
 </Aside>
 
-The **Start** button is then enabled, allowing you to start the resource again. Additionally, the dashboard displays a toast notification of the result of the action:
+The **Start** button is then enabled, allowing you to start the resource again. Additionally, the dashboard displays a notification of the result of the action in the [notification center](#notification-center):
 
 <Image src={resourceStoppedAction} alt="Aspire dashboard resource stopped." />
 
-When a resource is in a non-running state, the **Start** button is enabled. Selecting **Start** starts the resource, and the **State** column updates to reflect the change. The **Stop** button is then enabled, allowing you to stop the resource again. The dashboard displays a toast notification of the result of the action:
+When a resource is in a non-running state, the **Start** button is enabled. Selecting **Start** starts the resource, and the **State** column updates to reflect the change. The **Stop** button is then enabled, allowing you to stop the resource again. The dashboard displays a notification of the result of the action in the [notification center](#notification-center):
 
 <Image src={resourceStartedAction} alt="Aspire dashboard started resource." />
 
@@ -182,7 +186,7 @@ Resources that depend on other resources that are stopped, or restarted, might e
 
 ##### Resource submenu actions
 
-Selecting the horizontal ellipsis icon in the **Actions** column opens a submenu with additional resource-specific actions. In addition to the built-in resource submenu actions, you can also define custom resource actions by defining custom commands. For more information, see [Custom resource commands in Aspire](https://learn.microsoft.com/dotnet/aspire/fundamentals/custom-resource-commands/). For the built-in resource submenu actions, consider the following screenshot:
+Selecting the horizontal ellipsis icon in the **Actions** column opens a submenu with additional resource-specific actions. In addition to the built-in resource submenu actions, you can also define custom resource actions by defining custom commands. For more information, see [Custom resource commands in Aspire](/fundamentals/custom-resource-commands/). For the built-in resource submenu actions, consider the following screenshot:
 
 <Image src={resourceActions} alt="Aspire dashboard resource submenu actions." />
 
@@ -199,8 +203,6 @@ The following submenu actions are available:
 There might be resources with disabled submenu actions. They're greyed out when they're disabled. For example, the following screenshot shows the submenu actions disabled:
 
 <Image src={resourceSubmenuActions} alt="Aspire dashboard disabled submenu actions." />
-
-When GitHub Copilot is available (when launching from VS Code or Visual Studio with a Copilot subscription), resource context menus also include an **Ask GitHub Copilot** option. This allows you to investigate resources using AI analysis.
 </Aside>
 
 #### Copy or Open in text visualizer
@@ -315,8 +317,6 @@ Consider the following screenshots showing the structured logs filter dialog:
 
 <Image src={structuredLogsFiltered} alt="A screenshot of the Aspire dashboard Structured logs page showing the filter dialog." />
 
-When GitHub Copilot is available and your app has structured logs with errors, an **Explain errors** button appears on the structured logs page. Selecting it makes all errors available to Copilot for AI-powered investigation. Additionally, structured log entries include an **Ask GitHub Copilot** option in their context menus.
-
 ### Traces page
 
 Navigate to the **Traces** page to view all of the traces for your app. Aspire automatically configures tracing for the different projects in your app. Distributed tracing is a diagnostic technique that helps engineers localize failures and performance issues within applications, especially those that might be distributed across multiple machines or processes. For more information, see [.NET distributed tracing](https://learn.microsoft.com/dotnet/core/diagnostics/distributed-tracing). This technique tracks requests through an application and correlates work done by different application integrations. Traces also help identify how long different stages of the request took to complete. The traces page displays the following information:
@@ -361,8 +361,6 @@ Each span is represented as a row in the table, and contains a **Name**. Spans a
 Within the trace details page, there's a **View Logs** button that takes you to the structured logs page with a filter applied to show only the logs relevant to the request. Consider an example screenshot depicting the structured logs page with a filter applied to show only the logs relevant to the trace:
 
 <Image src={structuredLogsTraceErrors} alt="A screenshot of the Aspire dashboard Structured logs page, showing a filter applied to show only the logs relevant to the trace." />
-
-When GitHub Copilot is available, the trace details page also includes an **Explain trace** button that provides a quick way to analyze the currently viewed trace using AI. Additionally, traces and individual spans include **Ask GitHub Copilot** options in their context menus for detailed investigation.
 
 The structured logs page is discussed in more detail in the [Structured logs page](#structured-logs-page) section.
 
@@ -465,9 +463,9 @@ You can set this environment variable in your application's configuration, in yo
 
 For specific guidance on configuring message content recording with different AI integrations, see the documentation for each integration:
 
-- [Azure OpenAI integration](https://learn.microsoft.com/dotnet/aspire/azureai/azureai-openai-integration#configuring-sensitive-data-in-telemetry).
-- [Azure AI Inference integration](https://learn.microsoft.com/dotnet/aspire/azureai/azureai-inference-integration#configuring-sensitive-data-in-telemetry).
-- [OpenAI integration](https://learn.microsoft.com/dotnet/aspire/openai/openai-integration#configuring-sensitive-data-in-telemetry).
+- [Azure OpenAI integration](/integrations/cloud/azure/azure-openai/azure-openai-connect/).
+- [Azure AI Inference integration](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect/#observability-and-telemetry).
+- [OpenAI integration](/integrations/ai/openai/openai-client/).
 
 <Aside type="tip">
 When message content recording is disabled, the GenAI telemetry visualizer still provides valuable information about AI operations, including timing, metadata, and performance metrics. However, enabling message content recording provides the most comprehensive view of your AI interactions.
@@ -492,7 +490,7 @@ The preceding screenshot shows the exemplar details for the `http.client.request
 - Resource name.
 - Operation performed, in this case an:
 
-  ```http title="HTTP — images collection request"
+  ```http title="images collection request"
   GET /catalog/images/{id}
   ```
 
@@ -522,17 +520,78 @@ Next to the **Pause** button, the **Remove data** button enables you to clear th
 
 <Image src={removeTelemetryData} alt="A screenshot of the Aspire dashboard Structured logs page, showing how to remove telemetry." />
 
-The button is available for control logs, structured logs, traces, and metrics. It works independently for each type of data.
+The button is available for console logs, structured logs, traces, and metrics. It works independently for each type of data.
 
-If you want to remove all telemetry of all types and for all resources in a single step, use the **Remove all** button in the **Settings** dialog:
+For more advanced data management, including exporting and importing telemetry, see [Manage data](#manage-data).
 
-<Image src={removeAllTelemetry} alt="A screenshot of the Aspire dashboard Settings page, showing how to remove all telemetry." />
+#### Manage data
+
+The Aspire dashboard provides a **Manage logs and telemetry** dialog that lets you export, import, and remove telemetry data across all resources. To open it, select the **Settings** icon in the top-right corner of the dashboard, then select **Manage** under **Resource logs and telemetry**:
+
+<Image src={settingsManageTelemetry} alt="A screenshot of the Aspire dashboard Settings dialog, showing the Manage button under Resource logs and telemetry." />
+
+The dialog displays a grid of resources and their available data types. Each resource row shows icons summarizing which data types are present: **Resource** details, **Console logs**, **Structured logs**, **Traces**, and **Metrics**. You can expand a resource to see and select individual data types:
+
+<Image src={manageDataExpanded} alt="A screenshot of the Aspire dashboard Manage logs and telemetry dialog, showing a resource expanded to display individual data types." />
+
+Use the checkboxes to select resources or individual data types, then choose an action:
+
+##### Export data
+
+Select the resources and data types you want to export, then select **Export selected**. The dashboard downloads a `.zip` file containing the selected data organized by type:
+
+- **Resources**: JSON files with resource details.
+- **Console logs**: Text files with console output.
+- **Structured logs**: <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> JSON files with structured log entries.
+- **Traces**: OTLP JSON files with distributed trace spans.
+- **Metrics**: OTLP JSON files with metric data points.
+
+The exported `.zip` file is named `aspire-telemetry-export-{timestamp}.zip` and can be shared with team members or imported back into another dashboard session.
+
+##### Import data
+
+Select **Import logs and telemetry** to import previously exported data. The dashboard accepts `.zip` files (exported from the dashboard) and individual `.json` files containing OTLP telemetry data. The maximum file size is 100 MB.
+
+Imported data appears alongside any existing telemetry in the dashboard, enabling you to review data from previous sessions or data shared by other team members.
+
+##### Remove data
+
+To remove data for specific resources or data types, select the items you want to clear, then select **Remove selected**. This provides more granular control than the per-page **Remove data** button, and enables you to clear multiple data types across multiple resources in a single step.
+
+<Image src={manageDataDialog} alt="A screenshot of the Aspire dashboard Manage logs and telemetry dialog, showing resources with available data types and export, remove, and import buttons." />
+
+## Notification center
+
+The dashboard includes a notification center accessible via the bell icon in the top-right corner of the header. When there are unread notifications, a badge with the unread count appears on the icon.
+
+<Image src={notificationCenterBell} alt="Aspire dashboard header showing the notification center bell icon with an unread count badge." />
+
+Selecting the bell icon opens the **Notifications** dialog, which lists all notifications. Notifications are generated when:
+
+- A resource command starts, succeeds, fails, or is canceled. The notification center retains entries for all completed command states — success (information), failure (error), and canceled (warning).
+- System events occur that require user attention.
+
+Each notification shows its title, message body, and a relative timestamp. Success and error notifications that include a command result provide a **View response** action button to open the result in the text visualizer.
+
+<Image src={notificationCenterOpen} alt="Aspire dashboard Notifications dialog showing a list of command notifications with timestamps." />
+
+Selecting **View response** opens the text visualizer with the command's result content:
+
+<Image src={notificationCenterResponse} alt="Aspire dashboard text visualizer showing a command response opened from the notification center." />
+
+The unread count resets when you open the notification center. To clear all notifications, select the **Dismiss all** button in the dialog.
+
+<Aside type="tip">
+Notifications are capped at 100 entries. When the limit is reached, the oldest notifications are removed automatically.
+</Aside>
+
+For information on returning messages from custom commands, see [Custom resource commands](/fundamentals/custom-resource-commands/).
 
 ## Settings dialog
 
 <span id="theme-selection"></span>
 
-The Aspire dashboard provides a settings dialog that allows you to configure the theme, the language, functionality to clear all the logs and telemetry, and the .NET version used by the dashboard.
+The Aspire dashboard provides a settings dialog that allows you to configure the theme, the language, manage logs and telemetry data, and view the .NET version used by the dashboard.
 
 By default, the theme is set to follow the System theme, which means the dashboard uses the same theme as your operating system. You can also select the **Light** or **Dark** theme to override the system theme. Theme selections are persisted.
 
@@ -586,24 +645,6 @@ In the dashboard, interaction prompts appear as:
 - Notification messages with details about resource status.
 
 These prompts appear directly in the dashboard interface, making it easy to provide the necessary information without switching to external tools or configuration files.
-
-## GitHub Copilot in the dashboard
-
-The Aspire dashboard includes GitHub Copilot as your AI debugging assistant when you launch your app from VS Code or Visual Studio with a GitHub account that has a Copilot subscription. Copilot can help you:
-
-- Review hundreds of log messages with a single click.
-- Investigate the root cause of errors across multiple apps.
-- Highlight performance issues in traces.
-- Explain obscure error codes using AI's vast knowledge repository.
-
-Copilot features appear throughout the dashboard interface:
-
-- **Copilot button**: This button is available in the top-right corner to open the Copilot chat interface.
-- **Context menus**: "Ask GitHub Copilot" options appear in resource, log, trace, and span context menus.
-- **Explain buttons**: "Explain errors" buttons appear on structured logs and "Explain trace" buttons appear on trace details pages.
-- **Suggested questions**: Contextual AI suggestions appear based on the current page.
-
-For comprehensive information about GitHub Copilot features, requirements, troubleshooting, and configuration options, see [GitHub Copilot in the Aspire dashboard](/dashboard/copilot/).
 
 ## Next steps
 

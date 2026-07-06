@@ -1,0 +1,195 @@
+---
+title: Set up ClickHouse in the AppHost
+seoTitle: "Set up ClickHouse in the Aspire AppHost: hosting integration"
+description: Learn how to use the Aspire ClickHouse Hosting integration to orchestrate and configure a ClickHouse database in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import clickhouseIcon from '@assets/icons/clickhouse-icon.png';
+
+<Image
+  src={clickhouseIcon}
+  alt="ClickHouse logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the reference for the Aspire ClickHouse Hosting integration. It enumerates the AppHost APIs that you use to model ClickHouse server and database resources in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the ClickHouse integration, start with the [Get started with ClickHouse integrations](/integrations/databases/clickhouse/clickhouse-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to ClickHouse](../clickhouse-connect/).
+
+<Aside type="note">
+    TypeScript AppHost support for the ClickHouse integration is not yet available. All examples on this page are for C# AppHosts.
+</Aside>
+
+## Installation
+
+To start building an Aspire app that uses ClickHouse, install the [📦 Aspire.Hosting.ClickHouse](https://www.nuget.org/packages/Aspire.Hosting.ClickHouse) NuGet package:
+
+```bash title="Terminal"
+aspire add clickhouse
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.ClickHouse@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.ClickHouse" Version="*" />
+```
+
+## Add ClickHouse server resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a ClickHouse server resource and then add a database resource as shown in the following example:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse");
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(clickhousedb)
+    .WaitFor(clickhousedb);
+
+// After adding all resources, run the app...
+```
+
+<Steps>
+
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `clickhouse/clickhouse-server` image, it creates a new ClickHouse server instance on your local machine. A reference to the `clickhousedb` database resource is then used to add a dependency to the consuming project.
+
+1. The database is automatically created using `CREATE DATABASE IF NOT EXISTS` when the server resource becomes ready.
+
+1. The ClickHouse server resource includes default credentials with a `CLICKHOUSE_USER` of `default` and a randomly generated `CLICKHOUSE_PASSWORD`.
+
+1. The password is stored in the AppHost's secret store in the `Parameters` section:
+
+    ```json title="secrets.json"
+    {
+      "Parameters:clickhouse-password": "<THE_GENERATED_PASSWORD>"
+    }
+    ```
+
+1. The `WithReference` call configures a connection in the consuming project named after the referenced database resource, such as `clickhousedb` in the preceding example.
+
+</Steps>
+
+<Aside type="note">
+    When you reference a ClickHouse resource from the AppHost, Aspire makes several properties available to the consuming project, such as hostnames, port numbers, and credentials. For a complete list of these properties and per-language connection examples, see [Connect to ClickHouse](../clickhouse-connect/).
+</Aside>
+
+<Aside type="tip">
+    If you'd rather connect to an existing ClickHouse server, call `AddConnectionString` instead. For more information, see [Reference existing resources](/get-started/resources/).
+</Aside>
+
+## Add ClickHouse resource with data volume
+
+Add a data volume to the ClickHouse resource as shown in the following example:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse")
+    .WithDataVolume(isReadOnly: false);
+
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(clickhousedb)
+    .WaitFor(clickhousedb);
+
+// After adding all resources, run the app...
+```
+
+The data volume is used to persist the ClickHouse data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/clickhouse` path in the ClickHouse container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-clickhouse-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+<Aside type="caution">
+    Some database integrations, including the ClickHouse integration, can't successfully use data volumes after deployment to Azure Container Apps (ACA). This is because ACA uses Server Message Block (SMB) to connect containers to data volumes, and some systems can't use this connection. In the Aspire Dashboard, a database affected by this issue has a status of **Activating** or **Activation Failed** but is never listed as **Running**.
+
+    You can resolve the problem by deploying to a Kubernetes cluster, such as Azure Kubernetes Services (AKS). For more information, see [Deploy your first Aspire app](/get-started/deploy-first-app/).
+</Aside>
+
+## Add ClickHouse resource with data bind mount
+
+Add a data bind mount to the ClickHouse resource as shown in the following example:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse")
+    .WithDataBindMount(
+        source: "/ClickHouse/Data",
+        isReadOnly: false);
+
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(clickhousedb)
+    .WaitFor(clickhousedb);
+
+// After adding all resources, run the app...
+```
+
+<Aside type="note">
+    Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+</Aside>
+
+Data bind mounts rely on the host machine's filesystem to persist the ClickHouse data across container restarts. The data bind mount is mounted at the `C:\ClickHouse\Data` on Windows (or `/ClickHouse/Data` on Unix) path on the host machine in the ClickHouse container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+
+## Add ClickHouse resource with parameters
+
+When you want to explicitly provide the username and password used by the container image, you can provide these credentials as parameters:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var username = builder.AddParameter("username", secret: true);
+var password = builder.AddParameter("password", secret: true);
+
+var clickhouse = builder.AddClickHouse("clickhouse", userName: username, password: password);
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(clickhousedb)
+    .WaitFor(clickhousedb);
+
+// After adding all resources, run the app...
+```
+
+The username and password parameters are usually specified as user secrets:
+
+```json title="secrets.json"
+{
+  "Parameters": {
+    "username": "default",
+    "password": "your-secure-password"
+  }
+}
+```
+
+For more information, see [External parameters](/get-started/resources/).
+
+You can also specify a custom host port:
+
+```csharp title="AppHost.cs"
+var clickhouse = builder.AddClickHouse("clickhouse", port: 18123);
+```
+
+## Connection properties
+
+For the full reference of ClickHouse connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to ClickHouse](../clickhouse-connect/).
+
+## Hosting integration health checks
+
+The ClickHouse hosting integration automatically adds a health check for the ClickHouse resource. The health check sends an HTTP GET request to the `/ping` endpoint on the ClickHouse server and verifies that the instance is running and responsive.

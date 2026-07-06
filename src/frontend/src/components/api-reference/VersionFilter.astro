@@ -1,0 +1,490 @@
+---
+/**
+ * VersionFilter — dropdown-style version filter with checkbox toggles.
+ *
+ * Renders a themed dropdown button that expands to show version checkboxes.
+ * Includes a "Select all" toggle. State is persisted to URL params and
+ * localStorage. Emits a custom `version-filter-change` event on the
+ * container element when selection changes.
+ */
+interface Props {
+  /** Unique prefix for element IDs */
+  id: string;
+  /** List of version strings to display */
+  versions: string[];
+  /** Label shown on the button (default: "Versions") */
+  label?: string;
+}
+
+const { id, versions, label = 'Versions' } = Astro.props;
+const filterId = `${id}-version-filter`;
+
+/**
+ * Parse a version string into comparable parts.
+ * Handles: "13.1.2", "13.2.0-preview.1.26159.1", "9.1.1-beta.197"
+ */
+function parseSemver(v: string): { major: number; minor: number; patch: number; pre: string; isPrerelease: boolean } {
+  const [core, ...preParts] = v.split('-');
+  const parts = core.split('.').map(Number);
+  return {
+    major: parts[0] || 0,
+    minor: parts[1] || 0,
+    patch: parts[2] || 0,
+    pre: preParts.join('-'),
+    isPrerelease: preParts.length > 0,
+  };
+}
+
+const sorted = [...versions].sort((a, b) => {
+  const pa = parseSemver(a);
+  const pb = parseSemver(b);
+  // Stable before prerelease
+  if (pa.isPrerelease !== pb.isPrerelease) return pa.isPrerelease ? 1 : -1;
+  // Descending by major.minor.patch
+  if (pa.major !== pb.major) return pb.major - pa.major;
+  if (pa.minor !== pb.minor) return pb.minor - pa.minor;
+  if (pa.patch !== pb.patch) return pb.patch - pa.patch;
+  // For prereleases with same core, compare pre string descending
+  return pb.pre.localeCompare(pa.pre, undefined, { numeric: true });
+});
+---
+
+<div class="version-filter" id={filterId} data-versions={JSON.stringify(sorted)}>
+  <button
+    type="button"
+    class="version-filter-btn"
+    id={`${filterId}-btn`}
+    aria-expanded="false"
+    aria-controls={`${filterId}-dropdown`}
+    aria-label={`${label}: ${sorted.length} available`}
+  >
+    <svg class="version-filter-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+    </svg>
+    <span class="version-filter-label">{label}</span>
+    <span class="version-filter-count" id={`${filterId}-count`}>{sorted.length}/{sorted.length}</span>
+    <svg class="version-filter-chevron" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 9 12 15 18 9"></polyline>
+    </svg>
+  </button>
+
+  <div class="version-filter-dropdown" id={`${filterId}-dropdown`} role="listbox" aria-label="Version selection">
+    {/* Select all toggle */}
+    <label class="version-filter-item version-filter-all">
+      <input
+        type="checkbox"
+        class="version-filter-cb"
+        data-version="__all__"
+        checked
+      />
+      <span class="version-filter-check"></span>
+      <span class="version-filter-text">Select all</span>
+    </label>
+
+    <div class="version-filter-divider"></div>
+
+    {/* Individual version checkboxes — divider between stable and preview */}
+    {sorted.map((v, i) => {
+      const isPrerelease = parseSemver(v).isPrerelease;
+      const prevIsStable = i > 0 && !parseSemver(sorted[i - 1]).isPrerelease;
+      const showDivider = isPrerelease && prevIsStable;
+      return (
+        <>
+          {showDivider && <div class="version-filter-divider"></div>}
+          <label class="version-filter-item" data-version={v}>
+            <input
+              type="checkbox"
+              class="version-filter-cb"
+              data-version={v}
+              checked
+            />
+            <span class="version-filter-check"></span>
+            <span class="version-filter-text"><code>{v}</code></span>
+            {isPrerelease && (
+              <span class="version-filter-tag">preview</span>
+            )}
+          </label>
+        </>
+      );
+    })}
+  </div>
+</div>
+<script>
+  class VersionFilterController {
+    private container: HTMLElement;
+    private btn: HTMLButtonElement;
+    private dropdown: HTMLElement;
+    private checkboxes: HTMLInputElement[];
+    private allCheckbox: HTMLInputElement | null;
+    private countEl: HTMLElement | null;
+    private versions: string[];
+    private storageKey: string;
+
+    constructor(container: HTMLElement) {
+      this.container = container;
+      const id = container.id;
+      this.btn = container.querySelector(`#${id}-btn`)!;
+      this.dropdown = container.querySelector(`#${id}-dropdown`)!;
+      this.checkboxes = Array.from(container.querySelectorAll('.version-filter-cb:not([data-version="__all__"])'));
+      this.allCheckbox = container.querySelector('.version-filter-cb[data-version="__all__"]');
+      this.countEl = container.querySelector(`#${id}-count`);
+      this.versions = JSON.parse(container.dataset.versions || '[]');
+      this.storageKey = `version-filter-${id}`;
+
+      this.restoreState();
+      this.bindEvents();
+      this.updateUI();
+    }
+
+    private bindEvents() {
+      this.btn.addEventListener('click', () => this.toggle());
+
+      document.addEventListener('click', (e) => {
+        if (!this.container.contains(e.target as Node)) this.close();
+      });
+
+      this.container.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') this.close();
+      });
+
+      if (this.allCheckbox) {
+        this.allCheckbox.addEventListener('change', () => {
+          const checked = this.allCheckbox!.checked;
+          for (const cb of this.checkboxes) cb.checked = checked;
+          this.onChange();
+        });
+      }
+
+      for (const cb of this.checkboxes) {
+        cb.addEventListener('change', () => this.onChange());
+      }
+    }
+
+    private toggle() {
+      const expanded = this.btn.getAttribute('aria-expanded') === 'true';
+      if (expanded) this.close(); else this.open();
+    }
+
+    private open() {
+      this.btn.setAttribute('aria-expanded', 'true');
+      this.dropdown.classList.add('open');
+    }
+
+    private close() {
+      this.btn.setAttribute('aria-expanded', 'false');
+      this.dropdown.classList.remove('open');
+    }
+
+    private onChange() {
+      const checkedCount = this.checkboxes.filter(cb => cb.checked).length;
+      if (this.allCheckbox) {
+        this.allCheckbox.checked = checkedCount === this.checkboxes.length;
+        this.allCheckbox.indeterminate = checkedCount > 0 && checkedCount < this.checkboxes.length;
+      }
+      this.updateUI();
+      this.saveState();
+      this.emitChange();
+    }
+
+    private updateUI() {
+      const checkedCount = this.checkboxes.filter(cb => cb.checked).length;
+      const total = this.checkboxes.length;
+      if (this.countEl) {
+        this.countEl.textContent = `${checkedCount}/${total}`;
+      }
+
+      // Highlight button when filtered
+      this.btn.classList.toggle('filtered', checkedCount < total);
+      this.btn.classList.toggle('none-selected', checkedCount === 0);
+    }
+
+    private saveState() {
+      const selected = this.checkboxes.filter(cb => cb.checked).map(cb => cb.dataset.version!);
+      try { localStorage.setItem(this.storageKey, JSON.stringify(selected)); } catch {}
+
+      const url = new URL(window.location.href);
+      if (selected.length === this.versions.length) {
+        url.searchParams.delete('versions');
+      } else {
+        url.searchParams.set('versions', selected.join(','));
+      }
+      window.history.replaceState({}, '', url.toString());
+    }
+
+    private restoreState() {
+      const url = new URL(window.location.href);
+      const urlVersions = url.searchParams.get('versions');
+
+      let selected: string[] | null = null;
+      if (urlVersions) {
+        selected = urlVersions.split(',').filter(v => this.versions.includes(v));
+      } else {
+        try {
+          const stored = localStorage.getItem(this.storageKey);
+          if (stored) selected = JSON.parse(stored);
+        } catch {}
+      }
+
+      if (selected) {
+        const selectedSet = new Set(selected);
+        for (const cb of this.checkboxes) {
+          cb.checked = selectedSet.has(cb.dataset.version!);
+        }
+        if (this.allCheckbox) {
+          this.allCheckbox.checked = selected.length === this.versions.length;
+          this.allCheckbox.indeterminate = selected.length > 0 && selected.length < this.versions.length;
+        }
+      }
+    }
+
+    private emitChange() {
+      const selected = this.checkboxes.filter(cb => cb.checked).map(cb => cb.dataset.version!);
+      this.container.dispatchEvent(new CustomEvent('version-filter-change', {
+        detail: { selected, all: selected.length === this.versions.length, none: selected.length === 0 },
+        bubbles: true,
+      }));
+    }
+
+    getSelected(): string[] {
+      return this.checkboxes.filter(cb => cb.checked).map(cb => cb.dataset.version!);
+    }
+  }
+
+  document.querySelectorAll('.version-filter').forEach((el) => {
+    new VersionFilterController(el as HTMLElement);
+  });
+</script>
+
+<style>
+  .version-filter {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+  }
+
+  /* ── Button ──────────────────────────────────────────────────── */
+
+  .version-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.625rem;
+    background: var(--sl-color-bg-nav);
+    color: var(--sl-color-text);
+    font-size: var(--sl-text-sm);
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    white-space: nowrap;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+  .version-filter-btn:hover {
+    border-color: var(--sl-color-gray-3);
+    background: var(--sl-color-gray-6);
+  }
+
+  .version-filter-btn.filtered {
+    border-color: var(--sl-color-accent);
+    background: color-mix(in srgb, var(--sl-color-accent) 8%, transparent);
+  }
+
+  .version-filter-btn.none-selected {
+    border-color: var(--sl-color-orange);
+    background: color-mix(in srgb, var(--sl-color-orange) 8%, transparent);
+  }
+
+  .version-filter-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--sl-color-text);
+  }
+
+  .version-filter-label {
+    font-weight: 500;
+    color: var(--sl-color-text);
+  }
+
+  .version-filter-count {
+    color: var(--sl-color-text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .version-filter-chevron {
+    color: var(--sl-color-text);
+    transition: transform 0.2s;
+  }
+
+  .version-filter-btn[aria-expanded="true"] .version-filter-chevron {
+    transform: rotate(180deg);
+  }
+
+  /* ── Dropdown panel ──────────────────────────────────────────── */
+
+  .version-filter-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    width: max-content;
+    min-width: 100%;
+    max-height: 360px;
+    overflow-y: auto;
+    z-index: 50;
+    background: var(--sl-color-bg-nav);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.625rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+    padding: 0.375rem;
+  }
+
+  .version-filter-dropdown.open {
+    display: block;
+  }
+
+  .version-filter-divider {
+    height: 1px;
+    background: var(--sl-color-gray-5);
+    margin: 0.25rem 0.5rem;
+  }
+
+  /* ── Checkbox items ──────────────────────────────────────────── */
+
+  .version-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4375rem 0.5rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-text);
+    transition: background 0.1s;
+    white-space: nowrap;
+  }
+
+  .version-filter-item:hover {
+    background: var(--sl-color-gray-6);
+  }
+
+  .version-filter-all {
+    font-weight: 600;
+  }
+
+  /* Custom checkbox */
+  .version-filter-cb {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .version-filter-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border: 1.5px solid var(--sl-color-gray-4);
+    border-radius: 4px;
+    transition: all 0.15s;
+    background: transparent;
+  }
+
+  .version-filter-cb:checked + .version-filter-check {
+    background: var(--sl-color-accent);
+    border-color: var(--sl-color-accent);
+  }
+
+  .version-filter-cb:checked + .version-filter-check::after {
+    content: '';
+    display: block;
+    width: 5px;
+    height: 9px;
+    border: solid var(--sl-color-bg);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-0.5px, -0.5px);
+  }
+
+  .version-filter-cb:indeterminate + .version-filter-check {
+    background: var(--sl-color-accent);
+    border-color: var(--sl-color-accent);
+  }
+
+  .version-filter-cb:indeterminate + .version-filter-check::after {
+    content: '';
+    display: block;
+    width: 8px;
+    height: 2px;
+    background: var(--sl-color-bg);
+    border-radius: 1px;
+  }
+
+  .version-filter-cb:focus-visible + .version-filter-check {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+
+  .version-filter-text {
+    color: var(--sl-color-text);
+    flex: 1;
+  }
+
+  .version-filter-text code {
+    font-size: var(--sl-text-sm);
+    background: none;
+    padding: 0;
+    color: var(--sl-color-text);
+  }
+
+  .version-filter-tag {
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--sl-color-orange);
+    background: color-mix(in srgb, var(--sl-color-orange) 12%, transparent);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+  }
+
+  /* ── Mobile: full-width + larger targets ─────────────────────── */
+
+  @media (max-width: 50rem) {
+    .version-filter {
+      width: 100%;
+    }
+
+    .version-filter-btn {
+      width: 100%;
+      justify-content: center;
+      padding: 0.5rem 0.75rem;
+      font-size: var(--sl-text-sm);
+    }
+
+    .version-filter-dropdown {
+      width: 100%;
+      min-width: unset;
+    }
+
+    .version-filter-item {
+      padding: 0.5rem 0.5rem;
+      font-size: var(--sl-text-sm);
+    }
+
+    .version-filter-check {
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+    }
+
+    .version-filter-text code {
+      font-size: var(--sl-text-sm);
+    }
+  }
+</style>
