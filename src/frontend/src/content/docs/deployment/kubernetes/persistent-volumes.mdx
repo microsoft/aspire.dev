@@ -1,0 +1,241 @@
+---
+title: Persistent volumes on Kubernetes
+seoTitle: 'Persistent volumes for Aspire on Kubernetes clusters'
+description: Model durable storage as first-class persistent volume resources in your Aspire AppHost, then bind them to Kubernetes workloads with a storage class, capacity, and access modes.
+---
+
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Stateful workloads — databases, message brokers, or any service that writes durable data — need storage that survives pod restarts and rescheduling. Call `AddPersistentVolume` on a Kubernetes environment to describe a durable disk once in your AppHost, configure its storage class, capacity, access modes, and annotations with fluent methods, then bind it to one or more workloads:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var pgData = k8s.AddPersistentVolume("pg-data")
+    .WithStorageClass("managed-csi")
+    .WithCapacity("20Gi");
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const pgData = await k8s.addPersistentVolume('pg-data');
+await pgData.withStorageClass('managed-csi');
+await pgData.withCapacity('20Gi');
+```
+
+</TabItem>
+</Tabs>
+
+At publish time, the volume renders as a `v1.PersistentVolumeClaim` in the generated Helm chart. Like [ingress and gateway resources](/deployment/kubernetes-ingress/), you configure the volume once and reference it from workloads, rather than relying on a single environment-wide storage shape for every mount.
+
+<Aside type="note">
+  The persistent volume APIs are experimental. In C#, suppress the `ASPIRECOMPUTE002` diagnostic to use them.
+</Aside>
+
+## Prerequisites
+
+- The [Aspire.Hosting.Kubernetes](/integrations/compute/kubernetes/) hosting integration installed in your AppHost.
+- A [Kubernetes environment](/integrations/compute/kubernetes/#add-kubernetes-environment) added to your AppHost.
+- A cluster with a storage class that can provision the volumes you request. Most managed clusters ship a default storage class.
+
+## Add a persistent volume
+
+The full set of configuration methods lets you pin the storage class, capacity, access modes, and provisioner annotations. A complete AppHost that defines a volume looks like this:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var pgData = k8s.AddPersistentVolume("pg-data")
+    .WithStorageClass("managed-csi")
+    .WithCapacity("20Gi")
+    .WithAccessMode(PersistentVolumeAccessMode.ReadWriteOnce)
+    .WithVolumeAnnotation("disk.csi.azure.com/skuName", "Premium_LRS");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const pgData = await k8s.addPersistentVolume('pg-data');
+await pgData.withStorageClass('managed-csi');
+await pgData.withCapacity('20Gi');
+await pgData.withVolumeAnnotation('disk.csi.azure.com/skuName', 'Premium_LRS');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Every configuration method is optional. When you don't set a storage class, the cluster's default storage class provisions the backing disk. When you don't set a capacity or access mode, the environment's default storage size and read-write policy apply.
+
+The available configuration methods are:
+
+| C# | TypeScript | Description |
+|---|---|---|
+| `WithStorageClass(string)` | `withStorageClass` / `withPvStorageClassParam` | Sets `spec.storageClassName` on the PVC. In C#, the single method accepts a literal string or an Aspire parameter; in TypeScript, use `withStorageClass` for a literal and `withPvStorageClassParam` for a parameter. |
+| `WithCapacity(string)` | `withCapacity` / `withPvCapacityParam` | Sets the requested storage on `spec.resources.requests.storage` (for example, `"20Gi"`). In TypeScript, use `withCapacity` for a literal and `withPvCapacityParam` for a parameter. |
+| `WithAccessMode(PersistentVolumeAccessMode)` | `withAccessMode` | Adds an entry to `spec.accessModes`. Call multiple times to declare more than one mode. |
+| `WithVolumeAnnotation(string, string)` | `withVolumeAnnotation` / `withVolumeAnnotationParam` | Adds a key-value pair to the PVC's `metadata.annotations`. Useful for CSI driver hints, dynamic provisioner parameters, or backup tooling tags. In TypeScript, use `withVolumeAnnotation` for a literal value and `withVolumeAnnotationParam` for a parameter. |
+
+The `PersistentVolumeAccessMode` values map directly to the Kubernetes access modes:
+
+| Access mode | Description |
+|---|---|
+| `ReadWriteOnce` | Mounted as read-write by a single node. Most common for block-storage-backed databases. |
+| `ReadOnlyMany` | Mounted as read-only by many nodes simultaneously. |
+| `ReadWriteMany` | Mounted as read-write by many nodes simultaneously. Typically used for shared file stores such as Azure Files or NFS. |
+| `ReadWriteOncePod` | Mounted as read-write by a single pod. Requires Kubernetes 1.27 or later. |
+
+## Bind a volume to a workload
+
+After defining a volume, bind it to the workloads that mount it. There are two overloads, depending on whether the workload already declares a named volume.
+
+### Bind by name
+
+Use the name-match overload when the workload already declares a volume — for example, through `WithVolume("name", "/path")` or an integration helper such as Postgres' `WithDataVolume()`. The persistent volume's name must match the workload volume's name so the publisher can route the pod's `volumes[]` entry through the generated PVC:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var pgData = k8s.AddPersistentVolume("pg-data")
+    .WithStorageClass("managed-csi")
+    .WithCapacity("20Gi");
+
+builder.AddPostgres("pg")
+    .WithDataVolume("pg-data")
+    .WithPersistentVolume(pgData);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const pgData = await k8s.addPersistentVolume('pg-data');
+await pgData.withStorageClass('managed-csi');
+await pgData.withCapacity('20Gi');
+
+const pg = await builder.addPostgres('pg');
+await pg.withDataVolume({ name: 'pg-data' });
+await pg.withKubernetesPersistentVolume(pgData);
+```
+
+</TabItem>
+</Tabs>
+
+### Bind with a mount path
+
+Use the mount-path overload when the workload doesn't already declare a named volume. It creates the mount itself, so it works for projects and any compute resource. Pass the mount path inside the container, and optionally mount read-only:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var media = k8s.AddPersistentVolume("media")
+    .WithStorageClass("azurefile-csi")
+    .WithCapacity("100Gi")
+    .WithAccessMode(PersistentVolumeAccessMode.ReadWriteMany);
+
+builder.AddProject<Projects.Api>("api")
+    .WithPersistentVolume(media, "/srv/media");
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const media = await k8s.addPersistentVolume('media');
+await media.withStorageClass('azurefile-csi');
+await media.withCapacity('100Gi');
+
+const api = await builder.addProject('api');
+await api.withKubernetesPersistentVolumeMount(media, '/srv/media');
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution" title="Workloads are promoted to StatefulSet">
+  Any workload bound to a persistent volume is rendered as a `StatefulSet` instead of a `Deployment`, regardless of its default workload kind. There is no opt-out. A `Deployment` with a `ReadWriteOnce` claim and more than one replica is broken by design — the second pod can't mount the same volume — so binding to a durable volume automatically selects the `StatefulSet` path, which gives pods stable identity and ordered rollout.
+</Aside>
+
+## Unbound volumes and default storage
+
+Volumes on a workload that aren't bound to a `KubernetesPersistentVolumeResource` continue to use the environment's default storage type. You can mix a first-class persistent volume and an unbound ephemeral volume on the same workload — each is resolved independently at publish time.
+
+## Generated output
+
+Binding a container to a persistent volume by name produces a `StatefulSet` whose pod spec references the generated claim, alongside the `PersistentVolumeClaim` itself:
+
+```yaml title="StatefulSet (excerpt)"
+apiVersion: "apps/v1"
+kind: "StatefulSet"
+metadata:
+  name: "service-statefulset"
+spec:
+  template:
+    spec:
+      containers:
+        - image: "nginx:latest"
+          name: "service"
+          volumeMounts:
+            - name: "data"
+              mountPath: "/var/lib/data"
+      volumes:
+        - name: "data"
+          persistentVolumeClaim:
+            claimName: "data"
+  replicas: 1
+```
+
+```yaml title="PersistentVolumeClaim"
+apiVersion: "v1"
+kind: "PersistentVolumeClaim"
+metadata:
+  name: "data"
+  annotations:
+    volume.beta.kubernetes.io/storage-provisioner: "disk.csi.azure.com"
+spec:
+  storageClassName: "managed-csi"
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "20Gi"
+```
+
+<LearnMore>
+  To generate and inspect the Helm chart for yourself, see [Deploy to Kubernetes clusters](/deployment/kubernetes/clusters/).
+</LearnMore>
+
+## See also
+
+- [Kubernetes integration](/integrations/compute/kubernetes/)
+- [Deploy to Kubernetes clusters](/deployment/kubernetes/clusters/)
+- [Deploy to AKS](/deployment/kubernetes/aks/)
+- [Persist data with volumes](/fundamentals/persist-data-volumes/)
+- [Kubernetes persistent volumes documentation](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)
