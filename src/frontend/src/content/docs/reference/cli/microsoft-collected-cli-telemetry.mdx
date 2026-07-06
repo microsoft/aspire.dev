@@ -15,7 +15,7 @@ Aspire CLI telemetry is collected when using the CLI to run commands. Telemetry 
 
 When you run `aspire agent init`, Aspire installs Aspire's AI skills and a `PostToolUse` hook into each detected agent client's user-level configuration (for example, GitHub Copilot CLI and Claude Code). The hook lets Aspire understand which of its AI skills and tools are actually used so the team can invest in the most valuable ones.
 
-After each agent tool use, the hook inspects the event and—only when an **Aspire** skill, Aspire MCP tool, or Aspire skill reference file was involved—forwards a low-cardinality usage event to the hidden `aspire agent telemetry` command, which records it through the same CLI telemetry pipeline. Tool uses that don't involve Aspire skills or tools are ignored. See [AI agent skill usage data](#ai-agent-skill-usage-data) for exactly what's recorded.
+After each agent tool use, the hook checks if an **Aspire** skill, Aspire MCP tool, or Aspire skill reference file was involved. If so, the hook inspects the event and forwards a low-cardinality usage event to the hidden `aspire agent telemetry` command. The command records the event through the same CLI telemetry pipeline. Tool uses that don't involve Aspire skills or tools are ignored. See [AI agent skill usage data](#ai-agent-skill-usage-data) for exactly what's recorded.
 
 ## How to opt-out
 
@@ -66,7 +66,7 @@ The agent telemetry hook installed by `aspire agent init` reports a single event
 - `tool_invocation` — an Aspire MCP tool was called.
 - `reference_file_read` — a reference file bundled alongside an Aspire skill was read.
 
-Each event records only the following low-cardinality, Aspire-owned values:
+Each event records only a subset of the following low-cardinality, Aspire-owned values (depending on the event type):
 
 | Field | Description |
 |-------|-------------|
