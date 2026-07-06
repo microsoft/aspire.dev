@@ -12,6 +12,7 @@ If you have a terminal user interface (TUI) application or a shell-based experie
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+#pragma warning disable ASPIRETERMINAL001
 var builder = DistributedApplication.CreateBuilder(args);
 
 var agent = builder.AddExecutable("agent", "my-agent", ".")
@@ -40,7 +41,7 @@ await builder.build().run();
 Once the app is running, open the resource's terminal page in the dashboard—or run `aspire terminal attach agent`—to interact with the process just as you would in a local shell.
 
 <Aside type="caution" title="Experimental">
-`WithTerminal` is an experimental API. Calling it produces the `ASPIRETERMINAL001` diagnostic, which you must acknowledge (or suppress) for your AppHost to build. The shape of the API and its options may change in a future release.
+`WithTerminal` is an experimental API. Calling it produces the `ASPIRETERMINAL001` diagnostic, which you must acknowledge for your AppHost to build. Suppress it inline with `#pragma warning disable ASPIRETERMINAL001` (as shown above), or add `ASPIRETERMINAL001` to `<NoWarn>` in your project file. The shape of the API and its options may change in a future release.
 </Aside>
 
 ## When to use WithTerminal
@@ -82,20 +83,31 @@ In C#, pass a callback to override any of these options:
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+#pragma warning disable ASPIRETERMINAL001
+var builder = DistributedApplication.CreateBuilder(args);
+
 var agent = builder.AddExecutable("agent", "my-agent", ".")
     .WithTerminal(options =>
     {
         options.Columns = 200;
         options.Rows = 50;
     });
+
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
 const agent = await builder.addExecutable("agent", "my-agent", ".")
     .withTerminal();
+
+await builder.build().run();
 ```
 
 </TabItem>
@@ -113,18 +125,30 @@ Each replica of a resource gets its own independent terminal session. Aspire cre
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+#pragma warning disable ASPIRETERMINAL001
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Three replicas, each with its own interactive terminal.
 var agent = builder.AddExecutable("agent", "my-agent", ".")
     .WithReplicas(3)
     .WithTerminal();
+
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
 const agent = await builder.addExecutable("agent", "my-agent", ".")
     .withReplicas(3)
     .withTerminal();
+
+await builder.build().run();
 ```
 
 </TabItem>
