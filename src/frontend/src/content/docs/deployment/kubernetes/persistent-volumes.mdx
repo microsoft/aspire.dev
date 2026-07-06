@@ -96,10 +96,10 @@ The available configuration methods are:
 
 | C# | TypeScript | Description |
 |---|---|---|
-| `WithStorageClass(string)` | `withStorageClass` | Sets `spec.storageClassName` on the PVC. Accepts a literal string or an Aspire parameter. |
-| `WithCapacity(string)` | `withCapacity` | Sets the requested storage on `spec.resources.requests.storage` (for example, `"20Gi"`). Accepts a literal string or an Aspire parameter. |
+| `WithStorageClass(string)` | `withStorageClass` / `withPvStorageClassParam` | Sets `spec.storageClassName` on the PVC. In C#, the single method accepts a literal string or an Aspire parameter; in TypeScript, use `withStorageClass` for a literal and `withPvStorageClassParam` for a parameter. |
+| `WithCapacity(string)` | `withCapacity` / `withPvCapacityParam` | Sets the requested storage on `spec.resources.requests.storage` (for example, `"20Gi"`). In TypeScript, use `withCapacity` for a literal and `withPvCapacityParam` for a parameter. |
 | `WithAccessMode(PersistentVolumeAccessMode)` | `withAccessMode` | Adds an entry to `spec.accessModes`. Call multiple times to declare more than one mode. |
-| `WithVolumeAnnotation(string, string)` | `withVolumeAnnotation` | Adds a key-value pair to the PVC's `metadata.annotations`. Useful for CSI driver hints, dynamic provisioner parameters, or backup tooling tags. Accepts a literal string or an Aspire parameter. |
+| `WithVolumeAnnotation(string, string)` | `withVolumeAnnotation` / `withVolumeAnnotationParam` | Adds a key-value pair to the PVC's `metadata.annotations`. Useful for CSI driver hints, dynamic provisioner parameters, or backup tooling tags. In TypeScript, use `withVolumeAnnotation` for a literal value and `withVolumeAnnotationParam` for a parameter. |
 
 The `PersistentVolumeAccessMode` values map directly to the Kubernetes access modes:
 
@@ -140,7 +140,7 @@ await pgData.withStorageClass('managed-csi');
 await pgData.withCapacity('20Gi');
 
 const pg = await builder.addPostgres('pg');
-await pg.withDataVolume('pg-data');
+await pg.withDataVolume({ name: 'pg-data' });
 await pg.withKubernetesPersistentVolume(pgData);
 ```
 
