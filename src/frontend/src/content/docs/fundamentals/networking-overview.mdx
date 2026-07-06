@@ -520,7 +520,7 @@ Binding to `0.0.0.0` exposes your service on all network interfaces, including l
 
 For ASP.NET Core projects, configure Kestrel to listen on all interfaces by updating the project's _appsettings.Development.json_:
 
-```json title="JSON — appsettings.Development.json"
+```json title="appsettings.Development.json"
 {
   "Kestrel": {
     "Endpoints": {
@@ -534,7 +534,10 @@ For ASP.NET Core projects, configure Kestrel to listen on all interfaces by upda
 
 Alternatively, set the `ASPNETCORE_URLS` environment variable via the AppHost:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api")
@@ -543,11 +546,31 @@ var api = builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:5000");
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 ### For container resources
 
 For container resources, `WithHttpEndpoint` configures host-to-container port mapping via the DCP proxy on the host. The application inside the container must also be configured to listen on `0.0.0.0` — this is typically done via an environment variable or argument:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Map host port 8080 to container port 80, and configure the app inside to bind on all interfaces
@@ -558,11 +581,36 @@ builder.AddContainer("myapp", "myregistry/myapp")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Map host port 8080 to container port 80, and configure the app inside to bind on all interfaces
+const myapp = await builder.addContainer("myapp", {
+  image: "myregistry/myapp",
+  tag: "latest",
+});
+await myapp.withHttpEndpoint({ port: 8080, targetPort: 80 });
+await myapp.withEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:80");
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 ### For executable resources
 
 For non-container executables, pass `0.0.0.0` as the bind address to the executable's arguments or via an environment variable:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddExecutable("api", "uvicorn", ".", "main:app", "--host", "0.0.0.0", "--port", "8000")
@@ -571,38 +619,52 @@ builder.AddExecutable("api", "uvicorn", ".", "main:app", "--host", "0.0.0.0", "-
 builder.Build().Run();
 ```
 
-For executables that accept a listen address flag, you can pass `0.0.0.0` directly in the arguments:
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
-builder.AddExecutable("frontend", "npx", ".", "serve", "-l", "tcp://0.0.0.0:3000")
-    .WithHttpEndpoint(port: 3000, env: "PORT");
+const builder = await createBuilder();
 
-builder.Build().Run();
+const api = await builder.addExecutable("api", "uvicorn", ".", ["main:app", "--host", "0.0.0.0", "--port", "8000"]);
+await api.withHttpEndpoint({ port: 8000 });
+
+await builder.build().run();
 ```
+
+</TabItem>
+</Tabs>
 
 ## Container-to-host networking
 
-When containers need to communicate with services running directly on the host (not in containers), the standard `localhost` address doesn't work from inside a container. Docker and Podman provide a special hostname for this purpose.
+When containers need to communicate with services running directly on the host (not in containers), the standard `localhost` address doesn't work from inside a container. Container runtimes provide a special hostname for this purpose.
 
 ### The host gateway address
 
-| Platform | Special hostname |
-|----------|-----------------|
-| Docker Desktop (Mac/Windows) | `host.docker.internal` |
-| Docker on Linux | `host-gateway` (requires `--add-host`) |
+Aspire selects the host gateway hostname based on the container runtime in use:
+
+| Container runtime | Host gateway hostname |
+|-------------------|----------------------|
+| Docker | `host.docker.internal` |
 | Podman | `host.containers.internal` |
+
+<Aside type="note">
+On Linux, Docker doesn't always resolve `host.docker.internal` by default. Aspire routes container-to-host traffic through its own container tunnel, so `WithReference` connections resolve to the correct address across platforms without extra configuration.
+</Aside>
 
 Aspire's `WithReference` API automatically resolves the correct host gateway address for the container runtime in use. When you reference a host-side project resource from a container, Aspire injects the appropriate address:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Host-side project (runs on the developer machine, not in a container)
 var api = builder.AddProject<Projects.Api>("api");
 
-// The container can reach the host-side service via WithReference,
+// The container reaches the host-side service via WithReference,
 // which automatically uses the correct host gateway address for the runtime
 var containerApp = builder.AddContainer("mycontainer", "myimage")
     .WithReference(api);
@@ -610,13 +672,41 @@ var containerApp = builder.AddContainer("mycontainer", "myimage")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Host-side project (runs on the developer machine, not in a container)
+const api = await builder.addProject("api", "../Api/Api.csproj");
+
+// The container reaches the host-side service via withReference,
+// which automatically uses the correct host gateway address for the runtime
+const containerApp = await builder.addContainer("mycontainer", {
+  image: "myimage",
+  tag: "latest",
+});
+await containerApp.withReference(api);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 ### Connecting container resources to host services
 
 A common scenario is a containerized application that needs to reach a SQL Server or other database running directly on the developer's machine.
 
-When using `AddSqlServer` or similar, the resource runs as a container that Aspire manages. However, if you have an existing SQL Server on the host machine and want containers to reach it, use the host gateway address:
+When using `AddSqlServer` or similar, the resource runs as a container that Aspire manages. However, if you have an existing SQL Server on the host machine and want containers to reach it, reference it as a connection string and point that connection string at the host gateway:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Reference an existing SQL Server running on the host machine
@@ -628,9 +718,32 @@ var containerApp = builder.AddContainer("myapp", "myimage")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Reference an existing SQL Server running on the host machine
+const existingSqlServer = await builder.addConnectionString("sqlserver");
+
+const containerApp = await builder.addContainer("myapp", {
+  image: "myimage",
+  tag: "latest",
+});
+await containerApp.withReference(existingSqlServer);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 Then configure the connection string in the AppHost's _appsettings.json_ to use the host gateway:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "sqlserver": "Server=host.docker.internal,1433;Database=mydb;..."
@@ -640,18 +753,17 @@ Then configure the connection string in the AppHost's _appsettings.json_ to use 
 
 ### Using KnownNetworkIdentifiers
 
-The `KnownNetworkIdentifiers` class provides constants for well-known network identifiers that work across container runtimes. Use it with the `GetEndpoint` API when you need to resolve an endpoint in a specific network context:
+The `KnownNetworkIdentifiers` class provides constants for well-known network vantage points. Use it with the network-context `GetEndpoint` overload when you need to resolve an endpoint URL as it appears from a specific network:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api");
 
-// Get the endpoint URL as it would appear from the host (localhost)
+// The endpoint URL as it appears from the host (localhost)
 var hostEndpoint = api.GetEndpoint("http", KnownNetworkIdentifiers.LocalhostNetwork);
 
-// Get the endpoint URL as it would appear from inside a container
-// (e.g., host.docker.internal:port on Docker Desktop)
+// The endpoint URL as it appears from within Aspire's container network
 var containerEndpoint = api.GetEndpoint("http", KnownNetworkIdentifiers.DefaultAspireContainerNetwork);
 
 var containerApp = builder.AddContainer("mycontainer", "myimage")
@@ -664,12 +776,12 @@ The predefined identifiers are:
 
 | Identifier | Description |
 |------------|-------------|
-| `KnownNetworkIdentifiers.LocalhostNetwork` | Resolves to `localhost` — use for host-side access |
-| `KnownNetworkIdentifiers.DefaultAspireContainerNetwork` | Resolves to the container host gateway address (e.g., `host.docker.internal`) — use when a container needs to call a host-side service |
-| `KnownNetworkIdentifiers.PublicInternet` | Resolves to the publicly accessible address |
+| `KnownNetworkIdentifiers.LocalhostNetwork` | The endpoint as seen from the host machine (`localhost`). |
+| `KnownNetworkIdentifiers.DefaultAspireContainerNetwork` | The endpoint as seen from within Aspire's container network — use when a container needs to reach a host-side service. |
+| `KnownNetworkIdentifiers.PublicInternet` | The endpoint as seen from the public internet. |
 
 <Aside type="note">
-When `WithReference` is used to reference a project or other host-side resource from a container, Aspire automatically injects the correct host gateway address (`host.docker.internal` on Docker Desktop) instead of `localhost`. You don't need to manually specify the host gateway for standard `WithReference` connections.
+`KnownNetworkIdentifiers` and the network-context `GetEndpoint` overload are a lower-level C#-only AppHost API with no TypeScript equivalent. For most scenarios, prefer `WithReference`, which automatically injects the correct host gateway address (`host.docker.internal` on Docker) instead of `localhost` when a container references a host-side resource — you don't need to specify the host gateway manually.
 </Aside>
 
 For more information, see [How container networks are managed](#how-container-networks-are-managed).
@@ -745,4 +857,3 @@ await api.withReference(db); // Correct - uses exposed port
 1. Verify `WithReference()` is set up between producer and consumer
 2. Check the endpoint name in the URI matches exactly (case-sensitive)
 3. Review [service discovery troubleshooting](/fundamentals/service-discovery/#troubleshooting)
-
