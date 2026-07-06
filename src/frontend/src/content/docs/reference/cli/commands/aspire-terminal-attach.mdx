@@ -1,0 +1,98 @@
+---
+title: aspire terminal attach command
+seoTitle: aspire terminal attach command reference for the Aspire CLI
+description: Learn about the aspire terminal attach command, which connects your local terminal to a resource's interactive PTY session exposed with WithTerminal.
+sidebar:
+  badge: Preview
+---
+
+import Include from '@components/Include.astro';
+
+## Name
+
+`aspire terminal attach` - Attach the local terminal to an interactive PTY session for a resource.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire terminal attach <resource> [options]
+```
+
+## Description
+
+The `aspire terminal attach` command connects your local terminal to the interactive pseudo-terminal (PTY) session of a resource that was registered with [`WithTerminal()`](/app-host/with-terminal/). Once attached, you interact with the resource's terminal—drive its TUI, type into its shell—as if it were running directly in your console.
+
+The command discovers the running AppHost, verifies it supports the `terminals.v1` capability, looks up the resource, and connects to one of its terminal replicas. When the resource has a single replica, that replica is selected automatically. When it has more than one, you're prompted to choose one—or you can pass `--replica`.
+
+Multiple peers can attach to the same session at once. By default `attach` takes the **primary** role and drives the terminal's dimensions. Pass `--viewer` to join as a passive **viewer** instead—useful when another peer, such as the dashboard, is currently driving the session.
+
+While attached, the following hotkeys are available:
+
+| Hotkey     | Action                                       |
+| ---------- | -------------------------------------------- |
+| `Ctrl+B D` | Detach from the session and exit cleanly.    |
+| `Ctrl+B T` | Take control (request the primary role).     |
+
+If the selected replica has already exited, the command attaches to the historical output buffer; no live input is sent.
+
+Because `WithTerminal` is experimental, this command is hidden behind a feature flag. Enable it with `aspire config set features.terminalCommandsEnabled true`.
+
+## Arguments
+
+The following arguments are available:
+
+- **`<resource>`**
+
+  The name of the resource to attach a terminal to. The resource must have been registered with `.WithTerminal()`.
+
+## Options
+
+The following options are available:
+
+- <Include relativePath="reference/cli/includes/option-project.md" />
+
+- **`-r, --replica <index>`**
+
+  The 0-based replica index to attach to. Required when the resource has more than one replica and the CLI is not running interactively.
+
+- **`--viewer`**
+
+  Connect as a viewer (secondary) instead of taking primary control. Viewers see the terminal output but do not drive its dimensions. Useful when another peer (for example, the dashboard) is currently driving the session. Take control later with `Ctrl+B T`.
+
+- <Include relativePath="reference/cli/includes/option-help.md" />
+
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
+
+- <Include relativePath="reference/cli/includes/option-wait.md" />
+
+## Examples
+
+- Attach to a resource's terminal:
+
+  ```bash title="Aspire CLI"
+  aspire terminal attach agent
+  ```
+
+- Attach to a specific replica of a multi-replica resource:
+
+  ```bash title="Aspire CLI"
+  aspire terminal attach agent --replica 1
+  ```
+
+- Join an existing session as a passive viewer:
+
+  ```bash title="Aspire CLI"
+  aspire terminal attach agent --viewer
+  ```
+
+## See also
+
+- [Test TUI and shell apps with WithTerminal](/app-host/with-terminal/)
+- [aspire terminal command](../aspire-terminal/)
+- [aspire terminal ps command](../aspire-terminal-ps/)

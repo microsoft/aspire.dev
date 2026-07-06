@@ -1,0 +1,118 @@
+---
+title: Test TUI and shell apps with WithTerminal
+seoTitle: Test terminal apps in your Aspire AppHost with WithTerminal
+description: Use WithTerminal to expose an interactive terminal for a resource in your Aspire app model, then attach to it from the dashboard or the aspire terminal CLI to drive TUI and shell-based experiences.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+If you have a terminal user interface (TUI) application or a shell-based experience that you want to exercise while it runs under Aspire, add `WithTerminal(...)` to the resource. Aspire then exposes an interactive terminal session that you can attach to from the [Aspire dashboard](/dashboard/overview/) or from the [`aspire terminal`](/reference/cli/commands/aspire-terminal/) CLI command.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var agent = builder.AddExecutable("agent", "my-agent", ".")
+    .WithTerminal();
+
+builder.Build().Run();
+```
+
+Once the app is running, open the resource's terminal page in the dashboard—or run `aspire terminal attach agent`—to interact with the process just as you would in a local shell.
+
+<Aside type="caution" title="Experimental">
+`WithTerminal` is an experimental API. Calling it produces the `ASPIRETERMINAL001` diagnostic, which you must acknowledge (or suppress) for your AppHost to build. The shape of the API and its options may change in a future release.
+</Aside>
+
+## When to use WithTerminal
+
+Reach for `WithTerminal` when a resource is interactive rather than a plain background service:
+
+- A **TUI application**—for example, an agent, a diagnostics console, or a curses-style tool—that draws a full-screen interface you want to see and drive.
+- A **shell-based experience** where you want an interactive prompt inside a container or executable while it runs as part of your app model.
+- Any resource you want to **poke at live** during development without leaving the Aspire dashboard or CLI.
+
+## The debugger is not attached automatically
+
+When you apply `WithTerminal`, Aspire runs the resource as a plain process and **does not automatically attach the debugger**. This is a deliberate trade-off: the orchestrator (DCP) cannot currently run a process under the debugger and a pseudo-terminal (PTY) at the same time, so Aspire prefers a working interactive terminal over automatic IDE execution.
+
+If you need to debug the resource, attach the debugger manually to the running process from your IDE.
+
+## Attach from multiple places at once
+
+Terminal sessions support multiple simultaneous viewers. You can open **two browser tabs pointing at the same terminal**—or a browser tab and the CLI together—and both stay responsive: input and output are mirrored to every attached peer.
+
+One peer holds the **primary** role and drives the terminal's dimensions, while the others attach as **viewers**. From the CLI you can join as a passive viewer with `aspire terminal attach <resource> --viewer`, and take control later with the `Ctrl+B T` hotkey.
+
+## Configure the terminal
+
+Pass a callback to customize the terminal session:
+
+```csharp title="AppHost.cs"
+var agent = builder.AddExecutable("agent", "my-agent", ".")
+    .WithTerminal(options =>
+    {
+        options.Columns = 200;
+        options.Rows = 50;
+    });
+```
+
+The `TerminalOptions` you can set are:
+
+| Option              | Default | Description                                                                                                                                                     |
+| ------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Columns`           | `120`   | The initial number of columns for the terminal grid.                                                                                                            |
+| `Rows`              | `30`    | The initial number of rows for the terminal grid.                                                                                                               |
+| `Shell`             | `null`  | The shell to launch for the session. When `null`, the default is used: for containers this is typically `/bin/sh`; for executables the process itself is the terminal program. |
+| `ShowTerminalHost`  | `false` | Whether the hidden per-replica terminal host resources appear in the dashboard and CLI resource lists. Set to `true` to diagnose terminal-host startup or connectivity issues. |
+
+## Terminals and replicas
+
+Each replica of a resource gets its own independent terminal session. Aspire creates one terminal host per parent replica, so `WithReplicas(3).WithTerminal()` yields three separate terminals. The order of `WithReplicas` and `WithTerminal` does not matter—the final replica count is always honored:
+
+```csharp title="AppHost.cs"
+var agent = builder.AddExecutable("agent", "my-agent", ".")
+    .WithReplicas(3)
+    .WithTerminal();
+```
+
+When a resource has more than one replica, choose which one to attach to with `aspire terminal attach <resource> --replica <index>` (indices are 0-based), or pick interactively when prompted.
+
+<Aside type="note">
+Call `WithTerminal()` only once per resource. Calling it more than once throws an exception.
+</Aside>
+
+## Use WithTerminal from other languages
+
+`WithTerminal` is also available to non-C# AppHosts. The polyglot export takes no arguments and applies the default terminal options (120×30, default shell):
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts"
+const agent = builder.addExecutable("agent", "my-agent", ".")
+    .withTerminal();
+```
+
+</TabItem>
+</Tabs>
+
+To customize columns, rows, or the shell, use the C# `WithTerminal(options => ...)` overload.
+
+## Work with terminals from the CLI
+
+The `aspire terminal` command group lets you list and attach to terminal sessions from your shell. Because `WithTerminal` is experimental, these commands are hidden behind a feature flag. Enable them with:
+
+```bash title="Enable the aspire terminal commands"
+aspire config set features.terminalCommandsEnabled true
+```
+
+Then:
+
+- [`aspire terminal ps`](/reference/cli/commands/aspire-terminal-ps/) lists every terminal-enabled resource in the running AppHost, with grid size, attached-peer count, and per-replica health.
+- [`aspire terminal attach`](/reference/cli/commands/aspire-terminal-attach/) attaches your local terminal to a resource's interactive PTY session.
+
+## See also
+
+- [aspire terminal command](/reference/cli/commands/aspire-terminal/)
+- [Executable resources](/app-host/executable-resources/)
+- [Aspire dashboard overview](/dashboard/overview/)
