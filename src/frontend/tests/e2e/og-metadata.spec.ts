@@ -84,6 +84,7 @@ for (const page of PAGES) {
     );
     expect(html).toMatch(metaTagPattern('property', 'og:image:width', '1200'));
     expect(html).toMatch(metaTagPattern('property', 'og:image:height', '630'));
+    expect(html).toMatch(metaTagPattern('property', 'og:image:type', 'image/png'));
     expect(html).toMatch(metaTagPattern('name', 'twitter:title', page.twitterTitle));
     expect(html).toMatch(
       new RegExp(
@@ -119,6 +120,7 @@ test('emits a stable, hash-free og:image for sample detail pages', async ({ requ
   );
   expect(html).toMatch(metaTagPattern('property', 'og:image:width', '1200'));
   expect(html).toMatch(metaTagPattern('property', 'og:image:height', '630'));
+  expect(html).toMatch(metaTagPattern('property', 'og:image:type', 'image/png'));
   expect(html).toMatch(
     new RegExp(`<meta\\b[^>]*name="twitter:image"[^>]*content="[^"]*${escape(ogImagePath)}"`, 'i')
   );
