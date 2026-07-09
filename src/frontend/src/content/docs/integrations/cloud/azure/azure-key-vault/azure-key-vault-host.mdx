@@ -274,8 +274,11 @@ To reference an existing secret in the vault and pass it to a consuming resource
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var keyVault = builder.AddAzureKeyVault("key-vault");
-var secretRef = keyVault.GetOutput("vaultUri");
+var existingKeyVaultName = builder.AddParameter("existingKeyVaultName");
+var existingKeyVaultResourceGroup = builder.AddParameter("existingKeyVaultResourceGroup");
+
+var keyVault = builder.AddAzureKeyVault("key-vault")
+    .AsExisting(existingKeyVaultName, existingKeyVaultResourceGroup);
 
 builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(keyVault)
@@ -293,7 +296,11 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
+const existingKeyVaultName = await builder.addParameter("existingKeyVaultName");
+
 const keyVault = await builder.addAzureKeyVault("key-vault");
+await keyVault.asExisting(existingKeyVaultName);
+
 const secretRef = await keyVault.getSecret("my-api-key");
 
 await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
