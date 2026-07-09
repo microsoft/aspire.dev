@@ -5,6 +5,7 @@ on:
 permissions:
   contents: read
   actions: read
+  copilot-requests: write
 runtimes:
   node:
     version: "24"
