@@ -1,0 +1,685 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import ThemeImage from '@components/ThemeImage.astro';
+import type { ImageMetadata } from 'astro';
+
+import resourcesGraphLight from '@assets/dashboard/landing/resources-graph-light.png';
+import resourcesGraphDark from '@assets/dashboard/landing/resources-graph-dark.png';
+import resourcesTableLight from '@assets/dashboard/landing/resources-table-light.png';
+import resourcesTableDark from '@assets/dashboard/landing/resources-table-dark.png';
+import consoleLight from '@assets/dashboard/landing/console-light.png';
+import consoleDark from '@assets/dashboard/landing/console-dark.png';
+import structuredLight from '@assets/dashboard/landing/structured-logs-light.png';
+import structuredDark from '@assets/dashboard/landing/structured-logs-dark.png';
+import tracesLight from '@assets/dashboard/landing/traces-light.png';
+import tracesDark from '@assets/dashboard/landing/traces-dark.png';
+import traceDetailLight from '@assets/dashboard/landing/trace-detail-light.png';
+import traceDetailDark from '@assets/dashboard/landing/trace-detail-dark.png';
+import metricsLight from '@assets/dashboard/landing/metrics-light.png';
+import metricsDark from '@assets/dashboard/landing/metrics-dark.png';
+
+interface Slide {
+  id: string;
+  label: string;
+  alt: string;
+  light: ImageMetadata;
+  dark: ImageMetadata;
+}
+
+const slides: Slide[] = [
+  {
+    id: 'resources-graph',
+    label: 'Resource graph',
+    alt: 'Aspire dashboard resource graph showing the AspireShop services, databases, and caches connected as healthy nodes.',
+    light: resourcesGraphLight,
+    dark: resourcesGraphDark,
+  },
+  {
+    id: 'resources-table',
+    label: 'Resource dashboard',
+    alt: 'Aspire dashboard resources table listing every running project, container, and executable with state, endpoints, and actions.',
+    light: resourcesTableLight,
+    dark: resourcesTableDark,
+  },
+  {
+    id: 'console',
+    label: 'Console logs',
+    alt: 'Aspire dashboard console logs streaming interleaved, color-coded output from every resource in real time.',
+    light: consoleLight,
+    dark: consoleDark,
+  },
+  {
+    id: 'structured-logs',
+    label: 'Structured logs',
+    alt: 'Aspire dashboard structured logs view with a filterable, searchable grid of OpenTelemetry log records.',
+    light: structuredLight,
+    dark: structuredDark,
+  },
+  {
+    id: 'traces',
+    label: 'Distributed traces',
+    alt: 'Aspire dashboard traces list showing distributed traces with per-resource span counts and durations.',
+    light: tracesLight,
+    dark: tracesDark,
+  },
+  {
+    id: 'trace-detail',
+    label: 'Trace detail',
+    alt: 'Aspire dashboard trace detail waterfall for an add-to-cart request across the frontend, basket service, and cache, with span attributes.',
+    light: traceDetailLight,
+    dark: traceDetailDark,
+  },
+  {
+    id: 'metrics',
+    label: 'Metrics',
+    alt: 'Aspire dashboard metrics view charting HTTP server request duration percentiles for the frontend with dimension filters.',
+    light: metricsLight,
+    dark: metricsDark,
+  },
+];
+
+const tt = (key: string, fallback: string, values?: Record<string, string | number>) => {
+  const translated = Astro.locals.t(key as any, values as any);
+  return translated && translated !== key ? translated : fallback;
+};
+
+const localizedSlides = slides.map((slide) => ({
+  ...slide,
+  label: tt(`landing.dashboardCarousel.slides.${slide.id}.label`, slide.label),
+  alt: tt(`landing.dashboardCarousel.slides.${slide.id}.alt`, slide.alt),
+}));
+
+const carouselLabel = tt('landing.dashboardCarousel.label', 'Aspire dashboard views');
+const chooseViewLabel = tt('landing.dashboardCarousel.chooseView', 'Choose a dashboard view');
+const previousLabel = tt('landing.dashboardCarousel.previous', 'Previous view');
+const nextLabel = tt('landing.dashboardCarousel.next', 'Next view');
+const formatSlideLabel = (index: number, count: number, label: string) =>
+  tt('landing.dashboardCarousel.slideLabel', '{{index}} of {{count}}: {{label}}', {
+    index,
+    count,
+    label,
+  });
+---
+
+<section
+  class="dashboard-carousel not-content"
+  data-dashboard-carousel
+  role="group"
+  aria-roledescription="carousel"
+  aria-label={carouselLabel}
+>
+  <div class="stage" data-stage>
+    {
+      localizedSlides.map((s, i) => (
+        <div
+          class="slide"
+          data-slide
+          data-index={i}
+          data-slide-label={s.label}
+          role="group"
+          aria-roledescription="slide"
+          aria-label={formatSlideLabel(i + 1, localizedSlides.length, s.label)}
+        >
+          <ThemeImage
+            light={s.light}
+            dark={s.dark}
+            alt={s.alt}
+            label={s.label}
+            classOverride="dashboard-shot"
+          />
+        </div>
+      ))
+    }
+  </div>
+
+  <div class="carousel-footer">
+    <p class="active-label" data-active-label>{localizedSlides[0].label}</p>
+    <div class="controls">
+      <button type="button" class="nav-btn prev-btn" data-prev aria-label={previousLabel}>
+        <Icon name="left-arrow" size="1.5rem" />
+      </button>
+      <div class="dots" role="group" aria-label={chooseViewLabel}>
+        {
+          localizedSlides.map((s, i) => (
+            <button
+              type="button"
+              class="dot"
+              data-dot
+              data-index={i}
+              aria-label={s.label}
+              aria-pressed={i === 0 ? 'true' : 'false'}
+            />
+          ))
+        }
+      </div>
+      <button type="button" class="nav-btn next-btn" data-next aria-label={nextLabel}>
+        <Icon name="right-arrow" size="1.5rem" />
+      </button>
+    </div>
+  </div>
+</section>
+
+<script is:inline>
+  (() => {
+    function init() {
+      const root = document.querySelector('[data-dashboard-carousel]');
+      if (!root || root.dataset.initialized === 'true') return;
+      root.dataset.initialized = 'true';
+
+      const stage = root.querySelector('[data-stage]');
+      const slides = Array.from(root.querySelectorAll('[data-slide]'));
+      const dots = Array.from(root.querySelectorAll('[data-dot]'));
+      const label = root.querySelector('[data-active-label]');
+      const prevBtn = root.querySelector('[data-prev]');
+      const nextBtn = root.querySelector('[data-next]');
+      const n = slides.length;
+      if (!stage || n === 0) {
+        delete root.dataset.initialized;
+        return;
+      }
+
+      const reduce =
+        window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduce) root.classList.add('reduced-motion');
+
+      const MAX_VISIBLE = 2;
+      let active = 0;
+      let zoomOpen = false;
+      let zoomObserver = null;
+      let cleaned = false;
+      const cleanupTasks = [];
+
+      const labels = slides.map((s) => s.dataset.slideLabel || '');
+      const focusableSelector = [
+        'a[href]',
+        'button',
+        'input',
+        'select',
+        'textarea',
+        '[tabindex]',
+      ].join(',');
+
+      function addListener(target, type, handler, options) {
+        target.addEventListener(type, handler, options);
+        cleanupTasks.push(() => target.removeEventListener(type, handler, options));
+      }
+
+      function setSlideTabbable(slide, tabbable) {
+        if (tabbable) {
+          slide.removeAttribute('aria-hidden');
+        } else {
+          slide.setAttribute('aria-hidden', 'true');
+        }
+        slide.querySelectorAll(focusableSelector).forEach((el) => {
+          if (!(el instanceof HTMLElement)) return;
+          if (tabbable) {
+            if (el.dataset.carouselTabindex === undefined) return;
+            if (el.dataset.carouselTabindex === '') {
+              el.removeAttribute('tabindex');
+            } else {
+              el.setAttribute('tabindex', el.dataset.carouselTabindex);
+            }
+            delete el.dataset.carouselTabindex;
+          } else {
+            if (el.dataset.carouselTabindex === undefined) {
+              el.dataset.carouselTabindex = el.getAttribute('tabindex') ?? '';
+            }
+            el.setAttribute('tabindex', '-1');
+          }
+        });
+      }
+
+      function cleanup() {
+        if (cleaned) return;
+        cleaned = true;
+        stopAuto();
+        if (zoomObserver) zoomObserver.disconnect();
+        cleanupTasks.splice(0).forEach((dispose) => dispose());
+        delete root.dataset.initialized;
+      }
+
+      addListener(document, 'astro:before-swap', cleanup, { once: true });
+      addListener(window, 'pagehide', cleanup, { once: true });
+
+      // Prevent the browser's native image drag/highlight ghost during swipe.
+      slides.forEach((s) => {
+        const img = s.querySelector('img');
+        if (img) img.setAttribute('draggable', 'false');
+      });
+
+      // Shortest signed distance on the ring of slides (enables infinite coverflow).
+      function ringOffset(i) {
+        let o = i - active;
+        if (o > n / 2) o -= n;
+        if (o < -n / 2) o += n;
+        return o;
+      }
+
+      // Per-offset coverflow tuning (index = absolute distance from center).
+      // Neighbors step down in scale so the active slide reads larger; the far
+      // edges recede, fade, and blur. The near slides stay fully opaque so they
+      // cleanly occlude the far slide stacked behind them (no bleed-through);
+      // only the outermost slides fade, and they sit over the page background.
+      const STEP = 43; // percent of card width between neighbors
+      const TUNE = [
+        { scale: 1, tz: 0, rot: 0, op: 1, blur: 0 },
+        { scale: 0.72, tz: -120, rot: 32, op: 1, blur: 1.3 },
+        { scale: 0.58, tz: -230, rot: 42, op: 0.52, blur: 4.2 },
+      ];
+
+      function render() {
+        for (let i = 0; i < n; i++) {
+          const slide = slides[i];
+          const o = ringOffset(i);
+          const abs = Math.abs(o);
+          const sign = Math.sign(o);
+          const hidden = abs > MAX_VISIBLE;
+          const t = TUNE[Math.min(abs, TUNE.length - 1)];
+
+          const x = o * STEP; // percent of card width -> horizontal spacing / overlap
+          const rotateY = o === 0 ? 0 : sign * -t.rot;
+
+          slide.style.transform =
+            `translate(-50%, -50%) translateX(${x}%) translateZ(${t.tz}px)` +
+            ` rotateY(${rotateY}deg) scale(${t.scale})`;
+          slide.style.opacity = hidden ? '0' : String(t.op);
+          slide.style.zIndex = String(100 - abs);
+          slide.style.filter = t.blur ? `blur(${t.blur}px)` : 'none';
+          slide.style.pointerEvents = hidden ? 'none' : 'auto';
+          slide.classList.toggle('is-active', o === 0);
+          setSlideTabbable(slide, o === 0);
+          if (o === 0) {
+            slide.setAttribute('aria-current', 'true');
+          } else {
+            slide.removeAttribute('aria-current');
+          }
+        }
+        dots.forEach((d, i) => d.setAttribute('aria-pressed', i === active ? 'true' : 'false'));
+        if (label) label.textContent = labels[active] || '';
+      }
+
+      function setActive(i) {
+        active = ((i % n) + n) % n;
+        render();
+      }
+
+      function next() {
+        setActive(active + 1);
+      }
+      function prev() {
+        setActive(active - 1);
+      }
+
+      function measure() {
+        // Keep the stage exactly as tall as the centered (unscaled) slide.
+        const centered = slides[active];
+        const h = centered.getBoundingClientRect().height;
+        if (h) stage.style.height = `${Math.round(h)}px`;
+      }
+
+      // --- Controls ---
+      nextBtn && addListener(nextBtn, 'click', next);
+      prevBtn && addListener(prevBtn, 'click', prev);
+      dots.forEach((d) => addListener(d, 'click', () => setActive(Number(d.dataset.index) || 0)));
+
+      // Click a side slide to bring it to the center.
+      slides.forEach((s) =>
+        addListener(s, 'click', () => {
+          if (!s.classList.contains('is-active')) setActive(Number(s.dataset.index) || 0);
+        })
+      );
+
+      // Keyboard navigation when the carousel has focus.
+      root.setAttribute('tabindex', '0');
+      addListener(root, 'keydown', (e) => {
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          next();
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          prev();
+        }
+      });
+
+      // Pointer / touch swipe. Works for mouse drag and finger swipe. We lock
+      // onto the gesture only once horizontal movement dominates, so vertical
+      // finger scrolling still pans the page normally.
+      const SWIPE_THRESHOLD = 40; // px of travel required to change slides
+      const INTENT_SLOP = 8; // px before we decide swipe vs. scroll
+      let startX = null;
+      let startY = null;
+      let swiping = false; // horizontal gesture claimed
+      let dragged = false; // moved enough to suppress the trailing click
+
+      addListener(
+        root,
+        'pointerdown',
+        (e) => {
+          if (e.pointerType === 'mouse' && e.button !== 0) return;
+          startX = e.clientX;
+          startY = e.clientY;
+          swiping = false;
+          dragged = false;
+        },
+        { passive: true }
+      );
+
+      addListener(
+        root,
+        'pointermove',
+        (e) => {
+          if (startX === null) return;
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+          if (!swiping) {
+            if (Math.abs(dx) < INTENT_SLOP && Math.abs(dy) < INTENT_SLOP) return;
+            if (Math.abs(dx) > Math.abs(dy)) {
+              swiping = true; // horizontal -> we own this gesture
+            } else {
+              startX = null; // vertical -> let the page scroll
+              return;
+            }
+          }
+          dragged = true;
+          if (e.cancelable) e.preventDefault(); // block scroll/selection mid-swipe
+        },
+        { passive: false }
+      );
+
+      function endSwipe(e) {
+        if (startX === null) {
+          swiping = false;
+          return;
+        }
+        const dx = e.clientX - startX;
+        const wasSwiping = swiping;
+        startX = null;
+        startY = null;
+        swiping = false;
+        if (wasSwiping && Math.abs(dx) > SWIPE_THRESHOLD) {
+          dx < 0 ? next() : prev();
+        }
+      }
+      addListener(root, 'pointerup', endSwipe);
+      addListener(root, 'pointercancel', () => {
+        startX = null;
+        startY = null;
+        swiping = false;
+      });
+
+      // A swipe must not also fire the trailing click (which would zoom the
+      // active image or re-center a side slide). Swallow it in the capture
+      // phase before the slide/zoom handlers see it.
+      addListener(
+        root,
+        'click',
+        (e) => {
+          if (dragged) {
+            e.stopPropagation();
+            e.preventDefault();
+            dragged = false;
+          }
+        },
+        true
+      );
+
+      // --- Gentle autoplay (skipped for reduced-motion) ---
+      let timer = null;
+      const DELAY = 5500;
+      function startAuto() {
+        if (reduce || timer || zoomOpen || document.hidden) return;
+        timer = window.setInterval(next, DELAY);
+      }
+      function stopAuto() {
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+      }
+      function handleFocusOut(e) {
+        if (!root.contains(e.relatedTarget)) startAuto();
+      }
+      function handleVisibilityChange() {
+        document.hidden ? stopAuto() : startAuto();
+      }
+      addListener(root, 'pointerenter', stopAuto);
+      addListener(root, 'pointerleave', startAuto);
+      addListener(root, 'focusin', stopAuto);
+      addListener(root, 'focusout', handleFocusOut);
+      addListener(document, 'visibilitychange', handleVisibilityChange);
+
+      // Pause autoplay while an image is zoomed open. starlight-image-zoom adds
+      // the `starlight-image-zoom-opened` class to <body> for the duration.
+      const body = document.body;
+      zoomObserver = new MutationObserver(() => {
+        const open = body.classList.contains('starlight-image-zoom-opened');
+        if (open === zoomOpen) return;
+        zoomOpen = open;
+        if (open) {
+          stopAuto();
+        } else {
+          startAuto();
+        }
+      });
+      zoomObserver.observe(body, { attributes: true, attributeFilter: ['class'] });
+
+      addListener(window, 'resize', measure);
+
+      // Initial paint.
+      root.classList.add('is-ready');
+      requestAnimationFrame(() => {
+        measure();
+        render();
+        startAuto();
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+</script>
+
+<style>
+  .dashboard-carousel {
+    --carousel-primary: var(--aspire-color-primary);
+    position: relative;
+    max-width: 78rem;
+    margin: 2rem auto 2.5rem;
+    padding: 0;
+    outline: none;
+    /* Reserve horizontal drags for the swipe handler; vertical still scrolls. */
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+    /* Fade the far edges softly instead of a hard clip at the stage boundary. */
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 11%,
+      #000 89%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(to right, transparent 0, #000 11%, #000 89%, transparent 100%);
+  }
+  .dashboard-carousel:focus-visible {
+    outline: 0.1875rem solid var(--carousel-primary);
+    outline-offset: 0.25rem;
+  }
+
+  .stage {
+    position: relative;
+    height: clamp(11rem, 36vw, 25rem);
+    transform-style: preserve-3d;
+    perspective: 1500px;
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: clamp(14rem, 56vw, 40rem);
+    aspect-ratio: 1680 / 1050;
+    transform: translate(-50%, -50%);
+    transform-origin: center center;
+    border-radius: 0.6rem;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--sl-color-bg, #fff);
+    border: 1px solid var(--sl-color-gray-5, #d9d9d9);
+    box-shadow: var(--sl-shadow-md);
+    opacity: 0;
+    will-change: transform, opacity, filter;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
+      opacity 0.45s ease,
+      filter 0.45s ease;
+  }
+
+  /* Progressive enhancement: before JS positions the slides, show only the first. */
+  .dashboard-carousel:not(.is-ready) .slide {
+    opacity: 0;
+  }
+  .dashboard-carousel:not(.is-ready) .slide:first-child {
+    opacity: 1;
+    z-index: 10;
+  }
+
+  .slide.is-active {
+    cursor: default;
+    box-shadow: var(--sl-shadow-lg);
+  }
+
+  .slide :global(starlight-image-zoom-zoomable) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* Only the centered slide is zoomable; side slides pass clicks through to
+       the .slide element so a click brings them to the center instead. */
+    pointer-events: none;
+  }
+  .slide.is-active :global(starlight-image-zoom-zoomable) {
+    pointer-events: auto;
+  }
+
+  .slide :global(.dashboard-shot) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    margin: 0;
+    border: none;
+    border-radius: inherit;
+    -webkit-user-drag: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Navigation buttons (styled to match the testimonial carousel buttons) */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.625rem;
+    height: 2.625rem;
+    border: none;
+    border-radius: 0.5rem;
+    background: var(--carousel-primary);
+    color: #fff;
+    cursor: pointer;
+    transition:
+      background 0.25s ease,
+      transform 0.25s ease;
+  }
+  .nav-btn:hover {
+    transform: scale(1.06);
+  }
+  .nav-btn:focus-visible {
+    outline: 0.1875rem solid var(--carousel-primary);
+    outline-offset: 0.15rem;
+  }
+
+  .carousel-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.85rem;
+    margin-top: 1.25rem;
+  }
+
+  .active-label {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    /* Light-purple accent reads well on the dark page background (~7.8:1). */
+    color: var(--aspire-color-secondary);
+  }
+
+  /* On the light theme's white background the light-purple accent fails WCAG AA
+     (~1.9:1), so switch to the deeper brand purple (~5.1:1 on white). */
+  html[data-theme='light'] .active-label {
+    color: var(--aspire-color-primary);
+  }
+
+  .dots {
+    display: flex;
+    gap: 0.55rem;
+  }
+  .dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--sl-color-gray-4, #b0b0b0);
+    cursor: pointer;
+    transition:
+      transform 0.2s ease,
+      background 0.2s ease;
+  }
+  .dot:hover {
+    transform: scale(1.2);
+  }
+  .dot[aria-pressed='true'] {
+    background: var(--carousel-primary);
+    transform: scale(1.15);
+  }
+  .dot:focus-visible {
+    outline: 0.125rem solid var(--carousel-primary);
+    outline-offset: 0.15rem;
+  }
+
+  @media (max-width: 50rem) {
+    .dashboard-carousel {
+      padding: 0 1rem;
+    }
+    .nav-btn {
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+  }
+
+  /* Respect users who prefer reduced motion: no 3D animation, no autoplay. */
+  .dashboard-carousel.reduced-motion .slide {
+    transition: opacity 0.2s ease;
+    filter: none !important;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .slide {
+      transition: opacity 0.2s ease;
+    }
+  }
+
+  html[data-theme='dark'] .slide {
+    background: var(--sl-color-black, #1a1a1a);
+    border-color: var(--sl-color-gray-4);
+  }
+</style>
