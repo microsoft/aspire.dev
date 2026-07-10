@@ -1,0 +1,177 @@
+name: Integration Data Updater
+
+# Deterministic replacement for the former `gh aw` agentic workflow. Runs the
+# update scripts directly (no LLM inference, no agent timeout, no PAT auth) and
+# opens a PR through the Aspire bot GitHub App when the generated data changes.
+#
+# All logic lives in src/frontend/scripts/update-integration-data.ps1 so the
+# exact same flow can be reproduced locally:
+#   pwsh src/frontend/scripts/update-integration-data.ps1
+
+on:
+  schedule:
+    # Daily on weekdays (mirrors the previous cadence).
+    - cron: "10 21 * * 1-5"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: update-integration-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Update integration data
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          app-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Full history is required so the orchestrator can diff the committed
+          # aspire-integrations.json (HEAD) against the freshly generated one.
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          global-json-file: global.json
+
+      - name: Install Aspire CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          aspire_bin="${RUNNER_TEMP}/aspire/bin"
+          curl -sSL https://aspire.dev/install.sh | bash -s -- --install-path "$aspire_bin" --skip-path
+          echo "ASPIRE_CLI_PATH=$aspire_bin/aspire" >> "$GITHUB_ENV"
+          echo "$aspire_bin" >> "$GITHUB_PATH"
+          "$aspire_bin/aspire" --version --banner
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: "24.x"
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: src/frontend
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Update integration data
+        id: update
+        shell: pwsh
+        run: ./src/frontend/scripts/update-integration-data.ps1
+
+      - name: Configure git identity
+        if: ${{ steps.update.outputs.changed == 'true' }}
+        shell: bash
+        run: |
+          git config user.name "aspire-repo-bot[bot]"
+          git config user.email "aspire-repo-bot[bot]@users.noreply.github.com"
+
+      - name: Commit and push branch
+        if: ${{ steps.update.outputs.changed == 'true' }}
+        id: push
+        env:
+          PR_TITLE: ${{ steps.update.outputs.pr_title }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="chore/update-integration-data-$(date -u +%Y%m%d-%H%M%S)"
+
+          # Stage only the allowed generated data files — never workflow files,
+          # source, manifests, or docs. Directories with no changes are no-ops.
+          git add -- \
+            src/frontend/src/data/aspire-integrations.json \
+            src/frontend/src/data/github-stats.json \
+            src/frontend/src/data/samples.json \
+            src/frontend/src/assets/samples \
+            src/frontend/src/data/pkgs \
+            src/frontend/src/data/ts-modules \
+            src/frontend/src/data/twoslash/aspire.d.ts
+
+          if git diff --cached --quiet; then
+            echo "No staged changes after filtering to allowed paths; skipping PR."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git checkout -b "$branch"
+          git commit \
+            -m "$PR_TITLE" \
+            -m "Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>"
+          git push origin "HEAD:refs/heads/$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request
+        if: ${{ steps.push.outputs.pushed == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ steps.push.outputs.branch }}
+          PR_TITLE: ${{ steps.update.outputs.pr_title }}
+          PR_BODY_FILE: ${{ steps.update.outputs.pr_body_file }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          new_pr=$(gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "$PR_TITLE" \
+            --body-file "$PR_BODY_FILE" \
+            --label ":octocat: auto-merge")
+          echo "Created $new_pr"
+
+          # Supersede any older open integration-data PRs from this automation.
+          old_prs=$(gh pr list \
+            --state open \
+            --limit 30 \
+            --json number,headRefName \
+            --jq '.[] | select(.headRefName | startswith("chore/update-integration-data")) | select(.headRefName != env.BRANCH) | .number')
+
+          for pr in $old_prs; do
+            echo "Superseding older integration-data PR #$pr"
+            gh pr close "$pr" \
+              --delete-branch \
+              --comment "Superseded by the latest Integration Data Updater run ($new_pr)."
+          done
+
+      - name: Summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo "## Integration Data Updater"
+            echo ""
+            echo "- Changed: \`${{ steps.update.outputs.changed || 'unknown' }}\`"
+            echo "- Versions changed: \`${{ steps.update.outputs.versions_changed || 'n/a' }}\`"
+            echo "- API regen ran: \`${{ steps.update.outputs.regen_ran || 'n/a' }}\`"
+            if [ -n "${{ steps.update.outputs.icon_warnings }}" ]; then
+              echo "- Icon warnings: \`${{ steps.update.outputs.icon_warnings }}\`"
+            fi
+            if [ "${{ steps.push.outputs.pushed }}" = "true" ]; then
+              echo "- Branch: \`${{ steps.push.outputs.branch }}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
