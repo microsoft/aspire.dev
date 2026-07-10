@@ -87,8 +87,20 @@ function Write-Section([string]$Text) {
 
 function Invoke-Git {
     param([Parameter(Mandatory)][string[]]$Arguments)
-    $out = & git -C $RepoRoot @Arguments 2>&1
-    return , @($out)
+    # Emit git output as plain strings, one per line, straight to the pipeline.
+    # `2>&1` folds stderr in as ErrorRecord objects on failure; normalize those
+    # to their message text so callers always receive strings — never
+    # ErrorRecords, and never a single nested array that would break `-join` or
+    # Where-Object on the receiving side. $LASTEXITCODE remains the git exit code.
+    $raw = & git -C $RepoRoot @Arguments 2>&1
+    foreach ($item in $raw) {
+        if ($item -is [System.Management.Automation.ErrorRecord]) {
+            $item.Exception.Message
+        }
+        else {
+            [string]$item
+        }
+    }
 }
 
 function Set-Output {
@@ -139,10 +151,14 @@ if ($iconLine) {
     Write-Warning "Icon resolution warning captured for PR body: $iconWarnings"
 }
 
-# ── Detect any changes to allowed data files ────────────────────────────────
-$statusLines = (Invoke-Git @('status', '--porcelain', '--', 'src/frontend/src/data', 'src/frontend/src/assets/samples')) |
-    Where-Object { $_ -and $_.Trim().Length -gt 0 }
-$anyChanges = [bool]$statusLines
+# ── Detect any working-tree changes ─────────────────────────────────────────
+# Gate on the FULL working tree, not just the in-scope data paths. If
+# `pnpm run update:all` touched anything at all we must fall through to the
+# Phase 4 scope check, so that an out-of-scope-only change fails loudly there
+# instead of silently exiting 0 here.
+$statusLines = @(Invoke-Git @('status', '--porcelain') |
+    Where-Object { $_ -and $_.Trim().Length -gt 0 })
+$anyChanges = $statusLines.Count -gt 0
 
 if (-not $anyChanges) {
     Write-Section 'Result — no changes'
@@ -260,7 +276,7 @@ elseif ($versionsChanged -and $SkipRegen) {
 
 # ── Phase 4: scope check ────────────────────────────────────────────────────
 Write-Section 'Phase 4 — scope check'
-$allStatus = (Invoke-Git @('status', '--porcelain')) | Where-Object { $_ -and $_.Trim().Length -gt 0 }
+$allStatus = @(Invoke-Git @('status', '--porcelain') | Where-Object { $_ -and $_.Trim().Length -gt 0 })
 $outOfScope = [System.Collections.Generic.List[string]]::new()
 foreach ($line in $allStatus) {
     # Porcelain format: "XY <path>" (path starts at column 4). Handle renames "old -> new".
@@ -282,8 +298,8 @@ Write-Host "All changes are within the allowed data paths." -ForegroundColor Gre
 # ── File-count summary (for the PR body) ────────────────────────────────────
 function Get-AreaCounts {
     param([Parameter(Mandatory)][string]$Prefix)
-    $names = (Invoke-Git @('diff', '--name-status', 'HEAD', '--', $Prefix)) |
-        Where-Object { $_ -and $_.Trim().Length -gt 0 }
+    $names = @(Invoke-Git @('diff', '--name-status', 'HEAD', '--', $Prefix) |
+        Where-Object { $_ -and $_.Trim().Length -gt 0 })
     $added = 0; $modified = 0; $removed = 0
     foreach ($n in $names) {
         $code = ($n.Trim())[0]
@@ -300,11 +316,11 @@ function Get-AreaCounts {
 
 $pkgsCounts = Get-AreaCounts -Prefix 'src/frontend/src/data/pkgs/'
 $tsModulesCounts = Get-AreaCounts -Prefix 'src/frontend/src/data/ts-modules/'
-$twoslashChanged = [bool]((Invoke-Git @('diff', '--name-only', 'HEAD', '--', 'src/frontend/src/data/twoslash/aspire.d.ts')) |
-    Where-Object { $_ -and $_.Trim().Length -gt 0 })
+$twoslashChanged = @(Invoke-Git @('diff', '--name-only', 'HEAD', '--', 'src/frontend/src/data/twoslash/aspire.d.ts') |
+    Where-Object { $_ -and $_.Trim().Length -gt 0 }).Count -gt 0
 
 # ── PR title + body ─────────────────────────────────────────────────────────
-$dateShort = (Get-Date).ToString('M/d/yy')
+$dateShort = [DateTime]::UtcNow.ToString('M/d/yy', [System.Globalization.CultureInfo]::InvariantCulture)
 $prTitle = "chore: Update integration data and GitHub stats ($dateShort)"
 
 $sb = [System.Text.StringBuilder]::new()
