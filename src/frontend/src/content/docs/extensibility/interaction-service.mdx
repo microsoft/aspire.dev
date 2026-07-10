@@ -1,10 +1,10 @@
 ---
-title: Interaction service (Preview)
-seoTitle: Aspire interaction service (Preview) for AppHost authors
+title: Interaction service
+seoTitle: Aspire interaction service for AppHost authors
 description: Use the Aspire interaction service to prompt users for input, request confirmation, and display messages from AppHost extensions, integrations, and custom resources.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import messageDialog from '@assets/extensibility/interaction-service-message-dialog.png';
 import messageBar from '@assets/extensibility/interaction-service-message-bar.png';
@@ -13,7 +13,7 @@ import multipleInput from '@assets/extensibility/interaction-service-multiple-in
 import multipleInputFilled from '@assets/extensibility/interaction-service-multiple-input-filled.png';
 import multipleInputLogs from '@assets/extensibility/interaction-service-multiple-input-logs.png';
 
-The interaction service (`Aspire.Hosting.IInteractionService`) allows you to prompt users for input, request confirmation, and display messages. The interaction service works in two different contexts:
+The interaction service (`Aspire.Hosting.IInteractionService`) allows you to prompt users for input, request confirmation, and display messages. It works in two different contexts:
 
 - **Aspire dashboard**: When running `aspire run` or launching the AppHost directly, interactions appear as dialogs and notifications in the dashboard UI.
 - **Aspire CLI**: When running `aspire publish` or `aspire deploy`, interactions are prompted through the command-line interface.
@@ -22,19 +22,18 @@ This is useful for scenarios where you need to gather information from the user 
 
 <Aside type="tip">
 If you need to collect input for a [custom resource command](/fundamentals/custom-resource-commands/), consider using [command arguments](/fundamentals/custom-resource-commands/#command-arguments) instead of the interaction service. Command arguments display the same input UI in the dashboard but also work when running commands from the Aspire CLI.
-</Aside>
 
-<Aside type="note">
-The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
+Commands can also display a [progress dialog](/fundamentals/custom-resource-commands/#command-progress) while they execute.
 </Aside>
 
 ## The `IInteractionService` API
 
-The `IInteractionService` interface is retrieved from the `DistributedApplication` dependency injection container. `IInteractionService` can be injected into types created from DI or resolved from `IServiceProvider`, which is usually available on a context argument passed to events.
+The `IInteractionService` interface provides methods for prompting users. In C#, it's retrieved from the dependency injection container. In TypeScript, it's resolved from the command context's service provider. Always check if the service is available before use — if you attempt to call a method when it's not available, an exception is thrown. For example, the interaction service isn't available when a command is triggered from the CLI.
 
-When you request `IInteractionService`, be sure to check if it's available for usage. If you attempt to use the interaction service when it's not available (`IInteractionService.IsAvailable` returns `false`), an exception is thrown. For example, the interaction service isn't available when a command is triggered from the CLI.
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
-```csharp
+```csharp title="AppHost.cs"
 var interactionService = serviceProvider.GetRequiredService<IInteractionService>();
 if (interactionService.IsAvailable)
 {
@@ -48,6 +47,28 @@ if (interactionService.IsAvailable)
     }
 }
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const interactionService =
+    await context.services().getInteractionService();
+
+if (await interactionService.isAvailable()) {
+    const result = await interactionService.promptConfirmation(
+        "Delete confirmation",
+        "Are you sure you want to delete the data?",
+    );
+
+    if (!result.canceled) {
+        // Run your resource/command logic.
+    }
+}
+```
+
+</TabItem>
+</Tabs>
 
 The interaction service has several methods that you use to interact with users or display messages. The behavior of these methods depends on the execution context:
 
@@ -63,9 +84,10 @@ The following sections describe how to use these APIs effectively in both contex
 | `PromptConfirmationAsync` | Displays a confirmation dialog with options for the user to confirm or cancel an action. | Dashboard only |
 | `PromptInputAsync` | Prompts the user for a single input value, such as text or secret. | Dashboard, CLI |
 | `PromptInputsAsync` | Prompts the user for multiple input values in a single dialog (dashboard) or sequentially (CLI). | Dashboard, CLI |
+| `PromptProgressAsync` | Displays a progress dialog with an indeterminate progress indicator during long-running operations. | Dashboard only |
 
 <Aside type="caution">
-During `aspire publish` and `aspire deploy` operations, only `PromptInputAsync` and `PromptInputsAsync` are available. Other interaction methods (`PromptMessageBoxAsync`, `PromptNotificationAsync`, and `PromptConfirmationAsync`) will throw an exception if called in CLI contexts.
+During `aspire publish` and `aspire deploy` operations, only `PromptInputAsync` and `PromptInputsAsync` are available. Other interaction methods (`PromptMessageBoxAsync`, `PromptNotificationAsync`, `PromptConfirmationAsync`, and `PromptProgressAsync`) will throw an exception if called in CLI contexts.
 </Aside>
 
 ## Where to use the interaction service
@@ -134,7 +156,10 @@ Message display methods (`PromptMessageBoxAsync` and `PromptNotificationAsync`) 
 
 Dialog messages provide important information that requires user attention.
 
-The `IInteractionService.PromptMessageBoxAsync` method displays a message with customizable response options.
+The `PromptMessageBoxAsync` method displays a message with customizable response options.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var interactionService = services.GetRequiredService<IInteractionService>();
@@ -168,6 +193,33 @@ else
 }
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const interactionService =
+    await context.services().getInteractionService();
+
+const result = await interactionService.promptMessageBox(
+    "Apply migrations",
+    "The database schema is out of date.\nWould you like to apply pending migrations now?",
+    {
+        enableMessageMarkdown: true,
+        primaryButtonText: "Apply",
+        secondaryButtonText: "Skip",
+        showSecondaryButton: true,
+    },
+);
+
+if (!result.canceled) {
+    // User clicked "Apply"
+    // Run migrations.
+}
+```
+
+</TabItem>
+</Tabs>
+
 **Dashboard view:**
 
 <Image src={messageDialog} alt="Aspire dashboard interface showing a message dialog with a title, message, and buttons." />
@@ -186,60 +238,65 @@ In the dashboard, notification messages appear stacked at the top, so you can sh
 
 The `PromptNotificationAsync` method displays informational messages with optional action links in the dashboard context. You don't have to await the result of a notification message if you don't need to. This is especially useful for notifications, since you might want to display a notification and continue without waiting for user to dismiss it.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 var interactionService = services.GetRequiredService<IInteractionService>();
-// Demonstrating various notification types with different intents
-var tasks = new List<Task>
-{
-    interactionService.PromptNotificationAsync(
-        title: "Confirmation",
-        message: "Are you sure you want to proceed?",
-        options: new NotificationInteractionOptions
-        {
-            Intent = MessageIntent.Confirmation
-        }),
-    interactionService.PromptNotificationAsync(
-        title: "Success",
-        message: "Your operation completed successfully.",
-        options: new NotificationInteractionOptions
-        {
-            Intent = MessageIntent.Success,
-            LinkText = "View Details",
-            LinkUrl = "/"
-        }),
-    interactionService.PromptNotificationAsync(
-        title: "Warning",
-        message: "Your SSL certificate will expire soon.",
-        options: new NotificationInteractionOptions
-        {
-            Intent = MessageIntent.Warning,
-            LinkText = "Renew Certificate",
-            LinkUrl = "https://portal.azure.com/certificates"
-        }),
-    interactionService.PromptNotificationAsync(
-        title: "Information",
-        message: "There is an update available for your application.",
-        options: new NotificationInteractionOptions
-        {
-            Intent = MessageIntent.Information,
-            LinkText = "Update Now",
-            LinkUrl = "/"
-        }),
-    interactionService.PromptNotificationAsync(
-        title: "Error",
-        message: "An error occurred while processing your request.",
-        options: new NotificationInteractionOptions
-        {
-            Intent = MessageIntent.Error,
-            LinkText = "Troubleshoot",
-            LinkUrl = "/get-started/troubleshooting/"
-        })
-};
 
-await Task.WhenAll(tasks);
+await interactionService.PromptNotificationAsync(
+    title: "Success",
+    message: "Your operation completed successfully.",
+    options: new NotificationInteractionOptions
+    {
+        Intent = MessageIntent.Success,
+        LinkText = "View Details",
+        LinkUrl = "/"
+    });
+
+await interactionService.PromptNotificationAsync(
+    title: "Warning",
+    message: "Your SSL certificate will expire soon.",
+    options: new NotificationInteractionOptions
+    {
+        Intent = MessageIntent.Warning,
+        LinkText = "Renew Certificate",
+        LinkUrl = "https://portal.azure.com/certificates"
+    });
 ```
 
-The previous example demonstrates several ways to use the notification API. Each approach displays different types of notifications, all of which are invoked in parallel and displayed in the dashboard around the same time.
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const interactionService =
+    await context.services().getInteractionService();
+
+await interactionService.promptNotification(
+    "Success",
+    "Your operation completed successfully.",
+    {
+        intent: MessageIntent.Success,
+        linkText: "View Details",
+        linkUrl: "/",
+    },
+);
+
+await interactionService.promptNotification(
+    "Warning",
+    "Your SSL certificate will expire soon.",
+    {
+        intent: MessageIntent.Warning,
+        linkText: "Renew Certificate",
+        linkUrl: "https://portal.azure.com/certificates",
+    },
+);
+```
+
+</TabItem>
+</Tabs>
+
+The previous example demonstrates how to use the notification API with different intents and optional action links.
 
 **Dashboard view:**
 
@@ -256,6 +313,9 @@ Use the interaction service when you need the user to confirm an action before p
 ### Prompt for confirmation before destructive operations
 
 For operations that can't be undone, such as deleting resources, always prompt for confirmation:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var interactionService = services.GetRequiredService<IInteractionService>();
@@ -278,6 +338,33 @@ if (resetConfirmation.Data)
 }
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const interactionService =
+    await context.services().getInteractionService();
+
+const resetConfirmation = await interactionService.promptConfirmation(
+    "Confirm Reset",
+    "Are you sure you want to reset the database? This action cannot be undone.",
+    {
+        intent: MessageIntent.Confirmation,
+        primaryButtonText: "Reset",
+        secondaryButtonText: "Cancel",
+        showSecondaryButton: true,
+        enableMessageMarkdown: true,
+    },
+);
+
+if (!resetConfirmation.canceled) {
+    // Perform the reset operation...
+}
+```
+
+</TabItem>
+</Tabs>
+
 **Dashboard view:**
 
 <Image src={confirmation} alt="Aspire dashboard interface showing a confirmation dialog with a title, message, and buttons for confirming or canceling the operation." />
@@ -288,7 +375,7 @@ The `PromptConfirmationAsync` method isn't available in CLI contexts. If you cal
 
 ## Prompt for user input
 
-The interaction service API allows you to prompt users for input in various ways. You can collect single values or multiple values, with support for different input types including text, secrets, choices, booleans, and numbers. The presentation adapts automatically to the execution context.
+The interaction service API allows you to prompt users for input in various ways. You can collect single values or multiple values, with support for different input types including text, secrets, choices, booleans, numbers, and files. The presentation adapts automatically to the execution context.
 
 | Type         | Dashboard                 | CLI prompt            |
 |--------------|---------------------------|-----------------------|
@@ -297,6 +384,7 @@ The interaction service API allows you to prompt users for input in various ways
 | `Choice`     | Dropdown box of options   | Choice prompt         |
 | `Boolean`    | Checkbox                  | Boolean choice prompt |
 | `Number`     | Number textbox            | Text prompt           |
+| `File`       | File picker dialog        | File path prompt      |
 
 Each `InteractionInput` has a `Name` and a `Label` property:
 
@@ -312,6 +400,9 @@ It's possible to create wizard-like flows using the interaction service. By chai
 </Aside>
 
 Consider the following example, which prompts the user for multiple input values:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var interactionService = services.GetRequiredService<IInteractionService>();
@@ -383,6 +474,64 @@ if (!appConfigurationInput.Canceled)
 }
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const interactionService =
+    await context.services().getInteractionService();
+
+const appName = await interactionService.createTextInput("AppName", {
+    label: "Application Name",
+    required: true,
+    placeholder: "my-app",
+});
+
+const environment = await interactionService.createChoiceInput(
+    "Environment",
+    {
+        choices: [
+            { value: "dev", label: "Development" },
+            { value: "staging", label: "Staging" },
+            { value: "test", label: "Testing" },
+        ],
+        options: { required: true },
+    },
+);
+
+const instanceCount = await interactionService.createNumberInput(
+    "InstanceCount",
+    {
+        label: "Instance Count",
+        required: true,
+        placeholder: "1",
+    },
+);
+
+const enableMonitoring = await interactionService.createBooleanInput(
+    "EnableMonitoring",
+    { label: "Enable Monitoring" },
+);
+
+const result = await interactionService.promptInputs(
+    "Application Configuration",
+    "Configure your application deployment settings:",
+    [appName, environment, instanceCount, enableMonitoring],
+);
+
+if (!(await result.canceled())) {
+    const name = await result.inputs().value("AppName");
+    const env = await result.inputs().value("Environment");
+    const count = await result.inputs().value("InstanceCount");
+    const monitoring = await result.inputs().value("EnableMonitoring");
+
+    // Use the collected values as needed
+}
+```
+
+</TabItem>
+</Tabs>
+
 **Dashboard view:**
 
 This renders on the dashboard as shown in the following image:
@@ -438,13 +587,16 @@ Environment:
 
 The interaction service supports dynamic inputs so you can populate options based on earlier responses. This enables cascading dropdowns and other dependent prompts in both the dashboard and CLI experiences.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 To configure a dynamic input, set the `InteractionInput.DynamicLoading` property to an instance of `InputLoadOptions`. `InputLoadOptions` has a range of properties:
 
 - **LoadCallback**: A callback function that populates or refreshes the input options. This function is invoked when the input needs to be loaded or refreshed. You can access the current values of other inputs through the `context.AllInputs` dictionary.
 - **DependsOnInputs**: A list of input names that the dynamic input depends on. When any of these inputs change, the `LoadCallback` is triggered to refresh the options for the dynamic input. If no dependencies are specified then the callback is triggered when the interaction starts.
 - **AlwaysLoadOnStart**: If set to `true`, the `LoadCallback` is always called when the interaction starts, even if the dynamic input has dependencies.
 
-```csharp
+```csharp title="AppHost.cs"
 var inputs = new List<InteractionInput>
 {
     new()
@@ -491,15 +643,66 @@ if (!result.Canceled)
 }
 ```
 
-In the preceding example, the `DatabaseVersion` input is dynamically populated based on the selected `DatabaseType`.
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+Use `withDynamicLoading` to populate options based on other inputs. The callback runs server-side, receives a `loadContext`, and updates the loading input through `loadContext.input()`:
+
+```typescript title="apphost.mts"
+const interactionService =
+    await context.services().getInteractionService();
+
+const dbType = await interactionService.createChoiceInput("DatabaseType", {
+    label: "Database Type",
+    choices: [
+        { value: "postgres", label: "PostgreSQL" },
+        { value: "mysql", label: "MySQL" },
+        { value: "sqlserver", label: "SQL Server" },
+    ],
+    options: { required: true },
+});
+
+const dbVersion = await (
+    await interactionService.createChoiceInput("DatabaseVersion", {
+        label: "Database Version",
+        options: { required: true },
+    })
+).withDynamicLoading(
+    async (loadContext) => {
+        const selectedType = await loadContext.inputs().value("DatabaseType");
+        const versions = await getAvailableVersions(selectedType);
+        await loadContext.input().setChoiceOptions(versions);
+    },
+    { dependsOnInputs: ["DatabaseType"] },
+);
+
+const result = await interactionService.promptInputs(
+    "Database configuration",
+    "Select a database type and version",
+    [dbType, dbVersion],
+);
+
+if (!(await result.canceled())) {
+    const version = await result.inputs().value("DatabaseVersion");
+    // Use version-specific configuration...
+}
+```
+
+</TabItem>
+</Tabs>
+
+In the preceding example, the database version input is dynamically populated based on the selected database type.
 
 #### Input validation
 
-Basic input validation is available by configuring `InteractionInput`. It provides options for requiring a value, or the maximum text length of `Text` or `SecretText` fields.
+Basic input validation is available by configuring inputs with `Required` and `MaxLength` properties. For complex scenarios, you can provide a custom validation callback that runs server-side when the user submits the dialog.
 
-For complex scenarios, you can provide custom validation logic using the `InputsDialogInteractionOptions.ValidationCallback` property:
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
-```csharp
+Use the `InputsDialogInteractionOptions.ValidationCallback` property:
+
+```csharp title="AppHost.cs"
 // Multiple inputs with custom validation
 var databaseInputs = new List<InteractionInput>
 {
@@ -572,7 +775,155 @@ if (!dbResult.Canceled && dbResult.Data != null)
 }
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+Supply a `validationCallback` on the options object. The callback reads submitted values through `validationContext.inputs().value(name)` and registers per-field errors through `validationContext.addValidationError(field, message)`:
+
+```typescript title="apphost.mts"
+const interactionService =
+    await context.services().getInteractionService();
+
+const password = await interactionService.createSecretInput("password", {
+    label: "Password",
+    required: true,
+    placeholder: "Enter a strong password",
+});
+
+const confirmPassword = await interactionService.createSecretInput(
+    "confirmPassword",
+    {
+        label: "Confirm password",
+        required: true,
+        placeholder: "Confirm your password",
+    },
+);
+
+const result = await interactionService.promptInputs(
+    "Database configuration",
+    "Configure your PostgreSQL database connection:",
+    [password, confirmPassword],
+    {
+        validationCallback: async (validationContext) => {
+            const pw = await validationContext.inputs().value("password");
+            const cpw = await validationContext
+                .inputs()
+                .value("confirmPassword");
+
+            if (pw && pw.length < 8) {
+                await validationContext.addValidationError(
+                    "password",
+                    "Password must be at least 8 characters long",
+                );
+            }
+            if (pw !== cpw) {
+                await validationContext.addValidationError(
+                    "confirmPassword",
+                    "Passwords do not match",
+                );
+            }
+        },
+    },
+);
+
+if (!(await result.canceled())) {
+    // Use the validated configuration
+}
+```
+
+</TabItem>
+</Tabs>
+
 Prompting the user for a password and confirming they match is referred to as "dual independent verification" input. This approach is common in scenarios where you want to ensure the user enters the same password twice to avoid typos or mismatches.
+
+### Prompt for file upload
+
+The `File` input type enables users to select and upload files through the native OS/browser file picker in the dashboard, or by providing a file path in the CLI. Files are uploaded to the AppHost and stored on disk, with metadata available through the `InteractionFile` class.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var interactionService = services.GetRequiredService<IInteractionService>();
+
+var fileInput = new InteractionInput
+{
+    Name = "ConfigFile",
+    InputType = InputType.File,
+    Label = "Configuration file",
+    Placeholder = "Select a file to import",
+    Required = true,
+    FileFilter = ".json,.yaml,.yml",
+    MaxFileSize = 10 * 1024 * 1024 // 10 MB
+};
+
+var result = await interactionService.PromptInputAsync(
+    "Import configuration",
+    "Select a configuration file to import.",
+    fileInput,
+    cancellationToken: cancellationToken);
+
+if (result.Canceled)
+{
+    return CommandResults.Failure("Canceled");
+}
+
+var file = result.Data.Files?[0];
+if (file is null)
+{
+    return CommandResults.Failure("No file uploaded");
+}
+
+// Read all file content as bytes
+var content = await file.ReadAllBytesAsync(cancellationToken);
+
+// Or open as a stream for large files
+await using var stream = file.OpenRead();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const interactionService =
+    await context.services().getInteractionService();
+
+const fileInput = await interactionService.createFileInput("ConfigFile", {
+    label: "Configuration file",
+    description: "Select a file to import",
+    required: true,
+    maxFileSize: 10 * 1024 * 1024, // 10 MB
+});
+
+const result = await interactionService.promptInput(
+    "Import configuration",
+    "Select a configuration file to import.",
+    fileInput,
+    { primaryButtonText: "Upload" },
+);
+
+if (result.canceled) {
+    return { success: false, message: "Canceled" };
+}
+
+const files = result.input?.files ?? [];
+if (files.length === 0) {
+    return { success: false, message: "No file uploaded" };
+}
+
+const file = files[0];
+// file.name - original filename
+// file.filePath - path to uploaded file on disk
+```
+
+</TabItem>
+</Tabs>
+
+The `InteractionInput` for file uploads supports these additional properties:
+
+- **`FileFilter`**: Restricts selectable files using the same format as the HTML `accept` attribute (for example, `".pem,.pfx,.crt"` or `"image/*"`).
+- **`MaxFileSize`**: Maximum file size in bytes. Files exceeding this limit are rejected with a validation error.
+- **`AllowMultipleFiles`**: When `true`, the user can select more than one file.
 
 ### Best practices for user input
 
@@ -589,6 +940,106 @@ When prompting for user input, consider these best practices:
 
 </Steps>
 
+## Display progress
+
+The interaction service can display a progress dialog during long-running operations. The progress dialog shows an indeterminate progress indicator with an optional title, message, and cancel button. This is useful for scenarios such as resource deployment, data processing, or Azure provisioning where the user should wait for an operation to complete.
+
+:::caution[Experimental API]
+`PromptProgressAsync` and its associated types (`ProgressInteractionOptions`, `ProgressContext`) are experimental and require suppressing the [`ASPIREINTERACTION001`](/diagnostics/aspireinteraction001/) diagnostic. The API shape may change before it stabilizes.
+:::
+
+:::note
+The `PromptProgressAsync` method is only available in dashboard contexts. It throws an exception if called during `aspire publish` or `aspire deploy` operations.
+:::
+
+### Display progress with a work callback
+
+The simplest approach is to provide a `Work` callback via `ProgressInteractionOptions`. The progress dialog opens when `PromptProgressAsync` is called and closes automatically when the callback completes:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREINTERACTION001
+
+var interactionService = services.GetRequiredService<IInteractionService>();
+var result = await interactionService.PromptProgressAsync(
+    "Please wait while resources are being downloaded...",
+    "Downloading resources",
+    new ProgressInteractionOptions
+    {
+        PrimaryButtonText = "Cancel",
+        Work = async progress =>
+        {
+            await DownloadResourcesAsync(progress.CancellationToken);
+        }
+    },
+    cancellationToken);
+
+if (result.Canceled)
+{
+    // User clicked the cancel button.
+}
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const interactionService =
+    await context.services().getInteractionService();
+
+const result = await interactionService.promptProgress(
+    "Please wait while resources are being downloaded...",
+    {
+        title: "Downloading resources",
+        options: {
+            primaryButtonText: "Cancel",
+            work: async () => {
+                await downloadResources();
+            },
+        },
+    },
+);
+
+if (result.canceled) {
+    // User clicked the cancel button.
+}
+```
+
+</TabItem>
+</Tabs>
+
+When a `Work` callback is provided:
+
+- The dialog stays open while the callback runs.
+- If a cancel button is shown (via `PrimaryButtonText`), clicking it triggers `ProgressContext.CancellationToken`, which you can observe inside the callback.
+- The method returns an `InteractionResult<bool>` with `Canceled = true` if the user clicked cancel.
+
+### Display progress without a work callback
+
+If you don't provide a `Work` callback, the progress dialog stays open until the `cancellationToken` passed to `PromptProgressAsync` is canceled, or the user clicks the cancel button (if `PrimaryButtonText` is set). This pattern is useful when you manage the work yourself and want to close the dialog at a specific point:
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREINTERACTION001
+
+var interactionService = services.GetRequiredService<IInteractionService>();
+using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+var progressTask = interactionService.PromptProgressAsync(
+    "Processing data...",
+    "Processing",
+    cancellationToken: cts.Token);
+
+// Do work, then close the dialog by canceling the token.
+await DoWorkAsync(cancellationToken);
+cts.Cancel();
+
+await progressTask;
+```
+
+Because no `PrimaryButtonText` is set, the dialog has no cancel button and the user cannot dismiss it.
+
 ## Interaction contexts
 
 The interaction service behaves differently depending on how your Aspire solution is launched:
@@ -599,6 +1050,7 @@ When you run your application using `aspire run` or by directly launching the Ap
 
 - **Modal dialogs**: Message boxes and input prompts appear as overlay dialogs that require user interaction.
 - **Notification messages**: Informational messages appear as dismissible banners at the top of the dashboard.
+- **Progress dialogs**: Long-running operations display a non-dismissable progress indicator with an optional cancel button.
 - **Rich UI**: Full support for interactive form elements, validation, and visual feedback.
 - **All methods available**: All interaction service methods are supported in dashboard contexts.
 
@@ -608,10 +1060,10 @@ When you run `aspire publish` or `aspire deploy`, interactions are prompted thro
 
 - **Text prompts**: Only input prompts (`PromptInputAsync` and `PromptInputsAsync`) are available and appear as text-based prompts in the terminal.
 - **Sequential input**: Multiple inputs are requested one at a time rather than in a single dialog.
-- **Limited functionality**: Message boxes, notifications, and confirmation dialogs aren't available and throw exceptions if called.
+- **Limited functionality**: Message boxes, notifications, confirmation dialogs, and progress dialogs aren't available and throw exceptions if called.
 
 <Aside type="caution">
-The interaction service adapts automatically to dashboard and CLI contexts. In CLI mode, only input-related methods—`PromptInputAsync` and `PromptInputsAsync`—are supported. Calling `PromptMessageBoxAsync`, `PromptNotificationAsync`, or `PromptConfirmationAsync` in CLI operations like `aspire publish` or `aspire deploy` results in an exception.
+The interaction service adapts automatically to dashboard and CLI contexts. In CLI mode, only input-related methods—`PromptInputAsync` and `PromptInputsAsync`—are supported. Calling `PromptMessageBoxAsync`, `PromptNotificationAsync`, `PromptConfirmationAsync`, or `PromptProgressAsync` in CLI operations like `aspire publish` or `aspire deploy` results in an exception.
 </Aside>
 
 ## See also

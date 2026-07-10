@@ -1269,6 +1269,97 @@ await builder.build().run();
 Use `ResourceCommandVisibility.Api` for automation-only commands (diagnostics, scripting, CI integration) that you don't want to clutter the dashboard UI. Use `ResourceCommandVisibility.UI` for interactive commands that only make sense when a developer is watching the results.
 </Aside>
 
+## Command progress
+
+Commands can display a progress dialog in the dashboard while they execute. The progress dialog shows an indeterminate progress indicator with an optional title, message, and cancel button. Set `CommandOptions.Progress` to a `CommandProgressOptions` value with a `Message` to enable this behavior — the dialog only appears when `Message` is set.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Api>("api")
+    .WithCommand(
+        name: "seed-database",
+        displayName: "Seed Database",
+        executeCommand: async context =>
+        {
+            await SeedDatabaseAsync(context.CancellationToken);
+            return CommandResults.Success("Database seeded.");
+        },
+        commandOptions: new CommandOptions
+        {
+            IconName = "DatabaseArrowDown",
+            Progress = new CommandProgressOptions
+            {
+                Title = "Seeding",
+                Message = "Populating database with sample data..."
+            }
+        });
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+await api.withCommand(
+    "seed-database",
+    "Seed Database",
+    async () => {
+        await seedDatabase();
+        return { success: true, message: "Database seeded." };
+    },
+    {
+        commandOptions: {
+            iconName: "DatabaseArrowDown",
+            progress: {
+                title: "Seeding",
+                message: "Populating database with sample data...",
+            },
+        },
+    },
+);
+```
+
+</TabItem>
+</Tabs>
+
+When `CommandProgressOptions.Message` is set, the dashboard automatically shows the progress dialog when the command starts and closes it when the command completes. By default, a **Cancel** button is shown. Clicking it cancels the command via `ExecuteCommandContext.CancellationToken`.
+
+To hide the cancel button, set `HideCancelButton` to `true`:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var commandOptions = new CommandOptions
+{
+    Progress = new CommandProgressOptions
+    {
+        Message = "Finalizing...",
+        HideCancelButton = true
+    }
+};
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+{
+    commandOptions: {
+        progress: {
+            message: "Finalizing...",
+            hideCancelButton: true,
+        },
+    },
+}
+```
+
+</TabItem>
+</Tabs>
+
+For more control over progress behavior, including custom work callbacks and programmatic dismissal, use `IInteractionService.PromptProgressAsync` directly. For more information, see [Display progress](/extensibility/interaction-service/#display-progress).
+
 ## Process-backed resource commands
 
 :::caution[Experimental API]
