@@ -77,6 +77,28 @@ const slides: Slide[] = [
     dark: metricsDark,
   },
 ];
+
+const tt = (key: string, fallback: string, values?: Record<string, string | number>) => {
+  const translated = Astro.locals.t(key as any, values as any);
+  return translated && translated !== key ? translated : fallback;
+};
+
+const localizedSlides = slides.map((slide) => ({
+  ...slide,
+  label: tt(`landing.dashboardCarousel.slides.${slide.id}.label`, slide.label),
+  alt: tt(`landing.dashboardCarousel.slides.${slide.id}.alt`, slide.alt),
+}));
+
+const carouselLabel = tt('landing.dashboardCarousel.label', 'Aspire dashboard views');
+const chooseViewLabel = tt('landing.dashboardCarousel.chooseView', 'Choose a dashboard view');
+const previousLabel = tt('landing.dashboardCarousel.previous', 'Previous view');
+const nextLabel = tt('landing.dashboardCarousel.next', 'Next view');
+const formatSlideLabel = (index: number, count: number, label: string) =>
+  tt('landing.dashboardCarousel.slideLabel', '{{index}} of {{count}}: {{label}}', {
+    index,
+    count,
+    label,
+  });
 ---
 
 <section
@@ -84,18 +106,19 @@ const slides: Slide[] = [
   data-dashboard-carousel
   role="group"
   aria-roledescription="carousel"
-  aria-label="Aspire dashboard views"
+  aria-label={carouselLabel}
 >
   <div class="stage" data-stage>
     {
-      slides.map((s, i) => (
+      localizedSlides.map((s, i) => (
         <div
           class="slide"
           data-slide
           data-index={i}
+          data-slide-label={s.label}
           role="group"
           aria-roledescription="slide"
-          aria-label={`${i + 1} of ${slides.length}: ${s.label}`}
+          aria-label={formatSlideLabel(i + 1, localizedSlides.length, s.label)}
         >
           <ThemeImage
             light={s.light}
@@ -110,27 +133,26 @@ const slides: Slide[] = [
   </div>
 
   <div class="carousel-footer">
-    <p class="active-label" data-label>{slides[0].label}</p>
+    <p class="active-label" data-active-label>{localizedSlides[0].label}</p>
     <div class="controls">
-      <button type="button" class="nav-btn prev-btn" data-prev aria-label="Previous view">
+      <button type="button" class="nav-btn prev-btn" data-prev aria-label={previousLabel}>
         <Icon name="left-arrow" size="1.5rem" />
       </button>
-      <div class="dots" role="tablist" aria-label="Choose a dashboard view">
+      <div class="dots" role="group" aria-label={chooseViewLabel}>
         {
-          slides.map((s, i) => (
+          localizedSlides.map((s, i) => (
             <button
               type="button"
               class="dot"
               data-dot
               data-index={i}
-              role="tab"
               aria-label={s.label}
-              aria-selected={i === 0 ? 'true' : 'false'}
+              aria-pressed={i === 0 ? 'true' : 'false'}
             />
           ))
         }
       </div>
-      <button type="button" class="nav-btn next-btn" data-next aria-label="Next view">
+      <button type="button" class="nav-btn next-btn" data-next aria-label={nextLabel}>
         <Icon name="right-arrow" size="1.5rem" />
       </button>
     </div>
@@ -147,11 +169,14 @@ const slides: Slide[] = [
       const stage = root.querySelector('[data-stage]');
       const slides = Array.from(root.querySelectorAll('[data-slide]'));
       const dots = Array.from(root.querySelectorAll('[data-dot]'));
-      const label = root.querySelector('[data-label]');
+      const label = root.querySelector('[data-active-label]');
       const prevBtn = root.querySelector('[data-prev]');
       const nextBtn = root.querySelector('[data-next]');
       const n = slides.length;
-      if (!stage || n === 0) return;
+      if (!stage || n === 0) {
+        delete root.dataset.initialized;
+        return;
+      }
 
       const reduce =
         window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -160,11 +185,61 @@ const slides: Slide[] = [
       const MAX_VISIBLE = 2;
       let active = 0;
       let zoomOpen = false;
+      let zoomObserver = null;
+      let cleaned = false;
+      const cleanupTasks = [];
 
-      // Cache each slide's caption once (derived from its aria-label).
-      const labels = slides.map(
-        (s) => (s.getAttribute('aria-label') || '').split(': ').pop() || ''
-      );
+      const labels = slides.map((s) => s.dataset.slideLabel || '');
+      const focusableSelector = [
+        'a[href]',
+        'button',
+        'input',
+        'select',
+        'textarea',
+        '[tabindex]',
+      ].join(',');
+
+      function addListener(target, type, handler, options) {
+        target.addEventListener(type, handler, options);
+        cleanupTasks.push(() => target.removeEventListener(type, handler, options));
+      }
+
+      function setSlideTabbable(slide, tabbable) {
+        if (tabbable) {
+          slide.removeAttribute('aria-hidden');
+        } else {
+          slide.setAttribute('aria-hidden', 'true');
+        }
+        slide.querySelectorAll(focusableSelector).forEach((el) => {
+          if (!(el instanceof HTMLElement)) return;
+          if (tabbable) {
+            if (el.dataset.carouselTabindex === undefined) return;
+            if (el.dataset.carouselTabindex === '') {
+              el.removeAttribute('tabindex');
+            } else {
+              el.setAttribute('tabindex', el.dataset.carouselTabindex);
+            }
+            delete el.dataset.carouselTabindex;
+          } else {
+            if (el.dataset.carouselTabindex === undefined) {
+              el.dataset.carouselTabindex = el.getAttribute('tabindex') ?? '';
+            }
+            el.setAttribute('tabindex', '-1');
+          }
+        });
+      }
+
+      function cleanup() {
+        if (cleaned) return;
+        cleaned = true;
+        stopAuto();
+        if (zoomObserver) zoomObserver.disconnect();
+        cleanupTasks.splice(0).forEach((dispose) => dispose());
+        delete root.dataset.initialized;
+      }
+
+      addListener(document, 'astro:before-swap', cleanup, { once: true });
+      addListener(window, 'pagehide', cleanup, { once: true });
 
       // Prevent the browser's native image drag/highlight ghost during swipe.
       slides.forEach((s) => {
@@ -212,13 +287,14 @@ const slides: Slide[] = [
           slide.style.filter = t.blur ? `blur(${t.blur}px)` : 'none';
           slide.style.pointerEvents = hidden ? 'none' : 'auto';
           slide.classList.toggle('is-active', o === 0);
+          setSlideTabbable(slide, o === 0);
           if (o === 0) {
             slide.setAttribute('aria-current', 'true');
           } else {
             slide.removeAttribute('aria-current');
           }
         }
-        dots.forEach((d, i) => d.setAttribute('aria-selected', i === active ? 'true' : 'false'));
+        dots.forEach((d, i) => d.setAttribute('aria-pressed', i === active ? 'true' : 'false'));
         if (label) label.textContent = labels[active] || '';
       }
 
@@ -242,22 +318,20 @@ const slides: Slide[] = [
       }
 
       // --- Controls ---
-      nextBtn && nextBtn.addEventListener('click', next);
-      prevBtn && prevBtn.addEventListener('click', prev);
-      dots.forEach((d) =>
-        d.addEventListener('click', () => setActive(Number(d.dataset.index) || 0))
-      );
+      nextBtn && addListener(nextBtn, 'click', next);
+      prevBtn && addListener(prevBtn, 'click', prev);
+      dots.forEach((d) => addListener(d, 'click', () => setActive(Number(d.dataset.index) || 0)));
 
       // Click a side slide to bring it to the center.
       slides.forEach((s) =>
-        s.addEventListener('click', () => {
+        addListener(s, 'click', () => {
           if (!s.classList.contains('is-active')) setActive(Number(s.dataset.index) || 0);
         })
       );
 
       // Keyboard navigation when the carousel has focus.
       root.setAttribute('tabindex', '0');
-      root.addEventListener('keydown', (e) => {
+      addListener(root, 'keydown', (e) => {
         if (e.key === 'ArrowRight') {
           e.preventDefault();
           next();
@@ -277,7 +351,8 @@ const slides: Slide[] = [
       let swiping = false; // horizontal gesture claimed
       let dragged = false; // moved enough to suppress the trailing click
 
-      root.addEventListener(
+      addListener(
+        root,
         'pointerdown',
         (e) => {
           if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -289,7 +364,8 @@ const slides: Slide[] = [
         { passive: true }
       );
 
-      root.addEventListener(
+      addListener(
+        root,
         'pointermove',
         (e) => {
           if (startX === null) return;
@@ -324,8 +400,8 @@ const slides: Slide[] = [
           dx < 0 ? next() : prev();
         }
       }
-      root.addEventListener('pointerup', endSwipe);
-      root.addEventListener('pointercancel', () => {
+      addListener(root, 'pointerup', endSwipe);
+      addListener(root, 'pointercancel', () => {
         startX = null;
         startY = null;
         swiping = false;
@@ -334,7 +410,8 @@ const slides: Slide[] = [
       // A swipe must not also fire the trailing click (which would zoom the
       // active image or re-center a side slide). Swallow it in the capture
       // phase before the slide/zoom handlers see it.
-      root.addEventListener(
+      addListener(
+        root,
         'click',
         (e) => {
           if (dragged) {
@@ -350,7 +427,7 @@ const slides: Slide[] = [
       let timer = null;
       const DELAY = 5500;
       function startAuto() {
-        if (reduce || timer || zoomOpen) return;
+        if (reduce || timer || zoomOpen || document.hidden) return;
         timer = window.setInterval(next, DELAY);
       }
       function stopAuto() {
@@ -359,18 +436,22 @@ const slides: Slide[] = [
           timer = null;
         }
       }
-      root.addEventListener('pointerenter', stopAuto);
-      root.addEventListener('pointerleave', startAuto);
-      root.addEventListener('focusin', stopAuto);
-      root.addEventListener('focusout', startAuto);
-      document.addEventListener('visibilitychange', () =>
-        document.hidden ? stopAuto() : startAuto()
-      );
+      function handleFocusOut(e) {
+        if (!root.contains(e.relatedTarget)) startAuto();
+      }
+      function handleVisibilityChange() {
+        document.hidden ? stopAuto() : startAuto();
+      }
+      addListener(root, 'pointerenter', stopAuto);
+      addListener(root, 'pointerleave', startAuto);
+      addListener(root, 'focusin', stopAuto);
+      addListener(root, 'focusout', handleFocusOut);
+      addListener(document, 'visibilitychange', handleVisibilityChange);
 
       // Pause autoplay while an image is zoomed open. starlight-image-zoom adds
       // the `starlight-image-zoom-opened` class to <body> for the duration.
       const body = document.body;
-      const zoomObserver = new MutationObserver(() => {
+      zoomObserver = new MutationObserver(() => {
         const open = body.classList.contains('starlight-image-zoom-opened');
         if (open === zoomOpen) return;
         zoomOpen = open;
@@ -382,7 +463,7 @@ const slides: Slide[] = [
       });
       zoomObserver.observe(body, { attributes: true, attributeFilter: ['class'] });
 
-      window.addEventListener('resize', measure);
+      addListener(window, 'resize', measure);
 
       // Initial paint.
       root.classList.add('is-ready');
@@ -422,6 +503,10 @@ const slides: Slide[] = [
       transparent 100%
     );
     mask-image: linear-gradient(to right, transparent 0, #000 11%, #000 89%, transparent 100%);
+  }
+  .dashboard-carousel:focus-visible {
+    outline: 0.1875rem solid var(--carousel-primary);
+    outline-offset: 0.25rem;
   }
 
   .stage {
@@ -563,7 +648,7 @@ const slides: Slide[] = [
   .dot:hover {
     transform: scale(1.2);
   }
-  .dot[aria-selected='true'] {
+  .dot[aria-pressed='true'] {
     background: var(--carousel-primary);
     transform: scale(1.15);
   }
