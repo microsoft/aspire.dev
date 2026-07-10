@@ -31,7 +31,7 @@ There are scenarios where you might want to allow an unsecured transport. The da
 
 ### Standalone mode
 
-The dashboard is shipped as a Docker image and can be used without the rest of Aspire. When the dashboard is launched in standalone mode, it defaults to a mix of secure and unsecured settings.
+The dashboard can run in standalone mode using `aspire dashboard run` or as a container image. When launched in standalone mode, it defaults to a mix of secure and unsecured settings.
 
 - Browser frontend authenticated with a browser token.
 - Incoming telemetry is unsecured. Warnings are displayed in the console and dashboard UI.
@@ -57,29 +57,27 @@ API key authentication can be enabled on the telemetry endpoint with some additi
 <OsAwareTabs syncKey="terminal">
 <div slot="unix">
 
-```bash
-docker run --rm -it -d -p 18888:18888 -p 4317:18889 -p 4318:18890 --name aspire-dashboard \
-    -e DASHBOARD__OTLP__AUTHMODE='ApiKey' \
-    -e DASHBOARD__OTLP__PRIMARYAPIKEY='{MY_APIKEY}' \
-    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```bash title="Aspire CLI"
+aspire dashboard run \
+    --Dashboard:Otlp:AuthMode=ApiKey \
+    --Dashboard:Otlp:PrimaryApiKey='{MY_APIKEY}'
 ```
 
 </div>
 <div slot="windows">
 
-```powershell
-docker run --rm -it -d -p 18888:18888 -p 4317:18889 -p 4318:18890 --name aspire-dashboard `
-    -e DASHBOARD__OTLP__AUTHMODE='ApiKey' `
-    -e DASHBOARD__OTLP__PRIMARYAPIKEY='{MY_APIKEY}' `
-    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```powershell title="Aspire CLI"
+aspire dashboard run `
+    --Dashboard:Otlp:AuthMode=ApiKey `
+    --Dashboard:Otlp:PrimaryApiKey='{MY_APIKEY}'
 ```
 
 </div>
 </OsAwareTabs>
 
-The preceding Docker command:
+The preceding command:
 
-- Starts the Aspire dashboard image and exposes OTLP endpoints as port `4317` (gRPC) and port `4318` (HTTP)
+- Starts the dashboard with OTLP endpoints on port `4317` (gRPC) and port `4318` (HTTP)
 - Configures the OTLP endpoint to use `ApiKey` authentication. This requires that incoming telemetry has a valid `x-otlp-api-key` header value.
 - Configures the expected API key. `{MY_APIKEY}` in the example value should be replaced with a real API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended.
 
@@ -154,23 +152,21 @@ When enabled, the telemetry API is served on the same endpoint as the dashboard 
 <OsAwareTabs syncKey="terminal">
 <div slot="unix">
 
-```bash
-docker run --rm -it -d -p 18888:18888 -p 4317:18889 -p 4318:18890 --name aspire-dashboard \
-    -e DASHBOARD__API__ENABLED='true' \
-    -e DASHBOARD__API__AUTHMODE='ApiKey' \
-    -e DASHBOARD__API__PRIMARYAPIKEY='{MY_APIKEY}' \
-    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```bash title="Aspire CLI"
+aspire dashboard run \
+    --Dashboard:Api:Enabled=true \
+    --Dashboard:Api:AuthMode=ApiKey \
+    --Dashboard:Api:PrimaryApiKey='{MY_APIKEY}'
 ```
 
 </div>
 <div slot="windows">
 
-```powershell
-docker run --rm -it -d -p 18888:18888 -p 4317:18889 -p 4318:18890 --name aspire-dashboard `
-    -e DASHBOARD__API__ENABLED='true' `
-    -e DASHBOARD__API__AUTHMODE='ApiKey' `
-    -e DASHBOARD__API__PRIMARYAPIKEY='{MY_APIKEY}' `
-    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```powershell title="Aspire CLI"
+aspire dashboard run `
+    --Dashboard:Api:Enabled=true `
+    --Dashboard:Api:AuthMode=ApiKey `
+    --Dashboard:Api:PrimaryApiKey='{MY_APIKEY}'
 ```
 
 </div>
