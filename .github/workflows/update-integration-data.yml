@@ -89,7 +89,7 @@ jobs:
           git config user.name "aspire-repo-bot[bot]"
           git config user.email "aspire-repo-bot[bot]@users.noreply.github.com"
 
-      - name: Commit and push branch
+      - name: Commit and refresh automation branch
         if: ${{ steps.update.outputs.changed == 'true' }}
         id: push
         env:
@@ -97,7 +97,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          branch="chore/update-integration-data-$(date -u +%Y%m%d-%H%M%S)"
+
+          # Single long-lived automation branch. Each run force-pushes one commit
+          # with the latest generated data on top of the freshest main, so an
+          # unreviewed PR is refreshed in place instead of piling up a new PR (and
+          # a new branch) every day. The rolling commit is always a single snapshot
+          # rebased onto current main, which also keeps the PR conflict-free.
+          branch="chore/update-integration-data"
 
           # Stage only the allowed generated data files — never workflow files,
           # source, manifests, or docs. Directories with no changes are no-ops.
@@ -116,15 +122,17 @@ jobs:
             exit 0
           fi
 
-          git checkout -b "$branch"
+          # Reset the branch to a single fresh commit on top of the current main
+          # and force-push, so the open PR (if any) updates in place.
+          git checkout -B "$branch"
           git commit \
             -m "$PR_TITLE" \
             -m "Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>"
-          git push origin "HEAD:refs/heads/$branch"
+          git push --force origin "HEAD:refs/heads/$branch"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           echo "pushed=true" >> "$GITHUB_OUTPUT"
 
-      - name: Create pull request
+      - name: Create or update pull request
         if: ${{ steps.push.outputs.pushed == 'true' }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -136,26 +144,42 @@ jobs:
         run: |
           set -euo pipefail
 
-          new_pr=$(gh pr create \
-            --base main \
+          # Reuse the existing open PR for the rolling branch if there is one, so
+          # its review threads and history carry over; otherwise open a fresh PR.
+          existing=$(gh pr list \
+            --state open \
             --head "$BRANCH" \
-            --title "$PR_TITLE" \
-            --body-file "$PR_BODY_FILE" \
-            --label ":octocat: auto-merge")
-          echo "Created $new_pr"
+            --json number \
+            --jq '.[0].number // empty')
 
-          # Supersede any older open integration-data PRs from this automation.
-          old_prs=$(gh pr list \
+          if [ -n "$existing" ]; then
+            echo "Refreshing existing PR #$existing in place."
+            gh pr edit "$existing" \
+              --title "$PR_TITLE" \
+              --body-file "$PR_BODY_FILE"
+          else
+            new_pr=$(gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "$PR_TITLE" \
+              --body-file "$PR_BODY_FILE" \
+              --label ":octocat: auto-merge")
+            echo "Created $new_pr"
+          fi
+
+          # Close any stray older automation PRs (e.g. legacy timestamped branches
+          # from before the rolling-branch model) so only the single PR remains.
+          strays=$(gh pr list \
             --state open \
             --limit 30 \
             --json number,headRefName \
-            --jq '.[] | select(.headRefName | startswith("chore/update-integration-data")) | select(.headRefName != env.BRANCH) | .number')
+            --jq '.[] | select(.headRefName | startswith("chore/update-integration-data-")) | select(.headRefName != env.BRANCH) | .number')
 
-          for pr in $old_prs; do
-            echo "Superseding older integration-data PR #$pr"
+          for pr in $strays; do
+            echo "Closing stray automation PR #$pr"
             gh pr close "$pr" \
               --delete-branch \
-              --comment "Superseded by the latest Integration Data Updater run ($new_pr)."
+              --comment "Superseded by the rolling Integration Data Updater PR."
           done
 
       - name: Summary
