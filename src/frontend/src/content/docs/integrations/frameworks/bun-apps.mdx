@@ -4,6 +4,7 @@ seoTitle: Bun integration for Aspire AppHost
 description: Learn how to use the Aspire.Hosting.JavaScript Bun hosting APIs to orchestrate Bun applications alongside other resources in the Aspire app host.
 ---
 
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import InstallPackage from '@components/InstallPackage.astro';
 import bunIcon from '@assets/icons/bun-icon.png';
@@ -19,9 +20,9 @@ import bunIcon from '@assets/icons/bun-icon.png';
 
 The Aspire Bun hosting integration enables you to run [Bun](https://bun.sh/) applications alongside your other Aspire resources in the app host. Bun apps participate in the same service discovery, health checks, OpenTelemetry export, and Aspire dashboard support as the rest of your solution.
 
-:::note
-The `AddBunApp(...)` integration was previously implemented as part of the [📦 CommunityToolkit.Aspire.Hosting.Bun](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Bun) package but is now built in to `Aspire.Hosting.JavaScript`.
-:::
+<Aside type="note">
+As of Aspire 13.4, Bun hosting support is available in the official `Aspire.Hosting.JavaScript` package as `BunAppResource`. The `CommunityToolkit.Aspire.Hosting.Bun` package from the Community Toolkit is deprecated — use `Aspire.Hosting.JavaScript` and `AddBunApp` / `addBunApp` for Aspire 13.4+ applications.
+</Aside>
 
 ## Hosting integration
 
@@ -31,7 +32,10 @@ To access the Bun hosting APIs in your [`AppHost`](/get-started/app-host/) proje
 
 ### Add Bun app
 
-Add a Bun application to your app host using the `AddBunApp` extension method:
+Add a Bun application to your app host using the `AddBunApp` / `addBunApp` extension method:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -45,15 +49,37 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-`AddBunApp` requires:
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const bunApp = await builder.addBunApp("bun-api", "../bun-app", "server.ts");
+await bunApp.withHttpEndpoint({ port: 3000, env: "PORT" });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+`AddBunApp` / `addBunApp` requires:
 
 - **name**: The name of the resource in the Aspire dashboard.
 - **appDirectory**: The path to the directory containing your Bun application, relative to the AppHost project.
 - **scriptPath**: The script to run relative to `appDirectory`, such as `server.ts`.
 
+The resource is typed as `BunAppResource`.
+
 ### Specify a custom entrypoint
 
 Pass a different `scriptPath` to run a different script:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -64,13 +90,26 @@ var bunApp = builder.AddBunApp("bun-api", "../bun-app", "src/http/server.ts")
 builder.Build().Run();
 ```
 
-### Install packages before startup
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-When your Bun app includes a `package.json` file, Aspire uses Bun as the package manager and installs packages automatically before the application starts.
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const bunApp = await builder.addBunApp("bun-api", "../bun-app", "src/http/server.ts");
+await bunApp.withHttpEndpoint({ port: 3000, env: "PORT" });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ### Configure HTTP endpoints
 
-Bun applications typically read the port from an environment variable. Use `WithHttpEndpoint` to declare the HTTP endpoint and bind it to a named environment variable:
+Bun applications typically read the port from an environment variable. Use `WithHttpEndpoint` / `withHttpEndpoint` to declare the HTTP endpoint and bind it to a named environment variable:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -97,6 +136,7 @@ console.log(`Server listening on port ${server.port}`);
 ## See also
 
 - [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript)
+- [JavaScript hosting integration](/integrations/frameworks/javascript/)
 - [Bun documentation](https://bun.sh/docs)
 - [Aspire integrations overview](/integrations/overview/)
 - [Aspire GitHub repo](https://github.com/microsoft/aspire)
