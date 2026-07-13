@@ -440,6 +440,8 @@ DTOs are input objects, not live resource handles. Keep `[AspireDto]` types JSON
 
 For an API with one optional options DTO, prefer a flat generated call shape such as `addMyResource('name', { port: 5432 })` instead of requiring `{ options: { port: 5432 } }`. If an existing C# API uses a rich model type that doesn't serialize cleanly, add a small DTO or options type for the exported API.
 
+Both the TypeScript and Go code generators automatically flatten the call shape when a method has exactly one optional parameter that is a DTO named `options` (with no coexisting cancellation token or callback). The Go generator applies this flattening as of Aspire 13.5; TypeScript has done so since Aspire 13.4.
+
 ```csharp title="Flat options DTO"
 [AspireDto]
 public sealed class AddMyWorkerOptions
@@ -463,11 +465,18 @@ public static IResourceBuilder<MyWorkerResource> AddMyWorker(
 }
 ```
 
-```typescript title="Flat generated call shape"
+```typescript title="Flat generated call shape (TypeScript)"
 const worker = await builder.addMyWorker('worker', {
   imageTag: '1.2.3',
   args: ['--verbose'],
 });
+```
+
+```go title="Flat generated call shape (Go)"
+worker, err := builder.AddMyWorker("worker", &aspire.AddMyWorkerOptions{
+    ImageTag: aspire.StringPtr("1.2.3"),
+    Args:     []string{"--verbose"},
+})
 ```
 
 Collection-valued DTO inputs should also feel like plain JSON in the generated SDK:
