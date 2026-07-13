@@ -20,6 +20,10 @@ var pgData = k8s.AddPersistentVolume("pg-data")
     .WithCapacity("20Gi");
 ```
 
+<Aside type="note">
+  The persistent volume APIs are experimental. In C#, suppress the `ASPIRECOMPUTE002` diagnostic to use them.
+</Aside>
+
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
@@ -36,11 +40,9 @@ await pgData.withCapacity('20Gi');
 
 At publish time, the volume renders as a `v1.PersistentVolumeClaim` in the generated Helm chart. Like [ingress and gateway resources](/deployment/kubernetes-ingress/), you configure the volume once and reference it from workloads, rather than relying on a single environment-wide storage shape for every mount.
 
-<Aside type="note">
-  The persistent volume APIs are experimental. In C#, suppress the `ASPIRECOMPUTE002` diagnostic to use them.
-</Aside>
-
 ## Prerequisites
+
+The following prerequisites must be in place before you can use persistent volumes in a Kubernetes cluster:
 
 - The [Aspire.Hosting.Kubernetes](/integrations/compute/kubernetes/) hosting integration installed in your AppHost.
 - A [Kubernetes environment](/integrations/compute/kubernetes/#add-kubernetes-environment) added to your AppHost.
@@ -180,7 +182,7 @@ await api.withKubernetesPersistentVolumeMount(media, '/srv/media');
 </Tabs>
 
 <Aside type="caution" title="Workloads are promoted to StatefulSet">
-  Any workload bound to a persistent volume is rendered as a `StatefulSet` instead of a `Deployment`, regardless of its default workload kind. There is no opt-out. A `Deployment` with a `ReadWriteOnce` claim and more than one replica is broken by design — the second pod can't mount the same volume — so binding to a durable volume automatically selects the `StatefulSet` path, which gives pods stable identity and ordered rollout.
+  Any workload bound to a persistent volume is rendered as a `StatefulSet` instead of a `Deployment`, regardless of its default workload kind. There is no opt-out. A `Deployment` with a `ReadWriteOnce` claim and more than one replica is broken by design because the second pod can't mount the same volume. Therefore, binding to a durable volume automatically selects the `StatefulSet` path, which gives pods stable identity and ordered rollout.
 </Aside>
 
 ## Unbound volumes and default storage
