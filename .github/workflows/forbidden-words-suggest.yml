@@ -19,8 +19,11 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.workflow_run.id }}
-  cancel-in-progress: false
+  # Group by the source pull request (head repo + branch) so rapid pushes don't
+  # run concurrently and race the dedupe check. head_repository.full_name keeps
+  # forks with the same branch name in separate groups.
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
 
 jobs:
   suggest:

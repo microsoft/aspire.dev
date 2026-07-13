@@ -69,6 +69,9 @@ fi
 missing_replacement=$(jq '[.rules[] | select((.replacement // "") == "")] | length' "$CONFIG_FILE")
 if [[ "$missing_replacement" -ne 0 ]]; then
   echo "::error::Every rule in $CONFIG_FILE must define a non-empty \"replacement\". Found $missing_replacement rule(s) without one."
+  # Still emit an (empty) findings document so callers that always consume it
+  # see a valid artifact, even though we fail the check.
+  write_findings
   exit 2
 fi
 

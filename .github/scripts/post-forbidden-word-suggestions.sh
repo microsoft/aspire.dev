@@ -35,6 +35,14 @@ if [[ ! -f "$FINDINGS_FILE" ]]; then
   exit 0
 fi
 
+# The findings document originates from a PR-scoped run, so treat it as
+# untrusted input: if it isn't valid JSON with a findings array, skip quietly
+# instead of failing this best-effort workflow.
+if ! jq -e '.findings | type == "array"' "$FINDINGS_FILE" >/dev/null 2>&1; then
+  echo "::warning::Findings file is missing or not a valid findings document ($FINDINGS_FILE); skipping suggestions."
+  exit 0
+fi
+
 total=$(jq '.findings | length' "$FINDINGS_FILE")
 if [[ "$total" -eq 0 ]]; then
   echo "No findings; nothing to suggest."
@@ -43,8 +51,15 @@ fi
 
 # Existing review comments on the PR, as {path, line} objects (line falls back to
 # original_line for outdated comments). Used to avoid duplicate suggestions.
-existing_json=$(gh api --paginate "/repos/$REPO/pulls/$PR_NUMBER/comments" \
-  --jq '.[] | {path: .path, line: (.line // .original_line)}' | jq -s '.')
+# If the listing fails (permissions, rate limiting, transient network), skip
+# rather than risk posting duplicates or failing this best-effort workflow.
+if ! existing_raw=$(gh api --paginate "/repos/$REPO/pulls/$PR_NUMBER/comments" \
+    --jq '.[] | {path: .path, line: (.line // .original_line)}' 2>/tmp/list-comments.err); then
+  echo "::warning::Could not list existing PR comments; skipping suggestions to avoid duplicates."
+  sed 's/^/  gh: /' /tmp/list-comments.err >&2 || true
+  exit 0
+fi
+existing_json=$(printf '%s' "$existing_raw" | jq -s '.')
 
 # Build the list of comments to post: findings that don't already have a comment
 # on the same (path, line), rendered as a suggestion block.
