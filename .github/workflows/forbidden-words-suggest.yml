@@ -1,0 +1,114 @@
+name: Forbidden Words Suggestions
+
+# Runs after the "Forbidden Words" check completes. That check runs on
+# `pull_request` (no secrets on fork PRs), so the actual suggestion posting is
+# done here in the privileged `workflow_run` context, which has access to the
+# Aspire bot credentials even for pull requests from forks.
+#
+# This job only reads the findings artifact as data and posts review comments.
+# It runs the trusted scripts from the default branch (never the pull request's
+# version) and does not check out or execute pull request code.
+on:
+  workflow_run:
+    workflows: [ "Forbidden Words" ]
+    types: [ completed ]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  suggest:
+    name: Post inline suggestions
+    runs-on: ubuntu-latest
+    # Only act on runs triggered by pull requests.
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    steps:
+      # Check out the trusted scripts from the default branch (NOT the PR head).
+      - name: Checkout scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            .github/scripts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Download findings artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          name: forbidden-words-findings
+          path: findings
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Inspect artifact
+        id: check
+        shell: bash
+        run: |
+          if [[ -f findings/meta.json && -f findings/findings.json ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            count=$(jq '.findings | length' findings/findings.json)
+            echo "Findings: $count"
+            [[ "$count" -gt 0 ]] && echo "has_findings=true" >> "$GITHUB_OUTPUT" || echo "has_findings=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "has_findings=false" >> "$GITHUB_OUTPUT"
+            echo "No findings artifact was produced; nothing to suggest."
+          fi
+
+      - name: Read metadata
+        id: meta
+        if: ${{ steps.check.outputs.has_findings == 'true' }}
+        shell: bash
+        run: |
+          echo "repo=$(jq -r '.repo' findings/meta.json)" >> "$GITHUB_OUTPUT"
+          echo "pr=$(jq -r '.pr' findings/meta.json)" >> "$GITHUB_OUTPUT"
+          echo "head=$(jq -r '.head_sha' findings/meta.json)" >> "$GITHUB_OUTPUT"
+
+      # Skip gracefully when the Aspire bot credentials aren't configured
+      # (e.g. on a fork that runs this workflow without the secrets).
+      - name: Check Aspire bot credentials
+        id: creds
+        if: ${{ steps.check.outputs.has_findings == 'true' }}
+        shell: bash
+        env:
+          APP_ID: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          PRIVATE_KEY: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+        run: |
+          if [[ -n "$APP_ID" && -n "$PRIVATE_KEY" ]]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Aspire bot credentials unavailable; skipping inline suggestions."
+          fi
+
+      - name: Create Aspire bot token
+        id: app_token
+        if: ${{ steps.creds.outputs.ok == 'true' }}
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-pull-requests: write
+          permission-contents: read
+
+      - name: Post inline suggestions
+        if: ${{ steps.app_token.outputs.token != '' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          REPO: ${{ steps.meta.outputs.repo }}
+          PR_NUMBER: ${{ steps.meta.outputs.pr }}
+          HEAD_SHA: ${{ steps.meta.outputs.head }}
+          FINDINGS_FILE: findings/findings.json
+        run: |
+          .github/scripts/post-forbidden-word-suggestions.sh

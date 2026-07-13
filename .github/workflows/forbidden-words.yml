@@ -24,6 +24,10 @@ jobs:
   forbidden-words:
     name: Check forbidden words
     runs-on: ubuntu-latest
+    env:
+      # Directory (relative to the workspace) where findings + PR metadata are
+      # written so the suggestion workflow can pick them up from the artifact.
+      FINDINGS_DIR: forbidden-words-out
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -55,9 +59,56 @@ jobs:
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "head=$head" >> "$GITHUB_OUTPUT"
 
+      # Scan runs with continue-on-error so we can still publish findings (for the
+      # suggestion workflow) before the gate step fails the check.
       - name: Scan added lines for forbidden words
+        id: scan
+        continue-on-error: true
         shell: bash
         run: |
-          .github/scripts/check-forbidden-words.sh \
-            "${{ steps.shas.outputs.base }}" \
-            "${{ steps.shas.outputs.head }}"
+          mkdir -p "$FINDINGS_DIR"
+          FINDINGS_FILE="$FINDINGS_DIR/findings.json" \
+            .github/scripts/check-forbidden-words.sh \
+              "${{ steps.shas.outputs.base }}" \
+              "${{ steps.shas.outputs.head }}"
+
+      # Persist the pull request coordinates alongside the findings so the
+      # workflow_run follow-up knows where to post (workflow_run.pull_requests is
+      # unreliable for fork PRs).
+      - name: Write suggestion metadata
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          META_REPO: ${{ github.repository }}
+          META_PR: ${{ github.event.pull_request.number }}
+          META_HEAD: ${{ steps.shas.outputs.head }}
+          META_BASE: ${{ steps.shas.outputs.base }}
+        run: |
+          mkdir -p "$FINDINGS_DIR"
+          jq -n \
+            --arg repo "$META_REPO" \
+            --argjson pr "$META_PR" \
+            --arg head "$META_HEAD" \
+            --arg base "$META_BASE" \
+            '{repo: $repo, pr: $pr, head_sha: $head, base_sha: $base}' \
+            > "$FINDINGS_DIR/meta.json"
+          cat "$FINDINGS_DIR/meta.json"
+
+      - name: Upload findings
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: forbidden-words-findings
+          path: ${{ env.FINDINGS_DIR }}
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Fail when forbidden words are found
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ steps.scan.outcome }}" != "success" ]]; then
+            echo "::error::Forbidden words were found in added lines (or the scan failed). See the annotations above; inline suggestions are posted on the pull request where possible."
+            exit 1
+          fi
+          echo "No forbidden phrases found in added lines."
