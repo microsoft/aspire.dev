@@ -169,6 +169,7 @@ for file in "${CHANGED_FILES[@]}"; do
 
     corrected="$content"
     line_has_match=0
+    suggestion_available=1
     line_messages=()
     line_patterns=()
 
@@ -195,11 +196,16 @@ for file in "${CHANGED_FILES[@]}"; do
           "$file" "$lineno" "$pattern" "$message"
         printf '    %s:%s: %s\n' "$file" "$lineno" "$content"
 
-        corrected="$(apply_replacement "$corrected" "$pattern" "$replacement" "$case_sensitive")"
+        if ! updated="$(apply_replacement "$corrected" "$pattern" "$replacement" "$case_sensitive")"; then
+          suggestion_available=0
+          echo "::warning file=$file,line=$lineno::Could not build an inline suggestion for this line because the matched pattern is not supported by the replacement engine."
+        else
+          corrected="$updated"
+        fi
       fi
     done
 
-    if [[ "$line_has_match" -eq 1 ]]; then
+    if [[ "$line_has_match" -eq 1 && "$suggestion_available" -eq 1 ]]; then
       messages_json=$(printf '%s\n' "${line_messages[@]}" | jq -R . | jq -s .)
       patterns_json=$(printf '%s\n' "${line_patterns[@]}" | jq -R . | jq -s .)
       jq -cn \

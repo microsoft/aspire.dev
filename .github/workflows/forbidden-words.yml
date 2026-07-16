@@ -2,14 +2,14 @@ name: Forbidden Words
 
 on:
   pull_request:
-    branches: [ main, release/* ]
+    branches: [main, release/*]
   workflow_dispatch:
     inputs:
       base_sha:
-        description: 'Base SHA to diff from (defaults to origin/<default branch>)'
+        description: "Base SHA to diff from (defaults to origin/<default branch>)"
         required: false
       head_sha:
-        description: 'Head SHA to diff to (defaults to HEAD)'
+        description: "Head SHA to diff to (defaults to HEAD)"
         required: false
 
 # Group by PR so new commits cancel the in-flight run for the same PR.
@@ -25,8 +25,7 @@ jobs:
     name: Check forbidden words
     runs-on: ubuntu-latest
     env:
-      # Directory (relative to the workspace) where findings + PR metadata are
-      # written so the suggestion workflow can pick them up from the artifact.
+      # Directory where findings are written for the suggestion workflow.
       FINDINGS_DIR: forbidden-words-out
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -71,28 +70,6 @@ jobs:
             .github/scripts/check-forbidden-words.sh \
               "${{ steps.shas.outputs.base }}" \
               "${{ steps.shas.outputs.head }}"
-
-      # Persist the pull request coordinates alongside the findings so the
-      # workflow_run follow-up knows where to post (workflow_run.pull_requests is
-      # unreliable for fork PRs).
-      - name: Write suggestion metadata
-        if: ${{ always() && github.event_name == 'pull_request' }}
-        shell: bash
-        env:
-          META_REPO: ${{ github.repository }}
-          META_PR: ${{ github.event.pull_request.number }}
-          META_HEAD: ${{ steps.shas.outputs.head }}
-          META_BASE: ${{ steps.shas.outputs.base }}
-        run: |
-          mkdir -p "$FINDINGS_DIR"
-          jq -n \
-            --arg repo "$META_REPO" \
-            --argjson pr "$META_PR" \
-            --arg head "$META_HEAD" \
-            --arg base "$META_BASE" \
-            '{repo: $repo, pr: $pr, head_sha: $head, base_sha: $base}' \
-            > "$FINDINGS_DIR/meta.json"
-          cat "$FINDINGS_DIR/meta.json"
 
       - name: Upload findings
         if: ${{ always() && github.event_name == 'pull_request' }}

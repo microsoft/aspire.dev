@@ -6,12 +6,12 @@ name: Forbidden Words Suggestions
 # Aspire bot credentials even for pull requests from forks.
 #
 # This job only reads the findings artifact as data and posts review comments.
-# It runs the trusted scripts from the default branch (never the pull request's
-# version) and does not check out or execute pull request code.
+# It derives the target pull request from the trusted workflow_run payload and
+# GitHub API, runs scripts from the default branch, and never executes PR code.
 on:
   workflow_run:
-    workflows: [ "Forbidden Words" ]
-    types: [ completed ]
+    workflows: ["Forbidden Words"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -54,7 +54,7 @@ jobs:
         id: check
         shell: bash
         run: |
-          if [[ -f findings/meta.json && -f findings/findings.json ]]; then
+          if [[ -f findings/findings.json ]]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
             count=$(jq '.findings | length' findings/findings.json)
             echo "Findings: $count"
@@ -65,20 +65,49 @@ jobs:
             echo "No findings artifact was produced; nothing to suggest."
           fi
 
-      - name: Read metadata
-        id: meta
+      # Never trust PR coordinates from the artifact. Resolve the source PR from
+      # the workflow_run head identity and require exactly one matching open PR.
+      - name: Resolve source pull request
+        id: source
         if: ${{ steps.check.outputs.has_findings == 'true' }}
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          echo "repo=$(jq -r '.repo' findings/meta.json)" >> "$GITHUB_OUTPUT"
-          echo "pr=$(jq -r '.pr' findings/meta.json)" >> "$GITHUB_OUTPUT"
-          echo "head=$(jq -r '.head_sha' findings/meta.json)" >> "$GITHUB_OUTPUT"
+          candidates=$(
+            gh api --paginate --slurp "/repos/$REPO/pulls?state=open&per_page=100" |
+              jq -c \
+                --arg repo "$REPO" \
+                --arg head "$HEAD_SHA" \
+                --arg head_repo "$HEAD_REPO" \
+                --arg head_branch "$HEAD_BRANCH" \
+                '[.[][] | select(
+                  .state == "open" and
+                  .base.repo.full_name == $repo and
+                  .head.sha == $head and
+                  .head.repo.full_name == $head_repo and
+                  .head.ref == $head_branch
+                )]'
+          )
+          count=$(jq 'length' <<< "$candidates")
+          if [[ "$count" -ne 1 ]]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Expected exactly one open pull request for workflow head $HEAD_SHA, found $count; skipping suggestions."
+            exit 0
+          fi
+
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "pr=$(jq -r '.[0].number' <<< "$candidates")" >> "$GITHUB_OUTPUT"
 
       # Skip gracefully when the Aspire bot credentials aren't configured
       # (e.g. on a fork that runs this workflow without the secrets).
       - name: Check Aspire bot credentials
         id: creds
-        if: ${{ steps.check.outputs.has_findings == 'true' }}
+        if: ${{ steps.source.outputs.found == 'true' }}
         shell: bash
         env:
           APP_ID: ${{ secrets.ASPIRE_BOT_APP_ID }}
@@ -109,9 +138,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
-          REPO: ${{ steps.meta.outputs.repo }}
-          PR_NUMBER: ${{ steps.meta.outputs.pr }}
-          HEAD_SHA: ${{ steps.meta.outputs.head }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.source.outputs.pr }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           FINDINGS_FILE: findings/findings.json
         run: |
           .github/scripts/post-forbidden-word-suggestions.sh
