@@ -135,7 +135,7 @@ The Aspire dashboard supports both gRPC OTLP (port 18889) and HTTP OTLP (port 18
 
 ## Dashboard access after deployment
 
-When you deploy an Aspire app to Azure Container Apps using `aspire deploy`, the Aspire dashboard is included as a container app in your deployment. This gives you a familiar UI for viewing telemetry from your deployed app.
+When you deploy an Aspire app to Azure Container Apps using `aspire deploy`, the Aspire dashboard is included as a Container Apps environment in your deployment. This gives you a familiar UI for viewing telemetry from your deployed app.
 
 <Aside type="caution">
 The deployed Aspire dashboard stores telemetry in memory. Telemetry is lost each time the dashboard container restarts. For persistent telemetry, configure Azure Monitor in addition to the dashboard.
@@ -143,54 +143,19 @@ The deployed Aspire dashboard stores telemetry in memory. Telemetry is lost each
 
 ### Find the dashboard URL
 
-After a successful `aspire deploy`, the deployment output includes URLs for your deployed resources. Look for a Container App named `aspire-dashboard` or similar in the output. The exact format varies depending on the environment name you configured.
+After a successful `aspire deploy`, the deployment output includes URLs for your deployed resources, including the Aspire dashboard URL. Look for a new Container Apps Environment in your Azure portal. The exact format varies depending on the environment name you configured.
 
-You can also find the URL in the [Azure Portal](https://portal.azure.com) by navigating to your resource group, locating the Container App for the Aspire dashboard, and finding its **Application URL** on the **Overview** page.
+You can also find the dashboard URL in the [Azure Portal](https://portal.azure.com) by navigating to your resource group, locating the Container Apps Environment, and finding its **Aspire Dashboard** property on the **Overview** page.
 
-Alternatively, use the Azure CLI:
+Alternatively, use the Azure CLI to obtain the dashboard's domain:
 
 ```bash title="Azure CLI — Get dashboard URL"
-az containerapp show \
-  --name aspire-dashboard \
-  --resource-group my-resource-group \
-  --query properties.configuration.ingress.fqdn \
+az containerapp env show \
+  --name {environment-name} \
+  --resource-group {my-resource-group} \
+  --query properties.defaultDomain \
   --output tsv
 ```
-
-### Authenticate with the login token
-
-The deployed dashboard requires a login token, just like the standalone dashboard. The token is displayed in the dashboard container's logs.
-
-<Steps>
-
-1. In the Azure Portal, navigate to your `aspire-dashboard` Container App.
-
-2. Select **Monitoring** → **Log stream** from the left navigation.
-
-3. Look for a log line containing `login?t=`, for example:
-
-    ```plaintext data-disable-copy
-    Login to the dashboard at https://aspire-dashboard.example.com/login?t=abc123...
-    ```
-
-4. Copy the token value (the part after `t=`) and use it to log in at the dashboard URL.
-
-</Steps>
-
-### Configure a fixed login token
-
-By default, the dashboard generates a new token each time it starts. To set a fixed token, configure the `Dashboard:Frontend:BrowserToken` setting on the dashboard container app after deployment using the Azure CLI:
-
-```bash title="Azure CLI — Set dashboard token"
-az containerapp update \
-  --name aspire-dashboard \
-  --resource-group my-resource-group \
-  --set-env-vars "DASHBOARD__FRONTEND__BROWSERTOKEN=my-secret-token"
-```
-
-<Aside type="caution">
-Use a secure, randomly generated token. Anyone with the token can view sensitive telemetry data including environment variables, connection strings, and runtime data from your app.
-</Aside>
 
 ### Use OpenID Connect authentication
 
