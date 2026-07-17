@@ -35,15 +35,48 @@ To access the Bun hosting APIs in your [`AppHost`](/get-started/app-host/) proje
 
 Remove `CommunityToolkit.Aspire.Hosting.Bun` and install `Aspire.Hosting.JavaScript`. The official API requires the app directory and script path separately:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 // Deprecated Toolkit API:
-// builder.AddBunApp("bun-api", "server.ts");
+// builder.AddBunApp(
+//     "bun-api",
+//     workingDirectory: "../bun-app",
+//     entryPoint: "server.ts");
 
 // Official Aspire.Hosting.JavaScript API:
 builder.AddBunApp("bun-api", "../bun-app", "server.ts");
+
+builder.Build().Run();
 ```
 
-If you pass arguments positionally, add the app directory between the resource name and script path. TypeScript AppHosts continue to use `addBunApp`, but the binding is now generated from `Aspire.Hosting.JavaScript`.
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Deprecated Toolkit API:
+// await builder.addBunApp('bun-api', {
+//   workingDirectory: '../bun-app',
+//   entryPoint: 'server.ts',
+// });
+
+// Official Aspire.Hosting.JavaScript API:
+await builder.addBunApp('bun-api', '../bun-app', 'server.ts');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The official package requires both paths. In TypeScript, replace the Toolkit options object with the official `appDirectory` and `scriptPath` arguments.
 
 ### Add Bun app
 
@@ -91,6 +124,9 @@ await builder.build().run();
 
 Pass a different `scriptPath` to run a different script:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -100,6 +136,27 @@ var bunApp = builder.AddBunApp("bun-api", "../bun-app", "src/http/server.ts")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const bunApp = await builder.addBunApp(
+  'bun-api',
+  '../bun-app',
+  'src/http/server.ts'
+);
+await bunApp.withHttpEndpoint({ port: 3000, env: 'PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 ### Install packages before startup
 
 When your Bun app includes a `package.json` file, Aspire uses Bun as the package manager and installs packages automatically before the application starts.
@@ -107,6 +164,9 @@ When your Bun app includes a `package.json` file, Aspire uses Bun as the package
 ### Configure HTTP endpoints
 
 Bun applications typically read the port from an environment variable. Use `WithHttpEndpoint` to declare the HTTP endpoint and bind it to a named environment variable:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -116,6 +176,23 @@ var bunApp = builder.AddBunApp("bun-api", "../bun-app", "server.ts")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const bunApp = await builder.addBunApp('bun-api', '../bun-app', 'server.ts');
+await bunApp.withHttpEndpoint({ port: 3000, env: 'PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 Your Bun application reads the `PORT` variable at startup:
 
