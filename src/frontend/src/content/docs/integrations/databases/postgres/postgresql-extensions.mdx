@@ -181,7 +181,7 @@ await exampleProject.withReference(postgres);
 
 ### dbx management UI
 
-Use `WithDbx` / `withDbx` to add a dbx child resource configured for the PostgreSQL server:
+[dbx](https://github.com/t8y2/dbx) is a lightweight, web-based database client and an alternative management UI to DbGate and Adminer. Use `WithDbx` / `withDbx` to add a dbx child resource configured for the PostgreSQL server:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -204,7 +204,10 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const postgres = await builder.addPostgres('postgres');
-await postgres.withDbx({ containerName: 'postgres-dbx' });
+await postgres.withDbx({
+  containerName: 'postgres-dbx',
+  imageTag: '0.5.33',
+});
 
 await builder.build().run();
 ```
@@ -221,6 +224,8 @@ Flyway decorators apply to an official `PostgresDatabaseResource`, not the Postg
 ### Run migrations
 
 In C#, add a Flyway resource and pass it to `WithFlywayMigration`. In TypeScript, `withFlywayMigration` creates the Flyway resource from its name and migration scripts path.
+
+Place versioned SQL files such as `V1__init.sql` in `./migrations`; Flyway discovers them by its versioned migration naming convention.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">

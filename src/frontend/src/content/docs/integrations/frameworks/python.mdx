@@ -93,7 +93,7 @@ await builder.build().run();
 
 - **name** — the resource name shown in the Aspire dashboard
 - **appDirectory** — path to the directory containing your Python application
-- **scriptPath** — the Python script to run, relative to the project directory
+- **scriptPath** — the Python script to run, relative to `appDirectory`
 
 ## Add Python module
 
@@ -293,6 +293,8 @@ Common Uvicorn environment variables:
 
 The Python hosting integration automatically detects and uses a virtual environment in the project directory. By default, if a `requirements.txt` or `pyproject.toml` is found, Aspire creates and activates a virtual environment before starting the app.
 
+The official integration doesn't expose a C# or TypeScript API to disable virtual environment management. Use the default `.venv` location or specify a different path.
+
 ### Custom virtual environment
 
 To specify a custom virtual environment path, use `WithVirtualEnvironment`:
@@ -329,25 +331,6 @@ await builder.build().run();
 
 </TabItem>
 </Tabs>
-
-### Disable virtual environment
-
-To opt out of automatic virtual environment management, call `WithoutVirtualEnvironment` in C#:
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
-    .WithoutVirtualEnvironment();
-
-builder.Build().Run();
-```
-
-<Aside type="note">
-  The generated `Aspire.Hosting.Python` TypeScript module does not export a
-  `withoutVirtualEnvironment` decorator. This opt-out is therefore available
-  only to C# AppHosts.
-</Aside>
 
 ## Package management
 
