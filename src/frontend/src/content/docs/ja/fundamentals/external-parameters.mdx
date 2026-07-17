@@ -540,8 +540,13 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const db = (await builder.addSqlServer("sql"))
-    .addDatabase("db");
+// 実行モードでは実際の SQL Server リソースを追加します。
+// 発行モードでは外部 SQL Server インスタンスを表す接続文字列を使用します。
+const isRunMode = await builder.executionContext.isRunMode();
+
+const db = isRunMode
+    ? (await builder.addSqlServer("sql")).addDatabase("db")
+    : await builder.addConnectionString("db");
 
 const insertionRows = await builder.addParameter("insertionRows");
 
