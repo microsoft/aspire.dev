@@ -1,10 +1,32 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, test } from 'vitest';
+
+import aspireIntegrations from '@data/aspire-integrations.json';
+import integrationDocs from '@data/integration-docs.json';
 
 import {
   DEFAULT_NUGET_ICON_URL,
   getOfficialAspireDefaultIconPackages,
   resolveIconUrl,
 } from '../../scripts/update-integrations';
+
+const testsDir = path.dirname(fileURLToPath(import.meta.url));
+const docsRoot = path.resolve(testsDir, '..', '..', 'src', 'content', 'docs');
+const communityPackagePrefix = 'CommunityToolkit.Aspire';
+const communityMappings = integrationDocs.filter(({ match }) =>
+  match.startsWith(communityPackagePrefix)
+);
+
+function docsPageExists(href: string): boolean {
+  const slug = href.split(/[?#]/, 1)[0].replace(/^\/|\/$/g, '');
+  return (
+    existsSync(path.join(docsRoot, `${slug}.mdx`)) ||
+    existsSync(path.join(docsRoot, slug, 'index.mdx'))
+  );
+}
 
 describe('update-integrations icon handling', () => {
   test('uses the package version for official Aspire packages from nuget.org', () => {
@@ -55,5 +77,40 @@ describe('update-integrations icon handling', () => {
         },
       ])
     ).toEqual([]);
+  });
+});
+
+describe('Community Toolkit documentation mappings', () => {
+  test('maps each package at most once', () => {
+    const seen = new Set<string>();
+    const duplicates = communityMappings
+      .map(({ match }) => match)
+      .filter((match) => {
+        if (seen.has(match)) {
+          return true;
+        }
+        seen.add(match);
+        return false;
+      });
+
+    expect(duplicates).toEqual([]);
+  });
+
+  test('only maps packages in the current integration catalog', () => {
+    const catalogPackages = new Set(aspireIntegrations.map(({ title }) => title));
+    const staleMappings = communityMappings
+      .map(({ match }) => match)
+      .filter((match) => !catalogPackages.has(match));
+
+    expect(staleMappings).toEqual([]);
+  });
+
+  test('uses trailing-slash links to existing documentation pages', () => {
+    const invalidDestinations = communityMappings
+      .filter(({ href }) => href.startsWith('/'))
+      .filter(({ href }) => !href.endsWith('/') || !docsPageExists(href))
+      .map(({ match, href }) => `${match}: ${href}`);
+
+    expect(invalidDestinations).toEqual([]);
   });
 });

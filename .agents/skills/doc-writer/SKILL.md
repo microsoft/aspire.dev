@@ -768,11 +768,14 @@ For collapsed sections with children:
 
 ### Update Integration Links
 
-After adding integration documentation, run the update-integrations prompt to ensure the integration is indexed:
+After adding or moving integration documentation:
 
-```
-.github/prompts/update-integrations.prompt.md
-```
+1. Run `pnpm --dir ./src/frontend update:integrations` when the package catalog
+   needs to be refreshed from NuGet.
+2. Reconcile the exact package IDs and canonical documentation URLs in
+   `src/frontend/src/data/integration-docs.json`.
+3. Run `pnpm --dir ./src/frontend test:unit:structured-data` to verify that the
+   mappings are unique and resolve to real pages.
 
 ## Writing Style Guidelines
 
