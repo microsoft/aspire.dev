@@ -89,13 +89,13 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-Use the least-permissive language mode appropriate for the scripts you run. The TypeScript API accepts the language-mode name as a string. Invalid names fail while Aspire constructs the AppHost.
+Use the least-permissive language mode appropriate for the scripts you run. The C# overload that accepts `PSLanguageMode` is marked `[AspireExportIgnore]` because the enum isn't ATS-compatible. The exported TypeScript bridge accepts the language-mode name as a string; invalid names fail while Aspire constructs the AppHost.
 
 ## Add scripts and arguments
 
 `AddScript` / `addScript` creates a child script resource. Aspire parses the script when the AppHost is built, starts it after the pool is running, and streams output, errors, warnings, information, verbose, and debug records to the resource logs.
 
-Use `WithArgs` / `withArgs` to bind values to a PowerShell `param()` block. C# accepts values of any type; the TypeScript export accepts strings.
+Use `WithArgs` / `withArgs` to bind values to a PowerShell `param()` block. The C# `object[]` overload accepts values of any type but is marked `[AspireExportIgnore]` because `object[]` isn't ATS-compatible. The exported TypeScript bridge accepts strings.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -163,7 +163,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-The PowerShell-specific pool `withReference` API is not exported to TypeScript. You can use standard AppHost resource relationships such as `waitFor`, but they do not create a PowerShell connection-string variable.
+The PowerShell-specific pool `WithReference` API is marked `[AspireExportIgnore]` because `IResourceBuilder<IResourceWithConnectionString>` is not currently validated for ATS export in this integration. You can use standard TypeScript AppHost relationships such as `waitFor`, but they do not create a PowerShell connection-string variable.
 
 </TabItem>
 </Tabs>
