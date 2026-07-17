@@ -5,8 +5,9 @@ description: Learn how to use the Aspire SurrealDB Hosting integration to orches
 ---
 
 import { Image } from 'astro:assets';
-import { Aside, Badge, Steps } from '@astrojs/starlight/components';
+import { Aside, Badge, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
+import LearnMore from '@components/LearnMore.astro';
 import surrealdbIcon from '@assets/icons/surrealdb-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
@@ -25,13 +26,12 @@ This article is the reference for the Aspire SurrealDB Hosting integration. It e
 
 If you're new to the SurrealDB integration, start with the [Get started with SurrealDB integrations](/integrations/databases/surrealdb/surrealdb-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to SurrealDB](../surrealdb-connect/).
 
-<Aside type="note">
-  The examples on this page use C#. The Community Toolkit also generates TypeScript AppHost bindings for SurrealDB — `addSurrealServer`, `addNamespace`, `addDatabase`, and configuration methods such as `withDataVolume`, `withLogLevel`, and `withSurrealist` — into `./.aspire/modules/aspire.mjs`. In an `apphost.mts`, each call is awaited separately, and because the configuration methods return an updated builder you reassign the variable, for example: `let primary = await builder.addSurrealServer("primary"); primary = await primary.withDataVolume();`.
-</Aside>
-
 ## Installation
 
 To start building an Aspire app that uses SurrealDB, install the [📦 CommunityToolkit.Aspire.Hosting.SurrealDb](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.SurrealDb) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.SurrealDb" />
 
@@ -45,9 +45,36 @@ Or, choose a manual installation approach:
 <PackageReference Include="CommunityToolkit.Aspire.Hosting.SurrealDb" Version="*" />
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.SurrealDb
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the SurrealDB hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.SurrealDb": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
 ## Add SurrealDB resource
 
 Once you've installed the hosting integration in your AppHost project, you can add a SurrealDB server, namespace, and database resource as shown in the following example:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -62,6 +89,28 @@ builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const surreal = await builder.addSurrealServer("surreal");
+const ns = await surreal.addNamespace("ns");
+const db = await ns.addDatabase("db");
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(db);
+await exampleProject.waitFor(db);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
 
 <Steps>
 
@@ -83,6 +132,9 @@ builder.AddProject<Projects.ExampleProject>()
 
 To add [Surrealist](https://hub.docker.com/r/surrealdb/surrealist) to the SurrealDB server resource, call the `WithSurrealist` method:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -100,11 +152,38 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+let surreal = await builder.addSurrealServer("surreal");
+surreal = await surreal.withSurrealist();
+
+const ns = await surreal.addNamespace("ns");
+const db = await ns.addDatabase("db");
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(db);
+await exampleProject.waitFor(db);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
+
 Surrealist is a web-based user interface for interacting with your SurrealDB database visually. It lets you connect to any SurrealDB instance, execute queries, explore your tables, and design your schemas.
 
 ## Add SurrealDB resource with data bind mount
 
 To add a data bind mount to the SurrealDB resource, call the `WithDataBindMount` method:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -121,11 +200,38 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+let surreal = await builder.addSurrealServer("surreal");
+surreal = await surreal.withDataBindMount("./data/surreal/data");
+
+const ns = await surreal.addNamespace("ns");
+const db = await ns.addDatabase("db");
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(db);
+await exampleProject.waitFor(db);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
+
 Data bind mounts rely on the host machine's filesystem to persist SurrealDB data across container restarts. The mount path `./data/surreal/data` is resolved relative to the AppHost project directory. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
 ## Add SurrealDB resource with parameters
 
 When you want to explicitly provide the password used by the container image, you can provide it as a parameter:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -143,11 +249,38 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const password = await builder.addParameter("password", { secret: true });
+
+const surreal = await builder.addSurrealServer("surreal", { password });
+const ns = await surreal.addNamespace("ns");
+const db = await ns.addDatabase("db");
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(db);
+await exampleProject.waitFor(db);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
+
 For more information on providing parameters, see [External parameters](/get-started/resources/).
 
 ## Configure logging
 
 To configure the log level for the SurrealDB container, call the `WithLogLevel` method:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -166,7 +299,31 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
-The `WithLogLevel` method enables verbose logging in the SurrealDB container, which is useful during development and debugging.
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+let surreal = await builder.addSurrealServer("surreal");
+surreal = await surreal.withLogLevel("Debug");
+
+const ns = await surreal.addNamespace("ns");
+const db = await ns.addDatabase("db");
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(db);
+await exampleProject.waitFor(db);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
+
+The `WithLogLevel` method enables verbose logging in the SurrealDB container, which is useful during development and debugging. The polyglot TypeScript AppHost accepts the log level as a string (for example, `"Trace"`, `"Debug"`, `"Information"`, `"Warning"`, `"Error"`, `"Critical"`, or `"None"`).
 
 ## Health checks
 
