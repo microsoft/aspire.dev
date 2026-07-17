@@ -1,0 +1,175 @@
+---
+title: Connect Aspire apps to LavinMQ
+description: Use LavinMQ connection properties from C#, TypeScript, Python, and Go apps with RabbitMQ-compatible AMQP 0-9-1 clients.
+next: false
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import lavinmqIcon from '@assets/icons/lavinmq-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={lavinmqIcon}
+  alt="LavinMQ logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a LavinMQ resource. For broker ports, storage, management, and health checks, see [Set up LavinMQ in the Aspire AppHost](../lavinmq-host/).
+
+LavinMQ implements AMQP 0-9-1 and is wire-compatible with RabbitMQ. There is no LavinMQ-specific Community Toolkit client package; use a RabbitMQ-compatible client.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. A resource named `lavinmq` provides:
+
+| Property   | Environment variable | Description                                   |
+| ---------- | -------------------- | --------------------------------------------- |
+| `Host`     | `LAVINMQ_HOST`       | Broker hostname or IP address                 |
+| `Port`     | `LAVINMQ_PORT`       | AMQP endpoint port                            |
+| `Username` | `LAVINMQ_USERNAME`   | Username; defaults to `guest`                 |
+| `Password` | `LAVINMQ_PASSWORD`   | Password; defaults to `guest`                 |
+| `Uri`      | `LAVINMQ_URI`        | `amqp://{Username}:{Password}@{Host}:{Port}/` |
+
+Unlike the Aspire RabbitMQ resource, the LavinMQ resource doesn't expose a `VirtualHost` property. Its URI uses `/`.
+
+<Aside type="note">
+  If the AppHost uses `AddConnectionString("lavinmq")` or
+  `addConnectionString("lavinmq")` for an external broker, the app receives
+  `ConnectionStrings:lavinmq` or `ConnectionStrings__lavinmq` instead of the
+  individual properties above.
+</Aside>
+
+## Connect from your app
+
+<Tabs syncKey="lavinmq-consuming-lang">
+<TabItem label="C#">
+
+C# apps can use the Aspire RabbitMQ client integration because LavinMQ is wire-compatible with RabbitMQ. Install:
+
+<InstallDotNetPackage packageName="Aspire.RabbitMQ.Client" />
+
+Register the client with the LavinMQ resource name:
+
+```csharp title="Program.cs"
+builder.AddRabbitMQClient(connectionName: "lavinmq");
+```
+
+Then resolve `RabbitMQ.Client.IConnection` through dependency injection.
+
+To use the URI directly with the RabbitMQ .NET client:
+
+```csharp title="Program.cs"
+using RabbitMQ.Client;
+
+var uri = Environment.GetEnvironmentVariable("LAVINMQ_URI")
+    ?? throw new InvalidOperationException("LAVINMQ_URI is not set.");
+
+var factory = new ConnectionFactory { Uri = new Uri(uri) };
+using var connection = await factory.CreateConnectionAsync();
+using var channel = await connection.CreateChannelAsync();
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install `amqplib` and its TypeScript declarations:
+
+```bash title="Terminal"
+npm install amqplib
+npm install --save-dev @types/amqplib
+```
+
+```typescript title="index.ts"
+import amqp from 'amqplib';
+
+const uri = process.env.LAVINMQ_URI;
+if (!uri) {
+  throw new Error('LAVINMQ_URI is not set.');
+}
+
+const connection = await amqp.connect(uri);
+const channel = await connection.createChannel();
+
+// Publish or consume messages with channel.
+
+await channel.close();
+await connection.close();
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install `pika`:
+
+```bash title="Terminal"
+pip install pika
+```
+
+```python title="app.py"
+import os
+
+import pika
+
+parameters = pika.URLParameters(os.environ["LAVINMQ_URI"])
+connection = pika.BlockingConnection(parameters)
+channel = connection.channel()
+
+# Publish or consume messages with channel.
+
+connection.close()
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Install the official RabbitMQ AMQP 0-9-1 Go client:
+
+```bash title="Terminal"
+go get github.com/rabbitmq/amqp091-go
+```
+
+```go title="main.go"
+package main
+
+import (
+    "os"
+
+    amqp "github.com/rabbitmq/amqp091-go"
+)
+
+func main() {
+    connection, err := amqp.Dial(os.Getenv("LAVINMQ_URI"))
+    if err != nil {
+        panic(err)
+    }
+    defer connection.Close()
+
+    channel, err := connection.Channel()
+    if err != nil {
+        panic(err)
+    }
+    defer channel.Close()
+
+    // Publish or consume messages with channel.
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Health checks and telemetry
+
+`Aspire.RabbitMQ.Client` adds a connection health check and RabbitMQ client tracing for C# apps. Other language clients provide their own logging, recovery, and instrumentation options.
+
+## See also
+
+- [RabbitMQ client integration](/integrations/messaging/rabbitmq/rabbitmq-connect/)
+- [LavinMQ documentation](https://lavinmq.com/documentation)
+- [AMQP 0-9-1 model](https://www.rabbitmq.com/tutorials/amqp-concepts/)
+- [Set up LavinMQ in the Aspire AppHost](../lavinmq-host/)
