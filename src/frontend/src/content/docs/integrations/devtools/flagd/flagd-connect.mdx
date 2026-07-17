@@ -253,20 +253,50 @@ dotnet add package OpenFeature.Providers.Ofrep
 
 In your AppHost, retrieve the OFREP endpoint from the flagd resource and pass it to your consuming project as an environment variable:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var flagd = builder.AddFlagd("flagd")
-                   .WithBindFileSync("./flags/");
+    .WithBindFileSync("./flags/");
 
 var ofrepEndpoint = flagd.GetEndpoint("ofrep");
 
-builder.AddProject<Projects.ExampleProject>()
-       .WaitFor(flagd)
-       .WithEnvironment("OFREP_ENDPOINT", ofrepEndpoint);
+builder.AddProject<Projects.ExampleProject>("api")
+    .WaitFor(flagd)
+    .WithEnvironment("OFREP_ENDPOINT", ofrepEndpoint);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const flagd = await builder.addFlagd('flagd');
+await flagd.withBindFileSync('./flags/');
+
+const ofrepEndpoint = await flagd.ofrepEndpoint();
+
+const api = await builder.addProject(
+  'api',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.waitFor(flagd);
+await api.withEnvironment('OFREP_ENDPOINT', ofrepEndpoint);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ### Configure the client
 
