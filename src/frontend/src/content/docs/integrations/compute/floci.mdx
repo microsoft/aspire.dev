@@ -1,0 +1,439 @@
+---
+title: Floci integration
+seoTitle: Aspire Floci integration for AWS emulation
+description: Learn how to use the Aspire Floci hosting integration to emulate AWS services locally in your development environment.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import flociIcon from '@assets/icons/floci.svg';
+
+<Image
+  src={flociIcon}
+  alt="Floci logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The Aspire Floci hosting integration enables you to model Floci as a container resource in your Aspire application. Floci is a high-performance AWS emulator that runs as a container and supports 65+ AWS services. This integration simplifies local AWS service development and testing without requiring actual cloud resources. It supports:
+
+- Running Floci as a containerized AWS emulator in your Aspire application
+- Automatic environment variable injection for dependent services to connect to AWS services
+- Customizable port, region, and AWS account ID configuration
+- Data persistence with volume mounting
+- Advanced features like TLS encryption and custom configuration files
+- Health checks for container readiness
+
+## Installation
+
+To start building an Aspire app that uses Floci, install the [📦 CommunityToolkit.Aspire.Hosting.Floci](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Floci) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add floci
+```
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.Floci@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.Floci" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add floci
+```
+
+This updates your `aspire.config.json` with the Floci hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Floci": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Add Floci resource
+
+The following example demonstrates how to add a Floci resource to your app model:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var floci = builder.AddFloci("floci");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(floci)
+    .WaitFor(floci);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const floci = await builder.addFloci('floci');
+
+const apiService = await builder.addProject('api', '../Api/Api.csproj')
+    .withReference(floci)
+    .waitFor(floci);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The preceding code:
+
+- Creates a Floci container resource named `floci`
+- Adds an API service project that references the Floci service
+- Uses `WaitFor` to ensure Floci is ready before starting the API service
+- Automatically configures AWS environment variables in the API service
+
+### Configure Floci resource properties
+
+You can customize the Floci container with various configuration options:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var floci = builder.AddFloci("floci", options =>
+{
+    options.Port = 14566;
+    options.DefaultRegion = "eu-west-1";
+    options.DefaultAccountId = "123456789012";
+});
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(floci);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const floci = await builder.addFloci('floci', {
+    port: 14566,
+    defaultRegion: 'eu-west-1',
+    defaultAccountId: '123456789012',
+});
+
+const api = await builder.addProject('api', '../Api/Api.csproj')
+    .withReference(floci);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+Key configuration options:
+
+- **Port**: The port on which Floci listens (default: 4566)
+- **Default Region**: AWS region for the emulator (default: `us-east-1`)
+- **Default Account ID**: AWS account ID for the emulator (default: `000000000000`)
+
+### Add data persistence to Floci
+
+Floci supports two approaches for data persistence: named volumes (recommended) and bind mounts.
+
+#### Named volume (recommended)
+
+Named volumes automatically switch Floci from in-memory to persistent mode:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var floci = builder.AddFloci("floci")
+    .WithDataVolume("floci-data");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const floci = await builder.addFloci('floci');
+await floci.withDataVolume('floci-data');
+```
+</TabItem>
+</Tabs>
+
+#### Bind mount
+
+Alternatively, use a bind mount for directory-based storage:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var floci = builder.AddFloci("floci")
+    .WithBindMount("./floci-data", "/tmp/floci-data");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const floci = await builder.addFloci('floci');
+await floci.withDataBindMount('/tmp/floci-data');
+```
+</TabItem>
+</Tabs>
+
+This configuration:
+
+- Persists AWS resource state across container restarts
+- Allows local inspection of stored state in the volume or mounted directory
+
+### Use AWS SDK to interact with Floci
+
+Once Floci is running and referenced by your service, you can use the AWS SDK to interact with emulated services. The `WithReference` method automatically injects the necessary AWS environment variables:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="Service.cs"
+using Amazon.S3;
+using Amazon.S3.Model;
+
+public class StorageService
+{
+    private readonly IAmazonS3 _s3Client;
+
+    public StorageService(IAmazonS3 s3Client)
+    {
+        _s3Client = s3Client;
+    }
+
+    public async Task CreateBucketAsync(string bucketName)
+    {
+        await _s3Client.PutBucketAsync(new PutBucketRequest 
+        { 
+            BucketName = bucketName 
+        });
+    }
+
+    public async Task UploadObjectAsync(string bucketName, string key, Stream stream)
+    {
+        await _s3Client.PutObjectAsync(new PutObjectRequest
+        {
+            BucketName = bucketName,
+            Key = key,
+            InputStream = stream
+        });
+    }
+}
+```
+</TabItem>
+</Tabs>
+
+### Enable Lambda and container-backed services
+
+Floci requires access to the Docker socket to launch sibling containers for Lambda and other container-backed services:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var floci = builder.AddFloci("floci")
+    .WithDockerSocket();
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(floci);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const floci = await builder.addFloci('floci');
+await floci.withDockerSocket();
+
+const api = await builder.addProject('api', '../Api/Api.csproj')
+    .withReference(floci);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+On non-standard Docker installations (e.g., Podman, Rancher Desktop), pass the socket path explicitly:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var floci = builder.AddFloci("floci")
+    .WithDockerSocket("/run/user/1000/podman/podman.sock");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(floci);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const floci = await builder.addFloci('floci');
+await floci.withDockerSocket({
+    socketPath: '/run/user/1000/podman/podman.sock'
+});
+
+const api = await builder.addProject('api', '../Api/Api.csproj')
+    .withReference(floci);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+### Quarkus configuration
+
+Mount a custom `application.yml` to tune any Floci setting that doesn't have a dedicated extension method. The file is injected read-only at `/deployments/config/application.yml`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var floci = builder.AddFloci("floci")
+    .WithConfigFile("./floci.yml");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const floci = await builder.addFloci('floci');
+await floci.withConfigFile('./floci.yml');
+```
+</TabItem>
+</Tabs>
+
+Example `floci.yml`:
+
+```yaml title="floci.yml"
+floci:
+  auth:
+    validate-signatures: false
+quarkus:
+  log:
+    level: DEBUG
+```
+
+### TLS/HTTPS support
+
+Use the standard Aspire `WithHttpsDeveloperCertificate()` API to enable TLS. The integration automatically configures `FLOCI_TLS_ENABLED`, `FLOCI_TLS_CERT_PATH`, and `FLOCI_TLS_KEY_PATH`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var floci = builder.AddFloci("floci")
+    .WithHttpsDeveloperCertificate();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const floci = await builder.addFloci('floci');
+await floci.withHttpsDeveloperCertificate();
+```
+</TabItem>
+</Tabs>
+
+When TLS is enabled, the `AWS_ENDPOINT_URL` automatically switches to the `https://` scheme. Run `aspire certs trust` once to add the Aspire development certificate to your system trust store.
+
+You can also bring your own PEM certificate:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var cert = X509Certificate2.CreateFromPemFile("/certs/floci.crt", "/certs/floci.key");
+
+var floci = builder.AddFloci("floci")
+    .WithHttpsCertificate(cert);
+```
+</TabItem>
+</Tabs>
+
+## Environment variables
+
+When a service references a Floci resource using `WithReference`, the following environment variables are automatically injected:
+
+| Variable | Value |
+|----------|-------|
+| `ConnectionStrings__floci` | `http://localhost:{port}` (standard Aspire connection string) |
+| `AWS_ENDPOINT_URL` | `http://localhost:{port}` (host processes) / `http://host.docker.internal:{port}` (containers) |
+| `AWS_DEFAULT_REGION` | Region passed to `AddFloci` (default: `us-east-1`) |
+| `AWS_ACCESS_KEY_ID` | `test` |
+| `AWS_SECRET_ACCESS_KEY` | `test` |
+
+You can override any of these settings via standard Aspire environment variable configuration. All Floci-specific settings can also be set via `FLOCI_`-prefixed environment variables.
+
+## Integration testing
+
+Floci is ideal for integration testing AWS-dependent code without requiring cloud credentials or incurring costs. Since Floci is managed as an Aspire resource, you can use it in integration tests the same way you use other Aspire resources.
+
+## Supported AWS services
+
+Floci supports 65+ AWS services including:
+
+- **Storage**: S3, DynamoDB, EBS
+- **Compute**: Lambda, EC2
+- **Messaging**: SQS, SNS, Kinesis
+- **Databases**: RDS, DynamoDB
+- **Other services**: CloudFormation, CloudWatch, IAM, and many more
+
+For a complete list of supported services, visit the [Floci documentation](https://floci.io).
+
+## Troubleshooting
+
+### Container fails to start
+
+- Ensure Docker is running and has sufficient resources
+- Check that the specified port isn't already in use
+- Verify the Floci container image is available locally or can be pulled from Docker Hub
+
+### Connection refused errors
+
+- Verify the Floci container is running: `docker ps | grep floci`
+- Check that the endpoint URL matches the configured port
+- Ensure the service has the correct `WithReference` to the Floci resource
+
+### Data persistence issues
+
+- Verify the bind mount directory has the correct permissions
+- Check that the host path exists before starting the container
+- Use absolute paths for bind mounts to avoid path resolution issues
+
+## See also
+
+- [Floci documentation](https://floci.io)
+- [Floci GitHub repository](https://github.com/floci-io/floci)
+- [AWS SDK for .NET](https://docs.aws.amazon.com/sdk-for-net/)
+- [Aspire Hosting documentation](/architecture/overview/)
+- [CommunityToolkit.Aspire.Hosting.Floci GitHub](https://github.com/CommunityToolkit/Aspire)
+- [CommunityToolkit.Aspire.Hosting.Floci NuGet package](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Floci)

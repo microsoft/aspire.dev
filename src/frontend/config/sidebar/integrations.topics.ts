@@ -868,6 +868,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         { label: 'Docker', slug: 'integrations/compute/docker' },
+        { label: 'Floci', slug: 'integrations/compute/floci' },
         { label: 'K3s', slug: 'integrations/compute/k3s' },
         { label: 'Kubernetes', slug: 'integrations/compute/kubernetes' },
       ],
