@@ -52,6 +52,31 @@ describe('update-integrations icon handling', () => {
     );
   });
 
+  test('uses the selected version for Community Toolkit package icons', () => {
+    expect(
+      resolveIconUrl({
+        id: 'CommunityToolkit.Aspire.Hosting.Bun',
+        version: '13.3.0',
+        iconUrl:
+          'https://api.nuget.org/v3-flatcontainer/communitytoolkit.aspire.hosting.bun/13.4.1-beta.686/icon',
+      })
+    ).toBe(
+      'https://api.nuget.org/v3-flatcontainer/communitytoolkit.aspire.hosting.bun/13.3.0/icon'
+    );
+  });
+
+  test('keeps Community Toolkit catalog icons aligned with package versions', () => {
+    const mismatches = aspireIntegrations
+      .filter(({ title }) => title.startsWith(communityPackagePrefix))
+      .filter(
+        ({ icon, version }) =>
+          version != null && !icon.toLowerCase().endsWith(`/${version.toLowerCase()}/icon`)
+      )
+      .map(({ title, version }) => `${title}@${version}`);
+
+    expect(mismatches).toEqual([]);
+  });
+
   test('reports default icons for official Aspire packages without throwing', () => {
     expect(
       getOfficialAspireDefaultIconPackages([
