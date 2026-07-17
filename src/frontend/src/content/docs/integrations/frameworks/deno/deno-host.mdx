@@ -60,11 +60,13 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const api = await builder.addDenoApp('deno-api', 'main.ts', {
-  workingDirectory: '../deno-api',
-  permissionFlags: ['--allow-env', '--allow-net'],
-  args: ['--verbose'],
-});
+const api = await builder.addDenoApp(
+  'deno-api',
+  'main.ts',
+  '../deno-api',
+  ['--allow-env', '--allow-net'],
+  ['--verbose']
+);
 
 await builder.build().run();
 ```
@@ -103,11 +105,10 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const web = await builder.addDenoTask('web', {
-  workingDirectory: '../web',
-  taskName: 'dev',
-  args: ['--host', '0.0.0.0'],
-});
+const web = await builder.addDenoTask('web', '../web', 'dev', [
+  '--host',
+  '0.0.0.0',
+]);
 
 await builder.build().run();
 ```
@@ -183,9 +184,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const api = await builder
-  .addDenoApp('deno-api', 'main.ts', {
-    permissionFlags: ['--allow-env', '--allow-net'],
-  })
+  .addDenoApp('deno-api', 'main.ts', undefined, ['--allow-env', '--allow-net'])
   .withHttpEndpoint({ port: 8000, env: 'PORT' })
   .withEnvironment('LOG_LEVEL', 'debug')
   .withHttpHealthCheck({ path: '/health' });
