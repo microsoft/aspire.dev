@@ -83,7 +83,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -91,11 +91,7 @@ const builder = await createBuilder();
 const sql = await builder.addSqlServer('sql');
 const database = await sql.addDatabase('catalog');
 
-const dab = await builder
-  .addDataAPIBuilder('dab', {
-    configFilePaths: ['./dab-config.json'],
-  })
-  .withReference(database);
+const dab = await builder.addDataAPIBuilder('dab').withReference(database);
 
 await builder.addNodeApp('web', './web', 'index.js').withReference(dab);
 
@@ -157,19 +153,28 @@ Pass every configuration path to `AddDataAPIBuilder` or `addDataAPIBuilder`. Eac
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var dab = builder.AddDataAPIBuilder(
     "dab",
     ["dab-config.json", "dab-config.admin.json"]);
+
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
 const dab = await builder.addDataAPIBuilder('dab', {
   configFilePaths: ['./dab-config.json', './dab-config.admin.json'],
-  httpPort: 5001,
 });
+
+await builder.build().run();
 ```
 
 </TabItem>
@@ -183,20 +188,69 @@ The DAB resource is a standard container resource, so you can replace the regist
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var dab = builder.AddDataAPIBuilder("dab")
     .WithImageRegistry("myregistry.azurecr.io")
     .WithImage("custom-dab")
     .WithImageTag("1.0.0");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const dab = await builder.addDataAPIBuilder('dab');
+await dab.withImageRegistry('myregistry.azurecr.io');
+await dab.withImage('custom-dab');
+await dab.withImageTag('1.0.0');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Use endpoint properties
+
+The resource exports its primary endpoint, host, port, and URI expression for use in custom AppHost expressions:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var dab = builder.AddDataAPIBuilder("dab");
+var primaryEndpoint = dab.Resource.PrimaryEndpoint;
+var host = dab.Resource.Host;
+var port = dab.Resource.Port;
+var uri = dab.Resource.UriExpression;
+
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
 const dab = await builder.addDataAPIBuilder('dab');
-await dab.withImageRegistry('myregistry.azurecr.io');
-await dab.withImage('custom-dab');
-await dab.withImageTag('1.0.0');
+const primaryEndpoint = await dab.primaryEndpoint();
+const host = await dab.host();
+const port = await dab.port();
+const uri = await dab.uriExpression();
+
+await builder.build().run();
 ```
 
 </TabItem>

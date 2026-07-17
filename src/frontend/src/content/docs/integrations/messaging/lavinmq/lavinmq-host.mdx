@@ -77,7 +77,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -109,20 +109,30 @@ Pass fixed host ports when another process needs stable endpoints:
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var lavinmq = builder.AddLavinMQ(
     "lavinmq",
     amqpPort: 5672,
     managementPort: 15672);
+
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
 const lavinmq = await builder.addLavinMQ('lavinmq', {
   amqpPort: 5672,
   managementPort: 15672,
 });
+
+await builder.build().run();
 ```
 
 </TabItem>
@@ -139,16 +149,26 @@ When you omit these parameters, the integration binds host ports `5672` and
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var lavinmq = builder.AddLavinMQ("lavinmq")
     .WithDataVolume("lavinmq-data");
+
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
 const lavinmq = await builder.addLavinMQ('lavinmq');
 await lavinmq.withDataVolume('lavinmq-data');
+
+await builder.build().run();
 ```
 
 </TabItem>
@@ -162,22 +182,73 @@ Use a bind mount when you need direct access to broker files on the host:
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var lavinmq = builder.AddLavinMQ("lavinmq")
     .WithDataBindMount(@"C:\LavinMQ\Data");
+
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
 const lavinmq = await builder.addLavinMQ('lavinmq');
 await lavinmq.withDataBindMount('./lavinmq-data');
+
+await builder.build().run();
 ```
 
 </TabItem>
 </Tabs>
 
 Both persistence methods accept an optional `isReadOnly` value. A read-only mount isn't suitable for a broker that needs to write data.
+
+## Use endpoint properties
+
+The resource exports its AMQP endpoint and connection expressions for use in custom AppHost expressions:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var lavinmq = builder.AddLavinMQ("lavinmq");
+var primaryEndpoint = lavinmq.Resource.PrimaryEndpoint;
+var host = lavinmq.Resource.Host;
+var port = lavinmq.Resource.Port;
+var uri = lavinmq.Resource.UriExpression;
+var connectionString = lavinmq.Resource.ConnectionStringExpression;
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const lavinmq = await builder.addLavinMQ('lavinmq');
+const primaryEndpoint = await lavinmq.primaryEndpoint();
+const host = await lavinmq.host();
+const port = await lavinmq.port();
+const uri = await lavinmq.uriExpression();
+const connectionString = await lavinmq.connectionStringExpression();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ## Management UI
 

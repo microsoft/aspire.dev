@@ -39,12 +39,43 @@ Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPE
 
 Unlike the Aspire RabbitMQ resource, the LavinMQ resource doesn't expose a `VirtualHost` property. Its URI uses `/`.
 
-<Aside type="note">
-  If the AppHost uses `AddConnectionString("lavinmq")` or
-  `addConnectionString("lavinmq")` for an external broker, the app receives
-  `ConnectionStrings:lavinmq` or `ConnectionStrings__lavinmq` instead of the
-  individual properties above.
-</Aside>
+For an external broker, model the connection string in the AppHost instead of adding a LavinMQ container:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var lavinmq = builder.AddConnectionString("lavinmq");
+
+builder.AddProject<Projects.Worker>("worker")
+    .WithReference(lavinmq);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const lavinmq = await builder.addConnectionString('lavinmq');
+
+await builder
+  .addNodeApp('worker', './worker', 'index.js')
+  .withReference(lavinmq);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+C# configuration reads `ConnectionStrings:lavinmq`; environment-variable consumers read `ConnectionStrings__lavinmq`. The individual LavinMQ properties aren't injected for an external connection-string resource.
 
 ## Connect from your app
 

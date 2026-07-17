@@ -118,7 +118,36 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`AddDaprStateStore` and `AddDaprPubSub` create generic component resources. Use `AddDaprComponent(name, type)` when you need another Dapr component type.
+`AddDaprStateStore` and `AddDaprPubSub` create generic component resources. Use the generic component API when you need another Dapr component type:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var binding = builder.AddDaprComponent(
+    "outbound",
+    "bindings.http");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const binding = builder.addDaprComponent('outbound', 'bindings.http');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ## Configure sidecar options
 
@@ -130,6 +159,8 @@ Use `DaprSidecarOptions` or its TypeScript equivalent to configure the app ID, a
 ```csharp title="AppHost.cs"
 using CommunityToolkit.Aspire.Hosting.Dapr;
 
+var builder = DistributedApplication.CreateBuilder(args);
+
 builder.AddProject<Projects.Api>("api")
     .WithDaprSidecar(new DaprSidecarOptions
     {
@@ -139,12 +170,18 @@ builder.AddProject<Projects.Api>("api")
         EnableApiLogging = true,
         ResourcesPaths = ["./components"]
     });
+
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
 await builder
   .addContainer('api', 'nginx')
   .withEndpoint({ name: 'http', scheme: 'http', targetPort: 80 })
@@ -157,6 +194,8 @@ await builder
       resourcesPaths: ['./components'],
     },
   });
+
+await builder.build().run();
 ```
 
 </TabItem>
@@ -170,6 +209,8 @@ Use `WithMetadata` or `withMetadata` for static values. The hosting integration 
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var redis = builder.AddRedis("redis");
 var redisPassword = builder.AddParameter("redis-password", secret: true);
 
@@ -177,12 +218,18 @@ var stateStore = builder.AddDaprStateStore("statestore")
     .WithMetadata("actorStateStore", "true")
     .WithMetadata("redisHost", redis.GetEndpoint("tcp"))
     .WithMetadata("redisPassword", redisPassword.Resource);
+
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
 const redis = builder
   .addContainer('redis', 'redis')
   .withEndpoint({ name: 'tcp', targetPort: 6379 });
@@ -196,6 +243,8 @@ const stateStore = builder
   .withMetadata('actorStateStore', 'true')
   .withMetadataEndpoint('redisHost', redisEndpoint)
   .withMetadataParameter('redisPassword', redisPassword);
+
+await builder.build().run();
 ```
 
 </TabItem>
@@ -207,7 +256,38 @@ Each Dapr sidecar is a hidden resource named from its app resource, such as `api
 
 ## Deploy to Azure Container Apps
 
-Install [📦 CommunityToolkit.Aspire.Hosting.Azure.Dapr](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Azure.Dapr), then call `WithDaprComponents` or `withDaprComponents` on the Azure Container Apps environment. The integration translates local Dapr component and sidecar settings into Azure Container Apps Dapr configuration during publish.
+Install [📦 CommunityToolkit.Aspire.Hosting.Azure.Dapr](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Azure.Dapr), then enable Dapr components on the Azure Container Apps environment:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var environment = builder.AddAzureContainerAppEnvironment("cae");
+environment.WithDaprComponents();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const environment = await builder.addAzureContainerAppEnvironment('cae');
+await environment.withDaprComponents();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The integration translates local Dapr component and sidecar settings into Azure Container Apps Dapr configuration during publish.
 
 :::note
 The core Dapr integration injects local sidecar endpoints only in run mode. Azure Container Apps provides the sidecar endpoints after deployment.
