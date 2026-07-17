@@ -28,10 +28,9 @@ DAB has no dedicated Community Toolkit client package. It exposes standard REST 
 
 `DataApiBuilderContainerResource` implements service discovery rather than a connection string. Referencing a DAB resource named `dab` injects:
 
-| Environment variable     | Description                                                  |
-| ------------------------ | ------------------------------------------------------------ |
-| `services__dab__http__0` | Service-discovery endpoint used by Aspire-aware HTTP clients |
-| `DAB_HTTP`               | Direct URL for the DAB HTTP endpoint                         |
+| Environment variable     | Description                            |
+| ------------------------ | -------------------------------------- |
+| `services__dab__http__0` | Resolved URL for the DAB HTTP endpoint |
 
 The AppHost resource also exposes endpoint properties for building custom expressions. These are AppHost properties, not additional consuming-app environment variables. See [Use endpoint properties](../dab-host/#use-endpoint-properties) for synchronized C# and TypeScript examples.
 
@@ -56,11 +55,12 @@ builder.Services.AddHttpClient("dab", client =>
 });
 ```
 
-Or use the direct endpoint variable:
+Or read the resolved service-discovery endpoint directly:
 
 ```csharp title="Program.cs"
-var endpoint = Environment.GetEnvironmentVariable("DAB_HTTP")
-    ?? throw new InvalidOperationException("DAB_HTTP is not set.");
+var endpoint = Environment.GetEnvironmentVariable("services__dab__http__0")
+    ?? throw new InvalidOperationException(
+        "services__dab__http__0 is not set.");
 
 using var client = new HttpClient
 {
@@ -76,9 +76,9 @@ var products = await client.GetStringAsync("/api/Product");
 Node.js includes `fetch`, so no DAB-specific package is required:
 
 ```typescript title="index.ts"
-const endpoint = process.env.DAB_HTTP;
+const endpoint = process.env.services__dab__http__0;
 if (!endpoint) {
-  throw new Error('DAB_HTTP is not set.');
+  throw new Error('services__dab__http__0 is not set.');
 }
 
 const response = await fetch(new URL('/api/Product', endpoint));
@@ -99,7 +99,7 @@ import json
 import os
 from urllib.request import urlopen
 
-endpoint = os.environ["DAB_HTTP"].rstrip("/")
+endpoint = os.environ["services__dab__http__0"].rstrip("/")
 
 with urlopen(f"{endpoint}/api/Product") as response:
     products = json.load(response)
@@ -122,7 +122,14 @@ import (
 )
 
 func main() {
-    endpoint := strings.TrimRight(os.Getenv("DAB_HTTP"), "/")
+    endpoint := strings.TrimRight(
+        os.Getenv("services__dab__http__0"),
+        "/",
+    )
+    if endpoint == "" {
+        panic("services__dab__http__0 is not set")
+    }
+
     response, err := http.Get(endpoint + "/api/Product")
     if err != nil {
         panic(err)
