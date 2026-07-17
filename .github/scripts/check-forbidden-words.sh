@@ -140,6 +140,7 @@ for file in "${CHANGED_FILES[@]}"; do
 
   added_lines=$(awk '
     /^@@/ {
+      in_hunk = 1
       for (i = 1; i <= NF; i++) {
         if (substr($i, 1, 1) == "+") {
           s = substr($i, 2)
@@ -150,8 +151,7 @@ for file in "${CHANGED_FILES[@]}"; do
       }
       next
     }
-    /^\+\+\+/ { next }
-    /^\+/ {
+    in_hunk && /^\+/ {
       content = substr($0, 2)
       printf "%d:%s\n", line, content
       line++

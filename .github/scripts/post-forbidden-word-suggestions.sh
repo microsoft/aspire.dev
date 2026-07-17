@@ -18,6 +18,7 @@
 #   PR_NUMBER      Pull request number.
 #   HEAD_SHA       Commit SHA the findings were computed against.
 #   FINDINGS_FILE  Path to the findings JSON document.
+#   CONFIG_FILE    Path to the trusted forbidden-words rules document.
 
 set -euo pipefail
 
@@ -26,6 +27,7 @@ set -euo pipefail
 : "${PR_NUMBER:?PR_NUMBER required}"
 : "${HEAD_SHA:?HEAD_SHA required}"
 : "${FINDINGS_FILE:?FINDINGS_FILE required}"
+: "${CONFIG_FILE:?CONFIG_FILE required}"
 
 command -v jq >/dev/null 2>&1 || { echo "::error::jq is required"; exit 2; }
 command -v gh >/dev/null 2>&1 || { echo "::error::gh is required"; exit 2; }
@@ -33,6 +35,11 @@ command -v gh >/dev/null 2>&1 || { echo "::error::gh is required"; exit 2; }
 if [[ ! -f "$FINDINGS_FILE" ]]; then
   echo "Findings file not found ($FINDINGS_FILE); nothing to suggest."
   exit 0
+fi
+
+if ! jq -e '.rules | type == "array"' "$CONFIG_FILE" >/dev/null 2>&1; then
+  echo "::error::Trusted rules file is missing or invalid ($CONFIG_FILE)."
+  exit 2
 fi
 
 # The findings document originates from a PR-scoped run, so treat it as
@@ -65,16 +72,33 @@ existing_json=$(printf '%s' "$existing_raw" | jq -s '.')
 # on the same (path, line), rendered as a suggestion block.
 comments_json=$(jq -n \
   --slurpfile f "$FINDINGS_FILE" \
+  --slurpfile config "$CONFIG_FILE" \
   --argjson existing "$existing_json" \
   '
+  ($config[0].rules | map({key: .pattern, value: (.message // "")}) | from_entries) as $messages
+  |
   $f[0].findings
+  | map(select(
+      (.file | type) == "string" and
+      (.file | length > 0) and
+      (.line | type) == "number" and
+      (.line > 0 and .line == (.line | floor)) and
+      (.suggestion | type) == "string" and
+      ((.suggestion | contains("\n")) | not) and
+      ((.suggestion | contains("\r")) | not) and
+      ((.suggestion | contains("```")) | not) and
+      (.patterns | type == "array") and
+      (.patterns | length > 0) and
+      (all(.patterns[]; type == "string")) and
+      (all(.patterns[]; . as $pattern | $messages | has($pattern)))
+    ))
   | map(select(. as $find
       | ($existing | any(.path == $find.file and .line == $find.line)) | not))
   | map({
       path: .file,
       line: .line,
       side: "RIGHT",
-      body: ((.messages | join("\n")) + "\n\n```suggestion\n" + .suggestion + "\n```")
+      body: ((.patterns | map($messages[.]) | join("\n")) + "\n\n```suggestion\n" + .suggestion + "\n```")
     })
   ')
 
