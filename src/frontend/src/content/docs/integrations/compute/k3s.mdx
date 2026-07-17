@@ -1,0 +1,422 @@
+---
+title: k3s integration
+seoTitle: "k3s integration for Aspire: run a lightweight Kubernetes cluster locally"
+description: Learn how to run a k3s Kubernetes cluster as part of your Aspire AppHost using the CommunityToolkit.Aspire.Hosting.K3s hosting integration.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import k3sIcon from '@assets/icons/k3s-icon.svg';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={k3sIcon}
+  alt="k3s logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the reference for the Aspire k3s Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to run a lightweight [k3s](https://k3s.io/) Kubernetes cluster as part of your local development inner loop. The cluster, Helm chart installs, manifest applies, and service endpoint exposures all appear as first-class resources in the Aspire dashboard — no external tooling beyond a supported container runtime is required.
+
+<Aside type="note">
+The k3s integration runs a real Kubernetes cluster inside a container for local development. To deploy your Aspire application *to* a Kubernetes cluster, see the [Kubernetes integration](/integrations/compute/kubernetes/) instead.
+</Aside>
+
+## Prerequisites
+
+A container runtime that supports privileged Linux containers:
+
+- **Docker Engine 20.10+** (Linux) or **Docker Desktop** (macOS / Windows)
+- **Podman 4.0+** (Linux, rootful only — rootless requires cgroup v2 delegation)
+
+:::note[Privileged containers]
+k3s requires `--privileged`, `--cgroupns=host`, and a writable cgroup filesystem. The integration passes these flags automatically.
+:::
+
+## Installation
+
+To start building an Aspire app that uses k3s, install the [📦 CommunityToolkit.Aspire.Hosting.K3s](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.K3s) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add k3s
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.K3s@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.K3s" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add k3s
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the k3s hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.K3s": "*"
+  }
+}
+```
+
+The TypeScript AppHost bindings for k3s are provided by the Community Toolkit package. After installation, the `.aspire/modules/aspire.mjs` file in your project includes `addK3sCluster` and related APIs.
+
+</TabItem>
+</Tabs>
+
+## Add a k3s cluster
+
+Once you've installed the hosting integration in your AppHost project, add a k3s cluster and reference it from a project to have `KUBECONFIG` injected automatically:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddK3sCluster("k8s");
+
+builder.AddProject<Projects.MyOperator>("operator")
+    .WaitFor(cluster)
+    .WithReference(cluster);   // injects KUBECONFIG automatically
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder.addK3sCluster('k8s');
+
+await builder
+    .addProject('operator', '../MyOperator/MyOperator.csproj')
+    .withReference(cluster);   // injects KUBECONFIG automatically
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Configure the cluster
+
+All cluster options are available as fluent builder methods:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var cluster = builder
+    .AddK3sCluster("k8s",
+        apiServerPort: 16443,   // fixed host port for the API server (random by default)
+        agentCount: 2)          // 1 server + 2 agent nodes
+    .WithK3sVersion("v1.32.3-k3s1")        // pin the k3s image tag
+    .WithPodSubnet("10.42.0.0/16")         // --cluster-cidr
+    .WithServiceSubnet("10.43.0.0/16")     // --service-cidr
+    .WithDisabledComponent("traefik")      // --disable=traefik (repeatable)
+    .WithExtraArg("--write-kubeconfig-mode=644")   // raw k3s server flag (repeatable)
+    .WithHelmImage(tag: "3.18.0")          // override the alpine/helm image
+    .WithKubectlImage(tag: "1.37.0")       // override the alpine/kubectl image
+    .WithDataVolume()                      // persist cluster state across restarts
+    .WithLifetime(ContainerLifetime.Persistent);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder
+    .addK3sCluster('k8s', { apiServerPort: 16443, agentCount: 2 })
+    .withK3sVersion('v1.32.3-k3s1')
+    .withPodSubnet('10.42.0.0/16')
+    .withServiceSubnet('10.43.0.0/16')
+    .withDisabledComponent('traefik')
+    .withExtraArg('--write-kubeconfig-mode=644')
+    .withDataVolume({ name: 'k8s-data' })
+    .withHelmImage({ tag: '3.18.0' })
+    .withKubectlImage({ tag: '1.37.0' })
+    .withLifetime(ContainerLifetime.Persistent);
+```
+
+</TabItem>
+</Tabs>
+
+The available options are:
+
+| Method | Parameter / Effect |
+|---|---|
+| `AddK3sCluster(agentCount:)` | Number of worker nodes (`0` = single-node). Equivalent to `WithAgentCount`. |
+| `WithAgentCount(n)` | Same as above, fluent alternative. The health check waits for all `1 + n` nodes to be `Ready`. |
+| `WithK3sVersion(tag)` | Overrides the k3s image tag, for example `v1.32.3-k3s1`. Synced to agents automatically. |
+| `WithPodSubnet(cidr)` | Sets `--cluster-cidr`. Defaults to the k3s built-in `10.42.0.0/16`. |
+| `WithServiceSubnet(cidr)` | Sets `--service-cidr`. Defaults to the k3s built-in `10.43.0.0/16`. |
+| `WithDisabledComponent(c)` | Passes `--disable=<c>`. Call multiple times for multiple components. |
+| `WithExtraArg(arg)` | Appends a raw argument to `k3s server`. |
+| `WithHelmImage(registry?, image?, tag?)` | Overrides the `alpine/helm` image used by `AddHelmRelease`. |
+| `WithKubectlImage(registry?, image?, tag?)` | Overrides the `alpine/kubectl` image used by `AddK8sManifest`. |
+| `WithDataVolume(name?)` | Mounts a named Docker volume at `/var/lib/rancher/k3s`. |
+| `WithLifetime(lifetime)` | Sets `ContainerLifetime.Persistent` or `Session` for the cluster and its agents. |
+
+## Persist cluster state across runs
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var cluster = builder.AddK3sCluster("k8s")
+    .WithDataVolume()
+    .WithLifetime(ContainerLifetime.Persistent);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const cluster = await builder.addK3sCluster('k8s')
+    .withDataVolume({ name: 'k8s-data' })
+    .withLifetime(ContainerLifetime.Persistent);
+```
+
+</TabItem>
+</Tabs>
+
+`WithDataVolume` persists the k3s database, certificates, and node tokens across AppHost restarts. `WithLifetime(Persistent)` tells DCP to keep the Docker container alive between runs, making subsequent starts much faster.
+
+<Aside type="caution">
+With persistent containers, `agentCount` must stay constant across runs. Decreasing it leaves orphaned agent containers that fail to rejoin the cluster; delete them manually with `docker rm -f`.
+</Aside>
+
+## Deploy Helm charts
+
+`AddHelmRelease` runs `helm upgrade --install --wait` inside an `alpine/helm` container — no host-side `helm` binary is required:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var podinfo = cluster.AddHelmRelease(
+    name: "podinfo",
+    chart: "podinfo",
+    repo: "https://stefanprodan.github.io/podinfo",
+    version: "6.7.1",
+    @namespace: "podinfo")
+    .WithHelmValue("replicaCount", "2")
+    .WithHelmValuesFile("./deploy/podinfo-values.yaml");
+
+// Wait for the chart install to complete before starting the operator.
+builder.AddProject<Projects.MyOperator>("operator")
+    .WaitForCompletion(podinfo)
+    .WithReference(cluster);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const podinfo = await cluster.addHelmRelease('podinfo', 'podinfo', {
+    repo: 'https://stefanprodan.github.io/podinfo',
+    version: '6.7.1',
+    namespace: 'podinfo',
+});
+
+// Wait for the chart install to complete before starting the operator.
+const operator = await builder.addProject('operator', '../MyOperator/MyOperator.csproj');
+await operator.waitForCompletion(podinfo);
+await operator.withReference(cluster);
+```
+
+</TabItem>
+</Tabs>
+
+Values are applied in this order, with the last one winning:
+
+1. `WithHelmValuesFile` — in declaration order
+2. `WithHelmValue` (`--set` flags) — always override files
+
+Use `WithHelmValuesFile` for structured overrides (values with commas, braces, or backslashes). `WithHelmValue` is convenient for individual scalar overrides.
+
+## Apply Kubernetes manifests
+
+`AddK8sManifest` runs `kubectl apply --server-side` inside an `alpine/kubectl` container. The apply mode is detected automatically from the path:
+
+| Path | Mode |
+|---|---|
+| Single `.yaml` / `.yml` file | `kubectl apply -f <file>` |
+| Directory (no `kustomization.yaml`) | `kubectl apply -f <dir>` (all YAML files, lexicographic order) |
+| Directory containing `kustomization.yaml` | `kubectl apply -k <dir>` (Kustomize) |
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+// Plain YAML
+var appConfig = cluster.AddK8sManifest("app-config", "./k8s/app-config.yaml")
+    .WaitForCompletion(podinfo);
+
+// Kustomize overlay — auto-detected; directory is bind-mounted to preserve base references
+var monitoring = cluster.AddK8sManifest("monitoring-config", "./k8s/monitoring")
+    .WaitForCompletion(podinfo)
+    .WaitForCompletion(appConfig);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+// Plain YAML
+const appConfig = await cluster.addK8sManifest('app-config', './k8s/app-config.yaml');
+await appConfig.waitForCompletion(podinfo);
+
+// Kustomize overlay — auto-detected; directory is bind-mounted to preserve base references
+const monitoring = await cluster.addK8sManifest('monitoring-config', './k8s/monitoring');
+await monitoring.waitForCompletion(podinfo);
+await monitoring.waitForCompletion(appConfig);
+```
+
+</TabItem>
+</Tabs>
+
+## Expose Kubernetes services
+
+`AddServiceEndpoint` starts an in-process WebSocket port-forward bound to `0.0.0.0:{allocatedPort}` — no `NodePort` or `LoadBalancer` configuration is required. The endpoint transitions to `Running` only after the target service has a ready pod.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var podinfoWeb = cluster
+    .AddServiceEndpoint("podinfo-web", "podinfo", servicePort: 9898, @namespace: "podinfo")
+    .WaitForCompletion(podinfo);
+
+// Host processes receive http://localhost:{port}
+builder.AddProject<Projects.MyApi>("api")
+    .WaitFor(podinfoWeb)
+    .WithReference(podinfoWeb);
+
+// DCP-network containers receive http://host.docker.internal:{port}
+// --add-host=host.docker.internal:host-gateway is injected automatically
+builder.AddContainer("sidecar", "myorg/sidecar")
+    .WaitFor(podinfoWeb)
+    .WithReference(podinfoWeb);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const podinfoWeb = await cluster
+    .addServiceEndpoint('podinfo-web', 'podinfo', 9898, { namespace: 'podinfo' })
+    .waitForCompletion(podinfo);
+
+// Host processes receive http://localhost:{port}
+await builder
+    .addProject('api', '../MyApi/MyApi.csproj')
+    .withReference(podinfoWeb);
+
+// DCP-network containers receive http://host.docker.internal:{port}
+// --add-host=host.docker.internal:host-gateway is injected automatically
+await builder
+    .addContainer('sidecar', 'myorg/sidecar')
+    .withReference(podinfoWeb);
+```
+
+</TabItem>
+</Tabs>
+
+The injected environment variable follows the Aspire service-discovery convention: `services__{name}__url=http(s)://{host}:{port}`.
+
+Scheme is inferred from the port: `443` and `8443` resolve to `https`, all others to `http`. Override it with the `scheme` parameter, for example `AddServiceEndpoint("ep", "svc", 8080, scheme: "https")`.
+
+## Kubeconfig injection
+
+Both `K3sClusterResource` and `K3sServiceEndpointResource` implement `IResourceWithConnectionString`, so the standard `WithReference` overload handles credential injection automatically:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+// Projects and executables receive KUBECONFIG pointing to the host-accessible variant
+builder.AddProject<Projects.MyOperator>("operator")
+    .WithReference(cluster);   // KUBECONFIG=…/.k3s/k8s/local/kubeconfig.yaml
+
+// Containers receive a bind-mounted kubeconfig at /tmp/k3s-kubeconfig.yaml
+builder.AddContainer("sidecar", "myorg/sidecar")
+    .WithReference(cluster);   // KUBECONFIG=/tmp/k3s-kubeconfig.yaml + file bind-mount
+```
+
+All standard Kubernetes tooling reads `KUBECONFIG` automatically:
+
+```csharp
+var config = KubernetesClientConfiguration.BuildConfigFromConfigFile(
+    Environment.GetEnvironmentVariable("KUBECONFIG"));
+using var client = new Kubernetes(config);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+// Standard withReference — injects KUBECONFIG or services__name__url
+const operator = await builder.addProject('operator', '../MyOperator/MyOperator.csproj');
+await operator.withReference(cluster);
+
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
+await api.withReference(podinfoWeb);
+```
+
+</TabItem>
+</Tabs>
+
+## Reach Aspire services from k3s pods
+
+k3s pods run on the internal pod network (`10.42.0.0/16`). Flannel masquerades outbound pod traffic through the k3s container's DCP network IP, so pods can reach DCP services using `host.docker.internal` and the host-mapped port:
+
+```csharp title="AppHost.cs"
+var postgres = builder.AddPostgres("db");
+
+cluster.AddHelmRelease("my-operator", "my-operator-chart")
+    .WithHelmValue("database.host", "host.docker.internal")
+    .WithHelmValue("database.port",
+        postgres.GetEndpoint("tcp").Property(EndpointProperty.Port));
+```
+
+## See also
+
+- [k3s website](https://k3s.io/)
+- [k3s documentation](https://docs.k3s.io/)
+- [Aspire Community Toolkit GitHub](https://github.com/CommunityToolkit/Aspire)
+- [CommunityToolkit.Aspire.Hosting.K3s Repository](https://github.com/CommunityToolkit/Aspire/blob/main/src/CommunityToolkit.Aspire.Hosting.K3s/README.md)
+</content>
