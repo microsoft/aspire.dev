@@ -1,0 +1,349 @@
+---
+title: Set up Java apps in the AppHost
+description: Configure Java executable and container resources, Maven and Gradle commands, JVM settings, endpoints, health checks, and publishing behavior.
+---
+
+import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import LearnMore from '@components/LearnMore.astro';
+import { Image } from 'astro:assets';
+import javaIcon from '@assets/icons/java-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={javaIcon}
+  alt="Java logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This reference covers the Java AppHost API from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). For an introduction, see [Get started with the Java integration](/integrations/frameworks/java/java-get-started/).
+
+## Installation
+
+Install the hosting package in your AppHost:
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Java" />
+
+Executable Java resources require the Java command and, when used, the Maven or Gradle wrapper to be available from the resource's configured project directory.
+
+## Add an executable Java app
+
+`AddJavaApp` / `addJavaApp` creates a Java executable resource with a working directory relative to the AppHost directory. Configure it with a Maven or Gradle task, or add a JAR path.
+
+### Run a Maven or Gradle task
+
+`WithMavenGoal` / `withMavenGoal` and `WithGradleTask` / `withGradleTask` replace the executable command with the respective wrapper in run mode. Maven defaults to `mvnw` (`mvnw.cmd` on Windows), and Gradle defaults to `gradlew` (`gradlew.bat` on Windows).
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mavenApp = builder.AddJavaApp("maven-api", "../maven-api")
+    .WithMavenGoal("spring-boot:run", "-Dspring-boot.run.profiles=dev");
+
+var gradleApp = builder.AddJavaApp("gradle-api", "../gradle-api")
+    .WithGradleTask("bootRun", "--args=--spring.profiles.active=dev");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mavenApp = await builder
+  .addJavaApp('maven-api', '../maven-api')
+  .withMavenGoal('spring-boot:run', ['-Dspring-boot.run.profiles=dev']);
+
+const gradleApp = await builder
+  .addJavaApp('gradle-api', '../gradle-api')
+  .withGradleTask('bootRun', ['--args=--spring.profiles.active=dev']);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Do not combine a Maven goal or Gradle task with a JAR path; the integration rejects that configuration.
+
+### Run a JAR
+
+Provide a JAR path relative to the resource working directory. The resource runs `java -jar <jarPath>` followed by the application arguments.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddJavaApp(
+    name: "java-api",
+    workingDirectory: "../java-api",
+    jarPath: "target/java-api.jar",
+    args: ["--spring.main.banner-mode=off"]);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const app = await builder.addJavaAppWithJar(
+  'java-api',
+  '../java-api',
+  'target/java-api.jar',
+  { args: ['--spring.main.banner-mode=off'] }
+);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The TypeScript export is named `addJavaAppWithJar`. The Java executable resource also exposes its `JarPath` / `jarPath` property when you need to update the configured JAR path programmatically.
+
+## Build before running
+
+`WithMavenBuild` / `withMavenBuild` and `WithGradleBuild` / `withGradleBuild` add a child setup resource in run mode. The Java app waits for it to finish. Maven runs `clean package` by default and Gradle runs `clean build` by default; passing arguments replaces those defaults.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mavenApp = builder.AddJavaApp("maven-api", "../maven-api", "target/api.jar")
+    .WithMavenBuild("-DskipTests");
+
+var gradleApp = builder.AddJavaApp("gradle-api", "../gradle-api", "build/libs/api.jar")
+    .WithGradleBuild("-x", "test", "--parallel");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mavenApp = await builder
+  .addJavaAppWithJar('maven-api', '../maven-api', 'target/api.jar')
+  .withMavenBuild(['-DskipTests']);
+
+const gradleApp = await builder
+  .addJavaAppWithJar('gradle-api', '../gradle-api', 'build/libs/api.jar')
+  .withGradleBuild(['-x', 'test', '--parallel']);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Use `WithWrapperPath` / `withWrapperPath` before a build or launch method to use a wrapper at a relative or absolute path instead of the platform default.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddJavaApp("java-api", "../java-api")
+    .WithWrapperPath("tools/mvnw")
+    .WithMavenGoal("spring-boot:run");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const app = await builder
+  .addJavaApp('java-api', '../java-api')
+  .withWrapperPath('tools/mvnw')
+  .withMavenGoal('spring-boot:run', []);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Configure JVM and OpenTelemetry options
+
+`WithJvmArgs` / `withJvmArgs` appends JVM options to `JAVA_TOOL_OPTIONS`, which works with JAR, Maven, Gradle, and container launches. `WithOtelAgent` / `withOtelAgent` configures the OTLP exporter; when you provide an agent JAR path, it also appends `-javaagent:<path>` to `JAVA_TOOL_OPTIONS`.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddJavaApp("java-api", "../java-api")
+    .WithMavenGoal("spring-boot:run")
+    .WithJvmArgs(["-Xms256m", "-Xmx512m"])
+    .WithOtelAgent("../agents/opentelemetry-javaagent.jar");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const app = await builder
+  .addJavaApp('java-api', '../java-api')
+  .withMavenGoal('spring-boot:run', [])
+  .withJvmArgs(['-Xms256m', '-Xmx512m'])
+  .withOtelAgent({ agentPath: '../agents/opentelemetry-javaagent.jar' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Download the agent JAR before configuring its path. `WithOtelAgent` without a path configures the exporter but does not add a Java agent argument.
+
+## Add a Java container app
+
+`AddJavaContainerApp` / `addJavaContainerApp` models an existing container image and configures the OTLP exporter. Pass an optional image tag; configure endpoints and environment variables with standard container-resource APIs.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddJavaContainerApp(
+    "java-api",
+    "ghcr.io/contoso/java-api",
+    imageTag: "1.0")
+    .WithJvmArgs(["-Djava.awt.headless=true"])
+    .WithHttpEndpoint(targetPort: 8080, env: "SERVER_PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const app = await builder
+  .addJavaContainerApp('java-api', 'ghcr.io/contoso/java-api', {
+    imageTag: '1.0',
+  })
+  .withJvmArgs(['-Djava.awt.headless=true'])
+  .withHttpEndpoint({ targetPort: 8080, env: 'SERVER_PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Configure endpoints, environment, health checks, and references
+
+Java executable and container resources support standard AppHost endpoints, environment variables, health checks, waits, and service discovery. Pass Spring Boot's listening port through an endpoint environment variable, add a health-check path, and reference the resource from consumers:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddJavaApp("java-api", "../java-api")
+    .WithMavenGoal("spring-boot:run")
+    .WithHttpEndpoint(targetPort: 8080, env: "SERVER_PORT")
+    .WithEnvironment("SPRING_PROFILES_ACTIVE", "development")
+    .WithHttpHealthCheck("/actuator/health");
+
+builder.AddProject<Projects.Web>("web")
+    .WithReference(api);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder
+  .addJavaApp('java-api', '../java-api')
+  .withMavenGoal('spring-boot:run', [])
+  .withHttpEndpoint({ targetPort: 8080, env: 'SERVER_PORT' })
+  .withEnvironment('SPRING_PROFILES_ACTIVE', 'development')
+  .withHttpHealthCheck({ path: '/actuator/health' });
+
+const web = await builder.addProject('web', '../Web/Web.csproj');
+await web.withReference(api);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The Java application is responsible for reading `SERVER_PORT` and listening on the endpoint target port. `WithHttpHealthCheck` / `withHttpHealthCheck` makes Aspire poll the configured path. Executable resources run `java` unless a Maven or Gradle task changes the command in run mode; build resources and application resources expose normal dashboard lifecycle controls.
+
+## Publishing behavior
+
+Maven and Gradle build helper resources are created only in run mode and are excluded from the application manifest. The integration does not generate a JAR, Dockerfile, or Java-specific publish artifact. For executable resources, arrange the JAR and runtime packaging in your deployment process. Container resources use the image you configured.
+
+<LearnMore>
+  For deployment guidance, see the [Aspire deployment overview](/deployment/).
+</LearnMore>
+
+## Deprecated C# compatibility APIs
+
+The package retains C#-only compatibility APIs that are not exported to TypeScript AppHosts:
+
+- `AddJavaApp` and `AddSpringApp` overloads that accept `JavaAppContainerResourceOptions`; use `AddJavaContainerApp` instead.
+- `AddJavaApp` and `AddSpringApp` overloads that accept `JavaAppExecutableResourceOptions`; use `AddJavaApp` with a JAR path, `WithJvmArgs`, `WithOtelAgent`, and explicit endpoints instead.
+- `WithMavenBuild(MavenOptions)`; use `WithMavenBuild(params string[] args)` instead.
+
+Do not use these deprecated APIs in new applications.
+
+## See also
+
+- [Java documentation](https://dev.java/learn/)
+- [OpenTelemetry Java instrumentation](https://opentelemetry.io/docs/zero-code/java/agent/)
+- [📦 CommunityToolkit.Aspire.Hosting.Java](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Java)
+- [Get started with the Java integration](/integrations/frameworks/java/java-get-started/)
