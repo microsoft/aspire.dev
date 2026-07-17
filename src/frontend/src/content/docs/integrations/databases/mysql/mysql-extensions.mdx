@@ -1,6 +1,6 @@
 ---
 title: Use community extensions for MySQL hosting
-description: Extend the functionality of your MySQL hosting with the Aspire Community Toolkit, including management UIs like Adminer and DbGate.
+description: Decorate official Aspire MySQL resources with Community Toolkit Adminer, DbGate, and dbx management interfaces.
 ---
 
 import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -25,6 +25,7 @@ This package provides the following features:
 
 - [Adminer](https://adminer.org/) management UI
 - [DbGate](https://dbgate.org/) management UI
+- dbx management UI
 
 ## Hosting integration
 
@@ -46,7 +47,7 @@ For TypeScript AppHosts, add the Community Toolkit MySQL extensions package to `
 
 ### DbGate management UI
 
-To add the [DbGate](https://dbgate.org/) management UI to your MySQL resource, call the `WithDbGate` method on the `MySqlServerResourceBuilder` instance:
+To add the [DbGate](https://dbgate.org/) management UI, decorate the official `MySqlServerResource` builder with `WithDbGate` / `withDbGate`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -67,14 +68,14 @@ builder.Build().Run();
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const mysql = await builder.addMySql("mysql");
+const mysql = await builder.addMySql('mysql');
 await mysql.withDbGate();
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withReference(mysql);
 
 await builder.build().run();
@@ -87,7 +88,7 @@ This adds a new DbGate resource to the AppHost which is available from the Aspir
 
 ### Adminer management UI
 
-To add the [Adminer](https://adminer.org/) management UI to your MySQL resource, call the `WithAdminer` method on the `MySqlServerResourceBuilder` instance:
+To add the [Adminer](https://adminer.org/) management UI, decorate the official `MySqlServerResource` builder with `WithAdminer` / `withAdminer`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -108,14 +109,14 @@ builder.Build().Run();
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const mysql = await builder.addMySql("mysql");
+const mysql = await builder.addMySql('mysql');
 await mysql.withAdminer();
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withReference(mysql);
 
 await builder.build().run();
@@ -150,15 +151,15 @@ builder.Build().Run();
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const mysql = await builder.addMySql("mysql");
+const mysql = await builder.addMySql('mysql');
 await mysql.withDbGate();
 await mysql.withAdminer();
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withReference(mysql);
 
 await builder.build().run();
@@ -166,6 +167,41 @@ await builder.build().run();
 
 </TabItem>
 </Tabs>
+
+### dbx management UI
+
+Use `WithDbx` / `withDbx` to add a dbx child resource configured for the MySQL server:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mysql = builder.AddMySql("mysql")
+    .WithDbx();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql('mysql');
+await mysql.withDbx({ containerName: 'mysql-dbx' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
 
 ## See also
 

@@ -1386,7 +1386,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             { label: 'Bun', slug: 'integrations/frameworks/bun-apps' },
             { label: 'Deno', slug: 'integrations/frameworks/deno-apps' },
             { label: 'JavaScript', slug: 'integrations/frameworks/javascript' },
-            { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
+            {
+              label: 'JavaScript monorepo extensions',
+              slug: 'integrations/frameworks/nodejs-extensions',
+            },
           ],
         },
         { label: 'Perl', slug: 'integrations/frameworks/perl' },

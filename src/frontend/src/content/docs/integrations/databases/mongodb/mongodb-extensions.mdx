@@ -1,6 +1,6 @@
 ---
 title: Use community extensions for MongoDB hosting
-description: Extend the functionality of your MongoDB hosting with the Aspire Community Toolkit, including the DbGate management UI.
+description: Decorate official Aspire MongoDB resources with Community Toolkit DbGate and dbx management interfaces for local development.
 ---
 
 import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -24,6 +24,7 @@ The Aspire Community Toolkit MongoDB hosting extensions package provides extra f
 This package provides the following features:
 
 - [DbGate](https://dbgate.org/) management UI
+- dbx management UI
 
 ## Hosting integration
 
@@ -45,7 +46,7 @@ For TypeScript AppHosts, add the Community Toolkit MongoDB extensions package to
 
 ### DbGate management UI
 
-To add the [DbGate](https://dbgate.org/) management UI to your MongoDB resource, call the `WithDbGate` method on the `MongoDBResourceBuilder` instance:
+To add the [DbGate](https://dbgate.org/) management UI, decorate the official `MongoDBServerResource` builder with `WithDbGate` / `withDbGate`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -66,14 +67,14 @@ builder.Build().Run();
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const mongodb = await builder.addMongoDB("mongodb");
+const mongodb = await builder.addMongoDB('mongodb');
 await mongodb.withDbGate();
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withReference(mongodb);
 
 await builder.build().run();
@@ -83,6 +84,41 @@ await builder.build().run();
 </Tabs>
 
 This adds a new DbGate resource to the AppHost which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your MongoDB databases.
+
+### dbx management UI
+
+Use `WithDbx` / `withDbx` to add a dbx child resource configured for the MongoDB server:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongodb = builder.AddMongoDB("mongodb")
+    .WithDbx();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongodb = await builder.addMongoDB('mongodb');
+await mongodb.withDbx({ containerName: 'mongodb-dbx' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
 
 ## See also
 

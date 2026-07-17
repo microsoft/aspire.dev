@@ -1,6 +1,6 @@
 ---
 title: Use community extensions for PostgreSQL hosting
-description: Extend the functionality of your PostgreSQL hosting with community-built extensions, including management UIs like Adminer and DbGate.
+description: Decorate official Aspire PostgreSQL resources with Community Toolkit management interfaces and Flyway migration commands.
 ---
 
 import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -25,6 +25,8 @@ This package provides the following features:
 
 - [Adminer](https://adminer.org/) management UI
 - [DbGate](https://dbgate.org/) management UI
+- dbx management UI
+- [Flyway](https://documentation.red-gate.com/fd) migration and repair commands
 
 ## Hosting integration
 
@@ -46,7 +48,7 @@ For TypeScript AppHosts, add the Community Toolkit PostgreSQL extensions package
 
 ### DbGate management UI
 
-To add the DbGate management UI to your PostgreSQL resource, call the `WithDbGate` method on the `PostgresServerResource` instance:
+To add the DbGate management UI, decorate the official `PostgresServerResource` builder with `WithDbGate` / `withDbGate`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -67,16 +69,17 @@ builder.AddProject<Projects.ExampleProject>()
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const postgres = await builder.addPostgres("postgres");
+const postgres = await builder.addPostgres('postgres');
 await postgres.withDbGate();
 
 const exampleProject = await builder.addProject(
-    "example-project",
-    "../ExampleProject/ExampleProject.csproj");
+  'example-project',
+  '../ExampleProject/ExampleProject.csproj'
+);
 await exampleProject.withReference(postgres);
 
 // After adding all resources, run the app...
@@ -89,7 +92,7 @@ This adds a new DbGate resource to the app host which is available from the Aspi
 
 ### Adminer management UI
 
-To add the Adminer management UI to your PostgreSQL resource, call the `WithAdminer` method on the `PostgresServerResource` instance:
+To add the Adminer management UI, decorate the official `PostgresServerResource` builder with `WithAdminer` / `withAdminer`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -110,16 +113,17 @@ builder.AddProject<Projects.ExampleProject>()
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const postgres = await builder.addPostgres("postgres");
+const postgres = await builder.addPostgres('postgres');
 await postgres.withAdminer();
 
 const exampleProject = await builder.addProject(
-    "example-project",
-    "../ExampleProject/ExampleProject.csproj");
+  'example-project',
+  '../ExampleProject/ExampleProject.csproj'
+);
 await exampleProject.withReference(postgres);
 
 // After adding all resources, run the app...
@@ -154,17 +158,18 @@ builder.AddProject<Projects.ExampleProject>()
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const postgres = await builder.addPostgres("postgres");
+const postgres = await builder.addPostgres('postgres');
 await postgres.withDbGate();
 await postgres.withAdminer();
 
 const exampleProject = await builder.addProject(
-    "example-project",
-    "../ExampleProject/ExampleProject.csproj");
+  'example-project',
+  '../ExampleProject/ExampleProject.csproj'
+);
 await exampleProject.withReference(postgres);
 
 // After adding all resources, run the app...
@@ -173,10 +178,90 @@ await exampleProject.withReference(postgres);
 </TabItem>
 </Tabs>
 
+### dbx management UI
+
+Use `WithDbx` / `withDbx` to add a dbx child resource configured for the PostgreSQL server:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithDbx();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+await postgres.withDbx({ containerName: 'postgres-dbx' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
+
+## Run Flyway commands
+
+Flyway decorators apply to an official `PostgresDatabaseResource`, not the PostgreSQL server resource.
+
+### Run migrations
+
+In C#, add a Flyway resource and pass it to `WithFlywayMigration`. In TypeScript, `withFlywayMigration` creates the Flyway resource from its name and migration scripts path.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var flyway = builder.AddFlyway("flyway", "./migrations");
+var postgres = builder.AddPostgres("postgres");
+var database = postgres.AddDatabase("appdb")
+    .WithFlywayMigration(flyway);
+
+flyway.WaitFor(database);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const database = await postgres.addDatabase('appdb');
+await database.withFlywayMigration('flyway-migration', './migrations');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Use `WithFlywayRepair(flyway)` in C# or `withFlywayRepair("flyway-repair", "./migrations")` in TypeScript when you need Flyway's `repair` command instead of `migrate`.
+
 ## See also
 
 - [Adminer documentation](https://www.adminer.org/)
 - [DbGate documentation](https://dbgate.org/)
+- [Flyway documentation](https://documentation.red-gate.com/fd)
 - [PostgreSQL integration](/integrations/databases/postgres/postgres-host/)
 - [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
 - [Aspire integrations overview](/integrations/overview/)
