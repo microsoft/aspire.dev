@@ -228,12 +228,17 @@ In C#, add a Flyway resource and pass it to `WithFlywayMigration`. In TypeScript
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var flyway = builder.AddFlyway("flyway", "./migrations");
+var migrations = builder.AddFlyway("migrations", "./migrations");
 var postgres = builder.AddPostgres("postgres");
 var database = postgres.AddDatabase("appdb")
-    .WithFlywayMigration(flyway);
+    .WithFlywayMigration(migrations);
 
-flyway.WaitFor(database);
+migrations.WaitFor(database);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(database)
+    .WaitFor(database)
+    .WaitForCompletion(migrations);
 
 builder.Build().Run();
 ```
@@ -256,7 +261,11 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-Use `WithFlywayRepair(flyway)` in C# or `withFlywayRepair("flyway-repair", "./migrations")` in TypeScript when you need Flyway's `repair` command instead of `migrate`.
+`WithFlywayMigration` configures the Flyway connection arguments and `migrate` command; it doesn't add resource ordering. In the C# example, `migrations.WaitFor(database)` starts Flyway after PostgreSQL is ready, and `api.WaitForCompletion(migrations)` gates the API on the migration resource's completion.
+
+The TypeScript overload creates and configures the Flyway resource internally, but it doesn't add a `waitFor` relationship or return the Flyway resource builder. The TypeScript binding therefore can't express the C# example's startup and completion dependencies for that internally created resource.
+
+Use `WithFlywayRepair(migrations)` in C# or `withFlywayRepair("flyway-repair", "./migrations")` in TypeScript when you need Flyway's `repair` command instead of `migrate`. The same ordering behavior and TypeScript limitation apply.
 
 ## See also
 
