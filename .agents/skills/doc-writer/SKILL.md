@@ -132,7 +132,7 @@ import InstallPackage from "@components/InstallPackage.astro";
 import InstallDotNetPackage from "@components/InstallDotNetPackage.astro";
 import AsciinemaPlayer from "@components/AsciinemaPlayer.astro";
 import Badge from "@astrojs/starlight/components/Badge.astro";
-import Image from "astro:assets";
+import { Image } from "astro:assets";
 ```
 
 ### Component Usage
@@ -569,7 +569,7 @@ description: Learn how to use the [Technology] integration with Aspire.
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 import InstallPackage from "@components/InstallPackage.astro";
-import Image from "astro:assets";
+import { Image } from "astro:assets";
 
 import techIcon from "@assets/icons/technology.svg";
 
@@ -578,6 +578,7 @@ import techIcon from "@assets/icons/technology.svg";
   alt="Technology logo"
   width={100}
   height={100}
+  fit="contain"
   style="float: left; margin-right: 1rem;"
   data-zoom-off
 />
@@ -825,7 +826,7 @@ Place icons in `src/frontend/src/assets/icons/`
 ### Icon Usage
 
 ```mdx
-import Image from "astro:assets";
+import { Image } from "astro:assets";
 import techIcon from "@assets/icons/technology.svg";
 
 <Image
@@ -833,6 +834,7 @@ import techIcon from "@assets/icons/technology.svg";
   alt="Technology logo"
   width={100}
   height={100}
+  fit="contain"
   style="float: left; margin-right: 1rem;"
   data-zoom-off
 />
@@ -844,13 +846,18 @@ For light/dark theme variants:
 import ThemeImage from "@components/ThemeImage.astro";
 
 <ThemeImage
-  lightSrc={techIconLight}
-  darkSrc={techIconDark}
+  light={techIconLight}
+  dark={techIconDark}
   alt="Technology logo"
   width={100}
   height={100}
 />
 ```
+
+When an integration logo sets both `width` and `height`, use `fit="contain"` so
+Astro preserves the complete source artwork instead of cropping it to the
+requested aspect ratio. `ThemeImage` applies contained fitting automatically.
+Use `ThemeImage` whenever separate light and dark logo assets exist.
 
 ### Terminal Recordings (Asciinema)
 
@@ -866,6 +873,7 @@ Before submitting documentation:
 4. **Review formatting**: Verify components render correctly
 5. **Run relevant tests**: Do not consider documentation or component work done until the affected tests pass
 6. **Check navigation**: Confirm sidebar entries are correct
+7. **Check integration logos**: At desktop and mobile widths, verify the full logo is visible, uncropped, and legible in both light and dark themes
 
 ### Documentation Validation Strategy
 
