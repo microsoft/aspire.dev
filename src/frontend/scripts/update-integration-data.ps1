@@ -180,7 +180,11 @@ function Get-VersionMap {
     foreach ($entry in @($entries)) {
         if ($entry.PSObject.Properties.Name -contains 'title' -and
             $entry.PSObject.Properties.Name -contains 'version') {
-            $map[[string]$entry.title] = [string]$entry.version
+            $title = [string]$entry.title
+            if ($map.ContainsKey($title)) {
+                throw "Duplicate integration title '$title' prevents reliable version-change detection."
+            }
+            $map[$title] = [string]$entry.version
         }
     }
     return $map
@@ -266,7 +270,21 @@ if ($versionsChanged -and -not $SkipRegen) {
         }
         exit 1
     }
-    $tsApiSummary = 'succeeded'
+
+    $tsApiDone = ($tsLog -split "`n" |
+        Where-Object { $_ -match 'Complete:\s+\d+\s+succeeded,\s+\d+\s+failed,\s+\d+\s+skipped' } |
+        Select-Object -First 1)
+    if (-not $tsApiDone -or
+        $tsApiDone -notmatch 'Complete:\s+(?<Succeeded>\d+)\s+succeeded,\s+(?<Failed>\d+)\s+failed,\s+(?<Skipped>\d+)\s+skipped') {
+        Write-Error "TypeScript API generation did not emit a valid completion summary. Aborting; no PR will be opened."
+        exit 1
+    }
+    $tsApiSummary = "$($Matches.Succeeded) succeeded, $($Matches.Failed) failed, $($Matches.Skipped) skipped"
+    if ([int]$Matches.Failed -gt 0) {
+        Write-Error "TypeScript API generation reported $($Matches.Failed) package failure(s). Aborting; no PR will be opened."
+        exit 1
+    }
+
     $twoslashSummary = 'succeeded'
     $regenRan = $true
 }

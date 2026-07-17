@@ -104,6 +104,21 @@ jobs:
           # a new branch) every day. The rolling commit is always a single snapshot
           # rebased onto current main, which also keeps the PR conflict-free.
           branch="chore/update-integration-data"
+          bot_email="aspire-repo-bot[bot]@users.noreply.github.com"
+
+          # Refuse to replace a rolling branch that contains maintainer changes.
+          # The exact lease below also protects commits pushed after this check.
+          remote_tip=$(git ls-remote --heads origin "refs/heads/$branch" | awk '{print $1}')
+          if [ -n "$remote_tip" ]; then
+            git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
+            non_bot_commits=$(git log --format='%H %ae %ce' "origin/main..origin/$branch" |
+              awk -v bot="$bot_email" '$2 != bot || $3 != bot')
+            if [ -n "$non_bot_commits" ]; then
+              echo "::error::Refusing to replace $branch because it contains non-bot commits:"
+              echo "$non_bot_commits"
+              exit 1
+            fi
+          fi
 
           # Stage only the allowed generated data files — never workflow files,
           # source, manifests, or docs. Directories with no changes are no-ops.
@@ -128,7 +143,11 @@ jobs:
           git commit \
             -m "$PR_TITLE" \
             -m "Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>"
-          git push --force origin "HEAD:refs/heads/$branch"
+          if [ -n "$remote_tip" ]; then
+            git push --force-with-lease="refs/heads/$branch:$remote_tip" origin "HEAD:refs/heads/$branch"
+          else
+            git push origin "HEAD:refs/heads/$branch"
+          fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           echo "pushed=true" >> "$GITHUB_OUTPUT"
 
