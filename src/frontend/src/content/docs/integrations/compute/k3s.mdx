@@ -37,6 +37,14 @@ A container runtime that supports privileged Linux containers:
 k3s requires `--privileged`, `--cgroupns=host`, and a writable cgroup filesystem. The integration passes these flags automatically.
 :::
 
+To verify Docker Desktop is configured for privileged containers, run:
+
+```bash
+docker run --rm --privileged alpine echo "Privileged containers supported"
+```
+
+If this command fails with a permission error, you may need to enable privileged mode in Docker Desktop settings or configure your Linux runtime for rootful operation.
+
 ## Installation
 
 To start building an Aspire app that uses k3s, install the [📦 CommunityToolkit.Aspire.Hosting.K3s](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.K3s) NuGet package:
@@ -45,7 +53,7 @@ To start building an Aspire app that uses k3s, install the [📦 CommunityToolki
 <TabItem id="csharp" label="C#">
 
 ```bash title="Terminal"
-aspire add k3s
+aspire add communitytoolkit-k3s
 ```
 
 <LearnMore>
@@ -66,7 +74,7 @@ Or, choose a manual installation approach:
 <TabItem id="typescript" label="TypeScript">
 
 ```bash title="Terminal"
-aspire add k3s
+aspire add communitytoolkit-k3s
 ```
 
 <LearnMore>
@@ -90,7 +98,24 @@ The TypeScript AppHost bindings for k3s are provided by the Community Toolkit pa
 
 ## Add a k3s cluster
 
-Once you've installed the hosting integration in your AppHost project, add a k3s cluster and reference it from a project to have `KUBECONFIG` injected automatically:
+Once you've installed the hosting integration in your AppHost project, add a k3s cluster and reference it from a project to have `KUBECONFIG` injected automatically.
+
+:::note[Code examples are reference snippets]
+The examples below show how to use the k3s integration APIs. They assume you already have projects defined (e.g., `Projects.MyOperator`, `Projects.MyApi`) and configuration files in place (e.g., `./k8s/...`, `./deploy/...`). For a complete working example, start with this minimal structure:
+
+```
+MyDistributedApp/
+├── AppHost/
+│   ├── AppHost.csproj
+│   └── AppHost.cs          (add k3s cluster here)
+├── MyOperator/             (existing project)
+│   └── MyOperator.csproj
+└── k8s/                    (create for manifests, if using AddK8sManifest)
+    └── app-config.yaml     (your Kubernetes manifests)
+```
+
+Then adapt the snippets below to your project structure and configuration.
+:::
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -404,14 +429,30 @@ await api.withReference(podinfoWeb);
 
 k3s pods run on the internal pod network (`10.42.0.0/16`). Flannel masquerades outbound pod traffic through the k3s container's DCP network IP, so pods can reach DCP services using `host.docker.internal` and the host-mapped port:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var postgres = builder.AddPostgres("db");
 
 cluster.AddHelmRelease("my-operator", "my-operator-chart")
     .WithHelmValue("database.host", "host.docker.internal")
-    .WithHelmValue("database.port",
-        postgres.GetEndpoint("tcp").Property(EndpointProperty.Port));
+    .WithHelmValue("database.port", "5432");
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const postgres = await builder.addPostgres('db');
+
+const helmRelease = await cluster.addHelmRelease('my-operator', 'my-operator-chart')
+    .withHelmValue('database.host', 'host.docker.internal')
+    .withHelmValue('database.port', '5432');
+```
+
+</TabItem>
+</Tabs>
 
 ## See also
 
