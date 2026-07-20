@@ -1454,6 +1454,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
+          label: 'Particular Service Platform',
+          link: 'https://docs.particular.net/platform/aspire/',
+        },
+        {
           label: 'RabbitMQ',
           collapsed: true,
           items: [
