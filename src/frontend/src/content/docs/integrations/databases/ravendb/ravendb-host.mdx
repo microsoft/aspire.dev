@@ -16,6 +16,7 @@ import ravendbIcon from '@assets/icons/ravendb-icon.png';
   alt="RavenDB logo"
   width={100}
   height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
@@ -90,13 +91,13 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -104,11 +105,11 @@ const builder = await createBuilder();
 const ravenServer = await builder.addRavenDB("ravenServer");
 const ravendb = await ravenServer.addDatabase("ravendb");
 
-const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
-    .withReference(ravendb)
-    .waitFor(ravendb);
+const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await apiService.withReference(ravendb);
+await apiService.waitFor(ravendb);
 
-// After adding all resources, run the app...
+await builder.build().run();
 ```
 
 </TabItem>
@@ -153,13 +154,13 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -167,11 +168,11 @@ const builder = await createBuilder();
 const ravenServer = await builder.addRavenDB("ravenServer");
 const ravendb = await ravenServer.addDatabase("ravendb", { ensureCreated: true });
 
-const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
-    .withReference(ravendb)
-    .waitFor(ravendb);
+const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await apiService.withReference(ravendb);
+await apiService.waitFor(ravendb);
 
-// After adding all resources, run the app...
+await builder.build().run();
 ```
 
 </TabItem>
@@ -196,27 +197,27 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const ravenServer = await builder.addRavenDB("ravenServer")
-    .withDataVolume();
+const ravenServer = await builder.addRavenDB("ravenServer");
+await ravenServer.withDataVolume();
 
 const ravendb = await ravenServer.addDatabase("ravendb");
 
-const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
-    .withReference(ravendb)
-    .waitFor(ravendb);
+const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await apiService.withReference(ravendb);
+await apiService.waitFor(ravendb);
 
-// After adding all resources, run the app...
+await builder.build().run();
 ```
 
 </TabItem>
@@ -243,33 +244,33 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const ravenServer = await builder.addRavenDB("ravenServer")
-    .withDataBindMount("C:\\RavenDb\\Data");
+const ravenServer = await builder.addRavenDB("ravenServer");
+await ravenServer.withDataBindMount("C:\\RavenDb\\Data");
 
 const ravendb = await ravenServer.addDatabase("ravendb");
 
-const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
-    .withReference(ravendb)
-    .waitFor(ravendb);
+const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await apiService.withReference(ravendb);
+await apiService.waitFor(ravendb);
 
-// After adding all resources, run the app...
+await builder.build().run();
 ```
 
 </TabItem>
 </Tabs>
 
-Data bind mounts rely on the host machine's filesystem to persist the RavenDB data across container restarts. The data bind mount is mounted at the `C:\RavenDb\Data` on Windows (or the equivalent Unix path) on the host machine in the RavenDB container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+Data bind mounts rely on the host machine's filesystem to persist the RavenDB data across container restarts. The bind mount maps the host path `C:\RavenDb\Data` (on Windows, or the equivalent Unix path) to the `/var/lib/ravendb/data` directory inside the RavenDB container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
 <Aside type="note">
     Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
@@ -295,28 +296,28 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const ravenServer = await builder.addRavenDB("ravenServer")
-    .withDataVolume()
-    .withLogVolume();
+const ravenServer = await builder.addRavenDB("ravenServer");
+await ravenServer.withDataVolume();
+await ravenServer.withLogVolume();
 
 const ravendb = await ravenServer.addDatabase("ravendb");
 
-const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
-    .withReference(ravendb)
-    .waitFor(ravendb);
+const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await apiService.withReference(ravendb);
+await apiService.waitFor(ravendb);
 
-// After adding all resources, run the app...
+await builder.build().run();
 ```
 
 </TabItem>
@@ -344,7 +345,7 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
 <Aside type="caution">

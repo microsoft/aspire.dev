@@ -1,6 +1,6 @@
 ---
 title: Use community extensions for SQL Server hosting
-description: Extend the functionality of your SQL Server hosting with the Aspire Community Toolkit, including management UIs like Adminer and DbGate.
+description: Decorate official Aspire SQL Server resources with Community Toolkit Adminer, DbGate, and dbx management interfaces.
 ---
 
 import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -15,6 +15,7 @@ import sqlIcon from '@assets/icons/sql-icon.png';
   alt="SQL Server logo"
   width={100}
   height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
@@ -25,6 +26,7 @@ This package provides the following features:
 
 - [Adminer](https://adminer.org/) management UI
 - [DbGate](https://dbgate.org/) management UI
+- dbx management UI
 
 ## Hosting integration
 
@@ -46,7 +48,7 @@ For TypeScript AppHosts, add the Community Toolkit SQL Server extensions package
 
 ### DbGate management UI
 
-To add the [DbGate](https://dbgate.org/) management UI to your SQL Server resource, call the `WithDbGate` method on the `SqlServerResourceBuilder` instance:
+To add the [DbGate](https://dbgate.org/) management UI, decorate the official `SqlServerServerResource` builder with `WithDbGate` / `withDbGate`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -67,14 +69,14 @@ builder.Build().Run();
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const sqlserver = await builder.addSqlServer("sqlserver");
+const sqlserver = await builder.addSqlServer('sqlserver');
 await sqlserver.withDbGate();
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withReference(sqlserver);
 
 await builder.build().run();
@@ -87,7 +89,7 @@ This adds a new DbGate resource to the AppHost which is available from the Aspir
 
 ### Adminer management UI
 
-To add the [Adminer](https://adminer.org/) management UI to your SQL Server resource, call the `WithAdminer` method on the `SqlServerResourceBuilder` instance:
+To add the [Adminer](https://adminer.org/) management UI, decorate the official `SqlServerServerResource` builder with `WithAdminer` / `withAdminer`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -108,14 +110,14 @@ builder.Build().Run();
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const sqlserver = await builder.addSqlServer("sqlserver");
+const sqlserver = await builder.addSqlServer('sqlserver');
 await sqlserver.withAdminer();
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withReference(sqlserver);
 
 await builder.build().run();
@@ -150,15 +152,15 @@ builder.Build().Run();
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const sqlserver = await builder.addSqlServer("sqlserver");
+const sqlserver = await builder.addSqlServer('sqlserver');
 await sqlserver.withDbGate();
 await sqlserver.withAdminer();
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withReference(sqlserver);
 
 await builder.build().run();
@@ -166,6 +168,44 @@ await builder.build().run();
 
 </TabItem>
 </Tabs>
+
+### dbx management UI
+
+[dbx](https://github.com/t8y2/dbx) is a lightweight, web-based database client and an alternative management UI to DbGate and Adminer. Use `WithDbx` / `withDbx` to add a dbx child resource configured for the SQL Server resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sqlserver = builder.AddSqlServer("sqlserver")
+    .WithDbx();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const sqlserver = await builder.addSqlServer('sqlserver');
+await sqlserver.withDbx({
+  containerName: 'sqlserver-dbx',
+  imageTag: '0.5.33',
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
 
 ## See also
 

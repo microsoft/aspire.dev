@@ -16,6 +16,7 @@ import surrealdbIcon from '@assets/icons/surrealdb-icon.png';
   alt="SurrealDB logo"
   width={100}
   height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
@@ -26,7 +27,7 @@ When you reference a SurrealDB resource from your AppHost, Aspire injects the co
 
 ## Connection properties
 
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Endpoint` property of a resource called `db` becomes `DB_ENDPOINT`.
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `db` becomes `DB_URI`.
 
 The SurrealDB database resource exposes the following connection properties:
 
@@ -38,13 +39,14 @@ The SurrealDB database resource exposes the following connection properties:
 | `Password`         | The password for authentication |
 | `Namespace`        | The SurrealDB namespace name |
 | `Database`         | The database name |
-| `Endpoint`         | The full WebSocket endpoint URL, with the format `ws://{Host}:{Port}/` |
-| `ConnectionString` | The full connection string, with the format `Endpoint=ws://{Host}:{Port}/;Namespace={Namespace};Database={Database};Username={Username};Password={Password}` |
+| `Uri`              | The full WebSocket RPC endpoint URL, with the format `ws://{Host}:{Port}/rpc` |
+
+When you reference the SurrealDB database resource, Aspire also injects a connection string into the consuming app's `ConnectionStrings` configuration section, with the format `Server=ws://{Host}:{Port}/rpc;User={Username};Password={Password};Namespace={Namespace};Database={Database}`.
 
 **Example connection string:**
 
 ```
-ConnectionString: Endpoint=ws://localhost:8000/;Namespace=ns;Database=db;Username=root;Password=p%40ssw0rd1
+Server=ws://localhost:8000/rpc;User=root;Password=p%40ssw0rd1;Namespace=ns;Database=db
 ```
 
 ## Connect from your app
@@ -120,23 +122,20 @@ The connection string is resolved from the `ConnectionStrings` section:
 ```json title="appsettings.json"
 {
   "ConnectionStrings": {
-    "db": "Endpoint=ws://localhost:8000/;Namespace=ns;Database=db;Username=root;Password=s3cr3t"
+    "db": "Server=ws://localhost:8000/rpc;User=root;Password=s3cr3t;Namespace=ns;Database=db"
   }
 }
 ```
 
-**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads settings from _appsettings.json_ (or any other configuration source) by using the `Aspire:Surreal:Client` key:
+**Configuration providers.** The client integration binds `SurrealDbClientSettings` from the `Aspire:Surreal:Client` configuration section. Connection details are supplied through the `ConnectionStrings` section shown earlier; this section configures client behavior such as health checks:
 
 ```json title="appsettings.json"
 {
   "Aspire": {
     "Surreal": {
       "Client": {
-        "Endpoint": "ws://localhost:8000/",
-        "Namespace": "ns",
-        "Database": "db",
-        "Username": "root",
-        "Password": "s3cr3t"
+        "DisableHealthChecks": false,
+        "HealthCheckTimeout": 10000
       }
     }
   }
@@ -157,12 +156,12 @@ Aspire client integrations enable health checks by default. The SurrealDB client
 
 #### Read environment variables in C\#
 
-If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection string from the environment and use the [📦 SurrealDB.Net](https://www.nuget.org/packages/SurrealDb.Net/) NuGet package to construct a client directly:
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection string from the environment and use the [📦 SurrealDb.Net](https://www.nuget.org/packages/SurrealDb.Net/) NuGet package to construct a client directly:
 
 ```csharp title="Program.cs"
 using SurrealDb.Net;
 
-var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTIONSTRING");
+var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__db");
 
 var client = new SurrealDbClient(connectionString!);
 await client.Connect();
@@ -192,7 +191,7 @@ import (
 
 func main() {
     // Read the Aspire-injected connection properties
-    endpoint := os.Getenv("DB_ENDPOINT")
+    endpoint := os.Getenv("DB_URI")
     namespace := os.Getenv("DB_NAMESPACE")
     database  := os.Getenv("DB_DATABASE")
     username  := os.Getenv("DB_USERNAME")
@@ -236,7 +235,7 @@ from surrealdb import AsyncSurrealDB
 
 async def main():
     # Read the Aspire-injected connection properties
-    endpoint  = os.getenv("DB_ENDPOINT")
+    endpoint  = os.getenv("DB_URI")
     namespace = os.getenv("DB_NAMESPACE")
     database  = os.getenv("DB_DATABASE")
     username  = os.getenv("DB_USERNAME")
@@ -266,7 +265,7 @@ Read the injected environment variables and connect:
 import Surreal from 'surrealdb';
 
 // Read Aspire-injected connection properties
-const endpoint  = process.env.DB_ENDPOINT!;
+const endpoint  = process.env.DB_URI!;
 const namespace = process.env.DB_NAMESPACE!;
 const database  = process.env.DB_DATABASE!;
 const username  = process.env.DB_USERNAME!;

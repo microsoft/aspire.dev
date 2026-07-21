@@ -1,22 +1,26 @@
 {
-  "$comment": "Forbidden words/phrases checked against newly added lines in pull requests by .github/scripts/check-forbidden-words.sh. Each rule has a regex 'pattern' (extended POSIX, evaluated case-insensitively unless 'caseSensitive' is true) and a 'message' shown when matched. Add 'excludePaths' globs to skip files for a specific rule.",
+  "$comment": "Forbidden words/phrases checked against newly added lines in pull requests by .github/scripts/check-forbidden-words.sh. Each rule has a regex 'pattern' (extended POSIX/PCRE, evaluated case-insensitively unless 'caseSensitive' is true), a required 'replacement' string, and a 'message' shown when matched. The check still fails when a forbidden phrase is found; in addition, .github/workflows/forbidden-words-suggest.yml posts an inline PR review 'suggestion' that rewrites the offending line by substituting each matched pattern with its 'replacement'. The 'replacement' value is inserted verbatim (matching honors 'caseSensitive', but the replacement text is never case-adjusted and does not support backreferences). Add 'excludePaths' globs to skip files for a specific rule.",
   "excludePaths": [
     "**/*.lock.yml",
     "pnpm-lock.yaml",
     ".github/forbidden-words.json",
-    ".github/scripts/check-forbidden-words.sh"
+    ".github/scripts/check-forbidden-words.sh",
+    ".github/scripts/post-forbidden-word-suggestions.sh"
   ],
   "rules": [
     {
       "pattern": "\\.NET Aspire",
+      "replacement": "Aspire",
       "message": "Use \"Aspire\" instead of \".NET Aspire\"."
     },
     {
       "pattern": "dotnet aspire",
+      "replacement": "Aspire",
       "message": "Use \"Aspire\" instead of \"dotnet aspire\"."
     },
     {
       "pattern": "\\bapp host\\b",
+      "replacement": "AppHost",
       "message": "Use \"AppHost\" instead of \"app host\"."
     }
   ]

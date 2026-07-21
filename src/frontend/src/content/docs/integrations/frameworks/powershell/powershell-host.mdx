@@ -1,0 +1,228 @@
+---
+title: Configure PowerShell scripts in the AppHost
+description: Configure PowerShell runspace pools, scripts, arguments, dependencies, dashboard actions, and lifecycle behavior in Aspire.
+---
+
+import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import powershellIcon from '@assets/icons/powershell-icon.png';
+
+<Image
+  src={powershellIcon}
+  alt="PowerShell logo"
+  width={100}
+  height={100}
+  fit="contain"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+This reference describes the Community Toolkit PowerShell hosting integration. If you are new to it, begin with [Get started with the PowerShell integration](/integrations/frameworks/powershell/powershell-get-started/).
+
+:::note[Prerequisites]
+Add the `CommunityToolkit.Aspire.Hosting.PowerShell` package to your AppHost. The integration hosts the PowerShell SDK in-process and doesn't require the `pwsh` executable.
+:::
+
+## Install the package
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```bash title="Terminal"
+aspire add communitytoolkit-powershell
+```
+
+Or add [📦 CommunityToolkit.Aspire.Hosting.PowerShell](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.PowerShell) to the AppHost project.
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```bash title="Terminal"
+aspire add communitytoolkit-powershell
+```
+
+This adds the package to `aspire.config.json` and generates the TypeScript AppHost module.
+
+</TabItem>
+</Tabs>
+
+## Add a runspace pool
+
+`AddPowerShell` / `addPowerShell` adds a runspace-pool resource. The resource name is shown in the dashboard. By default, the pool uses `ConstrainedLanguage` mode with one to five runspaces.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using System.Management.Automation;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var scripts = builder.AddPowerShell(
+    name: "scripts",
+    languageMode: PSLanguageMode.FullLanguage,
+    minRunspaces: 2,
+    maxRunspaces: 8);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const scripts = await builder.addPowerShell('scripts', 'FullLanguage', 2, 8);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Use the least-permissive language mode appropriate for the scripts you run. The C# overload that accepts `PSLanguageMode` is marked `[AspireExportIgnore]` because the enum isn't ATS-compatible. The exported TypeScript bridge accepts the language-mode name as a string; invalid names fail while Aspire constructs the AppHost.
+
+## Add scripts and arguments
+
+`AddScript` / `addScript` creates a child script resource. Aspire parses the script when the AppHost is built, starts it after the pool is running, and streams output, errors, warnings, information, verbose, and debug records to the resource logs.
+
+Use `WithArgs` / `withArgs` to bind values to a PowerShell `param()` block. The C# `object[]` overload accepts values of any type but is marked `[AspireExportIgnore]` because `object[]` isn't ATS-compatible. The exported TypeScript bridge accepts strings.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var scripts = builder.AddPowerShell("scripts");
+scripts.AddScript("process-data", """
+    param($count, $name)
+    Write-Information "Processing $count items for $name"
+    """)
+    .WithArgs(5, "demo");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const scripts = await builder.addPowerShell('scripts');
+await scripts
+  .addScript(
+    'process-data',
+    'param($count, $name) Write-Information "Processing $count items for $name"'
+  )
+  .withArgs(['5', 'demo']);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Scripts execute in the AppHost process's current working directory. The integration has no `WithWorkingDirectory` API, so use absolute paths or set a location in the script when its file operations must be independent of the host's launch directory.
+
+The script resource implements the standard environment annotation interface, but the in-process runner doesn't project those annotations into the runspace. A script can read environment variables inherited by the AppHost process through PowerShell's `$env:` provider.
+
+## Pass connection strings to scripts
+
+In C#, `WithReference` on the runspace pool makes a connection string available as a read-only PowerShell variable. By default, the variable name is the referenced resource name. Pass `connectionName` to choose a different variable name. `optional: true` allows the connection string to be unavailable.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+var scripts = builder.AddPowerShell("scripts")
+    .WithReference(cache, connectionName: "redisConnection");
+
+scripts.AddScript("seed", """
+    Write-Information "Redis connection: $redisConnection"
+    """);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+The PowerShell-specific pool `WithReference` API is marked `[AspireExportIgnore]` because `IResourceBuilder<IResourceWithConnectionString>` is not currently validated for ATS export in this integration. You can use standard TypeScript AppHost relationships such as `waitFor`, but they do not create a PowerShell connection-string variable.
+
+</TabItem>
+</Tabs>
+
+The pool resolves these variables before it opens. This is distinct from an environment variable: the connection string is added to the PowerShell session state rather than to a process environment.
+
+## Order scripts and resources
+
+Use `WaitFor` / `waitFor` for readiness dependencies. Each script automatically waits for its parent pool. Use `WaitForCompletion` / `waitForCompletion` when one script must finish before another script starts.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var scripts = builder.AddPowerShell("scripts");
+var setup = scripts.AddScript("setup", """
+    Write-Information "Setting up"
+    """);
+
+scripts.AddScript("process", """
+    Write-Information "Processing after setup"
+    """)
+    .WaitForCompletion(setup);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const scripts = await builder.addPowerShell('scripts');
+const setup = await scripts.addScript(
+  'setup',
+  'Write-Information "Setting up"'
+);
+
+await scripts
+  .addScript('process', 'Write-Information "Processing after setup"')
+  .waitForCompletion(setup);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Dashboard behavior, health, and publishing
+
+The dashboard reports the pool state and each script's invocation state. A completed script is a finite resource and reaches **Finished**; it is not an HTTP service. The integration does not add endpoints, HTTP health checks, or health probes for PowerShell resources.
+
+While a script is running, its dashboard resource has a **Stop script execution** action. The action stops the PowerShell pipeline; it is disabled when the script is not running. You can use `Wait-Debugger` in a script and attach a PowerShell debugger to the AppHost process when diagnosing a script.
+
+PowerShell pools and scripts are excluded from the deployment manifest. They run in the AppHost process during local orchestration and are not exported as container or deployment resources.
+
+## See also
+
+- [PowerShell documentation](https://learn.microsoft.com/powershell/)
+- [Get started with the PowerShell integration](/integrations/frameworks/powershell/powershell-get-started/)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
