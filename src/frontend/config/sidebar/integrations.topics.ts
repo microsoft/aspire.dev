@@ -1346,7 +1346,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
           ],
         },
-        { label: 'Dapr', slug: 'integrations/frameworks/dapr' },
+        {
+          label: 'Dapr',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/dapr/dapr-get-started',
+            },
+            {
+              label: 'Set up Dapr resources in the AppHost',
+              slug: 'integrations/frameworks/dapr/dapr-host',
+            },
+            {
+              label: 'Connect to Dapr',
+              slug: 'integrations/frameworks/dapr/dapr-connect',
+            },
+          ],
+        },
         {
           label: 'Go',
           collapsed: true,
@@ -1434,7 +1451,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'LavinMQ', slug: 'integrations/messaging/lavinmq' },
+        {
+          label: 'LavinMQ',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/lavinmq/lavinmq-get-started',
+            },
+            {
+              label: 'Set up LavinMQ in the AppHost',
+              slug: 'integrations/messaging/lavinmq/lavinmq-host',
+            },
+            {
+              label: 'Connect to LavinMQ',
+              slug: 'integrations/messaging/lavinmq/lavinmq-connect',
+            },
+          ],
+        },
         {
           label: 'NATS',
           collapsed: true,
@@ -1609,7 +1643,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           },
           slug: 'integrations/devtools/browser-logs',
         },
-        { label: 'Data API Builder', slug: 'integrations/devtools/dab' },
+        {
+          label: 'Data API Builder',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/dab/dab-get-started',
+            },
+            {
+              label: 'Set up Data API Builder in the AppHost',
+              slug: 'integrations/devtools/dab/dab-host',
+            },
+            {
+              label: 'Connect to Data API Builder',
+              slug: 'integrations/devtools/dab/dab-connect',
+            },
+          ],
+        },
         { label: 'Dev Tunnels', slug: 'integrations/devtools/dev-tunnels' },
         {
           label: 'flagd',

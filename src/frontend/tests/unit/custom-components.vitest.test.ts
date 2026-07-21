@@ -373,7 +373,7 @@ const basicRenderCases: BasicRenderCase[] = [
       alt: 'Themed diagram',
       zoomable: false,
     },
-    includes: ['theme-image', 'data-light=', 'data-dark=', 'Themed diagram'],
+    includes: ['theme-image', 'data-light=', 'data-dark=', 'fit=contain', 'Themed diagram'],
   },
   {
     name: 'ImageShowcase renders image text and CTA',
