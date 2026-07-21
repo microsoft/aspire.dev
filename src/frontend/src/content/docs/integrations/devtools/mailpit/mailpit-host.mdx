@@ -1,11 +1,16 @@
 ---
 title: Set up Mailpit in the AppHost
-seoTitle: "Set up Mailpit in the Aspire AppHost: hosting integration"
+seoTitle: 'Set up Mailpit in the Aspire AppHost: hosting integration'
 description: Learn how to use the Aspire Mailpit Hosting integration to orchestrate and configure a Mailpit resource in an Aspire solution.
 ---
 
-import { Aside, Badge, Steps } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
+import {
+  Aside,
+  Badge,
+  Steps,
+  TabItem,
+  Tabs,
+} from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import mailpitIcon from '@assets/icons/mailpit-icon.svg';
@@ -14,8 +19,8 @@ import mailpitLightIcon from '@assets/icons/mailpit-light-icon.svg';
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
 <ThemeImage
-  light={mailpitLightIcon}
-  dark={mailpitIcon}
+  light={mailpitIcon}
+  dark={mailpitLightIcon}
   alt="Mailpit logo"
   width={100}
   height={100}
@@ -27,10 +32,6 @@ This article is the reference for the Aspire Mailpit Hosting integration. It enu
 
 If you're new to the Mailpit integration, start with the [Get started with Mailpit integrations](/integrations/devtools/mailpit/mailpit-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Mailpit](../mailpit-connect/).
 
-:::note
-TypeScript AppHost support for the Mailpit integration is not yet available. The examples on this page use the C# AppHost only.
-:::
-
 ## Installation
 
 To start building an Aspire app that uses Mailpit, install the [📦 CommunityToolkit.Aspire.Hosting.MailPit](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.MailPit) NuGet package:
@@ -40,16 +41,17 @@ aspire add mailpit
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package CommunityToolkit.Aspire.Hosting.MailPit@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="CommunityToolkit.Aspire.Hosting.MailPit" Version="*" />
 ```
 
@@ -57,7 +59,10 @@ Or, choose a manual installation approach:
 
 Once you've installed the hosting integration in your AppHost project, you can add a Mailpit resource as shown in the following example:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mailpit = builder.AddMailPit("mailpit");
@@ -69,6 +74,28 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mailpit = await builder.addMailPit('mailpit');
+
+const api = await builder.addProject(
+  'apiservice',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.withReference(mailpit);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 <Steps>
 
 1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/axllent/mailpit` image, it creates a new Mailpit instance on your local machine.
@@ -78,16 +105,19 @@ builder.Build().Run();
 </Steps>
 
 <Aside type="note">
-    When you reference a Mailpit resource from the AppHost, Aspire makes several properties available to the consuming project, such as the SMTP host, SMTP port, and the HTTP UI endpoint URL. For a complete list of these properties and per-language connection examples, see [Connect to Mailpit](../mailpit-connect/).
+  When you reference a Mailpit resource from the AppHost, Aspire makes the SMTP
+  connection string, host, port, and URI available to the consuming project. For
+  the exact formats and per-language examples, see [Connect to
+  Mailpit](../mailpit-connect/).
 </Aside>
 
 ## SMTP endpoint
 
-Mailpit listens for SMTP on port **1025** by default. Aspire exposes this as the `smtp` endpoint on the resource. When you call `WithReference(mailpit)` from a consuming project, Aspire injects the `SmtpHost` and `SmtpPort` connection properties automatically.
+Mailpit listens for SMTP on port **1025** by default. Aspire exposes this as the `smtp` endpoint and uses it for the resource's `Host`, `Port`, `Uri`, and connection string values.
 
 ## HTTP UI endpoint
 
-Mailpit serves its web-based email inspector on port **8025** by default. Aspire exposes this as the `http` endpoint on the resource. The `HttpEndpoint` connection property contains the full URL.
+Mailpit serves its web-based email inspector on port **8025** by default. Aspire exposes this separately as the `http` endpoint on the resource.
 
 You can open the Mailpit web UI from the Aspire dashboard by clicking the HTTP endpoint link next to the Mailpit resource.
 
@@ -95,11 +125,14 @@ You can open the Mailpit web UI from the Aspire dashboard by clicking the HTTP e
 
 Add a data volume to the Mailpit resource to persist captured emails across container restarts:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mailpit = builder.AddMailPit("mailpit")
-    .WithDataVolume();
+    .WithDataVolume("mailpit-data");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(mailpit);
@@ -108,8 +141,109 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-The data volume is mounted inside the Mailpit container and persists data outside the lifecycle of the container. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over bind mounts, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mailpit = await builder.addMailPit('mailpit');
+await mailpit.withDataVolume('mailpit-data');
+
+const api = await builder.addProject(
+  'apiservice',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.withReference(mailpit);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The data volume is mounted at `/data` and the integration configures Mailpit to store its database at `/data/mailpit.db`. For more information on data volumes and details on why they're preferred over bind mounts, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+## Add Mailpit resource with data bind mount
+
+Use a bind mount when you need direct access to Mailpit's database files from the host:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mailpit = builder.AddMailPit("mailpit")
+    .WithDataBindMount("./mailpit-data");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mailpit = await builder.addMailPit('mailpit');
+await mailpit.withDataBindMount('./mailpit-data');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The bind mount uses the same `/data` container path and `/data/mailpit.db` database location as a data volume.
+
+## Customize ports
+
+Pass `httpPort` and `smtpPort` to bind Mailpit's endpoints to fixed host ports:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mailpit = builder.AddMailPit(
+    name: "mailpit",
+    httpPort: 8025,
+    smtpPort: 1025);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mailpit = await builder.addMailPit('mailpit', {
+  httpPort: 8025,
+  smtpPort: 1025,
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+When these values are omitted, Aspire assigns random host ports while Mailpit continues to listen on ports `8025` and `1025` inside the container.
 
 ## Connection properties
 
 For the full reference of Mailpit connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Mailpit](../mailpit-connect/).
+
+## Hosting integration health checks
+
+The Mailpit hosting integration automatically checks the `/livez` and `/readyz` paths on the HTTP endpoint. The resource becomes healthy after both checks pass.

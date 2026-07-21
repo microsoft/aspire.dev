@@ -64,7 +64,7 @@ Install the [📦 Aspire.Qdrant.Client](https://www.nuget.org/packages/Aspire.Qd
 
 In _Program.cs_, call `AddQdrantClient` on your `IHostApplicationBuilder` to register a `QdrantClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddQdrantClient(connectionName: "qdrant");
 ```
 
@@ -74,7 +74,7 @@ The `connectionName` must match the Qdrant resource name from the AppHost. For m
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(QdrantClient client)
 {
     // Use client...
@@ -85,14 +85,14 @@ public class ExampleService(QdrantClient client)
 
 To register multiple `QdrantClient` instances with different connection names, use `AddKeyedQdrantClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedQdrantClient(name: "mainQdrant");
 builder.AddKeyedQdrantClient(name: "loggingQdrant");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("mainQdrant")] QdrantClient mainClient,
     [FromKeyedServices("loggingQdrant")] QdrantClient loggingClient)
@@ -109,13 +109,13 @@ The Aspire Qdrant client integration offers multiple ways to provide configurati
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddQdrantClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddQdrantClient("qdrant");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section. By default, the `QdrantClient` uses the gRPC endpoint:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "qdrant": "Endpoint=http://localhost:6334;Key=your-api-key"
@@ -125,7 +125,7 @@ The connection string is resolved from the `ConnectionStrings` section. By defau
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `QdrantSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Qdrant:Client` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Qdrant": {
@@ -142,7 +142,7 @@ The connection string is resolved from the `ConnectionStrings` section. By defau
 
 **Inline delegates.** Pass an `Action<QdrantSettings>` to configure settings inline, for example to set the API key:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddQdrantClient(
     "qdrant",
     settings => settings.Key = "your-api-key");
@@ -166,7 +166,7 @@ The Qdrant integration doesn't currently emit tracing activities or metrics beca
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI and API key from the environment and create a `QdrantClient` directly using the [📦 Qdrant.Client](https://www.nuget.org/packages/Qdrant.Client/) NuGet package:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Qdrant.Client;
 
 var endpoint = Environment.GetEnvironmentVariable("QDRANT_URI");
@@ -187,7 +187,7 @@ go get github.com/qdrant/go-client
 
 Read the injected environment variables and connect using gRPC:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -230,7 +230,7 @@ pip install qdrant-client
 
 Read the injected environment variables and connect using gRPC (recommended for performance):
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from qdrant_client import QdrantClient
 
@@ -251,7 +251,7 @@ client = QdrantClient(
 
 Or connect using the REST endpoint:
 
-```python title="Python — Connect via REST"
+```python title="Connect via REST"
 import os
 from qdrant_client import QdrantClient
 
@@ -272,7 +272,7 @@ npm install @qdrant/js-client-rest
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { QdrantClient } from '@qdrant/js-client-rest';
 
 // Read Aspire-injected connection properties
@@ -286,7 +286,7 @@ const client = new QdrantClient({
 
 Or connect using individual host and port properties:
 
-```typescript title="TypeScript — Connect with host and port"
+```typescript title="Connect with host and port"
 import { QdrantClient } from '@qdrant/js-client-rest';
 
 const client = new QdrantClient({

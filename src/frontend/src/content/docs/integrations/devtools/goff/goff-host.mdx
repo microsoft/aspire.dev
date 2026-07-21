@@ -4,9 +4,8 @@ description: Learn how to use the Aspire GO Feature Flag Hosting integration to 
 ---
 
 import { Image } from 'astro:assets';
-import { Aside, Badge, Steps } from '@astrojs/starlight/components';
+import { Badge, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
-import InstallPackage from '@components/InstallPackage.astro';
 import goffIcon from '@assets/icons/go-feature-flag.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
@@ -16,6 +15,7 @@ import goffIcon from '@assets/icons/go-feature-flag.png';
   alt="GO Feature Flag logo"
   width={100}
   height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
@@ -33,28 +33,28 @@ aspire add CommunityToolkit.Aspire.Hosting.GoFeatureFlag
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package CommunityToolkit.Aspire.Hosting.GoFeatureFlag@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="CommunityToolkit.Aspire.Hosting.GoFeatureFlag" Version="*" />
 ```
-
-:::note
-TypeScript AppHost support for this integration is not yet available.
-:::
 
 ## Add goff resource
 
 Once you've installed the hosting integration in your AppHost project, you can add a GO Feature Flag relay proxy resource as shown in the following example:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var goff = builder.AddGoFeatureFlag("goff")
@@ -66,6 +66,29 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const goff = await builder.addGoFeatureFlag('goff');
+await goff.withGoffBindMount('./goff');
+
+const api = await builder.addProject(
+  'apiservice',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.withReference(goff);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <Steps>
 
@@ -85,7 +108,10 @@ When you reference a GO Feature Flag resource from the AppHost, Aspire makes sev
 
 To point the relay proxy to a specific configuration file inside the container, pass the `pathToConfigFile` parameter to `AddGoFeatureFlag`:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var goff = builder.AddGoFeatureFlag("goff", pathToConfigFile: "/goff/goff-proxy.yaml")
@@ -98,13 +124,41 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const goff = await builder.addGoFeatureFlag('goff', {
+  pathToConfigFile: '/goff/goff-proxy.yaml',
+});
+await goff.withGoffBindMount('./goff');
+
+const api = await builder.addProject(
+  'apiservice',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.withReference(goff);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 The `pathToConfigFile` parameter sets the `--config` argument passed to the relay proxy entrypoint. If this parameter is omitted, the relay proxy looks for a default configuration file in its working directory.
 
 ## Add goff resource with data volume
 
 To persist relay proxy data (such as cached flag evaluations) across container restarts, add a named data volume:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var goff = builder.AddGoFeatureFlag("goff")
@@ -117,6 +171,30 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const goff = await builder.addGoFeatureFlag('goff');
+await goff.withGoffBindMount('./goff');
+await goff.withDataVolume();
+
+const api = await builder.addProject(
+  'apiservice',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.withReference(goff);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The data volume is mounted at the `/goff_data` path in the container. When a `name` parameter isn't provided, a name is generated automatically. For more information on data volumes, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
@@ -151,7 +229,10 @@ This instructs the relay proxy to load flags from the `flags.yaml` file inside t
 
 To configure the log level for the GO Feature Flag container resource, call `WithLogLevel`:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var goff = builder.AddGoFeatureFlag("goff")
@@ -165,16 +246,46 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import {
+  createBuilder,
+  GoFeatureFlagLogLevel,
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const goff = await builder.addGoFeatureFlag('goff');
+await goff.withGoffBindMount('./goff');
+await goff.withLogLevel(GoFeatureFlagLogLevel.Debug);
+
+const api = await builder.addProject(
+  'apiservice',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.withReference(goff);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 The `WithLogLevel` method sets the `LOGLEVEL` environment variable on the container. The supported log levels are `Debug`, `Information`, `Warning`, and `Error`.
 
 ## Customize ports
 
 To use a specific host port for the relay proxy HTTP endpoint, pass the `port` parameter to `AddGoFeatureFlag`:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var goff = builder.AddGoFeatureFlag(name: "goff", port: 1031)
+var goff = builder.AddGoFeatureFlag(name: "goff", port: 11031)
     .WithGoffBindMount("./goff");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
@@ -183,6 +294,29 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const goff = await builder.addGoFeatureFlag('goff', { port: 11031 });
+await goff.withGoffBindMount('./goff');
+
+const api = await builder.addProject(
+  'apiservice',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.withReference(goff);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The `port` parameter specifies the host port bound to the relay proxy's internal port. If not provided, Aspire assigns a random port.
 

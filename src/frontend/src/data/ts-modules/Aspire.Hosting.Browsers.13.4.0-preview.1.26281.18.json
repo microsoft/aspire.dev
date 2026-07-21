@@ -1,0 +1,77 @@
+{
+  "package": {
+    "name": "Aspire.Hosting.Browsers",
+    "version": "13.4.0-preview.1.26281.18",
+    "language": "typescript",
+    "sourceRepository": "https://github.com/microsoft/aspire"
+  },
+  "functions": [
+    {
+      "name": "withBrowserLogs",
+      "capabilityId": "Aspire.Hosting.Browsers/withBrowserLogs",
+      "qualifiedName": "withBrowserLogs",
+      "description": "Adds a child resource that can open the application's primary browser endpoint in a tracked browser session, surface browser diagnostics, and capture screenshots.",
+      "remarks": "This method adds a child browser logs resource beneath the parent resource represented by `builder`.\nThe child resource exposes a dashboard command that launches a Chromium-based browser in a tracked mode, attaches to\nthe browser's debugging protocol, forwards browser console, error, exception, and network output to the child\nresource's console log stream, and can capture screenshots as command artifacts.\nThe tracked browser session uses the Chrome DevTools\nProtocol (CDP) to subscribe to browser runtime, log, page, and network events.\nThe parent resource must expose at least one HTTP or HTTPS endpoint. HTTPS endpoints are preferred over HTTP\nendpoints when selecting the browser target URL.\nBrowser, profile, and user data mode settings can also be supplied from configuration\nusing `Aspire:Hosting:BrowserLogs:Browser`, `Aspire:Hosting:BrowserLogs:Profile`,\nand `Aspire:Hosting:BrowserLogs:UserDataMode`, or scoped to a specific resource with\n`Aspire:Hosting:BrowserLogs:{ResourceName}:Browser`,\n`Aspire:Hosting:BrowserLogs:{ResourceName}:Profile`, and\n`Aspire:Hosting:BrowserLogs:{ResourceName}:UserDataMode`. Explicit method arguments override configuration.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withBrowserLogs(browser?: string, profile?: string, userDataMode?: BrowserUserDataMode): IResourceWithEndpoints",
+      "parameters": [
+        {
+          "name": "browser",
+          "type": "string",
+          "isOptional": true,
+          "description": "The browser to launch. When not specified, the tracked browser uses the configured value from `Aspire:Hosting:BrowserLogs` and otherwise prefers an installed `\"msedge\"` browser in shared user data mode, an installed `\"chrome\"` browser in isolated user data mode, and finally falls back to `\"chrome\"`. Supported values include logical browser names such as `\"msedge\"` and `\"chrome\"`, or an explicit browser executable path."
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "isOptional": true,
+          "description": "Optional Chromium profile name or directory name to use. Only valid when the effective user data mode is `Shared`. When not specified, the tracked browser uses the configured value from `Aspire:Hosting:BrowserLogs` if present."
+        },
+        {
+          "name": "userDataMode",
+          "type": "BrowserUserDataMode",
+          "isOptional": true,
+          "isNullable": true,
+          "description": "Optional `BrowserUserDataMode` that selects whether the tracked browser launches against a persistent Aspire-managed user data directory shared across all AppHosts on the machine (`Shared`, the default) or a per-AppHost persistent user data directory (`Isolated`). Both modes use Aspire-managed paths under `%LocalAppData%\\Aspire\\BrowserData` on Windows (or platform equivalents); the user's normal browser profile is never used. When not specified, the tracked browser uses the configured value from `Aspire:Hosting:BrowserLogs` and otherwise defaults to `Shared`."
+        }
+      ],
+      "returnType": "IResourceWithEndpoints",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.ContainerResource",
+        "Aspire.Hosting.ApplicationModel.ExecutableResource",
+        "Aspire.Hosting.ApplicationModel.ProjectResource",
+        "Aspire.Hosting.ApplicationModel.DotnetToolResource",
+        "Aspire.Hosting.ApplicationModel.CSharpAppResource"
+      ]
+    }
+  ],
+  "handleTypes": [],
+  "dtoTypes": [],
+  "enumTypes": [
+    {
+      "name": "BrowserUserDataMode",
+      "fullName": "Aspire.Hosting.BrowserUserDataMode",
+      "kind": "enum",
+      "description": "Selects the Chromium user data directory used by tracked browser sessions.",
+      "members": [
+        "Shared",
+        "Isolated"
+      ],
+      "memberDocs": [
+        {
+          "name": "Shared",
+          "description": "Use a persistent Aspire-managed user data directory shared across all AppHosts on the machine. State such as cookies, sign-ins, and extensions persist across runs and are visible to every AppHost using the same browser.",
+          "remarks": "The directory lives under a well-known path (for example `%LocalAppData%\\Aspire\\BrowserData\\shared\\<browser>`\non Windows). The directory is persistent across AppHost restarts, but the default tracked browser process is\nowned by the AppHost that launched it."
+        },
+        {
+          "name": "Isolated",
+          "description": "Use a persistent Aspire-managed user data directory scoped to the current AppHost project. Each AppHost gets its own state that persists across runs but is not shared with other AppHosts.",
+          "remarks": "The directory is keyed on a stable hash of the AppHost project path (for example\n`%LocalAppData%\\Aspire\\BrowserData\\isolated\\<hash>\\<browser>` on Windows). The directory persists across\nruns, but the default tracked browser process is owned by the AppHost that launched it."
+        }
+      ]
+    }
+  ]
+}

@@ -14,6 +14,7 @@ const OFFICIAL_RELEASE_FEED_QUERIES = ['Aspire.'];
 const COMMUNITY_TOOLKIT_QUERIES = ['CommunityToolkit.Aspire'];
 const EXCLUDED_PACKAGES = [
   'Aspire.Cli',
+  'Aspire.Hosting.Azure.AIFoundry',
   'Aspire.Hosting.IncrementalMigration',
   'Aspire.Hosting.NodeJs',
   'Aspire.Hosting.Testing',
@@ -254,9 +255,9 @@ export function resolveIconUrl(pkg: PackageRecord): string {
   }
 
   return (
-    pkg.iconUrl ||
     buildNuGetFlatContainerIconUrl(pkg.id, iconVersion) ||
     buildNuGetIconUrl(pkg.id, iconVersion) ||
+    pkg.iconUrl ||
     DEFAULT_NUGET_ICON_URL
   );
 }

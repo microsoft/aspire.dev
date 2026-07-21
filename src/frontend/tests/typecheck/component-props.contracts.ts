@@ -31,6 +31,7 @@ import PivotSelector from '@components/PivotSelector.astro';
 import Placeholder from '@components/Placeholder.astro';
 import QuickStartJourney from '@components/QuickStartJourney.astro';
 import SampleCard from '@components/SampleCard.astro';
+import SampleDetail from '@components/SampleDetail.astro';
 import SampleGrid from '@components/SampleGrid.astro';
 import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
@@ -103,8 +104,11 @@ const sampleCardFixture = {
   title: 'Redis sample',
   description: 'This sample shows how to connect an API and dashboard to Redis.',
   href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample',
+  readme: '# Redis sample\n\nThis sample shows how to connect an API and dashboard to Redis.',
   tags: ['csharp', 'redis'],
   thumbnail: '~/assets/samples/placeholder.png',
+  appHost: 'csproj' as const,
+  detailHref: '/reference/samples/redis-sample/',
   resolvedThumbnail: heroImage,
 };
 
@@ -321,6 +325,13 @@ const validImageShowcaseProps = {
   imageAlt: 'Zoomed diagram',
   cta: { label: 'Read the guide', href: '/docs/' },
 } satisfies PropsOf<typeof ImageShowcase>;
+const validThemedImageShowcaseProps = {
+  title: 'Debug with agents',
+  description: 'Give agents dashboard context.',
+  lightImage: heroImage,
+  darkImage: heroImage,
+  imageAlt: 'Themed dashboard dialog',
+} satisfies PropsOf<typeof ImageShowcase>;
 // @ts-expect-error ImageShowcase should reject unknown props.
 const invalidImageShowcaseProps: PropsOf<typeof ImageShowcase> = {
   title: 'Visualize your app',
@@ -328,6 +339,15 @@ const invalidImageShowcaseProps: PropsOf<typeof ImageShowcase> = {
   image: heroImage,
   imageAlt: 'Zoomed diagram',
   unexpected: true,
+};
+// @ts-expect-error ImageShowcase should not mix single-image and theme-image props.
+const invalidMixedImageShowcaseProps: PropsOf<typeof ImageShowcase> = {
+  title: 'Visualize your app',
+  description: 'See resources, traces and endpoints together.',
+  image: heroImage,
+  lightImage: heroImage,
+  darkImage: heroImage,
+  imageAlt: 'Zoomed diagram',
 };
 
 const validIncludeProps = {
@@ -514,6 +534,17 @@ const validSampleGridProps = {
 // @ts-expect-error SampleGrid should reject unknown props.
 const invalidSampleGridProps: PropsOf<typeof SampleGrid> = {
   samples: sampleGridSamples,
+  unexpected: true,
+};
+
+const validSampleDetailProps = {
+  sample: sampleCardFixture,
+  samplesHref: '/reference/samples/',
+} satisfies PropsOf<typeof SampleDetail>;
+// @ts-expect-error SampleDetail should reject unknown props.
+const invalidSampleDetailProps: PropsOf<typeof SampleDetail> = {
+  sample: sampleCardFixture,
+  samplesHref: '/reference/samples/',
   unexpected: true,
 };
 
@@ -727,7 +758,9 @@ void [
   validIconLinkCardProps,
   invalidIconLinkCardProps,
   validImageShowcaseProps,
+  validThemedImageShowcaseProps,
   invalidImageShowcaseProps,
+  invalidMixedImageShowcaseProps,
   validIncludeProps,
   invalidIncludeProps,
   validInstallCliModalProps,
@@ -764,6 +797,8 @@ void [
   invalidSampleCardProps,
   validSampleGridProps,
   invalidSampleGridProps,
+  validSampleDetailProps,
+  invalidSampleDetailProps,
   validSessionCardProps,
   invalidSessionCardProps,
   validSessionGridProps,

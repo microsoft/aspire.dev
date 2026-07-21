@@ -39,11 +39,11 @@ aspire add mysql
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.MySql@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.MySql" Version="*" />
 ```
 
@@ -77,7 +77,7 @@ Once you've installed the hosting integration in your AppHost project, you can a
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mysql = builder.AddMySql("mysql")
@@ -93,12 +93,14 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
+```typescript title="apphost.mts"
+import { ContainerLifetime, createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 const mysql = await builder.addMySql("mysql");
+await mysql.withLifetime(ContainerLifetime.Persistent);
+
 const mysqldb = await mysql.addDatabase("mysqldb");
 
 await builder.addNodeApp("api", "./api", "index.js")
@@ -122,8 +124,6 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 <Aside type="note">
     The MySQL container can be slow to start, so it's best to use a _persistent_ lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
-
-    The TypeScript AppHost doesn't currently expose a `withLifetime(...)` API. Use the C# AppHost when persistent container lifetime is required.
 </Aside>
 
 <Aside type="note">
@@ -136,7 +136,7 @@ You can use the `WithCreationScript` method to execute SQL scripts when the data
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mysql = builder.AddMySql("mysql")
@@ -160,7 +160,30 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-The TypeScript AppHost doesn't currently expose a `withCreationScript(...)` API for MySQL database resources. To initialize a MySQL database from a TypeScript AppHost, use [`withInitFiles(...)`](#add-mysql-resource-with-init-files) to copy SQL initialization scripts into the container's init directory instead.
+```typescript title="apphost.mts"
+import { ContainerLifetime, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+await mysql.withLifetime(ContainerLifetime.Persistent);
+
+const mysqldb = await mysql.addDatabase("mysqldb")
+    .withCreationScript(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL
+        );
+        `);
+
+const myService = await builder.addProject("example", "../ExampleProject/ExampleProject.csproj");
+await myService
+    .withReference(mysqldb)
+    .waitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>
@@ -175,7 +198,7 @@ The script is executed only when the database is first created. If you need to r
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mysql = builder.AddMySql("mysql")
@@ -191,7 +214,7 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -218,7 +241,7 @@ To set a custom container name for the phpMyAdmin resource in TypeScript:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mysql = builder.AddMySql("mysql")
@@ -234,7 +257,7 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -264,7 +287,7 @@ Add a data volume to the MySQL server resource as shown in the following example
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mysql = builder.AddMySql("mysql")
@@ -280,7 +303,7 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -317,7 +340,7 @@ Add a data bind mount to the MySQL server resource as shown in the following exa
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mysql = builder.AddMySql("mysql")
@@ -335,7 +358,7 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -366,7 +389,7 @@ Use initialization files to seed or configure the MySQL server at startup. The C
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mysql = builder.AddMySql("mysql")
@@ -382,7 +405,7 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -411,7 +434,7 @@ When you want to provide a root MySQL password and optional port explicitly, you
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var password = builder.AddParameter("password", secret: true);
@@ -429,7 +452,7 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -456,7 +479,7 @@ By default, Aspire injects the MySQL connection information using variable names
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mysql = builder.AddMySql("mysql");
@@ -476,7 +499,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();

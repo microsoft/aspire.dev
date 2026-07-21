@@ -7,7 +7,7 @@ description: Update integration documentation links and API reference data by sy
 
 This skill synchronizes the integration package catalog with documentation URL mappings and generates per-package API reference schemas. It ensures every NuGet package listed in the integrations data file has a corresponding documentation link and an up-to-date API reference JSON file.
 
-> **Automation note:** The scheduled `update-integration-data` agentic workflow (`.github/workflows/update-integration-data.md`) now runs the C# and TypeScript API regeneration automatically whenever it detects a `"version":` change in `src/frontend/src/data/aspire-integrations.json`. Use this skill for **manual or one-off runs** — for example: adding a new integration, validating release-branch feed resolution, troubleshooting a regen failure flagged by the workflow's PR, or regenerating data outside the scheduled cadence.
+> **Automation note:** The scheduled `update-integration-data` workflow (`.github/workflows/update-integration-data.yml`) runs this update deterministically — no agent/LLM. It executes `src/frontend/scripts/update-integration-data.ps1`, which runs `pnpm update:all`, detects `"version":` changes in `src/frontend/src/data/aspire-integrations.json`, and — only when a version actually moves — runs the C# and TypeScript API regeneration (and the twoslash bundle) before opening a PR via the Aspire bot GitHub App. You can reproduce the full flow locally with `pwsh src/frontend/scripts/update-integration-data.ps1` (add `-SkipRegen` for a fast data-only run). Use this skill for **manual or one-off runs that need judgment** — for example: adding a new integration, reconciling `integration-docs.json`, validating release-branch feed resolution, troubleshooting a regen failure flagged by the workflow's PR, or regenerating data outside the scheduled cadence.
 
 ## Overview
 
@@ -56,7 +56,7 @@ If the Aspire release branch is not publicly reachable yet, set one of the overr
 Fetch the latest package data from the configured package feeds:
 
 ```bash
-cd src/frontend && node scripts/update-integrations.js
+pnpm --dir ./src/frontend update:integrations
 ```
 
 This writes updated package metadata to `src/frontend/src/data/aspire-integrations.json`. The script queries the NuGet v3 API for packages matching `owner:aspire`, `Aspire.Hosting.`, and `CommunityToolkit.Aspire`, then filters out deprecated, unlisted, and excluded packages.
@@ -118,7 +118,7 @@ The documentation site organizes integrations into these categories:
 
 1. Match against existing similar package mappings in `integration-docs.json`
 2. Infer from the package name and technology category
-3. **Verify the page exists** — use Playwright MCP tools or check the file system under `src/frontend/src/content/docs/` to confirm the target page is real
+3. **Verify the page exists** — check the file system under `src/frontend/src/content/docs/`, then use Playwright CLI to confirm the route renders
 4. If no valid documentation page can be found, flag the package for manual review
 
 ### 5. Generate API reference data
@@ -196,12 +196,12 @@ If an official release feed is required but not yet publicly reachable, rerun wi
 After updating `aspire-integrations.json`, regenerate the TypeScript API reference JSON files for the hosting packages that expose ATS capabilities:
 
 ```bash
-cd src/frontend && node scripts/update-ts-api.js
+pnpm --filter ./src/frontend run update:ts-api
 ```
 
-The companion `generate-ts-api-json.ps1` script reads the generated C# package JSON files in `src/frontend/src/data/pkgs/`, selects `Aspire.Hosting` and `Aspire.Hosting.*` packages, and passes each package/version through to `aspire sdk dump`. This keeps `src/frontend/src/data/ts-modules/` aligned with the same package set and versions that already flowed through C# API generation.
+The companion `generate-ts-api-json.ps1` script reads the generated C# package JSON files in `src/frontend/src/data/pkgs/`, selects `Aspire.Hosting`, `Aspire.Hosting.*`, and `CommunityToolkit.Aspire.Hosting.*` packages, and passes each package/version through to `aspire sdk dump`. This keeps `src/frontend/src/data/ts-modules/` aligned with the same package set and versions that already flowed through C# API generation.
 
-When a TypeScript module is regenerated for a new package version, stale `ts-modules` JSON files for older versions of that same package are deleted automatically.
+When a TypeScript module is regenerated for a new package version, stale `ts-modules` JSON files for older versions of that same package are deleted automatically. Regenerated modules with no functions or types are omitted from `src/frontend/src/data/ts-modules/`.
 
 After the JSON is refreshed, `update-ts-api` automatically chains `generate-twoslash-types.ts` to rebuild `src/frontend/src/data/twoslash/aspire.d.ts`. This bundle is source-controlled and its diff must be committed alongside the `ts-modules` JSON changes — without it, docs hover tooltips fall back to `any`. If you only need to refresh the bundle (e.g. after a generator script change) without running the full SDK dump, use:
 
@@ -223,6 +223,12 @@ Do not assume a page exists without verification.
 
 Write the updated `integration-docs.json` maintaining consistent formatting (2-space indentation, trailing newline). The API reference JSON files in `src/frontend/src/data/pkgs/` are written directly by the generation script and require no additional save step.
 
+Run the structured-data tests after changing the catalog or documentation map:
+
+```bash
+pnpm --dir ./src/frontend test:unit:structured-data
+```
+
 ## Entry format
 
 Each entry in `integration-docs.json` follows this structure:
@@ -230,7 +236,7 @@ Each entry in `integration-docs.json` follows this structure:
 ```json
 {
   "match": "Aspire.Hosting.Redis",
-  "href": "/integrations/caching/redis/"
+  "href": "/integrations/caching/redis/redis-get-started/"
 }
 ```
 

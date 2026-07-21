@@ -1,12 +1,17 @@
 ---
 title: Set up flagd in the AppHost
-seoTitle: "Set up flagd in the Aspire AppHost: hosting integration"
+seoTitle: 'Set up flagd in the Aspire AppHost: hosting integration'
 description: Learn how to use the Aspire flagd hosting integration to orchestrate and configure a flagd resource in an Aspire solution.
 ---
 
-import { Aside, Badge, Steps } from '@astrojs/starlight/components';
+import {
+  Aside,
+  Badge,
+  Steps,
+  TabItem,
+  Tabs,
+} from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
-import InstallPackage from '@components/InstallPackage.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import flagdIcon from '@assets/icons/flagd-icon.svg';
 import flagdLightIcon from '@assets/icons/flagd-light-icon.svg';
@@ -36,28 +41,28 @@ aspire add flagd
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package CommunityToolkit.Aspire.Hosting.Flagd@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="CommunityToolkit.Aspire.Hosting.Flagd" Version="*" />
 ```
-
-:::note
-TypeScript AppHost support for the flagd integration is not yet available.
-:::
 
 ## Add flagd resource
 
 Once you've installed the hosting integration in your AppHost project, you can add a flagd resource. The flagd container requires a sync source. Use `WithBindFileSync` to mount a directory of flag-definition files into the container:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var flagd = builder.AddFlagd("flagd")
@@ -70,6 +75,29 @@ builder.AddProject<Projects.ExampleProject>("api")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const flagd = await builder.addFlagd('flagd');
+await flagd.withBindFileSync('./flags/');
+
+const api = await builder.addProject(
+  'api',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.withReference(flagd);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 <Steps>
 
 1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `ghcr.io/open-feature/flagd` image, it creates a new flagd server instance on your local machine.
@@ -79,14 +107,20 @@ builder.Build().Run();
 </Steps>
 
 <Aside type="note">
-  When you reference a flagd resource from the AppHost, Aspire makes the server's connection information available to the consuming project as environment variables. For a complete list of these properties and per-language connection examples, see [Connect to flagd](../flagd-connect/).
+  When you reference a flagd resource from the AppHost, Aspire makes the
+  server's connection information available to the consuming project as
+  environment variables. For a complete list of these properties and
+  per-language connection examples, see [Connect to flagd](../flagd-connect/).
 </Aside>
 
 ## Add flagd resource with file sync options
 
 To specify the flag-definition filename explicitly, pass both the `fileSource` directory and the `filename` to `WithBindFileSync`:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var flagd = builder.AddFlagd("flagd")
@@ -101,34 +135,57 @@ builder.AddProject<Projects.ExampleProject>("api")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const flagd = await builder.addFlagd('flagd');
+await flagd.withBindFileSync('./flags/', { filename: 'flagd.json' });
+
+const api = await builder.addProject(
+  'api',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.withReference(flagd);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 The `fileSource` parameter is the path on your host machine where flag configuration files are located. The `filename` parameter names the flag configuration file inside that directory. When `filename` is omitted, it defaults to `flagd.json`.
 
 ## Flag configuration format
 
 flagd uses JSON files for flag definitions. Create a `flags` folder in your project root and add a flag configuration file. A minimal example:
 
-```json title="JSON — flags/flagd.json"
+```json title="flags/flagd.json"
 {
-    "$schema": "https://flagd.dev/schema/v0/flags.json",
-    "flags": {
-        "welcome-banner": {
-            "state": "ENABLED",
-            "variants": {
-                "on": true,
-                "off": false
-            },
-            "defaultVariant": "off"
-        },
-        "background-color": {
-            "state": "ENABLED",
-            "variants": {
-                "red": "#FF0000",
-                "blue": "#0000FF",
-                "yellow": "#FFFF00"
-            },
-            "defaultVariant": "red"
-        }
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "welcome-banner": {
+      "state": "ENABLED",
+      "variants": {
+        "on": true,
+        "off": false
+      },
+      "defaultVariant": "off"
+    },
+    "background-color": {
+      "state": "ENABLED",
+      "variants": {
+        "red": "#FF0000",
+        "blue": "#0000FF",
+        "yellow": "#FFFF00"
+      },
+      "defaultVariant": "red"
     }
+  }
 }
 ```
 
@@ -138,7 +195,7 @@ For more information on flag configuration, see the [flagd flag definitions docu
 
 To enable debug logging for the flagd container, call `WithLogLevel`:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var flagd = builder.AddFlagd("flagd")
@@ -154,11 +211,18 @@ builder.Build().Run();
 
 Debug logging provides verbose output for troubleshooting flag evaluation issues. Currently, only the `Debug` log level is supported.
 
+:::note
+The flagd hosting source explicitly marks `WithLogLevel` with `[AspireExportIgnore]`, so the generated TypeScript API doesn't include `withLogLevel`. In a TypeScript AppHost, set the `FLAGD_DEBUG` environment variable directly instead.
+:::
+
 ## Customize ports
 
 To use fixed host ports instead of randomly assigned ones, pass the `port` and `ofrepPort` parameters to `AddFlagd`:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var flagd = builder.AddFlagd(
@@ -173,6 +237,32 @@ builder.AddProject<Projects.ExampleProject>("api")
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const flagd = await builder.addFlagd('flagd', {
+  port: 8013,
+  ofrepPort: 8016,
+});
+await flagd.withBindFileSync('./flags/');
+
+const api = await builder.addProject(
+  'api',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.withReference(flagd);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The `port` parameter sets the host port for the flagd HTTP/gRPC endpoint. The `ofrepPort` parameter sets the host port for the [OFREP](https://github.com/open-feature/protocol) (OpenFeature Remote Evaluation Protocol) endpoint. When these parameters are omitted, Aspire assigns random ports.
 

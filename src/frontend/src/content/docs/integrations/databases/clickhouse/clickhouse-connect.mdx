@@ -76,7 +76,7 @@ Install the [📦 Aspire.ClickHouse.Driver](https://www.nuget.org/packages/Aspir
 
 In _Program.cs_, call `AddClickHouseDataSource` on your `IHostApplicationBuilder` to register both `IClickHouseClient` and `ClickHouseDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddClickHouseDataSource(connectionName: "clickhousedb");
 ```
 
@@ -86,7 +86,7 @@ The `connectionName` must match the ClickHouse database resource name from the A
 
 Use `IClickHouseClient` for a simple query and insert API:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IClickHouseClient client)
 {
     // Use client...
@@ -95,7 +95,7 @@ public class ExampleService(IClickHouseClient client)
 
 Or use `ClickHouseDataSource` when you need ADO.NET access (connections, commands, transactions):
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(ClickHouseDataSource dataSource)
 {
     // Use data source...
@@ -106,14 +106,14 @@ public class ExampleService(ClickHouseDataSource dataSource)
 
 To register multiple `ClickHouseDataSource` instances with different connection names, use `AddKeyedClickHouseDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedClickHouseDataSource(name: "analytics");
 builder.AddKeyedClickHouseDataSource(name: "logging");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("analytics")] IClickHouseClient analyticsClient,
     [FromKeyedServices("logging")] IClickHouseClient loggingClient)
@@ -130,13 +130,13 @@ The Aspire ClickHouse client integration offers multiple ways to provide configu
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddClickHouseDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddClickHouseDataSource("clickhousedb");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "clickhousedb": "Host=myserver;Port=8123;Username=default;Database=clickhousedb"
@@ -146,7 +146,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `ClickHouseClientSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:ClickHouse:Driver` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "ClickHouse": {
@@ -164,7 +164,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Inline delegates.** Pass an `Action<ClickHouseClientSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddClickHouseDataSource(
     "clickhousedb",
     static settings => settings.DisableHealthChecks = true);
@@ -202,7 +202,7 @@ Any logging or tracing features can be disabled through the configuration option
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection string from the environment and use it with the `ClickHouse.Driver` package directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using ClickHouse.Driver;
 
 var connectionString = Environment.GetEnvironmentVariable(
@@ -223,7 +223,7 @@ go get github.com/ClickHouse/clickhouse-go/v2
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -273,7 +273,7 @@ pip install clickhouse-connect
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import clickhouse_connect
 
@@ -301,7 +301,7 @@ npm install @clickhouse/client
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { createClient } from '@clickhouse/client';
 
 // Read Aspire-injected connection properties

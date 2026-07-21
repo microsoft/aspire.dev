@@ -1256,6 +1256,67 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     }
   }
 
+  /* Keep the toggle accessible on landing pages without a mobile TOC bar
+     (e.g. `/deployment/` with `tableOfContents: false`). Without the
+     TOC bar there is nothing for the toggle to anchor against, so the
+     base floating-tab position parks it at the top of the article
+     column where its leftmost ~48px overlap the H1 at narrow widths.
+     Reuse the inline-with-TOC anchoring and synthesize the TOC-bar
+     height row via padding on the first content container (the one
+     that holds the page title) so the H1 starts below the toggle.
+     Collapse/expand stays available across all widths where the
+     sidebar itself is visible.
+
+     Topic landing pages keep the positioning but omit the synthetic
+     bar's background and borders because no TOC bar is present.
+
+     Sample detail pages (`.sample-detail`) opt out of this treatment
+     entirely. They use the base floating-tab style instead (rounded
+     right edge, drop shadow, page background) so the toggle reads as
+     a tab projecting from the sidebar.
+
+     Use a literal 3rem instead of var(--sl-mobile-toc-height, 3rem)
+     because the variable is explicitly set to 0rem outside of the
+     data-has-toc scope (see site.css), which would defeat the
+     fallback. */
+  @media (min-width: 50rem) and (max-width: 99.999rem) {
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) .sidebar-collapse-btn,
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) .sidebar-expand-btn {
+      top: calc(var(--sl-nav-height, 4rem) + var(--aspire-banner-height, 0px) - 1px);
+      height: 3rem;
+      z-index: calc(var(--sl-z-index-toc, 10) + 1);
+    }
+
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) #sidebar-collapse-btn,
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) #sidebar-expand-btn {
+      border-radius: 0;
+      box-shadow: none;
+      border-inline-end: 1px solid var(--sl-color-gray-5);
+      border-block-end: 1px solid var(--sl-color-hairline-shade);
+      background: var(--sl-color-bg-nav);
+    }
+
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) #topic-sidebar-collapse-btn,
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) #topic-sidebar-expand-btn {
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
+    }
+
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) #sidebar-collapse-btn:hover,
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) #sidebar-expand-btn:hover {
+      box-shadow: none;
+      background: var(--sl-color-bg);
+    }
+
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) #topic-sidebar-collapse-btn:hover,
+    :global(html:not([data-has-toc]):not(:has(.sample-detail))) #topic-sidebar-expand-btn:hover {
+      box-shadow: none;
+      background: transparent;
+    }
+  }
+
   @media (max-width: 50rem) {
     .sidebar-dropdown-trigger,
     .sidebar-dropdown-option {

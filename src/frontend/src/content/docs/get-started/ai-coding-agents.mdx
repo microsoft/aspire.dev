@@ -4,13 +4,9 @@ seoTitle: Use AI coding agents with Aspire AppHost projects today
 description: Set up AI coding agents to work with Aspire — install skills, add optional tools, and guide agents through distributed-app workflows.
 ---
 
-import {
-  Aside,
-  FileTree,
-  Steps,
-  TabItem,
-  Tabs,
-} from '@astrojs/starlight/components';
+import { Aside, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
+import LearnMore from '@components/LearnMore.astro';
 import LoopingVideo from '@components/LoopingVideo.astro';
 
 Aspire provides a first-class setup experience for AI coding agents. Run `aspire agent init` in your project and your AI assistant — whether it's GitHub Copilot, Claude Code, or another <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr>-compatible tool — can immediately understand, build, debug, and monitor your distributed applications.
@@ -22,6 +18,11 @@ Aspire gives coding agents the same visibility into your running application tha
 The Aspire CLI is built for agent-driven workflows — commands support non-interactive execution to avoid blocking on prompts, and many commands support `--format Json` for structured plain text output. Key commands include `aspire start` (background execution), `aspire start --isolated` (parallel worktrees), `aspire wait` (block until healthy), `aspire describe`, `aspire logs`, and `aspire docs search`.
 
 Aspire workflow skills installed by `aspire agent init` teach agents these patterns automatically.
+
+<LearnMore>
+  For skill installation paths, skill locations, companion tools, and the full
+  skill list, see [Aspire skills](/get-started/aspire-skills/).
+</LearnMore>
 
 ## Get started
 
@@ -37,28 +38,12 @@ When you create a new Aspire project with `aspire new` or `aspire init`, you're 
    aspire agent init
    ```
 
-1. Select the **skill locations** where you want files installed. The **Standard** location is pre-selected by default:
+1. Select the **skill locations**, **skills and tools**, and optional MCP server configuration for the agent environments you use.
 
-   | Location          | Directory          | Notes                                              |
-   | ----------------- | ------------------ | -------------------------------------------------- |
-   | **Standard**      | `.agents/skills/`  | Supported by VS Code, GitHub Copilot, and OpenCode |
-   | **Claude Code**   | `.claude/skills/`  | Claude Code specific                               |
-   | **GitHub Skills** | `.github/skills/`  | VS Code / GitHub Copilot specific                  |
-   | **OpenCode**      | `.opencode/skill/` | OpenCode specific                                  |
-
-1. Select the **skills and tools** to install into those locations. The Aspire workflow skills from [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) are:
-   - **aspire** — routes Aspire tasks to the right workflow
-   - **aspire-init** — creates a new Aspire app or adds an Aspire skeleton to an existing repo
-   - **aspire-orchestration** — starts, stops, waits for, and manages Aspire resources
-   - **aspire-monitoring** — inspects logs, traces, metrics, resource state, and diagnostics data
-   - **aspire-deployment** — publishes, deploys, and tears down Aspire apps
-   - **aspireify** — wires an AppHost after `aspire init`
-
-   The flow pre-selects the workflow skills that apply to the command you're running. Add Playwright CLI for browser checks, dotnet-inspect for .NET API surface queries, or select **Install Aspire MCP server** if the agent needs live data from a running Aspire app.
-
-   :::note[Aspire workflow skills bundle]
-   Aspire workflow skills are distributed through the [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) GitHub release assets. Aspire 13.4 includes an embedded snapshot for default installs, and the optional remote fetch path can download matching release assets. Companion options such as Playwright CLI and dotnet-inspect are installed separately when selected.
-   :::
+   <LearnMore>
+     For details about skill locations, workflow skills, Playwright CLI, and
+     dotnet-inspect, see [Aspire skills](/get-started/aspire-skills/).
+   </LearnMore>
 
 </Steps>
 
@@ -66,60 +51,14 @@ When you create a new Aspire project with `aspire new` or `aspire init`, you're 
 
 The `aspire agent init` command detects your AI development environment and creates the appropriate configuration files:
 
-### Aspire workflow skill files
+### Aspire skill files
 
-Aspire workflow skills teach your AI coding agent how to work with Aspire. The top-level `aspire` skill routes requests to focused skills for initialization, orchestration, monitoring, deployment, and AppHost wiring.
+Aspire skill files teach your AI coding agent how to use Aspire CLI workflows, route tasks to focused skills, and call selected companion tools such as Playwright CLI or dotnet-inspect.
 
-For example, a standard location can contain:
-
-<FileTree>
-
-- .agents/skills/
-  - aspire/
-    - SKILL.md
-  - aspire-init/
-    - SKILL.md
-  - aspire-orchestration/
-    - SKILL.md
-  - aspire-monitoring/
-    - SKILL.md
-  - aspire-deployment/
-    - SKILL.md
-  - aspireify/
-    - SKILL.md
-
-</FileTree>
-
-The skills guide your agent on how to:
-
-- Start and manage your Aspire application (`aspire start`, `aspire stop`, `aspire describe`)
-- Debug issues using structured logs and distributed traces
-- Add integrations with `aspire add` and search documentation with `aspire docs`
-- Use resource MCP tools for database queries and other resource-specific operations
-- Route first-run setup, AppHost wiring, monitoring, orchestration, and deployment work to focused workflows
-
-### dotnet-inspect skill
-
-The `dotnet-inspect` companion skill teaches your AI agent to query .NET API surfaces using the [`dotnet-inspect`](https://github.com/richlander/dotnet-inspect) tool. When selected, it's installed into each selected location:
-
-<FileTree>
-
-- .agents/skills/dotnet-inspect/
-  - SKILL.md
-- .github/skills/dotnet-inspect/
-  - SKILL.md
-- .claude/skills/dotnet-inspect/
-  - SKILL.md
-- .opencode/skill/dotnet-inspect/
-  - SKILL.md
-
-</FileTree>
-
-The skill enables your agent to inspect NuGet package API surfaces, compare API changes between package versions, and explore .NET types and members.
-
-:::note[When to use dotnet-inspect]
-Install `dotnet-inspect` when an agent needs broad .NET API surface queries. For Aspire-specific API docs, the Aspire skills guide agents to use `aspire docs api` commands across both C# and TypeScript.
-:::
+<LearnMore>
+  For the full skill bundle contents and installation details, see [Aspire
+  skills](/get-started/aspire-skills/).
+</LearnMore>
 
 ### Aspire MCP server
 
@@ -171,22 +110,37 @@ Once configured, start your preferred AI coding environment. Try asking your age
     />
   </TabItem>
   <TabItem label="Claude Code" id="demo-claude">
-    <p>
-      Configure the Aspire MCP server in Claude Code, then ask Claude Code to
-      inspect running Aspire resources from the terminal.
-    </p>
+    <AsciinemaPlayer
+      src="/casts/mcp-claudecode-cli.cast"
+      poster="npt:0:27"
+      autoPlay={false}
+      preload={false}
+      loop={false}
+      cols={256}
+      rows={28}
+    />
   </TabItem>
   <TabItem label="Copilot CLI" id="demo-copilot">
-    <p>
-      Configure the Aspire MCP server in Copilot CLI to query resource status,
-      logs, and traces for your Aspire app.
-    </p>
+    <AsciinemaPlayer
+      src="/casts/mcp-copilot-cli.cast"
+      poster="npt:0:22"
+      autoPlay={false}
+      preload={false}
+      loop={false}
+      cols={256}
+      rows={28}
+    />
   </TabItem>
   <TabItem label="OpenCode" id="demo-opencode">
-    <p>
-      Configure the Aspire MCP server in OpenCode to investigate your running
-      Aspire application from an agentic terminal workflow.
-    </p>
+    <AsciinemaPlayer
+      src="/casts/mcp-opencode-cli.cast"
+      poster="npt:0:14"
+      autoPlay={false}
+      preload={false}
+      loop={false}
+      cols={256}
+      rows={28}
+    />
   </TabItem>
 </Tabs>
 

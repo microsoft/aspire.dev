@@ -4,51 +4,80 @@ seoTitle: "Set up KurrentDB in the Aspire AppHost: hosting integration"
 description: Learn how to use the Aspire KurrentDB Hosting integration to orchestrate and configure a KurrentDB resource in an Aspire solution.
 ---
 
-import { Image } from 'astro:assets';
-import { Aside, Badge, Steps } from '@astrojs/starlight/components';
+import { Aside, Badge, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
+import LearnMore from '@components/LearnMore.astro';
+import ThemeImage from '@components/ThemeImage.astro';
 import kurrentIcon from '@assets/icons/kurrent-icon.png';
+import kurrentLightIcon from '@assets/icons/kurrent-light-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
-<Image
-  src={kurrentIcon}
+<ThemeImage
+  light={kurrentLightIcon}
+  dark={kurrentIcon}
   alt="KurrentDB logo"
   width={100}
   height={100}
-  class:list={'float-inline-left icon'}
-  data-zoom-off
+  zoomable={false}
+  classOverride="float-inline-left icon"
 />
 
-This article is the reference for the Aspire KurrentDB Hosting integration. It enumerates the AppHost C# APIs that you use to model a KurrentDB resource in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire KurrentDB Hosting integration. It enumerates the AppHost APIs that you use to model a KurrentDB resource in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the KurrentDB integration, start with the [Get started with KurrentDB integrations](/integrations/databases/kurrentdb/kurrentdb-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to KurrentDB](../kurrentdb-connect/).
-
-<Aside type="note">
-  TypeScript AppHost support (`addKurrentDB` and related APIs) is not yet available in the generated `./.aspire/modules/aspire.mjs` SDK. All examples on this page are C# only.
-</Aside>
 
 ## Installation
 
 To start building an Aspire app that uses KurrentDB, install the [📦 CommunityToolkit.Aspire.Hosting.KurrentDB](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.KurrentDB) NuGet package:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.KurrentDB" />
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package CommunityToolkit.Aspire.Hosting.KurrentDB@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="CommunityToolkit.Aspire.Hosting.KurrentDB" Version="*" />
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.KurrentDB
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the KurrentDB hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.KurrentDB": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Add KurrentDB resource
 
 Once you've installed the hosting integration in your AppHost project, you can add a KurrentDB resource as shown in the following example:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kurrentdb = builder.AddKurrentDB("kurrentdb");
@@ -56,12 +85,31 @@ var kurrentdb = builder.AddKurrentDB("kurrentdb");
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(kurrentdb);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const kurrentdb = await builder.addKurrentDB("kurrentdb");
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(kurrentdb);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <Steps>
 
-1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/eventstore/eventstore` image, it creates a new KurrentDB instance on your local machine.
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.kurrent.io/kurrent-latest/kurrentdb` image, it creates a new KurrentDB instance on your local machine.
 
 1. The AppHost reference call configures a connection in the consuming project named after the referenced KurrentDB resource, such as `kurrentdb` in the preceding example.
 
@@ -75,7 +123,10 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 Add a data volume to the KurrentDB resource as shown in the following example:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kurrentdb = builder.AddKurrentDB("kurrentdb")
@@ -84,8 +135,28 @@ var kurrentdb = builder.AddKurrentDB("kurrentdb")
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(kurrentdb);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const kurrentdb = await builder.addKurrentDB("kurrentdb");
+await kurrentdb.withDataVolume();
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(kurrentdb);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The data volume is used to persist KurrentDB data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/kurrentdb` path in the KurrentDB container, and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-kurrentdb-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
@@ -93,7 +164,10 @@ The data volume is used to persist KurrentDB data outside the lifecycle of its c
 
 Add a data bind mount to the KurrentDB resource as shown in the following example:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kurrentdb = builder.AddKurrentDB("kurrentdb")
@@ -102,8 +176,28 @@ var kurrentdb = builder.AddKurrentDB("kurrentdb")
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(kurrentdb);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const kurrentdb = await builder.addKurrentDB("kurrentdb");
+await kurrentdb.withDataBindMount("C:\\KurrentDB\\Data");
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(kurrentdb);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <Aside type="note">
     Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.

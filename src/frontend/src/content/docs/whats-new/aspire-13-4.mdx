@@ -12,11 +12,11 @@ tableOfContents:
 import {
   Steps,
   Aside,
-  FileTree,
   Icon,
   Tabs,
   TabItem,
 } from '@astrojs/starlight/components';
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 
@@ -27,7 +27,7 @@ We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline'
 This release introduces:
 
 - **C# and TypeScript AppHosts are first class and supported** with stronger TypeScript startup validation, more complete SDK generation, new TypeScript samples, and documentation parity with C# AppHost examples.
-- **Go and Bun hosting integrations** with new AppHost APIs for [Go](/integrations/frameworks/go/go-get-started/) (`AddGoApp`) and [Bun](/integrations/frameworks/bun-apps/) (`AddBunApp`).
+- **Go and Bun hosting integrations** with new AppHost APIs for [Go](/integrations/frameworks/go/go-get-started/) (`AddGoApp`) and first-party Bun support in `Aspire.Hosting.JavaScript` for [Bun](/integrations/frameworks/bun-apps/) (`AddBunApp`).
 - **Kubernetes and AKS deployment improvements** including [cert-manager integration, Gateway API and Azure Application Gateway for Containers (AGC) support](/deployment/kubernetes/aks/#expose-your-app-to-the-internet), Kubernetes manifest resources, external Helm charts, and consolidated Helm chart configuration.
 - **AI agent readiness** with Aspire workflow skills moving into the new [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) bundle, clearer separation between first-run setup, lifecycle orchestration, monitoring, AppHost wiring, and deployment guidance, and eval-driven iteration on agent routing.
 - **Richer resource commands** with typed arguments, visibility controls, immediate result display, named CLI options, resource-scoped help, built-in parameter command options, and the experimental `WithProcessCommand` API.
@@ -187,6 +187,23 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const blazorApp = await builder.addBlazorWasmProject("app", "../MyBlazorApp/MyBlazorApp.csproj");
+
+const gateway = await builder.addBlazorGateway("gateway");
+await gateway.withExternalHttpEndpoints();
+await gateway.withBlazorClientApp(blazorApp);
+
+await builder.build().run();
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="note">
@@ -201,7 +218,7 @@ await builder.build().run();
 
 ### 🥟 Bun apps
 
-Aspire 13.4 adds `AddBunApp` for orchestrating [Bun](https://bun.sh/) applications alongside the rest of your resources, so JavaScript and TypeScript apps that run on the Bun runtime can participate in the app model just like Node.js apps.
+Aspire 13.4 adds `AddBunApp` / `addBunApp` for orchestrating [Bun](https://bun.sh/) applications alongside the rest of your resources. Bun support is now part of `Aspire.Hosting.JavaScript`.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -209,7 +226,7 @@ Aspire 13.4 adds `AddBunApp` for orchestrating [Bun](https://bun.sh/) applicatio
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var bunApi = builder.AddBunApp("bun-api", "../bun-app")
+var bunApi = builder.AddBunApp("bun-api", "../bun-app", "server.ts")
   .WithHttpEndpoint(port: 3000, env: "PORT");
 
 builder.Build().Run();
@@ -223,7 +240,7 @@ import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
-const bunApi = await builder.addBunApp("bun-api", "../bun-app");
+const bunApi = await builder.addBunApp("bun-api", "../bun-app", "server.ts");
 await bunApi.withHttpEndpoint({ port: 3000, env: "PORT" });
 
 await builder.build().run();
@@ -377,7 +394,7 @@ Aspire 13.4 includes a set of smaller CLI improvements and fixes:
 - `aspire logs` dims timestamps for readability and shows `No logs found.` when there are no entries, while preserving JSON output for automation.
 - Log file paths in CLI output are clickable terminal links when the terminal supports hyperlinks and degrade gracefully to plain text otherwise.
 - Package-manager installs such as WinGet, Homebrew, and `dotnet tool` keep the CLI bundle beside the CLI binary, so uninstall and upgrade flows clean up the bundle correctly.
-- The Aspire CLI can now be installed from npm (`npm install -g @microsoft/aspire-cli`). When installed this way, `aspire update --self` and update notices print the matching `npm install -g @microsoft/aspire-cli@latest` command instead of overwriting the npm-managed binary. See [Install for your AppHost language](/get-started/install-cli/#install-for-your-apphost-language).
+- The Aspire CLI can now be installed from npm (`npm install -g @microsoft/aspire-cli`). When installed this way, `aspire update --self` and update notices print the matching `npm install -g @microsoft/aspire-cli@latest` command instead of overwriting the npm-managed binary. See [Install with a package manager](/get-started/install-cli/#install-with-a-package-manager).
 - `aspire update` now requires `--yes` in non-interactive mode, matching `aspire destroy`.
 - `aspire stop --all` output includes the AppHost name and, when needed, the PID for clearer multi-instance shutdown output.
 - `aspire new`, `aspire init`, `aspire run`, and `aspire update` include fixes for NuGet feed errors, output paths, generated files, disabled dashboards, detached shutdown, and AppHost package-reference cleanup.
@@ -416,7 +433,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddRedis("cache")
     .WithProcessCommand(
-        name: "dotnet-version",
+        commandName: "dotnet-version",
         displayName: "Show .NET version",
         executablePath: "dotnet",
         arguments: ["--version"]);
@@ -633,6 +650,14 @@ The default RabbitMQ container image has been bumped from 4.2 to 4.3. Existing A
   For RabbitMQ hosting setup, see the [RabbitMQ integration](/integrations/messaging/rabbitmq/rabbitmq-host/).
 </LearnMore>
 
+### PostgreSQL default image
+
+The default PostgreSQL container image has been bumped from 17.6 to 18.3. PostgreSQL 18 changed the on-disk data layout, so an existing `WithDataVolume()` data volume created on PostgreSQL 17 (Aspire 13.3 or earlier) is incompatible after upgrading and the container fails to start. Pin the image back to `17.6` with `WithImageTag("17.6")` before `WithDataVolume()` to keep using the existing volume with no migration. See [Breaking changes](#breaking-changes) for recovery options.
+
+<LearnMore>
+  For PostgreSQL hosting setup and data volume guidance, see the [PostgreSQL integration](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
+</LearnMore>
+
 ## 🐛 Bug fixes and full changelog
 
 For the complete list of bug fixes and smaller changes in this release, see the [Aspire 13.4 release notes on GitHub](https://github.com/microsoft/aspire/releases/tag/v13.4.0).
@@ -749,12 +774,6 @@ The experimental `aspire exec` command — along with its AppHost backchannel an
 
 Remove scripts or workflows that call `aspire exec`. For resource-specific actions, use [`aspire resource`](/reference/cli/commands/aspire-resource/) when the resource exposes a command.
 
-#### `aspire ps` no longer takes `--resources` or `--include-hidden`
-
-The `aspire ps` command has been simplified and no longer supports the `--resources` and `--include-hidden` flags, which overlapped with `aspire describe`.
-
-For per-resource data, use `aspire describe --follow --apphost <path>` instead.
-
 #### Generated TypeScript modules consolidated under `.aspire/modules/`
 
 Generated polyglot SDK modules now live under a single `.aspire/modules/` directory instead of being split across `.modules/` and `.aspire/`. Generated language references — TypeScript imports, Go replace directives, Python editable paths, Java source lists, and Rust module paths — are updated automatically to point at the new location.
@@ -814,6 +833,28 @@ The primary Keycloak endpoint is now HTTPS when the developer certificate is ena
 
 Update references that assumed an HTTP primary endpoint to use the HTTPS endpoint.
 
+#### PostgreSQL default image bumped to 18.3, breaking existing data volumes
+
+The default PostgreSQL container image used by `AddPostgres` moved from 17.6 to 18.3. PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`.
+
+As a result, existing PostgreSQL data persisted with `WithDataVolume()` (a Docker volume) or `WithDataBindMount()` (a host bind mount) on PostgreSQL 17 (Aspire 13.3 or earlier) is incompatible with PostgreSQL 18 after upgrading to 13.4. The container fails to start with an error similar to:
+
+```text
+Error: in 18+, these Docker images are configured to store database data in a format which is compatible with "pg_ctlcluster" ... Counter to that, there appears to be PostgreSQL data in: /var/lib/postgresql
+```
+
+You have two ways to recover:
+
+- **Stay on PostgreSQL 17 (recommended, no migration).** Pin the image back to a 17 tag with `WithImageTag("17.6")` **before** calling `WithDataVolume()`. The data directory is selected from the configured tag at the time `WithDataVolume()` runs, so the tag must be set first. Aspire then chooses the legacy `/var/lib/postgresql/data` path and your existing volume keeps working:
+
+  ```csharp
+  var db = builder.AddPostgres("pgsql").WithImageTag("17.6").WithDataVolume();
+  ```
+
+- **Upgrade the persisted data to PostgreSQL 18.** Follow the official [PostgreSQL upgrade documentation](https://www.postgresql.org/docs/current/upgrading.html) using `pg_dumpall`/restore or `pg_upgrade`, and always back up the data first. If the data is disposable, stop the app, remove any container still referencing it, then remove the volume or bind mount data so Aspire creates fresh PostgreSQL 18 data on the next run.
+
+For full guidance and the container path mapping, see [PostgreSQL 18 data directory change](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
+
 #### Behavior changes to audit
 
 - `aspire update` now requires `--yes` in non-interactive mode, matching `aspire destroy`.
@@ -821,6 +862,7 @@ Update references that assumed an HTTP primary endpoint to use the HTTPS endpoin
 - TypeScript AppHosts are validated before startup, so invalid TypeScript fails earlier.
 - `CreateHttpClient` and `GetEndpointUriString` in `Aspire.Hosting.Testing` now prefer the `https` endpoint when no endpoint name is given; pass an explicit endpoint name if your tests relied on the previous `http`-first behavior.
 - The default RabbitMQ container image moved from 4.2 to 4.3, which rejects transient non-exclusive queue declarations by default.
+- The default PostgreSQL container image moved from 17.6 to 18.3, which changes the on-disk data layout and breaks PostgreSQL 17 data persisted with `WithDataVolume()` or `WithDataBindMount()`.
 - `AddNatsClient` now also registers `INatsClient` and a default serializer registry; user-provided registries still take precedence.
 
 #### Migration from Aspire 13.3 to 13.4
@@ -830,11 +872,12 @@ Update references that assumed an HTTP primary endpoint to use the HTTPS endpoin
 1. **Update the CLI** — run `aspire update --self`. This step is **required** for TypeScript AppHosts; running `aspire update` against a 13.3.x TypeScript project before updating the CLI fails with `No code generator found for language: TypeScript` and leaves the project in a partially-upgraded, unrunnable state (see [microsoft/aspire#17077](https://github.com/microsoft/aspire/issues/17077)).
 2. **Update your projects** — run `aspire update` from the root of your repository. For polyglot AppHosts, this regenerates SDK modules under `.aspire/modules/`.
 3. **Run `aspire doctor`** to check your environment setup and spot conflicting CLI installs.
-4. **Audit scripts and CI** for removed/changed commands — `aspire exec`, `aspire ps --resources`/`--include-hidden`, and non-interactive `aspire update` calls.
+4. **Audit scripts and CI** for removed/changed commands — `aspire exec` and non-interactive `aspire update` calls.
 5. **Update Kubernetes deployment code** — move Helm chart properties into `WithHelm(...)`, rename `ingress.WithRoute(...)` to `ingress.WithPath(...)`, and mark routed endpoints external with `WithExternalHttpEndpoints()`.
 6. **Update renamed APIs** — `PublishAsNpmPackageScript` → `PublishAsPackageScript`, and Foundry hosted agents `PublishAsHostedAgent` → `WithComputeEnvironment` (with the new `AddPromptAgent` parameter order).
 7. **Review Keycloak references** for the HTTPS primary endpoint, and **review Azure Front Door deployments**, setting explicit names if existing resources conflict with Azure.Provisioning name generation.
 8. **Review RabbitMQ queue declarations** if your app creates transient, non-exclusive queues. The default RabbitMQ image is now 4.3, which rejects that deprecated queue pattern by default. For migration guidance, see [RabbitMQ 4.3 queue declaration requirements](/integrations/messaging/rabbitmq/rabbitmq-host/#rabbitmq-4-3-queue-declaration-requirements).
+9. **Review PostgreSQL data persistence** if your app uses `WithDataVolume()` or `WithDataBindMount()`. The default PostgreSQL image is now 18.3, which changes the on-disk data layout and breaks PostgreSQL 17 data persisted by either API. Pin `WithImageTag("17.6")` before `WithDataVolume()` to keep using the existing volume, or migrate the data. See [PostgreSQL 18 data directory change](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
 
 </Steps>
 
