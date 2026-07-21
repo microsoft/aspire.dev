@@ -22,9 +22,10 @@ const communityMappings = integrationDocs.filter(({ match }) =>
 
 function docsPageExists(href: string): boolean {
   const slug = href.split(/[?#]/, 1)[0].replace(/^\/|\/$/g, '');
-  return (
-    existsSync(path.join(docsRoot, `${slug}.mdx`)) ||
-    existsSync(path.join(docsRoot, slug, 'index.mdx'))
+  return ['.md', '.mdx'].some(
+    (ext) =>
+      existsSync(path.join(docsRoot, `${slug}${ext}`)) ||
+      existsSync(path.join(docsRoot, slug, `index${ext}`))
   );
 }
 
