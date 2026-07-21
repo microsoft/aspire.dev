@@ -1,0 +1,676 @@
+{
+  "package": {
+    "name": "CommunityToolkit.Aspire.Hosting.Squad",
+    "version": "13.4.1-beta.686",
+    "targetFramework": "net10.0",
+    "sourceRepository": "https://github.com/CommunityToolkit/Aspire",
+    "sourceCommit": "b9d40479805b74ea20b7dc57cb659d46e6f11c43"
+  },
+  "types": [
+    {
+      "name": "SquadBuilderExtensions",
+      "fullName": "Aspire.Hosting.SquadBuilderExtensions",
+      "namespace": "Aspire.Hosting",
+      "kind": "class",
+      "accessibility": "public",
+      "isStatic": true,
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " Provides fluent extension methods for adding and configuring Squad AI-agent team resources in a .NET Aspire "
+          },
+          {
+            "kind": "cref",
+            "value": "T:Aspire.Hosting.IDistributedApplicationBuilder"
+          },
+          {
+            "kind": "text",
+            "text": ". "
+          }
+        ]
+      },
+      "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadBuilderExtensions.cs",
+      "sourceLines": "16-16",
+      "members": [
+        {
+          "name": "AddSquad",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<SquadResource> SquadBuilderExtensions.AddSquad(this IDistributedApplicationBuilder builder, string name, string? teamRoot = null)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.SquadResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.IDistributedApplicationBuilder",
+              "modifier": "this"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "teamRoot",
+              "type": "string?",
+              "isNullable": true,
+              "isOptional": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds a Squad AI-agent team to the distributed application. The lifecycle hook discovers agents from "
+              },
+              {
+                "kind": "code",
+                "text": ".squad/team.md"
+              },
+              {
+                "kind": "text",
+                "text": " (or the default roster when the file does not exist), publishes "
+              },
+              {
+                "kind": "code",
+                "text": "Spawning"
+              },
+              {
+                "kind": "text",
+                "text": " to "
+              },
+              {
+                "kind": "code",
+                "text": "Active"
+              },
+              {
+                "kind": "text",
+                "text": " state transitions visible in the Aspire dashboard, and injects a custom "
+              },
+              {
+                "kind": "code",
+                "text": "squad://"
+              },
+              {
+                "kind": "text",
+                "text": " descriptor that downstream services can consume as metadata. The Squad resource is a logical dashboard/resource-graph entry; it does not start a server process by itself. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "An "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for further configuration."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The "
+                },
+                {
+                  "kind": "cref",
+                  "value": "T:Aspire.Hosting.IDistributedApplicationBuilder"
+                },
+                {
+                  "kind": "text",
+                  "text": " to add the resource to."
+                }
+              ],
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The Aspire resource name."
+                }
+              ],
+              "teamRoot": [
+                {
+                  "kind": "text",
+                  "text": " Absolute path to the workspace root - the directory that contains the "
+                },
+                {
+                  "kind": "code",
+                  "text": ".squad/"
+                },
+                {
+                  "kind": "text",
+                  "text": " folder. Defaults to "
+                },
+                {
+                  "kind": "cref",
+                  "value": "M:System.IO.Directory.GetCurrentDirectory"
+                },
+                {
+                  "kind": "text",
+                  "text": " when not specified. "
+                }
+              ]
+            },
+            "examples": [
+              {
+                "code": "\n             var builder = DistributedApplication.CreateBuilder(args);\n            \n             var squad = builder.AddSquad(\"research-squad\",\n                 teamRoot: @\"C:\\repos\\my-project\");\n            \n             builder.AddProject<Projects.IncidentWorkflow>(\"workflow\")\n                 .WithReference(squad);\n            \n             builder.Build().Run();\n             ",
+                "language": "csharp"
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadBuilderExtensions.cs",
+          "sourceLines": "53-197"
+        }
+      ]
+    },
+    {
+      "name": "SquadResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.SquadResource",
+      "namespace": "Aspire.Hosting.ApplicationModel",
+      "kind": "class",
+      "accessibility": "public",
+      "isSealed": true,
+      "baseType": "Aspire.Hosting.ApplicationModel.Resource",
+      "interfaces": [
+        "Aspire.Hosting.ApplicationModel.IExpressionValue",
+        "Aspire.Hosting.ApplicationModel.IManifestExpressionProvider",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
+        "Aspire.Hosting.ApplicationModel.IValueProvider",
+        "Aspire.Hosting.ApplicationModel.IValueWithReferences"
+      ],
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " Represents a Squad AI-agent team as a first-class .NET Aspire resource. Implements "
+          },
+          {
+            "kind": "cref",
+            "value": "T:Aspire.Hosting.ApplicationModel.IResourceWithConnectionString"
+          },
+          {
+            "kind": "text",
+            "text": " so that downstream services can reference the team with "
+          },
+          {
+            "kind": "code",
+            "text": ".WithReference(squad)"
+          },
+          {
+            "kind": "text",
+            "text": " and receive a custom "
+          },
+          {
+            "kind": "code",
+            "text": "squad://"
+          },
+          {
+            "kind": "text",
+            "text": " descriptor that encodes the resource name, team root, and agent roster. The resource is a logical Aspire resource; it does not start a listener by itself. "
+          }
+        ]
+      },
+      "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadResource.cs",
+      "sourceLines": "12-12",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public SquadResource.SquadResource(string name, string teamRoot)",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "teamRoot",
+              "type": "string"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Initialises a new "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.SquadResource"
+              },
+              {
+                "kind": "text",
+                "text": ", auto-discovering agents from "
+              },
+              {
+                "kind": "code",
+                "text": ".squad/team.md"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ],
+            "parameters": {
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The Aspire resource name."
+                }
+              ],
+              "teamRoot": [
+                {
+                  "kind": "text",
+                  "text": " Absolute path to the workspace root (the directory that contains the "
+                },
+                {
+                  "kind": "code",
+                  "text": ".squad/"
+                },
+                {
+                  "kind": "text",
+                  "text": " folder). "
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadResource.cs",
+          "sourceLines": "50-56"
+        },
+        {
+          "name": "Agents",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public IReadOnlyList<string> SquadResource.Agents",
+          "returnType": "System.Collections.Generic.IReadOnlyList<string>",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": "Gets the list of agent names discovered from "
+              },
+              {
+                "kind": "code",
+                "text": ".squad/team.md"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadResource.cs",
+          "sourceLines": "32-32"
+        },
+        {
+          "name": "ConnectionStringExpression",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public ReferenceExpression SquadResource.ConnectionStringExpression",
+          "returnType": "Aspire.Hosting.ApplicationModel.ReferenceExpression",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Describes the connection string format string used for this resource. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Format: "
+              },
+              {
+                "kind": "code",
+                "text": "squad://resource/{resourceName}?teamRoot={path}&agents={csv}&protocol=maf-1.0"
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadResource.cs",
+          "sourceLines": "39-40"
+        },
+        {
+          "name": "TeamRoot",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public string SquadResource.TeamRoot",
+          "returnType": "string",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the absolute path to the directory that contains the "
+              },
+              {
+                "kind": "code",
+                "text": ".squad/"
+              },
+              {
+                "kind": "text",
+                "text": " folder (i.e., the workspace root, not the "
+              },
+              {
+                "kind": "code",
+                "text": ".squad/"
+              },
+              {
+                "kind": "text",
+                "text": " sub-directory itself). "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadResource.cs",
+          "sourceLines": "29-29"
+        }
+      ]
+    },
+    {
+      "name": "SquadTeamAnnotation",
+      "fullName": "Aspire.Hosting.ApplicationModel.SquadTeamAnnotation",
+      "namespace": "Aspire.Hosting.ApplicationModel",
+      "kind": "class",
+      "accessibility": "public",
+      "isSealed": true,
+      "interfaces": [
+        "Aspire.Hosting.ApplicationModel.IResourceAnnotation"
+      ],
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " Carries Squad team metadata on a "
+          },
+          {
+            "kind": "cref",
+            "value": "T:Aspire.Hosting.ApplicationModel.SquadResource"
+          },
+          {
+            "kind": "text",
+            "text": " so that lifecycle hooks, dashboard annotations, and downstream tooling know where team files live. "
+          }
+        ],
+        "parameters": {
+          "agentRosterFile": [
+            {
+              "kind": "text",
+              "text": "The absolute path to "
+            },
+            {
+              "kind": "code",
+              "text": ".squad/team.md"
+            },
+            {
+              "kind": "text",
+              "text": " (the agent roster)."
+            }
+          ],
+          "decisionsMdPath": [
+            {
+              "kind": "text",
+              "text": "The absolute path to "
+            },
+            {
+              "kind": "code",
+              "text": ".squad/decisions.md"
+            },
+            {
+              "kind": "text",
+              "text": "."
+            }
+          ],
+          "inboxDir": [
+            {
+              "kind": "text",
+              "text": "The absolute path to "
+            },
+            {
+              "kind": "code",
+              "text": ".squad/decisions/inbox/"
+            },
+            {
+              "kind": "text",
+              "text": "."
+            }
+          ],
+          "teamRoot": [
+            {
+              "kind": "text",
+              "text": "The absolute path to the directory that contains the "
+            },
+            {
+              "kind": "code",
+              "text": ".squad/"
+            },
+            {
+              "kind": "text",
+              "text": " folder."
+            }
+          ]
+        }
+      },
+      "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadTeamAnnotation.cs",
+      "sourceLines": "11-11",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public SquadTeamAnnotation.SquadTeamAnnotation(string teamRoot, string decisionsMdPath, string inboxDir, string agentRosterFile)",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "teamRoot",
+              "type": "string"
+            },
+            {
+              "name": "decisionsMdPath",
+              "type": "string"
+            },
+            {
+              "name": "inboxDir",
+              "type": "string"
+            },
+            {
+              "name": "agentRosterFile",
+              "type": "string"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Carries Squad team metadata on a "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.SquadResource"
+              },
+              {
+                "kind": "text",
+                "text": " so that lifecycle hooks, dashboard annotations, and downstream tooling know where team files live. "
+              }
+            ],
+            "parameters": {
+              "agentRosterFile": [
+                {
+                  "kind": "text",
+                  "text": "The absolute path to "
+                },
+                {
+                  "kind": "code",
+                  "text": ".squad/team.md"
+                },
+                {
+                  "kind": "text",
+                  "text": " (the agent roster)."
+                }
+              ],
+              "decisionsMdPath": [
+                {
+                  "kind": "text",
+                  "text": "The absolute path to "
+                },
+                {
+                  "kind": "code",
+                  "text": ".squad/decisions.md"
+                },
+                {
+                  "kind": "text",
+                  "text": "."
+                }
+              ],
+              "inboxDir": [
+                {
+                  "kind": "text",
+                  "text": "The absolute path to "
+                },
+                {
+                  "kind": "code",
+                  "text": ".squad/decisions/inbox/"
+                },
+                {
+                  "kind": "text",
+                  "text": "."
+                }
+              ],
+              "teamRoot": [
+                {
+                  "kind": "text",
+                  "text": "The absolute path to the directory that contains the "
+                },
+                {
+                  "kind": "code",
+                  "text": ".squad/"
+                },
+                {
+                  "kind": "text",
+                  "text": " folder."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadTeamAnnotation.cs",
+          "sourceLines": "11-23"
+        },
+        {
+          "name": "AgentRosterFile",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public string SquadTeamAnnotation.AgentRosterFile",
+          "returnType": "string",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": "Gets the absolute path to "
+              },
+              {
+                "kind": "code",
+                "text": ".squad/team.md"
+              },
+              {
+                "kind": "text",
+                "text": " (the agent roster)."
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadTeamAnnotation.cs",
+          "sourceLines": "23-23"
+        },
+        {
+          "name": "DecisionsMdPath",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public string SquadTeamAnnotation.DecisionsMdPath",
+          "returnType": "string",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": "Gets the absolute path to "
+              },
+              {
+                "kind": "code",
+                "text": ".squad/decisions.md"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadTeamAnnotation.cs",
+          "sourceLines": "17-17"
+        },
+        {
+          "name": "InboxDir",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public string SquadTeamAnnotation.InboxDir",
+          "returnType": "string",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": "Gets the absolute path to "
+              },
+              {
+                "kind": "code",
+                "text": ".squad/decisions/inbox/"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadTeamAnnotation.cs",
+          "sourceLines": "20-20"
+        },
+        {
+          "name": "TeamRoot",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public string SquadTeamAnnotation.TeamRoot",
+          "returnType": "string",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": "Gets the absolute path to the directory that contains the "
+              },
+              {
+                "kind": "code",
+                "text": ".squad/"
+              },
+              {
+                "kind": "text",
+                "text": " folder."
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Squad/SquadTeamAnnotation.cs",
+          "sourceLines": "14-14"
+        }
+      ]
+    }
+  ]
+}
