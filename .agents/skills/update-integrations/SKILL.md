@@ -56,7 +56,7 @@ If the Aspire release branch is not publicly reachable yet, set one of the overr
 Fetch the latest package data from the configured package feeds:
 
 ```bash
-cd src/frontend && node scripts/update-integrations.js
+pnpm --dir ./src/frontend update:integrations
 ```
 
 This writes updated package metadata to `src/frontend/src/data/aspire-integrations.json`. The script queries the NuGet v3 API for packages matching `owner:aspire`, `Aspire.Hosting.`, and `CommunityToolkit.Aspire`, then filters out deprecated, unlisted, and excluded packages.
@@ -118,7 +118,7 @@ The documentation site organizes integrations into these categories:
 
 1. Match against existing similar package mappings in `integration-docs.json`
 2. Infer from the package name and technology category
-3. **Verify the page exists** — use Playwright MCP tools or check the file system under `src/frontend/src/content/docs/` to confirm the target page is real
+3. **Verify the page exists** — check the file system under `src/frontend/src/content/docs/`, then use Playwright CLI to confirm the route renders
 4. If no valid documentation page can be found, flag the package for manual review
 
 ### 5. Generate API reference data
@@ -223,6 +223,12 @@ Do not assume a page exists without verification.
 
 Write the updated `integration-docs.json` maintaining consistent formatting (2-space indentation, trailing newline). The API reference JSON files in `src/frontend/src/data/pkgs/` are written directly by the generation script and require no additional save step.
 
+Run the structured-data tests after changing the catalog or documentation map:
+
+```bash
+pnpm --dir ./src/frontend test:unit:structured-data
+```
+
 ## Entry format
 
 Each entry in `integration-docs.json` follows this structure:
@@ -230,7 +236,7 @@ Each entry in `integration-docs.json` follows this structure:
 ```json
 {
   "match": "Aspire.Hosting.Redis",
-  "href": "/integrations/caching/redis/"
+  "href": "/integrations/caching/redis/redis-get-started/"
 }
 ```
 

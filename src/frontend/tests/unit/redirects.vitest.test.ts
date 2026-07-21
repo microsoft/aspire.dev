@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from 'vitest';
@@ -7,7 +7,8 @@ import { redirects } from '../../config/redirects.mjs';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(testsDir, '..', '..');
-const whatsNewDir = path.join(frontendRoot, 'src', 'content', 'docs', 'whats-new');
+const docsDir = path.join(frontendRoot, 'src', 'content', 'docs');
+const whatsNewDir = path.join(docsDir, 'whats-new');
 
 const versionPattern = /^aspire-(\d+)(?:-(\d+))?\.mdx$/;
 
@@ -87,4 +88,64 @@ test('host-only integration routes redirect to their get-started pages', () => {
       '/integrations/frameworks/powershell/powershell-get-started/',
     '/ja/integrations/frameworks/rust/': '/integrations/frameworks/rust/rust-get-started/',
   });
+});
+
+// Legacy host-only routes (from the get-started/host split) are retained as
+// redirects above for external compatibility, but in-repo docs links should
+// point at the canonical `*-get-started` pages so readers don't take an extra
+// redirect hop. This guards against reintroducing the redirect-hop links.
+const legacyHostOnlyRoutes = new Set(
+  [
+    '/integrations/frameworks/deno-apps',
+    '/integrations/frameworks/java',
+    '/integrations/frameworks/perl',
+    '/integrations/frameworks/powershell',
+    '/integrations/frameworks/rust',
+    '/integrations/devtools/k6',
+    '/integrations/devtools/sql-projects',
+  ].flatMap((route) => [route, `/ja${route}`])
+);
+
+function collectDocFiles(dir: string): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectDocFiles(full));
+    } else if (entry.name.endsWith('.md') || entry.name.endsWith('.mdx')) {
+      files.push(full);
+    }
+  }
+  return files;
+}
+
+function normalizeLinkPath(url: string): string {
+  return url
+    .split('#')[0]
+    .split('?')[0]
+    .replace(/\/+$/, '');
+}
+
+test('docs do not link to legacy host-only routes (use canonical get-started URLs)', () => {
+  // Matches markdown links `](/path)` and JSX `href="/path"` / `href='/path'`.
+  const linkPattern = /(?:\]\(|href=["'])(\/[^)"'\s#?]*)/g;
+  const offenders: string[] = [];
+
+  for (const file of collectDocFiles(docsDir)) {
+    const content = readFileSync(file, 'utf8');
+    const lines = content.split(/\r?\n/);
+    lines.forEach((line, index) => {
+      for (const match of line.matchAll(linkPattern)) {
+        if (legacyHostOnlyRoutes.has(normalizeLinkPath(match[1]))) {
+          const rel = path.relative(frontendRoot, file).replace(/\\/g, '/');
+          offenders.push(`${rel}:${index + 1} -> ${match[1]}`);
+        }
+      }
+    });
+  }
+
+  expect(
+    offenders,
+    `Repoint these links to the canonical *-get-started page:\n${offenders.join('\n')}`
+  ).toEqual([]);
 });

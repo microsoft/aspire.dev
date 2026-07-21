@@ -4,7 +4,7 @@ seoTitle: Python integration for Aspire AppHost and apps
 description: Add Python apps, modules, and ASGI services to an Aspire AppHost and orchestrate them alongside your other resources with full service discovery, environment injection, and debugging support.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
 import pythonIcon from '@assets/icons/python.svg';
@@ -14,19 +14,31 @@ import pythonIcon from '@assets/icons/python.svg';
   alt="Python logo"
   width={100}
   height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
 The Aspire Python hosting integration lets you model Python scripts, modules, executables, and ASGI web apps as first-class resources in your [`AppHost`](/get-started/app-host/) project. Aspire manages virtual environment setup, injects connection strings and service URLs into the Python process, and wires up service discovery and observability automatically.
 
-:::tip[First-class Python support]
-As of Aspire 13, Python is a first-class workload with the `Aspire.Hosting.Python` package. The previous `CommunityToolkit.Aspire.Hosting.Python.Extensions` package is deprecated, and its functionality has been integrated into the official package with full support for debugging, service discovery, and deployment alongside .NET and JavaScript applications.
+:::caution[Community Toolkit package deprecated]
+As of Aspire 13, the official `Aspire.Hosting.Python` package is the recommended approach for Python hosting. The previous `CommunityToolkit.Aspire.Hosting.Python.Extensions` package is deprecated.
 :::
 
 ## Hosting integration
 
 <InstallPackage packageName="Aspire.Hosting.Python" />
+
+### Migrate from the Community Toolkit package
+
+Remove the deprecated `CommunityToolkit.Aspire.Hosting.Python.Extensions` package reference, then install `Aspire.Hosting.Python`. Replace Toolkit-specific helpers with the official APIs that match the process you run:
+
+- Use `AddUvicornApp` / `addUvicornApp` for ASGI apps.
+- Replace `AddUvApp` with `AddPythonApp` / `addPythonApp` and `WithUv` / `withUv`.
+- Use `AddPythonExecutable` / `addPythonExecutable` for an executable installed in the Python environment.
+- Pass application arguments with `WithArgs` / `withArgs` instead of the deprecated `AddPythonApp` overloads that accept script arguments.
+
+The examples in this article use only `Aspire.Hosting.Python`.
 
 ## Add Python app
 
@@ -40,7 +52,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var python = builder.AddPythonApp(
         name: "python-api",
-        projectDirectory: "../python-app",
+        appDirectory: "../python-app",
         scriptPath: "main.py")
     .WithHttpEndpoint(port: 8000, env: "PORT");
 
@@ -54,14 +66,21 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addPythonApp("python-api", "../python-app", "main.py");
-await python.withHttpEndpoint({ port: 8000, env: "PORT" });
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 
-const example = await builder.addProject("example", "../ExampleProject/ExampleProject.csproj");
+const example = await builder.addProject(
+  'example',
+  '../ExampleProject/ExampleProject.csproj'
+);
 await example.withReference(python);
 
 await builder.build().run();
@@ -71,9 +90,10 @@ await builder.build().run();
 </Tabs>
 
 `AddPythonApp` / `addPythonApp` requires:
+
 - **name** — the resource name shown in the Aspire dashboard
-- **projectDirectory** / **appDirectory** — path to the directory containing your Python application
-- **scriptPath** — the Python script to run, relative to the project directory
+- **appDirectory** — path to the directory containing your Python application
+- **scriptPath** — the Python script to run, relative to `appDirectory`
 
 ## Add Python module
 
@@ -87,7 +107,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var python = builder.AddPythonModule(
         name: "python-module",
-        projectDirectory: "../python-app",
+        appDirectory: "../python-app",
         moduleName: "mymodule")
     .WithHttpEndpoint(port: 8000, env: "PORT");
 
@@ -98,12 +118,16 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addPythonModule("python-module", "../python-app", "mymodule");
-await python.withHttpEndpoint({ port: 8000, env: "PORT" });
+const python = await builder.addPythonModule(
+  'python-module',
+  '../python-app',
+  'mymodule'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 
 await builder.build().run();
 ```
@@ -112,8 +136,9 @@ await builder.build().run();
 </Tabs>
 
 `AddPythonModule` / `addPythonModule` requires:
+
 - **name** — the resource name shown in the Aspire dashboard
-- **projectDirectory** / **appDirectory** — path to the directory containing your Python application
+- **appDirectory** — path to the directory containing your Python application
 - **moduleName** — the Python module to run
 
 ## Add Python executable
@@ -127,10 +152,10 @@ Use `AddPythonExecutable` to run a CLI tool installed in the virtual environment
 var builder = DistributedApplication.CreateBuilder(args);
 
 var python = builder.AddPythonExecutable(
-    name: "python-tool",
-    projectDirectory: "../python-app",
-    executable: "uvicorn",
-    args: ["main:app", "--host", "0.0.0.0", "--port", "8000"]);
+        name: "python-tool",
+        appDirectory: "../python-app",
+        executableName: "uvicorn")
+    .WithArgs("main:app", "--host", "0.0.0.0", "--port", "8000");
 
 builder.Build().Run();
 ```
@@ -139,13 +164,17 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 // TypeScript: pass additional arguments via withArgs after creation
-const python = await builder.addPythonExecutable("python-tool", "../python-app", "uvicorn");
-await python.withArgs(["main:app", "--host", "0.0.0.0", "--port", "8000"]);
+const python = await builder.addPythonExecutable(
+  'python-tool',
+  '../python-app',
+  'uvicorn'
+);
+await python.withArgs(['main:app', '--host', '0.0.0.0', '--port', '8000']);
 
 await builder.build().run();
 ```
@@ -169,8 +198,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var python = builder.AddUvicornApp(
         name: "python-api",
-        projectDirectory: "../python-app",
-        appName: "main:app")
+        appDirectory: "../python-app",
+        app: "main:app")
     .WithHttpEndpoint(port: 8000, env: "PORT");
 
 builder.AddProject<Projects.ExampleProject>("example")
@@ -183,14 +212,21 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addUvicornApp("python-api", "../python-app", "main:app");
-await python.withHttpEndpoint({ port: 8000, env: "PORT" });
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 
-const example = await builder.addProject("example", "../ExampleProject/ExampleProject.csproj");
+const example = await builder.addProject(
+  'example',
+  '../ExampleProject/ExampleProject.csproj'
+);
 await example.withReference(python);
 
 await builder.build().run();
@@ -200,9 +236,10 @@ await builder.build().run();
 </Tabs>
 
 `AddUvicornApp` / `addUvicornApp` requires:
+
 - **name** — the resource name shown in the Aspire dashboard
-- **projectDirectory** / **appDirectory** — path to the directory containing your Python application
-- **appName** / **app** — the ASGI application in `module:variable` format (for example, `main:app` for an `app` variable in `main.py`)
+- **appDirectory** — path to the directory containing your Python application
+- **app** — the ASGI application in `module:variable` format (for example, `main:app` for an `app` variable in `main.py`)
 
 ### Uvicorn configuration
 
@@ -226,14 +263,18 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addUvicornApp("python-api", "../python-app", "main:app");
-await python.withHttpEndpoint({ port: 8000, env: "PORT" });
-await python.withEnvironment("UVICORN_WORKERS", "4");
-await python.withEnvironment("UVICORN_LOG_LEVEL", "info");
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
+await python.withEnvironment('UVICORN_WORKERS', '4');
+await python.withEnvironment('UVICORN_LOG_LEVEL', 'info');
 
 await builder.build().run();
 ```
@@ -242,6 +283,7 @@ await builder.build().run();
 </Tabs>
 
 Common Uvicorn environment variables:
+
 - **UVICORN_PORT** — port to listen on
 - **UVICORN_HOST** — host to bind to (default: `127.0.0.1`)
 - **UVICORN_WORKERS** — number of worker processes
@@ -250,6 +292,8 @@ Common Uvicorn environment variables:
 ## Virtual environment management
 
 The Python hosting integration automatically detects and uses a virtual environment in the project directory. By default, if a `requirements.txt` or `pyproject.toml` is found, Aspire creates and activates a virtual environment before starting the app.
+
+The official integration doesn't expose a C# or TypeScript API to disable virtual environment management. Use the default `.venv` location or specify a different path.
 
 ### Custom virtual environment
 
@@ -271,35 +315,22 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addPythonApp("python-api", "../python-app", "main.py");
-await python.withVirtualEnvironment("../python-app/.venv");
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
+await python.withVirtualEnvironment('../python-app/.venv');
 
 await builder.build().run();
 ```
 
 </TabItem>
 </Tabs>
-
-### Disable virtual environment
-
-To opt out of automatic virtual environment management, call `WithoutVirtualEnvironment` in C#:
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
-    .WithoutVirtualEnvironment();
-
-builder.Build().Run();
-```
-
-:::note
-`WithoutVirtualEnvironment` is not yet available in the TypeScript AppHost. To achieve the same effect from a TypeScript AppHost, omit `withVirtualEnvironment` and ensure the Python executable is on `PATH`.
-:::
 
 ## Package management
 
@@ -324,13 +355,17 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addUvicornApp("python-api", "../python-app", "main:app");
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
 await python.withUv();
-await python.withHttpEndpoint({ port: 8000, env: "PORT" });
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 
 await builder.build().run();
 ```
@@ -359,13 +394,17 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addPythonApp("python-api", "../python-app", "main.py");
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
 await python.withPip();
-await python.withHttpEndpoint({ port: 8000, env: "PORT" });
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 
 await builder.build().run();
 ```
@@ -397,12 +436,16 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addUvicornApp("python-api", "../python-app", "main:app");
-await python.withHttpEndpoint({ port: 8000, env: "PORT" });
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 
 await builder.build().run();
 ```
@@ -431,13 +474,17 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addPythonApp("python-api", "../python-app", "main.py");
-await python.withHttpEndpoint({ port: 8000, env: "HTTP_PORT", name: "http" });
-await python.withHttpEndpoint({ port: 8443, env: "HTTPS_PORT", name: "https" });
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'HTTP_PORT', name: 'http' });
+await python.withHttpEndpoint({ port: 8443, env: 'HTTPS_PORT', name: 'https' });
 
 await builder.build().run();
 ```
@@ -466,13 +513,17 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addUvicornApp("python-api", "../python-app", "main:app");
-await python.withHttpEndpoint({ port: 8000, env: "PORT" });
-await python.withHttpHealthCheck("/health");
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
+await python.withHttpHealthCheck('/health');
 
 await builder.build().run();
 ```
@@ -501,13 +552,17 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addPythonApp("python-api", "../python-app", "main.py");
-await python.withEnvironment("DEBUG", "true");
-await python.withEnvironment("LOG_LEVEL", "debug");
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
+await python.withEnvironment('DEBUG', 'true');
+await python.withEnvironment('LOG_LEVEL', 'debug');
 
 await builder.build().run();
 ```
@@ -538,14 +593,18 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const postgres = await builder.addPostgres("postgres");
-const db = await postgres.addDatabase("mydb");
+const postgres = await builder.addPostgres('postgres');
+const db = await postgres.addDatabase('mydb');
 
-const python = await builder.addPythonApp("python-api", "../python-app", "main.py");
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
 await python.withReference(db);
 
 await builder.build().run();
@@ -583,12 +642,16 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const python = await builder.addUvicornApp("python-api", "../python-app", "main:app");
-await python.withHttpsEndpoint({ port: 8443, env: "PORT" });
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
+await python.withHttpsEndpoint({ port: 8443, env: 'PORT' });
 await python.withHttpsDeveloperCertificate();
 
 await builder.build().run();
@@ -650,20 +713,31 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-import { createBuilder } from "./.aspire/modules/aspire.mjs";
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const internalApi = await builder.addUvicornApp("internal-api", "../internal-api", "main:app");
-await internalApi.withHttpEndpoint({ port: 8001, env: "PORT" });
+const internalApi = await builder.addUvicornApp(
+  'internal-api',
+  '../internal-api',
+  'main:app'
+);
+await internalApi.withHttpEndpoint({ port: 8001, env: 'PORT' });
 // internalApi is NOT exposed publicly — only reachable by other Aspire resources
 
-const publicApi = await builder.addUvicornApp("public-api", "../public-api", "main:app");
-await publicApi.withHttpEndpoint({ port: 8000, env: "PORT" });
+const publicApi = await builder.addUvicornApp(
+  'public-api',
+  '../public-api',
+  'main:app'
+);
+await publicApi.withHttpEndpoint({ port: 8000, env: 'PORT' });
 await publicApi.withExternalHttpEndpoints();
 // publicApi IS exposed publicly
 
-const frontend = await builder.addProject("frontend", "../WebFrontend/WebFrontend.csproj");
+const frontend = await builder.addProject(
+  'frontend',
+  '../WebFrontend/WebFrontend.csproj'
+);
 await frontend.withReference(internalApi);
 await frontend.withReference(publicApi);
 

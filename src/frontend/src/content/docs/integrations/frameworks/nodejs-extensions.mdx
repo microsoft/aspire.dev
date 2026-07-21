@@ -1,9 +1,9 @@
 ---
-title: Node.js hosting extensions
-description: Learn how to use the Aspire Community Toolkit Node.js hosting extensions to run Vite apps and use Yarn or pnpm as the package manager.
+title: JavaScript monorepo hosting extensions
+description: Add Nx and Turborepo workspaces to Aspire with Community Toolkit decorators for package managers, child apps, and mapped ports.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import nodejsIcon from '@assets/icons/nodejs-icon.png';
@@ -21,148 +21,136 @@ import nodejsLightIcon from '@assets/icons/nodejs-light-icon.png';
   classOverride="float-inline-left icon"
 />
 
-:::note
-TypeScript AppHost support for this integration is not yet available. The examples on this page show C# AppHost code only. The `withVite`, `withYarnPackageInstaller`, `withPnpmPackageInstaller`, and `withNpmPackageInstaller` APIs are absent from the generated `.aspire/modules/aspire.mjs` module.
-:::
+The [📦 CommunityToolkit.Aspire.Hosting.JavaScript.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.JavaScript.Extensions) package adds Nx and Turborepo monorepo support to the official [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) integration. Use the official package for individual Node.js, Vite, Next.js, and Bun apps; use this Community Toolkit package when an app belongs to an Nx or Turborepo workspace.
 
-The Aspire Community Toolkit Node.js hosting extensions package provides extra functionality to the [Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) hosting package.
+Start with an existing Nx or Turborepo workspace. Pass the workspace root as `workingDirectory`, then pass the Nx project name or Turborepo package name to `AddApp` / `addApp`. For Turborepo, the optional `filter` selects the package to run.
 
-:::caution[Package rename]
-In Aspire 13.0, `Aspire.Hosting.NodeJs` was renamed to
-[`Aspire.Hosting.JavaScript`](/integrations/frameworks/javascript/).
+The extensions add:
 
-Use `Aspire.Hosting.JavaScript` for Aspire 13+ applications.
-`Aspire.Hosting.NodeJs` is the old package name.
-:::
-
-This package provides the following features:
-
-- Running [Vite](https://vitejs.dev/) applications
-- Running Node.js applications using [Yarn](https://yarnpkg.com/) and [pnpm](https://pnpm.io/)
-- Ensuring that packages are installed before running the application (using the specified package manager)
+- `AddNxApp` / `addNxApp` for an Nx workspace.
+- `AddTurborepoApp` / `addTurborepoApp` for a Turborepo workspace.
+- `AddApp` / `addApp` for apps within those workspaces.
+- `WithNpm`, `WithYarn`, `WithPnpm`, and `WithBun` to select the workspace package manager.
+- `WithPackageManagerLaunch` / `withPackageManagerLaunch` to launch the workspace through the selected package manager.
+- `WithMappedEndpointPort` / `withMappedEndpointPort` to pass an Aspire endpoint's allocated port to a JavaScript app.
 
 ## Hosting integration
 
-To get started with the Aspire Community Toolkit Node.js hosting extensions, install the [📦 CommunityToolkit.Aspire.Hosting.NodeJS.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.NodeJS.Extensions) NuGet package in the app host project.
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.NodeJS.Extensions" />
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.JavaScript.Extensions" />
 
-## Run specific package managers
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-This integration extension adds support for running Node.js applications using Yarn or pnpm as the package manager.
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.JavaScript.Extensions
+```
 
-### Yarn
+This command adds the package to `aspire.config.json` so Aspire can generate its TypeScript bindings.
 
-To add a Node.js application using Yarn, use the `AddYarnApp` extension method:
+</TabItem>
+</Tabs>
+
+## Add an Nx workspace app
+
+`AddNxApp` / `addNxApp` models the workspace. Add each runnable project with `AddApp` / `addApp`, then decorate that child app with the official JavaScript resource APIs it needs.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var yarnApp = builder.AddYarnApp("yarn-demo")
-    .WithExternalHttpEndpoints();
+var nx = builder.AddNxApp("nx-workspace", "../nx-demo")
+    .WithNpm(install: true)
+    .WithPackageManagerLaunch();
 
-builder.AddProject<Projects.ExampleProject>("example")
-    .WithReference(yarnApp);
+nx.AddApp("blog")
+    .WithHttpEndpoint(env: "PORT")
+    .WithMappedEndpointPort();
 
 builder.Build().Run();
 ```
 
-### pnpm
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-To add a Node.js application using pnpm, use the `AddPnpmApp` extension method:
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const nx = await builder.addNxApp('nx-workspace', {
+  workingDirectory: '../nx-demo',
+});
+await nx.withNpm(true);
+await nx.withPackageManagerLaunch();
+
+const blog = await nx.addApp('blog');
+await blog.withHttpEndpoint({ env: 'PORT' });
+await blog.withMappedEndpointPort();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Add a Turborepo workspace app
+
+Use `AddTurborepoApp` / `addTurborepoApp` for a Turborepo workspace. The optional `filter` selects the workspace package to run.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var pnpmApp = builder.AddPnpmApp("pnpm-demo")
-    .WithExternalHttpEndpoints();
+var turbo = builder.AddTurborepoApp("turborepo", "../turborepo-demo")
+    .WithPnpm(install: true)
+    .WithPackageManagerLaunch();
 
-builder.AddProject<Projects.ExampleProject>("example")
-    .WithReference(pnpmApp);
-
-builder.Build().Run();
-```
-
-## Run Vite apps
-
-This integration extension adds support for running the development server for Vite applications. By default, it uses the `npm` package manager to launch, but this can be overridden with the `packageManager` argument.
-
-### Using npm (default)
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var viteApp = builder.AddViteApp("vite-demo")
-    .WithExternalHttpEndpoints();
+turbo.AddApp("web", filter: "web")
+    .WithHttpEndpoint(env: "PORT")
+    .WithMappedEndpointPort();
 
 builder.Build().Run();
 ```
 
-### Using Yarn
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
-var viteApp = builder.AddViteApp("yarn-demo", packageManager: "yarn")
-    .WithExternalHttpEndpoints();
+const builder = await createBuilder();
 
-builder.Build().Run();
+const turbo = await builder.addTurborepoApp('turborepo', {
+  workingDirectory: '../turborepo-demo',
+});
+await turbo.withPnpm(true);
+await turbo.withPackageManagerLaunch();
+
+const web = await turbo.addApp('web', { filter: 'web' });
+await web.withHttpEndpoint({ env: 'PORT' });
+await web.withMappedEndpointPort();
+
+await builder.build().run();
 ```
 
-### Using pnpm
+</TabItem>
+</Tabs>
 
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var viteApp = builder.AddViteApp("pnpm-demo", packageManager: "pnpm")
-    .WithExternalHttpEndpoints();
-
-builder.Build().Run();
-```
-
-## Install packages
-
-When using the `WithNpmPackageInstallation`, `WithYarnPackageInstallation`, or `WithPnpmPackageInstallation` methods, the package manager is used to install the packages before starting the application. These methods are useful to ensure that packages are installed before the application starts, similar to how a C# application would restore NuGet packages before running.
-
-### npm
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var nodeApp = builder.AddNodeApp("node-demo", "server.js")
-    .WithNpmPackageInstallation();
-
-builder.Build().Run();
-```
-
-### Yarn
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var yarnApp = builder.AddYarnApp("yarn-demo")
-    .WithYarnPackageInstallation();
-
-builder.Build().Run();
-```
-
-### pnpm
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var pnpmApp = builder.AddPnpmApp("pnpm-demo")
-    .WithPnpmPackageInstallation();
-
-builder.Build().Run();
-```
+:::note[Use the official package for individual apps]
+`AddNodeApp`, `AddViteApp`, `AddNextJsApp`, and `AddBunApp`, together with the generic `WithNpm`, `WithYarn`, `WithPnpm`, and `WithBun` decorators for individual JavaScript resources, are provided by `Aspire.Hosting.JavaScript`. They aren't APIs from this Community Toolkit package.
+:::
 
 ## See also
 
-- [Node.js integration](/integrations/frameworks/javascript/)
-- [Vite documentation](https://vitejs.dev/)
-- [Yarn documentation](https://yarnpkg.com/)
-- [pnpm documentation](https://pnpm.io/)
+- [JavaScript integration](/integrations/frameworks/javascript/)
+- [Nx documentation](https://nx.dev/)
+- [Turborepo documentation](https://turbo.build/repo/docs)
 - [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
 - [Aspire integrations overview](/integrations/overview/)
-- [Aspire GitHub repo](https://github.com/microsoft/aspire)

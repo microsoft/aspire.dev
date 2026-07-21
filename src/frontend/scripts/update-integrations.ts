@@ -255,9 +255,9 @@ export function resolveIconUrl(pkg: PackageRecord): string {
   }
 
   return (
-    pkg.iconUrl ||
     buildNuGetFlatContainerIconUrl(pkg.id, iconVersion) ||
     buildNuGetIconUrl(pkg.id, iconVersion) ||
+    pkg.iconUrl ||
     DEFAULT_NUGET_ICON_URL
   );
 }
