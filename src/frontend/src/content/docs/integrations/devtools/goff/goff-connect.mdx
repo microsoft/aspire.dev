@@ -1,6 +1,6 @@
 ---
 title: Connect to GO Feature Flag
-seoTitle: Connect to GO Feature Flag from your .NET app with Aspire
+seoTitle: Connect Aspire apps to GO Feature Flag relay proxies
 description: Learn how to connect to a GO Feature Flag relay proxy from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
 ---
 
@@ -16,13 +16,14 @@ import goffIcon from '@assets/icons/go-feature-flag.png';
   alt="GO Feature Flag logo"
   width={100}
   height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
 This page describes how consuming apps connect to a GO Feature Flag relay proxy resource that's already modeled in your AppHost. For the AppHost API surface — adding a relay proxy resource, bind mounts, data volumes, log levels, and more — see [GO Feature Flag Hosting integration](../goff-host/).
 
-When you reference a GO Feature Flag resource from your AppHost, Aspire injects the relay proxy endpoint into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire GO Feature Flag client integration for automatic dependency injection and health checks.
+When you reference a GO Feature Flag resource from your AppHost, Aspire injects the relay proxy endpoint into the consuming app as environment variables. C# apps can use the dedicated Aspire client integration for dependency injection and health checks. Go, Python, and TypeScript apps use stable OpenFeature providers directly.
 
 ## Connection properties
 
@@ -30,10 +31,10 @@ Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPE
 
 The GO Feature Flag resource exposes the following connection properties:
 
-| Property Name | Description |
-| ------------- | ----------- |
-| `Host`        | The hostname or IP address of the GO Feature Flag relay proxy |
-| `Port`        | The port number the relay proxy is listening on |
+| Property Name | Description                                                                  |
+| ------------- | ---------------------------------------------------------------------------- |
+| `Host`        | The hostname or IP address of the GO Feature Flag relay proxy                |
+| `Port`        | The port number the relay proxy is listening on                              |
 | `Uri`         | The HTTP base URL of the relay proxy, with the format `http://{Host}:{Port}` |
 
 The connection string injected into `ConnectionStrings__goff` uses the format `Endpoint=http://{Host}:{Port}`.
@@ -69,7 +70,9 @@ builder.AddGoFeatureFlagClient(connectionName: "goff");
 ```
 
 <Aside type="tip">
-The `connectionName` must match the GO Feature Flag resource name from the AppHost. For more information, see [Add goff resource](../goff-host/#add-goff-resource).
+  The `connectionName` must match the GO Feature Flag resource name from the
+  AppHost. For more information, see [Add goff
+  resource](../goff-host/#add-goff-resource).
 </Aside>
 
 Resolve the provider through dependency injection:
@@ -182,8 +185,8 @@ var client = OpenFeature.Api.Instance.GetClient();
 Use the [OpenFeature Go SDK](https://github.com/open-feature/go-sdk) with the [GO Feature Flag relay proxy provider](https://github.com/open-feature/go-sdk-contrib/tree/main/providers/go-feature-flag):
 
 ```bash title="Terminal"
-go get github.com/open-feature/go-sdk/pkg/openfeature
-go get github.com/open-feature/go-sdk-contrib/providers/go-feature-flag/v2/pkg
+go get github.com/open-feature/go-sdk/openfeature
+go get github.com/open-feature/go-sdk-contrib/providers/go-feature-flag/pkg
 ```
 
 Read the injected environment variable and connect:
@@ -192,11 +195,10 @@ Read the injected environment variable and connect:
 package main
 
 import (
-    "context"
     "os"
 
-    gofeatureflagProvider "github.com/open-feature/go-sdk-contrib/providers/go-feature-flag/v2/pkg"
-    "github.com/open-feature/go-sdk/pkg/openfeature"
+    gofeatureflagProvider "github.com/open-feature/go-sdk-contrib/providers/go-feature-flag/pkg"
+    "github.com/open-feature/go-sdk/openfeature"
 )
 
 func main() {
@@ -270,9 +272,7 @@ import { GoFeatureFlagProvider } from '@openfeature/go-feature-flag-provider';
 // Read the Aspire-injected relay proxy URI
 const endpoint = process.env.GOFF_URI + '/';
 
-await OpenFeature.setProviderAndWait(
-    new GoFeatureFlagProvider({ endpoint })
-);
+await OpenFeature.setProviderAndWait(new GoFeatureFlagProvider({ endpoint }));
 
 const client = OpenFeature.getClient();
 // Use client to evaluate feature flags...
@@ -296,7 +296,7 @@ import { GoFeatureFlagWebProvider } from '@openfeature/go-feature-flag-web-provi
 const endpoint = process.env.NEXT_PUBLIC_GOFF_URI + '/';
 
 await OpenFeature.setProviderAndWait(
-    new GoFeatureFlagWebProvider({ endpoint })
+  new GoFeatureFlagWebProvider({ endpoint })
 );
 
 const client = OpenFeature.getClient();
@@ -307,5 +307,8 @@ const client = OpenFeature.getClient();
 </Tabs>
 
 <Aside type="tip">
-    If your app expects a specific environment variable name other than the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See the Aspire AppHost documentation for more information on [passing environment variables](/get-started/app-host/).
+  If your app expects a specific environment variable name other than the Aspire
+  defaults, you can pass individual connection properties from the AppHost using
+  `WithEnvironment`. See the Aspire AppHost documentation for more information
+  on [passing environment variables](/get-started/app-host/).
 </Aside>
