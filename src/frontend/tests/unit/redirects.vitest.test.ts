@@ -70,3 +70,21 @@ test('/whats-new/ redirect destination resolves to a real .mdx file on disk', ()
 
   expect(existsSync(filePath), `Expected ${filePath} to exist`).toBe(true);
 });
+
+test('host-only integration routes redirect to their get-started pages', () => {
+  expect(redirects).toMatchObject({
+    '/integrations/frameworks/deno-apps/': '/integrations/frameworks/deno/deno-get-started/',
+    '/integrations/frameworks/java/': '/integrations/frameworks/java/java-get-started/',
+    '/integrations/frameworks/perl/': '/integrations/frameworks/perl/perl-get-started/',
+    '/integrations/frameworks/powershell/':
+      '/integrations/frameworks/powershell/powershell-get-started/',
+    '/integrations/frameworks/rust/': '/integrations/frameworks/rust/rust-get-started/',
+    '/integrations/devtools/k6/': '/integrations/devtools/k6/k6-get-started/',
+    '/integrations/devtools/sql-projects/':
+      '/integrations/devtools/sql-projects/sql-projects-get-started/',
+    '/ja/integrations/frameworks/java/': '/integrations/frameworks/java/java-get-started/',
+    '/ja/integrations/frameworks/powershell/':
+      '/integrations/frameworks/powershell/powershell-get-started/',
+    '/ja/integrations/frameworks/rust/': '/integrations/frameworks/rust/rust-get-started/',
+  });
+});

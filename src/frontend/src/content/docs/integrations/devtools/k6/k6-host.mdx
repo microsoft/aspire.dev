@@ -1,0 +1,204 @@
+---
+title: Set up Grafana k6 in the Aspire AppHost
+seoTitle: Grafana k6 hosting integration for Aspire
+description: Configure the Community Toolkit k6 resource in Aspire, including scripts, browser testing, endpoints, health checks, and OpenTelemetry.
+---
+
+import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
+import k6Icon from '@assets/icons/k6-icon.svg';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={k6Icon}
+  alt="k6 logo"
+  width={100}
+  height={100}
+  fit="contain"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This reference describes the Community Toolkit k6 hosting integration APIs for the Aspire [AppHost](/get-started/app-host/). If you're new to the integration, start with [Get started with the k6 integration](/integrations/devtools/k6/k6-get-started/).
+
+## Installation
+
+Add [📦 CommunityToolkit.Aspire.Hosting.k6](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.k6) to the AppHost:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```bash title="Terminal"
+aspire add k6
+```
+
+Or add the package manually:
+
+```csharp title="AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.k6@*
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```bash title="Terminal"
+aspire add k6
+```
+
+The command adds the package to `aspire.config.json`:
+
+```json title="aspire.config.json"
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.k6": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+## Add a k6 resource
+
+Use `AddK6` / `addK6` to add a Grafana k6 container resource. The resource uses the `docker.io/grafana/k6` image, exposes its HTTP API as the `http` endpoint, and is visible in the dashboard.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k6 = builder.AddK6("k6");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const k6 = await builder.addK6('k6');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+`name` identifies the resource and is used as its connection name when another resource references it.
+
+### Endpoint, health, and container behavior
+
+`AddK6` / `addK6` configures these behaviors:
+
+- An internal `http` endpoint targets port `6565`. Specify `port` to bind a fixed host port; otherwise Aspire allocates one.
+- Aspire checks `GET /health` on that endpoint.
+- The resource is a container resource, so its logs, lifecycle actions, endpoint link, and health state appear in the dashboard.
+- The integration configures an OTLP exporter for the container. Use `WithK6OtlpEnvironment` / `withK6OtlpEnvironment` when k6 should consume the corresponding k6 environment variables.
+
+The examples read `PrimaryEndpoint` / `primaryEndpoint()` when an AppHost API needs the k6 HTTP endpoint directly.
+
+### Use a fixed port or browser-enabled image
+
+The optional `enableBrowserExtensions` parameter selects the k6 image variant with browser support. The optional `port` parameter selects the host port for the HTTP API.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var k6 = builder.AddK6(
+    "browser-tests",
+    enableBrowserExtensions: true,
+    port: 6565);
+
+var endpoint = k6.Resource.PrimaryEndpoint;
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const k6 = await builder.addK6('browser-tests', true, 6565);
+
+const endpoint = await k6.primaryEndpoint();
+```
+
+</TabItem>
+</Tabs>
+
+The default image does not include browser support. Enable it only for tests that use the [k6 browser module](https://grafana.com/docs/k6/latest/using-k6-browser/).
+
+## Run a script
+
+`WithScript` / `withScript` configures the container command as `k6 run`, binds it to `0.0.0.0:6565`, and sets the virtual-user and duration arguments. `virtualUsers` defaults to `10` and `duration` defaults to `30s`.
+
+Mount the script directory with the standard container `WithBindMount` / `withBindMount` API before selecting a path in the container:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var k6 = builder.AddK6("load-test")
+    .WithBindMount("./scripts", "/scripts", isReadOnly: true)
+    .WithScript("/scripts/main.js", virtualUsers: 25, duration: "45s");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const k6 = await builder.addK6('load-test');
+await k6.withBindMount('./scripts', '/scripts', { isReadOnly: true });
+await k6.withScript('/scripts/main.js', 25, '45s');
+```
+
+</TabItem>
+</Tabs>
+
+`scriptPath` must be a path the container can read. The integration doesn't set a container working directory, so use an absolute container path or a path valid for the configured image. `WithScript` / `withScript` rejects a null script path and a zero or negative virtual-user count.
+
+## Export k6 telemetry
+
+`WithK6OtlpEnvironment` / `withK6OtlpEnvironment` copies every existing `OTEL_*` environment variable for the resource to a corresponding `K6_OTEL_*` variable. This enables the k6 OpenTelemetry output to use the OTLP configuration that Aspire has already set for the resource.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var k6 = builder.AddK6("load-test")
+    .WithK6OtlpEnvironment();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const k6 = await builder.addK6('load-test');
+await k6.withK6OtlpEnvironment();
+```
+
+</TabItem>
+</Tabs>
+
+## References and publishing
+
+Use the standard `WithReference` / `withReference` and `WaitFor` / `waitFor` APIs to model the relationship between the test and the resources it exercises. Referenced resources provide their connection information through Aspire's normal resource configuration.
+
+The integration doesn't add k6-specific publish or export callbacks. It remains a normal Aspire container resource with its configured image, endpoint, and container settings available to publishers.
+
+## See also
+
+- [Get started with the k6 integration](/integrations/devtools/k6/k6-get-started/)
+- [Grafana k6 documentation](https://grafana.com/docs/k6/latest/)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)

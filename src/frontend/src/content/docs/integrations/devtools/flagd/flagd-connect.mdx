@@ -1,6 +1,6 @@
 ---
 title: Connect to flagd
-seoTitle: "Connect to flagd from Aspire apps (C# and TypeScript)"
+seoTitle: Connect to flagd from Aspire apps in four languages
 description: Learn how to connect to flagd from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
 next: false
 ---
@@ -25,7 +25,7 @@ import flagdLightIcon from '@assets/icons/flagd-light-icon.svg';
 
 This page describes how consuming apps connect to a flagd resource that's already modeled in your AppHost. For the AppHost API surface — adding a flagd resource, file sync, port configuration, log levels, and health checks — see [flagd Hosting integration](../flagd-host/).
 
-When you reference a flagd resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can then configure the appropriate OpenFeature flagd provider using that connection information — the pattern works the same from C#, Go, Python, or TypeScript.
+When you reference a flagd resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. There isn't a dedicated Aspire client package for flagd, so each app configures a stable OpenFeature SDK and flagd provider directly.
 
 ## Connection properties
 
@@ -33,16 +33,19 @@ Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPE
 
 The flagd resource exposes the following connection properties:
 
-| Property Name | Description |
-| ------------- | ----------- |
-| `Host`        | The hostname or IP address of the flagd server |
-| `Port`        | The port number of the flagd HTTP/gRPC endpoint |
+| Property Name | Description                                              |
+| ------------- | -------------------------------------------------------- |
+| `Host`        | The hostname or IP address of the flagd server           |
+| `Port`        | The port number of the flagd HTTP/gRPC endpoint          |
 | `Uri`         | The endpoint URI, with the format `http://{Host}:{Port}` |
 
-**Example connection string:**
+For a resource named `flagd`, Aspire injects both `ConnectionStrings__flagd` and individual connection properties:
 
 ```
-Uri: http://localhost:8013
+ConnectionStrings__flagd=http://localhost:8013
+FLAGD_HOST=localhost
+FLAGD_PORT=8013
+FLAGD_URI=http://localhost:8013
 ```
 
 ## Connect from your app
@@ -52,15 +55,15 @@ Pick the language your consuming app is written in. Each example assumes your Ap
 <Tabs syncKey="flagd-consuming-lang">
 <TabItem label="C#">
 
-For C# apps, use the OpenFeature SDK with the flagd provider. Install the [📦 OpenFeature.Contrib.Providers.Flagd](https://www.nuget.org/packages/OpenFeature.Contrib.Providers.Flagd) NuGet package in the client-consuming project:
+For C# apps, use the OpenFeature SDK with the flagd provider. Install the [📦 OpenFeature.Providers.Flagd](https://www.nuget.org/packages/OpenFeature.Providers.Flagd) NuGet package in the consuming project:
 
-<InstallDotNetPackage packageName="OpenFeature.Contrib.Providers.Flagd" />
+<InstallDotNetPackage packageName="OpenFeature.Providers.Flagd" />
 
 In _Program.cs_, read the Aspire-injected connection string and register the flagd provider with the OpenFeature SDK:
 
 ```csharp title="Program.cs"
 using OpenFeature;
-using OpenFeature.Contrib.Providers.Flagd;
+using OpenFeature.Providers.Flagd;
 
 var connectionString = builder.Configuration.GetConnectionString("flagd");
 
@@ -69,7 +72,9 @@ await OpenFeature.Api.Instance.SetProviderAsync(
 ```
 
 <Aside type="tip">
-The connection name passed to `GetConnectionString` must match the flagd resource name from the AppHost. For more information, see [Add flagd resource](../flagd-host/#add-flagd-resource).
+  The connection name passed to `GetConnectionString` must match the flagd
+  resource name from the AppHost. For more information, see [Add flagd
+  resource](../flagd-host/#add-flagd-resource).
 </Aside>
 
 Obtain a client and evaluate feature flags:
@@ -92,7 +97,7 @@ If you prefer to read the connection URI from environment variables directly rat
 
 ```csharp title="Program.cs"
 using OpenFeature;
-using OpenFeature.Contrib.Providers.Flagd;
+using OpenFeature.Providers.Flagd;
 
 var uri = Environment.GetEnvironmentVariable("FLAGD_URI");
 
@@ -136,10 +141,15 @@ func main() {
 
     port, _ := strconv.Atoi(uri.Port())
 
-    openfeature.SetProvider(flagd.NewProvider(
+    provider, err := flagd.NewProvider(
         flagd.WithHost(uri.Hostname()),
         flagd.WithPort(uint16(port)),
-    ))
+    )
+    if err != nil {
+        panic(err)
+    }
+
+    openfeature.SetProvider(provider)
 
     client := openfeature.NewClient("app")
 
@@ -170,7 +180,7 @@ Read the injected environment variable, parse the URI, and configure the provide
 import os
 from urllib.parse import urlparse
 from openfeature import api
-from openfeature.contrib.providers.flagd.flagd_provider import FlagdProvider
+from openfeature.contrib.provider.flagd import FlagdProvider
 
 # Read the Aspire-injected connection URI
 uri = urlparse(os.getenv("FLAGD_URI"))
@@ -206,15 +216,20 @@ import { FlagdProvider } from '@openfeature/flagd-provider';
 // Read the Aspire-injected connection URI
 const uri = new URL(process.env.FLAGD_URI!);
 
-OpenFeature.setProvider(new FlagdProvider({
+OpenFeature.setProvider(
+  new FlagdProvider({
     host: uri.hostname,
     port: Number(uri.port),
-}));
+  })
+);
 
 const client = OpenFeature.getClient();
 
 const welcomeBanner = await client.getBooleanValue('welcome-banner', false);
-const backgroundColor = await client.getStringValue('background-color', '#000000');
+const backgroundColor = await client.getStringValue(
+  'background-color',
+  '#000000'
+);
 ```
 
 For more information, see the [OpenFeature JavaScript SDK](https://openfeature.dev/docs/reference/technologies/server/javascript/) and the [flagd Node.js provider](https://flagd.dev/providers/js/).
@@ -238,20 +253,50 @@ dotnet add package OpenFeature.Providers.Ofrep
 
 In your AppHost, retrieve the OFREP endpoint from the flagd resource and pass it to your consuming project as an environment variable:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var flagd = builder.AddFlagd("flagd")
-                   .WithBindFileSync("./flags/");
+    .WithBindFileSync("./flags/");
 
 var ofrepEndpoint = flagd.GetEndpoint("ofrep");
 
-builder.AddProject<Projects.ExampleProject>()
-       .WaitFor(flagd)
-       .WithEnvironment("OFREP_ENDPOINT", ofrepEndpoint);
+builder.AddProject<Projects.ExampleProject>("api")
+    .WaitFor(flagd)
+    .WithEnvironment("OFREP_ENDPOINT", ofrepEndpoint);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const flagd = await builder.addFlagd('flagd');
+await flagd.withBindFileSync('./flags/');
+
+const ofrepEndpoint = await flagd.ofrepEndpoint();
+
+const api = await builder.addProject(
+  'api',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.waitFor(flagd);
+await api.withEnvironment('OFREP_ENDPOINT', ofrepEndpoint);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ### Configure the client
 
