@@ -1378,7 +1378,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'Java', slug: 'integrations/frameworks/java' },
+        {
+          label: 'Java',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/java/java-get-started',
+            },
+            {
+              label: 'Set up Java apps in the AppHost',
+              slug: 'integrations/frameworks/java/java-host',
+            },
+          ],
+        },
         {
           label: 'JavaScript and Node.js',
           collapsed: true,
@@ -1401,15 +1414,67 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           },
           items: [
             { label: 'Bun', slug: 'integrations/frameworks/bun-apps' },
-            { label: 'Deno', slug: 'integrations/frameworks/deno-apps' },
+            {
+              label: 'Deno',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/frameworks/deno/deno-get-started',
+                },
+                {
+                  label: 'Set up Deno apps in the AppHost',
+                  slug: 'integrations/frameworks/deno/deno-host',
+                },
+              ],
+            },
             { label: 'JavaScript', slug: 'integrations/frameworks/javascript' },
             { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
           ],
         },
-        { label: 'Perl', slug: 'integrations/frameworks/perl' },
-        { label: 'PowerShell', slug: 'integrations/frameworks/powershell' },
+        {
+          label: 'Perl',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/perl/perl-get-started',
+            },
+            {
+              label: 'Set up Perl apps in the AppHost',
+              slug: 'integrations/frameworks/perl/perl-host',
+            },
+          ],
+        },
+        {
+          label: 'PowerShell',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/powershell/powershell-get-started',
+            },
+            {
+              label: 'Set up PowerShell scripts in the AppHost',
+              slug: 'integrations/frameworks/powershell/powershell-host',
+            },
+          ],
+        },
         { label: 'Python', slug: 'integrations/frameworks/python' },
-        { label: 'Rust', slug: 'integrations/frameworks/rust' },
+        {
+          label: 'Rust',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/rust/rust-get-started',
+            },
+            {
+              label: 'Set up Rust apps in the AppHost',
+              slug: 'integrations/frameworks/rust/rust-host',
+            },
+          ],
+        },
       ],
     },
     {
@@ -1698,7 +1763,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'k6', slug: 'integrations/devtools/k6' },
+        {
+          label: 'k6',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/k6/k6-get-started',
+            },
+            {
+              label: 'Set up k6 tests in the AppHost',
+              slug: 'integrations/devtools/k6/k6-host',
+            },
+          ],
+        },
         {
           label: 'MailPit',
           collapsed: true,
@@ -1719,7 +1797,17 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'SQL Database Projects',
-          slug: 'integrations/devtools/sql-projects',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/sql-projects/sql-projects-get-started',
+            },
+            {
+              label: 'Set up SQL projects in the AppHost',
+              slug: 'integrations/devtools/sql-projects/sql-projects-host',
+            },
+          ],
         },
       ],
     },
