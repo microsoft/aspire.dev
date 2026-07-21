@@ -1429,7 +1429,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             { label: 'JavaScript', slug: 'integrations/frameworks/javascript' },
-            { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
+            {
+              label: 'JavaScript monorepo extensions',
+              slug: 'integrations/frameworks/nodejs-extensions',
+            },
           ],
         },
         {
