@@ -27,7 +27,28 @@ When executed without the `--apphost` option, the command:
 3. If only one AppHost is running in scope, stops it directly.
 4. If no in-scope AppHosts are found but out-of-scope AppHosts exist, displays all running AppHosts for selection.
 
-The command sends a stop signal to the CLI process that started the AppHost, which ensures a clean shutdown of all resources including the dashboard and any containers or processes that were started.
+The command sends a stop signal to the CLI process that started the AppHost, which coordinates a clean shutdown of the AppHost, dashboard, and non-persistent containers and processes. Resources configured with a [persistent lifetime](/app-host/resource-lifetimes/#persistent-lifetime) remain available for later runs.
+
+### Clean up persistent resources
+
+Use `--force` to stop the selected AppHost and then remove the persistent resources associated with it:
+
+```bash title="Aspire CLI"
+aspire stop --force
+```
+
+The command performs the normal stop flow first, then removes persistent resources associated with the AppHost. The command attempts to clean up persistent resources whether or not an instance of the AppHost is running. Persistent resources started using a version of the Aspire CLI released before `--force` support was added can't be cleaned up using `--force`.
+
+:::caution
+The `--force` option permanently removes the selected AppHost's persistent resource instances without an additional confirmation prompt. Data stored only in those resources can be lost. For container resources, use a [volume or bind mount](/fundamentals/persist-data-volumes/) to persist data independently of a specific resource's lifetime.
+:::
+
+Additional notes and limitations:
+
+- You can't combine `--force` with `--all`; cleaning up persistent resources is only supported when stopping instances of a specific AppHost.
+- AppHost instances and associated persistent resources are resolved based on the AppHost path. If you remove or rename an AppHost after it creates persistent resources, the command won't associate previously created persistent resources with the AppHost at its new path. In that case, either run `aspire stop --force` before renaming the AppHost or manually clean up the associated persistent resources.
+- For a .NET AppHost that doesn't use the Aspire CLI bundle, cleanup requires Aspire.Hosting 13.5 or later. If the AppHost uses an older version, its version can't be determined, or its project can't be inspected, the command displays a warning and still attempts cleanup. Resources created without the required workload metadata might remain.
+- If the AppHost stops successfully, but persistent resource cleanup fails, the command exits with an error but leaves the AppHost stopped. You can resolve any errors and run `aspire stop --force` again or manually clean up any remaining persistent resources if necessary.
 
 ## Options
 
@@ -35,11 +56,15 @@ The following options are available:
 
 - **`--apphost <apphost>`**
 
-  The path to the Aspire AppHost project file. When specified, the command stops only the AppHost running from that apphost without prompting for selection.
+  The path to the Aspire AppHost project file. When specified, the command stops only the AppHost running from that AppHost project without prompting for selection.
 
 - **`--all`**
 
-  Stop all running AppHosts without prompting for selection.
+  Stop all running AppHosts without prompting for selection. You can't combine this option with `--force`.
+
+- **`--force`**
+
+  Perform the normal attempt to stop all instances of a specific AppHost, then attempt to clean up persistent resources associated with that AppHost. You can combine this option with `--apphost` to specify an AppHost to stop, but not with `--all`.
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
@@ -71,6 +96,18 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire stop --all
+  ```
+
+- Stop the AppHost and clean up its persistent resources:
+
+  ```bash title="Aspire CLI"
+  aspire stop --force
+  ```
+
+- Stop any running instances and clean up persistent resources for a specific AppHost when the target AppHost might be ambiguous:
+
+  ```bash title="Aspire CLI"
+  aspire stop --force --apphost './src/MyApp.AppHost/MyApp.AppHost.csproj'
   ```
 
 ## See also
