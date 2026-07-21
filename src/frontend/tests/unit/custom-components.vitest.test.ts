@@ -827,6 +827,35 @@ describe('custom Astro component render coverage', () => {
     });
   }
 
+  it('ThemeImage contains non-square artwork via the optimizer, not rendered markup', async () => {
+    // The no-crop behavior for non-square theme images must come from the
+    // `getImage({ fit: 'contain' })` optimizer options (baked into the
+    // pre-generated `data-light`/`data-dark` variants) plus CSS `object-fit` —
+    // NOT from a `fit` attribute on the rendered <img>. `fit` is not a valid
+    // HTML image attribute, so passing it through would emit inert, invalid
+    // markup (see PR #1372 review). `heroImage` is a non-square (2350x1808)
+    // asset requested at 100x100, so containment is meaningful here.
+    const html = normalizeHtml(
+      await renderComponent(ThemeImage, {
+        props: {
+          light: heroImage,
+          dark: heroImage,
+          alt: 'Themed diagram',
+          width: 100,
+          height: 100,
+          zoomable: false,
+        },
+      })
+    );
+
+    // Optimizer contract: both themed variants are generated with fit=contain.
+    expect(html).toMatch(/data-light="[^"]*fit=contain/);
+    expect(html).toMatch(/data-dark="[^"]*fit=contain/);
+
+    // Regression: `fit` must not leak onto the rendered <img> as an attribute.
+    expect(html).not.toContain('fit="contain"');
+  });
+
   it('renders the accessible quote player and complete quote pool', async () => {
     const html = normalizeHtml(
       await renderComponent(FreeAndOpenSourceAside, {

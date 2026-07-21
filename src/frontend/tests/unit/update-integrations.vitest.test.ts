@@ -20,12 +20,15 @@ const communityMappings = integrationDocs.filter(({ match }) =>
   match.startsWith(communityPackagePrefix)
 );
 
-function docsPageExists(href: string): boolean {
+function docsPageExists(
+  href: string,
+  exists: (candidate: string) => boolean = existsSync
+): boolean {
   const slug = href.split(/[?#]/, 1)[0].replace(/^\/|\/$/g, '');
   return ['.md', '.mdx'].some(
     (ext) =>
-      existsSync(path.join(docsRoot, `${slug}${ext}`)) ||
-      existsSync(path.join(docsRoot, slug, `index${ext}`))
+      exists(path.join(docsRoot, `${slug}${ext}`)) ||
+      exists(path.join(docsRoot, slug, `index${ext}`))
   );
 }
 
@@ -138,5 +141,36 @@ describe('Community Toolkit documentation mappings', () => {
       .map(({ match, href }) => `${match}: ${href}`);
 
     expect(invalidDestinations).toEqual([]);
+  });
+});
+
+describe('docsPageExists markdown resolution', () => {
+  // The mapping guardrail resolves each documentation destination to an
+  // on-disk page. Markdown pages can be authored as either `.md` or `.mdx`
+  // and as either a flat file or a directory `index` file, so all four
+  // combinations must resolve. Real mappings are currently all `.mdx`, so
+  // these focused cases guard the `.md`/`index.md` support (PR #1372 review)
+  // against regression even though no live mapping exercises it yet.
+  const href = '/integrations/frameworks/example/';
+  const slug = 'integrations/frameworks/example';
+
+  test.each([
+    ['flat .md', path.join(docsRoot, `${slug}.md`)],
+    ['index .md', path.join(docsRoot, slug, 'index.md')],
+    ['flat .mdx', path.join(docsRoot, `${slug}.mdx`)],
+    ['index .mdx', path.join(docsRoot, slug, 'index.mdx')],
+  ])('recognizes a %s documentation page', (_label, target) => {
+    expect(docsPageExists(href, (candidate) => candidate === target)).toBe(true);
+  });
+
+  test('returns false when no markdown or MDX page matches', () => {
+    expect(docsPageExists(href, () => false)).toBe(false);
+  });
+
+  test('strips query strings and hashes before resolving the slug', () => {
+    const target = path.join(docsRoot, `${slug}.md`);
+    expect(docsPageExists(`${href}?tab=host#usage`, (candidate) => candidate === target)).toBe(
+      true
+    );
   });
 });
