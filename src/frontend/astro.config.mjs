@@ -96,23 +96,16 @@ export default defineConfig({
         plugins: [
           starlightPageActions({
             share: true,
+            // Use the plugin's built-in actions so each entry renders its real
+            // brand icon. Custom actions are always given the plugin's generic
+            // "AI" sparkle glyph, which is why every "Open in …" item previously
+            // showed the same icon. The built-in hrefs match what we want, and
+            // the GitHub Copilot mark is restyled to the site's GitHub logo in
+            // src/components/starlight/PageTitle.astro.
             actions: {
-              chatgpt: false,
-              claude: false,
-              custom: {
-                copilot: {
-                  label: 'Open in GitHub Copilot',
-                  href: 'https://github.com/copilot/?prompt=',
-                },
-                claude: {
-                  label: 'Open in Claude',
-                  href: 'https://claude.ai/new?q=',
-                },
-                chatGpt: {
-                  label: 'Open in ChatGPT',
-                  href: 'https://chatgpt.com/?q=',
-                },
-              },
+              chatgpt: true,
+              claude: true,
+              githubCopilot: true,
             },
           }),
           lunaria({
