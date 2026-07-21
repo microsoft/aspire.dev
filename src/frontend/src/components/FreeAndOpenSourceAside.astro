@@ -2,102 +2,165 @@
 import { Icon } from '@astrojs/starlight/components';
 import PauseIcon from '@assets/icons/pause.svg';
 import PlayIcon from '@assets/icons/play.svg';
-import { aspireQuotes } from './FreeAndOpenSourceAside.quotes';
+import LearnMore from '@components/LearnMore.astro';
+import { addLocaleToPath, getLocaleFromPath } from '@utils/locale-routes';
+import { aspireQuoteDefinitions, englishStatementPlayer } from './FreeAndOpenSourceAside.quotes';
 
 /**
- * Displays the interactive English statement player while preserving localized copy.
+ * Displays a localized, interactive collection of Aspire statements.
  */
-const locale = Astro.locals.starlightRoute?.locale;
-const isDefaultLocale = !locale || locale === 'root';
+type TranslationValues = Record<string, string | number>;
+
+const isLlmsRoute = Astro.url.pathname.startsWith('/llms');
+const locale = getLocaleFromPath(Astro.url.pathname);
+
+function interpolate(template: string, values: TranslationValues = {}) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{{${key}}}`, String(value)),
+    template
+  );
+}
+
+function translate(key: string, fallback: string, values?: TranslationValues) {
+  return isLlmsRoute ? interpolate(fallback, values) : Astro.locals.t(key as any, values as any);
+}
+
+const announcementValues = {
+  index: '__INDEX__',
+  total: '__TOTAL__',
+  heading: '__HEADING__',
+  text: '__TEXT__',
+};
+
+const playerText = {
+  regionLabel: translate('landing.statementPlayer.regionLabel', englishStatementPlayer.regionLabel),
+  controlsLabel: translate(
+    'landing.statementPlayer.controlsLabel',
+    englishStatementPlayer.controlsLabel
+  ),
+  pauseLabel: translate('landing.statementPlayer.pauseLabel', englishStatementPlayer.pauseLabel),
+  playLabel: translate('landing.statementPlayer.playLabel', englishStatementPlayer.playLabel),
+  randomLabel: translate('landing.statementPlayer.randomLabel', englishStatementPlayer.randomLabel),
+  learnMoreLabel: translate(
+    'landing.statementPlayer.learnMoreLabel',
+    englishStatementPlayer.learnMoreLabel
+  ),
+  announcementTemplate: translate(
+    'landing.statementPlayer.announcement',
+    englishStatementPlayer.announcement,
+    announcementValues
+  ),
+};
+
+const aspireQuotes = aspireQuoteDefinitions.map(({ id, heading, text, href }) => ({
+  heading: translate(`landing.statementPlayer.quotes.${id}.heading`, heading),
+  text: translate(`landing.statementPlayer.quotes.${id}.text`, text),
+  href: addLocaleToPath(href, locale),
+}));
+
 const firstQuote = aspireQuotes[0];
 const total = aspireQuotes.length;
+const firstAnnouncement = playerText.announcementTemplate
+  .replaceAll(announcementValues.index, '1')
+  .replaceAll(announcementValues.total, String(total))
+  .replaceAll(announcementValues.heading, firstQuote.heading)
+  .replaceAll(announcementValues.text, firstQuote.text);
 ---
 
 <div
   class="free-open-source-aside not-content"
-  role={isDefaultLocale ? 'region' : undefined}
-  aria-label={isDefaultLocale ? 'Aspire statements' : undefined}
-  data-aspire-quote-player={isDefaultLocale ? true : undefined}
-  data-quotes={isDefaultLocale ? JSON.stringify(aspireQuotes) : undefined}
-  data-state={isDefaultLocale ? 'playing' : undefined}
-  data-phase={isDefaultLocale ? 'idle' : undefined}
+  role="region"
+  aria-label={playerText.regionLabel}
+  data-aspire-quote-player
+  data-quotes={JSON.stringify(aspireQuotes)}
+  data-announcement-template={playerText.announcementTemplate}
+  data-pause-label={playerText.pauseLabel}
+  data-play-label={playerText.playLabel}
+  data-learn-more-label={playerText.learnMoreLabel}
+  data-state="playing"
+  data-phase="idle"
 >
-  {
-    isDefaultLocale ? (
-      <>
-        <div class="aside-header" aria-hidden="true">
-          <p class="aside-title" data-quote-heading>
-            {firstQuote.heading}
-          </p>
-          <span class="aside-index" data-quote-index>
-            01
-          </span>
-        </div>
+  <div class="aside-header" aria-hidden="true">
+    <p class="aside-title" data-quote-heading>{firstQuote.heading}</p>
+    <span class="aside-index" data-quote-index>01</span>
+  </div>
 
-        <div class="quote-stage">
-          <p class="aside-quote" aria-hidden="true">
-            <span data-quote-text>{firstQuote.text}</span>
-            <span class="typing-cursor" />
-          </p>
-          {aspireQuotes.map((quote) => (
-            <p class="quote-size-probe" aria-hidden="true">
-              {quote.text}
-              <span class="typing-cursor" />
-            </p>
-          ))}
-        </div>
-
-        <p class="sr-only" data-quote-announcer aria-live="polite" aria-atomic="true">
-          Statement 1 of {total}. {firstQuote.heading}. {firstQuote.text}
+  <div class="quote-stage">
+    <p class="aside-quote" aria-hidden="true">
+      <span data-quote-text>{firstQuote.text}</span><span class="typing-cursor"></span>
+    </p>
+    {
+      aspireQuotes.map((quote) => (
+        <p class="quote-size-probe" aria-hidden="true">
+          {quote.text}
+          <span class="typing-cursor" />
         </p>
+      ))
+    }
+  </div>
 
-        <div class="quote-progress" data-quote-progress aria-hidden="true">
-          <span class="quote-progress-fill" />
-        </div>
+  <p class="sr-only" data-quote-announcer aria-live="polite" aria-atomic="true">
+    {firstAnnouncement}
+  </p>
 
-        <div class="quote-controls" role="group" aria-label="Aspire statement controls">
-          <button
-            type="button"
-            class="control-btn pause-btn"
-            aria-label="Pause statement rotation"
-            aria-pressed="false"
-            data-playback-toggle
-          >
-            <span class="icon-pause" aria-hidden="true">
-              <PauseIcon width="24" height="24" />
-            </span>
-            <span class="icon-play" aria-hidden="true">
-              <PlayIcon width="24" height="24" />
-            </span>
-          </button>
-          <button
-            type="button"
-            class="control-btn random-btn"
-            aria-label="Show a random Aspire statement"
-            data-random-quote
-          >
-            <Icon name="random" size="24px" aria-hidden="true" />
-          </button>
-        </div>
-      </>
-    ) : (
-      <>
-        <p class="aside-title localized-title">{Astro.locals.t('landing.freeAndOSS')}</p>
-        <p class="localized-copy">{Astro.locals.t('landing.aspirePromise')}</p>
-      </>
-    )
-  }
+  <div class="quote-progress" data-quote-progress aria-hidden="true">
+    <span class="quote-progress-fill"></span>
+  </div>
+
+  <div class="quote-footer">
+    <div class="quote-controls" role="group" aria-label={playerText.controlsLabel}>
+      <button
+        type="button"
+        class="control-btn pause-btn"
+        aria-label={playerText.pauseLabel}
+        aria-pressed="false"
+        data-playback-toggle
+      >
+        <span class="icon-pause" aria-hidden="true">
+          <PauseIcon width="24" height="24" />
+        </span>
+        <span class="icon-play" aria-hidden="true">
+          <PlayIcon width="24" height="24" />
+        </span>
+      </button>
+      <button
+        type="button"
+        class="control-btn random-btn"
+        aria-label={playerText.randomLabel}
+        data-random-quote
+      >
+        <Icon name="random" size="24px" aria-hidden="true" />
+      </button>
+    </div>
+
+    <div class="quote-learn-more">
+      <LearnMore>
+        <a
+          href={firstQuote.href}
+          aria-label={`${playerText.learnMoreLabel}: ${firstQuote.heading}`}
+          data-quote-link
+        >
+          {playerText.learnMoreLabel}
+        </a>
+      </LearnMore>
+    </div>
+  </div>
 </div>
 
 <script>
   interface Quote {
     heading: string;
     text: string;
+    href: string;
   }
 
   const AUTO_ADVANCE_DELAY = 7_000;
   const TYPE_DELAY = 12;
   const DELETE_DELAY = 4;
+  const ANNOUNCEMENT_INDEX = '__INDEX__';
+  const ANNOUNCEMENT_TOTAL = '__TOTAL__';
+  const ANNOUNCEMENT_HEADING = '__HEADING__';
+  const ANNOUNCEMENT_TEXT = '__TEXT__';
 
   function isQuote(value: unknown): value is Quote {
     return (
@@ -106,7 +169,9 @@ const total = aspireQuotes.length;
       'heading' in value &&
       typeof value.heading === 'string' &&
       'text' in value &&
-      typeof value.text === 'string'
+      typeof value.text === 'string' &&
+      'href' in value &&
+      typeof value.href === 'string'
     );
   }
 
@@ -162,6 +227,11 @@ const total = aspireQuotes.length;
     const progressElement = root.querySelector('[data-quote-progress]');
     const playbackButton = root.querySelector('[data-playback-toggle]');
     const randomButton = root.querySelector('[data-random-quote]');
+    const learnMoreLink = root.querySelector('[data-quote-link]');
+    const announcementTemplate = root.dataset.announcementTemplate;
+    const pauseLabel = root.dataset.pauseLabel;
+    const playLabel = root.dataset.playLabel;
+    const learnMoreLabel = root.dataset.learnMoreLabel;
 
     if (
       !quotes ||
@@ -171,7 +241,12 @@ const total = aspireQuotes.length;
       !(announcer instanceof HTMLElement) ||
       !(progressElement instanceof HTMLElement) ||
       !(playbackButton instanceof HTMLButtonElement) ||
-      !(randomButton instanceof HTMLButtonElement)
+      !(randomButton instanceof HTMLButtonElement) ||
+      !(learnMoreLink instanceof HTMLAnchorElement) ||
+      !announcementTemplate ||
+      !pauseLabel ||
+      !playLabel ||
+      !learnMoreLabel
     ) {
       console.error('Aspire quote player is missing required elements.');
       return;
@@ -191,13 +266,19 @@ const total = aspireQuotes.length;
 
     function accessibleQuote(index: number) {
       const quote = quotes[index];
-      return `Statement ${index + 1} of ${quotes.length}. ${quote.heading}. ${quote.text}`;
+      return announcementTemplate
+        .replaceAll(ANNOUNCEMENT_INDEX, String(index + 1))
+        .replaceAll(ANNOUNCEMENT_TOTAL, String(quotes.length))
+        .replaceAll(ANNOUNCEMENT_HEADING, quote.heading)
+        .replaceAll(ANNOUNCEMENT_TEXT, quote.text);
     }
 
     function updateMetadata(index: number) {
       const quote = quotes[index];
       headingElement.textContent = quote.heading;
       indexElement.textContent = String(index + 1).padStart(2, '0');
+      learnMoreLink.href = quote.href;
+      learnMoreLink.setAttribute('aria-label', `${learnMoreLabel}: ${quote.heading}`);
     }
 
     function renderFullQuote(index: number, announce = true) {
@@ -323,10 +404,7 @@ const total = aspireQuotes.length;
       root.dataset.state = isPaused ? 'paused' : 'playing';
       root.classList.toggle('is-paused', isPaused);
       playbackButton.setAttribute('aria-pressed', isPaused.toString());
-      playbackButton.setAttribute(
-        'aria-label',
-        isPaused ? 'Play statement rotation' : 'Pause statement rotation'
-      );
+      playbackButton.setAttribute('aria-label', isPaused ? playLabel : pauseLabel);
     }
 
     function setPaused(nextPaused: boolean) {
@@ -425,7 +503,6 @@ const total = aspireQuotes.length;
   .free-open-source-aside,
   .aside-title,
   .aside-quote,
-  .aside-index,
   .typing-cursor {
     color: var(--aspire-color-white);
   }
@@ -444,16 +521,9 @@ const total = aspireQuotes.length;
     font-weight: 600;
   }
 
-  .localized-title {
-    margin-bottom: 1rem;
-  }
-
-  .localized-copy {
-    margin: 0;
-  }
-
   .aside-index {
     flex: none;
+    color: color-mix(in srgb, var(--aspire-color-white) 85%, var(--aspire-color-secondary));
     font-family: var(--__sl-font-mono);
     font-size: 0.875rem;
     font-weight: 600;
@@ -482,10 +552,17 @@ const total = aspireQuotes.length;
     display: inline-block;
     width: 0.09em;
     height: 1.05em;
-    margin-left: 0.12em;
     background: currentColor;
     vertical-align: -0.12em;
     animation: blink-cursor 0.8s steps(1, end) infinite;
+  }
+
+  .quote-footer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: var(--quote-control-spacing);
   }
 
   .quote-controls {
@@ -493,7 +570,39 @@ const total = aspireQuotes.length;
     align-items: center;
     justify-content: flex-start;
     gap: 0.75rem;
-    margin-top: var(--quote-control-spacing);
+  }
+
+  .quote-learn-more {
+    display: flex;
+    margin-inline-start: auto;
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .quote-learn-more :global(.learn-more) {
+    align-items: center;
+  }
+
+  .quote-learn-more :global(.learn-more .icon),
+  .quote-learn-more a {
+    color: var(--aspire-color-white);
+  }
+
+  .quote-learn-more a {
+    text-decoration: underline;
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.2em;
+  }
+
+  .quote-learn-more a:hover {
+    text-decoration-thickness: 0.12em;
+  }
+
+  .quote-learn-more a:focus-visible {
+    border-radius: 0.125rem;
+    outline: 0.1875rem solid var(--aspire-color-white);
+    outline-offset: 0.1875rem;
   }
 
   .quote-progress {

@@ -117,6 +117,7 @@ test('homepage statement player exposes accessible playback and random controls'
   const progress = player.locator('.quote-progress-fill');
   const playbackButton = player.locator('[data-playback-toggle]');
   const randomButton = player.locator('[data-random-quote]');
+  const learnMoreLink = player.locator('[data-quote-link]');
 
   await expect(player).toHaveAttribute('aria-label', 'Aspire statements');
   await expect(statement).toContainText(/^Aspire is /);
@@ -125,6 +126,8 @@ test('homepage statement player exposes accessible playback and random controls'
   await expect(playbackButton).toHaveAttribute('aria-label', 'Pause statement rotation');
   await expect(playbackButton).toHaveAttribute('aria-pressed', 'false');
   await expect(randomButton).toHaveAttribute('aria-label', 'Show a random Aspire statement');
+  await expect(learnMoreLink).toHaveText('Learn more');
+  await expect(learnMoreLink).toHaveAttribute('aria-label', /^Learn more: /);
   await expect(progress).toHaveCSS('animation-play-state', 'running');
 
   await playbackButton.click();
@@ -150,6 +153,13 @@ test('homepage statement player exposes accessible playback and random controls'
     throw new Error('The statement player did not render its randomized content.');
   }
   await expect(announcer).toContainText(updatedStatement);
+
+  const quoteData = JSON.parse((await player.getAttribute('data-quotes')) ?? '[]') as Array<{
+    href: string;
+  }>;
+  const updatedIndex = Number(await index.textContent());
+  expect(updatedIndex).toBeGreaterThan(0);
+  await expect(learnMoreLink).toHaveAttribute('href', quoteData[updatedIndex - 1].href);
 
   await playbackButton.click();
   await expect(player).toHaveAttribute('data-state', 'playing');
@@ -221,6 +231,51 @@ test('homepage statement player honors reduced motion preferences', async ({ pag
   await randomButton.click();
   await expect(player).toHaveAttribute('data-phase', 'idle');
   await expect(index).not.toHaveText(initialIndex);
+});
+
+test('homepage statement player localizes its copy, controls, and destination', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/de/');
+  await dismissCookieConsentIfVisible(page);
+
+  const player = page.locator('[data-aspire-quote-player]');
+  const statement = player.locator('[data-quote-text]');
+  const index = player.locator('[data-quote-index]');
+  const playbackButton = player.locator('[data-playback-toggle]');
+  const randomButton = player.locator('[data-random-quote]');
+  const learnMoreLink = player.locator('[data-quote-link]');
+
+  await expect(player).toHaveAttribute('aria-label', 'Aspire-Aussagen');
+  await expect(statement).toContainText(/^Aspire /);
+  await expect(playbackButton).toHaveAttribute('aria-label', 'Rotation der Aussagen abspielen');
+  await expect(randomButton).toHaveAttribute(
+    'aria-label',
+    'Eine zufällige Aspire-Aussage anzeigen'
+  );
+  await expect(learnMoreLink).toHaveText('Mehr erfahren');
+  await expect(learnMoreLink).toHaveAttribute('aria-label', /^Mehr erfahren: /);
+
+  const quoteData = JSON.parse((await player.getAttribute('data-quotes')) ?? '[]') as Array<{
+    href: string;
+  }>;
+  const currentIndex = Number(await index.textContent());
+  expect(currentIndex).toBeGreaterThan(0);
+  expect(quoteData[currentIndex - 1].href).toMatch(/^\/de\//);
+  await expect(learnMoreLink).toHaveAttribute('href', quoteData[currentIndex - 1].href);
+
+  await page.setViewportSize({ width: 320, height: 800 });
+  expect(await player.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+
+  const footerBox = await player.locator('.quote-footer').boundingBox();
+  const linkBox = await player.locator('.quote-learn-more').boundingBox();
+  if (!footerBox || !linkBox) {
+    throw new Error('The responsive statement controls did not render.');
+  }
+  expect(Math.abs(footerBox.x + footerBox.width - (linkBox.x + linkBox.width))).toBeLessThanOrEqual(
+    2
+  );
 });
 
 test('os aware tabs default first-time Windows visitors to PowerShell', async ({ browser }) => {
