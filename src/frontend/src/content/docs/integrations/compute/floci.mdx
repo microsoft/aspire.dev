@@ -326,9 +326,64 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
+### Floci UI web console
+
+Run the [Floci UI](https://github.com/floci-io/floci-ui) web console alongside the emulator to browse the hosted AWS resources:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var floci = builder.AddFloci("floci")
+    .WithFlociUI();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const floci = await builder.addFloci('floci');
+await floci.withFlociUI();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The UI container is added as a child resource of the Floci container and automatically wired to the Floci endpoint. It inherits the region and account ID from `AddFloci` and is excluded from the deployment manifest (local development only).
+
+Customize the container name or pin the host port:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var floci = builder.AddFloci("floci")
+    .WithFlociUI(ui => ui.WithHostPort(14500), containerName: "my-floci-ui");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const floci = await builder.addFloci('floci');
+await floci.withFlociUI({
+    configureContainer: async (ui) => {
+        await ui.withHostPort({ port: 14500 });
+    },
+    containerName: 'my-floci-ui',
+});
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+Floci has a built-in mechanism to launch the UI as a sidecar container on demand, but that relies on Floci itself talking to the Docker socket and self-discovered endpoints, which does not play well with Aspire's DCP-managed container networking. `WithFlociUI` runs the UI as a first-class Aspire resource instead.
+</Aside>
+
 ### Quarkus configuration
 
-Mount a custom `application.yml` to tune any Floci setting that doesn't have a dedicated extension method. The file is injected read-only at `/deployments/config/application.yml`:
+Mount a custom `application.yml` to tune any Floci setting that does not have a dedicated extension method. The file is injected read-only at `/deployments/config/application.yml` — the standard Quarkus Docker config override location:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -356,9 +411,13 @@ quarkus:
     level: DEBUG
 ```
 
+All Floci settings can also be set via `FLOCI_`-prefixed environment variables — `WithConfigFile` is only needed for settings that do not have a dedicated extension method.
+
 ### TLS/HTTPS support
 
-Use the standard Aspire `WithHttpsDeveloperCertificate()` API to enable TLS. The integration automatically configures `FLOCI_TLS_ENABLED`, `FLOCI_TLS_CERT_PATH`, and `FLOCI_TLS_KEY_PATH`:
+**Aspire development certificate**
+
+Chain the standard Aspire `WithHttpsDeveloperCertificate()` API directly on the `AddFloci` return value. The integration automatically configures `FLOCI_TLS_ENABLED`, `FLOCI_TLS_CERT_PATH`, and `FLOCI_TLS_KEY_PATH`:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -375,9 +434,11 @@ await floci.withHttpsDeveloperCertificate();
 </TabItem>
 </Tabs>
 
-When TLS is enabled, the `AWS_ENDPOINT_URL` automatically switches to the `https://` scheme. Run `aspire certs trust` once to add the Aspire development certificate to your system trust store.
+When TLS is enabled, the `AWS_ENDPOINT_URL` automatically switches to the `https://` scheme. Both HTTP and HTTPS connect to the same port (4566); Floci's TLS proxy handles routing based on the connection protocol. Run `aspire certs trust` once to add the Aspire development certificate to your system trust store.
 
-You can also bring your own PEM certificate:
+**Bring-your-own PEM certificate**
+
+Use the standard Aspire `WithHttpsCertificate(cert)` API instead:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
