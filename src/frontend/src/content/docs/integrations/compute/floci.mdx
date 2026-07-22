@@ -1,0 +1,587 @@
+---
+title: Floci integration
+seoTitle: Aspire Floci integration for AWS, Azure & GCP
+description: Learn how to use the Aspire Floci hosting integration to emulate AWS, Azure, and GCP services locally in your development environment.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import flociIcon from '@assets/icons/floci-icon-light.svg';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<div className={'float-inline-left icon'} 
+     style={{
+      backgroundColor: '#1f1e33',
+      borderRadius: '8px',
+      border: '1px solid #1f1e33', /* Optional: adds subtle visibility */
+      padding: '16px'
+    }}
+>
+  <Image
+    src={flociIcon}
+    alt="Floci logo"
+    width={100}
+    height={100}
+    data-zoom-off
+  />
+</div>
+
+
+The Aspire Floci hosting integration enables you to model [Floci](https://floci.io) — a family of high-performance local cloud emulators — as container resources in your Aspire application. Floci ships one image per cloud, each API-compatible with its respective provider:
+
+- **`floci/floci`** — AWS, 65+ services including Lambda, S3, DynamoDB, SQS, and SNS
+- **`floci/floci-az`** — Azure, including Blob/Queue/Table Storage, Cosmos DB, Functions, Event Hubs, and Service Bus
+- **`floci/floci-gcp`** — GCP, including Pub/Sub, Firestore, Datastore, Storage, Secret Manager, and Cloud Functions
+
+Every API is available in both C# and TypeScript (polyglot AppHost). It supports:
+
+- Running any combination of the AWS, Azure, and GCP emulators as container resources in the same Aspire application
+- Automatic environment variable injection for dependent services to connect to the emulated cloud
+- Customizable port and cloud-specific defaults (region, account ID, project ID)
+- Data persistence with named volumes or bind mounts
+- Docker-socket access for container-backed services (Lambda, Azure Functions, Cloud Run/Cloud SQL)
+- An optional [Floci UI](https://github.com/floci-io/floci-ui) web console, attachable to one or all three clouds at once
+- Custom Quarkus configuration files for the AWS emulator
+
+## Installation
+
+To start building an Aspire app that uses Floci, install the [📦 CommunityToolkit.Aspire.Hosting.Floci](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Floci) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add communitytoolkit-floci
+```
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.Floci@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.Floci" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add communitytoolkit-floci
+```
+
+This updates your `aspire.config.json` with the Floci hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Floci": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Add a Floci resource
+
+Each cloud has its own dedicated method — `AddFlociAws`/`addFlociAws`, `AddFlociAzure`/`addFlociAzure`, and `AddFlociGcp`/`addFlociGcp` — and each returns its own resource type. Add whichever clouds your app depends on; they can coexist in the same AppHost.
+
+**AWS**
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var aws = builder.AddFlociAws("floci-aws");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(aws)
+    .WaitFor(aws);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const aws = await builder.addFlociAws('floci-aws');
+
+const api = await builder.addProject('api', '../Api/Api.csproj')
+    .withReference(aws)
+    .waitFor(aws);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+`WithReference(aws)`/`withReference(aws)` uses the standard Aspire connection string injection and automatically injects the AWS environment variables listed in [Environment variables](#environment-variables) into the dependent resource.
+
+**Azure**
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var azure = builder.AddFlociAzure("floci-az");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(azure)
+    .WaitFor(azure);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const azure = await builder.addFlociAzure('floci-az');
+
+await builder.addProject('api', '../Api/Api.csproj')
+    .withReference(azure)
+    .waitFor(azure);
+```
+</TabItem>
+</Tabs>
+
+**GCP**
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var gcp = builder.AddFlociGcp("floci-gcp", defaultProjectId: "my-project");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(gcp)
+    .WaitFor(gcp);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const gcp = await builder.addFlociGcp('floci-gcp', {
+    defaultProjectId: 'my-project',
+});
+
+await builder.addProject('api', '../Api/Api.csproj')
+    .withReference(gcp)
+    .waitFor(gcp);
+```
+</TabItem>
+</Tabs>
+
+### Configure resource properties
+
+**AWS** accepts a custom region and account ID:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aws = builder.AddFlociAws("floci-aws",
+    defaultRegion: "eu-west-1",
+    defaultAccountId: "123456789012");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const aws = await builder.addFlociAws('floci-aws', {
+    defaultRegion: 'eu-west-1',
+    defaultAccountId: '123456789012',
+});
+```
+</TabItem>
+</Tabs>
+
+- **Port**: The host port Floci listens on (default: 4566)
+- **Default Region**: AWS region for the emulator (default: `us-east-1`)
+- **Default Account ID**: AWS account ID for the emulator (default: `000000000000`)
+
+**GCP** accepts a custom project ID:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var gcp = builder.AddFlociGcp("floci-gcp",
+    defaultProjectId: "my-project");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const gcp = await builder.addFlociGcp('floci-gcp', {
+    defaultProjectId: 'my-project',
+});
+```
+</TabItem>
+</Tabs>
+
+- **Port**: The host port Floci listens on (default: 4566)
+- **Default Project ID**: GCP project ID for the emulator (default: `floci-local`)
+
+**Azure** only accepts a custom port; there's no region/account/project equivalent to configure.
+
+### Enable Lambda, Azure Functions, and container-backed services
+
+Each emulator needs access to the Docker socket to launch sibling containers for its container-backed services (AWS Lambda, Azure Functions, GCP Cloud Run/Cloud SQL). `WithDockerSocket`/`withDockerSocket` works the same way on all three clouds:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aws = builder.AddFlociAws("floci-aws")
+    .WithDockerSocket();
+
+var azure = builder.AddFlociAzure("floci-az")
+    .WithDockerSocket();
+
+var gcp = builder.AddFlociGcp("floci-gcp")
+    .WithDockerSocket();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const aws = await builder.addFlociAws('floci-aws');
+await aws.withDockerSocket();
+
+const azure = await builder.addFlociAzure('floci-az');
+await azure.withDockerSocket();
+
+const gcp = await builder.addFlociGcp('floci-gcp');
+await gcp.withDockerSocket();
+```
+</TabItem>
+</Tabs>
+
+On non-standard Docker installations (e.g., Podman, Rancher Desktop), pass the socket path explicitly:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aws = builder.AddFlociAws("floci-aws")
+    .WithDockerSocket("/run/user/1000/podman/podman.sock");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const aws = await builder.addFlociAws('floci-aws');
+await aws.withDockerSocket({ socketPath: '/run/user/1000/podman/podman.sock' });
+```
+</TabItem>
+</Tabs>
+
+### Add data persistence to Floci
+
+By default each emulator stores all state in memory. Both persistence approaches are available on all three clouds.
+
+#### Named volume (recommended)
+
+Named volumes automatically switch Floci from in-memory to persistent mode:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aws = builder.AddFlociAws("floci-aws")
+    .WithDataVolume("floci-data");
+
+var azure = builder.AddFlociAzure("floci-az")
+    .WithDataVolume("floci-az-data");
+
+var gcp = builder.AddFlociGcp("floci-gcp")
+    .WithDataVolume("floci-gcp-data");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const aws = await builder.addFlociAws('floci-aws');
+await aws.withDataVolume('floci-data');
+
+const azure = await builder.addFlociAzure('floci-az');
+await azure.withDataVolume('floci-az-data');
+
+const gcp = await builder.addFlociGcp('floci-gcp');
+await gcp.withDataVolume('floci-gcp-data');
+```
+</TabItem>
+</Tabs>
+
+#### Bind mount
+
+Alternatively, use a host bind mount for directory-based storage:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aws = builder.AddFlociAws("floci-aws")
+    .WithDataBindMount("/path/to/data");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const aws = await builder.addFlociAws('floci-aws');
+await aws.withDataBindMount('/path/to/data');
+```
+</TabItem>
+</Tabs>
+
+Either approach persists resource state across container restarts and allows local inspection of the stored state.
+
+### Use the cloud SDKs to interact with Floci
+
+Once a Floci resource is running and referenced by your service, use the matching cloud SDK as you normally would — `WithReference`/`withReference` injects the environment variables each SDK reads by convention. For example, against the AWS emulator:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="Service.cs"
+using Amazon.S3;
+using Amazon.S3.Model;
+
+public class StorageService
+{
+    private readonly IAmazonS3 _s3Client;
+
+    public StorageService(IAmazonS3 s3Client)
+    {
+        _s3Client = s3Client;
+    }
+
+    public async Task CreateBucketAsync(string bucketName)
+    {
+        await _s3Client.PutBucketAsync(new PutBucketRequest 
+        { 
+            BucketName = bucketName 
+        });
+    }
+
+    public async Task UploadObjectAsync(string bucketName, string key, Stream stream)
+    {
+        await _s3Client.PutObjectAsync(new PutObjectRequest
+        {
+            BucketName = bucketName,
+            Key = key,
+            InputStream = stream
+        });
+    }
+}
+```
+</TabItem>
+</Tabs>
+
+### Floci UI web console
+
+Run the [Floci UI](https://github.com/floci-io/floci-ui) web console alongside an emulator to browse its hosted resources. `WithFlociUI`/`withFlociUI` is available on all three cloud resource types:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var floci = builder.AddFlociAws("floci")
+    .WithFlociUI();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const floci = await builder.addFlociAws('floci');
+await floci.withFlociUI();
+```
+</TabItem>
+</Tabs>
+
+Customize the container name or pin the host port:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var floci = builder.AddFlociAws("floci")
+    .WithFlociUI(ui => ui.WithHostPort(14500), containerName: "my-floci-ui");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const floci = await builder.addFlociAws('floci');
+await floci.withFlociUI({
+    containerName: 'my-floci-ui',
+    configureContainer: async (ui) => {
+        await ui.withHostPort({ port: 14500 });
+    },
+});
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+Floci also has a built-in mechanism to launch the UI as a sidecar container on demand, but that relies on Floci itself talking to the Docker socket and self-discovered endpoints, which does not play well with Aspire's DCP-managed container networking. `WithFlociUI`/`withFlociUI` runs the UI as a first-class Aspire resource instead.
+</Aside>
+
+#### Attach all three clouds to one console
+
+A single UI console can attach to any combination of clouds — call `WithFlociUI`/`withFlociUI` on whichever cloud creates the console, then attach the others with `WithPluggedCloud`/`withPluggedCloud`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aws = builder.AddFlociAws("floci-aws");
+var azure = builder.AddFlociAzure("floci-az");
+var gcp = builder.AddFlociGcp("floci-gcp");
+
+aws.WithFlociUI(configureContainer: ui =>
+{
+    ui.WithPluggedCloud(azure);
+    ui.WithPluggedCloud(gcp);
+});
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const aws = await builder.addFlociAws('floci-aws');
+const azure = await builder.addFlociAzure('floci-az');
+const gcp = await builder.addFlociGcp('floci-gcp');
+
+await aws.withFlociUI({
+    configureContainer: async (ui) => {
+        await ui.withPluggedCloudAzure(azure);
+        await ui.withPluggedCloudGcp(gcp);
+    },
+});
+```
+</TabItem>
+</Tabs>
+
+The UI container (`floci/floci-ui`) is added as a child resource of whichever cloud resource created it, wired to each attached cloud's endpoint over the container network (`FLOCI_ENDPOINT`/`FLOCI_AZURE_ENDPOINT`/`FLOCI_GCP_ENDPOINT`), and is excluded from the deployment manifest — it's a local development tool only.
+
+<Aside type="note">
+In C#, `WithPluggedCloud` is a single overloaded method name — the compiler picks the right overload from the argument type. TypeScript has no overload resolution on the generated bindings, so each cloud gets its own method: `withPluggedCloudAws`, `withPluggedCloudAzure`, `withPluggedCloudGcp`.
+</Aside>
+
+### Quarkus configuration file (AWS only)
+
+Mount a custom `application.yml` to tune any Floci setting that does not have a dedicated extension method. The file is injected read-only at `/deployments/config/application.yml` — the standard Quarkus Docker config override location. This is currently only available on the AWS emulator:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var floci = builder.AddFlociAws("floci")
+    .WithConfigFile("./floci.yml");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const floci = await builder.addFlociAws('floci');
+await floci.withConfigFile('./floci.yml');
+```
+</TabItem>
+</Tabs>
+
+Example `floci.yml` that enables debug logging and disables signature validation:
+
+```yaml title="floci.yml"
+floci:
+  auth:
+    validate-signatures: false
+quarkus:
+  log:
+    level: DEBUG
+```
+
+All Floci settings can also be set via `FLOCI_`-prefixed environment variables — `WithConfigFile`/`withConfigFile` is only needed for settings that don't have a dedicated extension method.
+
+### Connection string / endpoint properties
+
+Available on all three cloud resource types:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp
+var endpoint = floci.PrimaryEndpoint;
+var host = floci.Host;
+var port = floci.Port;
+var connectionString = floci.ConnectionStringExpression;
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript
+const endpoint = await floci.primaryEndpoint();
+const host = await floci.host();
+const port = await floci.port();
+const connectionString = await floci.connectionStringExpression();
+```
+</TabItem>
+</Tabs>
+
+`connectionStringExpression` resolves to `http://localhost:{port}` for host processes and `http://host.docker.internal:{port}` for container dependents that call `WithReference`/`withReference`.
+
+## Environment variables
+
+When a service references a Floci resource using `WithReference`/`withReference`, the following environment variables are automatically injected.
+
+**AWS** (`ConnectionStrings__<name>` shown as `ConnectionStrings__floci-aws`):
+
+| Variable | Value |
+|----------|-------|
+| `ConnectionStrings__floci-aws` | `http://localhost:{port}` (standard Aspire connection string) |
+| `AWS_ENDPOINT_URL` | `http://localhost:{port}` (host processes) / `http://host.docker.internal:{port}` (containers) |
+| `AWS_DEFAULT_REGION` | Region passed to `AddFlociAws`/`addFlociAws` (default: `us-east-1`) |
+| `AWS_ACCESS_KEY_ID` | `test` |
+| `AWS_SECRET_ACCESS_KEY` | `test` |
+
+**Azure** (`ConnectionStrings__<name>` shown as `ConnectionStrings__floci-az`):
+
+| Variable | Value |
+|----------|-------|
+| `ConnectionStrings__floci-az` | `http://localhost:{port}` (standard Aspire connection string) |
+| `AZURE_STORAGE_CONNECTION_STRING` | Connection string pointed at the Floci Azure endpoint, using the well-known `devstoreaccount1` dev storage account credentials |
+
+**GCP** (`ConnectionStrings__<name>` shown as `ConnectionStrings__floci-gcp`):
+
+| Variable | Value |
+|----------|-------|
+| `ConnectionStrings__floci-gcp` | `http://localhost:{port}` (standard Aspire connection string) |
+| `PUBSUB_EMULATOR_HOST` | `localhost:{port}` (host processes) / `host.docker.internal:{port}` (containers) |
+| `FIRESTORE_EMULATOR_HOST` | `localhost:{port}` (host processes) / `host.docker.internal:{port}` (containers) |
+| `DATASTORE_EMULATOR_HOST` | `localhost:{port}` (host processes) / `host.docker.internal:{port}` (containers) |
+| `STORAGE_EMULATOR_HOST` | `http://localhost:{port}` (host processes) / `http://host.docker.internal:{port}` (containers) |
+| `SECRET_MANAGER_EMULATOR_HOST` | `localhost:{port}` (host processes) / `host.docker.internal:{port}` (containers) |
+| `GOOGLE_CLOUD_PROJECT` | Project ID passed to `AddFlociGcp`/`addFlociGcp` (default: `floci-local`) |
+| `CLOUDSDK_CORE_PROJECT` | Same project ID, for tools that read the `gcloud` CLI's config var instead |
+
+You can override any of these settings via standard Aspire environment variable configuration. All Floci-specific settings can also be set via `FLOCI_`-prefixed environment variables.
+
+## Integration testing
+
+Floci is ideal for integration testing cloud-dependent code without requiring real cloud credentials or incurring costs. Since each Floci resource is managed as a standard Aspire resource, you can use it in integration tests the same way you use other Aspire resources.
+
+## Supported services
+
+- **AWS** (`floci/floci`) — 65+ services including S3, DynamoDB, Lambda, EC2, SQS, SNS, Kinesis, RDS, CloudFormation, CloudWatch, IAM, and many more
+- **Azure** (`floci/floci-az`) — Blob/Queue/Table Storage, Cosmos DB, Functions, Event Hubs, Service Bus
+- **GCP** (`floci/floci-gcp`) — Pub/Sub, Firestore, Datastore, Storage, Secret Manager, Cloud Functions
+
+For a complete list of supported services per cloud, visit the [Floci documentation](https://floci.io).
+
+## Troubleshooting
+
+### Container fails to start
+
+- Ensure Docker is running and has sufficient resources
+- Check that the specified port isn't already in use
+- Verify the Floci container image is available locally or can be pulled from Docker Hub
+
+### Connection refused errors
+
+- Verify the Floci container is running: `docker ps | grep floci`
+- Check that the endpoint URL matches the configured port
+- Ensure the service has the correct `WithReference`/`withReference` to the Floci resource
+
+### Data persistence issues
+
+- Verify the bind mount directory has the correct permissions
+- Check that the host path exists before starting the container
+- Use absolute paths for bind mounts to avoid path resolution issues
+
+## See also
+
+- [Floci documentation](https://floci.io)
+- [Floci GitHub repository](https://github.com/floci-io/floci)
+- [Floci UI GitHub repository](https://github.com/floci-io/floci-ui)
+- [AWS SDK for .NET](https://docs.aws.amazon.com/sdk-for-net/)
+- [Aspire Hosting documentation](/architecture/overview/)
+- [CommunityToolkit.Aspire.Hosting.Floci GitHub](https://github.com/CommunityToolkit/Aspire)
+- [CommunityToolkit.Aspire.Hosting.Floci NuGet package](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Floci)
