@@ -868,6 +868,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         { label: 'Docker', slug: 'integrations/compute/docker' },
+        { label: 'K3s', slug: 'integrations/compute/k3s' },
         { label: 'Kubernetes', slug: 'integrations/compute/kubernetes' },
       ],
     },
@@ -1346,7 +1347,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
           ],
         },
-        { label: 'Dapr', slug: 'integrations/frameworks/dapr' },
+        {
+          label: 'Dapr',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/dapr/dapr-get-started',
+            },
+            {
+              label: 'Set up Dapr resources in the AppHost',
+              slug: 'integrations/frameworks/dapr/dapr-host',
+            },
+            {
+              label: 'Connect to Dapr',
+              slug: 'integrations/frameworks/dapr/dapr-connect',
+            },
+          ],
+        },
         {
           label: 'Go',
           collapsed: true,
@@ -1361,7 +1379,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'Java', slug: 'integrations/frameworks/java' },
+        {
+          label: 'Java',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/java/java-get-started',
+            },
+            {
+              label: 'Set up Java apps in the AppHost',
+              slug: 'integrations/frameworks/java/java-host',
+            },
+          ],
+        },
         {
           label: 'JavaScript and Node.js',
           collapsed: true,
@@ -1384,14 +1415,70 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           },
           items: [
             { label: 'Bun', slug: 'integrations/frameworks/bun-apps' },
-            { label: 'Deno', slug: 'integrations/frameworks/deno-apps' },
+            {
+              label: 'Deno',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/frameworks/deno/deno-get-started',
+                },
+                {
+                  label: 'Set up Deno apps in the AppHost',
+                  slug: 'integrations/frameworks/deno/deno-host',
+                },
+              ],
+            },
             { label: 'JavaScript', slug: 'integrations/frameworks/javascript' },
-            { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
+            {
+              label: 'JavaScript monorepo extensions',
+              slug: 'integrations/frameworks/nodejs-extensions',
+            },
           ],
         },
-        { label: 'PowerShell', slug: 'integrations/frameworks/powershell' },
+        {
+          label: 'Perl',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/perl/perl-get-started',
+            },
+            {
+              label: 'Set up Perl apps in the AppHost',
+              slug: 'integrations/frameworks/perl/perl-host',
+            },
+          ],
+        },
+        {
+          label: 'PowerShell',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/powershell/powershell-get-started',
+            },
+            {
+              label: 'Set up PowerShell scripts in the AppHost',
+              slug: 'integrations/frameworks/powershell/powershell-host',
+            },
+          ],
+        },
         { label: 'Python', slug: 'integrations/frameworks/python' },
-        { label: 'Rust', slug: 'integrations/frameworks/rust' },
+        {
+          label: 'Rust',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/rust/rust-get-started',
+            },
+            {
+              label: 'Set up Rust apps in the AppHost',
+              slug: 'integrations/frameworks/rust/rust-host',
+            },
+          ],
+        },
       ],
     },
     {
@@ -1433,7 +1520,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'LavinMQ', slug: 'integrations/messaging/lavinmq' },
+        {
+          label: 'LavinMQ',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/lavinmq/lavinmq-get-started',
+            },
+            {
+              label: 'Set up LavinMQ in the AppHost',
+              slug: 'integrations/messaging/lavinmq/lavinmq-host',
+            },
+            {
+              label: 'Connect to LavinMQ',
+              slug: 'integrations/messaging/lavinmq/lavinmq-connect',
+            },
+          ],
+        },
         {
           label: 'NATS',
           collapsed: true,
@@ -1451,6 +1555,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/messaging/nats/nats-connect',
             },
           ],
+        },
+        {
+          label: 'Particular Service Platform',
+          link: 'https://docs.particular.net/platform/aspire/',
         },
         {
           label: 'RabbitMQ',
@@ -1604,7 +1712,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           },
           slug: 'integrations/devtools/browser-logs',
         },
-        { label: 'Data API Builder', slug: 'integrations/devtools/dab' },
+        {
+          label: 'Data API Builder',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/dab/dab-get-started',
+            },
+            {
+              label: 'Set up Data API Builder in the AppHost',
+              slug: 'integrations/devtools/dab/dab-host',
+            },
+            {
+              label: 'Connect to Data API Builder',
+              slug: 'integrations/devtools/dab/dab-connect',
+            },
+          ],
+        },
         { label: 'Dev Tunnels', slug: 'integrations/devtools/dev-tunnels' },
         {
           label: 'flagd',
@@ -1642,7 +1767,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'k6', slug: 'integrations/devtools/k6' },
+        {
+          label: 'k6',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/k6/k6-get-started',
+            },
+            {
+              label: 'Set up k6 tests in the AppHost',
+              slug: 'integrations/devtools/k6/k6-host',
+            },
+          ],
+        },
         {
           label: 'MailPit',
           collapsed: true,
@@ -1663,7 +1801,17 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'SQL Database Projects',
-          slug: 'integrations/devtools/sql-projects',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/sql-projects/sql-projects-get-started',
+            },
+            {
+              label: 'Set up SQL projects in the AppHost',
+              slug: 'integrations/devtools/sql-projects/sql-projects-host',
+            },
+          ],
         },
       ],
     },

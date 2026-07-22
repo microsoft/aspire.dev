@@ -1,0 +1,97 @@
+---
+title: aspire terminal ps command
+seoTitle: aspire terminal ps command reference for the Aspire CLI
+description: Learn about the aspire terminal ps command, which lists every WithTerminal-enabled resource in the connected AppHost with grid size, attached peers, and per-replica health.
+sidebar:
+  badge: Preview
+---
+
+import Include from '@components/Include.astro';
+
+## Name
+
+`aspire terminal ps` - List interactive terminal sessions in the connected AppHost.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire terminal ps [options]
+```
+
+## Description
+
+The `aspire terminal ps` command lists every resource in the connected AppHost that was registered using [`WithTerminal()`](/app-host/with-terminal/). For each terminal it reports the current grid size, the number of attached peers, and per-replica health so you can see what's available before running [`aspire terminal attach`](/reference/cli/commands/aspire-terminal-attach/).
+
+Resources whose terminal host isn't reachable are still listed with a status that indicates they're unavailable, rather than being silently dropped.
+
+Because `WithTerminal` is experimental, this command is hidden behind a feature flag. Enable it with `aspire config set features.terminalCommandsEnabled true`. The connected AppHost must advertise the `terminals.v1` capability (Aspire.Hosting 13.4 or later).
+
+The default output is a human-readable table with the following columns:
+
+| Column     | Description                                                                 |
+| ---------- | --------------------------------------------------------------------------- |
+| `Resource` | The display name of the terminal-enabled resource.                          |
+| `Replica`  | The 0-based replica index (one row per replica).                            |
+| `Status`   | Whether the replica is `alive`, `exited (<code>)`, or `host unreachable`.   |
+| `Size`     | The current terminal grid size (`columns`x`rows`).                          |
+| `Peers`    | The number of peers currently attached to the replica.                      |
+| `Restarts` | The number of times the replica's terminal host has restarted.              |
+
+## Options
+
+The following options are available:
+
+- <Include relativePath="reference/cli/includes/option-project.md" />
+
+- **`--format <json|text>`**
+
+  Output format. `text` (default) renders a table; `json` emits structured output for scripting. The JSON output is an array of terminal entries with `resourceName`, `displayName`, `configuredColumns`, `configuredRows`, `isHostReachable`, and a `replicas` array. Each replica includes `replicaIndex`, `isAlive`, `exitCode`, `producerConnected`, `restartCount`, `currentColumns`, `currentRows`, and `attachedPeerCount`. When `--verbose` is set, each replica also includes a `peers` array of `{ peerId, displayName }`.
+
+- **`-v, --verbose`**
+
+  Include per-peer details for every attached viewer (peer id and display name).
+
+- <Include relativePath="reference/cli/includes/option-help.md" />
+
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
+
+- <Include relativePath="reference/cli/includes/option-wait.md" />
+
+## Examples
+
+- List terminal sessions in the running AppHost:
+
+  ```bash title="Aspire CLI"
+  aspire terminal ps
+  ```
+
+  Example output:
+
+  ```text title="Output"
+  Resource  Replica  Status  Size    Peers  Restarts
+  agent     0        alive   120x30  1      0
+  ```
+
+- Include per-peer details:
+
+  ```bash title="Aspire CLI"
+  aspire terminal ps --verbose
+  ```
+
+- Emit JSON for scripting and pipe to `jq`:
+
+  ```bash title="Aspire CLI"
+  aspire terminal ps --format json | jq -c '.[] | { resourceName, isHostReachable }'
+  ```
+
+## See also
+
+- [Test TUI and shell apps using WithTerminal](/app-host/with-terminal/)
+- [aspire terminal command](/reference/cli/commands/aspire-terminal/)
+- [aspire terminal attach command](/reference/cli/commands/aspire-terminal-attach/)

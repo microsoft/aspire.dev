@@ -118,12 +118,23 @@ The following table summarizes the naming conventions used to express Azure reso
 
 | Operation | API | Description |
 |--|--|--|
-| Publish | `PublishAsConnectionString` | Changes the resource to be published as a connection string reference in the manifest. |
+| Publish | `PublishAsConnectionString` _(obsolete)_ | Changes the resource to be published as a connection string reference in the manifest. Use `AddConnectionString` with the [execution context](/get-started/app-host/) instead. |
 | Publish | `PublishAsExisting` | Uses an existing Azure resource when the application is deployed instead of creating a new one. |
 | Run | `RunAsContainer` | Configures an equivalent container to run locally. For more information, see [Local containers](#local-containers). |
 | Run | `RunAsEmulator` | Configures the Azure resource to be emulated. For more information, see [Local emulators](#local-emulators). |
 | Run | `RunAsExisting` | Uses an existing resource when the application is running instead of creating a new one. |
 | Publish and Run | `AsExisting` | Uses an existing resource regardless of the operation. |
+
+:::caution[PublishAsConnectionString is obsolete]
+`PublishAsConnectionString` is obsolete as of Aspire 9.5. It only changes the manifest representation and has no effect on other publishers. To add the Azure resource in run mode and represent it as a connection string in publish mode, use [`AddConnectionString`](/fundamentals/external-parameters/#connection-string-values) with the execution context:
+
+```csharp
+IResourceBuilder<IResourceWithConnectionString> resource = builder.ExecutionContext.IsPublishMode
+    ? builder.AddConnectionString("messaging")
+    : builder.AddAzureServiceBus("messaging");
+```
+
+:::
 
 <Aside type="note">
 Not all APIs are available on all Azure resources. For example, some Azure resources can be containerized or emulated, while others can't.
@@ -154,7 +165,7 @@ The `RunAsExisting` method is used when a distributed application is executing i
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder();
 
 var existingServiceBusName = builder.AddParameter("existingServiceBusName");
@@ -167,7 +178,7 @@ serviceBus.AddServiceBusQueue("queue");
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -201,7 +212,7 @@ To mark an Azure resource as existing in for the "publish" mode, call the `Publi
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder();
 
 var existingServiceBusName = builder.AddParameter("existingServiceBusName");
@@ -214,7 +225,7 @@ serviceBus.AddServiceBusQueue("queue");
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -288,7 +299,7 @@ To mark an Azure resource as existing, call the `AsExisting` method on the resou
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder();
 
 var existingServiceBusName = builder.AddParameter("existingServiceBusName");
@@ -301,7 +312,7 @@ serviceBus.AddServiceBusQueue("queue");
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -337,7 +348,7 @@ Consider the following example, where in _publish_ mode you add an Azure Storage
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var storage = builder.ExecutionContext.IsPublishMode
@@ -351,7 +362,7 @@ builder.AddProject<Projects.Api>("api")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -398,7 +409,7 @@ Use the following APIs when you want to customize the generated Container App re
 
 You don't need `PublishAsAzureContainerApp` for a standard ACA deployment. Use it only when you want to customize the generated Container App resource. As an example, consider the following code:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var env = builder.AddParameter("env");

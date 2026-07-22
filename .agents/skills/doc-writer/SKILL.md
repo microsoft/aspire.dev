@@ -105,7 +105,7 @@ draft can land slightly off-target and tighten in follow-ups.
 
 ### Required Imports
 
-Import Starlight components at the top of your MDX file:
+Import Starlight components at the top of your MDX file, or custom components as needed:
 
 ```tsx
 import {
@@ -115,8 +115,8 @@ import {
   Tabs,
   TabItem,
   Icon,
-  FileTree,
 } from "@astrojs/starlight/components";
+import FileTree from "starlight-plugin-icons/components/FileTree.astro";
 ```
 
 Additional commonly used imports:
@@ -132,7 +132,7 @@ import InstallPackage from "@components/InstallPackage.astro";
 import InstallDotNetPackage from "@components/InstallDotNetPackage.astro";
 import AsciinemaPlayer from "@components/AsciinemaPlayer.astro";
 import Badge from "@astrojs/starlight/components/Badge.astro";
-import Image from "astro:assets";
+import { Image } from "astro:assets";
 ```
 
 ### Component Usage
@@ -452,9 +452,10 @@ Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** 
 ### Core Principles
 
 1. **Always show both languages**: Every AppHost-focused example, walkthrough, and AppHost code sample must include both C# and TypeScript variants unless the feature is genuinely language-specific.
-2. **Use neutral framing**: Write prose that applies to both languages. Say "In your AppHost" not "In your C# project". Say "Add a Redis resource" not "Call `builder.AddRedis()`".
-3. **Neither language is the default**: Don't present C# first as the "real" example and TypeScript as an afterthought. Both tabs are equal peers.
-4. **Verify TypeScript APIs exist**: Before writing a TypeScript example, confirm the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples — if you are unsure whether an API is available, flag it for review.
+2. **Show implementations, not availability notes**: When a TypeScript AppHost API exists, demonstrate it in a complete TypeScript tab beside the C# example. A note or callout that only names the available TypeScript methods does not satisfy language parity.
+3. **Use neutral framing**: Write prose that applies to both languages. Say "In your AppHost" not "In your C# project". Say "Add a Redis resource" not "Call `builder.AddRedis()`".
+4. **Neither language is the default**: Don't present C# first as the "real" example and TypeScript as an afterthought. Both tabs are equal peers.
+5. **Verify TypeScript APIs exist**: Before writing a TypeScript example, confirm the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples — if you are unsure whether an API is available, flag it for review.
 
 ### AppHost tabs pattern for AppHost content
 
@@ -538,6 +539,8 @@ If a hosting integration does not yet have TypeScript AppHost support, show only
 
 Do **not** wrap a single language in a single-language `<Tabs>` component — that creates a misleading UI suggesting another option exists.
 
+Use this exception at the operation level, not as a shortcut for the whole page. If some APIs are exported to TypeScript and others are not, provide synchronized C# and TypeScript tabs for every supported operation and place the limitation beside only the unsupported operation.
+
 ## Integration Documentation
 
 ### File Location
@@ -569,7 +572,7 @@ description: Learn how to use the [Technology] integration with Aspire.
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 import InstallPackage from "@components/InstallPackage.astro";
-import Image from "astro:assets";
+import { Image } from "astro:assets";
 
 import techIcon from "@assets/icons/technology.svg";
 
@@ -578,6 +581,7 @@ import techIcon from "@assets/icons/technology.svg";
   alt="Technology logo"
   width={100}
   height={100}
+  fit="contain"
   style="float: left; margin-right: 1rem;"
   data-zoom-off
 />
@@ -768,11 +772,14 @@ For collapsed sections with children:
 
 ### Update Integration Links
 
-After adding integration documentation, run the update-integrations prompt to ensure the integration is indexed:
+After adding or moving integration documentation:
 
-```
-.github/prompts/update-integrations.prompt.md
-```
+1. Run `pnpm --dir ./src/frontend update:integrations` when the package catalog
+   needs to be refreshed from NuGet.
+2. Reconcile the exact package IDs and canonical documentation URLs in
+   `src/frontend/src/data/integration-docs.json`.
+3. Run `pnpm --dir ./src/frontend test:unit:structured-data` to verify that the
+   mappings are unique and resolve to real pages.
 
 ## Writing Style Guidelines
 
@@ -822,7 +829,7 @@ Place icons in `src/frontend/src/assets/icons/`
 ### Icon Usage
 
 ```mdx
-import Image from "astro:assets";
+import { Image } from "astro:assets";
 import techIcon from "@assets/icons/technology.svg";
 
 <Image
@@ -830,6 +837,7 @@ import techIcon from "@assets/icons/technology.svg";
   alt="Technology logo"
   width={100}
   height={100}
+  fit="contain"
   style="float: left; margin-right: 1rem;"
   data-zoom-off
 />
@@ -841,13 +849,18 @@ For light/dark theme variants:
 import ThemeImage from "@components/ThemeImage.astro";
 
 <ThemeImage
-  lightSrc={techIconLight}
-  darkSrc={techIconDark}
+  light={techIconLight}
+  dark={techIconDark}
   alt="Technology logo"
   width={100}
   height={100}
 />
 ```
+
+When an integration logo sets both `width` and `height`, use `fit="contain"` so
+Astro preserves the complete source artwork instead of cropping it to the
+requested aspect ratio. `ThemeImage` applies contained fitting automatically.
+Use `ThemeImage` whenever separate light and dark logo assets exist.
 
 ### Terminal Recordings (Asciinema)
 
@@ -863,6 +876,7 @@ Before submitting documentation:
 4. **Review formatting**: Verify components render correctly
 5. **Run relevant tests**: Do not consider documentation or component work done until the affected tests pass
 6. **Check navigation**: Confirm sidebar entries are correct
+7. **Check integration logos**: At desktop and mobile widths, verify the full logo is visible, uncropped, and legible in both light and dark themes
 
 ### Documentation Validation Strategy
 

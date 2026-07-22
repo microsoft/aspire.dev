@@ -1,15 +1,15 @@
 ---
 title: Troubleshoot the Aspire dashboard
-description: Diagnose and resolve common Aspire dashboard issues including connection errors between the dashboard and the app host resource service.
+description: Diagnose and resolve common Aspire dashboard issues including connection errors between the dashboard and the AppHost resource service.
 ---
 
 import LearnMore from '@components/LearnMore.astro';
 
 This article helps you diagnose and resolve common issues with the Aspire dashboard.
 
-## Connection errors between the dashboard and app host
+## Connection errors between the dashboard and AppHost
 
-The dashboard displays resource information by connecting to a gRPC resource service hosted by the app host. When this connection fails, the dashboard may show an error message or display telemetry data without any resource list or console logs.
+The dashboard displays resource information by connecting to a gRPC resource service hosted by the AppHost. When this connection fails, the dashboard may show an error message or display telemetry data without any resource list or console logs.
 
 ### Symptoms
 
@@ -20,7 +20,7 @@ The dashboard displays resource information by connecting to a gRPC resource ser
 
 ### Viewing dashboard logs
 
-Enable verbose logging to get more detail about connection failures. Run the app host with debug-level output:
+Enable verbose logging to get more detail about connection failures. Run the AppHost with debug-level output:
 
 ```bash title="Run with debug output"
 aspire run --log-level Debug
@@ -30,7 +30,7 @@ Review the console output for messages related to the resource service connectio
 
 ### Certificate and TLS errors
 
-When running with HTTPS, the dashboard and app host use certificates to secure the gRPC connection. Certificate issues are a common source of connection failures.
+When running with HTTPS, the dashboard and AppHost use certificates to secure the gRPC connection. Certificate issues are a common source of connection failures.
 
 **Common causes:**
 
@@ -40,10 +40,10 @@ When running with HTTPS, the dashboard and app host use certificates to secure t
 
 ### Firewall and network issues
 
-- Confirm that a firewall or security software isn't blocking the connection between the dashboard and the resource service endpoint.
-- The resource service uses gRPC, which requires HTTP/2. Some firewalls, proxies, or network appliances don't support HTTP/2 traffic and may silently drop or downgrade the connection. Ensure that any intermediary between the dashboard and the app host allows HTTP/2.
+- Confirm that a firewall or some other security software isn't blocking the connection between the dashboard and the resource service endpoint.
+- The resource service uses gRPC, which requires HTTP/2. Some firewalls, proxies, or network appliances don't support HTTP/2 traffic and may silently drop or downgrade the connection. Ensure that any intermediary between the dashboard and the AppHost allows HTTP/2.
 
-### Ping timeout errors when debugging the app host
+### Ping timeout errors when debugging the AppHost
 
 You may see the following error in the dashboard:
 
@@ -53,11 +53,11 @@ HttpRequestException: The HTTP/2 server didn't respond to a ping request
 within the configured KeepAlivePingDelay. (HttpProtocolError)")
 ```
 
-This means the dashboard's gRPC client sent an HTTP/2 PING frame to the app host's resource service, but didn't receive a response in time.
+This means the dashboard's gRPC client sent an HTTP/2 PING frame to the AppHost's resource service, but didn't receive a response in time.
 
-The most likely cause is that a debugger is paused on the app host — when you hit a breakpoint, the process can't respond to HTTP/2 PING frames, triggering the timeout. This error resolves once execution resumes.
+The most likely cause is that a debugger is paused on the AppHost — when you hit a breakpoint, the process can't respond to HTTP/2 PING frames, triggering the timeout. This error resolves once execution resumes.
 
-If you see this error and you're running without a debugger attached, verify the app host process is still alive and responsive.
+If you see this error and you're running without a debugger attached, verify the AppHost process is still alive and responsive.
 
 <LearnMore>
 For the full list of configuration options, see [Aspire dashboard configuration](/dashboard/configuration/).

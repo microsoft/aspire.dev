@@ -34,7 +34,7 @@ The integration analyzer provides build-time validation that catches common expo
 - If your integration already references [`📦 Aspire.Hosting`](https://www.nuget.org/packages/Aspire.Hosting), opt in by setting the `EnableAspireIntegrationAnalyzers` MSBuild property in your integration project.
 - Alternatively, reference the standalone [`📦 Aspire.Hosting.Integration.Analyzers`](https://www.nuget.org/packages/Aspire.Hosting.Integration.Analyzers) package with `PrivateAssets="all"` using the same Aspire package version. The standalone analyzer package applies automatically and doesn't require the MSBuild property.
 
-```xml title="XML — MyIntegration.csproj"
+```xml title="MyIntegration.csproj"
 <PropertyGroup>
     <EnableAspireIntegrationAnalyzers>true</EnableAspireIntegrationAnalyzers>
 </PropertyGroup>
@@ -46,7 +46,7 @@ The analyzer reports diagnostics that help you get your exports right before use
 
 Annotate your extension methods with `[AspireExport]` and use XML doc comments to document them for the generated TypeScript SDK:
 
-```csharp title="C# — MyDatabaseBuilderExtensions.cs"
+```csharp title="MyDatabaseBuilderExtensions.cs"
 /// <summary>Adds a MyDatabase container resource.</summary>
 /// <param name="builder">The distributed application builder.</param>
 /// <param name="name">The MyDatabase resource name.</param>
@@ -90,7 +90,7 @@ public static IResourceBuilder<MyDatabaseResource> WithDataVolume(
 
 This generates the following highlighted TypeScript APIs:
 
-```typescript title="TypeScript — Generated SDK" {5-8}
+```typescript title="Generated SDK" {5-8}
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -126,7 +126,7 @@ Use `ats-*` override tags when the standard C# XML documentation doesn't transla
 
 An empty `ats-*` tag intentionally suppresses the matching standard documentation in the generated SDK.
 
-```csharp title="C# — Polyglot-incompatible summary with ats-summary override"
+```csharp title="Polyglot-incompatible summary with ats-summary override"
 /// <ats-summary>Adds a Redis container resource.</ats-summary>
 /// <summary>
 /// Adds a <see cref="RedisResource"/> to the <see cref="IDistributedApplicationBuilder"/>.
@@ -147,7 +147,7 @@ public static IResourceBuilder<RedisResource> AddRedis(
 
 Use `<ats-see cref="!:kind:identifier.path" />` and `<ats-seealso cref="!:kind:identifier.path" />` to link to generated SDK elements. The `!:` prefix prevents the C# compiler from validating the custom `cref` format; ATS removes it before parsing. The supported `kind` values are `type`, `method`, and `field`. The reference path uses dot notation over generated SDK identifiers:
 
-```csharp title="C# — Cross-references using ats-see"
+```csharp title="Cross-references using ats-see"
 /// <summary>
 /// Configures <ats-see cref="!:type:RedisResource" />.
 /// </summary>
@@ -176,7 +176,7 @@ The runtime dispatches TypeScript AppHost calls by **capability ID**. A capabili
 
 For static exports, the generated capability ID uses the assembly name and effective export ID. The following methods collide even though they target different C# types:
 
-```csharp title="C# — Duplicate capability ID"
+```csharp title="Duplicate capability ID"
 [AspireExport("configure")]
 public static void ConfigureBuilder(
     this IDistributedApplicationBuilder builder,
@@ -196,7 +196,7 @@ public static IResourceBuilder<MyDatabaseResource> ConfigureDatabase(
 
 Use distinct export IDs for the runtime capability, and use `MethodName` when you want the generated SDK method name to stay concise on different target types:
 
-```csharp title="C# — Unique capability IDs with SDK method names"
+```csharp title="Unique capability IDs with SDK method names"
 [AspireExport("configureBuilder", MethodName = "configure")]
 public static void ConfigureBuilder(
     this IDistributedApplicationBuilder builder,
@@ -250,7 +250,7 @@ Capability IDs are runtime dispatch identifiers. Keep them unique and stable. Av
 
 When several overloads describe one cross-language concept, prefer a single DTO-based overload, a union parameter, or a dispatcher-style export instead of many ATS-visible overloads with renamed methods. This usually produces a better generated API and avoids collisions.
 
-```csharp title="C# — Unique capability IDs with friendly SDK names"
+```csharp title="Unique capability IDs with friendly SDK names"
 [AspireExport("configureServer", MethodName = "configure")]
 public static IResourceBuilder<MyServerResource> Configure(
     this IResourceBuilder<MyServerResource> builder,
@@ -262,7 +262,7 @@ public static IResourceBuilder<MyDatabaseResource> Configure(
     string value) => builder;
 ```
 
-```typescript title="TypeScript — Friendly generated method names"
+```typescript title="Friendly generated method names"
 await server.configure('server-value');
 await database.configure('database-value');
 ```
@@ -284,7 +284,7 @@ Use these rules for overload sets:
 
 For one user concept, C# can keep convenience overloads, but export one generated shape:
 
-```csharp title="C# — One exported shape for one concept"
+```csharp title="One exported shape for one concept"
 [AspireExportIgnore(Reason = "Use the ATS-friendly withInput export.")]
 public static IResourceBuilder<T> WithInput<T>(
     this IResourceBuilder<T> builder,
@@ -312,14 +312,14 @@ Export adapter members can be `internal` when they exist only to shape the gener
 
 The generated SDK stays focused on one concept:
 
-```typescript title="TypeScript — One generated method"
+```typescript title="One generated method"
 await resource.withInput('literal-value');
 await resource.withInput(api.getEndpoint('https'));
 ```
 
 For overload families that vary by optional configuration, prefer one flat options object:
 
-```csharp title="C# — Options object for overload families"
+```csharp title="Options object for overload families"
 [AspireDto]
 public sealed class PublishOptions
 {
@@ -337,7 +337,7 @@ internal static IResourceBuilder<T> PublishAsImageForExport<T>(
 }
 ```
 
-```typescript title="TypeScript — Flat options object"
+```typescript title="Flat options object"
 await container.publishAsImage({ tag: 'v1', push: true });
 ```
 
@@ -345,7 +345,7 @@ Avoid generating overload-shaped APIs such as `publishAsImageWithTag`, `publishA
 
 For different concepts on the same target type, use different generated method names:
 
-```csharp title="C# — Distinct concepts on one target"
+```csharp title="Distinct concepts on one target"
 [AspireExport]
 public static IResourceBuilder<MyResource> WithHttpEndpoint(
     this IResourceBuilder<MyResource> builder,
@@ -357,7 +357,7 @@ public static IResourceBuilder<MyResource> WithGrpcEndpoint(
     int? port = null) => builder;
 ```
 
-```typescript title="TypeScript — Distinct generated methods"
+```typescript title="Distinct generated methods"
 await service.withHttpEndpoint({ port: 8080 });
 await service.withGrpcEndpoint({ port: 9090 });
 ```
@@ -374,7 +374,7 @@ Prefer explicit `[AspireExport]` attributes on callback context and editor types
 Exposed properties, exposed instance methods, and exported extension methods can all become members on the same generated SDK type. Avoid exposing broad types wholesale unless you have checked the generated SDK. If a property and method would generate the same member name, rename one generated member, ignore one member, or split the API into a smaller ATS-first context or editor type.
 :::
 
-```csharp title="C# — Explicit callback context exports"
+```csharp title="Explicit callback context exports"
 [AspireExport]
 public sealed class MyCallbackContext(
     IResource resource,
@@ -392,7 +392,7 @@ public sealed class MyCallbackContext(
 }
 ```
 
-```csharp title="C# — Avoid broad expansion on large contexts"
+```csharp title="Avoid broad expansion on large contexts"
 // Avoid on broad context types unless every public member is intended for SDK users.
 [AspireExport(ExposeProperties = true, ExposeMethods = true)]
 public sealed class MyLargeContext
@@ -407,7 +407,7 @@ Generated member naming must be checked per generated target type, not just by r
 
 Some APIs need to accept values that aren't plain JSON: literals, endpoint references, resource references, parameters, connection strings, or expressions. Model these as ATS value inputs on exported methods or editor methods with `[AspireUnion]`; don't bury them inside DTOs, because DTOs are JSON-shaped input objects.
 
-```csharp title="C# — ATS value input"
+```csharp title="ATS value input"
 [AspireExport]
 public static IResourceBuilder<T> WithSetting<T>(
     this IResourceBuilder<T> builder,
@@ -426,7 +426,7 @@ public static IResourceBuilder<T> WithSetting<T>(
 }
 ```
 
-```typescript title="TypeScript — Passing ATS values"
+```typescript title="Passing ATS values"
 await resource.withSetting('MODE', 'debug');
 await resource.withSetting('UPSTREAM_URL', api.getEndpoint('https'));
 await resource.withSetting('ConnectionStrings__db', database);
@@ -440,7 +440,9 @@ DTOs are input objects, not live resource handles. Keep `[AspireDto]` types JSON
 
 For an API with one optional options DTO, prefer a flat generated call shape such as `addMyResource('name', { port: 5432 })` instead of requiring `{ options: { port: 5432 } }`. If an existing C# API uses a rich model type that doesn't serialize cleanly, add a small DTO or options type for the exported API.
 
-```csharp title="C# — Flat options DTO"
+Both generators flatten the call shape when a method's optional parameters reduce to a single DTO named options. The Go generator applies this as of Aspire 13.5 and only when there's no coexisting cancellation token or callback. TypeScript has flattened single options DTOs since Aspire 13.3; it additionally still flattens when a trailing cancellation token is present, rendering the token as its own parameter.
+
+```csharp title="Flat options DTO"
 [AspireDto]
 public sealed class AddMyWorkerOptions
 {
@@ -463,16 +465,23 @@ public static IResourceBuilder<MyWorkerResource> AddMyWorker(
 }
 ```
 
-```typescript title="TypeScript — Flat generated call shape"
+```typescript title="Flat generated call shape (TypeScript)"
 const worker = await builder.addMyWorker('worker', {
   imageTag: '1.2.3',
   args: ['--verbose'],
 });
 ```
 
+```go title="Flat generated call shape (Go)"
+worker, err := builder.AddMyWorker("worker", &aspire.AddMyWorkerOptions{
+    ImageTag: aspire.StringPtr("1.2.3"),
+    Args:     []string{"--verbose"},
+})
+```
+
 Collection-valued DTO inputs should also feel like plain JSON in the generated SDK:
 
-```csharp title="C# — Collection-valued DTO input"
+```csharp title="Collection-valued DTO input"
 [AspireDto]
 public sealed class AccessRuleOptions
 {
@@ -481,7 +490,7 @@ public sealed class AccessRuleOptions
 }
 ```
 
-```typescript title="TypeScript — Plain JSON DTO input"
+```typescript title="Plain JSON DTO input"
 await resource.withAccessRule({
   addressPrefixes: ['10.0.0.0/24'],
   tags: { environment: 'dev' },
@@ -494,7 +503,7 @@ Generated SDK callbacks can call back into ATS/RPC; in TypeScript, that commonly
 
 If an exported method invokes a synchronous delegate inline, set `RunSyncOnBackgroundThread = true` so nested callback responses can continue flowing. This includes async-returning exported methods that call the synchronous delegate before their first `await`. When possible, design callback APIs so they don't re-enter RPC on a blocked thread.
 
-```csharp title="C# — Inline callback invocation"
+```csharp title="Inline callback invocation"
 [AspireExport(RunSyncOnBackgroundThread = true)]
 public static IResourceBuilder<MyWorkerResource> WithConfiguration(
     this IResourceBuilder<MyWorkerResource> builder,
@@ -511,7 +520,7 @@ public static IResourceBuilder<MyWorkerResource> WithConfiguration(
 
 Treat XML doc comments as part of the ATS contract. Document exported methods, DTOs, parameters, properties, and value catalogs because generated SDK docs come from these comments. Keep the wording language-neutral and describe the generated contract rather than C#-specific implementation details. Use `ats-*` override tags when a standard XML comment needs a generated-SDK-specific description; the TypeScript SDK renders the resulting docs as JSDoc.
 
-```csharp title="C# — Language-neutral export docs"
+```csharp title="Language-neutral export docs"
 [AspireDto]
 public sealed class AddMyDatabaseDocsOptions
 {
@@ -538,7 +547,7 @@ public static IResourceBuilder<MyDatabaseResource> AddMyDatabase(
 
 Use the analyzer and a TypeScript AppHost that references your integration project. After `aspire restore` or `aspire run` generates modules, inspect the generated imports and `.d.ts` signatures to confirm method names, DTO shapes, callback accessors, and docs metadata match the API you intended. Generated TypeScript APIs are promise-heavy, so await builder and fluent calls, await `PropertyAccessor` reads and writes, and consult the generated `.d.ts` signatures for service-provider methods and callback accessors. New TypeScript AppHosts use `apphost.mts` and `.aspire/modules/*.mjs` imports; legacy `apphost.ts` projects remain supported and may use `.modules/*.js` imports.
 
-```typescript title="TypeScript — Await generated AppHost APIs"
+```typescript title="Await generated AppHost APIs"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -555,7 +564,7 @@ await builder.build().run();
 
 Mark your resource types with `[AspireExport]` so the TypeScript SDK can reference them as typed handles. Set `ExposeProperties = true` to make all public properties accessible as capabilities, or annotate individual properties with `[AspireExport]` for fine-grained control:
 
-```csharp title="C# — MyDatabaseResource.cs"
+```csharp title="MyDatabaseResource.cs"
 [AspireExport(ExposeProperties = true)]
 public sealed class MyDatabaseResource(string name)
     : ContainerResource(name), IResourceWithConnectionString
@@ -596,7 +605,7 @@ Read-only or `init`-only C# properties can be readable in generated SDKs, but th
 
 For example, a C# class with all three property shapes:
 
-```csharp title="C# — Mixed property kinds"
+```csharp title="Mixed property kinds"
 [AspireExport(ExposeProperties = true)]
 public class MyPropertyDemo
 {
@@ -616,7 +625,7 @@ public class MyPropertyDemo
 
 Generates the following TypeScript interface:
 
-```typescript title="TypeScript — Generated interface"
+```typescript title="Generated interface"
 export interface MyPropertyDemo {
   toJSON(): MarshalledHandle;
   resource(): Promise<IResourceHandle>; // getter-only → async method
@@ -628,7 +637,7 @@ export interface MyPropertyDemo {
 
 TypeScript AppHost authors call getter-only properties as functions:
 
-```typescript title="TypeScript — Consuming the generated API"
+```typescript title="Consuming the generated API"
 const resource = await context.resource();
 const defaultTags = await context.defaultTags();
 const tags = context.tags; // no await needed for mutable collection wrappers
@@ -652,7 +661,7 @@ When you export a method that accepts a callback (such as `withEnvironmentCallba
 
 An editor wraps a mutable collection and exposes specific operations — typically `add`, `set`, or `remove` — instead of handing the raw collection to TypeScript:
 
-```csharp title="C# — EnvironmentEditor.cs"
+```csharp title="EnvironmentEditor.cs"
 /// <summary>
 /// Provides an ATS-first editor for environment variables within polyglot callbacks.
 /// </summary>
@@ -682,7 +691,7 @@ internal sealed class EnvironmentEditor(Dictionary<string, object> environmentVa
 
 Use individual `[AspireExport]` attributes on each property the generated SDK caller needs. Pass the editor as a getter-only property so TypeScript callers receive it as an async method:
 
-```csharp title="C# — MyCallbackContext.cs"
+```csharp title="MyCallbackContext.cs"
 [AspireExport]
 public sealed class MyCallbackContext(
     DistributedApplicationExecutionContext executionContext,
@@ -707,7 +716,7 @@ public sealed class MyCallbackContext(
 
 Export the extension method that accepts the callback, using `Action<MyCallbackContext>` as the parameter type:
 
-```csharp title="C# — MyResourceBuilderExtensions.cs"
+```csharp title="MyResourceBuilderExtensions.cs"
 /// <summary>Configures the resource using a callback.</summary>
 /// <param name="builder">The resource builder.</param>
 /// <param name="configure">The callback to configure the resource.</param>
@@ -723,7 +732,7 @@ public static IResourceBuilder<MyResource> WithMyCallback(
 
 The generated TypeScript API accepts an async arrow function:
 
-```typescript title="TypeScript — Consuming the callback API"
+```typescript title="Consuming the callback API"
 await myResource.withMyCallback(async (context) => {
   const resource = await context.resource();
   const env = await context.environment();
@@ -741,7 +750,7 @@ Several ATS callback contexts expose an `IServiceProvider` handle through a `ser
 
 In TypeScript, use the ATS-friendly methods on the service provider instead of the C# generic dependency-injection pattern. For example, call `services.getLoggerFactory()` instead of `serviceProvider.GetRequiredService<ILoggerFactory>()`.
 
-```typescript title="TypeScript — Using a callback service provider"
+```typescript title="Using a callback service provider"
 await builder.subscribeBeforeStart(async (event) => {
   const services = await event.services();
   const loggerFactory = services.getLoggerFactory();
@@ -766,7 +775,7 @@ The generated TypeScript SDK exposes these service-provider methods:
 
 Use `getDistributedApplicationModel()` when callback code needs to inspect or locate resources in the AppHost model:
 
-```typescript title="TypeScript — Inspecting AppHost resources"
+```typescript title="Inspecting AppHost resources"
 await builder.subscribeAfterResourcesCreated(async (event) => {
   const services = await event.services();
   const model = services.getDistributedApplicationModel();
@@ -779,7 +788,7 @@ await builder.subscribeAfterResourcesCreated(async (event) => {
 
 Use `getLoggerFactory()` to create loggers from callbacks that expose a service provider:
 
-```typescript title="TypeScript — Writing logs from a callback"
+```typescript title="Writing logs from a callback"
 await builder.subscribeBeforeStart(async (event) => {
   const services = await event.services();
   const logger = services.getLoggerFactory().createLogger('startup');
@@ -792,7 +801,7 @@ await builder.subscribeBeforeStart(async (event) => {
 
 Use `getResourceNotificationService()` for resource state transitions and `getResourceLoggerService()` for resource log streams:
 
-```typescript title="TypeScript — Waiting for resource state"
+```typescript title="Waiting for resource state"
 const cache = await builder.addRedis('cache');
 
 cache.onResourceReady(async (event) => {
@@ -811,7 +820,7 @@ cache.onResourceReady(async (event) => {
 
 Use `getUserSecretsManager()` for user secrets and `getAspireStore()` for stable files created during AppHost execution:
 
-```typescript title="TypeScript — Using AppHost services"
+```typescript title="Using AppHost services"
 await builder.subscribeBeforeStart(async (event) => {
   const services = await event.services();
   const secrets = services.getUserSecretsManager();
@@ -834,7 +843,7 @@ await builder.subscribeBeforeStart(async (event) => {
 
 Use `getEventing()` when callback code needs the eventing service itself:
 
-```typescript title="TypeScript — Using eventing from services"
+```typescript title="Using eventing from services"
 const subscription = await builder.subscribeBeforeStart(async (event) => {
   const services = await event.services();
   const eventing = services.getEventing();
@@ -845,7 +854,7 @@ const subscription = await builder.subscribeBeforeStart(async (event) => {
 
 Use `getResourceCommandService()` when a callback needs to execute another resource command. Resolve the command service from the AppHost execution context's service provider before registering the command, then capture it in the callback:
 
-```typescript title="TypeScript — Executing a command from a callback"
+```typescript title="Executing a command from a callback"
 const executionContext = await builder.executionContext();
 const serviceProvider = await executionContext.serviceProvider();
 const commandService = serviceProvider.getResourceCommandService();
@@ -870,7 +879,7 @@ await api.withCommand('reset-all', 'Reset Everything', async (ctx) => {
 
 If your integration accepts structured configuration, mark the options class with `[AspireDto]`. DTOs are serialized as JSON between the TypeScript AppHost and the .NET runtime:
 
-```csharp title="C# — MyDatabaseOptions.cs"
+```csharp title="MyDatabaseOptions.cs"
 [AspireDto]
 public sealed class AddMyDatabaseOptions
 {
@@ -890,7 +899,7 @@ DTO collection properties (such as `List<T>`, `IList<T>`, `IEnumerable<T>`, arra
 
 For example, a DTO that accepts address prefix and fully qualified domain name collections:
 
-```csharp title="C# — MyAccessRule.cs"
+```csharp title="MyAccessRule.cs"
 [AspireDto]
 public sealed class MyAccessRule
 {
@@ -901,7 +910,7 @@ public sealed class MyAccessRule
 
 The TypeScript SDK exposes collection values using ordinary TypeScript collection shapes:
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 const rule: MyAccessRule = {
   addressPrefixes: ['203.0.113.0/24', '198.51.100.0/24'],
   fullyQualifiedDomainNames: ['example.com'],
@@ -920,7 +929,7 @@ Use `[AspireValue]` to export immutable predefined values from your integration 
 
 Apply `[AspireValue]` to public static fields (prefer `static readonly`) or public static properties with a public static getter. The required `catalogName` argument sets the root name of the generated catalog in guest SDKs:
 
-```csharp title="C# — MyModels.cs"
+```csharp title="MyModels.cs"
 using Aspire.Hosting;
 
 [AspireDto]
@@ -958,7 +967,7 @@ The scanner snaps the values at scan time by serializing each field or property 
 
 After generating the SDK (for example, with `aspire run`), the catalog is available as a nested object in the TypeScript SDK. The nesting mirrors the static class hierarchy of the C# source:
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 import { MyModels } from './.aspire/modules/my-integration.mjs';
 
@@ -974,7 +983,7 @@ await builder.build().run();
 
 By default, the exported name matches the field or property name. Use the `Name` property to override it:
 
-```csharp title="C# — Override exported name"
+```csharp title="Override exported name"
 [AspireValue("MyModels", Name = "lite")]
 public static readonly MyModel Lite = new() { Name = "my-model-lite", Version = "1" };
 ```
@@ -996,7 +1005,7 @@ public static readonly MyModel Lite = new() { Name = "my-model-lite", Version = 
 
 Some C# overloads use types that can't be represented in generated SDKs (for example, interpolated string handlers, non-serializable callback contexts, or C#-specific types). Mark these with `[AspireExportIgnore]`:
 
-```csharp title="C# — Exclude incompatible overloads"
+```csharp title="Exclude incompatible overloads"
 // This overload works in generated SDKs — simple parameters
 /// <summary>Sets the maximum number of connections.</summary>
 /// <param name="builder">The resource builder.</param>
@@ -1030,7 +1039,7 @@ public static IResourceBuilder<MyDatabaseResource> WithConnectionStringLimit(
 
 When a parameter accepts multiple types, use `[AspireUnion]` to declare the valid options:
 
-```csharp title="C# — Union type parameter"
+```csharp title="Union type parameter"
 /// <summary>Sets an environment variable on the resource.</summary>
 /// <param name="builder">The resource builder.</param>
 /// <param name="name">The environment variable name.</param>
@@ -1086,7 +1095,7 @@ A clean build with zero analyzer warnings or errors is the required baseline. St
 
 You can test your integration locally without publishing to a NuGet feed. In your TypeScript AppHost's `aspire.config.json`, set the package value to a `.csproj` path instead of a version number:
 
-```json title="JSON — aspire.config.json"
+```json title="aspire.config.json"
 {
   "appHost": {
     "path": "apphost.mts",
@@ -1119,7 +1128,7 @@ When the CLI detects a `.csproj` path, it builds the project locally and generat
 
 2. Add your integration via project reference in `aspire.config.json`:
 
-   ```json title="JSON — aspire.config.json (packages section)"
+   ```json title="aspire.config.json (packages section)"
    {
      "packages": {
        "MyCompany.Hosting.MyDatabase": "../src/MyCompany.Hosting.MyDatabase/MyCompany.Hosting.MyDatabase.csproj"
@@ -1137,7 +1146,7 @@ When the CLI detects a `.csproj` path, it builds the project locally and generat
 
 5. Use the generated API in `apphost.mts`:
 
-   ```typescript title="TypeScript — apphost.mts"
+   ```typescript title="apphost.mts"
    import { createBuilder } from './.aspire/modules/aspire.mjs';
 
    const builder = await createBuilder();

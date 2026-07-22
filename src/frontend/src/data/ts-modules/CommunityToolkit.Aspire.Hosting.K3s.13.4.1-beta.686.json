@@ -1,0 +1,1447 @@
+{
+  "package": {
+    "name": "CommunityToolkit.Aspire.Hosting.K3s",
+    "version": "13.4.1-beta.686",
+    "language": "typescript",
+    "sourceRepository": "https://github.com/CommunityToolkit/Aspire"
+  },
+  "functions": [
+    {
+      "name": "addHelmRelease",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/addHelmRelease",
+      "qualifiedName": "addHelmRelease",
+      "description": "Installs a Helm chart into the k3s cluster.",
+      "remarks": "The release runs as an `alpine/helm` container on the DCP network. No host-side\n`helm` binary is required. The container exits with code 0 when the release is\nfully installed and all workloads are ready. Use `WaitForCompletion(helmRelease)`\non resources that must start only after the chart is ready.\nCustomize the release with `WithHelmValue` for individual key/value pairs\nor `WithHelmValuesFile` to supply a full YAML values file.",
+      "returns": "A builder for the `HelmReleaseResource`.",
+      "kind": "Method",
+      "signature": "addHelmRelease(name: string, chart: string, repo?: string, version?: string, namespace?: string): HelmReleaseResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The Aspire resource name; also used as the Helm release name passed to `helm upgrade --install`."
+        },
+        {
+          "name": "chart",
+          "type": "string",
+          "description": "The chart name, e.g. `argo-cd` for a repo chart or `oci://registry/chart` for an OCI reference. Provide `repo` when using a named repo chart."
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "isOptional": true,
+          "description": "Optional Helm repository URL, e.g. `https://argoproj.github.io/argo-helm`. When provided, the repo is added and updated before installation."
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "isOptional": true,
+          "description": "Optional chart version to pin, e.g. `7.8.0`. When `null` the latest version available in the repository is installed."
+        },
+        {
+          "name": "namespace",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": "default",
+          "description": "The Kubernetes namespace to install the release into. The namespace is created automatically if it does not exist. Defaults to `default`."
+        }
+      ],
+      "returnType": "HelmReleaseResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "addK3sCluster",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/addK3sCluster",
+      "qualifiedName": "addK3sCluster",
+      "description": "Adds a k3s Kubernetes cluster to the distributed application.",
+      "remarks": "The cluster runs as a privileged container using the `rancher/k3s` image.\nNo host-side `kubectl`, `helm`, or `k3s` binaries are required.\nThree kubeconfig variants are written to `{AppHostDirectory}/.k3s/{name}/`\nwhen the cluster becomes ready:\n-\n-\nCall `WithReference(cluster)` on a dependent resource builder to inject\nthese credentials automatically.\nAll other cluster options are available as fluent builder methods:\n`WithK3sVersion`, `WithAgentCount`, `WithPodSubnet`,\n`WithServiceSubnet`, `WithDisabledComponent`,\n`WithExtraArg`, `WithDataVolume`, `WithHelmImage`,\n`WithKubectlImage`, and `WithLifetime`.",
+      "returns": "A builder for the `K3sClusterResource`.",
+      "kind": "Method",
+      "signature": "addK3sCluster(name: string, apiServerPort?: number, agentCount?: number): K3sClusterResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The resource name. Also used as the DNS hostname by which containers in the DCP network reach the cluster's API server (e.g. `https://{name}:6443`)."
+        },
+        {
+          "name": "apiServerPort",
+          "type": "number",
+          "isOptional": true,
+          "isNullable": true,
+          "description": "Host port to bind the Kubernetes API server (port 6443) to. When `null` (the default) a random available port is assigned."
+        },
+        {
+          "name": "agentCount",
+          "type": "number",
+          "isOptional": true,
+          "isNullable": true,
+          "description": "Number of k3s agent (worker) nodes to add. When `null` (the default) a single-node cluster is created — the server node acts as both control-plane and worker. Equivalent to calling `WithAgentCount` on the returned builder."
+        }
+      ],
+      "returnType": "K3sClusterResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "addK8sManifest",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/addK8sManifest",
+      "qualifiedName": "addK8sManifest",
+      "description": "Applies Kubernetes YAML manifests or a Kustomize overlay to the cluster.",
+      "remarks": "The apply mode is detected automatically from `path`:\n-\n-\n-\nThe container exits with code 0 after all manifests are applied and any CRDs have\nreached the `Established` condition. No host-side `kubectl` binary is required.\nUse `WaitForCompletion(manifest)` on resources that must start only after the\nmanifests are applied.",
+      "returns": "A builder for the `K8sManifestResource`.",
+      "kind": "Method",
+      "signature": "addK8sManifest(name: string, path: string): K8sManifestResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The Aspire resource name for this manifest application."
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "description": "Path to a single `.yaml`/`.yml` file, a directory of YAML files, or a Kustomize overlay directory (containing `kustomization.yaml`). Relative paths are resolved against the AppHost project directory."
+        }
+      ],
+      "returnType": "K8sManifestResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "addServiceEndpoint",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/addServiceEndpoint",
+      "qualifiedName": "addServiceEndpoint",
+      "description": "Exposes a Kubernetes Service from the cluster as an Aspire endpoint resource.",
+      "remarks": "An in-process WebSocket port-forward is started when the cluster becomes ready,\nbinding to `0.0.0.0:{allocatedHostPort}` so both host processes and DCP-network\ncontainers can reach the service.\nThe endpoint transitions to `Running` only after the target Kubernetes Service\nhas at least one ready pod. Sequence chart installs or manifest applies before this\nresource using `WaitForCompletion` on `HelmReleaseResource` or\n`K8sManifestResource` to prevent the port-forward from polling indefinitely.\nUse `WithReference(endpoint)` on a dependent resource builder to inject the\nservice URL as `services__{name}__url`. Host processes receive\n`http(s)://localhost:{port}`; containers receive\n`http(s)://host.docker.internal:{port}`.",
+      "returns": "A builder for the `K3sServiceEndpointResource`.",
+      "kind": "Method",
+      "signature": "addServiceEndpoint(name: string, serviceName: string, servicePort: number, namespace?: string, scheme?: string): K3sServiceEndpointResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The Aspire resource name for this endpoint."
+        },
+        {
+          "name": "serviceName",
+          "type": "string",
+          "description": "The name of the Kubernetes Service to forward, as it appears in `kubectl get svc`."
+        },
+        {
+          "name": "servicePort",
+          "type": "number",
+          "description": "The port number declared on the Kubernetes Service (the `port` field, not `targetPort`). Must be in the range 1–65535."
+        },
+        {
+          "name": "namespace",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": "default",
+          "description": "The Kubernetes namespace that contains the Service. Defaults to `default`."
+        },
+        {
+          "name": "scheme",
+          "type": "string",
+          "isOptional": true,
+          "description": "The URL scheme (`http` or `https`) for the injected environment variable. When `null` (the default), the scheme is inferred from the port: ports 443 and 8443 use `https`, all others use `http`."
+        }
+      ],
+      "returnType": "K3sServiceEndpointResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "namespace",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/HelmReleaseResource.namespace",
+      "qualifiedName": "HelmReleaseResource.namespace",
+      "description": "Gets the Kubernetes namespace the chart is installed into.",
+      "kind": "PropertyGetter",
+      "signature": "namespace(): string",
+      "parameters": [],
+      "returnType": "string",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.HelmReleaseResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.HelmReleaseResource"
+      ]
+    },
+    {
+      "name": "parent",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/HelmReleaseResource.parent",
+      "qualifiedName": "HelmReleaseResource.parent",
+      "description": "Gets the Parent property",
+      "kind": "PropertyGetter",
+      "signature": "parent(): K3sClusterResource",
+      "parameters": [],
+      "returnType": "K3sClusterResource",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.HelmReleaseResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.HelmReleaseResource"
+      ]
+    },
+    {
+      "name": "releaseName",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/HelmReleaseResource.releaseName",
+      "qualifiedName": "HelmReleaseResource.releaseName",
+      "description": "Gets the Helm release name passed to `helm upgrade --install`.",
+      "kind": "PropertyGetter",
+      "signature": "releaseName(): string",
+      "parameters": [],
+      "returnType": "string",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.HelmReleaseResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.HelmReleaseResource"
+      ]
+    },
+    {
+      "name": "apiEndpoint",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K3sClusterResource.apiEndpoint",
+      "qualifiedName": "K3sClusterResource.apiEndpoint",
+      "description": "Gets the endpoint reference for the k3s API server (port 6443).",
+      "kind": "PropertyGetter",
+      "signature": "apiEndpoint(): EndpointReference",
+      "parameters": [],
+      "returnType": "EndpointReference",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "connectionStringEnvironmentVariable",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K3sClusterResource.connectionStringEnvironmentVariable",
+      "qualifiedName": "K3sClusterResource.connectionStringEnvironmentVariable",
+      "description": "Overrides the default `ConnectionStrings__` prefix so Aspire injects `KUBECONFIG`.",
+      "kind": "PropertyGetter",
+      "signature": "connectionStringEnvironmentVariable(): string",
+      "parameters": [],
+      "returnType": "string",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "connectionStringExpression",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K3sClusterResource.connectionStringExpression",
+      "qualifiedName": "K3sClusterResource.connectionStringExpression",
+      "description": "Manifest expression for the local kubeconfig path.",
+      "kind": "PropertyGetter",
+      "signature": "connectionStringExpression(): ReferenceExpression",
+      "parameters": [],
+      "returnType": "ReferenceExpression",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "connectionStringEnvironmentVariable",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.connectionStringEnvironmentVariable",
+      "qualifiedName": "K3sServiceEndpointResource.connectionStringEnvironmentVariable",
+      "description": "The environment variable name used to inject the service URL into dependents (`services__{name}__url`), following the Aspire service-discovery convention.",
+      "kind": "PropertyGetter",
+      "signature": "connectionStringEnvironmentVariable(): string",
+      "parameters": [],
+      "returnType": "string",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+      ]
+    },
+    {
+      "name": "connectionStringExpression",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.connectionStringExpression",
+      "qualifiedName": "K3sServiceEndpointResource.connectionStringExpression",
+      "description": "Gets the manifest expression for the service URL. Resolves to `http(s)://localhost:{hostPort}` when the endpoint is ready.",
+      "kind": "PropertyGetter",
+      "signature": "connectionStringExpression(): ReferenceExpression",
+      "parameters": [],
+      "returnType": "ReferenceExpression",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+      ]
+    },
+    {
+      "name": "hostPort",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.hostPort",
+      "qualifiedName": "K3sServiceEndpointResource.hostPort",
+      "description": "Gets the host port bound by the port-forward listener.",
+      "remarks": "Zero until the resource transitions to `Running`. Use `WaitFor(endpoint)`\nto ensure this is populated before reading it from a dependent resource.",
+      "kind": "PropertyGetter",
+      "signature": "hostPort(): number",
+      "parameters": [],
+      "returnType": "number",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+      ]
+    },
+    {
+      "name": "namespace",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.namespace",
+      "qualifiedName": "K3sServiceEndpointResource.namespace",
+      "description": "Gets the Kubernetes namespace that contains the Service.",
+      "kind": "PropertyGetter",
+      "signature": "namespace(): string",
+      "parameters": [],
+      "returnType": "string",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+      ]
+    },
+    {
+      "name": "parent",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.parent",
+      "qualifiedName": "K3sServiceEndpointResource.parent",
+      "description": "Gets the Parent property",
+      "kind": "PropertyGetter",
+      "signature": "parent(): K3sClusterResource",
+      "parameters": [],
+      "returnType": "K3sClusterResource",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+      ]
+    },
+    {
+      "name": "serviceName",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.serviceName",
+      "qualifiedName": "K3sServiceEndpointResource.serviceName",
+      "description": "Gets the name of the Kubernetes Service being forwarded.",
+      "kind": "PropertyGetter",
+      "signature": "serviceName(): string",
+      "parameters": [],
+      "returnType": "string",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+      ]
+    },
+    {
+      "name": "servicePort",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.servicePort",
+      "qualifiedName": "K3sServiceEndpointResource.servicePort",
+      "description": "Gets the port number declared on the Kubernetes Service.",
+      "kind": "PropertyGetter",
+      "signature": "servicePort(): number",
+      "parameters": [],
+      "returnType": "number",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+      ]
+    },
+    {
+      "name": "setHostPort",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.setHostPort",
+      "qualifiedName": "K3sServiceEndpointResource.setHostPort",
+      "description": "Gets the host port bound by the port-forward listener.",
+      "remarks": "Zero until the resource transitions to `Running`. Use `WaitFor(endpoint)`\nto ensure this is populated before reading it from a dependent resource.",
+      "kind": "PropertySetter",
+      "signature": "setHostPort(value: number): K3sServiceEndpointResource",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number"
+        }
+      ],
+      "returnType": "K3sServiceEndpointResource",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+      ]
+    },
+    {
+      "name": "parent",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K8sManifestResource.parent",
+      "qualifiedName": "K8sManifestResource.parent",
+      "description": "Gets the Parent property",
+      "kind": "PropertyGetter",
+      "signature": "parent(): K3sClusterResource",
+      "parameters": [],
+      "returnType": "K3sClusterResource",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K8sManifestResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K8sManifestResource"
+      ]
+    },
+    {
+      "name": "path",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/K8sManifestResource.path",
+      "qualifiedName": "K8sManifestResource.path",
+      "description": "Gets the absolute host path to the YAML file, plain directory, or Kustomize directory that contains the manifests to apply.",
+      "kind": "PropertyGetter",
+      "signature": "path(): string",
+      "parameters": [],
+      "returnType": "string",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K8sManifestResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K8sManifestResource"
+      ]
+    },
+    {
+      "name": "withAgentCount",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withAgentCount",
+      "qualifiedName": "withAgentCount",
+      "description": "Sets the number of k3s agent (worker) nodes to add to the cluster.",
+      "remarks": "Agent nodes connect to the server via DCP DNS (`https://{name}:6443`) and use\nk3s's built-in retry loop, so no explicit `WaitFor` is needed. The cluster health\ncheck waits for `1 + count` nodes to reach `Ready` state before reporting\nhealthy. Use `WithLifetime` with `Persistent`\nto keep agents alive across AppHost restarts and avoid node password hash mismatches.",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withAgentCount(count: number): K3sClusterResource",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "number",
+          "description": "The number of agent nodes. Zero or greater. Defaults to `0` (single-node cluster — the server node acts as both control-plane and worker)."
+        }
+      ],
+      "returnType": "K3sClusterResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "withDataVolume",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withDataVolume",
+      "qualifiedName": "withDataVolume",
+      "description": "Mounts a named Docker volume at the k3s data directory so cluster state persists across AppHost restarts.",
+      "remarks": "The volume covers `/var/lib/rancher/k3s`, which contains the SQLite database,\nTLS certificates, and kubeconfig. Without this volume the cluster starts fresh on\nevery AppHost launch. Combine with `ContainerLifetime.Persistent` on the cluster\nresource and its dependent Helm releases to avoid re-installing charts on every start.",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withDataVolume(name?: string): K3sClusterResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "isOptional": true,
+          "description": "Optional volume name. When `null` (the default) a name is generated from the application and resource names."
+        }
+      ],
+      "returnType": "K3sClusterResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "withDisabledComponent",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withDisabledComponent",
+      "qualifiedName": "withDisabledComponent",
+      "description": "Disables a built-in k3s component (`--disable=<component>`).",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withDisabledComponent(component: string): K3sClusterResource",
+      "parameters": [
+        {
+          "name": "component",
+          "type": "string",
+          "description": "The component name to disable. Common values include `traefik`, `servicelb`, `metrics-server`, `coredns`, and `local-storage`. Call this method multiple times to disable more than one component."
+        }
+      ],
+      "returnType": "K3sClusterResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "withExtraArg",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withExtraArg",
+      "qualifiedName": "withExtraArg",
+      "description": "Appends a raw argument to the `k3s server` command line.",
+      "remarks": "Use `WithDisabledComponent` or the dedicated CIDR methods when possible.\nThis method is intended for flags that have no dedicated helper.",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withExtraArg(arg: string): K3sClusterResource",
+      "parameters": [
+        {
+          "name": "arg",
+          "type": "string",
+          "description": "The raw argument to append, e.g. `--write-kubeconfig-mode=644`. Call this method multiple times to append additional arguments."
+        }
+      ],
+      "returnType": "K3sClusterResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "withHelmImage",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withHelmImage",
+      "qualifiedName": "withHelmImage",
+      "description": "Overrides the container image used to run `helm upgrade --install` for all `HelmReleaseResource` children of this cluster.",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withHelmImage(tag?: string, image?: string, registry?: string): K3sClusterResource",
+      "parameters": [
+        {
+          "name": "tag",
+          "type": "string",
+          "isOptional": true,
+          "description": "Image tag, e.g. `3.18.0`. `null` keeps the current value."
+        },
+        {
+          "name": "image",
+          "type": "string",
+          "isOptional": true,
+          "description": "Image name, e.g. `alpine/helm`. `null` keeps the current value."
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "isOptional": true,
+          "description": "Registry, e.g. `docker.io`. `null` keeps the current value."
+        }
+      ],
+      "returnType": "K3sClusterResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "withHelmValue",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withHelmValue",
+      "qualifiedName": "withHelmValue",
+      "description": "Adds a Helm `--set key=value` override to the release.",
+      "remarks": "Helm `--set` metacharacters (`,`, `{`, `}`, `\\`) in\n`key` or `value` are automatically escaped.\nFor values that contain these characters in ways Helm cannot represent safely,\nuse `WithHelmValuesFile` instead.",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withHelmValue(key: string, value: string): HelmReleaseResource",
+      "parameters": [
+        {
+          "name": "key",
+          "type": "string",
+          "description": "The Helm value path using dot notation, e.g. `server.service.type`. If the same key is set more than once, the last call wins."
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "description": "The value to assign."
+        }
+      ],
+      "returnType": "HelmReleaseResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.HelmReleaseResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.HelmReleaseResource"
+      ]
+    },
+    {
+      "name": "withHelmValuesFile",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withHelmValuesFile",
+      "qualifiedName": "withHelmValuesFile",
+      "description": "Supplies a YAML values file to the Helm release (`--values`).",
+      "remarks": "Use this method for structured overrides — particularly values containing commas,\nbraces, or backslashes that cannot be safely expressed with `WithHelmValue`.\nValues files are applied before `--set` flags, so `WithHelmValue`\nalways takes precedence.",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withHelmValuesFile(path: string): HelmReleaseResource",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "string",
+          "description": "Path to the YAML values file on the host. Relative paths are resolved against the AppHost project directory. Call this method multiple times to supply additional files; they are applied in declaration order and later files win for duplicate keys."
+        }
+      ],
+      "returnType": "HelmReleaseResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.HelmReleaseResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.HelmReleaseResource"
+      ]
+    },
+    {
+      "name": "withK3sVersion",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withK3sVersion",
+      "qualifiedName": "withK3sVersion",
+      "description": "Sets the k3s image version used by the cluster server and all its agent nodes.",
+      "remarks": "All agent nodes are immediately synced to the same tag to prevent version skew\nbeyond the Kubernetes-supported ±1 minor version limit. The image tag is part of\nthe DCP container identity, so synchronisation must happen at configuration time.",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withK3sVersion(tag: string): K3sClusterResource",
+      "parameters": [
+        {
+          "name": "tag",
+          "type": "string",
+          "description": "The k3s container image tag, e.g. `v1.32.3-k3s1`. Must follow the `v{major}.{minor}.{patch}-k3s{n}` format."
+        }
+      ],
+      "returnType": "K3sClusterResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "withKubectlImage",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withKubectlImage",
+      "qualifiedName": "withKubectlImage",
+      "description": "Overrides the container image used to run `kubectl apply` for all `K8sManifestResource` children of this cluster.",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withKubectlImage(tag?: string, image?: string, registry?: string): K3sClusterResource",
+      "parameters": [
+        {
+          "name": "tag",
+          "type": "string",
+          "isOptional": true,
+          "description": "Image tag, e.g. `1.37.0`. `null` keeps the current value."
+        },
+        {
+          "name": "image",
+          "type": "string",
+          "isOptional": true,
+          "description": "Image name, e.g. `alpine/kubectl`. `null` keeps the current value."
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "isOptional": true,
+          "description": "Registry, e.g. `docker.io`. `null` keeps the current value."
+        }
+      ],
+      "returnType": "K3sClusterResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "withLifetime",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withLifetime",
+      "qualifiedName": "withLifetime",
+      "description": "Sets the container lifetime for the k3s cluster and all its agent nodes.",
+      "remarks": "Agent nodes are propagated immediately because DCP uses\n`ContainerLifetimeAnnotation` to compute container identity. Deferring\npropagation to `BeforeStartEvent` would be too late — DCP determines whether\nto reuse or recreate a persistent container before that event fires, so agents\nwould lose their persistent identity and be recreated as new containers each run.",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withLifetime(lifetime: ContainerLifetime): K3sClusterResource",
+      "parameters": [
+        {
+          "name": "lifetime",
+          "type": "ContainerLifetime",
+          "description": "The container lifetime to apply."
+        }
+      ],
+      "returnType": "K3sClusterResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "withPodSubnet",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withPodSubnet",
+      "qualifiedName": "withPodSubnet",
+      "description": "Sets the CIDR range for pod IP addresses (`--cluster-cidr`).",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withPodSubnet(cidr: string): K3sClusterResource",
+      "parameters": [
+        {
+          "name": "cidr",
+          "type": "string",
+          "description": "The pod subnet in CIDR notation, e.g. `10.42.0.0/16`."
+        }
+      ],
+      "returnType": "K3sClusterResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    },
+    {
+      "name": "withServiceSubnet",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withServiceSubnet",
+      "qualifiedName": "withServiceSubnet",
+      "description": "Sets the CIDR range for Service cluster IPs (`--service-cidr`).",
+      "returns": "The same builder, for chaining.",
+      "kind": "Method",
+      "signature": "withServiceSubnet(cidr: string): K3sClusterResource",
+      "parameters": [
+        {
+          "name": "cidr",
+          "type": "string",
+          "description": "The service subnet in CIDR notation, e.g. `10.43.0.0/16`."
+        }
+      ],
+      "returnType": "K3sClusterResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+      ]
+    }
+  ],
+  "handleTypes": [
+    {
+      "name": "HelmReleaseResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.HelmReleaseResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "Represents a Helm chart release installed into a k3s cluster.",
+      "remarks": "The release runs as an `alpine/helm` container. The container polls until the cluster\nkubeconfig is available, executes `helm upgrade --install --wait`, then exits with\ncode 0. Use `WaitForCompletion(helmRelease)` on resources that depend on the chart\nbeing fully installed.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.ApplicationModel.K3sClusterResource]]",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport"
+      ],
+      "capabilities": [
+        {
+          "name": "namespace",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/HelmReleaseResource.namespace",
+          "qualifiedName": "HelmReleaseResource.namespace",
+          "description": "Gets the Kubernetes namespace the chart is installed into.",
+          "kind": "PropertyGetter",
+          "signature": "namespace(): string",
+          "parameters": [],
+          "returnType": "string",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.HelmReleaseResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.HelmReleaseResource"
+          ]
+        },
+        {
+          "name": "parent",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/HelmReleaseResource.parent",
+          "qualifiedName": "HelmReleaseResource.parent",
+          "description": "Gets the Parent property",
+          "kind": "PropertyGetter",
+          "signature": "parent(): K3sClusterResource",
+          "parameters": [],
+          "returnType": "K3sClusterResource",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.HelmReleaseResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.HelmReleaseResource"
+          ]
+        },
+        {
+          "name": "releaseName",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/HelmReleaseResource.releaseName",
+          "qualifiedName": "HelmReleaseResource.releaseName",
+          "description": "Gets the Helm release name passed to `helm upgrade --install`.",
+          "kind": "PropertyGetter",
+          "signature": "releaseName(): string",
+          "parameters": [],
+          "returnType": "string",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.HelmReleaseResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.HelmReleaseResource"
+          ]
+        },
+        {
+          "name": "withHelmValue",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withHelmValue",
+          "qualifiedName": "withHelmValue",
+          "description": "Adds a Helm `--set key=value` override to the release.",
+          "remarks": "Helm `--set` metacharacters (`,`, `{`, `}`, `\\`) in\n`key` or `value` are automatically escaped.\nFor values that contain these characters in ways Helm cannot represent safely,\nuse `WithHelmValuesFile` instead.",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withHelmValue(key: string, value: string): HelmReleaseResource",
+          "parameters": [
+            {
+              "name": "key",
+              "type": "string",
+              "description": "The Helm value path using dot notation, e.g. `server.service.type`. If the same key is set more than once, the last call wins."
+            },
+            {
+              "name": "value",
+              "type": "string",
+              "description": "The value to assign."
+            }
+          ],
+          "returnType": "HelmReleaseResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.HelmReleaseResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.HelmReleaseResource"
+          ]
+        },
+        {
+          "name": "withHelmValuesFile",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withHelmValuesFile",
+          "qualifiedName": "withHelmValuesFile",
+          "description": "Supplies a YAML values file to the Helm release (`--values`).",
+          "remarks": "Use this method for structured overrides — particularly values containing commas,\nbraces, or backslashes that cannot be safely expressed with `WithHelmValue`.\nValues files are applied before `--set` flags, so `WithHelmValue`\nalways takes precedence.",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withHelmValuesFile(path: string): HelmReleaseResource",
+          "parameters": [
+            {
+              "name": "path",
+              "type": "string",
+              "description": "Path to the YAML values file on the host. Relative paths are resolved against the AppHost project directory. Call this method multiple times to supply additional files; they are applied in declaration order and later files win for duplicate keys."
+            }
+          ],
+          "returnType": "HelmReleaseResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.HelmReleaseResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.HelmReleaseResource"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "K3sClusterResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.K3sClusterResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "Represents a k3s Kubernetes cluster running as a privileged container resource. Injects the cluster's kubeconfig into a dependent resource. - -",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IExpressionValue",
+        "Aspire.Hosting.ApplicationModel.IManifestExpressionProvider",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.ApplicationModel.IValueProvider",
+        "Aspire.Hosting.ApplicationModel.IValueWithReferences"
+      ],
+      "capabilities": [
+        {
+          "name": "addHelmRelease",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/addHelmRelease",
+          "qualifiedName": "addHelmRelease",
+          "description": "Installs a Helm chart into the k3s cluster.",
+          "remarks": "The release runs as an `alpine/helm` container on the DCP network. No host-side\n`helm` binary is required. The container exits with code 0 when the release is\nfully installed and all workloads are ready. Use `WaitForCompletion(helmRelease)`\non resources that must start only after the chart is ready.\nCustomize the release with `WithHelmValue` for individual key/value pairs\nor `WithHelmValuesFile` to supply a full YAML values file.",
+          "returns": "A builder for the `HelmReleaseResource`.",
+          "kind": "Method",
+          "signature": "addHelmRelease(name: string, chart: string, repo?: string, version?: string, namespace?: string): HelmReleaseResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The Aspire resource name; also used as the Helm release name passed to `helm upgrade --install`."
+            },
+            {
+              "name": "chart",
+              "type": "string",
+              "description": "The chart name, e.g. `argo-cd` for a repo chart or `oci://registry/chart` for an OCI reference. Provide `repo` when using a named repo chart."
+            },
+            {
+              "name": "repo",
+              "type": "string",
+              "isOptional": true,
+              "description": "Optional Helm repository URL, e.g. `https://argoproj.github.io/argo-helm`. When provided, the repo is added and updated before installation."
+            },
+            {
+              "name": "version",
+              "type": "string",
+              "isOptional": true,
+              "description": "Optional chart version to pin, e.g. `7.8.0`. When `null` the latest version available in the repository is installed."
+            },
+            {
+              "name": "namespace",
+              "type": "string",
+              "isOptional": true,
+              "defaultValue": "default",
+              "description": "The Kubernetes namespace to install the release into. The namespace is created automatically if it does not exist. Defaults to `default`."
+            }
+          ],
+          "returnType": "HelmReleaseResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "addK8sManifest",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/addK8sManifest",
+          "qualifiedName": "addK8sManifest",
+          "description": "Applies Kubernetes YAML manifests or a Kustomize overlay to the cluster.",
+          "remarks": "The apply mode is detected automatically from `path`:\n-\n-\n-\nThe container exits with code 0 after all manifests are applied and any CRDs have\nreached the `Established` condition. No host-side `kubectl` binary is required.\nUse `WaitForCompletion(manifest)` on resources that must start only after the\nmanifests are applied.",
+          "returns": "A builder for the `K8sManifestResource`.",
+          "kind": "Method",
+          "signature": "addK8sManifest(name: string, path: string): K8sManifestResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The Aspire resource name for this manifest application."
+            },
+            {
+              "name": "path",
+              "type": "string",
+              "description": "Path to a single `.yaml`/`.yml` file, a directory of YAML files, or a Kustomize overlay directory (containing `kustomization.yaml`). Relative paths are resolved against the AppHost project directory."
+            }
+          ],
+          "returnType": "K8sManifestResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "addServiceEndpoint",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/addServiceEndpoint",
+          "qualifiedName": "addServiceEndpoint",
+          "description": "Exposes a Kubernetes Service from the cluster as an Aspire endpoint resource.",
+          "remarks": "An in-process WebSocket port-forward is started when the cluster becomes ready,\nbinding to `0.0.0.0:{allocatedHostPort}` so both host processes and DCP-network\ncontainers can reach the service.\nThe endpoint transitions to `Running` only after the target Kubernetes Service\nhas at least one ready pod. Sequence chart installs or manifest applies before this\nresource using `WaitForCompletion` on `HelmReleaseResource` or\n`K8sManifestResource` to prevent the port-forward from polling indefinitely.\nUse `WithReference(endpoint)` on a dependent resource builder to inject the\nservice URL as `services__{name}__url`. Host processes receive\n`http(s)://localhost:{port}`; containers receive\n`http(s)://host.docker.internal:{port}`.",
+          "returns": "A builder for the `K3sServiceEndpointResource`.",
+          "kind": "Method",
+          "signature": "addServiceEndpoint(name: string, serviceName: string, servicePort: number, namespace?: string, scheme?: string): K3sServiceEndpointResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The Aspire resource name for this endpoint."
+            },
+            {
+              "name": "serviceName",
+              "type": "string",
+              "description": "The name of the Kubernetes Service to forward, as it appears in `kubectl get svc`."
+            },
+            {
+              "name": "servicePort",
+              "type": "number",
+              "description": "The port number declared on the Kubernetes Service (the `port` field, not `targetPort`). Must be in the range 1–65535."
+            },
+            {
+              "name": "namespace",
+              "type": "string",
+              "isOptional": true,
+              "defaultValue": "default",
+              "description": "The Kubernetes namespace that contains the Service. Defaults to `default`."
+            },
+            {
+              "name": "scheme",
+              "type": "string",
+              "isOptional": true,
+              "description": "The URL scheme (`http` or `https`) for the injected environment variable. When `null` (the default), the scheme is inferred from the port: ports 443 and 8443 use `https`, all others use `http`."
+            }
+          ],
+          "returnType": "K3sServiceEndpointResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "apiEndpoint",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K3sClusterResource.apiEndpoint",
+          "qualifiedName": "K3sClusterResource.apiEndpoint",
+          "description": "Gets the endpoint reference for the k3s API server (port 6443).",
+          "kind": "PropertyGetter",
+          "signature": "apiEndpoint(): EndpointReference",
+          "parameters": [],
+          "returnType": "EndpointReference",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "connectionStringEnvironmentVariable",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K3sClusterResource.connectionStringEnvironmentVariable",
+          "qualifiedName": "K3sClusterResource.connectionStringEnvironmentVariable",
+          "description": "Overrides the default `ConnectionStrings__` prefix so Aspire injects `KUBECONFIG`.",
+          "kind": "PropertyGetter",
+          "signature": "connectionStringEnvironmentVariable(): string",
+          "parameters": [],
+          "returnType": "string",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "connectionStringExpression",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K3sClusterResource.connectionStringExpression",
+          "qualifiedName": "K3sClusterResource.connectionStringExpression",
+          "description": "Manifest expression for the local kubeconfig path.",
+          "kind": "PropertyGetter",
+          "signature": "connectionStringExpression(): ReferenceExpression",
+          "parameters": [],
+          "returnType": "ReferenceExpression",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "withAgentCount",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withAgentCount",
+          "qualifiedName": "withAgentCount",
+          "description": "Sets the number of k3s agent (worker) nodes to add to the cluster.",
+          "remarks": "Agent nodes connect to the server via DCP DNS (`https://{name}:6443`) and use\nk3s's built-in retry loop, so no explicit `WaitFor` is needed. The cluster health\ncheck waits for `1 + count` nodes to reach `Ready` state before reporting\nhealthy. Use `WithLifetime` with `Persistent`\nto keep agents alive across AppHost restarts and avoid node password hash mismatches.",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withAgentCount(count: number): K3sClusterResource",
+          "parameters": [
+            {
+              "name": "count",
+              "type": "number",
+              "description": "The number of agent nodes. Zero or greater. Defaults to `0` (single-node cluster — the server node acts as both control-plane and worker)."
+            }
+          ],
+          "returnType": "K3sClusterResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "withDataVolume",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withDataVolume",
+          "qualifiedName": "withDataVolume",
+          "description": "Mounts a named Docker volume at the k3s data directory so cluster state persists across AppHost restarts.",
+          "remarks": "The volume covers `/var/lib/rancher/k3s`, which contains the SQLite database,\nTLS certificates, and kubeconfig. Without this volume the cluster starts fresh on\nevery AppHost launch. Combine with `ContainerLifetime.Persistent` on the cluster\nresource and its dependent Helm releases to avoid re-installing charts on every start.",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withDataVolume(name?: string): K3sClusterResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "isOptional": true,
+              "description": "Optional volume name. When `null` (the default) a name is generated from the application and resource names."
+            }
+          ],
+          "returnType": "K3sClusterResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "withDisabledComponent",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withDisabledComponent",
+          "qualifiedName": "withDisabledComponent",
+          "description": "Disables a built-in k3s component (`--disable=<component>`).",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withDisabledComponent(component: string): K3sClusterResource",
+          "parameters": [
+            {
+              "name": "component",
+              "type": "string",
+              "description": "The component name to disable. Common values include `traefik`, `servicelb`, `metrics-server`, `coredns`, and `local-storage`. Call this method multiple times to disable more than one component."
+            }
+          ],
+          "returnType": "K3sClusterResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "withExtraArg",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withExtraArg",
+          "qualifiedName": "withExtraArg",
+          "description": "Appends a raw argument to the `k3s server` command line.",
+          "remarks": "Use `WithDisabledComponent` or the dedicated CIDR methods when possible.\nThis method is intended for flags that have no dedicated helper.",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withExtraArg(arg: string): K3sClusterResource",
+          "parameters": [
+            {
+              "name": "arg",
+              "type": "string",
+              "description": "The raw argument to append, e.g. `--write-kubeconfig-mode=644`. Call this method multiple times to append additional arguments."
+            }
+          ],
+          "returnType": "K3sClusterResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "withHelmImage",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withHelmImage",
+          "qualifiedName": "withHelmImage",
+          "description": "Overrides the container image used to run `helm upgrade --install` for all `HelmReleaseResource` children of this cluster.",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withHelmImage(tag?: string, image?: string, registry?: string): K3sClusterResource",
+          "parameters": [
+            {
+              "name": "tag",
+              "type": "string",
+              "isOptional": true,
+              "description": "Image tag, e.g. `3.18.0`. `null` keeps the current value."
+            },
+            {
+              "name": "image",
+              "type": "string",
+              "isOptional": true,
+              "description": "Image name, e.g. `alpine/helm`. `null` keeps the current value."
+            },
+            {
+              "name": "registry",
+              "type": "string",
+              "isOptional": true,
+              "description": "Registry, e.g. `docker.io`. `null` keeps the current value."
+            }
+          ],
+          "returnType": "K3sClusterResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "withK3sVersion",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withK3sVersion",
+          "qualifiedName": "withK3sVersion",
+          "description": "Sets the k3s image version used by the cluster server and all its agent nodes.",
+          "remarks": "All agent nodes are immediately synced to the same tag to prevent version skew\nbeyond the Kubernetes-supported ±1 minor version limit. The image tag is part of\nthe DCP container identity, so synchronisation must happen at configuration time.",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withK3sVersion(tag: string): K3sClusterResource",
+          "parameters": [
+            {
+              "name": "tag",
+              "type": "string",
+              "description": "The k3s container image tag, e.g. `v1.32.3-k3s1`. Must follow the `v{major}.{minor}.{patch}-k3s{n}` format."
+            }
+          ],
+          "returnType": "K3sClusterResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "withKubectlImage",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withKubectlImage",
+          "qualifiedName": "withKubectlImage",
+          "description": "Overrides the container image used to run `kubectl apply` for all `K8sManifestResource` children of this cluster.",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withKubectlImage(tag?: string, image?: string, registry?: string): K3sClusterResource",
+          "parameters": [
+            {
+              "name": "tag",
+              "type": "string",
+              "isOptional": true,
+              "description": "Image tag, e.g. `1.37.0`. `null` keeps the current value."
+            },
+            {
+              "name": "image",
+              "type": "string",
+              "isOptional": true,
+              "description": "Image name, e.g. `alpine/kubectl`. `null` keeps the current value."
+            },
+            {
+              "name": "registry",
+              "type": "string",
+              "isOptional": true,
+              "description": "Registry, e.g. `docker.io`. `null` keeps the current value."
+            }
+          ],
+          "returnType": "K3sClusterResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "withLifetime",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withLifetime",
+          "qualifiedName": "withLifetime",
+          "description": "Sets the container lifetime for the k3s cluster and all its agent nodes.",
+          "remarks": "Agent nodes are propagated immediately because DCP uses\n`ContainerLifetimeAnnotation` to compute container identity. Deferring\npropagation to `BeforeStartEvent` would be too late — DCP determines whether\nto reuse or recreate a persistent container before that event fires, so agents\nwould lose their persistent identity and be recreated as new containers each run.",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withLifetime(lifetime: ContainerLifetime): K3sClusterResource",
+          "parameters": [
+            {
+              "name": "lifetime",
+              "type": "ContainerLifetime",
+              "description": "The container lifetime to apply."
+            }
+          ],
+          "returnType": "K3sClusterResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "withPodSubnet",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withPodSubnet",
+          "qualifiedName": "withPodSubnet",
+          "description": "Sets the CIDR range for pod IP addresses (`--cluster-cidr`).",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withPodSubnet(cidr: string): K3sClusterResource",
+          "parameters": [
+            {
+              "name": "cidr",
+              "type": "string",
+              "description": "The pod subnet in CIDR notation, e.g. `10.42.0.0/16`."
+            }
+          ],
+          "returnType": "K3sClusterResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        },
+        {
+          "name": "withServiceSubnet",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.K3s/withServiceSubnet",
+          "qualifiedName": "withServiceSubnet",
+          "description": "Sets the CIDR range for Service cluster IPs (`--service-cidr`).",
+          "returns": "The same builder, for chaining.",
+          "kind": "Method",
+          "signature": "withServiceSubnet(cidr: string): K3sClusterResource",
+          "parameters": [
+            {
+              "name": "cidr",
+              "type": "string",
+              "description": "The service subnet in CIDR notation, e.g. `10.43.0.0/16`."
+            }
+          ],
+          "returnType": "K3sClusterResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sClusterResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sClusterResource"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "K3sServiceEndpointResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "Represents a Kubernetes Service exposed from a k3s cluster as an Aspire endpoint resource.",
+      "remarks": "An in-process WebSocket port-forward bridges the cluster service to a host port when the\ncluster is ready. Dependent resources receive the service URL via the standard Aspire\nservice-discovery environment variable `services__{name}__url`:\n-\n-\nUse `WaitFor(endpoint)` on dependent resources to ensure the port-forward is active\nbefore they start.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IExpressionValue",
+        "Aspire.Hosting.ApplicationModel.IManifestExpressionProvider",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.ApplicationModel.K3sClusterResource]]",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.ApplicationModel.IValueProvider",
+        "Aspire.Hosting.ApplicationModel.IValueWithReferences"
+      ],
+      "capabilities": [
+        {
+          "name": "connectionStringEnvironmentVariable",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.connectionStringEnvironmentVariable",
+          "qualifiedName": "K3sServiceEndpointResource.connectionStringEnvironmentVariable",
+          "description": "The environment variable name used to inject the service URL into dependents (`services__{name}__url`), following the Aspire service-discovery convention.",
+          "kind": "PropertyGetter",
+          "signature": "connectionStringEnvironmentVariable(): string",
+          "parameters": [],
+          "returnType": "string",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+          ]
+        },
+        {
+          "name": "connectionStringExpression",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.connectionStringExpression",
+          "qualifiedName": "K3sServiceEndpointResource.connectionStringExpression",
+          "description": "Gets the manifest expression for the service URL. Resolves to `http(s)://localhost:{hostPort}` when the endpoint is ready.",
+          "kind": "PropertyGetter",
+          "signature": "connectionStringExpression(): ReferenceExpression",
+          "parameters": [],
+          "returnType": "ReferenceExpression",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+          ]
+        },
+        {
+          "name": "hostPort",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.hostPort",
+          "qualifiedName": "K3sServiceEndpointResource.hostPort",
+          "description": "Gets the host port bound by the port-forward listener.",
+          "remarks": "Zero until the resource transitions to `Running`. Use `WaitFor(endpoint)`\nto ensure this is populated before reading it from a dependent resource.",
+          "kind": "PropertyGetter",
+          "signature": "hostPort(): number",
+          "parameters": [],
+          "returnType": "number",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+          ]
+        },
+        {
+          "name": "namespace",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.namespace",
+          "qualifiedName": "K3sServiceEndpointResource.namespace",
+          "description": "Gets the Kubernetes namespace that contains the Service.",
+          "kind": "PropertyGetter",
+          "signature": "namespace(): string",
+          "parameters": [],
+          "returnType": "string",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+          ]
+        },
+        {
+          "name": "parent",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.parent",
+          "qualifiedName": "K3sServiceEndpointResource.parent",
+          "description": "Gets the Parent property",
+          "kind": "PropertyGetter",
+          "signature": "parent(): K3sClusterResource",
+          "parameters": [],
+          "returnType": "K3sClusterResource",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+          ]
+        },
+        {
+          "name": "serviceName",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.serviceName",
+          "qualifiedName": "K3sServiceEndpointResource.serviceName",
+          "description": "Gets the name of the Kubernetes Service being forwarded.",
+          "kind": "PropertyGetter",
+          "signature": "serviceName(): string",
+          "parameters": [],
+          "returnType": "string",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+          ]
+        },
+        {
+          "name": "servicePort",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.servicePort",
+          "qualifiedName": "K3sServiceEndpointResource.servicePort",
+          "description": "Gets the port number declared on the Kubernetes Service.",
+          "kind": "PropertyGetter",
+          "signature": "servicePort(): number",
+          "parameters": [],
+          "returnType": "number",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+          ]
+        },
+        {
+          "name": "setHostPort",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K3sServiceEndpointResource.setHostPort",
+          "qualifiedName": "K3sServiceEndpointResource.setHostPort",
+          "description": "Gets the host port bound by the port-forward listener.",
+          "remarks": "Zero until the resource transitions to `Running`. Use `WaitFor(endpoint)`\nto ensure this is populated before reading it from a dependent resource.",
+          "kind": "PropertySetter",
+          "signature": "setHostPort(value: number): K3sServiceEndpointResource",
+          "parameters": [
+            {
+              "name": "value",
+              "type": "number"
+            }
+          ],
+          "returnType": "K3sServiceEndpointResource",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "K8sManifestResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.K8sManifestResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "Represents a Kubernetes manifest (or Kustomize overlay) applied to the parent k3s cluster.",
+      "remarks": "The resource runs as an `alpine/kubectl` container. It polls until the cluster\nkubeconfig is available, then applies the manifests with `kubectl apply --server-side`\nand waits for any CRDs to reach the `Established` condition before exiting with code 0.\nUse `WaitForCompletion(manifest)` on resources that depend on these manifests being applied.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.ApplicationModel.K3sClusterResource]]",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport"
+      ],
+      "capabilities": [
+        {
+          "name": "parent",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K8sManifestResource.parent",
+          "qualifiedName": "K8sManifestResource.parent",
+          "description": "Gets the Parent property",
+          "kind": "PropertyGetter",
+          "signature": "parent(): K3sClusterResource",
+          "parameters": [],
+          "returnType": "K3sClusterResource",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K8sManifestResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K8sManifestResource"
+          ]
+        },
+        {
+          "name": "path",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/K8sManifestResource.path",
+          "qualifiedName": "K8sManifestResource.path",
+          "description": "Gets the absolute host path to the YAML file, plain directory, or Kustomize directory that contains the manifests to apply.",
+          "kind": "PropertyGetter",
+          "signature": "path(): string",
+          "parameters": [],
+          "returnType": "string",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.K3s/Aspire.Hosting.ApplicationModel.K8sManifestResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.K8sManifestResource"
+          ]
+        }
+      ]
+    }
+  ],
+  "dtoTypes": [],
+  "enumTypes": []
+}

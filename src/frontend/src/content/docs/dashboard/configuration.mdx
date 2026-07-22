@@ -27,7 +27,7 @@ How you configure the dashboard depends on whether it's started by the Aspire Ap
 
 The AppHost automatically configures the dashboard, but you can override values if needed. The recommended way to configure the dashboard from the Aspire AppHost is by adding environment variables to the _launchSettings.json_ file.
 
-```json title="JSON — launchSettings.json" {14}
+```json title="launchSettings.json" {14}
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
@@ -58,7 +58,32 @@ There are many ways to provide configuration:
 - Environment variables. The `:` delimiter should be replaced with double underscore (`__`) in environment variable names.
 - Optional JSON configuration file. The `ASPIRE_DASHBOARD_CONFIG_FILE_PATH` setting can be used to specify a JSON configuration file.
 
-Consider the following example, which shows how to configure the dashboard when started from a Docker container:
+When running the dashboard with the Aspire CLI, pass dashboard configuration as additional arguments:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash title="Aspire CLI"
+aspire dashboard run \
+    --Dashboard:TelemetryLimits:MaxLogCount=1000 \
+    --Dashboard:TelemetryLimits:MaxTraceCount=1000 \
+    --Dashboard:TelemetryLimits:MaxMetricsCount=1000
+```
+
+</div>
+<div slot="windows">
+
+```powershell title="Aspire CLI"
+aspire dashboard run `
+    --Dashboard:TelemetryLimits:MaxLogCount=1000 `
+    --Dashboard:TelemetryLimits:MaxTraceCount=1000 `
+    --Dashboard:TelemetryLimits:MaxMetricsCount=1000
+```
+
+</div>
+</OsAwareTabs>
+
+If you're running the standalone dashboard as a container image, configure the same values with environment variables:
 
 <OsAwareTabs syncKey="terminal">
 <div slot="unix">
@@ -87,7 +112,7 @@ docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-
 
 Alternatively, these same values could be configured using a JSON configuration file that is specified using `ASPIRE_DASHBOARD_CONFIG_FILE_PATH`:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Dashboard": {
     "TelemetryLimits": {
@@ -172,7 +197,7 @@ When using client certificate authentication you can optionally configure an exp
 
 The following example shows how to configure allowed certificates using JSON configuration:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Dashboard": {
     "Otlp": {
@@ -202,7 +227,7 @@ Cross-origin resource sharing (CORS) can be configured to allow browser apps to 
 
 By default, browser apps are restricted from making cross domain API calls. This impacts sending telemetry to the dashboard because the dashboard and the browser app are always on different domains. To configure CORS, use the `Dashboard:Otlp:Cors` section and specify the allowed origins and headers:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Dashboard": {
     "Otlp": {

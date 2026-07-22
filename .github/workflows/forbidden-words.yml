@@ -1,0 +1,91 @@
+name: Forbidden Words
+
+on:
+  pull_request:
+    branches: [main, release/*]
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: "Base SHA to diff from (defaults to origin/<default branch>)"
+        required: false
+      head_sha:
+        description: "Head SHA to diff to (defaults to HEAD)"
+        required: false
+
+# Group by PR so new commits cancel the in-flight run for the same PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  forbidden-words:
+    name: Check forbidden words
+    runs-on: ubuntu-latest
+    env:
+      # Directory where findings are written for the suggestion workflow.
+      FINDINGS_DIR: forbidden-words-out
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Resolve base and head SHAs
+        id: shas
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          INPUT_BASE_SHA: ${{ github.event.inputs.base_sha }}
+          INPUT_HEAD_SHA: ${{ github.event.inputs.head_sha }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base="$PR_BASE_SHA"
+            head="$PR_HEAD_SHA"
+          else
+            base="$INPUT_BASE_SHA"
+            head="${INPUT_HEAD_SHA:-$(git rev-parse HEAD)}"
+            if [[ -z "$base" ]]; then
+              git fetch origin "${GITHUB_REF_NAME}" || true
+              base="$(git rev-parse "origin/${GITHUB_REF_NAME}" 2>/dev/null || git rev-parse HEAD~1)"
+            else
+              git fetch origin "$base" || true
+            fi
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+
+      # Scan runs with continue-on-error so we can still publish findings (for the
+      # suggestion workflow) before the gate step fails the check.
+      - name: Scan added lines for forbidden words
+        id: scan
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "$FINDINGS_DIR"
+          FINDINGS_FILE="$FINDINGS_DIR/findings.json" \
+            .github/scripts/check-forbidden-words.sh \
+              "${{ steps.shas.outputs.base }}" \
+              "${{ steps.shas.outputs.head }}"
+
+      - name: Upload findings
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: forbidden-words-findings
+          path: ${{ env.FINDINGS_DIR }}
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Fail when forbidden words are found
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ steps.scan.outcome }}" != "success" ]]; then
+            echo "::error::Forbidden words were found in added lines (or the scan failed). See the annotations above; inline suggestions are posted on the pull request where possible."
+            exit 1
+          fi
+          echo "No forbidden phrases found in added lines."
