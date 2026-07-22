@@ -17,6 +17,7 @@ import keycloakIcon from '@assets/icons/keycloak-icon.svg';
   alt="Keycloak logo"
   width={100}
   height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
@@ -63,7 +64,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const keycloak = await builder.addKeycloak("keycloak", 8080);
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
 await apiService.withReference(keycloak);
@@ -131,7 +132,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const keycloak = await builder.addKeycloak("keycloak", 8080);
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withDataVolume();
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
@@ -175,7 +176,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const keycloak = await builder.addKeycloak("keycloak", 8080);
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withDataBindMount("/path/to/keycloak/data");
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
@@ -223,7 +224,11 @@ const builder = await createBuilder();
 const username = await builder.addParameter("username");
 const password = await builder.addParameter("password", { secret: true });
 
-const keycloak = await builder.addKeycloak("keycloak", 8080, username, password);
+const keycloak = await builder.addKeycloak("keycloak", {
+  port: 8080,
+  adminUsername: username,
+  adminPassword: password,
+});
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
 await apiService.withReference(keycloak);
@@ -261,7 +266,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const keycloak = await builder.addKeycloak("keycloak", 8080);
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withRealmImport("./Realms");
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
@@ -321,7 +326,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const keycloak = await builder.addKeycloak("keycloak", 8080);
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withDockerfile("./keycloak");
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
@@ -399,7 +404,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const keycloak = await builder.addKeycloak("keycloak", 8080);
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withOtlpExporter();
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
@@ -412,6 +417,54 @@ await builder.build().run();
 </Tabs>
 
 This enables Keycloak to send traces, metrics, and logs to the Aspire dashboard, providing better observability for your authentication flows.
+
+### Use PostgreSQL with the Community Toolkit extension
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+The [📦 CommunityToolkit.Aspire.Hosting.Keycloak.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Keycloak.Extensions) package decorates the official `KeycloakResource` with `WithPostgres` / `withPostgres`. It configures Keycloak to use an official `PostgresDatabaseResource`, supplies the JDBC URL and credentials, and makes Keycloak wait for the database.
+
+<InstallPackage
+  packageName="CommunityToolkit.Aspire.Hosting.Keycloak.Extensions"
+  prerelease={true}
+/>
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("keycloak-postgres");
+var database = postgres.AddDatabase("keycloakdb");
+
+var keycloak = builder.AddKeycloak("keycloak", 8080)
+    .WithPostgres(database);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('keycloak-postgres');
+const database = await postgres.addDatabase('keycloakdb');
+
+const keycloak = await builder.addKeycloak('keycloak', { port: 8080 });
+await keycloak.withPostgres(database);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+By default, `WithPostgres` uses the PostgreSQL server's username and password parameters. Its optional arguments let you supply different `username` and `password` parameter resources and set `xaEnabled` when Keycloak needs XA transactions.
 
 ### Hosting integration health checks
 
@@ -507,9 +560,34 @@ builder.Services.AddAuthentication()
 
 For production deployments, consider using connection strings:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 builder.AddConnectionString("keycloak", "https://your-keycloak-server.com");
+
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addConnectionString('keycloak', {
+  environmentVariableNameOrExpression: refExpr`https://your-keycloak-server.com`,
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ### Security best practices
 

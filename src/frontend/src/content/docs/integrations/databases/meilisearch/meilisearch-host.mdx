@@ -16,6 +16,7 @@ import meilisearchIcon from '@assets/icons/meilisearch-icon.png';
   alt="Meilisearch logo"
   width={100}
   height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
@@ -77,6 +78,9 @@ This updates your `aspire.config.json` with the Meilisearch hosting integration 
 
 Once you've installed the hosting integration in your AppHost project, you can add a Meilisearch resource as shown in the following example:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -85,12 +89,27 @@ var meilisearch = builder.AddMeilisearch("meilisearch");
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(meilisearch);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-<Aside type="note">
-  TypeScript AppHost support for the Meilisearch Community Toolkit integration is not yet available. Use the C# AppHost to model Meilisearch resources. Connection information is still injected as environment variables for consuming apps in any language — see [Connect to Meilisearch](../meilisearch-connect/).
-</Aside>
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const meilisearch = await builder.addMeilisearch("meilisearch");
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(meilisearch);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <Steps>
 
@@ -110,6 +129,9 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 To add a data volume to the Meilisearch resource, call the `WithDataVolume` method:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -119,14 +141,37 @@ var meilisearch = builder.AddMeilisearch("meilisearch")
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(meilisearch);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const meilisearch = await builder.addMeilisearch("meilisearch");
+await meilisearch.withDataVolume();
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(meilisearch);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The data volume is used to persist Meilisearch data outside the lifecycle of its container. The data volume is mounted at the `/meili_data` path in the Meilisearch container. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-meilisearch-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 ## Add Meilisearch resource with data bind mount
 
 To add a data bind mount to the Meilisearch resource, call the `WithDataBindMount` method:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -137,8 +182,28 @@ var meilisearch = builder.AddMeilisearch("meilisearch")
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(meilisearch);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const meilisearch = await builder.addMeilisearch("meilisearch");
+await meilisearch.withDataBindMount("C:\\Meilisearch\\Data");
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(meilisearch);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <Aside type="note">
     Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
@@ -150,6 +215,9 @@ Data bind mounts rely on the host machine's filesystem to persist Meilisearch da
 
 When you want to explicitly provide the master key used by the container image, you can provide it as a parameter:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -160,8 +228,29 @@ var meilisearch = builder.AddMeilisearch("meilisearch", masterKey);
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(meilisearch);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const masterKey = await builder.addParameter("masterKey", { secret: true });
+
+const meilisearch = await builder.addMeilisearch("meilisearch", { masterKey });
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(meilisearch);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 When no `masterKey` parameter is provided, Aspire generates a strong master key automatically.
 
