@@ -86,31 +86,19 @@ The reporter API provides structured access to progress reporting with the follo
 
 ## Example: Build container images and report progress
 
-To use these APIs, add a `PublishingCallbackAnnotation`, a `DeployingCallbackAnnotation`, or both to a resource in your app model. You can annotate custom (or built-in) resources by adding annotations to the `IResource.Annotations` collection.
+To use these APIs, register pipeline steps with `WithPipelineStepFactory` (resource-level) or `builder.Pipeline.AddStep` (application-level). This lets custom resources participate in publish and deploy flows with explicit step dependencies.
 
 As a developer, you can choose to:
 
-- Use both annotations if your resource needs to do work in both publishing and deployment. For example, build images and generate manifests during publishing, then push images or configure deployment targets during deployment. Publishing always happens before deployment, so you can keep logic for each phase separate.
-- Use only `PublishingCallbackAnnotation` if your resource only needs to do something during publishing. This is common when you just need to build artifacts or images, but don't need to do anything during deployment.
-- Use only `DeployingCallbackAnnotation` if your resource only needs to do something during deployment. This fits cases where you use prebuilt images and just need to deploy or configure them.
+- Register a step that is `requiredBy` `WellKnownPipelineSteps.Publish` when your resource needs custom publishing behavior.
+- Register a step that is `requiredBy` `WellKnownPipelineSteps.Deploy` when your resource needs custom deployment behavior.
+- Register both when your resource performs work in both phases and needs ordering between those steps.
 
-Choose one or more annotations that match your resource's responsibilities to keep your application model clear and maintainable. This separation lets you clearly define logic for each phase, but you can use both the activity reporter and the resource container image builder in either callback as needed.
+For broader pipeline orchestration patterns, see [Deployment pipelines](/deployment/pipelines/). For custom resource authoring basics, see [Create custom resources](/extensibility/custom-resources/).
 
-### Example resource with annotations
+### Example resource with pipeline steps
 
-For example, consider the `ComputeEnvironmentResource` constructor:
-
-```csharp title="ComputeEnvironmentResource.cs"
-public ComputeEnvironmentResource(string name) : base(name)
-{
-    Annotations.Add(new PublishingCallbackAnnotation(PublishAsync));
-    Annotations.Add(new DeployingCallbackAnnotation(DeployAsync));
-}
-```
-
-When instantiated, it defines both a publishing and deploying callback annotation.
-
-Given the example `ComputeEnvironmentResource` type, imagine you have an extension method that you expose so consumers are able to add the compute environment:
+For example, consider an extension method that registers two pipeline steps for a custom `ComputeEnvironmentResource`:
 
 ```csharp title="ComputeEnvironmentResourceExtensions.cs"
 public static class ComputeEnvironmentResourceExtensions
@@ -121,16 +109,33 @@ public static class ComputeEnvironmentResourceExtensions
     {
         var resource = new ComputeEnvironmentResource(name);
 
-        return builder.AddResource(resource);
+        return builder.AddResource(resource)
+            .WithPipelineStepFactory(
+                stepName: $"{name}-build-images",
+                callback: PublishAsync,
+                requiredBy: [WellKnownPipelineSteps.Publish],
+                description: "Build container images and write deployment artifacts.")
+            .WithPipelineStepFactory(
+                stepName: $"{name}-deploy",
+                callback: DeployAsync,
+                dependsOn: [$"{name}-build-images"],
+                requiredBy: [WellKnownPipelineSteps.Deploy],
+                description: "Deploy generated artifacts to the target environment.");
     }
 }
 ```
+
+In the same class, define `PublishAsync` and `DeployAsync` as private static methods that each accept `PipelineStepContext` (shown in the next sections).
+The explicit `dependsOn` relationship ensures the deploy step waits for this resource's image-build step, even when you add other custom publish or deploy steps to the pipeline.
 
 The preceding code:
 
 - Defines an extension method on the `IDistributedApplicationBuilder`.
 - Accepts a `name` for the compute environment resource, protected by the `ResourceNameAttribute`.
-- Instantiates a `ComputeEnvironmentResource` given the `name` and adds it to the `builder`.
+- Instantiates a `ComputeEnvironmentResource` given the `name`.
+- Registers a publish step and a deploy step with explicit dependencies.
+- Adds both steps through `WithPipelineStepFactory`.
+- Uses the validated resource name as the prefix for stable, unambiguous step names.
 
 ### Example AppHost
 
@@ -153,131 +158,93 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 :::note
-Custom resource types and callback-based deployment extensibility aren't yet available in the TypeScript AppHost SDK, so this AppHost example is currently C#-only.
+Custom resource types and custom pipeline-step extensibility aren't yet available in the TypeScript AppHost SDK, so this AppHost example is currently C#-only.
 :::
 </TabItem>
 </Tabs>
 
 The preceding code uses the `AddComputeEnvironment` extension method to add the `ComputeEnvironmentResource` to the application model.
 
-### Publishing callback annotation
+### Publish pipeline step
 
-When you add the `ComputeEnvironmentResource`, it registers a `PublishingCallbackAnnotation`. The callback uses the `PublishAsync` method:
+The publish step callback can build container images and generate deployment artifacts:
 
-```csharp title="ComputeEnvironmentResource.cs"
-private static async Task PublishAsync(PublishingContext context)
+```csharp title="ComputeEnvironmentResourceExtensions.cs"
+private static async Task PublishAsync(PipelineStepContext context)
 {
-    var reporter = context.ActivityReporter;
     var imageBuilder = context.Services.GetRequiredService<IResourceContainerImageBuilder>();
+    var reportingStep = context.ReportingStep;
 
-    // Build container images for all project resources in the application
-    await using (var buildStep = await reporter.CreateStepAsync(
-        "Build container images", context.CancellationToken))
+    var projectResources = context.Model.Resources
+        .OfType<ProjectResource>()
+        .ToList();
+
+    if (projectResources.Count > 0)
     {
-        // Find all resources that need container images
-        var projectResources = context.Model.Resources
-            .OfType<ProjectResource>()
-            .ToList();
+        var buildTask = await reportingStep.CreateTaskAsync(
+            $"Building {projectResources.Count} container image(s)",
+            context.CancellationToken);
 
-        if (projectResources.Count > 0)
+        var buildOptions = new ContainerBuildOptions
         {
-            // Configure how images should be built
-            var buildOptions = new ContainerBuildOptions
-            {
-                ImageFormat = ContainerImageFormat.Oci,
-                TargetPlatform = ContainerTargetPlatform.LinuxAmd64,
-                OutputPath = Path.Combine(context.OutputPath, "images")
-            };
+            ImageFormat = ContainerImageFormat.Oci,
+            TargetPlatform = ContainerTargetPlatform.LinuxAmd64
+        };
 
-            var buildTask = await buildStep.CreateTaskAsync(
-                $"Building {projectResources.Count} container image(s)", context.CancellationToken);
+        await imageBuilder.BuildImagesAsync(projectResources, buildOptions, context.CancellationToken);
 
-            // Build all the container images
-            await imageBuilder.BuildImagesAsync(
-                projectResources, buildOptions, context.CancellationToken);
-
-            await buildTask.SucceedAsync(
-                $"Built {projectResources.Count} image(s) successfully", context.CancellationToken);
-        }
-        else
-        {
-            var skipTask = await buildStep.CreateTaskAsync(
-                "No container images to build", context.CancellationToken);
-
-            await skipTask.SucceedAsync("Skipped - no project resources found", context.CancellationToken);
-        }
-
-        await buildStep.SucceedAsync("Container image build completed", context.CancellationToken);
+        await buildTask.SucceedAsync(
+            $"Built {projectResources.Count} image(s) successfully",
+            context.CancellationToken);
+    }
+    else
+    {
+        var skipTask = await reportingStep.CreateTaskAsync(
+            "No container images to build",
+            context.CancellationToken);
+        await skipTask.SucceedAsync("Skipped - no project resources found", context.CancellationToken);
     }
 
-    // Generate deployment manifests
-    await using (var manifestStep = await reporter.CreateStepAsync(
-        "Generate deployment manifests", context.CancellationToken))
-    {
-        var bicepTask = await manifestStep.CreateTaskAsync(
-            "Write main.bicep", context.CancellationToken);
-
-        // Write file to context.OutputPath …
-        await bicepTask.SucceedAsync(
-            $"main.bicep at {context.OutputPath}", context.CancellationToken);
-
-        await manifestStep.SucceedAsync("Manifests ready", context.CancellationToken);
-    }
-
-    // Complete the publishing operation
-    await reporter.CompletePublishAsync(
-        completionMessage: "Publishing pipeline completed successfully",
-        completionState: CompletionState.Completed,
-        cancellationToken: context.CancellationToken);
+    var manifestTask = await reportingStep.CreateTaskAsync(
+        "Generate deployment manifests",
+        context.CancellationToken);
+    // Write deployment files...
+    await manifestTask.SucceedAsync("Manifests ready", context.CancellationToken);
 }
 ```
 
 The preceding code:
 
-- Implements a publishing pipeline that builds container images and generates deployment manifests.
+- Implements a publish step that builds container images and generates deployment manifests.
 - Uses the `IResourceContainerImageBuilder` API to build container images.
-- Reports progress and completion status using the `PipelineActivityReporter` API.
+- Reports progress with `IReportingStep` tasks from `PipelineStepContext.ReportingStep`.
 
-Your publishing callback might use `IResourceContainerImageBuilder` to build container images, while your deployment callback might use the built images and push them to a registry or deployment target.
+Your publish step might use `IResourceContainerImageBuilder` to build images, while your deploy step might use those artifacts and push them to a registry or target environment.
 
-### Deploying callback annotation
+### Deploy pipeline step
 
-Like the publishing callback, the deploying callback is registered using the `DeployingCallbackAnnotation` and calls the `DeployAsync` method:
+The deploy step callback can apply deployment artifacts and report task-level progress:
 
-```csharp title="ComputeEnvironmentResource.cs"
-private static async Task DeployAsync(DeployingContext context)
+```csharp title="ComputeEnvironmentResourceExtensions.cs"
+private static async Task DeployAsync(PipelineStepContext context)
 {
-    var reporter = context.ActivityReporter;
+    var reportingStep = context.ReportingStep;
 
-    await using (var deployStep = await reporter.CreateStepAsync(
-        "Deploy to target environment", context.CancellationToken))
-    {
-        var applyTask = await deployStep.CreateTaskAsync(
-            "Apply Kubernetes manifests", context.CancellationToken);
+    var applyTask = await reportingStep.CreateTaskAsync(
+        "Apply Kubernetes manifests",
+        context.CancellationToken);
 
-        // Simulate deploying to Kubernetes cluster
-        await Task.Delay(1_000, context.CancellationToken);
+    // Simulate deploying to Kubernetes cluster
+    await Task.Delay(1_000, context.CancellationToken);
 
-        await applyTask.SucceedAsync("All workloads deployed", context.CancellationToken);
-
-        await deployStep.SucceedAsync("Deployment to cluster completed", context.CancellationToken);
-    }
-
-    // Complete the deployment operation
-    await reporter.CompletePublishAsync(
-        completionMessage: "Deployment completed successfully",
-        completionState: CompletionState.Completed,
-        isDeploy: true,
-        cancellationToken: context.CancellationToken);
+    await applyTask.SucceedAsync("All workloads deployed", context.CancellationToken);
 }
 ```
 
 The preceding code:
 
 - Simulates deploying workloads to a Kubernetes cluster.
-- Uses the `PipelineActivityReporter` API to create and manage deployment steps and tasks.
-- Reports progress and marks each deployment phase as completed.
-- Completes the deployment operation with a final status update.
+- Uses `PipelineStepContext.ReportingStep` to create and complete deployment tasks.
 - Handles cancellation through the provided `CancellationToken`.
 
 ## Best practices
@@ -295,7 +262,6 @@ When using these APIs, follow these guidelines:
 
 - Encapsulate long-running logical phases in steps rather than emitting raw tasks.
 - Keep titles concise (under 60 characters) as the CLI truncates longer strings.
-- Call `CompletePublishAsync` exactly once per publishing or deployment operation.
 - Treat warnings as recoverable and allow subsequent steps to proceed.
 - Treat errors as fatal and fail fast with clear diagnostics.
 - Use asynchronous, cancellation-aware operations to avoid blocking event processing.

@@ -117,21 +117,21 @@ aspire exec --start-resource my-worker -- npm run build
 
 #### `aspire deploy`
 
-The `aspire deploy` command supports extensible deployment workflows through the new [`DeployingCallbackAnnotation`](https://aspire.dev/fundamentals/annotations-overview/), enabling custom pre/post-deploy logic and richer integration with external systems during deployment operations.
+The `aspire deploy` command introduced extensible deployment workflows through deployment callback annotations, enabling custom pre/post-deploy logic and richer integration with external systems during deployment operations.
 
 **Key capabilities:**
 
-- **Custom deployment hooks** using `Aspire.Hosting.ApplicationModel.DeployingCallbackAnnotation` to execute custom logic during the `aspire deploy` command
-- **Workflow activity reporting** via the `Aspire.Hosting.Publishing.IPublishingActivityReporter` to support progress notifications and prompting in commmands
-- **Integration with publish** - `aspire deploy` runs `Aspire.Hosting.Publishing.PublishingCallbackAnnotations` to support deploying artifacts emitted by publish steps, if applicable
+- **Custom deployment hooks** to execute custom logic during the `aspire deploy` command
+- **Workflow activity reporting** via the `Aspire.Hosting.Publishing.IPublishingActivityReporter` to support progress notifications and prompting in commands
+- **Integration with publish** - `aspire deploy` can run publish-related callbacks to support deploying artifacts emitted by publish steps, if applicable
 
-The example below demonstrates using the `DeployingCallbackAnnotation` to register custom deployment behavior and showcases [CLI-based prompting](#-enhanced-publish-and-deploy-output) and progress notifications.
+The example below shows the modern pipeline-step approach for custom deployment behavior and showcases [CLI-based prompting](#-enhanced-publish-and-deploy-output) and progress notifications.
 
 ```csharp
 #pragma warning disable ASPIREPUBLISHERS001
 #pragma warning disable ASPIREINTERACTION001
 
-using Aspire.Hosting.Publishing;
+using Aspire.Hosting.Pipelines;
 using Microsoft.Extensions.DependencyInjection;
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -157,8 +157,7 @@ internal static class DataSeedJobBuilderExtensions
         var job = new DataSeedJobResource(name, seedDataPath);
         var resourceBuilder = builder.AddResource(job);
 
-        // Attach a DeployingCallbackAnnotation that will be invoked on `aspire deploy`
-        job.Annotations.Add(new DeployingCallbackAnnotation(async ctx =>
+        resourceBuilder.WithPipelineStepFactory("seed-initial-data", async ctx =>
         {
             CancellationToken ct = ctx.CancellationToken;
 
@@ -178,27 +177,22 @@ internal static class DataSeedJobBuilderExtensions
                 cancellationToken: ct);
 
 
-            // Use the ActivityReporter to report progress on the seeding process
-            var reporter = ctx.ActivityReporter;
-
-            var step = await reporter.CreateStepAsync("Seeding data", ct);
-            var task = await step.CreateTaskAsync($"Loading seed data from {seedDataPath}", ct);
+            // ReportingStep represents the current pipeline step context.
+            var seedTask = await ctx.ReportingStep.CreateTaskAsync($"Loading seed data from {seedDataPath}", ct);
 
             try
             {
                 // Do some work here
                 await Task.Delay(3000);
 
-                await task.SucceedAsync("Seed data loaded", ct);
-                await step.SucceedAsync("Data seeding completed", ct);
+                await seedTask.SucceedAsync("Seed data loaded", ct);
             }
             catch (Exception ex)
             {
-                await task.FailAsync(ex.Message, ct);
-                await step.FailAsync("Data seeding failed", ct);
+                await seedTask.FailAsync(ex.Message, ct);
                 throw;
             }
-        }));
+        }, requiredBy: [WellKnownPipelineSteps.Deploy]);
 
         return resourceBuilder;
     }
@@ -212,7 +206,7 @@ This custom deployment logic executes as follows from the `aspire deploy` comman
 Now, integration owners can create sophisticated `aspire deploy` workflows. This work also provides a foundation for advanced deployment automation scenarios.
 
 <Aside type="note">
-While the `Aspire.Hosting.ApplicationModel.DeployingCallbackAnnotation` API is available in Aspire 9.4, there are currently no built-in resources that natively support deployment callbacks. Built-in resource support for deployment callbacks will be added in the next version of Aspire.
+In Aspire 9.4 this feature was preview-only and built-in resources did not yet natively support deployment callbacks. In current releases, use pipeline steps for custom deployment behavior.
 </Aside>
 
 <Aside type="caution">
