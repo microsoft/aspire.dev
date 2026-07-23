@@ -1,0 +1,215 @@
+---
+title: "What's new in Aspire 13.5"
+description: "Explore Aspire 13.5: Interactive terminal sessions, polyglot IInteractionService, TypeScript AppHost stability, terminal commands with user inputs, custom health checks, distributed tracing improvements, and dashboard enhancements."
+sidebar:
+  label: Aspire 13.5
+  order: 0
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import {
+  Steps,
+  Aside,
+  FileTree,
+  Icon,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+
+Aspire 13.5 is here with focus on **developer experience**, **polyglot feature parity**, and **runtime stability**. This release brings **interactive terminal sessions** via `WithTerminal()`, **IInteractionService available across all polyglot AppHosts** (TypeScript, Python, Go, Java, and Rust), **user-defined arguments in resource commands** for interactive workflows, **TypeScript AppHost startup optimizations** and **stability fixes**, **custom health checks for TypeScript AppHosts**, **container file copying** in polyglot AppHosts, **promoted IInteractionService to stable**, a major **Foundry integration update** to use the CLI-based lifecycle, **distributed trace improvements** including timestamp filtering, **dashboard telemetry enhancements**, new **VS Code extension commands** including opening the Dashboard in a side panel, **Bun debugging support**, **resource command visibility** in the extension tree, **Aspire CLI available via npm**, and many more improvements and bug fixes across AppHost, CLI, Dashboard, and Extensions.
+
+We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and the community, or file feedback and issues on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/microsoft/aspire/issues).
+
+This release introduces:
+
+- **Interactive terminal sessions** with `WithTerminal()` on AppHost resources enable live REPL and shell interaction through the Dashboard and CLI.
+- **Polyglot IInteractionService parity** brings prompts, message boxes, notifications, and dynamic inputs to TypeScript, Python, Go, Java, and Rust AppHosts alongside C#.
+- **User-defined resource command arguments** let Dashboard and CLI prompt for input before invoking commands like custom deploy or setup workflows.
+- **TypeScript AppHost stability improvements** fix deadlocks, optimize startup by racing connection attempts against process exit, and validate compilation before execution.
+- **Custom health checks in TypeScript AppHosts** enable resource-specific health monitoring in polyglot environments.
+- **Container file copying in TypeScript AppHosts** brings parity with C# for copying host files into containers with ownership and permission controls.
+- **IInteractionService promoted to stable** removes the ASPIREINTERACTION001 diagnostic requirement from production code.
+- **CLI available via npm** (@microsoft/aspire-cli) provides an alternative installation path alongside the default distribution.
+- **Embedded Aspire skills bundle fallback** ensures the CLI can bootstrap even when GitHub release asset acquisition is unavailable.
+- **Faster TypeScript AppHost startup** skips fixed delays and races the connection retry loop, reducing time-to-ready.
+- **Friendly error messages for health check failures** replace raw exception stacks with actionable diagnostics in the Dashboard.
+- **Distributed trace timestamp filtering** enables precise telemetry searches by date and time.
+- **VS Code Dashboard in side panel** lets you monitor your app without leaving VS Code.
+- **Bun debugging support** in VS Code extension via WebKit Inspector Protocol.
+- **Resource commands in VS Code tree view** display all available actions (Start, Stop, custom commands) under each resource.
+- **Improved parameter display** in VS Code shows secret masks, missing value warnings, and consistent formatting across panels.
+- **VS Code extension renamed to "Aspire"** and rebranded for clarity on the Marketplace.
+- **AppHost discovery efficiency** in VS Code respects exclusion settings and debounces file changes to reduce background scanning.
+- **Foundry Local integration CLI update** now uses the foundry CLI for lifecycle management, requiring foundry 1.1.0+.
+- **Proxyless endpoint port allocation** assigns dynamic public host ports before resources are created, so endpoint property references resolve consistently.
+- …and much more.
+
+## 🆙 Upgrade to Aspire 13.5
+
+<span id="upgrade-to-aspire-13-5"></span>
+<br />
+
+<Aside type="note">
+  If you are on a version of the Aspire CLI less than 13, please use the
+  [installation instructions](/get-started/install-cli/) to install the latest
+  stable version.
+</Aside>
+
+For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
+
+The easiest way to upgrade to Aspire 13.5 is using the [`aspire update` command](/reference/cli/commands/aspire-update/):
+
+<Steps>
+
+1. Update the Aspire CLI itself:
+
+   ```bash title="Aspire CLI — Update the CLI"
+   aspire update --self
+   ```
+
+1. Update your projects (run from the root of your repository):
+
+   ```bash title="Aspire CLI — Update all Aspire packages"
+   aspire update
+   ```
+
+</Steps>
+
+Or install the CLI from scratch:
+
+<OsAwareTabs syncKey="terminal">
+  <Fragment slot="unix">
+
+    ```bash title="Aspire CLI — Install Aspire CLI"
+    curl -sSL https://aspire.dev/install.sh | bash
+    ```
+
+  </Fragment>
+  <Fragment slot="windows">
+
+    ```powershell title="Aspire CLI — Install Aspire CLI"
+    irm https://aspire.dev/install.ps1 | iex
+    ```
+
+  </Fragment>
+</OsAwareTabs>
+
+<LearnMore>
+  For more details on installing the Aspire CLI, see [Install the CLI](/get-started/install-cli/).
+</LearnMore>
+
+## 🖥️ Interactive terminal sessions with WithTerminal()
+
+AppHost authors can now call `WithTerminal()` on a resource to enable interactive terminal sessions. The Dashboard and CLI can attach to and detach from the session at will, enabling live use of REPLs, shells, and other terminal programs running as Aspire resources. This is particularly powerful for resource orchestration workflows where you need to interact with services in real-time.
+
+<LearnMore>
+  For details, see [WithTerminal() interactive terminal sessions](/app-host/with-terminal/).
+</LearnMore>
+
+## 🌐 IInteractionService available across polyglot AppHosts
+
+IInteractionService and all related interaction types (prompts, message boxes, notifications, dynamic inputs) are now available in **polyglot AppHosts** written in TypeScript, Python, Go, Java, and Rust—providing feature parity with C# AppHosts. This enables rich user interaction patterns across all supported languages.
+
+<LearnMore>
+  For TypeScript examples, see [IInteractionService](/extensibility/interaction-service/).
+</LearnMore>
+
+## 🆙 IInteractionService promoted to stable
+
+The `IInteractionService` API is no longer marked experimental. The `ASPIREINTERACTION001` diagnostic has been removed, so you can use interaction features without compiler suppressions in production code.
+
+## ⚙️ Resource commands with user-defined arguments
+
+HTTP resource commands now support named arguments, allowing the Dashboard and CLI to prompt for user input before invoking them. TypeScript AppHosts achieve full parity through Aspire Type System (ATS) exports. This enables interactive workflows such as custom deployment or setup procedures.
+
+## 💚 Custom health checks for TypeScript AppHosts
+
+TypeScript AppHosts can now register custom health check callbacks using `builder.addHealthCheck()` and attach them to resources. Project resources also gain `withEndpointsInEnvironment()` to control which endpoints are injected into environment variables.
+
+## 🐳 TypeScript AppHosts support container file copying
+
+TypeScript AppHosts can now export `withContainerFiles` to copy host files into container resources, with full support for owner, group, and umask options—achieving parity with C# AppHosts.
+
+## ⚡ Faster TypeScript AppHost startup
+
+TypeScript AppHost startup no longer waits a fixed delay before the CLI attempts to connect. The CLI now races the RPC connection retry loop against process exit, reducing the time from `aspire run` to an active AppHost.
+
+## 🔧 TypeScript AppHost fixes
+
+- Fixed a deadlock in TypeScript AppHosts where async callbacks stored in `IOptions.Configure` were invoked during `BeforeStartEvent`.
+- Fixed a startup reliability issue with `WithBrowserLogs()` where tracked browser sessions could fail even when the browser eventually became responsive. The CDP startup command timeout has been increased.
+- Fixed failures when proxyless container endpoint references were accessed before container creation.
+- Fixed `aspire run` failing for polyglot AppHosts using `*.dev.localhost` resource service URLs.
+
+## 📦 Aspire CLI available via npm
+
+The Aspire CLI is now available as an npm package (`@microsoft/aspire-cli`), providing an alternative installation method alongside the standard distribution. The update command and update notifier now detect and handle npm-installed versions.
+
+## 💬 CLI improvements and diagnostics
+
+- **OS information in `aspire doctor`**: The `aspire doctor` command now reports operating system details in its Environment section. Human-readable output shows the OS type and version; on Linux it includes distro details from `/etc/os-release`. JSON output adds a structured `operating-system` check with `osType`, `displayName`, `version`, and `description` metadata fields for tooling.
+- **Embedded Aspire skills bundle fallback**: When GitHub release asset acquisition is unavailable, the CLI uses the embedded bundle and shows a non-fatal warning instead of failing the entire command.
+- **Faster stale backchannel socket cleanup**: Stale AppHost backchannel socket files no longer block CLI commands like `aspire add`. The CLI automatically prunes orphaned sockets before probing.
+- **Better TypeScript AppHost error messages**: When AppHost code generation fails due to version mismatches, the CLI provides enriched diagnostic output to help identify the cause.
+- **Improved aspire agent init output**: The command now collects updated skill/location pairs and prints one compact summary instead of repeating success for every skill.
+- **Improved aspire ls discovery**: Fixed multiple bugs in the settings discovery pipeline including settings.json compatibility and aspire.config.json handling.
+- **TypeScript AppHosts honor --no-build**: TypeScript AppHosts now correctly skip the TypeScript compilation check when the --no-build flag is passed.
+- **CLI shutdown responsiveness**: Multiple improvements to Ctrl+C/SIGTERM handling, including faster signal responsiveness during AppHost startup.
+
+## 📊 Dashboard and telemetry improvements
+
+- **Timestamp filter for telemetry**: Filter logs and traces by timestamp using a dedicated search qualifier in the Dashboard filter dialog.
+- **Numeric equality operators**: The telemetry filter dialog now includes `==` and `!=` operators for exact numeric value matching.
+- **Rich text visualizer improvements**: The TextVisualizerDialog now disables markdown formatting for JSON and XML content.
+- **Dashboard startup log formatting**: Improved output with indented URLs, separated container access warnings, and restored legacy login URL for `dotnet watch` integration.
+- **Friendly health check error messages**: Health check failures now display concise, actionable messages instead of raw exception stacks.
+- **Fixed telemetry streaming with resource filters**: Streams now wait for resources to appear before returning empty results.
+- **Fixed duplicate replica display names**: Dashboard now uses the last 8 characters of the service.instance.id GUID to prevent collisions.
+
+## 🧩 VS Code extension enhancements
+
+- **Open Aspire Dashboard in side panel**: A new command lets you open the Dashboard in a side-by-side panel instead of an external browser.
+- **Bun debugging support**: VS Code extension now supports debugging Bun applications via the WebKit Inspector Protocol.
+- **Resource commands in tree view**: Resource commands (Start, Stop, custom commands) are displayed as child items under each resource.
+- **VS Code extension telemetry**: The extension now collects activation, debug session, and dashboard interaction signals for product improvement.
+- **Support launchUrl in launchSettings.json**: The extension respects the `launchUrl` property as the serverReadyAction URI format.
+- **Show discovered AppHosts in Aspire pane**: Idle AppHosts discovered via `aspire ls` now display in the VS Code Aspire pane with context menu actions.
+- **Security hardening**: Terminal commands now use structured shell arguments to prevent command injection via malicious paths or resource names.
+- **Parameter display improvements**: Consistent display across panels with secret masks, missing value warnings, and 80-character truncation for non-secrets.
+- **VS Code extension branding**: Rebranded to "Aspire" with an updated icon and display name.
+- **AppHost discovery efficiency**: Respects workspace exclusion settings, debounces file changes, and avoids overlapping discovery runs.
+
+## 🔌 Integration improvements
+
+- **Foundry Local CLI update**: The Foundry Local integration now uses the installed foundry CLI for lifecycle management instead of internal SDK APIs, requiring foundry CLI 1.1.0+.
+- **DevTunnel region configuration**: Added a `Region` property to `DevTunnelOptions` for specifying the tunnel creation region.
+- **Blazor gateway Docker Compose support**: Added Docker Compose publish support for Blazor gateway resources.
+- **Redis TLS deadlock fix**: Fixed a deadlock during Redis container startup when TLS was enabled with persistent lifetime.
+
+## Breaking changes
+
+The following breaking changes are included in Aspire 13.5:
+
+1. **ServiceProvider renamed to Services**: The `ServiceProvider` property on context types is now obsolete and replaced with `Services`. The old property still works but generates a compiler warning. Update your code to use the new property name.
+
+2. **PublishAsConnectionString marked obsolete**: The `PublishAsConnectionString` extension methods are now obsolete. Callers should switch to `AddConnectionString` in publish-mode app model code.
+
+3. **aspire ps --resources flag removed**: The `--resources` and `--include-hidden` flags have been removed from `aspire ps`, which now focuses on AppHost-level summaries. Use `aspire describe` for detailed resource data.
+
+4. **GitHub Models integration deprecated**: The GitHub Models service is no longer available to new customers, so the `Aspire.Hosting.GitHub.Models` integration is sunset as of Aspire 13.5. All public APIs are marked `[Obsolete]`, and the package no longer appears in `aspire add` output. One final obsolete release will ship on NuGet, and the package will be removed entirely in a future version. Migrate to the [Azure AI Foundry integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/) instead. See [microsoft/aspire#18402](https://github.com/microsoft/aspire/issues/18402) for details.
+
+5. **Proxyless endpoint port allocation timing changed**: Proxyless endpoints without an explicit public `port` now receive one during service preparation, before workload resources are created. Executable proxyless endpoints that previously failed without a public port, and container proxyless endpoints that expected the public port to be assigned later during container startup, should expect Aspire to assign the port earlier. The default allocation range is `10000-32767` and can be overridden with `ASPIRE_PROXYLESS_ENDPOINT_PORT_RANGE=start-end`. Persistent resources reuse allocated ports from user secrets when available.
+
+6. **Go polyglot SDK: single optional `options` DTO is now passed directly**: When a C# exported API has exactly one optional parameter that is a DTO named `options` (with no coexisting cancellation token or callback), the Go polyglot code generator now passes the DTO type directly as a variadic parameter instead of wrapping it in a generated method-options struct. Go AppHosts that used the wrapper-struct form must update their call sites after regenerating the SDK.
+
+<Aside type="caution" title="Review deprecated APIs">
+  Review your code for uses of `ServiceProvider` on hosting context types and `PublishAsConnectionString` extension methods. These will generate compiler warnings in Aspire 13.5 and may become harder errors in future releases. If you use the `Aspire.Hosting.GitHub.Models` integration, plan to migrate off it before the package is removed.
+</Aside>
+
+## Known issues
+
+No Aspire 13.5 known issues are documented yet. If you discover an issue, please [report it on GitHub](https://github.com/microsoft/aspire/issues).

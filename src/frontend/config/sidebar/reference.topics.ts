@@ -539,6 +539,24 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             },
             { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
             {
+              label: 'aspire terminal',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire terminal',
+                  slug: 'reference/cli/commands/aspire-terminal',
+                },
+                {
+                  label: 'aspire terminal attach',
+                  slug: 'reference/cli/commands/aspire-terminal-attach',
+                },
+                {
+                  label: 'aspire terminal ps',
+                  slug: 'reference/cli/commands/aspire-terminal-ps',
+                },
+              ],
+            },
+            {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',
             },
