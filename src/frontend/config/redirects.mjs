@@ -204,6 +204,7 @@ export const redirects = {
   '/reference/cli/commands/aspire-mcp-init/': '/reference/cli/commands/aspire-agent-init/',
   '/reference/cli/commands/aspire-mcp-start/': '/reference/cli/commands/aspire-agent-mcp/',
   '/reference/cli/commands/aspire-exec/': '/reference/cli/commands/aspire-resource/',
+  '/reference/cli/commands/aspire-otel-traces/': '/reference/cli/commands/aspire-otel-trace/',
   '/reference/cli/install/': '/get-started/install-cli/',
   '/get-started/configure-mcp/': '/get-started/ai-coding-agents/',
   '/get-started/first-app-csharp-apphost/': '/get-started/first-app/',
