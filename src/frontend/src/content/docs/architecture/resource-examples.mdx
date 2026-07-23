@@ -44,20 +44,21 @@ public static class RedisResourceExtensions
         // Variable to hold the resolved connection string at runtime.
         string? connectionString = null;
 
-        // 4. Subscribe to ConnectionStringAvailableEvent to capture the connection string at runtime
+        // 4. Use OnConnectionStringAvailable to capture the connection string at runtime.
         // This event hook allows capturing the connection string *after* it has been resolved
         // by the Aspire runtime, including potentially allocated ports and resolved parameter values.
-        builder.Eventing.Subscribe<ConnectionStringAvailableEvent>(redis, async (@event, ct) =>
-        {
-            // Resolve the connection string using the resource's method.
-            connectionString = await redis.GetConnectionStringAsync(ct).ConfigureAwait(false);
-            // Ensure the connection string was actually resolved.
-            if (connectionString == null)
+        var redisBuilder = builder.AddResource(redis)
+            .OnConnectionStringAvailable(async (resource, @event, ct) =>
             {
-                throw new DistributedApplicationException(
-                    $"Connection string for '{redis.Name}' was unexpectedly null.");
-            }
-        });
+                // Resolve the connection string using the resource's method.
+                connectionString = await resource.GetConnectionStringAsync(ct).ConfigureAwait(false);
+                // Ensure the connection string was actually resolved.
+                if (connectionString == null)
+                {
+                    throw new DistributedApplicationException(
+                        $"Connection string for '{resource.Name}' was unexpectedly null.");
+                }
+            });
 
         // 5. Register a health check that uses the connection string once it becomes available
         // Define a unique key for the health check.
@@ -73,73 +74,73 @@ public static class RedisResourceExtensions
 
         // 6. Add & configure container using the fluent builder pattern
         // Add the RedisResource instance to the application model.
-        return builder.AddResource(redis)
-                    // 6.a Expose the Redis TCP endpoint
-                    // Map the host port (if provided) to the container's default Redis port (6379).
-                    // Name the endpoint "tcp" for reference.
-                    .WithEndpoint(
-                        port: port,                             // Optional host port.
-                        targetPort: 6379,                       // Default Redis port inside the container.
-                        name: RedisResource.PrimaryEndpointName) // Use the constant defined in RedisResource.
-                    // 6.b Specify container image and tag
-                    // Define the Docker image to use for the Redis container.
-                    .WithImage(RedisContainerImageTags.Image, RedisContainerImageTags.Tag)
-                    // 6.c Configure container registry if needed
-                    // Specify a container registry if the image is not on Docker Hub.
-                    .WithImageRegistry(RedisContainerImageTags.Registry)
-                    // 6.d Wire the health check into the resource
-                    // Associate the previously defined health check with this resource.
-                    // Aspire uses this for dashboard status and orchestration.
-                    .WithHealthCheck(healthCheckKey)
-                    // 6.e Define the container's entrypoint
-                    // Override the default container entrypoint if necessary. Here, it's set to use shell.
-                    .WithEntrypoint("/bin/sh")
-                    // 6.f Pass the password ParameterResource into an environment variable
-                    // Set environment variables for the container. This uses a callback to access
-                    // the resource instance (`redis`) and its properties.
-                    .WithEnvironment(context =>
-                    {
-                        // If a password parameter exists, expose it as the REDIS_PASSWORD environment variable.
-                        // The actual value resolution happens later via the ParameterResource.
-                        if (redis.PasswordParameter is { } pwd)
-                        {
-                            context.EnvironmentVariables["REDIS_PASSWORD"] = pwd;
-                        }
-                    })
-                    // 6.g Build the container arguments lazily, preserving annotations
-                    // Define the command-line arguments for the container. This also uses a callback
-                    // to allow dynamic argument construction based on resource state or annotations.
-                    .WithArgs(context =>
-                    {
-                        // Start with the basic command to run the Redis server.
-                        var cmd = new List<string> { "redis-server" };
+        return redisBuilder
+            // 6.a Expose the Redis TCP endpoint
+            // Map the host port (if provided) to the container's default Redis port (6379).
+            // Name the endpoint "tcp" for reference.
+            .WithEndpoint(
+                port: port,                             // Optional host port.
+                targetPort: 6379,                       // Default Redis port inside the container.
+                name: RedisResource.PrimaryEndpointName) // Use the constant defined in RedisResource.
+            // 6.b Specify container image and tag
+            // Define the Docker image to use for the Redis container.
+            .WithImage(RedisContainerImageTags.Image, RedisContainerImageTags.Tag)
+            // 6.c Configure container registry if needed
+            // Specify a container registry if the image is not on Docker Hub.
+            .WithImageRegistry(RedisContainerImageTags.Registry)
+            // 6.d Wire the health check into the resource
+            // Associate the previously defined health check with this resource.
+            // Aspire uses this for dashboard status and orchestration.
+            .WithHealthCheck(healthCheckKey)
+            // 6.e Define the container's entrypoint
+            // Override the default container entrypoint if necessary. Here, it's set to use shell.
+            .WithEntrypoint("/bin/sh")
+            // 6.f Pass the password ParameterResource into an environment variable
+            // Set environment variables for the container. This uses a callback to access
+            // the resource instance (`redis`) and its properties.
+            .WithEnvironment(context =>
+            {
+                // If a password parameter exists, expose it as the REDIS_PASSWORD environment variable.
+                // The actual value resolution happens later via the ParameterResource.
+                if (redis.PasswordParameter is { } pwd)
+                {
+                    context.EnvironmentVariables["REDIS_PASSWORD"] = pwd;
+                }
+            })
+            // 6.g Build the container arguments lazily, preserving annotations
+            // Define the command-line arguments for the container. This also uses a callback
+            // to allow dynamic argument construction based on resource state or annotations.
+            .WithArgs(context =>
+            {
+                // Start with the basic command to run the Redis server.
+                var cmd = new List<string> { "redis-server" };
 
-                        // If a password parameter is set, add the necessary Redis CLI arguments.
-                        // Note: It uses the environment variable name set earlier ($REDIS_PASSWORD).
-                        if (redis.PasswordParameter is not null)
-                        {
-                            cmd.Add("--requirepass");
-                            cmd.Add("$REDIS_PASSWORD"); // Reference the environment variable.
-                        }
+                // If a password parameter is set, add the necessary Redis CLI arguments.
+                // Note: It uses the environment variable name set earlier ($REDIS_PASSWORD).
+                if (redis.PasswordParameter is not null)
+                {
+                    cmd.Add("--requirepass");
+                    cmd.Add("$REDIS_PASSWORD"); // Reference the environment variable.
+                }
 
-                        // Check if a PersistenceAnnotation has been added to the resource.
-                        // Annotations allow adding optional configuration or behavior.
-                        if (redis.TryGetLastAnnotation<PersistenceAnnotation>(out var pa))
-                        {
-                            // If persistence is configured, add the corresponding Redis CLI arguments.
-                            var interval = (pa.Interval ?? TimeSpan.FromSeconds(60))
-                                .TotalSeconds
-                                .ToString(CultureInfo.InvariantCulture);
-                            cmd.Add("--save");
-                            cmd.Add(interval); // Save interval in seconds.
-                            cmd.Add(pa.KeysChangedThreshold.ToString(CultureInfo.InvariantCulture)); // Number of key changes threshold.
-                        }
+                // Check if a PersistenceAnnotation has been added to the resource.
+                // Annotations allow adding optional configuration or behavior.
+                if (redis.TryGetLastAnnotation<PersistenceAnnotation>(out var pa))
+                {
+                    // If persistence is configured, add the corresponding Redis CLI arguments.
+                    var interval = (pa.Interval ?? TimeSpan.FromSeconds(60))
+                        .TotalSeconds
+                        .ToString(CultureInfo.InvariantCulture);
+                    cmd.Add("--save");
+                    cmd.Add(interval); // Save interval in seconds.
+                    cmd.Add(pa.KeysChangedThreshold.ToString(CultureInfo.InvariantCulture)); // Number of key changes threshold.
+                }
 
-                        // Finalize the arguments for the shell entrypoint.
-                        context.Args.Add("-c"); // Argument for /bin/sh to execute a command string.
-                        context.Args.Add(string.Join(' ', cmd)); // Join all parts into a single command string.
-                        return Task.CompletedTask; // Return a completed task as the callback is synchronous.
-                    });
+                // Finalize the arguments for the shell entrypoint.
+                context.Args.Add("-c"); // Argument for /bin/sh to execute a command string.
+                context.Args.Add(string.Join(' ', cmd)); // Join all parts into a single command string.
+                return Task.CompletedTask; // Return a completed task as the callback is synchronous.
+            });
     }
 }
 ```
