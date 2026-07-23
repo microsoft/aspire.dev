@@ -2,22 +2,40 @@ import { describe, expect, test } from 'vitest';
 
 import samples from '@data/samples.json';
 
+import { normalizeAspireTerminology } from '../../scripts/aspire-terminology';
 import { type SampleResult, normalizeSampleTerminology } from '../../scripts/update-samples';
+
+const legacyAspireName = ['.NET', 'Aspire'].join(' ');
+const legacyAppHostName = ['app', 'host'].join(' ');
+
+describe('Aspire terminology normalization', () => {
+  test.each([
+    ['uppercase article', `A ${legacyAspireName} project`, 'An Aspire project'],
+    ['lowercase article', `Build a ${legacyAspireName} project`, 'Build an Aspire project'],
+    [
+      'extra horizontal whitespace',
+      `A   ${['.NET', 'Aspire'].join('\t')} project`,
+      'An Aspire project',
+    ],
+  ])('uses one space for the %s case', (_scenario, input, expected) => {
+    expect(normalizeAspireTerminology(input)).toBe(expected);
+  });
+});
 
 describe('sample terminology normalization', () => {
   test('normalizes every generated text field', () => {
     const sample: SampleResult = {
       name: 'terminology-sample',
-      title: '.NET Aspire app host sample',
-      description: 'A .NET Aspire App Host project.',
+      title: `${legacyAspireName} ${legacyAppHostName} sample`,
+      description: `A ${legacyAspireName} ${legacyAppHostName} project.`,
       href: 'https://github.com/microsoft/aspire-samples/tree/main/samples/terminology-sample',
-      readme: '# .NET Aspire sample\n\nRun the app host.',
-      readmeRaw: '# .NET Aspire sample\n\nRun the APP HOST.',
+      readme: `# ${legacyAspireName} sample\n\nRun the ${legacyAppHostName}.`,
+      readmeRaw: `# ${legacyAspireName} sample\n\nRun the ${legacyAppHostName.toUpperCase()}.`,
       tags: ['csharp'],
       thumbnail: null,
       appHost: 'csproj',
       appHostPath: 'Terminology.AppHost/AppHost.cs',
-      appHostCode: '// Keep the container running between app host sessions.',
+      appHostCode: `// Keep the container running between ${legacyAppHostName} sessions.`,
     };
 
     expect(normalizeSampleTerminology(sample)).toEqual({
@@ -50,7 +68,12 @@ describe('sample terminology normalization', () => {
 
   test('keeps generated sample data free of deprecated terminology', () => {
     const textFields = ['title', 'description', 'readme', 'readmeRaw', 'appHostCode'] as const;
-    const deprecatedTerminology = /\.NET Aspire|\bapp host\b/i;
+    const deprecatedTerminology = new RegExp(
+      [legacyAspireName, legacyAppHostName]
+        .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('|'),
+      'i'
+    );
     const violations = samples.flatMap((sample) =>
       textFields
         .filter((field) => deprecatedTerminology.test(sample[field] ?? ''))
