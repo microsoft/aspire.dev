@@ -37,6 +37,8 @@ If you're new to Aspire, there's no reason to upgrade anything. See [prerequisit
     - Updates the SDK version and Aspire integration versions for the configured Aspire channel
     - Handles versions declared inline, in `aspire.config.json`, or in supported centralized version files
 
+    `aspire update` analyzes the selected AppHost and the projects referenced by that AppHost. Test projects usually reference the AppHost instead, so update test project package references separately.
+
 </Steps>
 
 <LearnMore>
@@ -70,12 +72,73 @@ Remove the **aspire workload** with the following command:
 dotnet workload uninstall aspire
 ```
 
+## Upgrade test projects
+
+If your solution includes Aspire test projects, update them alongside the AppHost. Aspire test projects usually reference the AppHost and use the [📦 Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing) package.
+
+<Steps>
+
+1. **Update the `Aspire.Hosting.Testing` package** to the same Aspire version and channel as the updated AppHost:
+
+    ```bash title="Update the testing package"
+    dotnet add <your-test-project>.csproj package Aspire.Hosting.Testing --version <Aspire-version>
+    ```
+
+    <Aside type="tip">
+    If you're using Central Package Management (CPM), update the `Aspire.Hosting.Testing` version in your _Directory.Packages.props_ file instead.
+    </Aside>
+
+2. **Remove obsolete `Aspire.Hosting.AppHost` references** from test projects:
+
+    ```xml title="Remove from test project files"
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    ```
+
+    In Aspire 13 and later, the `Aspire.AppHost.Sdk` adds `Aspire.Hosting.AppHost` implicitly for the AppHost project. Test projects should reference `Aspire.Hosting.Testing` and the AppHost project, not `Aspire.Hosting.AppHost` directly. If CPM contains a `PackageVersion` entry for `Aspire.Hosting.AppHost` that was only used by the upgraded AppHost or test projects, remove it too.
+
+3. **Verify the project reference to the AppHost** exists in your test project:
+
+    ```xml title="YourApp.Tests.csproj"
+    <ItemGroup>
+      <ProjectReference Include="..\YourApp.AppHost\YourApp.AppHost.csproj" />
+    </ItemGroup>
+    ```
+
+    This reference lets test code such as `DistributedApplicationTestingBuilder.CreateAsync<Projects.YourApp_AppHost>()` resolve the generated AppHost metadata type.
+
+4. **Run your tests** to verify everything still works:
+
+    ```bash title="Run tests"
+    dotnet test
+    ```
+
+</Steps>
+
+<Aside type="caution" title="Projects namespace not found?">
+If your tests fail to compile with an error that the `Projects` namespace doesn't exist, verify that:
+
+- The AppHost project uses the [`Aspire.AppHost.Sdk`](/get-started/aspire-sdk/) format, for example `<Project Sdk="Aspire.AppHost.Sdk/13.1">`.
+- The test project has a direct `ProjectReference` to the AppHost `.csproj` file.
+- The test project references `Aspire.Hosting.Testing`, not `Aspire.Hosting.AppHost`.
+- `Aspire.Hosting.Testing` is updated to the same Aspire version and channel as the AppHost.
+</Aside>
+
+<LearnMore>
+For more information, see [Testing overview](/testing/overview/).
+</LearnMore>
+
 ## Verify the upgrade
 
 After upgrading, run your application to ensure everything works as expected:
 
 ```bash title="Run the Aspire application"
 aspire run
+```
+
+If your solution includes test projects, also run your tests:
+
+```bash title="Run tests"
+dotnet test
 ```
 
 ## Need help?
