@@ -3,6 +3,9 @@ name: Forbidden Words
 on:
   pull_request:
     branches: [main, release/*]
+    # Re-run for label changes so maintainers can override a false positive
+    # without pushing another commit, and restore enforcement if it is removed.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
     inputs:
       base_sha:
@@ -27,13 +30,30 @@ jobs:
     env:
       # Directory where findings are written for the suggestion workflow.
       FINDINGS_DIR: forbidden-words-out
+      BYPASS_LABEL: ci:skip-forbidden-words
+      BYPASS_FORBIDDEN_WORDS: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:skip-forbidden-words') }}
     steps:
+      - name: Acknowledge bypass label
+        if: ${{ env.BYPASS_FORBIDDEN_WORDS == 'true' }}
+        shell: bash
+        run: |
+          mkdir -p "$FINDINGS_DIR"
+          printf '{"findings":[]}\n' > "$FINDINGS_DIR/findings.json"
+          echo "::notice title=Forbidden-words check bypassed::The $BYPASS_LABEL label is applied to this pull request."
+          {
+            echo "### Forbidden-words check bypassed"
+            echo
+            echo "The \`$BYPASS_LABEL\` label is applied to this pull request."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: ${{ env.BYPASS_FORBIDDEN_WORDS != 'true' }}
         with:
           fetch-depth: 0
 
       - name: Resolve base and head SHAs
         id: shas
+        if: ${{ env.BYPASS_FORBIDDEN_WORDS != 'true' }}
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -62,6 +82,7 @@ jobs:
       # suggestion workflow) before the gate step fails the check.
       - name: Scan added lines for forbidden words
         id: scan
+        if: ${{ env.BYPASS_FORBIDDEN_WORDS != 'true' }}
         continue-on-error: true
         shell: bash
         run: |
@@ -84,6 +105,10 @@ jobs:
         if: always()
         shell: bash
         run: |
+          if [[ "$BYPASS_FORBIDDEN_WORDS" == "true" ]]; then
+            echo "Forbidden-word enforcement was bypassed by the $BYPASS_LABEL label."
+            exit 0
+          fi
           if [[ "${{ steps.scan.outcome }}" != "success" ]]; then
             echo "::error::Forbidden words were found in added lines (or the scan failed). See the annotations above; inline suggestions are posted on the pull request where possible."
             exit 1
