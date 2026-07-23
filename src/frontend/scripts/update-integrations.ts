@@ -8,6 +8,7 @@ import {
   isOfficialAspirePackage,
   resolveOfficialAspirePackageSource,
 } from './aspire-package-source';
+import { normalizeAspireTerminology } from './aspire-terminology';
 
 const OFFICIAL_NUGET_ORG_QUERIES = ['owner:aspire', 'Aspire.Hosting.'];
 const OFFICIAL_RELEASE_FEED_QUERIES = ['Aspire.'];
@@ -285,9 +286,8 @@ function filterAndTransform(pkgs: PackageRecord[]): IntegrationOutput[] {
     })
     .map((pkg) => ({
       title: pkg.id,
-      description: pkg.description
-        ?.replace(/\bA \.NET Aspire\b/gi, 'An Aspire')
-        .replace(/\.NET Aspire/gi, 'Aspire'),
+      description:
+        pkg.description === undefined ? undefined : normalizeAspireTerminology(pkg.description),
       icon: resolveIconUrl(pkg),
       href: `https://www.nuget.org/packages/${pkg.id}`,
       tags: pkg.tags?.map((tag) => tag.toLowerCase()) ?? [],
