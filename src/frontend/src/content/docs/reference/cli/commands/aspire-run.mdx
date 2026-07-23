@@ -5,6 +5,7 @@ description: Learn about the aspire run command, which builds and runs an Aspire
 ---
 
 import Include from '@components/Include.astro';
+import { Steps } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
 
 ## Name
@@ -35,9 +36,21 @@ The command performs the following steps to run an Aspire AppHost:
 
 ## Stopping the AppHost
 
-To stop the running AppHost and exit, press <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> (or send `SIGTERM` on Linux/macOS). The CLI requests a graceful shutdown of the AppHost and its resources. If shutdown takes longer than a moment, a `🛑 Stopping Aspire.` message is displayed shortly after you press <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> to confirm that shutdown is in progress.
+To stop the running AppHost and exit, press <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> (or send `SIGTERM` on Linux/macOS). The shutdown follows a three-step sequence. If shutdown takes longer than a moment, a `🛑 Stopping Aspire.` message is displayed shortly after you press <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> to confirm that shutdown is in progress.
 
-If graceful shutdown is taking too long and you need to exit immediately, press <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> a second time to terminate the process immediately.
+<Steps>
+
+1. **Cooperative cancellation** — The CLI requests that the AppHost stop gracefully.
+2. **Graceful wait** — The CLI waits for the AppHost process to exit cleanly on its own.
+3. **Automatic force-kill** — If the AppHost does not exit within the graceful timeout, the CLI terminates the process automatically.
+
+</Steps>
+
+If graceful shutdown is taking too long and you need to exit immediately, press <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> a second time. This collapses the graceful window and starts the force-kill sequence immediately.
+
+:::note
+On Windows, TypeScript/JavaScript AppHosts started with `tsx` or `npm` run in an isolated console session so that the Ctrl+C signal is delivered correctly to the Node.js process rather than to an unrelated foreground window.
+:::
 
 ## Hot Reload and watch behavior
 
