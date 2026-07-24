@@ -2005,7 +2005,7 @@ export interface IExpressionValue {
 
 export interface InitializeResourceEvent extends IDistributedApplicationEvent, IDistributedApplicationResourceEvent {
   /**
-   * The `IDistributedApplicationEventing` service for the AppHost.
+   * The `IDistributedApplicationEventing` service for the app host.
    */
 
   eventing: PropertyAccessor<IDistributedApplicationEventing>;
@@ -2015,7 +2015,7 @@ export interface InitializeResourceEvent extends IDistributedApplicationEvent, I
 
   logger: PropertyAccessor<ILogger>;
   /**
-   * The `ResourceNotificationService` for the AppHost.
+   * The `ResourceNotificationService` for the app host.
    */
 
   notifications: PropertyAccessor<ResourceNotificationService>;
@@ -2025,7 +2025,7 @@ export interface InitializeResourceEvent extends IDistributedApplicationEvent, I
 
   resource: PropertyAccessor<IResource>;
   /**
-   * The `IServiceProvider` for the AppHost.
+   * The `IServiceProvider` for the app host.
    */
 
   services: PropertyAccessor<IServiceProvider>;
@@ -2533,7 +2533,7 @@ export interface LogFacade {
 
 export interface ParameterResource extends IExpressionValue, IManifestExpressionProvider, IResource, IValueProvider {
   /**
-   * Sets a custom input for the parameter resource from a polyglot AppHost.
+   * Sets a custom input for the parameter resource from a polyglot app host.
    */
 
   withCustomInput(options: ParameterCustomInputOptions): this;
@@ -2954,12 +2954,12 @@ export interface IDistributedApplicationResourceEvent {
 
 export interface ExternalServiceResource extends IResource {
   /**
-   * Adds an HTTP health check to the external service for polyglot AppHosts.
+   * Adds an HTTP health check to the external service for polyglot app hosts.
    */
 
   withHttpHealthCheck(options?: { path?: string; statusCode?: number; endpointName?: string }): this;
   /**
-   * Adds an HTTP health check to the external service for polyglot AppHosts.
+   * Adds an HTTP health check to the external service for polyglot app hosts.
    */
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
@@ -3101,7 +3101,7 @@ export interface IDistributedApplicationBuilder {
 
   getConfiguration(): IConfiguration;
   /**
-   * Directory of the project where the AppHost is located. Defaults to the content root if there's no project.
+   * Directory of the project where the app host is located. Defaults to the content root if there's no project.
    */
 
   appHostDirectory: PropertyAccessor<string>;
@@ -3598,7 +3598,7 @@ export interface AfterPublishEvent extends IDistributedApplicationEvent {
 
   model: PropertyAccessor<DistributedApplicationModel>;
   /**
-   * The `IServiceProvider` for the AppHost.
+   * The `IServiceProvider` for the app host.
    */
 
   services: PropertyAccessor<IServiceProvider>;
@@ -3615,7 +3615,7 @@ export interface BeforePublishEvent extends IDistributedApplicationEvent {
 
   model: PropertyAccessor<DistributedApplicationModel>;
   /**
-   * The `IServiceProvider` for the AppHost.
+   * The `IServiceProvider` for the app host.
    */
 
   services: PropertyAccessor<IServiceProvider>;
@@ -6920,12 +6920,12 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
 
   withMigrationOutputDirectory(outputDirectory: string): this;
   /**
-   * Configures a separate project containing migrations for polyglot AppHosts.
+   * Configures a separate project containing migrations for polyglot app hosts.
    */
 
   withMigrationsProject(options?: { migrationsProject?: ProjectResource }): this;
   /**
-   * Configures a separate project containing migrations for polyglot AppHosts.
+   * Configures a separate project containing migrations for polyglot app hosts.
    */
 
   withMigrationsProject(migrationsProject?: ProjectResource): this;
@@ -16693,12 +16693,12 @@ export interface CSharpAppResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
@@ -20232,12 +20232,12 @@ export interface ProjectResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
