@@ -201,11 +201,24 @@ function computeSourceUrl() {
   })();
 </script>
 
-<script src="https://wcpstatic.microsoft.com/mscc/lib/v2/wcp-consent.js"></script>
+<!--
+  WCP consent runtime. Per Microsoft WCP requirements this MUST be loaded live from
+  the CDN and never bundled or self-hosted: the CDN applies geo-sensitive logic that
+  decides whether the banner is shown and returns different payloads per region.
+  `is:inline` stops Astro from processing/bundling it; `async` keeps a slow or blocked
+  CDN from ever blocking page render.
+-->
+<script is:inline async src="https://wcpstatic.microsoft.com/mscc/lib/v2/wcp-consent.js"></script>
 <script is:inline>
   (function () {
     if (window.__aspireWcpConsentInitialized) return;
     window.__aspireWcpConsentInitialized = true;
+
+    // Failsafe: if the CDN script is blocked (ad-blocker, firewall, CSP) or slow to
+    // arrive, poll for a bounded window and then give up so the page never hangs or
+    // spins forever. Consent code must never degrade the rest of the site.
+    var MAX_INIT_ATTEMPTS = 150; // ~15s at 100ms intervals
+    var initAttempts = 0;
 
     function toCulture(value) {
       var raw = (value || '').trim().replace('_', '-');
@@ -226,13 +239,17 @@ function computeSourceUrl() {
     }
 
     function syncConsentState(consent) {
-      window.__aspireConsentCategories = toLegacyCategories(consent);
+      try {
+        window.__aspireConsentCategories = toLegacyCategories(consent);
+      } catch (e) {}
     }
 
     function withSiteConsent(callback) {
       var siteConsent = window.__aspireWcpSiteConsent;
       if (!siteConsent) return false;
-      callback(siteConsent);
+      try {
+        callback(siteConsent);
+      } catch (e) {}
       return true;
     }
 
@@ -255,34 +272,106 @@ function computeSourceUrl() {
       }, 0);
     }
 
+    function ensureBannerPlaceholder() {
+      var id = 'wcp-cookie-banner';
+      var placeholder = document.getElementById(id);
+      if (placeholder) return placeholder;
+      if (!document.body) return null;
+      placeholder = document.createElement('div');
+      placeholder.id = id;
+      // Dedicated placeholder pinned to the top of the viewport. WCP injects its
+      // banner INTO this element in normal flow, so without a top-anchored host the
+      // banner lands wherever the host sits. Using document.body dropped it at the
+      // very bottom of the page (invisible on load) which fails the compliance scan.
+      // A fixed, full-width, top strip guarantees the standard banner is visible on
+      // load regardless of scroll position or the site's own sticky header.
+      placeholder.style.position = 'fixed';
+      placeholder.style.top = '0';
+      placeholder.style.left = '0';
+      placeholder.style.width = '100%';
+      placeholder.style.zIndex = '2147483647';
+      document.body.insertBefore(placeholder, document.body.firstChild);
+      return placeholder;
+    }
+
+    // WCP paints the banner AND the preferences dialog from the theme passed at
+    // init time. It does not re-read the theme on its own, so when the user
+    // toggles the site theme after load we must tell WCP to repaint by dispatching
+    // the documented `theme-changed` event. Our CSS overrides re-theme instantly
+    // from custom properties; this keeps WCP's own internals (e.g. category
+    // toggles) in sync too.
+    function toWcpThemeName(themeName) {
+      var wcp = window.WcpConsent;
+      var isDark = (themeName || '').toLowerCase() === 'dark';
+      if (wcp && wcp.themes) {
+        return isDark ? wcp.themes.dark : wcp.themes.light;
+      }
+      return isDark ? 'dark' : 'light';
+    }
+
+    function notifyWcpThemeChanged() {
+      try {
+        var current = toWcpThemeName(document.documentElement.getAttribute('data-theme'));
+        // Dispatch on both targets: the WCP listener attaches to one of them and
+        // ignores the other, so this is robust to library changes.
+        window.dispatchEvent(new CustomEvent('theme-changed', { detail: { currentTheme: current } }));
+        document.dispatchEvent(new CustomEvent('theme-changed', { detail: { currentTheme: current } }));
+      } catch (e) {}
+    }
+
+    function watchThemeChanges() {
+      try {
+        if (window.__aspireWcpThemeObserver || !document.documentElement) return;
+        var observer = new MutationObserver(function (mutations) {
+          for (var i = 0; i < mutations.length; i++) {
+            if (mutations[i].attributeName === 'data-theme') {
+              notifyWcpThemeChanged();
+              break;
+            }
+          }
+        });
+        observer.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+        window.__aspireWcpThemeObserver = observer;
+      } catch (e) {}
+    }
+
     function initWcpConsent() {
       var wcp = window.WcpConsent;
       if (!wcp || typeof wcp.init !== 'function') {
+        if (++initAttempts >= MAX_INIT_ATTEMPTS) return; // give up; page stays fully functional
         window.setTimeout(initWcpConsent, 100);
         return;
       }
 
-      var culture = toCulture(document.documentElement.lang || navigator.language || 'en-US');
-      var themeName = (document.documentElement.getAttribute('data-theme') || '').toLowerCase();
-      var theme = themeName === 'dark' ? wcp.themes.dark : wcp.themes.light;
+      try {
+        var culture = toCulture(document.documentElement.lang || navigator.language || 'en-US');
+        var themeName = (document.documentElement.getAttribute('data-theme') || '').toLowerCase();
+        var theme = themeName === 'dark' ? wcp.themes.dark : wcp.themes.light;
 
-      wcp.init(
-        culture,
-        document.body,
-        function (err, siteConsent) {
-          if (err || !siteConsent) return;
-          window.__aspireWcpSiteConsent = siteConsent;
-          syncConsentState(siteConsent.getConsent());
-          if (typeof siteConsent.onConsentChanged === 'function') {
-            siteConsent.onConsentChanged(onConsentChanged);
-          }
-        },
-        onConsentChanged,
-        theme
-      );
+        wcp.init(
+          culture,
+          ensureBannerPlaceholder() || document.body,
+          function (err, siteConsent) {
+            if (err || !siteConsent) return;
+            window.__aspireWcpSiteConsent = siteConsent;
+            syncConsentState(siteConsent.getConsent());
+            if (typeof siteConsent.onConsentChanged === 'function') {
+              siteConsent.onConsentChanged(onConsentChanged);
+            }
+          },
+          onConsentChanged,
+          theme
+        );
+      } catch (e) {
+        // Never let consent initialization break page rendering.
+      }
     }
 
     document.addEventListener('click', openManageConsent);
+    watchThemeChanges();
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initWcpConsent, { once: true });

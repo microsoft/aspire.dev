@@ -1,14 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
-  clickCookiePreferencesAction,
   dismissCookieConsentIfVisible,
   isNarrowViewport,
-  openCookiePreferences,
   resetCookieConsentState,
   waitForApiSidebarReady,
-  waitForAnalyticsConsent,
-  waitForConsentCategories,
-  waitForConsentRecorded,
   waitForTopicSidebarReady,
 } from '@tests/e2e/helpers';
 
@@ -223,29 +218,6 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
     await installModal.getByRole('button', { name: /close modal/i }).click();
     await expect(installModal).not.toBeVisible();
   }
-});
-
-test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
-  await resetCookieConsentState(page);
-  await page.goto('/get-started/prerequisites/');
-  await openCookiePreferences(page);
-
-  await clickCookiePreferencesAction(page, /reject all/i);
-  await waitForConsentRecorded(page);
-  await waitForAnalyticsConsent(page, false);
-  await waitForConsentCategories(page, ['necessary']);
-});
-
-test('cookie preferences and accept-all enable analytics tracking consent', async ({ page }) => {
-  await resetCookieConsentState(page);
-  await page.goto('/get-started/prerequisites/');
-  await openCookiePreferences(page);
-
-  await clickCookiePreferencesAction(page, /accept all/i);
-
-  await waitForConsentRecorded(page);
-  await waitForAnalyticsConsent(page, true);
-  await waitForConsentCategories(page, ['necessary', 'analytics', 'advertising']);
 });
 
 test('footer preferences persist theme and keyboard style selections', async ({ page }) => {

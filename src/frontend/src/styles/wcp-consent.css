@@ -1,0 +1,220 @@
+/* Full visual ownership of the Microsoft WCP (Web Compliance Portal) cookie
+ * consent UI, restyled to look like a native Aspire component instead of the
+ * default Microsoft banner.
+ *
+ * WCP injects the banner (#wcpConsentBannerCtrl) and the preferences dialog
+ * (#wcpCookiePreferenceCtrl) from a CDN script, with hashed, version-specific
+ * CSS-module class names (e.g. ._1XuCi2Whi...) that change between releases. We
+ * therefore NEVER target those classes. Everything below is scoped to the two
+ * STABLE container IDs; an ID selector outranks WCP's generated `.class` rules,
+ * and `!important` overrides the handful of inline styles WCP sets, so we get
+ * full, update-resilient control of the visuals.
+ *
+ * We keep WCP's DOM (required: it is what writes the MSCC consent cookie and what
+ * the compliance scan looks for) but replace its entire visual language with
+ * Aspire's: Poppins type, the site's surface/text tokens, the lavender primary
+ * CTA (mirrors the "Try Aspire" button), ghost secondary actions, and the brand
+ * purple for links, focus, and form controls. All colors come from the
+ * theme-aware custom properties in site.css, so the UI tracks light/dark itself.
+ */
+
+/* ==========================================================================
+ * Banner
+ * ======================================================================== */
+#wcpConsentBannerCtrl {
+  font-family: var(--sl-font-system) !important;
+  background: var(--sl-color-bg) !important;
+  color: var(--sl-color-text) !important;
+  /* Brand hairline + soft drop shadow so the bar reads as a distinct floating
+     layer above the page in both themes. */
+  border-bottom: 1px solid color-mix(in srgb, var(--aspire-color-primary) 55%, transparent) !important;
+  box-shadow: 0 8px 28px -12px rgba(0, 0, 0, 0.45) !important;
+  padding: 0.85rem 1.25rem !important;
+}
+
+#wcpConsentBannerCtrl p,
+#wcpConsentBannerCtrl span {
+  color: var(--sl-color-text) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+}
+
+/* Leading info icon: outlined "i" (WCP draws it with stroke="currentColor" and
+   fill="none"). We only set the color — never force `fill`, or the circle fills
+   into a solid disc. --sl-color-text-accent is AA in both themes. */
+#wcpConsentBannerCtrl svg {
+  color: var(--sl-color-text-accent) !important;
+  fill: none !important;
+}
+
+/* Links (Privacy Statement, Third-Party Cookies). --sl-color-text-accent keeps
+   WCAG AA contrast in both themes (7.78:1 dark, 5.14:1 light); --aspire-color-primary
+   would drop to 3.16:1 on the dark surface. */
+#wcpConsentBannerCtrl a,
+#wcpCookiePreferenceCtrl a {
+  color: var(--sl-color-text-accent) !important;
+  text-underline-offset: 2px;
+  font-weight: 500 !important;
+}
+
+#wcpConsentBannerCtrl a:hover,
+#wcpCookiePreferenceCtrl a:hover {
+  color: var(--sl-color-accent-high) !important;
+}
+
+/* Shared button shape: Poppins, weight, rounded corners, comfortable hit area. */
+#wcpConsentBannerCtrl button,
+#wcpCookiePreferenceCtrl button {
+  font-family: var(--sl-font-system) !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  padding: 0.5rem 1.25rem !important;
+  min-height: 0 !important;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+/* The banner's three actions share one parent group, so :nth-of-type is a stable
+   way to distinguish them: 1 = Accept (primary), 2 = Reject, 3 = Manage cookies. */
+
+/* Primary "Accept" — mirrors the site's lavender "Try Aspire" CTA. */
+#wcpConsentBannerCtrl button:nth-of-type(1) {
+  background: var(--aspire-color-light) !important;
+  color: var(--aspire-color-black) !important;
+  border: 1px solid var(--aspire-color-light) !important;
+}
+
+#wcpConsentBannerCtrl button:nth-of-type(1):hover {
+  background: color-mix(in srgb, var(--aspire-color-light) 82%, var(--aspire-color-purple)) !important;
+  border-color: color-mix(in srgb, var(--aspire-color-light) 82%, var(--aspire-color-purple)) !important;
+}
+
+/* Secondary "Reject" / "Manage cookies" — ghost buttons that fill toward brand
+   purple on hover. */
+#wcpConsentBannerCtrl button:nth-of-type(2),
+#wcpConsentBannerCtrl button:nth-of-type(3) {
+  background: transparent !important;
+  color: var(--sl-color-text) !important;
+  border: 1px solid color-mix(in srgb, var(--sl-color-text) 30%, transparent) !important;
+}
+
+#wcpConsentBannerCtrl button:nth-of-type(2):hover,
+#wcpConsentBannerCtrl button:nth-of-type(3):hover {
+  background: color-mix(in srgb, var(--aspire-color-primary) 14%, transparent) !important;
+  border-color: var(--aspire-color-primary) !important;
+  color: var(--sl-color-text) !important;
+}
+
+/* ==========================================================================
+ * Preferences dialog
+ *
+ * We take full ownership of the modal too, using WCP's stable ARIA roles
+ * (role="dialog" panel, role="document" body) rather than hashed classes. WCP
+ * hardcodes a white surface + black text (and repaints them from its own theme
+ * on init), so we override the surface, text, scrim, and footer buttons with
+ * theme-aware Aspire tokens — the same treatment as the banner. Because these
+ * rules resolve from the --sl- and --aspire- custom properties, the dialog
+ * re-themes instantly when the site theme toggles (backed up by the theme-changed
+ * event we dispatch so WCP repaints its own internals too).
+ * ======================================================================== */
+
+/* Lock the underlying page while the modal is open. WCP injects
+   #wcpCookiePreferenceCtrl only while the dialog is open (and removes it on
+   close), so :has() toggles this lock automatically with no JavaScript. The site
+   scrolls on <html>, so overflow:hidden there stops wheel/touch scroll from
+   leaking to the page behind the scrim; scrollbar-gutter:stable reserves the
+   scrollbar's width so content doesn't shift horizontally when the scrollbar is
+   hidden. Degrades gracefully — browsers without :has() simply keep normal
+   scroll rather than breaking. */
+html:has(#wcpCookiePreferenceCtrl) {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
+#wcpCookiePreferenceCtrl,
+#wcpCookiePreferenceCtrl * {
+  font-family: var(--sl-font-system) !important;
+}
+
+/* Backdrop scrim — WCP defaults to a translucent white wash, which looks broken
+   in dark mode. A neutral dark scrim reads correctly in both themes. */
+#wcpCookiePreferenceCtrl {
+  background: color-mix(in srgb, var(--aspire-color-black) 60%, transparent) !important;
+}
+
+/* Modal panel — the branded Aspire card. */
+#wcpCookiePreferenceCtrl [role='dialog'] {
+  background: var(--sl-color-bg) !important;
+  color: var(--sl-color-text) !important;
+  border: 1px solid color-mix(in srgb, var(--sl-color-text) 12%, transparent) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* WCP hardcodes black on its text nodes, so recolor them to the theme text.
+   (Elements without an explicit WCP color inherit from the panel rule above.) */
+#wcpCookiePreferenceCtrl [role='dialog'] h1,
+#wcpCookiePreferenceCtrl [role='dialog'] h2,
+#wcpCookiePreferenceCtrl [role='dialog'] h3,
+#wcpCookiePreferenceCtrl [role='dialog'] p,
+#wcpCookiePreferenceCtrl [role='dialog'] dt,
+#wcpCookiePreferenceCtrl [role='dialog'] dd,
+#wcpCookiePreferenceCtrl [role='dialog'] label,
+#wcpCookiePreferenceCtrl [role='dialog'] span,
+#wcpCookiePreferenceCtrl [role='dialog'] li {
+  color: var(--sl-color-text) !important;
+}
+
+/* Native radios/checkboxes per category adopt the brand color. accent-color is
+   the failsafe way to recolor form controls without touching hashed classes. */
+#wcpCookiePreferenceCtrl input {
+  accent-color: var(--aspire-color-primary) !important;
+}
+
+/* Close (✕) button — the direct child button of the dialog panel. */
+#wcpCookiePreferenceCtrl [role='dialog'] > button {
+  background: transparent !important;
+  color: var(--sl-color-text) !important;
+  border: none !important;
+  padding: 0.35rem !important;
+}
+#wcpCookiePreferenceCtrl [role='dialog'] > button:hover {
+  color: var(--sl-color-text-accent) !important;
+}
+
+/* Footer actions live in the last child of the dialog body: the first button is
+   the primary "Save changes" (lavender CTA), the second is "Reset all" (ghost). */
+#wcpCookiePreferenceCtrl [role='document'] > div:last-child button:first-of-type {
+  background: var(--aspire-color-light) !important;
+  color: var(--aspire-color-black) !important;
+  border: 1px solid var(--aspire-color-light) !important;
+}
+#wcpCookiePreferenceCtrl [role='document'] > div:last-child button:first-of-type:hover {
+  background: color-mix(in srgb, var(--aspire-color-light) 82%, var(--aspire-color-purple)) !important;
+  border-color: color-mix(in srgb, var(--aspire-color-light) 82%, var(--aspire-color-purple)) !important;
+}
+#wcpCookiePreferenceCtrl [role='document'] > div:last-child button:last-of-type {
+  background: transparent !important;
+  color: var(--sl-color-text) !important;
+  border: 1px solid color-mix(in srgb, var(--sl-color-text) 30%, transparent) !important;
+}
+#wcpCookiePreferenceCtrl [role='document'] > div:last-child button:last-of-type:hover {
+  background: color-mix(in srgb, var(--aspire-color-primary) 14%, transparent) !important;
+  border-color: var(--aspire-color-primary) !important;
+}
+
+/* ==========================================================================
+ * Shared focus treatment
+ * ======================================================================== */
+#wcpConsentBannerCtrl button:focus-visible,
+#wcpConsentBannerCtrl a:focus-visible,
+#wcpCookiePreferenceCtrl button:focus-visible,
+#wcpCookiePreferenceCtrl a:focus-visible,
+#wcpCookiePreferenceCtrl input:focus-visible {
+  outline: 2px solid var(--aspire-color-primary) !important;
+  outline-offset: 2px !important;
+}
