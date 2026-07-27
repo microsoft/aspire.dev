@@ -214,6 +214,42 @@ function computeSourceUrl() {
     if (window.__aspireWcpConsentInitialized) return;
     window.__aspireWcpConsentInitialized = true;
 
+    // The four "Manage cookies" buttons are always server-rendered. Once WCP
+    // tells us whether consent is required for this region, reflect it on <html>
+    // so CSS can hide those buttons where there is nothing to manage (e.g. the
+    // US). Persist the answer so a returning visitor doesn't see the button
+    // flash in before WCP loads.
+    function setConsentRequirementState(isRequired) {
+      try {
+        var el = document.documentElement;
+        if (el) {
+          if (isRequired) {
+            el.removeAttribute('data-consent-not-required');
+          } else {
+            el.setAttribute('data-consent-not-required', '');
+          }
+        }
+        window.localStorage.setItem('aspireConsentRequired', isRequired ? 'true' : 'false');
+      } catch (e) {}
+    }
+
+    // Before WCP loads, hide the buttons only if a previous visit already
+    // established that consent is not required here. Unknown => leave them
+    // visible; defaulting to visible keeps us failsafe (we never hide a control
+    // a required region needs just because WCP was slow or blocked).
+    function primeConsentRequirementState() {
+      try {
+        if (
+          window.localStorage.getItem('aspireConsentRequired') === 'false' &&
+          document.documentElement
+        ) {
+          document.documentElement.setAttribute('data-consent-not-required', '');
+        }
+      } catch (e) {}
+    }
+
+    primeConsentRequirementState();
+
     // Failsafe: if the CDN script is blocked (ad-blocker, firewall, CSP) or slow to
     // arrive, poll for a bounded window and then give up so the page never hangs or
     // spins forever. Consent code must never degrade the rest of the site.
@@ -357,6 +393,7 @@ function computeSourceUrl() {
           function (err, siteConsent) {
             if (err || !siteConsent) return;
             window.__aspireWcpSiteConsent = siteConsent;
+            setConsentRequirementState(!!siteConsent.isConsentRequired);
             syncConsentState(siteConsent.getConsent());
             if (typeof siteConsent.onConsentChanged === 'function') {
               siteConsent.onConsentChanged(onConsentChanged);
