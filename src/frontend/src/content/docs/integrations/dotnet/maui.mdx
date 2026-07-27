@@ -50,11 +50,11 @@ aspire add maui
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.Maui@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.Maui" Version="*" />
 ```
 
@@ -66,7 +66,7 @@ TypeScript AppHost support for this integration is not yet available.
 
 To orchestrate a .NET MAUI application in your AppHost, call `AddMauiProject` with the name and path to the `.csproj` file:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var weatherApi = builder.AddProject<Projects.WeatherApi>("webapi");
@@ -91,7 +91,7 @@ Each target platform requires a specific device configuration chained from the M
 
 Windows apps run directly on the host machine using localhost:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 mauiapp.AddWindowsDevice()
     .WithReference(weatherApi);
 ```
@@ -101,7 +101,7 @@ mauiapp.AddWindowsDevice()
 
 Mac Catalyst apps also use localhost directly on macOS:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 mauiapp.AddMacCatalystDevice()
     .WithReference(weatherApi);
 ```
@@ -111,7 +111,7 @@ mauiapp.AddMacCatalystDevice()
 
 iOS Simulator requires Dev Tunnels to connect to local services:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var publicDevTunnel = builder.AddDevTunnel("devtunnel-public")
     .WithAnonymousAccess()
     .WithReference(weatherApi.GetEndpoint("https"));
@@ -126,7 +126,7 @@ mauiapp.AddiOSSimulator()
 
 Android Emulator also requires Dev Tunnels for connectivity:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 mauiapp.AddAndroidEmulator()
     .WithOtlpDevTunnel()
     .WithReference(weatherApi, publicDevTunnel);
@@ -145,7 +145,7 @@ You can add multiple device configurations for the same MAUI project. Each devic
 
 The following example shows all platform configurations together in a single AppHost:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var weatherApi = builder.AddProject<Projects.WeatherApi>("webapi");
@@ -203,7 +203,7 @@ dotnet add YourMauiApp.csproj reference YourApp.MauiServiceDefaults/YourApp.Maui
 
 In your `MauiProgram.cs`, add service defaults and configure HTTP clients:
 
-```csharp title="C# — MauiProgram.cs"
+```csharp title="MauiProgram.cs"
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
@@ -241,7 +241,7 @@ The `https+http://` scheme enables both HTTPS and HTTP protocols, preferring HTT
 
 Create a strongly-typed HTTP client to consume your web service:
 
-```csharp title="C# — WeatherApiClient.cs"
+```csharp title="WeatherApiClient.cs"
 public class WeatherApiClient
 {
     private readonly HttpClient _httpClient;
@@ -270,7 +270,7 @@ public record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 
 Inject and use the client in your pages or view models:
 
-```csharp title="C# — MainPage.cs"
+```csharp title="MainPage.cs"
 public partial class MainPage : ContentPage
 {
     private readonly WeatherApiClient _weatherClient;

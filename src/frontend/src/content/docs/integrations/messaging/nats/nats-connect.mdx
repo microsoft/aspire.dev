@@ -61,7 +61,7 @@ Install the [📦 Aspire.NATS.Net](https://www.nuget.org/packages/Aspire.NATS.Ne
 
 In _Program.cs_, call `AddNatsClient` on your `IHostApplicationBuilder` to register an `INatsConnection`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNatsClient(connectionName: "nats");
 ```
 
@@ -71,7 +71,7 @@ The `connectionName` must match the NATS resource name from the AppHost. For mor
 
 Resolve the connection through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(INatsConnection connection)
 {
     // Use connection...
@@ -82,14 +82,14 @@ public class ExampleService(INatsConnection connection)
 
 To register multiple `INatsConnection` instances with different connection names, use `AddKeyedNatsClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedNatsClient(name: "products");
 builder.AddKeyedNatsClient(name: "orders");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("products")] INatsConnection productsConnection,
     [FromKeyedServices("orders")] INatsConnection ordersConnection)
@@ -106,13 +106,13 @@ The Aspire NATS client integration offers multiple ways to provide configuration
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddNatsClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNatsClient("nats");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "nats": "nats://localhost:4222"
@@ -122,7 +122,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `NatsClientSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Nats:Client` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Nats": {
@@ -140,7 +140,7 @@ For the complete NATS client integration JSON schema, see [Aspire.NATS.Net/Confi
 
 **Inline delegates.** Pass an `Action<NatsClientSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNatsClient(
     "nats",
     static settings => settings.DisableHealthChecks = true);
@@ -167,7 +167,7 @@ Any of these telemetry features can be disabled through the configuration option
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it directly to the [📦 NATS.Net](https://www.nuget.org/packages/NATS.Net/) NuGet package:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using NATS.Client.Core;
 
 var connectionUri = Environment.GetEnvironmentVariable("NATS_URI");
@@ -190,7 +190,7 @@ go get github.com/nats-io/nats.go
 
 Read the injected environment variable and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -223,7 +223,7 @@ pip install nats-py
 
 Read the injected environment variable and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import asyncio
 import os
 import nats
@@ -250,7 +250,7 @@ npm install nats
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { connect } from 'nats';
 
 // Read the Aspire-injected connection URI
@@ -264,7 +264,7 @@ await nc.drain();
 
 Or use individual connection properties:
 
-```typescript title="TypeScript — Connect with properties"
+```typescript title="Connect with properties"
 import { connect } from 'nats';
 
 const nc = await connect({

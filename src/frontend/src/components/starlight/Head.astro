@@ -48,10 +48,11 @@ function computeSourceUrl() {
         og:description, og:url, og:type, and og:locale from frontmatter — see
         node_modules/@astrojs/starlight/components/Head.astro. We only emit the
         tags Starlight doesn't already cover: a per-page og:image (rendered by
-        the /og/<slug> endpoint), its dimensions/alt, and the Twitter card
-        equivalents (Twitter scrapers prefer name="twitter:*" over og:*).
+        the /og/<slug> endpoint), its MIME type/dimensions/alt, and the Twitter
+        card equivalents (Twitter scrapers prefer name="twitter:*" over og:*).
       */}
       <meta property="og:image" content={ogMetadata.image} />
+      <meta property="og:image:type" content={ogMetadata.imageType} />
       <meta property="og:image:alt" content={ogMetadata.imageAlt} />
       <meta property="og:image:width" content={String(ogMetadata.imageWidth)} />
       <meta property="og:image:height" content={String(ogMetadata.imageHeight)} />
@@ -197,6 +198,30 @@ function computeSourceUrl() {
     } else {
       initAppHostLangSync();
     }
+  })();
+</script>
+
+<script is:inline>
+  (function () {
+    if (window.__aspireCookieConsentReloadInitialized) return;
+    window.__aspireCookieConsentReloadInitialized = true;
+
+    var saveRoles = new Set(['all', 'necessary', 'save']);
+
+    document.addEventListener('click', function (event) {
+      var target = event.target;
+      if (!(target instanceof Element)) return;
+
+      var actionButton = target.closest('.pm__btn[data-role]');
+      if (!(actionButton instanceof HTMLButtonElement)) return;
+
+      var actionRole = actionButton.getAttribute('data-role');
+      if (!actionRole || !saveRoles.has(actionRole)) return;
+
+      window.setTimeout(function () {
+        window.location.reload();
+      }, 0);
+    });
   })();
 </script>
 

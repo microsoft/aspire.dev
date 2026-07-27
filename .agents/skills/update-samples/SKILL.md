@@ -141,6 +141,7 @@ After running the script:
 | Variable | Required | Description |
 |---|---|---|
 | `GITHUB_TOKEN` | No | GitHub personal access token for higher API rate limits (60 → 5000 requests/hour) |
+| `SAMPLES_BRANCH` | No | Override the `microsoft/aspire-samples` ref to fetch from (default `main`). Useful for staging `samples.json` against a still-open upstream PR — set to the PR's head ref. The generated `href` fields stay anchored to `main` so links remain valid after the PR branch is deleted. |
 
 ### 7. Integration with build
 
