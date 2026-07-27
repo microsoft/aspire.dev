@@ -1,6 +1,6 @@
 ---
 title: Configure resource lifetimes in Aspire
-description: Learn how session, persistent, resource-scoped, and parent-process lifetimes and explicit start control Aspire containers, executables, and projects.
+description: Learn how session, persistent, resource-scoped, and parent-process lifetimes, plus explicit start, control Aspire containers, executables, and projects.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
@@ -72,11 +72,11 @@ Aspire evaluates the source resource's lifetime when it prepares the application
 
 Use `WithExplicitStart()` to prevent a resource from starting automatically with the rest of the AppHost. The resource appears in the dashboard but remains stopped until you start it manually.
 
-This is useful for resources that require user interaction before they can start — for example, resources that use dynamic configuration callbacks to prompt for credentials or other runtime input. Combining `WithExplicitStart()` with callback-based configuration APIs like `WithEnvironment` or `WithArgs` gives you precise control over when those callbacks run.
+Starting in Aspire 13.5, `WithExplicitStart()` also affects when execution configuration callbacks (for example, `WithEnvironment` and `WithArgs`) are evaluated, depending on whether the resource is session-scoped or persistent.
 
 ### Session-scoped explicit-start resources
 
-For session-scoped resources (the default lifetime), Aspire defers DCP registration until you manually start the resource from the dashboard. This means execution configuration callbacks — such as `WithEnvironment(context => ...)` — are **not** evaluated during AppHost startup. They run only when the resource is manually started.
+For session-scoped resources (the default lifetime), Aspire defers Developer Control Plane (DCP) registration until you manually start the resource from the dashboard. This means execution configuration callbacks — such as `WithEnvironment(context => ...)` — are **not** evaluated during AppHost startup. They run only when the resource is manually started.
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -96,7 +96,7 @@ builder.Build().Run();
 
 ### Persistent explicit-start resources
 
-For persistent resources, Aspire must register the resource with DCP immediately at startup so it can discover any existing running instance. However, when you manually start a persistent explicit-start resource, Aspire patches the existing DCP resource to start it rather than deleting and recreating it. This means the execution configuration callbacks run once during startup registration and are **not** re-evaluated when you manually start the resource.
+For persistent resources, Aspire must register the resource with the Developer Control Plane (DCP) immediately at startup so it can discover any existing running instance. However, when you manually start a persistent explicit-start resource, Aspire patches the existing DCP resource to start it rather than deleting and recreating it. This means the execution configuration callbacks run once during startup registration and are **not** re-evaluated when you manually start the resource.
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
