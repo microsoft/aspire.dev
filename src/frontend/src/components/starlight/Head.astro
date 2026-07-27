@@ -201,26 +201,99 @@ function computeSourceUrl() {
   })();
 </script>
 
+<script src="https://wcpstatic.microsoft.com/mscc/lib/v2/wcp-consent.js"></script>
 <script is:inline>
   (function () {
-    if (window.__aspireCookieConsentReloadInitialized) return;
-    window.__aspireCookieConsentReloadInitialized = true;
+    if (window.__aspireWcpConsentInitialized) return;
+    window.__aspireWcpConsentInitialized = true;
 
-    var saveRoles = new Set(['all', 'necessary', 'save']);
+    function toCulture(value) {
+      var raw = (value || '').trim().replace('_', '-');
+      if (!raw) return 'en-US';
+      var parts = raw.split('-');
+      var lang = (parts[0] || 'en').toLowerCase();
+      var region = parts[1] ? parts[1].toUpperCase() : '';
+      return region ? lang + '-' + region : lang;
+    }
 
-    document.addEventListener('click', function (event) {
+    function toLegacyCategories(consent) {
+      if (!consent || typeof consent !== 'object') return null;
+      var categories = ['necessary'];
+      if (consent.Analytics) categories.push('analytics');
+      if (consent.SocialMedia) categories.push('socialmedia');
+      if (consent.Advertising) categories.push('advertising');
+      return categories.sort();
+    }
+
+    function syncConsentState(consent) {
+      window.__aspireConsentCategories = toLegacyCategories(consent);
+    }
+
+    function withSiteConsent(callback) {
+      var siteConsent = window.__aspireWcpSiteConsent;
+      if (!siteConsent) return false;
+      callback(siteConsent);
+      return true;
+    }
+
+    function openManageConsent(event) {
       var target = event.target;
       if (!(target instanceof Element)) return;
+      if (!target.closest('[data-cookie-manage-consent]')) return;
+      event.preventDefault();
+      withSiteConsent(function (siteConsent) {
+        if (siteConsent.isConsentRequired) {
+          siteConsent.manageConsent();
+        }
+      });
+    }
 
-      var actionButton = target.closest('.pm__btn[data-role]');
-      if (!(actionButton instanceof HTMLButtonElement)) return;
-
-      var actionRole = actionButton.getAttribute('data-role');
-      if (!actionRole || !saveRoles.has(actionRole)) return;
-
+    function onConsentChanged(nextConsent) {
+      syncConsentState(nextConsent);
       window.setTimeout(function () {
         window.location.reload();
       }, 0);
+    }
+
+    function initWcpConsent() {
+      var wcp = window.WcpConsent;
+      if (!wcp || typeof wcp.init !== 'function') {
+        window.setTimeout(initWcpConsent, 100);
+        return;
+      }
+
+      var culture = toCulture(document.documentElement.lang || navigator.language || 'en-US');
+      var themeName = (document.documentElement.getAttribute('data-theme') || '').toLowerCase();
+      var theme = themeName === 'dark' ? wcp.themes.dark : wcp.themes.light;
+
+      wcp.init(
+        culture,
+        document.body,
+        function (err, siteConsent) {
+          if (err || !siteConsent) return;
+          window.__aspireWcpSiteConsent = siteConsent;
+          syncConsentState(siteConsent.getConsent());
+          if (typeof siteConsent.onConsentChanged === 'function') {
+            siteConsent.onConsentChanged(onConsentChanged);
+          }
+        },
+        onConsentChanged,
+        theme
+      );
+    }
+
+    document.addEventListener('click', openManageConsent);
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initWcpConsent, { once: true });
+    } else {
+      initWcpConsent();
+    }
+
+    document.addEventListener('astro:page-load', function () {
+      withSiteConsent(function (siteConsent) {
+        syncConsentState(siteConsent.getConsent());
+      });
     });
   })();
 </script>
