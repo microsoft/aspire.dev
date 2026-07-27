@@ -100,6 +100,13 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
   // the page interactive across the repeated navigations.
   await page.emulateMedia({ reducedMotion: 'reduce' });
 
+  // The "Manage cookies" button is region-gated: once WCP resolves the
+  // visitor's region it hides the button where consent isn't required (which
+  // is how most CI runner IPs resolve). Block the WCP CDN so this layout test
+  // always sees the failsafe default — every header control present — keeping
+  // the expected order deterministic regardless of where the runner lives.
+  await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
+
   const expectedCompactHeaderOrder = [
     'Aspire',
     'Search',
