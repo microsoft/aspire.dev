@@ -6,6 +6,7 @@ import { normalizeAspireTerminology } from '../../scripts/aspire-terminology';
 import { type SampleResult, normalizeSampleTerminology } from '../../scripts/update-samples';
 
 const legacyAspireName = ['.NET', 'Aspire'].join(' ');
+const legacyDotnetAspireName = ['dotnet', 'aspire'].join(' ');
 const legacyAppHostName = ['app', 'host'].join(' ');
 
 describe('Aspire terminology normalization', () => {
@@ -37,6 +38,14 @@ describe('Aspire terminology normalization', () => {
     ['a dotted namespace', `Ship Microsoft${legacyAspireName} today`],
   ])('leaves %s untouched', (_scenario, input) => {
     expect(normalizeAspireTerminology(input)).toBe(input);
+  });
+
+  test.each([
+    ['uppercase article', `A ${legacyDotnetAspireName} sample`, 'An Aspire sample'],
+    ['lowercase article', `Build a ${legacyDotnetAspireName} sample`, 'Build an Aspire sample'],
+    ['no article', `Deploy the ${legacyDotnetAspireName} app`, 'Deploy the Aspire app'],
+  ])('normalizes the "dotnet aspire" spelling (%s)', (_scenario, input, expected) => {
+    expect(normalizeAspireTerminology(input)).toBe(expected);
   });
 });
 
