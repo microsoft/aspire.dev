@@ -29,6 +29,8 @@ describe('Aspire terminology normalization', () => {
       `This is a [${legacyAspireName}](https://aspire.dev/) sample`,
       'This is an [Aspire](https://aspire.dev/) sample',
     ],
+    ['underscore emphasis', `A _${legacyAspireName}_ project`, 'An _Aspire_ project'],
+    ['inline code', `A \`${legacyAspireName}\` project`, `An \`Aspire\` project`],
   ])('corrects the article across a %s', (_scenario, input, expected) => {
     expect(normalizeAspireTerminology(input)).toBe(expected);
   });
@@ -36,6 +38,8 @@ describe('Aspire terminology normalization', () => {
   test.each([
     ['a prefixed framework token', `ASP${legacyAspireName} guidance`],
     ['a dotted namespace', `Ship Microsoft${legacyAspireName} today`],
+    ['a suffixed token', `${legacyAspireName}Server guidance`],
+    ['a suffixed token after an article', `A ${legacyAspireName}Server sample`],
   ])('leaves %s untouched', (_scenario, input) => {
     expect(normalizeAspireTerminology(input)).toBe(input);
   });
@@ -96,7 +100,7 @@ describe('sample terminology normalization', () => {
   test('keeps generated sample data free of deprecated terminology', () => {
     const textFields = ['title', 'description', 'readme', 'readmeRaw', 'appHostCode'] as const;
     const deprecatedTerminology = new RegExp(
-      [legacyAspireName, legacyAppHostName]
+      [legacyAspireName, legacyDotnetAspireName, legacyAppHostName]
         .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
         .join('|'),
       'i'

@@ -1,17 +1,26 @@
 const horizontalWhitespace = String.raw`[ \t]+`;
-// Markdown emphasis/link openers can sit between an article and a term in raw
-// README/AppHost content (e.g. `a **.NET Aspire**` or `a [.NET Aspire](url)`), so
-// the article corrector consumes them to stay grammatical after the term shrinks.
-const markdownOpeners = String.raw`[*\[]*`;
+
+// A deprecated term only matches when it isn't fused to an adjacent alphanumeric
+// character, so longer tokens like `ASP.NET Aspire` or `.NET AspireX` stay intact
+// while `_`, `*`, backticks, and `[` still count as boundaries (Markdown emphasis,
+// inline code, and links wrap terms with those characters).
+const termStart = String.raw`(?<![A-Za-z0-9])`;
+const termEnd = String.raw`(?![A-Za-z0-9])`;
+
+// Markdown emphasis/link/code openers can sit between an article and a term in
+// raw README/AppHost content (e.g. `a **.NET Aspire**`, `a [.NET Aspire](url)`, or
+// `a _.NET Aspire_`), so the article corrector consumes them to stay grammatical
+// after the term shrinks.
+const markdownOpeners = String.raw`[*\[_\x60]*`;
 
 interface TerminologyRule {
   /**
-   * Case-insensitive regex source matching the deprecated term. Use
-   * `${horizontalWhitespace}` for internal spaces, `\b` to bound word-character
-   * edges, and `(?<!\w)` when the term can start mid-token (like `.NET`, which
-   * must not be preceded by a word character or `ASP.NET Aspire` would corrupt).
+   * Case-insensitive regex source matching the deprecated term core, without
+   * boundaries. Use `${horizontalWhitespace}` for internal spaces; alphanumeric
+   * boundaries are applied automatically so a rule can never corrupt a longer
+   * token like `ASP.NET Aspire` or `.NET AspireX`.
    */
-  readonly pattern: string;
+  readonly term: string;
   /** Canonical replacement text. */
   readonly replacement: string;
   /**
@@ -27,17 +36,17 @@ interface TerminologyRule {
 // in `.github/forbidden-words.json`.
 const terminologyRules: readonly TerminologyRule[] = [
   {
-    pattern: String.raw`(?<!\w)\.NET${horizontalWhitespace}Aspire`,
+    term: String.raw`\.NET${horizontalWhitespace}Aspire`,
     replacement: 'Aspire',
     article: 'an',
   },
   {
-    pattern: String.raw`\bdotnet${horizontalWhitespace}aspire\b`,
+    term: String.raw`dotnet${horizontalWhitespace}aspire`,
     replacement: 'Aspire',
     article: 'an',
   },
   {
-    pattern: String.raw`\bapp${horizontalWhitespace}host\b`,
+    term: String.raw`app${horizontalWhitespace}host`,
     replacement: 'AppHost',
   },
 ];
@@ -48,7 +57,13 @@ export function normalizeAspireTerminology(text: string): string {
 
 function applyRule(text: string, rule: TerminologyRule): string {
   const corrected = rule.article ? correctArticle(text, rule, rule.article) : text;
-  return corrected.replace(new RegExp(rule.pattern, 'gi'), rule.replacement);
+  return corrected.replace(new RegExp(boundedTerm(rule), 'gi'), rule.replacement);
+}
+
+// Bound a term core with alphanumeric edges so it can't fuse into a longer token
+// while still allowing Markdown wrappers (`_`, `*`, backticks, `[`) as boundaries.
+function boundedTerm(rule: TerminologyRule): string {
+  return `${termStart}${rule.term}${termEnd}`;
 }
 
 // Rewrite a preceding indefinite article when the replacement changes the
@@ -56,7 +71,7 @@ function applyRule(text: string, rule: TerminologyRule): string {
 function correctArticle(text: string, rule: TerminologyRule, article: 'a' | 'an'): string {
   const capitalized = article === 'a' ? 'A' : 'An';
   const withArticle = new RegExp(
-    String.raw`\b([Aa])${horizontalWhitespace}(${markdownOpeners})${rule.pattern}\b`,
+    String.raw`\b([Aa])${horizontalWhitespace}(${markdownOpeners})` + boundedTerm(rule),
     'gi'
   );
   return text.replace(
