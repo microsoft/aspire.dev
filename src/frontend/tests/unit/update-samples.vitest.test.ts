@@ -20,6 +20,24 @@ describe('Aspire terminology normalization', () => {
   ])('uses one space for the %s case', (_scenario, input, expected) => {
     expect(normalizeAspireTerminology(input)).toBe(expected);
   });
+
+  test.each([
+    ['bold wrapper', `A **${legacyAspireName}** project`, 'An **Aspire** project'],
+    [
+      'inline link',
+      `This is a [${legacyAspireName}](https://aspire.dev/) sample`,
+      'This is an [Aspire](https://aspire.dev/) sample',
+    ],
+  ])('corrects the article across a %s', (_scenario, input, expected) => {
+    expect(normalizeAspireTerminology(input)).toBe(expected);
+  });
+
+  test.each([
+    ['a prefixed framework token', `ASP${legacyAspireName} guidance`],
+    ['a dotted namespace', `Ship Microsoft${legacyAspireName} today`],
+  ])('leaves %s untouched', (_scenario, input) => {
+    expect(normalizeAspireTerminology(input)).toBe(input);
+  });
 });
 
 describe('sample terminology normalization', () => {
