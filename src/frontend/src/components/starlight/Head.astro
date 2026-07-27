@@ -265,21 +265,6 @@ function computeSourceUrl() {
       return region ? lang + '-' + region : lang;
     }
 
-    function toLegacyCategories(consent) {
-      if (!consent || typeof consent !== 'object') return null;
-      var categories = ['necessary'];
-      if (consent.Analytics) categories.push('analytics');
-      if (consent.SocialMedia) categories.push('socialmedia');
-      if (consent.Advertising) categories.push('advertising');
-      return categories.sort();
-    }
-
-    function syncConsentState(consent) {
-      try {
-        window.__aspireConsentCategories = toLegacyCategories(consent);
-      } catch (e) {}
-    }
-
     function withSiteConsent(callback) {
       var siteConsent = window.__aspireWcpSiteConsent;
       if (!siteConsent) return false;
@@ -301,8 +286,9 @@ function computeSourceUrl() {
       });
     }
 
-    function onConsentChanged(nextConsent) {
-      syncConsentState(nextConsent);
+    function onConsentChanged() {
+      // WCP fires this when the visitor changes their choices. Reload so the new
+      // consent is applied consistently across any consent-gated behavior.
       window.setTimeout(function () {
         window.location.reload();
       }, 0);
@@ -384,8 +370,10 @@ function computeSourceUrl() {
 
       try {
         var culture = toCulture(document.documentElement.lang || navigator.language || 'en-US');
-        var themeName = (document.documentElement.getAttribute('data-theme') || '').toLowerCase();
-        var theme = themeName === 'dark' ? wcp.themes.dark : wcp.themes.light;
+        // Resolve the theme through toWcpThemeName so a missing or renamed
+        // wcp.themes payload falls back to a string here instead of throwing
+        // (which would be swallowed below and permanently stop initialization).
+        var theme = toWcpThemeName(document.documentElement.getAttribute('data-theme'));
 
         wcp.init(
           culture,
@@ -394,7 +382,6 @@ function computeSourceUrl() {
             if (err || !siteConsent) return;
             window.__aspireWcpSiteConsent = siteConsent;
             setConsentRequirementState(!!siteConsent.isConsentRequired);
-            syncConsentState(siteConsent.getConsent());
             if (typeof siteConsent.onConsentChanged === 'function') {
               siteConsent.onConsentChanged(onConsentChanged);
             }
@@ -403,7 +390,11 @@ function computeSourceUrl() {
           theme
         );
       } catch (e) {
-        // Never let consent initialization break page rendering.
+        // Never let consent initialization break page rendering. Retry within
+        // the bounded window in case WCP delivered a transient or partial payload.
+        if (++initAttempts < MAX_INIT_ATTEMPTS) {
+          window.setTimeout(initWcpConsent, 100);
+        }
       }
     }
 
@@ -415,12 +406,6 @@ function computeSourceUrl() {
     } else {
       initWcpConsent();
     }
-
-    document.addEventListener('astro:page-load', function () {
-      withSiteConsent(function (siteConsent) {
-        syncConsentState(siteConsent.getConsent());
-      });
-    });
   })();
 </script>
 
