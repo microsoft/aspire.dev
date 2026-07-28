@@ -81,7 +81,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                 {
                     Name = f.Name,
                     Value = Convert.ToInt64(f.ConstantValue),
-                    Description = ExtractSummary(f),
+                    Description = DocumentationSanitizer.RedactConnectionStringPasswords(ExtractSummary(f)),
                 })];
         }
 
@@ -738,7 +738,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                                         {
                                             Kind = "href",
                                             Value = href,
-                                            Text = child.Value.Trim() is { Length: > 0 } t ? t : null,
+                                            Text = child.Value.Trim() is { Length: > 0 } t ? DocumentationSanitizer.RedactConnectionStringPasswords(t) : null,
                                         });
                                     }
                                 }
@@ -840,7 +840,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                                 {
                                     Kind = "href",
                                     Value = href,
-                                    Text = child.Value.Trim() is { Length: > 0 } t ? t : null,
+                                    Text = child.Value.Trim() is { Length: > 0 } t ? DocumentationSanitizer.RedactConnectionStringPasswords(t) : null,
                                 });
                             }
                             break;

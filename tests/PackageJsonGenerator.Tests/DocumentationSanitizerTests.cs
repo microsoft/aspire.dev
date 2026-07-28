@@ -68,4 +68,19 @@ public sealed class DocumentationSanitizerTests
     {
         Assert.Equal(input, DocumentationSanitizer.RedactConnectionStringPasswords(input));
     }
+
+    [Theory]
+    // A following inline-code fence, link paren, table pipe, or bracket must not
+    // be swallowed into the redacted value; they delimit the value's end.
+    [InlineData("Use `Password=secret` in config.", "Use `Password=Placeholder` in config.")]
+    [InlineData("[docs](https://h/api?password=secret)", "[docs](https://h/api?password=Placeholder)")]
+    [InlineData("https://h/api?password=secret&uid=sa", "https://h/api?password=Placeholder&uid=sa")]
+    [InlineData("|Password=secret|Uid=sa|", "|Password=Placeholder|Uid=sa|")]
+    [InlineData("[Password=secret]", "[Password=Placeholder]")]
+    // A trailing sentence period is preserved, not consumed into the value.
+    [InlineData("The default is Password=secret.", "The default is Password=Placeholder.")]
+    public void RedactConnectionStringPasswords_StopsAtMarkdownAndUriDelimiters(string input, string expected)
+    {
+        Assert.Equal(expected, DocumentationSanitizer.RedactConnectionStringPasswords(input));
+    }
 }
