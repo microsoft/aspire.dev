@@ -274,16 +274,57 @@ function computeSourceUrl() {
       return true;
     }
 
+    // WCP is a consent-collection API — unlike the previous cookie library it does
+    // NOT manage <script> tags. The analytics scripts ship inert as
+    // `type="text/plain" data-category="analytics"`; we must promote them to
+    // executable ourselves once WCP reports Analytics consent (granted by default
+    // where consent isn't required, e.g. the US). Without this bridge analytics
+    // never loads anywhere.
+    function activateAnalyticsScripts() {
+      if (window.__aspireAnalyticsActivated) return;
+      window.__aspireAnalyticsActivated = true;
+      var pending = document.querySelectorAll(
+        'script[type="text/plain"][data-category="analytics"]'
+      );
+      for (var i = 0; i < pending.length; i++) {
+        var old = pending[i];
+        var next = document.createElement('script');
+        for (var a = 0; a < old.attributes.length; a++) {
+          var attr = old.attributes[a];
+          // Drop the neutralizing `type="text/plain"` so the browser executes it.
+          if (attr.name === 'type') continue;
+          next.setAttribute(attr.name, attr.value);
+        }
+        if (old.textContent) next.textContent = old.textContent;
+        if (old.parentNode) old.parentNode.replaceChild(next, old);
+      }
+    }
+
+    function applyConsentToScripts(siteConsent) {
+      try {
+        var consent =
+          typeof siteConsent.getConsent === 'function' ? siteConsent.getConsent() : null;
+        if (consent && consent.Analytics) {
+          activateAnalyticsScripts();
+        }
+      } catch (e) {}
+    }
+
     function openManageConsent(event) {
       var target = event.target;
       if (!(target instanceof Element)) return;
       if (!target.closest('[data-cookie-manage-consent]')) return;
-      event.preventDefault();
+      var opened = false;
       withSiteConsent(function (siteConsent) {
         if (siteConsent.isConsentRequired) {
           siteConsent.manageConsent();
+          opened = true;
         }
       });
+      // Only suppress the trigger's native action when we actually opened WCP's
+      // dialog. If WCP is blocked/slow (ad-blocker, CSP) or consent isn't required
+      // here, leave the default behavior intact instead of swallowing the click.
+      if (opened) event.preventDefault();
     }
 
     function onConsentChanged() {
@@ -316,29 +357,61 @@ function computeSourceUrl() {
       return placeholder;
     }
 
+    // While WCP's banner is visible it sits in a fixed, full-width strip at the top
+    // of the viewport (see ensureBannerPlaceholder). Publish its live height as a
+    // custom property so CSS can push the fixed site header + content down by
+    // exactly that much instead of letting the banner overlay them. Tracks wraps
+    // and viewport resizes; collapses back to 0 when WCP removes the banner.
+    function trackBannerHeight() {
+      try {
+        var placeholder = document.getElementById('wcp-cookie-banner');
+        if (
+          !placeholder ||
+          window.__aspireWcpBannerObserver ||
+          typeof ResizeObserver === 'undefined'
+        ) {
+          return;
+        }
+        var apply = function () {
+          var height = placeholder.offsetHeight || 0;
+          document.documentElement.style.setProperty('--wcp-banner-height', height + 'px');
+        };
+        var observer = new ResizeObserver(apply);
+        observer.observe(placeholder);
+        window.__aspireWcpBannerObserver = observer;
+        apply();
+      } catch (e) {}
+    }
+
     // WCP paints the banner AND the preferences dialog from the theme passed at
-    // init time. It does not re-read the theme on its own, so when the user
-    // toggles the site theme after load we must tell WCP to repaint by dispatching
-    // the documented `theme-changed` event. Our CSS overrides re-theme instantly
-    // from custom properties; this keeps WCP's own internals (e.g. category
-    // toggles) in sync too.
-    function toWcpThemeName(themeName) {
+    // init time and does not re-read the site theme on its own. WCP exposes no
+    // `theme-changed` event — its only supported runtime re-theme hook is
+    // `siteConsent.applyTheme(themeObject)`. Our CSS overrides already re-theme the
+    // visible surfaces instantly from custom properties; calling applyTheme keeps
+    // WCP's own internal nodes in sync when the user toggles the site theme.
+    function resolveWcpTheme(themeName) {
       var wcp = window.WcpConsent;
       var isDark = (themeName || '').toLowerCase() === 'dark';
       if (wcp && wcp.themes) {
         return isDark ? wcp.themes.dark : wcp.themes.light;
       }
+      // String fallback keeps wcp.init from throwing when the themes payload is
+      // missing; applyTheme is guarded separately since it needs the real object.
       return isDark ? 'dark' : 'light';
     }
 
-    function notifyWcpThemeChanged() {
-      try {
-        var current = toWcpThemeName(document.documentElement.getAttribute('data-theme'));
-        // Dispatch on both targets: the WCP listener attaches to one of them and
-        // ignores the other, so this is robust to library changes.
-        window.dispatchEvent(new CustomEvent('theme-changed', { detail: { currentTheme: current } }));
-        document.dispatchEvent(new CustomEvent('theme-changed', { detail: { currentTheme: current } }));
-      } catch (e) {}
+    function applyWcpTheme() {
+      var wcp = window.WcpConsent;
+      // applyTheme reads color fields off the theme OBJECT, so only call it when
+      // the real themes payload is available (never with the string fallback).
+      if (!wcp || !wcp.themes) return;
+      withSiteConsent(function (siteConsent) {
+        if (typeof siteConsent.applyTheme === 'function') {
+          siteConsent.applyTheme(
+            resolveWcpTheme(document.documentElement.getAttribute('data-theme'))
+          );
+        }
+      });
     }
 
     function watchThemeChanges() {
@@ -347,7 +420,7 @@ function computeSourceUrl() {
         var observer = new MutationObserver(function (mutations) {
           for (var i = 0; i < mutations.length; i++) {
             if (mutations[i].attributeName === 'data-theme') {
-              notifyWcpThemeChanged();
+              applyWcpTheme();
               break;
             }
           }
@@ -370,22 +443,28 @@ function computeSourceUrl() {
 
       try {
         var culture = toCulture(document.documentElement.lang || navigator.language || 'en-US');
-        // Resolve the theme through toWcpThemeName so a missing or renamed
+        // Resolve the theme through resolveWcpTheme so a missing or renamed
         // wcp.themes payload falls back to a string here instead of throwing
         // (which would be swallowed below and permanently stop initialization).
-        var theme = toWcpThemeName(document.documentElement.getAttribute('data-theme'));
+        var theme = resolveWcpTheme(document.documentElement.getAttribute('data-theme'));
+        var host = ensureBannerPlaceholder() || document.body;
+        trackBannerHeight();
 
         wcp.init(
           culture,
-          ensureBannerPlaceholder() || document.body,
+          host,
           function (err, siteConsent) {
             if (err || !siteConsent) return;
             window.__aspireWcpSiteConsent = siteConsent;
             setConsentRequirementState(!!siteConsent.isConsentRequired);
-            if (typeof siteConsent.onConsentChanged === 'function') {
-              siteConsent.onConsentChanged(onConsentChanged);
-            }
+            // Bridge WCP consent to our inert analytics scripts. onConsentChanged
+            // reloads, so a later grant is re-applied by this same path on re-init.
+            applyConsentToScripts(siteConsent);
           },
+          // Single registration: passing onConsentChanged as init's 4th argument
+          // registers it once. WCP stores consent callbacks in a LIST, so ALSO
+          // calling siteConsent.onConsentChanged(onConsentChanged) would fire it
+          // twice (two reloads per change).
           onConsentChanged,
           theme
         );

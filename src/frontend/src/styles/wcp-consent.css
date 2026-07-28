@@ -38,6 +38,29 @@ html[data-consent-not-required] .cookie-consent-btn {
 }
 
 /* ==========================================================================
+ * Banner layout offset (keeps the fixed banner from covering site chrome)
+ *
+ * ensureBannerPlaceholder() in Head.astro pins WCP's banner to a fixed,
+ * full-width strip at the very top of the viewport so it is always visible on
+ * load. Left alone it would paint OVER the fixed Starlight header (z-index 10),
+ * hiding the nav and search behind it (a11y 2.4.11). Every top-anchored fixed
+ * element (header, sidebars, TOC, menu button) plus the content padding lives
+ * inside `.page`, while the banner is a body-level sibling — so translating
+ * `.page` down by the banner's live height clears all of them in one move
+ * without touching Starlight internals. `--wcp-banner-height` is published by
+ * trackBannerHeight() (a ResizeObserver) and is 0 whenever no banner is shown,
+ * so this is a no-op in regions/states without a banner (e.g. the US). The
+ * :has() guard matches only while WCP's banner element is actually in the DOM.
+ * ======================================================================== */
+:root {
+  --wcp-banner-height: 0px;
+}
+
+html:has(#wcpConsentBannerCtrl) .page {
+  transform: translateY(var(--wcp-banner-height));
+}
+
+/* ==========================================================================
  * Banner
  * ======================================================================== */
 #wcpConsentBannerCtrl {
@@ -113,12 +136,14 @@ html[data-consent-not-required] .cookie-consent-btn {
 }
 
 /* Secondary "Reject" / "Manage cookies" — ghost buttons that fill toward brand
-   purple on hover. */
+   purple on hover. The resting border uses --sl-color-text at 55% so the button
+   boundary clears WCAG 1.4.11 non-text contrast (>=3:1) in both themes
+   (3.73:1 light, 5.82:1 dark); 30% failed it (1.90:1 / 2.70:1). */
 #wcpConsentBannerCtrl button:nth-of-type(2),
 #wcpConsentBannerCtrl button:nth-of-type(3) {
   background: transparent !important;
   color: var(--sl-color-text) !important;
-  border: 1px solid color-mix(in srgb, var(--sl-color-text) 30%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--sl-color-text) 55%, transparent) !important;
 }
 
 #wcpConsentBannerCtrl button:nth-of-type(2):hover,
@@ -137,8 +162,8 @@ html[data-consent-not-required] .cookie-consent-btn {
  * on init), so we override the surface, text, scrim, and footer buttons with
  * theme-aware Aspire tokens — the same treatment as the banner. Because these
  * rules resolve from the --sl- and --aspire- custom properties, the dialog
- * re-themes instantly when the site theme toggles (backed up by the theme-changed
- * event we dispatch so WCP repaints its own internals too).
+ * re-themes instantly when the site theme toggles (backed up by an applyTheme
+ * call so WCP repaints its own internals too).
  * ======================================================================== */
 
 /* Lock the underlying page while the modal is open. WCP injects
@@ -219,7 +244,8 @@ html:has(#wcpCookiePreferenceCtrl) {
 #wcpCookiePreferenceCtrl [role='document'] > div:last-child button:last-of-type {
   background: transparent !important;
   color: var(--sl-color-text) !important;
-  border: 1px solid color-mix(in srgb, var(--sl-color-text) 30%, transparent) !important;
+  /* 55% keeps the ghost boundary >=3:1 (WCAG 1.4.11) in both themes; see banner. */
+  border: 1px solid color-mix(in srgb, var(--sl-color-text) 55%, transparent) !important;
 }
 #wcpCookiePreferenceCtrl [role='document'] > div:last-child button:last-of-type:hover {
   background: color-mix(in srgb, var(--aspire-color-primary) 14%, transparent) !important;
