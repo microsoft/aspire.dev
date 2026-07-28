@@ -11,7 +11,7 @@ namespace PackageJsonGenerator.Helpers;
 /// </summary>
 public static class DocumentationSanitizer
 {
-    private const string PasswordPlaceholder = "{password}";
+    private const string PasswordPlaceholder = "Placeholder";
 
     // Matches connection-string style "key=value" credential pairs such as
     // "User ID=sa;Password=password" or "Pwd=hunter2". The '=' is intentionally
