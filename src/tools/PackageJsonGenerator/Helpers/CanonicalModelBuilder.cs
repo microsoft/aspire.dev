@@ -899,7 +899,9 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
         {
             // No code block — try to use the whole content as code
             var plainText = ExtractPlainText(exampleElement);
-            return plainText is not null ? new DocExample { Code = plainText } : null;
+            return plainText is not null
+                ? new DocExample { Code = DocumentationSanitizer.RedactConnectionStringPasswords(plainText)! }
+                : null;
         }
 
         var lang = NormalizeLanguage(
@@ -921,7 +923,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                     while (text.Contains("  ")) text = text.Replace("  ", " ");
                     if (!string.IsNullOrWhiteSpace(text))
                     {
-                        descNodes.Add(new DocNode { Kind = "text", Text = text.Trim() });
+                        descNodes.Add(new DocNode { Kind = "text", Text = DocumentationSanitizer.RedactConnectionStringPasswords(text.Trim()) });
                     }
                     break;
 
@@ -942,7 +944,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
 
         return new DocExample
         {
-            Code = codeElement.Value,
+            Code = DocumentationSanitizer.RedactConnectionStringPasswords(codeElement.Value)!,
             Language = lang,
             Description = descNodes.Count > 0 ? descNodes : null,
             Region = region,

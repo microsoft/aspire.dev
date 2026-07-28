@@ -12,7 +12,7 @@ public sealed class DocumentationSanitizerTests
         var result = DocumentationSanitizer.RedactConnectionStringPasswords(input);
 
         Assert.Equal(
-            "A connection string for the SQL Server in the form \"Server=host,port;User ID=sa;Password=<password>;TrustServerCertificate=true\".",
+            "A connection string for the SQL Server in the form \"Server=host,port;User ID=sa;Password={password};TrustServerCertificate=true\".",
             result);
     }
 
@@ -20,10 +20,10 @@ public sealed class DocumentationSanitizerTests
     // Password at the end of the example (no trailing ';').
     [InlineData(
         "Host=host;Port=port;Username=postgres;Password=password",
-        "Host=host;Port=port;Username=postgres;Password=<password>")]
+        "Host=host;Port=port;Username=postgres;Password={password}")]
     // Keyword casing is preserved and the 'Pwd' alias is handled.
-    [InlineData("Server=s;Pwd=hunter2;Uid=admin", "Server=s;Pwd=<password>;Uid=admin")]
-    [InlineData("server=s;PASSWORD=S0meThing!;uid=a", "server=s;PASSWORD=<password>;uid=a")]
+    [InlineData("Server=s;Pwd=hunter2;Uid=admin", "Server=s;Pwd={password};Uid=admin")]
+    [InlineData("server=s;PASSWORD=S0meThing!;uid=a", "server=s;PASSWORD={password};uid=a")]
     public void RedactConnectionStringPasswords_RedactsVariousFormats(string input, string expected)
     {
         Assert.Equal(expected, DocumentationSanitizer.RedactConnectionStringPasswords(input));
@@ -32,11 +32,23 @@ public sealed class DocumentationSanitizerTests
     [Fact]
     public void RedactConnectionStringPasswords_IsIdempotent()
     {
-        var alreadyRedacted = "Server=host,port;User ID=sa;Password=<password>;TrustServerCertificate=true";
+        var alreadyRedacted = "Server=host,port;User ID=sa;Password={password};TrustServerCertificate=true";
 
         var result = DocumentationSanitizer.RedactConnectionStringPasswords(alreadyRedacted);
 
         Assert.Equal(alreadyRedacted, result);
+    }
+
+    [Fact]
+    public void RedactConnectionStringPasswords_UsesMarkdownSafePlaceholder()
+    {
+        // The placeholder must not contain angle brackets, which would be
+        // dropped as raw HTML when doc nodes are rendered to Markdown.
+        var result = DocumentationSanitizer.RedactConnectionStringPasswords("Password=password");
+
+        Assert.Equal("Password={password}", result);
+        Assert.DoesNotContain('<', result!);
+        Assert.DoesNotContain('>', result!);
     }
 
     [Theory]
@@ -54,6 +66,6 @@ public sealed class DocumentationSanitizerTests
     [InlineData(null)]
     public void RedactConnectionStringPasswords_HandlesEmptyAndNull(string? input)
     {
-        Assert.Equal(input, DocumentationSanitizer.RedactConnectionStringPasswords(input!));
+        Assert.Equal(input, DocumentationSanitizer.RedactConnectionStringPasswords(input));
     }
 }
