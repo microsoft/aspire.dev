@@ -296,6 +296,14 @@ function computeSourceUrl() {
           next.setAttribute(attr.name, attr.value);
         }
         if (old.textContent) next.textContent = old.textContent;
+        // The analytics scripts are order-dependent: the SDK must run before
+        // 1ds.js (which reads `oneDS`) and track.js (which reads
+        // `window.analytics`). Dynamically-created scripts default to async=true
+        // and the copied `defer` is a no-op for them, so without this the two
+        // tiny same-origin scripts win the race against the ~140 KB SDK and each
+        // bail silently. Forcing async=false runs them in insertion (document)
+        // order. Set after the copy so a stray `async` attribute can't override.
+        next.async = false;
         if (old.parentNode) old.parentNode.replaceChild(next, old);
       }
     }
@@ -386,25 +394,22 @@ function computeSourceUrl() {
     // WCP paints the banner AND the preferences dialog from the theme passed at
     // init time and does not re-read the site theme on its own. WCP exposes no
     // `theme-changed` event — its only supported runtime re-theme hook is
-    // `siteConsent.applyTheme(themeObject)`. Our CSS overrides already re-theme the
-    // visible surfaces instantly from custom properties; calling applyTheme keeps
-    // WCP's own internal nodes in sync when the user toggles the site theme.
+    // `siteConsent.applyTheme(name)`, whose argument is the string theme KEY (it
+    // looks the theme up in its internal map by that key). Our CSS overrides
+    // already re-theme the visible surfaces instantly from custom properties;
+    // calling applyTheme keeps WCP's own internal nodes in sync on theme toggles.
     function resolveWcpTheme(themeName) {
-      var wcp = window.WcpConsent;
-      var isDark = (themeName || '').toLowerCase() === 'dark';
-      if (wcp && wcp.themes) {
-        return isDark ? wcp.themes.dark : wcp.themes.light;
-      }
-      // String fallback keeps wcp.init from throwing when the themes payload is
-      // missing; applyTheme is guarded separately since it needs the real object.
-      return isDark ? 'dark' : 'light';
+      // Resolve the site's data-theme to the WCP theme KEY. Both applyTheme and
+      // init expect this string ('dark' | 'light'); passing a wcp.themes[...]
+      // OBJECT instead makes applyTheme do `this.themes[object]` -> undefined ->
+      // "Theme not found error" (silently swallowed), so the re-theme never runs.
+      return (themeName || '').toLowerCase() === 'dark' ? 'dark' : 'light';
     }
 
     function applyWcpTheme() {
-      var wcp = window.WcpConsent;
-      // applyTheme reads color fields off the theme OBJECT, so only call it when
-      // the real themes payload is available (never with the string fallback).
-      if (!wcp || !wcp.themes) return;
+      // applyTheme takes the string theme key and throws on an unknown key;
+      // withSiteConsent swallows that so a renamed/absent theme can't break the
+      // observer.
       withSiteConsent(function (siteConsent) {
         if (typeof siteConsent.applyTheme === 'function') {
           siteConsent.applyTheme(
@@ -443,9 +448,10 @@ function computeSourceUrl() {
 
       try {
         var culture = toCulture(document.documentElement.lang || navigator.language || 'en-US');
-        // Resolve the theme through resolveWcpTheme so a missing or renamed
-        // wcp.themes payload falls back to a string here instead of throwing
-        // (which would be swallowed below and permanently stop initialization).
+        // The string theme key WCP's init expects as its 5th argument. (The
+        // current CDN build ignores this arg; our CSS overrides theme the visible
+        // surfaces regardless, and applyWcpTheme() re-syncs WCP's own nodes on
+        // later theme toggles.)
         var theme = resolveWcpTheme(document.documentElement.getAttribute('data-theme'));
         var host = ensureBannerPlaceholder() || document.body;
         trackBannerHeight();

@@ -43,6 +43,11 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
   );
 
   await page.addInitScript((opts: WcpStubOptions) => {
+    // WCP v2 is key-based: `siteConsent.applyTheme(name)` looks the theme up in
+    // this map and throws on a miss, and `WcpConsent.themes` is a string-keyed
+    // record of theme objects.
+    const themes: Record<string, unknown> = { dark: {}, light: {}, 'high-contrast': {} };
+
     const siteConsent = {
       isConsentRequired: opts.consentRequired,
       getConsent() {
@@ -57,22 +62,39 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
         const w = window as unknown as { __wcpManageConsentCalls?: number };
         w.__wcpManageConsentCalls = (w.__wcpManageConsentCalls ?? 0) + 1;
       },
-      applyTheme() {
-        const w = window as unknown as { __wcpApplyThemeCalls?: number };
+      applyTheme(themeKey: unknown) {
+        // Mirror the real API exactly: only a valid string key is accepted;
+        // anything else (e.g. a `themes[...]` object) throws just as the live
+        // library does. This is what lets the theme test catch a wrong-argument
+        // regression that a permissive `applyTheme() {}` stub would silently hide.
+        if (typeof themeKey !== 'string' || !(themeKey in themes)) {
+          throw new Error('Theme not found error');
+        }
+        const w = window as unknown as {
+          __wcpApplyThemeCalls?: number;
+          __wcpLastAppliedTheme?: string;
+        };
         w.__wcpApplyThemeCalls = (w.__wcpApplyThemeCalls ?? 0) + 1;
+        w.__wcpLastAppliedTheme = themeKey;
       },
       onConsentChanged() {},
     };
 
     (window as unknown as { WcpConsent: unknown }).WcpConsent = {
-      themes: { dark: {}, light: {} },
+      themes,
       init(
         _culture: string,
         _host: unknown,
-        initCallback: (err: unknown, consent: typeof siteConsent) => void
+        initCallback: (err: unknown, consent: typeof siteConsent) => void,
+        onConsentChanged?: () => void
       ) {
-        // Mirror WCP: invoke the init callback once consent is resolved so our
-        // bootstrap stores the siteConsent and runs the analytics bridge.
+        // Expose WCP's own consent-changed callback (init's 4th argument) so a
+        // test can drive the consent-*changed* path, which the bootstrap handles
+        // by reloading. Then mirror WCP: invoke the init callback once consent is
+        // resolved so our bootstrap stores siteConsent and runs the bridge.
+        (
+          window as unknown as { __triggerWcpConsentChanged?: () => void }
+        ).__triggerWcpConsentChanged = () => onConsentChanged?.();
         initCallback(null, siteConsent);
       },
     };
@@ -123,6 +145,24 @@ test.describe('WCP cookie consent bridge', () => {
           const executable = await page.locator(EXECUTABLE_ANALYTICS_SELECTOR).count();
           return total > 0 && executable === total;
         },
+        { timeout: POLL_TIMEOUT }
+      )
+      .toBe(true);
+    // Execution order is load-bearing (the SDK must run before 1ds.js/track.js),
+    // so the bootstrap forces `async = false` on each promoted script — otherwise
+    // dynamically-created scripts default to async and race, and analytics
+    // silently never initializes. Assert the flag so that fix can't regress.
+    await expect
+      .poll(
+        () =>
+          safeEvaluate(page, () => {
+            const scripts = Array.from(
+              document.querySelectorAll<HTMLScriptElement>(
+                'script[data-category="analytics"]:not([type="text/plain"])'
+              )
+            );
+            return scripts.length > 0 && scripts.every((script) => script.async === false);
+          }),
         { timeout: POLL_TIMEOUT }
       )
       .toBe(true);
@@ -214,5 +254,85 @@ test.describe('WCP cookie consent bridge', () => {
         { timeout: POLL_TIMEOUT }
       )
       .toBe(true);
+  });
+
+  test('re-applies the WCP theme with a string key when the site theme changes', async ({
+    page,
+  }) => {
+    await installWcpStub(page, { consentRequired: true, analyticsGranted: false });
+    await page.goto('/');
+    await waitForConsentBootstrap(page);
+
+    // Toggling `data-theme` must drive `siteConsent.applyTheme` with the string
+    // theme KEY. The stub throws (like the real library) on a non-key argument,
+    // so if the bootstrap passed a `themes[...]` object the call would throw, get
+    // swallowed, and never record — leaving `__wcpLastAppliedTheme` unset and
+    // failing this poll. (A permissive stub could not catch that regression.)
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+    await expect
+      .poll(
+        () =>
+          safeEvaluate(
+            page,
+            () =>
+              (window as unknown as { __wcpLastAppliedTheme?: string }).__wcpLastAppliedTheme ?? null
+          ),
+        { timeout: POLL_TIMEOUT }
+      )
+      .toBe('dark');
+
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+    await expect
+      .poll(
+        () =>
+          safeEvaluate(
+            page,
+            () =>
+              (window as unknown as { __wcpLastAppliedTheme?: string }).__wcpLastAppliedTheme ?? null
+          ),
+        { timeout: POLL_TIMEOUT }
+      )
+      .toBe('light');
+  });
+
+  test('reloads to re-apply consent when WCP reports a consent change', async ({ page }) => {
+    await installWcpStub(page, { consentRequired: true, analyticsGranted: false });
+    await page.goto('/');
+    await waitForConsentBootstrap(page);
+
+    // Mark the live document so we can detect the reload. WCP invokes init's
+    // 4th-arg callback when the visitor changes consent; the bootstrap responds
+    // by reloading so the new choice is applied across any consent-gated behavior.
+    await page.evaluate(() => {
+      (window as unknown as { __preReloadMarker?: boolean }).__preReloadMarker = true;
+    });
+    await expect
+      .poll(() =>
+        safeEvaluate(
+          page,
+          () => (window as unknown as { __preReloadMarker?: boolean }).__preReloadMarker === true
+        )
+      )
+      .toBe(true);
+
+    await page.evaluate(() =>
+      (
+        window as unknown as { __triggerWcpConsentChanged?: () => void }
+      ).__triggerWcpConsentChanged?.()
+    );
+
+    // After the reload the fresh document no longer carries the marker, and the
+    // bootstrap re-runs and re-resolves consent against the new page.
+    await expect
+      .poll(
+        () =>
+          safeEvaluate(
+            page,
+            () => (window as unknown as { __preReloadMarker?: boolean }).__preReloadMarker === true
+          ),
+        { timeout: POLL_TIMEOUT }
+      )
+      .toBe(false);
+    await waitForConsentBootstrap(page);
   });
 });
