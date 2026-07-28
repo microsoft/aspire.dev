@@ -705,6 +705,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                     // Normalize whitespace within text runs (newlines → spaces, collapse runs)
                     text = text.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ");
                     while (text.Contains("  ")) text = text.Replace("  ", " ");
+                    text = DocumentationSanitizer.RedactConnectionStringPasswords(text);
                     if (!string.IsNullOrEmpty(text))
                     {
                         nodes.Add(new DocNode { Kind = "text", Text = text });
@@ -766,7 +767,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                         }
 
                         case "c":
-                            nodes.Add(new DocNode { Kind = "code", Text = child.Value });
+                            nodes.Add(new DocNode { Kind = "code", Text = DocumentationSanitizer.RedactConnectionStringPasswords(child.Value) });
                             break;
 
                         case "code":
@@ -779,7 +780,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                             nodes.Add(new DocNode
                             {
                                 Kind = "codeblock",
-                                Text = child.Value,
+                                Text = DocumentationSanitizer.RedactConnectionStringPasswords(child.Value),
                                 Language = lang,
                                 Value = region, // reuse value for region
                             });
