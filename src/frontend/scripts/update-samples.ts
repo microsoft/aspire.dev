@@ -114,6 +114,9 @@ export interface SampleResult {
   appHostCode: string | null;
 }
 
+// `appHostCode` is intentionally excluded: it is rendered as C# (not prose), so
+// rewriting terminology inside identifiers, string literals, or comments would
+// risk corrupting compilable code without fixing any user-facing prose.
 export function normalizeSampleTerminology(sample: SampleResult): SampleResult {
   return {
     ...sample,
@@ -122,8 +125,6 @@ export function normalizeSampleTerminology(sample: SampleResult): SampleResult {
       sample.description === null ? null : normalizeAspireTerminology(sample.description),
     readme: normalizeAspireTerminology(sample.readme),
     readmeRaw: normalizeAspireTerminology(sample.readmeRaw),
-    appHostCode:
-      sample.appHostCode === null ? null : normalizeAspireTerminology(sample.appHostCode),
   };
 }
 

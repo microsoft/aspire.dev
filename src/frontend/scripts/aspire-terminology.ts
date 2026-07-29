@@ -2,16 +2,24 @@ const horizontalWhitespace = String.raw`[ \t]+`;
 
 // A deprecated term only matches when it isn't fused to an adjacent alphanumeric
 // character, so longer tokens like `ASP.NET Aspire` or `.NET AspireX` stay intact
-// while `_`, `*`, backticks, and `[` still count as boundaries (Markdown emphasis,
-// inline code, and links wrap terms with those characters).
+// while punctuation and Markdown wrappers (`_`, `*`, `[`) still count as
+// boundaries around a standalone term.
 const termStart = String.raw`(?<![A-Za-z0-9])`;
 const termEnd = String.raw`(?![A-Za-z0-9])`;
 
-// Markdown emphasis/link/code openers can sit between an article and a term in
-// raw README/AppHost content (e.g. `a **.NET Aspire**`, `a [.NET Aspire](url)`, or
+// Markdown emphasis/link openers can sit between an article and a term in raw
+// README content (e.g. `a **.NET Aspire**`, `a [.NET Aspire](url)`, or
 // `a _.NET Aspire_`), so the article corrector consumes them to stay grammatical
-// after the term shrinks.
-const markdownOpeners = String.raw`[*\[_\x60]*`;
+// after the term shrinks. Backticks are intentionally excluded: inline code is
+// skipped wholesale (see `codeRegion`), so a term inside it is never rewritten.
+const markdownOpeners = String.raw`[*\[_]*`;
+
+// Fenced code blocks and inline code spans are copied through verbatim so sample
+// commands like `dotnet aspire run` are never rewritten into an unrunnable
+// `Aspire run`. Everything outside these regions is treated as prose. This runs
+// over raw README Markdown (`readmeRaw` feeds the Copy/View Markdown actions), so
+// preserving code exactly matters.
+const codeRegion = /```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`/g;
 
 interface TerminologyRule {
   /**
@@ -51,7 +59,36 @@ const terminologyRules: readonly TerminologyRule[] = [
   },
 ];
 
-export function normalizeAspireTerminology(text: string): string {
+export function normalizeAspireTerminology(text: string): string;
+export function normalizeAspireTerminology(
+  text: string | null | undefined
+): string | null | undefined;
+export function normalizeAspireTerminology(
+  text: string | null | undefined
+): string | null | undefined {
+  if (text == null) {
+    return text;
+  }
+
+  return normalizeProse(text);
+}
+
+// Apply every terminology rule to prose only, copying fenced and inline code
+// regions through untouched so sample commands stay runnable.
+function normalizeProse(text: string): string {
+  let result = '';
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(codeRegion)) {
+    result += applyRules(text.slice(lastIndex, match.index));
+    result += match[0];
+    lastIndex = match.index + match[0].length;
+  }
+
+  return result + applyRules(text.slice(lastIndex));
+}
+
+function applyRules(text: string): string {
   return terminologyRules.reduce(applyRule, text);
 }
 
@@ -61,7 +98,7 @@ function applyRule(text: string, rule: TerminologyRule): string {
 }
 
 // Bound a term core with alphanumeric edges so it can't fuse into a longer token
-// while still allowing Markdown wrappers (`_`, `*`, backticks, `[`) as boundaries.
+// while still allowing Markdown wrappers (`_`, `*`, `[`) as boundaries.
 function boundedTerm(rule: TerminologyRule): string {
   return `${termStart}${rule.term}${termEnd}`;
 }

@@ -30,7 +30,6 @@ describe('Aspire terminology normalization', () => {
       'This is an [Aspire](https://aspire.dev/) sample',
     ],
     ['underscore emphasis', `A _${legacyAspireName}_ project`, 'An _Aspire_ project'],
-    ['inline code', `A \`${legacyAspireName}\` project`, `An \`Aspire\` project`],
   ])('corrects the article across a %s', (_scenario, input, expected) => {
     expect(normalizeAspireTerminology(input)).toBe(expected);
   });
@@ -51,6 +50,34 @@ describe('Aspire terminology normalization', () => {
   ])('normalizes the "dotnet aspire" spelling (%s)', (_scenario, input, expected) => {
     expect(normalizeAspireTerminology(input)).toBe(expected);
   });
+
+  test.each([
+    ['a fenced block', '```bash\n' + `${legacyDotnetAspireName} run` + '\n```'],
+    ['an inline code command', `Run \`${legacyDotnetAspireName} run\` to start.`],
+    ['a fenced legacy brand', '```\n' + legacyAspireName + '\n```'],
+  ])('preserves %s so sample commands stay runnable', (_scenario, input) => {
+    expect(normalizeAspireTerminology(input)).toBe(input);
+  });
+
+  test('normalizes prose while preserving adjacent code', () => {
+    const input = `Build a ${legacyAspireName} app, then run \`${legacyDotnetAspireName} run\`.`;
+    expect(normalizeAspireTerminology(input)).toBe(
+      'Build an Aspire app, then run `dotnet aspire run`.'
+    );
+  });
+
+  test.each([
+    ['prose', `A ${legacyAspireName} ${legacyAppHostName} sample`],
+    ['mixed prose and code', `Run \`${legacyDotnetAspireName} run\` in a ${legacyAspireName} app`],
+  ])('is idempotent for %s', (_scenario, input) => {
+    const once = normalizeAspireTerminology(input);
+    expect(normalizeAspireTerminology(once)).toBe(once);
+  });
+
+  test('passes null and undefined through unchanged', () => {
+    expect(normalizeAspireTerminology(null)).toBeNull();
+    expect(normalizeAspireTerminology(undefined)).toBeUndefined();
+  });
 });
 
 describe('sample terminology normalization', () => {
@@ -61,7 +88,12 @@ describe('sample terminology normalization', () => {
       description: `A ${legacyAspireName} ${legacyAppHostName} project.`,
       href: 'https://github.com/microsoft/aspire-samples/tree/main/samples/terminology-sample',
       readme: `# ${legacyAspireName} sample\n\nRun the ${legacyAppHostName}.`,
-      readmeRaw: `# ${legacyAspireName} sample\n\nRun the ${legacyAppHostName.toUpperCase()}.`,
+      readmeRaw:
+        `# ${legacyAspireName} sample\n\n` +
+        `Run the ${legacyAppHostName.toUpperCase()}.\n\n` +
+        '```bash\n' +
+        `${legacyDotnetAspireName} run\n` +
+        '```\n',
       tags: ['csharp'],
       thumbnail: null,
       appHost: 'csproj',
@@ -74,8 +106,8 @@ describe('sample terminology normalization', () => {
       title: 'Aspire AppHost sample',
       description: 'An Aspire AppHost project.',
       readme: '# Aspire sample\n\nRun the AppHost.',
-      readmeRaw: '# Aspire sample\n\nRun the AppHost.',
-      appHostCode: '// Keep the container running between AppHost sessions.',
+      readmeRaw:
+        '# Aspire sample\n\n' + 'Run the AppHost.\n\n' + '```bash\n' + 'dotnet aspire run\n' + '```\n',
     });
   });
 
@@ -97,17 +129,14 @@ describe('sample terminology normalization', () => {
     expect(normalizeSampleTerminology(sample)).toEqual(sample);
   });
 
-  test('keeps generated sample data free of deprecated terminology', () => {
-    const textFields = ['title', 'description', 'readme', 'readmeRaw', 'appHostCode'] as const;
-    const deprecatedTerminology = new RegExp(
-      [legacyAspireName, legacyDotnetAspireName, legacyAppHostName]
-        .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-        .join('|'),
-      'i'
-    );
+  test('keeps generated sample prose normalized', () => {
+    const proseFields = ['title', 'description', 'readme', 'readmeRaw'] as const;
     const violations = samples.flatMap((sample) =>
-      textFields
-        .filter((field) => deprecatedTerminology.test(sample[field] ?? ''))
+      proseFields
+        .filter((field) => {
+          const value = sample[field];
+          return value != null && normalizeAspireTerminology(value) !== value;
+        })
         .map((field) => `${sample.name}.${field}`)
     );
 
