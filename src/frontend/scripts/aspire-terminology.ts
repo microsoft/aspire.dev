@@ -21,6 +21,16 @@ const markdownOpeners = String.raw`[*\[_]*`;
 // preserving code exactly matters.
 const codeRegion = /```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`/g;
 
+// Raw sample source (`appHostCode`) has no Markdown fences to protect, so
+// `normalizeProse`'s code skipping doesn't apply. This tokenizer instead splits
+// C#/TypeScript source into, in priority order at each position: block comments,
+// line comments, and string/char/template literals. Only the comment tokens are
+// rewritten (see `normalizeAspireTerminologyInCode`); every literal — and all
+// executable code between tokens — is copied through verbatim so identifiers,
+// string values, and CLI command samples stay intact.
+const codeCommentToken =
+  /(\/\*[\s\S]*?\*\/)|(\/\/[^\n]*)|(@?\$?"(?:[^"\\]|\\.|"")*")|(`(?:[^`\\]|\\.)*`)|('(?:[^'\\]|\\.)*')/g;
+
 interface TerminologyRule {
   /**
    * Case-insensitive regex source matching the deprecated term core, without
@@ -71,6 +81,40 @@ export function normalizeAspireTerminology(
   }
 
   return normalizeProse(text);
+}
+
+// Normalize terminology inside C#/TypeScript source by rewriting **code comments
+// only**. Comments are ignored by the compiler, so this can never corrupt
+// compilable code, yet it still fixes the deprecated terms that render in a
+// sample's code block (and would otherwise trip the forbidden-words check).
+// Strings, char/template literals, and executable code are preserved exactly.
+export function normalizeAspireTerminologyInCode(code: string): string;
+export function normalizeAspireTerminologyInCode(
+  code: string | null | undefined
+): string | null | undefined;
+export function normalizeAspireTerminologyInCode(
+  code: string | null | undefined
+): string | null | undefined {
+  if (code == null) {
+    return code;
+  }
+
+  let result = '';
+  let lastIndex = 0;
+
+  for (const match of code.matchAll(codeCommentToken)) {
+    const token = match[0];
+    // Executable code between tokens is copied verbatim: the deprecated phrases
+    // all contain a space, so they can never be valid identifiers there anyway.
+    result += code.slice(lastIndex, match.index);
+    // Groups 1 (block) and 2 (line) are comments; the remaining groups are
+    // string-like literals that must stay byte-for-byte identical.
+    const isComment = match[1] !== undefined || match[2] !== undefined;
+    result += isComment ? applyRules(token) : token;
+    lastIndex = (match.index ?? 0) + token.length;
+  }
+
+  return result + code.slice(lastIndex);
 }
 
 // Apply every terminology rule to prose only, copying fenced and inline code
