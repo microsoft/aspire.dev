@@ -127,10 +127,30 @@ describe('Aspire terminology normalization in code', () => {
     expect(normalizeAspireTerminologyInCode(input)).toBe(input);
   });
 
-  test('is idempotent', () => {
+  test('preserves inline code and is idempotent', () => {
     const input = `// A ${legacyAspireName} ${legacyAppHostName}; run \`${legacyDotnetAspireName} run\`.`;
+    const expected = `// An Aspire AppHost; run \`${legacyDotnetAspireName} run\`.`;
     const once = normalizeAspireTerminologyInCode(input);
-    expect(normalizeAspireTerminologyInCode(once)).toBe(once);
+    expect(once).toBe(expected);
+    expect(normalizeAspireTerminologyInCode(once)).toBe(expected);
+  });
+
+  test('preserves fenced code inside block comments', () => {
+    const input =
+      `/* Configure the ${legacyAppHostName} with this command:\n` +
+      '```bash\n' +
+      `${legacyDotnetAspireName} run\n` +
+      '```\n' +
+      `Then start the ${legacyAppHostName}.\n` +
+      '*/';
+    expect(normalizeAspireTerminologyInCode(input)).toBe(
+      '/* Configure the AppHost with this command:\n' +
+        '```bash\n' +
+        `${legacyDotnetAspireName} run\n` +
+        '```\n' +
+        'Then start the AppHost.\n' +
+        '*/'
+    );
   });
 
   test('passes null and undefined through unchanged', () => {

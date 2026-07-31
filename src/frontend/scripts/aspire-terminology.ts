@@ -110,7 +110,7 @@ export function normalizeAspireTerminologyInCode(
     // Groups 1 (block) and 2 (line) are comments; the remaining groups are
     // string-like literals that must stay byte-for-byte identical.
     const isComment = match[1] !== undefined || match[2] !== undefined;
-    result += isComment ? applyRules(token) : token;
+    result += isComment ? normalizeProse(token) : token;
     lastIndex = (match.index ?? 0) + token.length;
   }
 
