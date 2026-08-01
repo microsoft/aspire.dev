@@ -210,7 +210,12 @@ function initializeAppHostBuilder(root: HTMLElement): void {
     const lineRect = line.getBoundingClientRect();
     const codeRect = code.getBoundingClientRect();
     const stageRect = stage.getBoundingClientRect();
-    let caretX = codeRect.left;
+    // Empty/blank lines have no text node to anchor to, so the caret falls back to
+    // the code element's box left. That box includes Expressive Code's inline
+    // padding, so start from the content edge (after the left padding) to keep the
+    // caret aligned with the first glyph column instead of hugging the frame edge.
+    const codePaddingLeft = parseFloat(getComputedStyle(code).paddingLeft) || 0;
+    let caretX = codeRect.left + codePaddingLeft;
     let caretTextRect: DOMRect | undefined;
     let remainingCharacters = Math.max(0, column);
     let foundTextPosition = false;
@@ -254,13 +259,19 @@ function initializeAppHostBuilder(root: HTMLElement): void {
     }
 
     const caretLineHeight = caretTextRect?.height || lineRect.height;
-    const caretHeight = Math.max(14, Math.min(22, caretLineHeight * 0.82));
-    const caretTop = caretTextRect?.top || lineRect.top;
+    const caretHeight = Math.max(14, Math.min(24, caretLineHeight));
+    const caretTop = (caretTextRect?.top || lineRect.top) + (caretLineHeight - caretHeight) / 2;
     const effectiveDuration = isEditorMotionAllowed() ? travelDuration : 0;
-    caret.style.height = `${caretHeight}px`;
+    // Snap to the device-pixel grid so the thin caret renders crisp instead of
+    // smeared across sub-pixels, keeping it pixel-perfect against the glyphs.
+    // Snap the absolute viewport coordinate (not the stage-relative offset) so it
+    // stays aligned even when the stage itself sits on a fractional pixel.
+    const dpr = window.devicePixelRatio || 1;
+    const snap = (value: number) => Math.round(value * dpr) / dpr;
+    caret.style.height = `${snap(caretHeight)}px`;
     caret.style.transitionDuration = `${effectiveDuration}ms`;
-    caret.style.transform = `translate3d(${caretX - stageRect.left}px, ${
-      caretTop - stageRect.top + (caretLineHeight - caretHeight) / 2
+    caret.style.transform = `translate3d(${snap(caretX) - stageRect.left}px, ${
+      snap(caretTop) - stageRect.top
     }px, 0)`;
 
     return effectiveDuration > 0 ? wait(effectiveDuration) : Promise.resolve();

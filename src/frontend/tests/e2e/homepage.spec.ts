@@ -33,7 +33,7 @@ test('renders a complete semantic landing page without horizontal overflow', asy
     'border-top-right-radius',
     '0px'
   );
-  await expect(page.locator('[data-dashboard-carousel]')).toHaveAttribute('data-autoplay', 'false');
+  await expect(page.locator('[data-dashboard-carousel]')).toHaveAttribute('data-autoplay', 'true');
   await expect(page.locator('[data-dashboard-carousel]')).toHaveAttribute(
     'data-presentation',
     'stage'
@@ -998,18 +998,33 @@ test('provides an explicit integrations motion control and non-tabbable duplicat
   }
 });
 
-test('changes dashboard views only when the user asks', async ({ page }) => {
+test('lets the user drive the dashboard tour and resume playback', async ({ page }) => {
   const carousel = page.locator('[data-dashboard-carousel]');
   const label = carousel.locator('[data-active-label]');
+  const playback = carousel.locator('[data-playback-toggle]');
 
   await carousel.scrollIntoViewIfNeeded();
+
+  // The dashboard tour starts playing on the homepage.
+  await expect(playback).toHaveAttribute('data-playing', 'true');
+
+  // Jumping to a known slide drops into manual mode and pauses the tour.
+  await carousel.getByRole('button', { name: 'Resource graph' }).click();
   await expect(label).toHaveText('Resource graph');
+  await expect(playback).toHaveAttribute('data-playing', 'false');
+
+  // Manual navigation keeps the tour paused and advances one view.
   await carousel.getByRole('button', { name: 'Next view' }).click();
   await expect(label).toHaveText('Resource dashboard');
   await expect(carousel.locator('[data-slide][aria-current="true"]')).toHaveAttribute(
     'data-slide-label',
     'Resource dashboard'
   );
+  await expect(playback).toHaveAttribute('data-playing', 'false');
+
+  // Pressing play resumes the tour.
+  await playback.click();
+  await expect(playback).toHaveAttribute('data-playing', 'true');
 });
 
 test('resolves motion immediately when reduced motion is requested', async ({ page }) => {

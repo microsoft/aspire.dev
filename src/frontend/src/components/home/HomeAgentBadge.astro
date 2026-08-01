@@ -1,6 +1,4 @@
 ---
-import { Icon } from '@astrojs/starlight/components';
-
 interface Props {
   id: string;
   label: string;
@@ -21,7 +19,14 @@ const { id, label, description, tone = 'default', align = 'start' } = Astro.prop
   aria-describedby={`${id}-description`}
 >
   <span class="agent-badge-trigger">
-    <Icon name="star" size="0.9rem" />
+    <span class="agent-badge-spark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="1rem" height="1rem" focusable="false" xmlns="http://www.w3.org/2000/svg">
+        <path
+          fill="currentColor"
+          d="m19 9l-1.25-2.75L15 5l2.75-1.25L19 1l1.25 2.75L23 5l-2.75 1.25zm0 14l-1.25-2.75L15 19l2.75-1.25L19 15l1.25 2.75L23 19l-2.75 1.25zM9 20l-2.5-5.5L1 12l5.5-2.5L9 4l2.5 5.5L17 12l-5.5 2.5z"
+        ></path>
+      </svg>
+    </span>
     <span>{label}</span>
   </span>
   <div class="agent-badge-popover" id={`${id}-description`} role="tooltip">
@@ -75,9 +80,47 @@ const { id, label, description, tone = 'default', align = 'start' } = Astro.prop
     border-radius: 0.55rem;
   }
 
-  .agent-badge-trigger :global(svg) {
+  .agent-badge-spark {
     flex: none;
-    color: var(--home-purple-light);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--home-purple-bright);
+    filter: drop-shadow(0 0 0.28rem color-mix(in srgb, var(--home-purple-bright) 45%, transparent));
+    transition: transform 0.25s ease, filter 0.25s ease;
+  }
+
+  .agent-badge-spark svg {
+    display: block;
+    transform-origin: center;
+    animation: agent-badge-twinkle 2.8s ease-in-out infinite;
+  }
+
+  .home-agent-badge:hover .agent-badge-spark,
+  .home-agent-badge:focus .agent-badge-spark {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 0.5rem color-mix(in srgb, var(--home-purple-bright) 78%, transparent));
+  }
+
+  @keyframes agent-badge-twinkle {
+    0%,
+    100% {
+      opacity: 0.82;
+      transform: scale(0.92) rotate(-6deg);
+    }
+    45% {
+      opacity: 1;
+      transform: scale(1.08) rotate(6deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .agent-badge-spark svg {
+      animation: none;
+    }
+    .agent-badge-spark {
+      transition: none;
+    }
   }
 
   .agent-badge-popover {
@@ -85,9 +128,9 @@ const { id, label, description, tone = 'default', align = 'start' } = Astro.prop
     top: calc(100% + 0.55rem);
     left: 0;
     z-index: 1;
-    width: min(20rem, calc(100vw - 2rem));
+    width: min(22rem, calc(100vw - 2rem));
     display: none;
-    padding: 0.9rem 1rem;
+    padding: 1rem 1.15rem;
     border: 1px solid color-mix(in srgb, var(--home-purple) 32%, var(--home-border));
     border-radius: 0.65rem;
     color: var(--agent-badge-text);
@@ -108,15 +151,15 @@ const { id, label, description, tone = 'default', align = 'start' } = Astro.prop
   .agent-badge-popover strong {
     display: block;
     color: var(--agent-badge-text);
-    font-size: 0.77rem;
-    line-height: 1.2;
+    font-size: 0.92rem;
+    line-height: 1.3;
   }
 
   .agent-badge-popover p {
-    margin: 0.4rem 0 0;
+    margin: 0.5rem 0 0;
     color: var(--agent-badge-muted);
-    font-size: 0.78rem;
-    line-height: 1.55;
+    font-size: 0.9rem;
+    line-height: 1.6;
   }
 
   @media (max-width: 49.999rem) {

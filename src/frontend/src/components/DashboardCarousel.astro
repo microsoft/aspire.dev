@@ -3,6 +3,9 @@ import { Icon } from '@astrojs/starlight/components';
 import ThemeImage from '@components/ThemeImage.astro';
 import type { ImageMetadata } from 'astro';
 
+import PauseIcon from '@assets/icons/pause.svg';
+import PlayIcon from '@assets/icons/play.svg';
+
 import resourcesGraphLight from '@assets/dashboard/landing/resources-graph-light.png';
 import resourcesGraphDark from '@assets/dashboard/landing/resources-graph-dark.png';
 import resourcesTableLight from '@assets/dashboard/landing/resources-table-light.png';
@@ -100,6 +103,8 @@ const carouselLabel = tt('landing.dashboardCarousel.label', 'Aspire dashboard vi
 const chooseViewLabel = tt('landing.dashboardCarousel.chooseView', 'Choose a dashboard view');
 const previousLabel = tt('landing.dashboardCarousel.previous', 'Previous view');
 const nextLabel = tt('landing.dashboardCarousel.next', 'Next view');
+const playLabel = tt('landing.dashboardCarousel.play', 'Play dashboard tour');
+const pauseLabel = tt('landing.dashboardCarousel.pause', 'Pause dashboard tour');
 const formatSlideLabel = (index: number, count: number, label: string) =>
   tt('landing.dashboardCarousel.slideLabel', '{{index}} of {{count}}: {{label}}', {
     index,
@@ -139,6 +144,24 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         </div>
       ))
     }
+
+    <button
+      type="button"
+      class="carousel-playback-btn"
+      data-playback-toggle
+      data-playing="false"
+      data-label-play={playLabel}
+      data-label-pause={pauseLabel}
+      aria-label={pauseLabel}
+      aria-pressed="false"
+    >
+      <span class="carousel-pause-icon" aria-hidden="true"><PauseIcon /></span>
+      <span class="carousel-play-icon" aria-hidden="true"><PlayIcon /></span>
+    </button>
+  </div>
+
+  <div class="carousel-progress" data-progress aria-hidden="true">
+    <span class="carousel-progress-fill" data-progress-fill></span>
   </div>
 
   <div class="carousel-footer">
@@ -243,7 +266,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       function cleanup() {
         if (cleaned) return;
         cleaned = true;
-        stopAuto();
+        stopPlayback();
         if (zoomObserver) zoomObserver.disconnect();
         cleanupTasks.splice(0).forEach((dispose) => dispose());
         delete root.dataset.initialized;
@@ -347,14 +370,17 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       }
 
       // --- Controls ---
-      nextBtn && addListener(nextBtn, 'click', next);
-      prevBtn && addListener(prevBtn, 'click', prev);
-      dots.forEach((d) => addListener(d, 'click', () => setActive(Number(d.dataset.index) || 0)));
+      nextBtn && addListener(nextBtn, 'click', () => manualNav(next));
+      prevBtn && addListener(prevBtn, 'click', () => manualNav(prev));
+      dots.forEach((d) =>
+        addListener(d, 'click', () => manualNav(() => setActive(Number(d.dataset.index) || 0)))
+      );
 
       // Click a side slide to bring it to the center.
       slides.forEach((s) =>
         addListener(s, 'click', () => {
-          if (!s.classList.contains('is-active')) setActive(Number(s.dataset.index) || 0);
+          if (!s.classList.contains('is-active'))
+            manualNav(() => setActive(Number(s.dataset.index) || 0));
         })
       );
 
@@ -363,10 +389,10 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       addListener(root, 'keydown', (e) => {
         if (e.key === 'ArrowRight') {
           e.preventDefault();
-          next();
+          manualNav(next);
         } else if (e.key === 'ArrowLeft') {
           e.preventDefault();
-          prev();
+          manualNav(prev);
         }
       });
 
@@ -426,7 +452,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         startY = null;
         swiping = false;
         if (wasSwiping && Math.abs(dx) > SWIPE_THRESHOLD) {
-          dx < 0 ? next() : prev();
+          manualNav(dx < 0 ? next : prev);
         }
       }
       addListener(root, 'pointerup', endSwipe);
@@ -452,30 +478,137 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         true
       );
 
-      // --- Gentle autoplay (skipped for reduced-motion) ---
-      let timer = null;
-      const DELAY = 5500;
-      function startAuto() {
-        if (!autoplay || reduce || timer || zoomOpen || document.hidden) return;
-        timer = window.setInterval(next, DELAY);
+      // --- Playback engine (rAF progress + optional visible controls) ---
+      // A steady progress bar drives auto-advance. Visible playback UI (the
+      // bottom-left play/pause button and the progress bar) is only shown for
+      // the stage presentation; the coverflow presentation keeps the classic
+      // silent hover-to-pause autoplay with no chrome.
+      const DURATION = 5500; // ms spent on each slide while playing
+      const toggleBtn = root.querySelector('[data-playback-toggle]');
+      const progressFill = root.querySelector('[data-progress-fill]');
+      const PLAY_LABEL = (toggleBtn && toggleBtn.dataset.labelPlay) || 'Play';
+      const PAUSE_LABEL = (toggleBtn && toggleBtn.dataset.labelPause) || 'Pause';
+      const controlsEnabled = stagePresentation && !reduce;
+      root.dataset.playback = controlsEnabled ? 'on' : 'off';
+
+      let isPlaying = autoplay && !reduce;
+      let progress = 0; // 0..1 through the current slide
+      let rafId = null;
+      let lastTs = 0;
+      let hovered = false;
+      let focusWithin = false;
+
+      function suspended() {
+        if (zoomOpen || document.hidden) return true;
+        // In coverflow mode the pointer/focus pause keeps the marquee polite.
+        // In stage mode the explicit button owns the play state, so hovering
+        // must not fight the user's choice.
+        if (!controlsEnabled && (hovered || focusWithin)) return true;
+        return false;
       }
-      function stopAuto() {
-        if (timer) {
-          clearInterval(timer);
-          timer = null;
+
+      function updateProgressUI() {
+        if (!progressFill) return;
+        const p = isPlaying ? Math.max(0, Math.min(1, progress)) : 0;
+        progressFill.style.transform = `scaleX(${p})`;
+      }
+
+      function updateToggleUI() {
+        if (!toggleBtn) return;
+        toggleBtn.dataset.playing = isPlaying ? 'true' : 'false';
+        toggleBtn.setAttribute('aria-pressed', isPlaying ? 'true' : 'false');
+        toggleBtn.setAttribute('aria-label', isPlaying ? PAUSE_LABEL : PLAY_LABEL);
+      }
+
+      function stopRaf() {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        lastTs = 0;
+      }
+
+      function tick(ts) {
+        rafId = null;
+        if (!isPlaying || suspended()) return; // resume() restarts the loop
+        if (lastTs === 0) lastTs = ts;
+        const dt = ts - lastTs;
+        lastTs = ts;
+        progress += dt / DURATION;
+        if (progress >= 1) {
+          progress = 0;
+          setActive(active + 1);
+        }
+        updateProgressUI();
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function resume() {
+        if (!isPlaying || suspended() || rafId !== null) return;
+        lastTs = 0;
+        rafId = requestAnimationFrame(tick);
+      }
+
+      // Re-evaluate suspension after a hover/focus/visibility/zoom change.
+      function refreshPlayback() {
+        if (!isPlaying) return;
+        if (suspended()) {
+          stopRaf();
+        } else {
+          resume();
         }
       }
-      function handleFocusOut(e) {
-        if (!root.contains(e.relatedTarget)) startAuto();
+
+      function setPlaying(next) {
+        if (isPlaying === next) return;
+        isPlaying = next;
+        updateToggleUI();
+        if (isPlaying) {
+          resume();
+        } else {
+          stopRaf();
+        }
+        updateProgressUI();
       }
-      function handleVisibilityChange() {
-        document.hidden ? stopAuto() : startAuto();
+
+      // Manual navigation resets the current slide's progress. In stage mode it
+      // also drops into manual mode (paused); pressing play then resumes from
+      // the start of whatever slide is now centered. Coverflow keeps playing.
+      function manualNav(navFn) {
+        navFn();
+        progress = 0;
+        if (controlsEnabled) {
+          setPlaying(false);
+        } else {
+          lastTs = 0;
+        }
+        updateProgressUI();
       }
-      addListener(root, 'pointerenter', stopAuto);
-      addListener(root, 'pointerleave', startAuto);
-      addListener(root, 'focusin', stopAuto);
-      addListener(root, 'focusout', handleFocusOut);
-      addListener(document, 'visibilitychange', handleVisibilityChange);
+
+      toggleBtn && addListener(toggleBtn, 'click', () => setPlaying(!isPlaying));
+
+      addListener(root, 'pointerenter', () => {
+        hovered = true;
+        refreshPlayback();
+      });
+      addListener(root, 'pointerleave', () => {
+        hovered = false;
+        refreshPlayback();
+      });
+      addListener(root, 'focusin', () => {
+        focusWithin = true;
+        refreshPlayback();
+      });
+      addListener(root, 'focusout', (e) => {
+        if (root.contains(e.relatedTarget)) return;
+        focusWithin = false;
+        refreshPlayback();
+      });
+      addListener(document, 'visibilitychange', refreshPlayback);
+
+      function stopPlayback() {
+        stopRaf();
+      }
 
       // Pause autoplay while an image is zoomed open. starlight-image-zoom adds
       // the `starlight-image-zoom-opened` class to <body> for the duration.
@@ -484,11 +617,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         const open = body.classList.contains('starlight-image-zoom-opened');
         if (open === zoomOpen) return;
         zoomOpen = open;
-        if (open) {
-          stopAuto();
-        } else {
-          startAuto();
-        }
+        refreshPlayback();
       });
       zoomObserver.observe(body, { attributes: true, attributeFilter: ['class'] });
 
@@ -499,7 +628,9 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       requestAnimationFrame(() => {
         measure();
         render();
-        startAuto();
+        updateToggleUI();
+        updateProgressUI();
+        resume();
       });
     }
 
