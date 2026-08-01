@@ -509,7 +509,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
 
       function updateProgressUI() {
         if (!progressFill) return;
-        const p = isPlaying ? Math.max(0, Math.min(1, progress)) : 0;
+        const p = Math.max(0, Math.min(1, progress));
         progressFill.style.transform = `scaleX(${p})`;
       }
 
@@ -744,6 +744,115 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
 
   .dashboard-carousel[data-presentation='stage'] .dot[aria-pressed='true']::after {
     background: #c3adff;
+  }
+
+  /* --- Playback controls (only rendered for the stage presentation) --- */
+  .carousel-playback-btn,
+  .carousel-progress {
+    display: none;
+  }
+
+  .dashboard-carousel[data-playback='on'] .carousel-playback-btn {
+    position: absolute;
+    left: 0.75rem;
+    bottom: 0.75rem;
+    z-index: 120;
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 0;
+    border: 1px solid rgba(229, 226, 244, 0.22);
+    border-radius: 0.625rem;
+    color: #ded9eb;
+    background: rgba(15, 14, 26, 0.66);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+    transition:
+      border-color 160ms ease,
+      background 160ms ease,
+      transform 120ms ease;
+  }
+
+  .dashboard-carousel[data-playback='on'] .carousel-playback-btn:hover {
+    border-color: rgba(195, 173, 255, 0.6);
+    background: rgba(15, 14, 26, 0.82);
+  }
+
+  .dashboard-carousel[data-playback='on'] .carousel-playback-btn:active {
+    transform: translateY(1px);
+  }
+
+  .dashboard-carousel[data-playback='on'] .carousel-playback-btn:focus-visible {
+    outline: 0.1875rem solid #c3adff;
+    outline-offset: 0.2rem;
+  }
+
+  .carousel-playback-btn span {
+    grid-area: 1 / 1;
+    width: 1rem;
+    height: 1rem;
+    display: grid;
+    place-items: center;
+    transition:
+      opacity 160ms ease,
+      transform 160ms ease,
+      visibility 160ms ease;
+  }
+
+  .carousel-playback-btn :global(svg) {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+  }
+
+  /* Show pause while playing, play while paused. */
+  .carousel-play-icon {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.7);
+  }
+
+  .carousel-playback-btn[data-playing='false'] .carousel-pause-icon {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.7);
+  }
+
+  .carousel-playback-btn[data-playing='false'] .carousel-play-icon {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+  }
+
+  /* Progress bar that fills across the current slide, sitting under the image. */
+  .dashboard-carousel[data-playback='on'] .carousel-progress {
+    display: block;
+    position: relative;
+    height: 0.25rem;
+    margin-top: 0.6rem;
+    border-radius: 999px;
+    background: rgba(229, 226, 244, 0.14);
+    overflow: hidden;
+  }
+
+  .carousel-progress-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #8b6dff, #c3adff);
+    transform: scaleX(0);
+    transform-origin: left center;
+    will-change: transform;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .carousel-playback-btn span,
+    .carousel-progress-fill {
+      transition: none;
+    }
   }
 
   .stage {
