@@ -1,0 +1,2436 @@
+---
+import { Image } from 'astro:assets';
+import { Icon } from '@astrojs/starlight/components';
+
+import aspireLogo from '@assets/aspire-logo-32.svg';
+import csharpIcon from '@assets/icons/csharp.svg';
+import dockerIcon from '@assets/icons/docker.svg';
+import garnetIcon from '@assets/icons/garnet-icon.png';
+import goIcon from '@assets/icons/go-light-icon.png';
+import javaIcon from '@assets/icons/java.svg';
+import javascriptIcon from '@assets/icons/javascript.svg';
+import mongodbIcon from '@assets/icons/mongodb-icon.png';
+import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
+import PauseIcon from '@assets/icons/pause.svg';
+import PlayIcon from '@assets/icons/play.svg';
+import postgresqlIcon from '@assets/icons/postgresql-icon.png';
+import pythonIcon from '@assets/icons/python.svg';
+import reactIcon from '@assets/icons/react-icon.svg';
+import redisIcon from '@assets/icons/redis-icon.png';
+import rustIcon from '@assets/icons/rust-icon.png';
+import sqliteIcon from '@assets/icons/sqlite-icon.png';
+import typescriptIcon from '@assets/icons/typescript.svg';
+import valkeyIcon from '@assets/icons/valkey-icon.png';
+import dashboardResourcesDark from '@assets/dashboard/landing/resources-table-dark.png';
+import dashboardResourcesLight from '@assets/dashboard/landing/resources-table-light.png';
+import DashboardCarousel from '@components/DashboardCarousel.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import HomeAgentBadge from './HomeAgentBadge.astro';
+import HomeAgentContext from './HomeAgentContext.astro';
+import HomeEnvironment from './HomeEnvironment.astro';
+import HomeIntegrationRail from './HomeIntegrationRail.astro';
+import HomeTestimonials from './HomeTestimonials.astro';
+
+const languages = [
+  { name: 'C#', icon: csharpIcon },
+  { name: 'TypeScript', icon: typescriptIcon },
+  { name: 'JavaScript', icon: javascriptIcon },
+  { name: 'Python', icon: pythonIcon },
+  { name: 'Java', icon: javaIcon },
+  { name: 'Go', icon: goIcon },
+  { name: 'Rust', icon: rustIcon },
+  { name: 'Containers', icon: dockerIcon },
+] as const;
+
+const frontendResourceIcons = [reactIcon, typescriptIcon, javascriptIcon] as const;
+const apiResourceIcons = [csharpIcon, javaIcon, pythonIcon, goIcon] as const;
+const databaseResourceIcons = [postgresqlIcon, mongodbIcon, mysqlIcon, sqliteIcon] as const;
+const cacheResourceIcons = [redisIcon, valkeyIcon, garnetIcon] as const;
+const modelResourceMotion = {
+  frontend: { duration: 10.8, offset: -1.4 },
+  api: { duration: 13.6, offset: -5.7 },
+  database: { duration: 11.9, offset: -8.2 },
+  cache: { duration: 15.2, offset: -3.3 },
+} as const;
+
+const getModelResourceDelay = (
+  resource: keyof typeof modelResourceMotion,
+  count: number,
+  index: number
+) => {
+  const motion = modelResourceMotion[resource];
+  return motion.offset + index * (motion.duration / count);
+};
+
+const principles = [
+  {
+    number: '01',
+    icon: 'laptop',
+    title: 'Model the app in code',
+    description:
+      'Define services, containers, data stores, references, and configuration in a readable AppHost.',
+    href: '/get-started/app-host/',
+    label: 'Explore the AppHost',
+  },
+  {
+    number: '02',
+    icon: 'rocket',
+    title: 'Run the whole system',
+    description:
+      'Start every dependency together, with service discovery, local endpoints, and dev-time configuration already connected.',
+    href: '/reference/cli/commands/aspire-run/',
+    label: 'Learn about aspire run',
+  },
+  {
+    number: '03',
+    icon: 'magnifier',
+    title: 'Observe from the first request',
+    description:
+      'Use built-in OpenTelemetry to move from a resource to its logs, traces, metrics, and health without extra setup.',
+    href: '/dashboard/',
+    label: 'Explore the dashboard',
+  },
+  {
+    number: '04',
+    icon: 'star',
+    title: 'Deploy without losing the model',
+    description:
+      'Create deployment artifacts for cloud services, containers, Kubernetes, or the infrastructure path your team already uses.',
+    href: '/deployment/',
+    label: 'Explore deployment options',
+  },
+] as const;
+---
+
+<div class="aspire-home not-content">
+  <section class="home-section home-languages" aria-labelledby="home-languages-title">
+    <div class="home-shell">
+      <header class="language-heading" data-home-reveal>
+        <p class="section-index"><span>01</span> Polyglot by design</p>
+        <div>
+          <h2 id="home-languages-title">Bring every service into the same picture.</h2>
+          <p>
+            Keep each part of the application in the language and framework that fits it. Aspire
+            gives the whole stack one model and one workflow.
+          </p>
+        </div>
+      </header>
+
+      <ul
+        class="language-list"
+        aria-label="Languages and workloads supported by Aspire"
+        data-language-list
+      >
+        {
+          languages.map((language, index) => (
+            <li data-home-reveal style={`--home-reveal-delay: ${index * 45}ms`}>
+              <Image src={language.icon} alt="" class="language-icon" width="48" height="48" />
+              <span>{language.name}</span>
+            </li>
+          ))
+        }
+      </ul>
+      <a
+        class="text-link"
+        href="/get-started/resources/"
+        data-home-link
+        data-home-link-icon
+        data-home-reveal
+      >
+        Explore application resources
+        <Icon name="right-arrow" size="1rem" />
+      </a>
+    </div>
+  </section>
+  <HomeAgentContext />
+
+  <section class="home-section home-model" aria-labelledby="home-model-title">
+    <div class="home-shell">
+      <header class="section-heading split-heading" data-home-reveal>
+        <p class="section-index"><span>03</span> One application model</p>
+        <div>
+          <h2 id="home-model-title">Go from repository to running system without the glue work.</h2>
+          <p>
+            The AppHost is the source of truth for how the application fits together. Aspire uses
+            that model throughout development, diagnostics, and deployment.
+          </p>
+          <HomeAgentBadge
+            id="model-ai-context"
+            label="AI can read this model"
+            description="Aspire gives connected AI tools the resource graph, references, configuration, and commands represented here."
+          />
+        </div>
+      </header>
+
+      <div class="model-layout">
+        <div
+          class="model-proof"
+          data-home-reveal
+          data-home-reveal-distance="major"
+          data-model-story
+          data-story-stage="code"
+          data-story-language="typescript"
+        >
+          <div class="model-terminal">
+            <div class="model-window" aria-hidden="true">
+              <div class="model-window-bar" aria-hidden="true">
+                <span><i></i><i></i><i></i></span>
+                <strong>terminal</strong>
+                <small>aspire-shop</small>
+              </div>
+              <pre><code><span class="terminal-line terminal-command"><span>$</span> <b data-terminal-command data-command="aspire run">aspire run</b><i class="terminal-caret" /></span>
+<span class="terminal-line" data-terminal-output><em>Starting:</em> AspireShop.AppHost</span>
+<span class="terminal-line" data-terminal-output><em>Resources:</em> 9 starting</span>
+<span class="terminal-line" data-terminal-output><em>Dashboard:</em> https://localhost:18888</span>
+<span class="terminal-line" data-terminal-output><em>Ready:</em> 9 running, 9 healthy</span></code></pre>
+            </div>
+
+            <button
+              type="button"
+              class="model-story-toggle"
+              data-model-story-toggle
+              data-paused="false"
+              aria-label="Pause runtime story"
+              aria-pressed="false"
+            >
+              <span class="model-story-pause-icon" aria-hidden="true">
+                <PauseIcon />
+              </span>
+              <span class="model-story-play-icon" aria-hidden="true">
+                <PlayIcon />
+              </span>
+            </button>
+          </div>
+
+          <p class="model-story-summary">
+            Running aspire run turns the AppHost application model into a live resource topology,
+            then exposes every healthy resource in the Aspire dashboard.
+          </p>
+
+          <div class="model-story-stage" aria-hidden="true">
+            <div class="model-story-progress">
+              <span data-model-stage-label="code" data-active="true">AppHost</span>
+              <span data-model-stage-label="topology" data-active="false">Topology</span>
+              <span data-model-stage-label="dashboard" data-active="false">Dashboard</span>
+            </div>
+
+            <div class="model-story-viewport">
+              <div class="model-story-panel model-code" data-story-panel="code">
+                <div class="model-code-variant" data-model-code-language="typescript">
+                  <div class="model-code-file">
+                    <strong>apphost.mts</strong>
+                    <span>TypeScript application model</span>
+                  </div>
+                  <pre><code><span class="code-keyword">import</span> &#123; createBuilder &#125; <span class="code-keyword">from</span> <span class="code-string">"./.aspire/modules/aspire.mjs"</span>;
+
+<span class="code-keyword">const</span> builder = <span class="code-keyword">await</span> <span class="code-call">createBuilder</span>();
+<span class="code-keyword">const</span> postgres = <span class="code-keyword">await</span> builder
+    .<span class="code-call">addPostgres</span>(<span class="code-string">"postgres"</span>)
+    .<span class="code-call">addDatabase</span>(<span class="code-string">"catalogdb"</span>);
+<span class="code-keyword">const</span> cache = <span class="code-keyword">await</span> builder.<span class="code-call">addRedis</span>(<span class="code-string">"basketcache"</span>);
+
+<span class="code-keyword">const</span> catalog = <span class="code-keyword">await</span> builder
+    .<span class="code-call">addNodeApp</span>(<span class="code-string">"catalogservice"</span>, <span class="code-string">"./catalog"</span>, <span class="code-string">"src/index.ts"</span>)
+    .<span class="code-call">withReference</span>(postgres);
+
+<span class="code-keyword">await</span> builder.<span class="code-call">addViteApp</span>(<span class="code-string">"frontend"</span>, <span class="code-string">"./frontend"</span>)
+    .<span class="code-call">withReference</span>(catalog)
+    .<span class="code-call">withReference</span>(cache);
+
+<span class="code-keyword">await</span> builder.<span class="code-call">build</span>().<span class="code-call">run</span>();</code></pre>
+                </div>
+
+                <div class="model-code-variant" data-model-code-language="csharp">
+                  <div class="model-code-file">
+                    <strong>AppHost.cs</strong>
+                    <span>C# application model</span>
+                  </div>
+                  <pre><code><span class="code-keyword">var</span> builder = DistributedApplication.<span class="code-call">CreateBuilder</span>(args);
+
+<span class="code-keyword">var</span> postgres = builder.<span class="code-call">AddPostgres</span>(<span class="code-string">"postgres"</span>)
+    .<span class="code-call">AddDatabase</span>(<span class="code-string">"catalogdb"</span>);
+<span class="code-keyword">var</span> cache = builder.<span class="code-call">AddRedis</span>(<span class="code-string">"basketcache"</span>);
+
+<span class="code-keyword">var</span> catalog = builder
+    .<span class="code-call">AddProject</span>&lt;Projects.CatalogService&gt;(<span class="code-string">"catalogservice"</span>)
+    .<span class="code-call">WithReference</span>(postgres);
+
+builder.<span class="code-call">AddProject</span>&lt;Projects.Frontend&gt;(<span class="code-string">"frontend"</span>)
+    .<span class="code-call">WithReference</span>(catalog)
+    .<span class="code-call">WithReference</span>(cache);
+
+builder.<span class="code-call">Build</span>().<span class="code-call">Run</span>();</code></pre>
+                </div>
+              </div>
+
+              <div
+                class="model-story-panel model-graph"
+                data-story-panel="topology"
+                data-model-graph
+              >
+                <div class="graph-line line-frontend"></div>
+                <div class="graph-line line-api"></div>
+                <div class="graph-line line-database"></div>
+                <div class="graph-line line-cache"></div>
+                <div class="graph-node graph-apphost">
+                  <Image
+                    src={aspireLogo}
+                    alt=""
+                    class="graph-apphost-icon"
+                    width="32"
+                    height="32"
+                    loading="eager"
+                  />
+                  <span>AppHost</span>
+                  <small>running</small>
+                </div>
+                <div class="graph-resources">
+                  <div class="graph-resource resource-frontend">
+                    <span class="graph-resource-card">
+                      <span class="graph-resource-icon-cycle cycle-three">
+                        {
+                          frontendResourceIcons.map((icon, index) => (
+                            <Image
+                              src={icon}
+                              alt=""
+                              class="graph-resource-icon"
+                              width="28"
+                              height="28"
+                              loading="eager"
+                              style={`--resource-icon-delay: ${getModelResourceDelay('frontend', frontendResourceIcons.length, index)}s`}
+                            />
+                          ))
+                        }
+                      </span>
+                      <span>frontend</span>
+                    </span>
+                  </div>
+                  <div class="graph-resource resource-api">
+                    <span class="graph-resource-card">
+                      <span class="graph-resource-icon-cycle cycle-four">
+                        {
+                          apiResourceIcons.map((icon, index) => (
+                            <Image
+                              src={icon}
+                              alt=""
+                              class="graph-resource-icon"
+                              width="28"
+                              height="28"
+                              loading="eager"
+                              style={`--resource-icon-delay: ${getModelResourceDelay('api', apiResourceIcons.length, index)}s`}
+                            />
+                          ))
+                        }
+                      </span>
+                      <span>catalogservice</span>
+                    </span>
+                  </div>
+                  <div class="graph-resource resource-database">
+                    <span class="graph-resource-card">
+                      <span class="graph-resource-icon-cycle cycle-four">
+                        {
+                          databaseResourceIcons.map((icon, index) => (
+                            <Image
+                              src={icon}
+                              alt=""
+                              class="graph-resource-icon"
+                              width="28"
+                              height="28"
+                              loading="eager"
+                              style={`--resource-icon-delay: ${getModelResourceDelay('database', databaseResourceIcons.length, index)}s`}
+                            />
+                          ))
+                        }
+                      </span>
+                      <span>postgres</span>
+                    </span>
+                  </div>
+                  <div class="graph-resource resource-cache">
+                    <span class="graph-resource-card">
+                      <span class="graph-resource-icon-cycle cycle-three">
+                        {
+                          cacheResourceIcons.map((icon, index) => (
+                            <Image
+                              src={icon}
+                              alt=""
+                              class={`graph-resource-icon${index === 0 ? ' cache-icon' : ''}`}
+                              width="28"
+                              height="28"
+                              loading="eager"
+                              style={`--resource-icon-delay: ${getModelResourceDelay('cache', cacheResourceIcons.length, index)}s`}
+                            />
+                          ))
+                        }
+                      </span>
+                      <span>basketcache</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="model-story-panel model-dashboard-preview" data-story-panel="dashboard">
+                <ThemeImage
+                  light={dashboardResourcesLight}
+                  dark={dashboardResourcesDark}
+                  alt=""
+                  zoomable={false}
+                  classOverride="model-dashboard-image"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <ol class="principle-list">
+          {
+            principles.map((principle, index) => (
+              <li data-home-reveal style={`--home-reveal-delay: ${index * 70}ms`}>
+                <span class="principle-number">{principle.number}</span>
+                <div class="principle-icon" aria-hidden="true">
+                  <Icon name={principle.icon} size="1.25rem" />
+                </div>
+                <div>
+                  <h3>{principle.title}</h3>
+                  <p>{principle.description}</p>
+                  <a href={principle.href} data-home-link data-home-link-icon>
+                    {principle.label}
+                    <Icon name="right-arrow" size="0.95rem" />
+                  </a>
+                </div>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <HomeEnvironment />
+
+  <section class="home-section home-dashboard" aria-labelledby="home-dashboard-title">
+    <div class="home-shell">
+      <header class="section-heading dashboard-heading" data-home-reveal>
+        <p class="section-index"><span>05</span> Observability included</p>
+        <h2 id="home-dashboard-title">See the whole application. Not just one service.</h2>
+        <p>
+          Follow a request across resources, move between structured logs and traces, inspect
+          metrics, and act on resource health from one developer dashboard.
+        </p>
+        <HomeAgentBadge
+          id="dashboard-ai-context"
+          label="AI can read these signals"
+          description="Aspire gives connected AI tools dashboard context, including logs, traces, metrics, health, and resource commands."
+          tone="dark"
+          align="center"
+        />
+        <a class="text-link" href="/dashboard/" data-home-link data-home-link-icon>
+          Explore the Aspire dashboard
+          <Icon name="right-arrow" size="1rem" />
+        </a>
+      </header>
+
+      <div class="dashboard-stage" data-home-reveal data-home-reveal-distance="major">
+        <div class="dashboard-stage-bar" aria-hidden="true">
+          <span><i></i><i></i><i></i></span>
+          <strong>Aspire dashboard</strong>
+          <small>Resources / Graph</small>
+        </div>
+        <DashboardCarousel autoplay={false} presentation="stage" />
+      </div>
+    </div>
+  </section>
+
+  <section class="home-section home-integrations" aria-labelledby="home-integrations-title">
+    <div class="home-shell">
+      <header class="section-heading integrations-heading" data-home-reveal>
+        <p class="section-index"><span>06</span> Extensible by default</p>
+        <h2 id="home-integrations-title">Use the services you already trust.</h2>
+        <p>
+          Add databases, caches, messaging, cloud resources, and community integrations through the
+          same fluent application model.
+        </p>
+      </header>
+      <div data-home-reveal data-home-reveal-distance="major">
+        <HomeIntegrationRail />
+      </div>
+      <a
+        class="text-link integration-link"
+        href="/integrations/"
+        data-home-link
+        data-home-link-icon
+        data-home-reveal
+      >
+        Browse every integration
+        <Icon name="right-arrow" size="1rem" />
+      </a>
+    </div>
+  </section>
+
+  <HomeTestimonials />
+
+  <section class="home-section home-closing" aria-labelledby="home-closing-title">
+    <div class="closing-grid" aria-hidden="true"></div>
+    <div class="closing-orbit orbit-a" aria-hidden="true"></div>
+    <div class="closing-orbit orbit-b" aria-hidden="true"></div>
+    <div class="home-shell closing-content" data-home-reveal data-home-reveal-distance="major">
+      <p class="section-index"><span>08</span> Start with your stack</p>
+      <h2 id="home-closing-title">Make the whole application easier to build.</h2>
+      <p>
+        Install the Aspire CLI, initialize an existing repository or start fresh, then bring every
+        resource into one clear development loop.
+      </p>
+      <div class="closing-actions">
+        <a class="closing-action primary" href="/get-started/install-cli/">
+          Install Aspire
+          <Icon name="right-arrow" size="1rem" />
+        </a>
+        <a class="closing-action secondary" href="/get-started/first-app/">
+          Build your first app
+        </a>
+        <a class="closing-action tertiary" href="https://github.com/dotnet/aspire">
+          <Icon name="github" size="1.1rem" />
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  type AppHostLanguage = 'csharp' | 'typescript';
+  type ModelStoryStage = 'code' | 'topology' | 'dashboard';
+
+  function isAppHostLanguage(value: unknown): value is AppHostLanguage {
+    return value === 'csharp' || value === 'typescript';
+  }
+
+  function randomizeLanguageOrder(page: HTMLElement) {
+    const list = page.querySelector<HTMLElement>('[data-language-list]');
+    if (!list || list.dataset.randomized === 'true') return;
+
+    const items = Array.from(list.querySelectorAll<HTMLElement>(':scope > li'));
+    for (let index = items.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [items[index], items[randomIndex]] = [items[randomIndex]!, items[index]!];
+    }
+
+    const fragment = document.createDocumentFragment();
+    items.forEach((item, index) => {
+      item.style.setProperty('--home-reveal-delay', `${index * 45}ms`);
+      fragment.append(item);
+    });
+    list.append(fragment);
+    list.dataset.randomized = 'true';
+  }
+
+  function createModelStory(root: HTMLElement, reducedMotion: boolean) {
+    const command = root.querySelector<HTMLElement>('[data-terminal-command]');
+    const toggle = root.querySelector<HTMLButtonElement>('[data-model-story-toggle]');
+    const outputLines = Array.from(root.querySelectorAll<HTMLElement>('[data-terminal-output]'));
+    const stageLabels = Array.from(root.querySelectorAll<HTMLElement>('[data-model-stage-label]'));
+    const graph = root.querySelector<HTMLElement>('[data-model-graph]');
+    if (!command || !toggle) return null;
+
+    const commandText = command.dataset.command ?? 'aspire run';
+    const cycleDuration = 10_800;
+    const commandStart = 280;
+    const commandInterval = 58;
+    const commandEnd = commandStart + Math.max(commandText.length - 1, 0) * commandInterval;
+    const timers = new Set<number>();
+    let playing = false;
+    let playbackAllowed = false;
+    let manuallyPaused = false;
+    let cycleElapsed = 0;
+    let cycleStartedAt = 0;
+
+    const clearTimers = () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers.clear();
+    };
+
+    const scheduleAt = (callback: () => void, timestamp: number) => {
+      const delay = timestamp - cycleElapsed;
+      if (delay < 0) return;
+
+      const timer = window.setTimeout(() => {
+        timers.delete(timer);
+        if (playing) callback();
+      }, delay);
+      timers.add(timer);
+    };
+
+    const updateControl = () => {
+      toggle.dataset.paused = String(manuallyPaused);
+      toggle.setAttribute('aria-pressed', String(manuallyPaused));
+      toggle.setAttribute(
+        'aria-label',
+        manuallyPaused ? 'Play runtime story' : 'Pause runtime story'
+      );
+    };
+
+    const setStage = (stage: ModelStoryStage) => {
+      root.dataset.storyStage = stage;
+      stageLabels.forEach((label) => {
+        label.dataset.active = String(label.dataset.modelStageLabel === stage);
+      });
+      graph?.toggleAttribute('data-graph-active', playing && stage === 'topology');
+    };
+
+    const revealOutput = (index: number) => {
+      outputLines[index]?.classList.add('is-visible');
+    };
+
+    const setLanguage = (language: AppHostLanguage) => {
+      root.dataset.storyLanguage = language;
+    };
+
+    const reset = () => {
+      command.textContent = '';
+      outputLines.forEach((line) => line.classList.remove('is-visible'));
+      root.setAttribute('data-terminal-typing', 'true');
+      setStage('code');
+    };
+
+    const pause = () => {
+      if (playing) {
+        cycleElapsed = Math.min(cycleDuration, performance.now() - cycleStartedAt);
+      }
+      playing = false;
+      clearTimers();
+      root.removeAttribute('data-terminal-typing');
+      root.dataset.storyPlaying = 'false';
+      graph?.removeAttribute('data-graph-active');
+    };
+
+    const showFinalState = () => {
+      pause();
+      command.textContent = commandText;
+      outputLines.forEach((line) => line.classList.add('is-visible'));
+      setStage('dashboard');
+      cycleElapsed = cycleDuration;
+    };
+
+    const scheduleTimeline = () => {
+      Array.from(commandText).forEach((_, index) => {
+        scheduleAt(
+          () => {
+            command.textContent = commandText.slice(0, index + 1);
+            if (index === commandText.length - 1) {
+              root.removeAttribute('data-terminal-typing');
+            }
+          },
+          commandStart + index * commandInterval
+        );
+      });
+
+      scheduleAt(() => revealOutput(0), 1_250);
+      scheduleAt(() => {
+        revealOutput(1);
+        setStage('topology');
+      }, 2_350);
+      scheduleAt(() => revealOutput(2), 3_950);
+      scheduleAt(() => {
+        revealOutput(3);
+        setStage('dashboard');
+      }, 5_300);
+      scheduleAt(() => {
+        cycleElapsed = 0;
+        cycleStartedAt = performance.now();
+        reset();
+        scheduleTimeline();
+      }, cycleDuration);
+    };
+
+    const resume = () => {
+      if (playing || reducedMotion || manuallyPaused || !playbackAllowed) return;
+
+      if (cycleElapsed >= cycleDuration) {
+        cycleElapsed = 0;
+      }
+      if (cycleElapsed === 0) {
+        reset();
+      }
+
+      clearTimers();
+      playing = true;
+      cycleStartedAt = performance.now() - cycleElapsed;
+      root.dataset.storyPlaying = 'true';
+      root.toggleAttribute('data-terminal-typing', cycleElapsed < commandEnd);
+      graph?.toggleAttribute('data-graph-active', root.dataset.storyStage === 'topology');
+      scheduleTimeline();
+    };
+
+    const syncPlayback = () => {
+      if (playbackAllowed && !manuallyPaused) {
+        resume();
+      } else {
+        pause();
+      }
+    };
+
+    const setPlaybackAllowed = (allowed: boolean) => {
+      playbackAllowed = allowed;
+      syncPlayback();
+    };
+
+    const handleToggle = () => {
+      manuallyPaused = !manuallyPaused;
+      updateControl();
+      syncPlayback();
+    };
+
+    const destroy = () => {
+      pause();
+      toggle.removeEventListener('click', handleToggle);
+    };
+
+    toggle.addEventListener('click', handleToggle);
+    updateControl();
+
+    if (reducedMotion) {
+      toggle.disabled = true;
+      showFinalState();
+    }
+
+    return { destroy, setLanguage, setPlaybackAllowed };
+  }
+
+  function initializeHomeReveals() {
+    const page = document.querySelector<HTMLElement>('.aspire-home');
+    if (!page || page.dataset.revealsInitialized === 'true') return;
+
+    randomizeLanguageOrder(page);
+    page.dataset.revealsInitialized = 'true';
+    document.documentElement.dataset.homeJs = 'true';
+    const items = Array.from(document.querySelectorAll<HTMLElement>('[data-home-reveal]'));
+    const modelStoryRoot = page.querySelector<HTMLElement>('[data-model-story]');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const modelStory = modelStoryRoot
+      ? createModelStory(modelStoryRoot, reducedMotion.matches)
+      : null;
+    const selectedLanguage = page.querySelector<HTMLButtonElement>(
+      '.home-hero-product .lang-toggle[aria-pressed="true"]'
+    )?.dataset.lang;
+    if (modelStory && isAppHostLanguage(selectedLanguage)) {
+      modelStory.setLanguage(selectedLanguage);
+    }
+
+    const handleAppHostLanguageChange = (event: Event) => {
+      const language = (event as CustomEvent<{ language?: unknown }>).detail?.language;
+      if (modelStory && isAppHostLanguage(language)) {
+        modelStory.setLanguage(language);
+      }
+    };
+    document.addEventListener('aspire:apphost-language-change', handleAppHostLanguageChange);
+
+    const canObserve = 'IntersectionObserver' in window;
+    let modelStoryVisible = false;
+
+    let observer: IntersectionObserver | null = null;
+    if (reducedMotion.matches || !canObserve) {
+      items.forEach((item) => item.classList.add('home-visible'));
+    } else {
+      observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add('home-visible');
+            observer?.unobserve(entry.target);
+          });
+        },
+        {
+          rootMargin: '0px 0px -9% 0px',
+          threshold: 0.08,
+        }
+      );
+      items.forEach((item) => observer?.observe(item));
+    }
+
+    const updateModelStoryPlayback = () => {
+      if (!modelStory || reducedMotion.matches) return;
+      modelStory.setPlaybackAllowed(modelStoryVisible && !document.hidden);
+    };
+
+    const storyObserver =
+      modelStoryRoot && modelStory && canObserve && !reducedMotion.matches
+        ? new IntersectionObserver(
+            ([entry]) => {
+              modelStoryVisible = entry?.isIntersecting ?? false;
+              updateModelStoryPlayback();
+            },
+            { rootMargin: '-10% 0px', threshold: 0.2 }
+          )
+        : null;
+    if (modelStoryRoot && storyObserver) {
+      storyObserver.observe(modelStoryRoot);
+    } else if (modelStory && !reducedMotion.matches) {
+      modelStoryVisible = true;
+      updateModelStoryPlayback();
+    }
+
+    document.addEventListener('visibilitychange', updateModelStoryPlayback);
+
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        observer?.disconnect();
+        storyObserver?.disconnect();
+        modelStory?.destroy();
+        document.removeEventListener('visibilitychange', updateModelStoryPlayback);
+        document.removeEventListener('aspire:apphost-language-change', handleAppHostLanguageChange);
+        delete page.dataset.revealsInitialized;
+      },
+      { once: true }
+    );
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeHomeReveals, { once: true });
+  } else {
+    initializeHomeReveals();
+  }
+  document.addEventListener('astro:after-swap', initializeHomeReveals);
+</script>
+
+<style>
+  .aspire-home {
+    --home-bg: #f5f6f8;
+    --home-surface: #ffffff;
+    --home-surface-strong: #f0eef8;
+    --home-surface-dark: #201e31;
+    --home-border: rgba(31, 30, 51, 0.14);
+    --home-text: #1f1e33;
+    --home-muted: #5b586c;
+    --home-purple: #512bd4;
+    --home-purple-bright: #754cff;
+    --home-accent: var(--home-purple);
+    --home-green: #178854;
+    width: 100%;
+    overflow: clip;
+    color: var(--home-text);
+    background: var(--home-bg);
+  }
+
+  :global([data-theme='dark']) .aspire-home {
+    --home-bg: #151423;
+    --home-surface: #201e31;
+    --home-surface-strong: #29263c;
+    --home-surface-dark: #100f19;
+    --home-border: rgba(229, 226, 244, 0.16);
+    --home-text: #f7f5ff;
+    --home-muted: #c5c0d5;
+    --home-purple: #ad92ff;
+    --home-purple-bright: #c3adff;
+    --home-accent: var(--home-purple);
+    --home-green: #61d89a;
+  }
+
+  .home-section {
+    position: relative;
+    padding: clamp(6.5rem, 10vw, 10rem) 1.5rem;
+    border-top: 1px solid var(--home-border);
+  }
+
+  .home-shell {
+    width: min(100%, 84rem);
+    margin-inline: auto;
+  }
+
+  .section-index {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+    color: var(--home-muted);
+    font: 650 0.76rem/1.2 var(--__sl-font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .section-index span {
+    color: var(--home-purple);
+  }
+
+  .section-heading h2,
+  .language-heading h2,
+  .closing-content h2 {
+    margin: 0;
+    color: var(--home-text);
+    font-size: clamp(2.7rem, 5.5vw, 5.2rem);
+    font-weight: 620;
+    line-height: 1.02;
+    letter-spacing: -0.055em;
+    text-wrap: balance;
+  }
+
+  .section-heading > p:not(.section-index),
+  .language-heading > div > p,
+  .split-heading > div > p,
+  .closing-content > p:not(.section-index) {
+    margin: 1.4rem 0 0;
+    color: var(--home-muted);
+    font-size: clamp(1.02rem, 1.45vw, 1.22rem);
+    line-height: 1.7;
+  }
+
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--home-purple);
+    font-size: 0.96rem;
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  :global([data-home-link]) {
+    position: relative;
+  }
+
+  :global([data-home-link]::after) {
+    position: absolute;
+    right: 0;
+    bottom: -0.18rem;
+    left: 0;
+    height: 1px;
+    background: currentColor;
+    content: '';
+    pointer-events: none;
+    transform: scaleX(0);
+    transform-origin: right;
+  }
+
+  :global([data-home-link][data-home-link-icon]::after) {
+    right: 1.4rem;
+  }
+
+  :global([data-home-link]:is(:hover, :focus-visible)::after) {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  .text-link:focus-visible,
+  .principle-list a:focus-visible,
+  .closing-action:focus-visible {
+    outline: 0.1875rem solid var(--home-purple);
+    outline-offset: 0.25rem;
+    border-radius: 0.25rem;
+  }
+
+  .home-languages {
+    padding-block: clamp(5rem, 8vw, 7.5rem);
+    background: var(--home-surface);
+  }
+
+  .language-heading {
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.62fr) minmax(0, 1.38fr);
+    gap: clamp(2rem, 7vw, 7rem);
+    align-items: start;
+  }
+
+  .language-heading h2 {
+    max-width: 58rem;
+    font-size: clamp(2.5rem, 4.8vw, 4.75rem);
+  }
+
+  .language-heading > div > p {
+    max-width: 50rem;
+  }
+
+  .language-list {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    margin: clamp(3.25rem, 6vw, 5rem) 0 1.75rem;
+    padding: 0;
+    border-block: 1px solid var(--home-border);
+    list-style: none;
+  }
+
+  .language-list li {
+    min-width: 0;
+    min-height: 7.5rem;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 0.75rem;
+    border-inline-end: 1px solid var(--home-border);
+    color: var(--home-text);
+  }
+
+  .language-list li:last-child {
+    border-inline-end: 0;
+  }
+
+  .language-list li :global(.language-icon) {
+    width: 2.5rem;
+    height: 2.5rem;
+    object-fit: contain;
+  }
+
+  .language-list li span {
+    overflow: hidden;
+    font-size: 0.79rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .home-model {
+    background:
+      radial-gradient(
+        circle at 8% 45%,
+        color-mix(in srgb, var(--home-purple) 10%, transparent),
+        transparent 23rem
+      ),
+      var(--home-bg);
+  }
+
+  .split-heading {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.55fr) minmax(0, 1.45fr);
+    gap: clamp(2rem, 7vw, 7rem);
+    margin-bottom: clamp(4rem, 8vw, 7.5rem);
+  }
+
+  .split-heading h2 {
+    max-width: 61rem;
+  }
+
+  .split-heading > div > p {
+    max-width: 49rem;
+  }
+
+  .model-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+    gap: clamp(3rem, 7vw, 7rem);
+    align-items: start;
+    view-timeline: --model-story block;
+  }
+
+  .model-proof {
+    position: sticky;
+    top: calc(var(--sl-nav-height, 4rem) + 3rem);
+  }
+
+  .model-terminal {
+    position: relative;
+  }
+
+  .model-window {
+    overflow: hidden;
+    border: 1px solid var(--home-border);
+    border-radius: 0.8rem;
+    color: #f7f5ff;
+    background: #171522;
+    box-shadow: 0 2rem 4rem rgba(31, 18, 73, 0.16);
+  }
+
+  .model-window-bar,
+  .dashboard-stage-bar {
+    min-height: 2.75rem;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 1rem;
+    padding: 0 0.9rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    color: #bdb7ce;
+    font: 600 0.7rem/1 var(--__sl-font-mono);
+  }
+
+  .model-window-bar > span,
+  .dashboard-stage-bar > span {
+    display: inline-flex;
+    gap: 0.35rem;
+  }
+
+  .model-window-bar i,
+  .dashboard-stage-bar i {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: #7f7a8f;
+  }
+
+  .model-window-bar i:first-child,
+  .dashboard-stage-bar i:first-child {
+    background: #ee6a5f;
+  }
+
+  .model-window-bar i:nth-child(2),
+  .dashboard-stage-bar i:nth-child(2) {
+    background: #f3be4f;
+  }
+
+  .model-window-bar i:last-child,
+  .dashboard-stage-bar i:last-child {
+    background: #61c554;
+  }
+
+  .model-window-bar strong,
+  .dashboard-stage-bar strong {
+    color: #f7f5ff;
+    font-weight: 650;
+  }
+
+  .model-window-bar small,
+  .dashboard-stage-bar small {
+    justify-self: end;
+    font-size: inherit;
+  }
+
+  .model-window pre {
+    min-height: 13.5rem;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    overflow-x: auto;
+    color: #e9e5f5;
+    border: 0;
+    background: transparent;
+    font: 500 clamp(0.78rem, 1.2vw, 0.92rem)/1.9 var(--__sl-font-mono);
+  }
+
+  .model-window code {
+    display: block;
+    width: 100%;
+  }
+
+  .terminal-line {
+    display: block;
+    opacity: 1;
+    transform: none;
+  }
+
+  .terminal-command > span {
+    color: #78dfa8;
+  }
+
+  .terminal-command b {
+    color: #f7f5ff;
+    font: inherit;
+    font-weight: 650;
+  }
+
+  .model-window code em {
+    color: #ad92ff;
+    font-style: normal;
+  }
+
+  :global(html[data-home-js='true']) .terminal-line[data-terminal-output]:not(.is-visible) {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+
+  .terminal-caret {
+    width: 0.48em;
+    height: 1.05em;
+    display: inline-block;
+    margin-left: 0.15em;
+    opacity: 0;
+    vertical-align: -0.15em;
+    background: #78dfa8;
+  }
+
+  @keyframes terminal-caret {
+    0%,
+    45% {
+      opacity: 1;
+    }
+
+    46%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .model-proof[data-terminal-typing='true'] .terminal-caret {
+      animation: terminal-caret 760ms steps(1, end) infinite;
+    }
+  }
+
+  .model-story-summary {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .model-story-stage {
+    position: relative;
+    height: clamp(20rem, 34vw, 25rem);
+    margin-top: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--home-border);
+    border-radius: 0.8rem;
+    background: var(--home-surface);
+    box-shadow: 0 2rem 4rem rgba(31, 18, 73, 0.12);
+  }
+
+  .model-story-progress {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 5;
+    min-height: 2.75rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    border-bottom: 1px solid var(--home-border);
+    background: color-mix(in srgb, var(--home-surface) 94%, transparent);
+  }
+
+  .model-story-progress span {
+    position: relative;
+    display: grid;
+    place-items: center;
+    color: var(--home-muted);
+    font: 650 0.67rem/1 var(--__sl-font-mono);
+    letter-spacing: 0.02em;
+  }
+
+  .model-story-progress span::after {
+    content: '';
+    position: absolute;
+    inset: auto 20% -1px;
+    height: 2px;
+    opacity: 0;
+    background: var(--home-purple);
+    transform: scaleX(0.5);
+  }
+
+  .model-story-progress span[data-active='true'] {
+    color: var(--home-text);
+  }
+
+  .model-story-progress span[data-active='true']::after {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  .model-story-viewport {
+    position: absolute;
+    inset: 2.75rem 0 0;
+    overflow: hidden;
+    contain: paint;
+  }
+
+  .model-story-panel {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    backface-visibility: hidden;
+    transform: translate3d(0, 0.65rem, 0) scale(0.992);
+  }
+
+  .model-proof[data-story-stage='code'] [data-story-panel='code'],
+  .model-proof[data-story-stage='topology'] [data-story-panel='topology'],
+  .model-proof[data-story-stage='dashboard'] [data-story-panel='dashboard'] {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  .model-story-toggle {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    z-index: 8;
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--home-border);
+    border-radius: 0.625rem;
+    color: var(--home-text);
+    background: var(--home-surface);
+    cursor: pointer;
+  }
+
+  .model-story-toggle:hover {
+    border-color: color-mix(in srgb, var(--home-accent) 62%, var(--home-border));
+  }
+
+  .model-story-toggle:active {
+    transform: translateY(1px);
+  }
+
+  .model-story-toggle:focus-visible {
+    outline: 0.1875rem solid var(--home-accent);
+    outline-offset: 0.2rem;
+  }
+
+  .model-story-toggle span {
+    grid-area: 1 / 1;
+    width: 1rem;
+    height: 1rem;
+    display: grid;
+    place-items: center;
+  }
+
+  .model-story-toggle :global(svg) {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+  }
+
+  .model-story-play-icon {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.7);
+  }
+
+  .model-story-toggle[data-paused='true'] .model-story-pause-icon {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.7);
+  }
+
+  .model-story-toggle[data-paused='true'] .model-story-play-icon {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+  }
+
+  .model-code {
+    color: #e9e5f5;
+    background: #171522;
+  }
+
+  .model-code-variant {
+    height: 100%;
+    display: none;
+  }
+
+  .model-proof[data-story-language='typescript']
+    .model-code-variant[data-model-code-language='typescript'],
+  .model-proof[data-story-language='csharp']
+    .model-code-variant[data-model-code-language='csharp'] {
+    display: block;
+  }
+
+  .model-code-file {
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #bdb7ce;
+    font: 600 0.68rem/1 var(--__sl-font-mono);
+  }
+
+  .model-code-file strong {
+    color: #f7f5ff;
+    font-weight: 650;
+  }
+
+  .model-code pre {
+    height: calc(100% - 2.5rem);
+    margin: 0;
+    padding: clamp(1rem, 2.2vw, 1.65rem);
+    overflow: hidden;
+    border: 0;
+    color: #e9e5f5;
+    background: transparent;
+    font: 500 clamp(0.58rem, 0.85vw, 0.73rem) / 1.58 var(--__sl-font-mono);
+  }
+
+  .model-code code {
+    color: inherit;
+  }
+
+  .model-code .code-keyword {
+    color: #c8a7ff;
+  }
+
+  .model-code .code-call {
+    color: #7dd3fc;
+  }
+
+  .model-code .code-string {
+    color: #8de8b4;
+  }
+
+  .model-graph {
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background:
+      linear-gradient(
+        to right,
+        color-mix(in srgb, var(--home-border) 48%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--home-border) 48%, transparent) 1px,
+        transparent 1px
+      ),
+      var(--home-surface);
+    background-size: 2.25rem 2.25rem;
+  }
+
+  .model-dashboard-preview {
+    display: grid;
+    place-items: center;
+    background: var(--home-surface);
+  }
+
+  .model-dashboard-preview :global(.model-dashboard-image) {
+    width: 100%;
+    height: 100%;
+    display: block;
+    margin: 0;
+    border: 0;
+    object-fit: contain;
+    object-position: left top;
+  }
+
+  .graph-apphost {
+    position: relative;
+    z-index: 2;
+    isolation: isolate;
+    width: 9rem;
+    min-height: 9rem;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 50%, var(--home-border));
+    border-radius: 50%;
+    color: var(--home-text);
+    background: var(--home-surface);
+    box-shadow:
+      0 0 0 1rem color-mix(in srgb, var(--home-purple) 7%, transparent),
+      0 1.5rem 3rem rgba(49, 24, 139, 0.15);
+  }
+
+  .graph-apphost::before,
+  .graph-apphost::after {
+    position: absolute;
+    inset: -0.8rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 48%, transparent);
+    border-radius: 50%;
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .graph-apphost :global(.graph-apphost-icon) {
+    width: 2rem;
+    height: 2rem;
+    margin: 0;
+  }
+
+  .graph-apphost span {
+    font-weight: 800;
+  }
+
+  .graph-apphost small {
+    color: var(--home-green);
+    font: 650 0.65rem/1 var(--__sl-font-mono);
+    text-transform: uppercase;
+  }
+
+  .graph-resources {
+    position: absolute;
+    inset: 1.25rem;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .graph-resource {
+    position: absolute;
+    will-change: transform;
+  }
+
+  .graph-resource-card {
+    position: relative;
+    isolation: isolate;
+    min-height: 3.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--home-border);
+    border-radius: 0.65rem;
+    color: var(--home-text);
+    background: var(--home-surface-strong);
+    font: 650 0.76rem/1 var(--__sl-font-mono);
+    box-shadow:
+      0 0.8rem 1.7rem rgba(31, 18, 73, 0.1),
+      inset 0 1px color-mix(in srgb, var(--home-surface) 65%, transparent);
+    will-change: transform;
+  }
+
+  .graph-resource-card::before,
+  .graph-resource-card::after {
+    position: absolute;
+    inset: -0.35rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 38%, transparent);
+    border-radius: 0.85rem;
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .graph-resource-card > :global(.graph-resource-icon),
+  .graph-resource-icon-cycle {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: 0 0 1.75rem;
+  }
+
+  .graph-resource-card > :global(.graph-resource-icon) {
+    margin: 0;
+    object-fit: contain;
+  }
+
+  .graph-resource-icon-cycle {
+    position: relative;
+  }
+
+  .graph-resource-icon-cycle :global(.graph-resource-icon) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    object-fit: contain;
+    transform: scale(0.78) rotate(-7deg);
+  }
+
+  .graph-resource-icon-cycle :global(.graph-resource-icon:first-child) {
+    opacity: 1;
+    transform: none;
+  }
+
+  .resource-frontend {
+    --graph-idle-x: 0.3rem;
+    --graph-idle-y: -0.28rem;
+    --graph-idle-rotate: -0.35deg;
+    --graph-idle-duration: 5.9s;
+    --graph-idle-delay: -0.8s;
+    --graph-radar-delay: -0.3s;
+    --graph-cycle-duration: 10.8s;
+    --graph-cycle-enter-x: -0.38rem;
+    --graph-cycle-exit-x: 0.38rem;
+    --graph-scroll-from-x: -0.7rem;
+    --graph-scroll-from-y: -0.5rem;
+    --graph-scroll-to-x: 0.45rem;
+    --graph-scroll-to-y: 0.35rem;
+    top: 4%;
+    left: 5%;
+  }
+
+  .resource-api {
+    --graph-idle-x: -0.28rem;
+    --graph-idle-y: -0.32rem;
+    --graph-idle-rotate: 0.4deg;
+    --graph-idle-duration: 6.7s;
+    --graph-idle-delay: -2.6s;
+    --graph-radar-delay: -1.5s;
+    --graph-cycle-duration: 13.6s;
+    --graph-cycle-enter-x: 0.38rem;
+    --graph-cycle-exit-x: -0.38rem;
+    --graph-scroll-from-x: 0.7rem;
+    --graph-scroll-from-y: -0.5rem;
+    --graph-scroll-to-x: -0.45rem;
+    --graph-scroll-to-y: 0.35rem;
+    top: 12%;
+    right: 3%;
+  }
+
+  .resource-database {
+    --graph-idle-x: 0.32rem;
+    --graph-idle-y: 0.26rem;
+    --graph-idle-rotate: 0.35deg;
+    --graph-idle-duration: 7.3s;
+    --graph-idle-delay: -4.1s;
+    --graph-radar-delay: -2.8s;
+    --graph-cycle-duration: 11.9s;
+    --graph-cycle-enter-x: -0.38rem;
+    --graph-cycle-exit-x: 0.38rem;
+    --graph-scroll-from-x: -0.7rem;
+    --graph-scroll-from-y: 0.5rem;
+    --graph-scroll-to-x: 0.45rem;
+    --graph-scroll-to-y: -0.35rem;
+    bottom: 4%;
+    left: 4%;
+  }
+
+  .resource-cache {
+    --graph-idle-x: -0.3rem;
+    --graph-idle-y: 0.3rem;
+    --graph-idle-rotate: -0.4deg;
+    --graph-idle-duration: 5.4s;
+    --graph-idle-delay: -3.7s;
+    --graph-radar-delay: -3.6s;
+    --graph-cycle-duration: 15.2s;
+    --graph-cycle-enter-x: 0.38rem;
+    --graph-cycle-exit-x: -0.38rem;
+    --graph-scroll-from-x: 0.7rem;
+    --graph-scroll-from-y: 0.5rem;
+    --graph-scroll-to-x: -0.45rem;
+    --graph-scroll-to-y: -0.35rem;
+    right: 5%;
+    bottom: 1%;
+  }
+
+  .graph-line {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 1;
+    width: 46%;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--home-purple) 42%, transparent),
+      color-mix(in srgb, var(--home-purple) 28%, transparent) 72%,
+      transparent
+    );
+    transform-origin: left center;
+  }
+
+  .line-frontend {
+    transform: translateY(-50%) rotate(-153deg);
+  }
+
+  .line-api {
+    transform: translateY(-50%) rotate(-24deg);
+  }
+
+  .line-database {
+    transform: translateY(-50%) rotate(153deg);
+  }
+
+  .line-cache {
+    transform: translateY(-50%) rotate(27deg);
+  }
+
+  @keyframes graph-resource-idle {
+    to {
+      transform: translate3d(var(--graph-idle-x), var(--graph-idle-y), 0)
+        rotate(var(--graph-idle-rotate));
+    }
+  }
+
+  @keyframes graph-radar-out {
+    0% {
+      opacity: 0;
+      transform: scale(0.88);
+    }
+
+    32% {
+      opacity: 0.24;
+    }
+
+    100% {
+      opacity: 0;
+      transform: scale(1.22);
+    }
+  }
+
+  @keyframes graph-radar-in {
+    0% {
+      opacity: 0;
+      transform: scale(1.22);
+    }
+
+    68% {
+      opacity: 0.18;
+    }
+
+    100% {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  @keyframes graph-core-radar-out {
+    0% {
+      opacity: 0;
+      transform: scale(0.82);
+    }
+
+    34% {
+      opacity: 0.38;
+    }
+
+    100% {
+      opacity: 0;
+      transform: scale(1.58);
+    }
+  }
+
+  @keyframes graph-core-radar-in {
+    0% {
+      opacity: 0;
+      transform: scale(1.58);
+    }
+
+    66% {
+      opacity: 0.3;
+    }
+
+    100% {
+      opacity: 0;
+      transform: scale(0.84);
+    }
+  }
+
+  @keyframes graph-resource-scroll {
+    from {
+      transform: translate3d(var(--graph-scroll-from-x), var(--graph-scroll-from-y), 0);
+    }
+
+    to {
+      transform: translate3d(var(--graph-scroll-to-x), var(--graph-scroll-to-y), 0);
+    }
+  }
+
+  @keyframes graph-icon-cycle-three {
+    0% {
+      opacity: 0;
+      transform: translate3d(var(--graph-cycle-enter-x), 0, 0) scale(0.96);
+    }
+
+    7%,
+    26% {
+      opacity: 1;
+      transform: none;
+    }
+
+    33.333%,
+    100% {
+      opacity: 0;
+      transform: translate3d(var(--graph-cycle-exit-x), 0, 0) scale(0.98);
+    }
+  }
+
+  @keyframes graph-icon-cycle-four {
+    0% {
+      opacity: 0;
+      transform: translate3d(var(--graph-cycle-enter-x), 0, 0) scale(0.96);
+    }
+
+    6%,
+    19% {
+      opacity: 1;
+      transform: none;
+    }
+
+    25%,
+    100% {
+      opacity: 0;
+      transform: translate3d(var(--graph-cycle-exit-x), 0, 0) scale(0.98);
+    }
+  }
+
+  @keyframes graph-apphost-idle {
+    to {
+      transform: translateY(-0.16rem) scale(1.04);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .model-graph[data-graph-active] .graph-resource-card {
+      animation: graph-resource-idle var(--graph-idle-duration, 5.8s)
+        cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+      animation-delay: var(--graph-idle-delay, 0s);
+    }
+
+    .model-graph[data-graph-active] .graph-resource-card::before {
+      animation: graph-radar-out 4.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      animation-delay: var(--graph-radar-delay, 0s);
+    }
+
+    .model-graph[data-graph-active] .graph-resource-card::after {
+      animation: graph-radar-in 4.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      animation-delay: calc(var(--graph-radar-delay, 0s) + 2.1s);
+    }
+
+    .model-graph[data-graph-active] .graph-apphost::before {
+      animation: graph-core-radar-out 3.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    }
+
+    .model-graph[data-graph-active] .graph-apphost::after {
+      animation: graph-core-radar-in 3.8s cubic-bezier(0.16, 1, 0.3, 1) 1.9s infinite;
+    }
+
+    .model-graph[data-graph-active] .cycle-three :global(.graph-resource-icon) {
+      animation: graph-icon-cycle-three var(--graph-cycle-duration, 10.8s)
+        cubic-bezier(0.2, 0.75, 0.25, 1) infinite;
+      animation-delay: var(--resource-icon-delay);
+    }
+
+    .model-graph[data-graph-active] .cycle-four :global(.graph-resource-icon) {
+      animation: graph-icon-cycle-four var(--graph-cycle-duration, 10.8s)
+        cubic-bezier(0.2, 0.75, 0.25, 1) infinite;
+      animation-delay: var(--resource-icon-delay);
+    }
+
+    .model-graph[data-graph-active] :global(.graph-apphost-icon) {
+      animation: graph-apphost-idle 3.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+    }
+  }
+
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .graph-resource {
+        animation: graph-resource-scroll linear both;
+        animation-timeline: --model-story;
+        animation-range: cover 10% cover 90%;
+      }
+    }
+  }
+
+  .principle-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .principle-list li {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 1.25rem;
+    padding: 2rem 0;
+    border-top: 1px solid var(--home-border);
+  }
+
+  .principle-list li:last-child {
+    border-bottom: 1px solid var(--home-border);
+  }
+
+  .principle-number {
+    padding-top: 0.65rem;
+    color: var(--home-muted);
+    font: 650 0.68rem/1 var(--__sl-font-mono);
+  }
+
+  .principle-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--home-border);
+    border-radius: 50%;
+    color: var(--home-purple);
+    background: var(--home-surface);
+  }
+
+  .principle-list h3 {
+    margin: 0;
+    color: var(--home-text);
+    font-size: clamp(1.35rem, 2vw, 1.7rem);
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+  }
+
+  .principle-list p {
+    margin: 0.75rem 0 1rem;
+    color: var(--home-muted);
+    font-size: 0.96rem;
+    line-height: 1.65;
+  }
+
+  .principle-list a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--home-purple);
+    font-size: 0.86rem;
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .home-dashboard {
+    color: #f7f5ff;
+    background:
+      radial-gradient(circle at 50% 40%, rgba(96, 54, 218, 0.3), transparent 35rem), #12111b;
+  }
+
+  .dashboard-heading {
+    position: relative;
+    z-index: 2;
+    width: min(100%, 66rem);
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .dashboard-heading .section-index {
+    justify-content: center;
+    color: #bdb7ce;
+  }
+
+  .dashboard-heading h2 {
+    margin-top: 1.2rem;
+    color: #f7f5ff;
+  }
+
+  .dashboard-heading > p:not(.section-index) {
+    max-width: 48rem;
+    margin-inline: auto;
+    color: #c8c3d6;
+  }
+
+  .dashboard-heading .text-link {
+    margin-top: 1.35rem;
+    color: #c3adff;
+  }
+
+  .dashboard-stage {
+    width: min(100%, 82rem);
+    margin: clamp(3.5rem, 7vw, 6rem) auto 0;
+    overflow: hidden;
+    border: 1px solid rgba(229, 226, 244, 0.18);
+    border-radius: 1rem;
+    background: #201e31;
+    box-shadow:
+      0 3rem 7rem rgba(0, 0, 0, 0.4),
+      0 0 0 0.4rem rgba(255, 255, 255, 0.04);
+  }
+
+  .dashboard-stage-bar {
+    color: #bdb7ce;
+    background: #1a1827;
+  }
+
+  .home-integrations {
+    background:
+      linear-gradient(
+        to right,
+        color-mix(in srgb, var(--home-border) 40%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--home-border) 40%, transparent) 1px,
+        transparent 1px
+      ),
+      var(--home-bg);
+    background-size: 4rem 4rem;
+  }
+
+  .integrations-heading {
+    width: min(100%, 64rem);
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .integrations-heading .section-index {
+    justify-content: center;
+  }
+
+  .integrations-heading h2 {
+    margin-top: 1.2rem;
+  }
+
+  .integrations-heading > p:not(.section-index) {
+    max-width: 45rem;
+    margin-inline: auto;
+  }
+
+  .integration-link {
+    width: max-content;
+    display: flex;
+    margin: 2rem auto 0;
+  }
+
+  .home-closing {
+    min-height: 48rem;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    color: #f7f5ff;
+    background: #14121f;
+  }
+
+  .closing-content {
+    position: relative;
+    z-index: 2;
+    width: min(100%, 69rem);
+    text-align: center;
+  }
+
+  .closing-content .section-index {
+    justify-content: center;
+    color: #c8c3d6;
+  }
+
+  .closing-content .section-index span {
+    color: #c3adff;
+  }
+
+  .closing-content h2 {
+    margin-top: 1.2rem;
+    color: #f7f5ff;
+    font-size: clamp(3.2rem, 6.5vw, 6.5rem);
+  }
+
+  .closing-content > p:not(.section-index) {
+    max-width: 47rem;
+    margin-inline: auto;
+    color: #c8c3d6;
+  }
+
+  .closing-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.8rem;
+    margin-top: 2rem;
+  }
+
+  .closing-action {
+    min-height: 3.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    padding: 0.8rem 1.25rem;
+    border: 1px solid rgba(229, 226, 244, 0.22);
+    border-radius: 0.65rem;
+    color: #f7f5ff;
+    font-size: 0.94rem;
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .closing-action:hover {
+    transform: translateY(-2px);
+    border-color: rgba(229, 226, 244, 0.45);
+  }
+
+  .closing-action.primary {
+    color: #1f1e33;
+    border-color: #ffffff;
+    background: #ffffff;
+  }
+
+  .closing-action.secondary {
+    border-color: var(--aspire-action-primary, #512bd4);
+    background: var(--aspire-action-primary, #512bd4);
+  }
+
+  .closing-action.secondary:hover {
+    border-color: var(--aspire-action-primary-hover, #4323b4);
+    background: var(--aspire-action-primary-hover, #4323b4);
+  }
+
+  .closing-action.tertiary {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .closing-grid {
+    position: absolute;
+    inset: 0;
+    opacity: 0.22;
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.13) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.13) 1px, transparent 1px);
+    background-size: 4.5rem 4.5rem;
+    mask-image: radial-gradient(circle at center, #000, transparent 67%);
+  }
+
+  .closing-orbit {
+    position: absolute;
+    width: min(74vw, 64rem);
+    aspect-ratio: 1.9;
+    border: 1px solid rgba(195, 173, 255, 0.22);
+    border-radius: 50%;
+  }
+
+  .orbit-a {
+    transform: rotate(12deg);
+  }
+
+  .orbit-b {
+    transform: rotate(-14deg) scale(0.72);
+  }
+
+  :global(html[data-home-js='true']) [data-home-reveal] {
+    opacity: 0.82;
+    transform: translateY(1.5rem);
+  }
+
+  :global(html[data-home-js='true']) [data-home-reveal][data-home-reveal-distance='major'] {
+    transform: translateY(3.75rem);
+  }
+
+  :global(html[data-home-js='true']) [data-home-reveal].home-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :global([data-home-link]::after) {
+      transition: transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .terminal-line {
+      transition:
+        opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .model-story-progress span {
+      transition: color 360ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .model-story-progress span::after {
+      transition:
+        opacity 360ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .model-story-panel {
+      transition:
+        opacity 520ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 680ms cubic-bezier(0.16, 1, 0.3, 1),
+        visibility 0s linear 680ms;
+      will-change: transform, opacity;
+    }
+
+    .model-proof[data-story-stage='code'] [data-story-panel='code'],
+    .model-proof[data-story-stage='topology'] [data-story-panel='topology'],
+    .model-proof[data-story-stage='dashboard'] [data-story-panel='dashboard'] {
+      transition-delay: 70ms, 40ms, 0s;
+    }
+
+    .model-story-toggle {
+      transition:
+        border-color 180ms ease,
+        transform 180ms ease;
+    }
+
+    .model-story-toggle span {
+      transition:
+        opacity 220ms ease,
+        transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .closing-action {
+      transition:
+        transform 180ms ease,
+        border-color 180ms ease,
+        background-color 180ms ease;
+    }
+
+    :global(html[data-home-js='true']) [data-home-reveal] {
+      transition:
+        opacity 800ms cubic-bezier(0.2, 0.75, 0.25, 1) var(--home-reveal-delay, 0ms),
+        transform 800ms cubic-bezier(0.2, 0.75, 0.25, 1) var(--home-reveal-delay, 0ms);
+    }
+  }
+
+  @media (max-width: 71.99rem) {
+    .language-heading,
+    .split-heading {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .language-list {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .language-list li:nth-child(4) {
+      border-inline-end: 0;
+    }
+
+    .language-list li:nth-child(-n + 4) {
+      border-bottom: 1px solid var(--home-border);
+    }
+
+    .model-layout {
+      grid-template-columns: 1fr;
+      gap: 4rem;
+    }
+
+    .model-proof {
+      position: relative;
+      top: auto;
+      width: min(100%, 48rem);
+      margin-inline: auto;
+    }
+
+    .principle-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 2rem;
+    }
+
+    .principle-list li:nth-last-child(-n + 2) {
+      border-bottom: 1px solid var(--home-border);
+    }
+  }
+
+  @media (max-width: 49.99rem) {
+    .home-section {
+      padding: 5.25rem 1rem;
+    }
+
+    .section-heading h2,
+    .language-heading h2,
+    .closing-content h2 {
+      font-size: clamp(2.5rem, 11vw, 3.65rem);
+    }
+
+    .language-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .language-list li {
+      min-height: 6.5rem;
+      border-bottom: 1px solid var(--home-border);
+    }
+
+    .language-list li:nth-child(even) {
+      border-inline-end: 0;
+    }
+
+    .language-list li:nth-last-child(-n + 2) {
+      border-bottom: 0;
+    }
+
+    .model-story-stage {
+      height: 22rem;
+    }
+
+    .model-code pre {
+      font-size: clamp(0.62rem, 1.7vw, 0.68rem);
+    }
+
+    .model-dashboard-preview :global(.model-dashboard-image) {
+      object-fit: cover;
+    }
+
+    .graph-resources {
+      inset: 0.85rem;
+    }
+
+    .graph-apphost {
+      width: 7.5rem;
+      min-height: 7.5rem;
+    }
+
+    .graph-resource-card {
+      min-height: 2.85rem;
+      gap: 0.5rem;
+      padding: 0.48rem 0.62rem;
+      font-size: 0.65rem;
+    }
+
+    .graph-resource-card > :global(.graph-resource-icon),
+    .graph-resource-icon-cycle {
+      width: 1.4rem;
+      height: 1.4rem;
+      flex-basis: 1.4rem;
+    }
+
+    .resource-frontend {
+      top: 2%;
+      left: 0;
+    }
+
+    .resource-api {
+      top: 8%;
+      right: 0;
+    }
+
+    .resource-database {
+      bottom: 5%;
+      left: 0;
+    }
+
+    .resource-cache {
+      right: 0;
+      bottom: 1%;
+    }
+
+    .principle-list {
+      grid-template-columns: 1fr;
+    }
+
+    .principle-list li {
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 1rem;
+    }
+
+    .principle-list li:nth-last-child(2) {
+      border-bottom: 0;
+    }
+
+    .principle-number {
+      display: none;
+    }
+
+    .dashboard-stage {
+      margin-top: 3rem;
+      border-radius: 0.75rem;
+    }
+
+    .dashboard-stage-bar small {
+      display: none;
+    }
+
+    .closing-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      width: min(100%, 24rem);
+      margin-inline: auto;
+    }
+
+    .closing-action {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 24rem) {
+    .model-window-bar small {
+      display: none;
+    }
+
+    .model-window pre {
+      padding: 1.25rem 1rem;
+      font-size: 0.7rem;
+    }
+
+    .model-story-stage {
+      height: 20rem;
+    }
+
+    .model-story-progress span {
+      font-size: 0.6rem;
+    }
+
+    .graph-apphost {
+      width: 6.75rem;
+      min-height: 6.75rem;
+    }
+
+    .graph-resource-card {
+      padding: 0.35rem 0.45rem;
+      font-size: 0.57rem;
+    }
+
+    .graph-resource-card > :global(.graph-resource-icon),
+    .graph-resource-icon-cycle {
+      width: 1.2rem;
+      height: 1.2rem;
+      flex-basis: 1.2rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global([data-home-link]::after) {
+      transition: none;
+    }
+
+    :global(html[data-home-js='true']) [data-home-reveal] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+
+    .closing-action {
+      transition: none;
+    }
+
+    .closing-action:hover {
+      transform: none;
+    }
+
+    .graph-resource,
+    .graph-resource-card,
+    .graph-resource-card::before,
+    .graph-resource-card::after,
+    .graph-apphost::before,
+    .graph-apphost::after,
+    .graph-resource-icon-cycle :global(.graph-resource-icon),
+    .graph-apphost :global(.graph-apphost-icon) {
+      animation: none;
+      transform: none;
+    }
+
+    .graph-resource,
+    .graph-resource-card {
+      will-change: auto;
+    }
+
+    .graph-resource-icon-cycle :global(.graph-resource-icon) {
+      opacity: 0;
+    }
+
+    .graph-resource-icon-cycle :global(.graph-resource-icon:first-child) {
+      opacity: 1;
+    }
+
+    .terminal-line,
+    .model-story-panel,
+    .model-story-progress span,
+    .model-story-progress span::after,
+    .model-story-toggle,
+    .model-story-toggle span {
+      transition: none;
+    }
+
+    .model-story-toggle {
+      display: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    :global([data-home-link]::after) {
+      display: none;
+    }
+
+    :global([data-home-link]:is(:hover, :focus-visible)) {
+      text-decoration: underline;
+      text-underline-offset: 0.22rem;
+    }
+
+    .home-section,
+    .language-list,
+    .language-list li,
+    .model-window,
+    .model-graph,
+    .graph-apphost,
+    .graph-resource-card,
+    .principle-list li,
+    .principle-icon,
+    .dashboard-stage,
+    .model-story-toggle,
+    .closing-action {
+      border-color: CanvasText;
+    }
+
+    .closing-action.primary,
+    .closing-action.secondary {
+      color: ButtonText;
+      background: ButtonFace;
+    }
+  }
+</style>

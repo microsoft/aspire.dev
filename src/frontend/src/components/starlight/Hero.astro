@@ -2,6 +2,7 @@
 import type { ComponentProps } from 'astro/types';
 import { Image } from 'astro:assets';
 import { LinkButton } from '@astrojs/starlight/components';
+import HomeHero from '@components/home/HomeHero.astro';
 
 const PAGE_TITLE_ID = '_top';
 const MAX_HERO_IMAGE_WIDTH = 1000;
@@ -17,6 +18,7 @@ type HeroAction = {
 const { data } = Astro.locals.starlightRoute.entry;
 const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 const heroActions = actions as HeroAction[];
+const isEnglishHome = Astro.url.pathname === '/';
 
 const baseImageAttrs = {
   loading: 'eager' as const,
@@ -51,45 +53,49 @@ if (image) {
 }
 ---
 
-<div class="hero">
-  {
-    darkImage && (
-      <Image
-        src={darkImage}
-        {...getImageAttrs(darkImage)}
-        class:list={{ 'light:sl-hidden': Boolean(lightImage) }}
-      />
-    )
-  }
-  {lightImage && <Image src={lightImage} {...getImageAttrs(lightImage)} class="dark:sl-hidden" />}
-  {rawHtml && <div class="hero-html sl-flex" set:html={rawHtml} />}
-  <div class="sl-flex stack">
-    <div class="sl-flex copy">
-      <h1 id={PAGE_TITLE_ID} data-page-title set:html={title} />
-      {tagline && <div class="tagline" set:html={tagline} />}
-    </div>
-    {
-      heroActions.length > 0 && (
-        <div class="sl-flex actions">
-          {heroActions.map(
-            ({ attrs: { class: className, ...attrs } = {}, icon, link: href, text, variant }) => (
-              <LinkButton
-                {href}
-                {variant}
-                icon={icon?.name as ComponentProps<typeof LinkButton>['icon']}
-                class:list={[className]}
-                {...attrs}
-              >
-                {text}
-                {icon?.html && <Fragment set:html={icon.html} />}
-              </LinkButton>
-            )
-          )}
+{
+  isEnglishHome ? (
+    <HomeHero />
+  ) : (
+    <div class="hero">
+      {darkImage && (
+        <Image
+          src={darkImage}
+          {...getImageAttrs(darkImage)}
+          class:list={{ 'light:sl-hidden': Boolean(lightImage) }}
+        />
+      )}
+      {lightImage && (
+        <Image src={lightImage} {...getImageAttrs(lightImage)} class="dark:sl-hidden" />
+      )}
+      {rawHtml && <div class="hero-html sl-flex" set:html={rawHtml} />}
+      <div class="sl-flex stack">
+        <div class="sl-flex copy">
+          <h1 id={PAGE_TITLE_ID} data-page-title set:html={title} />
+          {tagline && <div class="tagline" set:html={tagline} />}
         </div>
-      )
-    }
-  </div>
-</div>
+        {heroActions.length > 0 && (
+          <div class="sl-flex actions">
+            {heroActions.map(
+              ({ attrs: { class: className, ...attrs } = {}, icon, link: href, text, variant }) => (
+                <LinkButton
+                  {href}
+                  {variant}
+                  icon={icon?.name as ComponentProps<typeof LinkButton>['icon']}
+                  class:list={[className]}
+                  {...attrs}
+                >
+                  {text}
+                  {icon?.html && <Fragment set:html={icon.html} />}
+                </LinkButton>
+              )
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 <style>
   @layer starlight.core {

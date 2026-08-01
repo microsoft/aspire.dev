@@ -1,0 +1,135 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+
+interface Props {
+  id: string;
+  label: string;
+  description: string;
+  tone?: 'default' | 'dark';
+  align?: 'start' | 'center';
+}
+
+const { id, label, description, tone = 'default', align = 'start' } = Astro.props;
+---
+
+<div
+  class="home-agent-badge"
+  data-tone={tone}
+  data-align={align}
+  data-home-agent-badge
+  tabindex="0"
+  aria-describedby={`${id}-description`}
+>
+  <span class="agent-badge-trigger">
+    <Icon name="star" size="0.9rem" />
+    <span>{label}</span>
+  </span>
+  <div class="agent-badge-popover" id={`${id}-description`} role="tooltip">
+    <strong>Context from Aspire</strong>
+    <p>{description}</p>
+  </div>
+</div>
+
+<style>
+  .home-agent-badge {
+    --agent-badge-surface: var(--home-surface);
+    --agent-badge-text: var(--home-text);
+    --agent-badge-muted: var(--home-muted);
+    position: relative;
+    z-index: 20;
+    width: fit-content;
+    margin-top: 1rem;
+    color: var(--agent-badge-text);
+  }
+
+  .home-agent-badge[data-align='center'] {
+    margin-inline: auto;
+  }
+
+  .home-agent-badge[data-tone='dark'] {
+    --agent-badge-surface: #211f2f;
+    --agent-badge-text: #f7f5ff;
+    --agent-badge-muted: #c8c3d6;
+  }
+
+  .agent-badge-trigger {
+    min-height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.42rem 0.65rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 42%, var(--home-border));
+    border-radius: 0.55rem;
+    color: var(--agent-badge-text);
+    background: color-mix(in srgb, var(--home-purple) 7%, var(--agent-badge-surface));
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    list-style: none;
+    cursor: help;
+  }
+
+  .home-agent-badge:focus-visible {
+    outline: 0.1875rem solid var(--home-purple);
+    outline-offset: 0.2rem;
+    border-radius: 0.55rem;
+  }
+
+  .agent-badge-trigger :global(svg) {
+    flex: none;
+    color: var(--home-purple-light);
+  }
+
+  .agent-badge-popover {
+    position: absolute;
+    top: calc(100% + 0.55rem);
+    left: 0;
+    z-index: 1;
+    width: min(20rem, calc(100vw - 2rem));
+    display: none;
+    padding: 0.9rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 32%, var(--home-border));
+    border-radius: 0.65rem;
+    color: var(--agent-badge-text);
+    background: var(--agent-badge-surface);
+    box-shadow: 0 1rem 2.8rem color-mix(in srgb, #171426 16%, transparent);
+  }
+
+  .home-agent-badge:hover .agent-badge-popover,
+  .home-agent-badge:focus .agent-badge-popover {
+    display: block;
+  }
+
+  .home-agent-badge[data-align='center'] .agent-badge-popover {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .agent-badge-popover strong {
+    display: block;
+    color: var(--agent-badge-text);
+    font-size: 0.77rem;
+    line-height: 1.2;
+  }
+
+  .agent-badge-popover p {
+    margin: 0.4rem 0 0;
+    color: var(--agent-badge-muted);
+    font-size: 0.78rem;
+    line-height: 1.55;
+  }
+
+  @media (max-width: 49.999rem) {
+    .agent-badge-trigger {
+      min-height: 2.75rem;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .agent-badge-trigger,
+    .agent-badge-popover {
+      border-color: CanvasText;
+      background: Canvas;
+    }
+  }
+</style>

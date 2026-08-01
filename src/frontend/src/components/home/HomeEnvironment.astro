@@ -1,0 +1,1669 @@
+---
+import { Image } from 'astro:assets';
+import { Icon } from '@astrojs/starlight/components';
+
+import aspireLogo from '@assets/aspire-logo-32.svg';
+import awsIcon from '@assets/icons/aws.svg';
+import azureAppServicesIcon from '@assets/icons/azure-app-services.svg';
+import azureCacheIcon from '@assets/icons/azure-cacheredis-icon.png';
+import azureContainerAppsIcon from '@assets/icons/azure-container-apps-environments.svg';
+import azurePostgresqlIcon from '@assets/icons/azure-postgresql-icon.png';
+import csharpIcon from '@assets/icons/csharp.svg';
+import devTunnelsIcon from '@assets/icons/dev-tunnels-icon.svg';
+import garnetIcon from '@assets/icons/garnet-icon.png';
+import goIcon from '@assets/icons/go-light-icon.png';
+import javaIcon from '@assets/icons/java.svg';
+import javascriptIcon from '@assets/icons/javascript.svg';
+import mongodbIcon from '@assets/icons/mongodb-icon.png';
+import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
+import PauseIcon from '@assets/icons/pause.svg';
+import PlayIcon from '@assets/icons/play.svg';
+import postgresqlIcon from '@assets/icons/postgresql-icon.png';
+import pythonIcon from '@assets/icons/python.svg';
+import reactIcon from '@assets/icons/react-icon.svg';
+import redisIcon from '@assets/icons/redis-icon.png';
+import sqliteIcon from '@assets/icons/sqlite-icon.png';
+import typescriptIcon from '@assets/icons/typescript.svg';
+import valkeyIcon from '@assets/icons/valkey-icon.png';
+import HomeAgentBadge from './HomeAgentBadge.astro';
+
+const frontendIcons = [reactIcon, typescriptIcon, javascriptIcon] as const;
+const apiIcons = [csharpIcon, javaIcon, pythonIcon, goIcon] as const;
+const databaseIcons = [postgresqlIcon, mongodbIcon, mysqlIcon, sqliteIcon] as const;
+const cacheIcons = [redisIcon, valkeyIcon, garnetIcon] as const;
+
+const resourceMotion = [
+  { cycleDuration: 10.8, cycleOffset: -1.4, idleDuration: 5.9, idleDelay: -0.8, radarDelay: -0.3 },
+  { cycleDuration: 13.6, cycleOffset: -5.7, idleDuration: 6.7, idleDelay: -2.6, radarDelay: -1.5 },
+  { cycleDuration: 11.9, cycleOffset: -8.2, idleDuration: 7.3, idleDelay: -4.1, radarDelay: -2.8 },
+  { cycleDuration: 15.2, cycleOffset: -3.3, idleDuration: 5.4, idleDelay: -3.7, radarDelay: -3.6 },
+] as const;
+
+const getResourceMotionStyle = (resourceIndex: number) => {
+  const motion = resourceMotion[resourceIndex % resourceMotion.length];
+  const direction = resourceIndex % 2 === 0 ? 1 : -1;
+  return [
+    `--topology-cycle-duration: ${motion.cycleDuration}s`,
+    `--topology-idle-duration: ${motion.idleDuration}s`,
+    `--topology-idle-delay: ${motion.idleDelay}s`,
+    `--topology-radar-delay: ${motion.radarDelay}s`,
+    `--topology-cycle-enter-x: ${(-0.38 * direction).toFixed(2)}rem`,
+    `--topology-cycle-exit-x: ${(0.38 * direction).toFixed(2)}rem`,
+  ].join('; ');
+};
+
+const getCycleDelay = (count: number, index: number, resourceIndex: number) => {
+  const motion = resourceMotion[resourceIndex % resourceMotion.length];
+  return motion.cycleOffset + index * (motion.cycleDuration / count);
+};
+
+const environments = [
+  {
+    id: 'local',
+    label: 'Local',
+    eyebrow: 'Fast feedback',
+    title: 'Run everything locally.',
+    description:
+      'Start projects, containers, and data services together. Aspire wires local endpoints, configuration, and service discovery from the AppHost.',
+    action: { kind: 'command', label: 'aspire run' },
+    status: '4 resources healthy',
+    accent: '#75dca8',
+    resources: [
+      { slot: 'frontend', label: 'frontend', details: ['local process'], icons: frontendIcons },
+      { slot: 'api', label: 'api', details: ['local process'], icons: apiIcons },
+      {
+        slot: 'database',
+        label: 'database',
+        details: ['local container'],
+        icons: databaseIcons,
+      },
+      { slot: 'cache', label: 'cache', details: ['local container'], icons: cacheIcons },
+    ],
+  },
+  {
+    id: 'test',
+    label: 'Test',
+    eyebrow: 'Repeatable validation',
+    title: 'Test the topology you ship.',
+    description:
+      'Use the application model in automated tests and CI workflows so dependencies and relationships match the system developers run locally.',
+    action: { kind: 'link', label: 'Testing docs', href: '/testing/' },
+    status: 'isolated test resources',
+    accent: '#7db9ff',
+    resources: [
+      { slot: 'frontend', label: 'frontend', details: ['dev tunnel'], icons: [devTunnelsIcon] },
+      { slot: 'api', label: 'api', details: ['staging environment'], icons: apiIcons },
+      {
+        slot: 'database',
+        label: 'database',
+        details: ['staged database'],
+        icons: databaseIcons,
+      },
+      {
+        slot: 'cache',
+        label: 'cache',
+        details: ['short-lived container'],
+        icons: cacheIcons,
+      },
+    ],
+  },
+  {
+    id: 'production',
+    label: 'Production',
+    eyebrow: 'Deployment ready',
+    title: 'Deploy the model you know.',
+    description:
+      'Move the application to cloud targets without changing its architecture. Choose managed services, containers, Kubernetes, or your own infrastructure.',
+    action: { kind: 'command', label: 'aspire deploy' },
+    status: 'release ready',
+    accent: '#c3adff',
+    resources: [
+      {
+        slot: 'frontend',
+        label: 'frontend',
+        details: ['Azure App Service', 'AWS Amplify'],
+        icons: [azureAppServicesIcon, awsIcon],
+      },
+      {
+        slot: 'api',
+        label: 'api',
+        details: ['Azure Container Apps', 'AWS App Runner'],
+        icons: [azureContainerAppsIcon, awsIcon],
+      },
+      {
+        slot: 'database',
+        label: 'database',
+        details: ['Azure Database', 'AWS RDS'],
+        icons: [azurePostgresqlIcon, awsIcon],
+      },
+      {
+        slot: 'cache',
+        label: 'cache',
+        details: ['Azure Managed Redis', 'AWS ElastiCache'],
+        icons: [azureCacheIcon, awsIcon],
+      },
+    ],
+  },
+] as const;
+---
+
+<section
+  class="home-section home-environment"
+  aria-labelledby="home-environment-title"
+  data-home-environments
+  data-environment-state="local"
+>
+  <div class="environment-grid" aria-hidden="true"></div>
+  <div class="home-shell">
+    <header class="environment-heading" data-home-reveal>
+      <p class="section-index"><span>04</span> Local first, production ready</p>
+      <div>
+        <h2 id="home-environment-title">Keep the model. Change the environment.</h2>
+        <p>
+          Development, testing, and deployment stay connected to the same application topology. The
+          workflow changes without forcing the architecture to drift.
+        </p>
+        <HomeAgentBadge
+          id="environment-ai-context"
+          label="AI can read this environment"
+          description="Aspire exposes the selected environment's resources, endpoints, health, and available commands to connected AI tools."
+        />
+      </div>
+    </header>
+
+    <div class="environment-switcher" data-home-reveal>
+      <div class="environment-controls" role="group" aria-label="Choose an environment">
+        {
+          environments.map((environment, index) => (
+            <button
+              type="button"
+              data-environment-trigger={environment.id}
+              aria-controls={`home-environment-${environment.id}`}
+              aria-pressed={index === 0 ? 'true' : 'false'}
+              style={`--environment-accent: ${environment.accent}`}
+            >
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              {environment.label}
+            </button>
+          ))
+        }
+      </div>
+
+      <div class="environment-stage" data-home-reveal data-home-reveal-distance="major">
+        <div class="environment-stage-bar" aria-hidden="true">
+          <span class="window-controls"><i></i><i></i><i></i></span>
+          <strong>app topology</strong>
+          <small data-environment-stage-label>Local</small>
+        </div>
+
+        <div class="environment-panels">
+          {
+            environments.map((environment, index) => (
+              <article
+                id={`home-environment-${environment.id}`}
+                class="environment-panel"
+                data-environment-panel={environment.id}
+                style={`--environment-accent: ${environment.accent}`}
+                hidden={index !== 0}
+              >
+                <div class="environment-copy">
+                  <p>{environment.eyebrow}</p>
+                  <h3>{environment.title}</h3>
+                  <p>{environment.description}</p>
+                  <div class="environment-command">
+                    {environment.action.kind === 'command' ? (
+                      <code>{environment.action.label}</code>
+                    ) : (
+                      <a
+                        class="environment-docs-link"
+                        href={environment.action.href}
+                        data-home-link
+                        data-home-link-icon
+                      >
+                        {environment.action.label}
+                        <Icon name="right-arrow" size="0.9rem" />
+                      </a>
+                    )}
+                    <span>
+                      <i aria-hidden="true" />
+                      {environment.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div
+                  class={`environment-topology topology-${environment.id}`}
+                  role="img"
+                  aria-label={`${environment.label} application topology showing ${environment.resources.map((resource) => `${resource.label}: ${resource.details.join(' or ')}`).join(', ')}, coordinated through the Aspire AppHost.`}
+                >
+                  <div class="topology-ring outer" aria-hidden="true" />
+                  <div class="topology-ring inner" aria-hidden="true" />
+                  <div class="topology-line line-frontend" aria-hidden="true" />
+                  <div class="topology-line line-api" aria-hidden="true" />
+                  <div class="topology-line line-database" aria-hidden="true" />
+                  <div class="topology-line line-cache" aria-hidden="true" />
+                  <div class="topology-core" aria-hidden="true">
+                    <Image
+                      src={aspireLogo}
+                      alt=""
+                      class="topology-core-icon"
+                      width="32"
+                      height="32"
+                      loading="eager"
+                    />
+                    <span>AppHost</span>
+                  </div>
+                  <div class="topology-nodes" aria-hidden="true">
+                    {environment.resources.map((resource, resourceIndex) => (
+                      <div
+                        class={`topology-node node-${resource.slot}`}
+                        style={getResourceMotionStyle(resourceIndex)}
+                      >
+                        <span class="topology-node-card">
+                          <span class={`topology-node-icon-cycle cycle-${resource.icons.length}`}>
+                            {resource.icons.map((icon, iconIndex) => (
+                              <Image
+                                src={icon}
+                                alt=""
+                                class={`topology-node-icon${icon === redisIcon ? ' cache-icon' : ''}${icon === awsIcon ? ' topology-node-icon-aws' : ''}`}
+                                width="30"
+                                height="30"
+                                loading={iconIndex === 0 || icon === awsIcon ? 'eager' : 'lazy'}
+                                style={`--topology-cycle-delay: ${getCycleDelay(resource.icons.length, iconIndex, resourceIndex)}s`}
+                              />
+                            ))}
+                          </span>
+                          <span class="topology-node-copy">
+                            <strong>{resource.label}</strong>
+                            <span class={`topology-detail-cycle cycle-${resource.details.length}`}>
+                              {resource.details.map((detail, detailIndex) => (
+                                <small
+                                  style={`--topology-cycle-delay: ${getCycleDelay(resource.details.length, detailIndex, resourceIndex)}s`}
+                                >
+                                  {detail}
+                                </small>
+                              ))}
+                            </span>
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </article>
+            ))
+          }
+        </div>
+
+        <button
+          type="button"
+          class="environment-motion-control"
+          data-environment-motion-control
+          aria-label="Pause environment animation"
+          aria-pressed="false"
+          title="Pause environment animation"
+        >
+          <span data-environment-control-pause aria-hidden="true">
+            <PauseIcon width="20" height="20" />
+          </span>
+          <span data-environment-control-play aria-hidden="true" hidden>
+            <PlayIcon width="20" height="20" />
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  function initializeHomeEnvironments() {
+    const root = document.querySelector<HTMLElement>('[data-home-environments]');
+    if (!root || root.dataset.environmentInitialized === 'true') return;
+
+    const triggers = Array.from(
+      root.querySelectorAll<HTMLButtonElement>('[data-environment-trigger]')
+    );
+    const panels = Array.from(root.querySelectorAll<HTMLElement>('[data-environment-panel]'));
+    const stageLabel = root.querySelector<HTMLElement>('[data-environment-stage-label]');
+    const stage = root.querySelector<HTMLElement>('.environment-stage');
+    const motionControl = root.querySelector<HTMLButtonElement>(
+      '[data-environment-motion-control]'
+    );
+    const pauseIcon = motionControl?.querySelector<HTMLElement>('[data-environment-control-pause]');
+    const playIcon = motionControl?.querySelector<HTMLElement>('[data-environment-control-play]');
+    if (!stage || !motionControl || !pauseIcon || !playIcon) return;
+
+    root.dataset.environmentInitialized = 'true';
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let activeId = root.dataset.environmentState ?? 'local';
+    let stageVisible = false;
+    let manuallyPaused = false;
+    let panelTransitionTimer = 0;
+
+    const updateControl = () => {
+      motionControl.hidden = reducedMotion.matches;
+      motionControl.setAttribute(
+        'aria-label',
+        manuallyPaused ? 'Play environment animation' : 'Pause environment animation'
+      );
+      motionControl.setAttribute(
+        'title',
+        manuallyPaused ? 'Play environment animation' : 'Pause environment animation'
+      );
+      motionControl.setAttribute('aria-pressed', String(manuallyPaused));
+      pauseIcon.hidden = manuallyPaused;
+      playIcon.hidden = !manuallyPaused;
+    };
+
+    const syncMotion = () => {
+      const motionAvailable = stageVisible && !reducedMotion.matches;
+      root.toggleAttribute('data-environment-motion-active', motionAvailable);
+      root.toggleAttribute(
+        'data-environment-paused',
+        motionAvailable && (manuallyPaused || document.hidden)
+      );
+      updateControl();
+    };
+
+    const settlePanels = () => {
+      window.clearTimeout(panelTransitionTimer);
+      panels.forEach((panel) => {
+        const selected = panel.dataset.environmentPanel === activeId;
+        panel.hidden = !selected;
+        panel.setAttribute('aria-hidden', String(!selected));
+        delete panel.dataset.transition;
+      });
+    };
+
+    const selectEnvironment = (id: string, allowTransition = true) => {
+      const nextIndex = triggers.findIndex((trigger) => trigger.dataset.environmentTrigger === id);
+      if (nextIndex < 0) return;
+
+      const previousId = activeId;
+      const previousPanel = panels.find((panel) => panel.dataset.environmentPanel === previousId);
+      const nextPanel = panels.find((panel) => panel.dataset.environmentPanel === id);
+      window.clearTimeout(panelTransitionTimer);
+      panels.forEach((panel) => delete panel.dataset.transition);
+      activeId = id;
+      root.dataset.environmentState = id;
+      triggers.forEach((trigger) => {
+        const selected = trigger.dataset.environmentTrigger === id;
+        trigger.setAttribute('aria-pressed', String(selected));
+      });
+
+      const selected = triggers.find((trigger) => trigger.dataset.environmentTrigger === id);
+      if (stageLabel && selected) {
+        stageLabel.textContent = selected.textContent?.trim().replace(/^\d+/, '') ?? '';
+      }
+
+      const shouldTransition =
+        allowTransition &&
+        previousId !== id &&
+        previousPanel !== undefined &&
+        nextPanel !== undefined &&
+        stageVisible &&
+        !manuallyPaused &&
+        !document.hidden &&
+        !reducedMotion.matches;
+      if (shouldTransition && previousPanel && nextPanel) {
+        panels.forEach((panel) => {
+          panel.hidden = panel !== nextPanel;
+          panel.setAttribute('aria-hidden', String(panel !== nextPanel));
+        });
+        void nextPanel.offsetWidth;
+        nextPanel.dataset.transition = 'fade-in';
+        panelTransitionTimer = window.setTimeout(settlePanels, 200);
+      } else {
+        settlePanels();
+      }
+
+      document.documentElement.dataset.aspireEnvironmentState = id;
+      document.dispatchEvent(new CustomEvent('aspire:environment-change', { detail: { id } }));
+    };
+
+    const handleClick = (event: Event) => {
+      const trigger = event.currentTarget as HTMLButtonElement;
+      if (trigger.dataset.environmentTrigger) {
+        selectEnvironment(trigger.dataset.environmentTrigger);
+      }
+    };
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const current = triggers.indexOf(event.currentTarget as HTMLButtonElement);
+      let next = current;
+
+      if (event.key === 'ArrowRight') next = (current + 1) % triggers.length;
+      if (event.key === 'ArrowLeft') next = (current - 1 + triggers.length) % triggers.length;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = triggers.length - 1;
+
+      triggers[next].focus();
+      const id = triggers[next].dataset.environmentTrigger;
+      if (id) selectEnvironment(id);
+    };
+
+    triggers.forEach((trigger) => {
+      trigger.addEventListener('click', handleClick);
+      trigger.addEventListener('keydown', handleKeydown);
+    });
+
+    const toggleMotion = () => {
+      manuallyPaused = !manuallyPaused;
+      if (manuallyPaused) settlePanels();
+      syncMotion();
+    };
+    const handleMotionPreference = () => {
+      if (reducedMotion.matches) {
+        root.style.setProperty('--environment-scroll-factor', '0');
+        root.removeAttribute('data-environment-stage-passed');
+        settlePanels();
+      }
+      syncMotion();
+    };
+    const handleVisibility = () => {
+      if (document.hidden) settlePanels();
+      syncMotion();
+    };
+    motionControl.addEventListener('click', toggleMotion);
+    reducedMotion.addEventListener('change', handleMotionPreference);
+    document.addEventListener('visibilitychange', handleVisibility);
+    selectEnvironment(activeId, false);
+
+    const motionObserver =
+      'IntersectionObserver' in window
+        ? new IntersectionObserver(
+            ([entry]) => {
+              stageVisible = entry?.isIntersecting ?? false;
+              if (!stageVisible) settlePanels();
+              syncMotion();
+            },
+            { rootMargin: '15% 0px' }
+          )
+        : null;
+    const scrollObserver =
+      'IntersectionObserver' in window
+        ? new IntersectionObserver(
+            ([entry]) => {
+              if (!entry) return;
+              if (reducedMotion.matches) {
+                root.style.setProperty('--environment-scroll-factor', '0');
+                root.removeAttribute('data-environment-stage-passed');
+                return;
+              }
+              const visibleProgress = Math.min(entry.intersectionRatio / 0.65, 1);
+              root.style.setProperty(
+                '--environment-scroll-factor',
+                (1 - visibleProgress).toFixed(3)
+              );
+              root.toggleAttribute(
+                'data-environment-stage-passed',
+                entry.boundingClientRect.top < 0
+              );
+            },
+            { threshold: Array.from({ length: 21 }, (_, index) => index / 20) }
+          )
+        : null;
+    if (motionObserver) {
+      motionObserver?.observe(stage);
+    } else {
+      stageVisible = true;
+      syncMotion();
+    }
+    scrollObserver?.observe(stage);
+
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        triggers.forEach((trigger) => {
+          trigger.removeEventListener('click', handleClick);
+          trigger.removeEventListener('keydown', handleKeydown);
+        });
+        motionObserver?.disconnect();
+        scrollObserver?.disconnect();
+        motionControl.removeEventListener('click', toggleMotion);
+        reducedMotion.removeEventListener('change', handleMotionPreference);
+        document.removeEventListener('visibilitychange', handleVisibility);
+        window.clearTimeout(panelTransitionTimer);
+        delete root.dataset.environmentInitialized;
+      },
+      { once: true }
+    );
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeHomeEnvironments, { once: true });
+  } else {
+    initializeHomeEnvironments();
+  }
+  document.addEventListener('astro:after-swap', initializeHomeEnvironments);
+</script>
+
+<style>
+  .home-environment {
+    --environment-active-accent: #75dca8;
+    --environment-scroll-factor: 0;
+    position: relative;
+    overflow: hidden;
+    padding: clamp(6.5rem, 10vw, 10rem) 1.5rem;
+    border-top: 1px solid var(--home-border);
+    color: #f7f5ff;
+    background: #171522;
+  }
+
+  .home-environment[data-environment-state='test'] {
+    --environment-active-accent: #7db9ff;
+  }
+
+  .home-environment[data-environment-state='production'] {
+    --environment-active-accent: #c3adff;
+  }
+
+  .home-shell {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 84rem);
+    margin-inline: auto;
+  }
+
+  .environment-grid {
+    position: absolute;
+    inset: 0;
+    opacity: 0.2;
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.13) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.13) 1px, transparent 1px);
+    background-size: 4rem 4rem;
+    mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+  }
+
+  .environment-heading {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.55fr) minmax(0, 1.45fr);
+    gap: clamp(2rem, 7vw, 7rem);
+    margin-bottom: clamp(3.5rem, 7vw, 6rem);
+  }
+
+  .section-index {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin: 0;
+    color: #bdb7ce;
+    font: 650 0.76rem/1.2 var(--__sl-font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .section-index span {
+    color: #c3adff;
+  }
+
+  .environment-heading h2 {
+    margin: 0;
+    color: #f7f5ff;
+    font-size: clamp(2.7rem, 5.5vw, 5.2rem);
+    font-weight: 620;
+    line-height: 1.02;
+    letter-spacing: -0.055em;
+    text-wrap: balance;
+  }
+
+  .environment-heading > div > p {
+    max-width: 49rem;
+    margin: 1.4rem 0 0;
+    color: #c8c3d6;
+    font-size: clamp(1.02rem, 1.45vw, 1.22rem);
+    line-height: 1.7;
+  }
+
+  .environment-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 1rem;
+    overflow: hidden;
+    border: 1px solid rgba(229, 226, 244, 0.18);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .environment-controls button {
+    position: relative;
+    min-height: 4.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    padding: 0.85rem 1rem;
+    border: 0;
+    border-inline-end: 1px solid rgba(229, 226, 244, 0.16);
+    color: #bdb7ce;
+    background: transparent;
+    font: 750 0.98rem/1 var(--__sl-font);
+    cursor: pointer;
+  }
+
+  .environment-controls button:last-child {
+    border-inline-end: 0;
+  }
+
+  .environment-controls button span {
+    color: color-mix(in srgb, var(--environment-accent) 68%, #8c869c);
+    font: 650 0.67rem/1 var(--__sl-font-mono);
+  }
+
+  .environment-controls button:hover {
+    color: #ffffff;
+    background: color-mix(in srgb, var(--environment-accent) 9%, transparent);
+  }
+
+  .environment-controls button[aria-pressed='true'] {
+    color: #ffffff;
+    background: color-mix(in srgb, var(--environment-accent) 18%, transparent);
+  }
+
+  .environment-controls button[aria-pressed='true']::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0.7rem;
+    bottom: 0.18rem;
+    height: 0.18rem;
+    border-radius: 999px;
+    background: var(--environment-accent);
+  }
+
+  .environment-controls button[aria-pressed='true'] span {
+    color: var(--environment-accent);
+  }
+
+  .environment-controls button:focus-visible {
+    position: relative;
+    z-index: 2;
+    outline: 0.1875rem solid var(--environment-accent);
+    outline-offset: -0.3rem;
+  }
+
+  .environment-stage {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(229, 226, 244, 0.18);
+    border-radius: 1rem;
+    background: #201e31;
+    box-shadow:
+      0 3rem 7rem rgba(0, 0, 0, 0.38),
+      0 0 0 0.4rem rgba(255, 255, 255, 0.035);
+  }
+
+  .environment-stage-bar {
+    min-height: 2.8rem;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 1rem;
+    padding: 0 1rem;
+    border-bottom: 1px solid rgba(229, 226, 244, 0.14);
+    color: #aaa4b9;
+    background: #1a1827;
+    font: 600 0.7rem/1 var(--__sl-font-mono);
+  }
+
+  .window-controls {
+    display: inline-flex;
+    gap: 0.35rem;
+  }
+
+  .window-controls i {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: #7f7a8f;
+  }
+
+  .window-controls i:first-child {
+    background: #ee6a5f;
+  }
+
+  .window-controls i:nth-child(2) {
+    background: #f3be4f;
+  }
+
+  .window-controls i:last-child {
+    background: #61c554;
+  }
+
+  .environment-stage-bar strong {
+    color: #f7f5ff;
+    font-weight: 650;
+  }
+
+  .environment-stage-bar small {
+    justify-self: end;
+    color: var(--environment-active-accent);
+    font-size: inherit;
+  }
+
+  .environment-panels {
+    position: relative;
+    height: 39rem;
+  }
+
+  .environment-panel {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 5rem);
+    padding: clamp(2rem, 6vw, 5rem);
+  }
+
+  .environment-panel[hidden] {
+    display: none;
+  }
+
+  .environment-panel[data-transition] {
+    pointer-events: none;
+  }
+
+  .environment-motion-control {
+    position: absolute;
+    left: 1rem;
+    bottom: 1rem;
+    z-index: 6;
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 0;
+    border: 1px solid rgba(229, 226, 244, 0.22);
+    border-radius: 0.625rem;
+    color: #f7f5ff;
+    background: #171522;
+    cursor: pointer;
+  }
+
+  .environment-motion-control:hover {
+    border-color: var(--environment-active-accent);
+  }
+
+  .environment-motion-control:focus-visible {
+    outline: 0.1875rem solid var(--environment-active-accent);
+    outline-offset: 0.2rem;
+  }
+
+  .environment-motion-control[hidden] {
+    display: none;
+  }
+
+  .environment-motion-control > span {
+    display: grid;
+    place-items: center;
+    line-height: 0;
+  }
+
+  .environment-motion-control > span[hidden] {
+    display: none;
+  }
+
+  .environment-motion-control :global(svg) {
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: currentColor;
+  }
+
+  .environment-copy {
+    min-width: 0;
+    align-self: start;
+  }
+
+  .environment-copy > p:first-child {
+    margin: 0 0 1rem;
+    color: var(--environment-accent);
+    font: 700 0.72rem/1.2 var(--__sl-font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .environment-copy h3 {
+    margin: 0;
+    color: #f7f5ff;
+    font-size: clamp(2rem, 3.8vw, 3.75rem);
+    font-weight: 620;
+    line-height: 1.06;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+
+  .environment-copy > p:not(:first-child) {
+    margin: 1.35rem 0 0;
+    color: #c8c3d6;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .environment-command {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.2rem;
+    margin-top: 1.75rem;
+  }
+
+  .environment-command code,
+  .environment-docs-link {
+    min-height: 2.2rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid rgba(229, 226, 244, 0.18);
+    border-radius: 0.45rem;
+    color: #f7f5ff;
+    background: #151423;
+    font: 600 0.8rem/1 var(--__sl-font-mono);
+  }
+
+  .environment-docs-link {
+    color: var(--environment-accent);
+    text-decoration: none;
+  }
+
+  .environment-command > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #bdb7ce;
+    font: 600 0.7rem/1 var(--__sl-font-mono);
+  }
+
+  .environment-command > span i {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: var(--environment-accent);
+    box-shadow: 0 0 0 0.3rem color-mix(in srgb, var(--environment-accent) 12%, transparent);
+  }
+
+  .environment-topology {
+    position: relative;
+    min-height: 29rem;
+    display: grid;
+    place-items: center;
+  }
+
+  .topology-ring {
+    position: absolute;
+    border: 1px solid color-mix(in srgb, var(--environment-accent) 19%, transparent);
+    border-radius: 50%;
+  }
+
+  .topology-ring.outer {
+    width: min(100%, 31rem);
+    aspect-ratio: 1;
+  }
+
+  .topology-ring.inner {
+    width: min(69%, 21rem);
+    aspect-ratio: 1;
+  }
+
+  .topology-core {
+    position: relative;
+    z-index: 3;
+    isolation: isolate;
+    width: 8.75rem;
+    min-height: 8.75rem;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--environment-accent) 58%, transparent);
+    border-radius: 50%;
+    color: #f7f5ff;
+    background: #2a2740;
+    box-shadow:
+      0 0 0 1rem color-mix(in srgb, var(--environment-accent) 8%, transparent),
+      0 1.5rem 3rem rgba(0, 0, 0, 0.3);
+  }
+
+  .topology-core::before,
+  .topology-core::after {
+    position: absolute;
+    inset: -0.8rem;
+    border: 1px solid color-mix(in srgb, var(--environment-accent) 54%, transparent);
+    border-radius: 50%;
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .topology-core :global(.topology-core-icon) {
+    width: 2rem;
+    height: 2rem;
+    margin: 0;
+  }
+
+  .topology-core > span {
+    font-weight: 800;
+  }
+
+  .topology-nodes {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .topology-node {
+    position: absolute;
+    transform: translate3d(
+      calc(var(--topology-scroll-from-x) * var(--environment-scroll-factor)),
+      calc(var(--topology-scroll-from-y) * var(--environment-scroll-factor)),
+      0
+    );
+    will-change: transform;
+  }
+
+  [data-environment-stage-passed] .topology-node {
+    transform: translate3d(
+      calc(var(--topology-scroll-to-x) * var(--environment-scroll-factor)),
+      calc(var(--topology-scroll-to-y) * var(--environment-scroll-factor)),
+      0
+    );
+  }
+
+  .topology-node-card {
+    position: relative;
+    isolation: isolate;
+    width: clamp(9.5rem, 14vw, 11.5rem);
+    min-height: 4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--environment-accent) 18%, #e5e2f4);
+    border-radius: 0.65rem;
+    color: #e9e5f5;
+    background: #2a2740;
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.23);
+    will-change: transform;
+  }
+
+  .topology-node-card::before,
+  .topology-node-card::after {
+    position: absolute;
+    inset: -0.35rem;
+    border: 1px solid color-mix(in srgb, var(--environment-accent) 42%, transparent);
+    border-radius: 0.9rem;
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .topology-node-icon-cycle {
+    position: relative;
+    width: 1.85rem;
+    height: 1.85rem;
+    flex: 0 0 1.85rem;
+  }
+
+  .topology-node-icon-cycle :global(.topology-node-icon) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    object-fit: contain;
+    transform: scale(0.78) rotate(-7deg);
+  }
+
+  .topology-node-icon-cycle :global(.topology-node-icon-aws) {
+    filter: brightness(0) invert(1);
+  }
+
+  .topology-node-icon-cycle :global(.topology-node-icon:first-child) {
+    opacity: 1;
+    transform: none;
+  }
+
+  .topology-node-copy {
+    min-width: 0;
+    flex: 1 1 auto;
+    display: grid;
+    gap: 0.28rem;
+    font-family: var(--__sl-font-mono);
+  }
+
+  .topology-node-copy > strong {
+    color: #f7f5ff;
+    font-size: 0.74rem;
+    line-height: 1;
+    text-transform: lowercase;
+  }
+
+  .topology-detail-cycle {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    height: 0.72rem;
+  }
+
+  .topology-detail-cycle small {
+    position: absolute;
+    inset: 0 auto auto 0;
+    max-width: 100%;
+    overflow: hidden;
+    color: #f7f5ff;
+    font-size: 0.57rem;
+    font-weight: 600;
+    line-height: 1;
+    opacity: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transform: translateY(0.25rem);
+  }
+
+  .topology-detail-cycle small:first-child {
+    opacity: 1;
+    transform: none;
+  }
+
+  .node-frontend {
+    --topology-idle-x: 0.34rem;
+    --topology-idle-y: -0.3rem;
+    --topology-idle-rotate: -0.4deg;
+    --topology-scroll-from-x: -0.7rem;
+    --topology-scroll-from-y: -0.5rem;
+    --topology-scroll-to-x: 0.45rem;
+    --topology-scroll-to-y: 0.35rem;
+    top: 3%;
+    left: 4%;
+  }
+
+  .node-api {
+    --topology-idle-x: -0.3rem;
+    --topology-idle-y: -0.34rem;
+    --topology-idle-rotate: 0.4deg;
+    --topology-scroll-from-x: 0.7rem;
+    --topology-scroll-from-y: -0.5rem;
+    --topology-scroll-to-x: -0.45rem;
+    --topology-scroll-to-y: 0.35rem;
+    top: 10%;
+    right: 1%;
+  }
+
+  .node-database {
+    --topology-idle-x: 0.32rem;
+    --topology-idle-y: 0.28rem;
+    --topology-idle-rotate: 0.35deg;
+    --topology-scroll-from-x: -0.7rem;
+    --topology-scroll-from-y: 0.5rem;
+    --topology-scroll-to-x: 0.45rem;
+    --topology-scroll-to-y: -0.35rem;
+    bottom: 5%;
+    left: 0;
+  }
+
+  .node-cache {
+    --topology-idle-x: -0.32rem;
+    --topology-idle-y: 0.3rem;
+    --topology-idle-rotate: -0.4deg;
+    --topology-scroll-from-x: 0.7rem;
+    --topology-scroll-from-y: 0.5rem;
+    --topology-scroll-to-x: -0.45rem;
+    --topology-scroll-to-y: -0.35rem;
+    right: 7%;
+    bottom: 1%;
+  }
+
+  .topology-test .node-frontend {
+    top: 10%;
+    left: 1%;
+  }
+
+  .topology-test .node-api {
+    top: 2%;
+    right: 8%;
+  }
+
+  .topology-test .node-database {
+    bottom: 1%;
+    left: 7%;
+  }
+
+  .topology-test .node-cache {
+    right: 1%;
+    bottom: 9%;
+  }
+
+  .topology-production .node-frontend {
+    top: 2%;
+    left: 9%;
+  }
+
+  .topology-production .node-api {
+    top: 11%;
+    right: 0;
+  }
+
+  .topology-production .node-database {
+    bottom: 10%;
+    left: 0;
+  }
+
+  .topology-production .node-cache {
+    right: 9%;
+    bottom: 1%;
+  }
+
+  .topology-line {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 1;
+    width: 46%;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--environment-accent) 52%, transparent),
+      color-mix(in srgb, var(--environment-accent) 28%, transparent) 72%,
+      transparent
+    );
+    transform-origin: left center;
+  }
+
+  .line-frontend {
+    transform: translateY(-50%) rotate(-153deg);
+  }
+
+  .line-api {
+    transform: translateY(-50%) rotate(-24deg);
+  }
+
+  .line-database {
+    transform: translateY(-50%) rotate(153deg);
+  }
+
+  .line-cache {
+    transform: translateY(-50%) rotate(27deg);
+  }
+
+  @keyframes topology-node-idle {
+    to {
+      transform: translate3d(var(--topology-idle-x), var(--topology-idle-y), 0)
+        rotate(var(--topology-idle-rotate));
+    }
+  }
+
+  @keyframes topology-radar-out {
+    0% {
+      opacity: 0;
+      transform: scale(0.88);
+    }
+
+    32% {
+      opacity: 0.28;
+    }
+
+    100% {
+      opacity: 0;
+      transform: scale(1.22);
+    }
+  }
+
+  @keyframes topology-radar-in {
+    0% {
+      opacity: 0;
+      transform: scale(1.22);
+    }
+
+    68% {
+      opacity: 0.2;
+    }
+
+    100% {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  @keyframes topology-core-radar-out {
+    0% {
+      opacity: 0;
+      transform: scale(0.82);
+    }
+
+    34% {
+      opacity: 0.44;
+    }
+
+    100% {
+      opacity: 0;
+      transform: scale(1.62);
+    }
+  }
+
+  @keyframes topology-core-radar-in {
+    0% {
+      opacity: 0;
+      transform: scale(1.62);
+    }
+
+    66% {
+      opacity: 0.34;
+    }
+
+    100% {
+      opacity: 0;
+      transform: scale(0.84);
+    }
+  }
+
+  @keyframes topology-cycle-two {
+    0% {
+      opacity: 0;
+      transform: translate3d(var(--topology-cycle-enter-x), 0, 0) scale(0.96);
+    }
+
+    9%,
+    41% {
+      opacity: 1;
+      transform: none;
+    }
+
+    50%,
+    100% {
+      opacity: 0;
+      transform: translate3d(var(--topology-cycle-exit-x), 0, 0) scale(0.98);
+    }
+  }
+
+  @keyframes topology-cycle-three {
+    0% {
+      opacity: 0;
+      transform: translate3d(var(--topology-cycle-enter-x), 0, 0) scale(0.96);
+    }
+
+    7%,
+    26% {
+      opacity: 1;
+      transform: none;
+    }
+
+    33.333%,
+    100% {
+      opacity: 0;
+      transform: translate3d(var(--topology-cycle-exit-x), 0, 0) scale(0.98);
+    }
+  }
+
+  @keyframes topology-cycle-four {
+    0% {
+      opacity: 0;
+      transform: translate3d(var(--topology-cycle-enter-x), 0, 0) scale(0.96);
+    }
+
+    6%,
+    19% {
+      opacity: 1;
+      transform: none;
+    }
+
+    25%,
+    100% {
+      opacity: 0;
+      transform: translate3d(var(--topology-cycle-exit-x), 0, 0) scale(0.98);
+    }
+  }
+
+  @keyframes topology-detail-cycle-two {
+    0% {
+      opacity: 0;
+      transform: translate3d(var(--topology-cycle-enter-x), 0, 0);
+    }
+
+    9%,
+    41% {
+      opacity: 1;
+      transform: none;
+    }
+
+    50%,
+    100% {
+      opacity: 0;
+      transform: translate3d(var(--topology-cycle-exit-x), 0, 0);
+    }
+  }
+
+  @keyframes environment-panel-fade-in {
+    from {
+      opacity: 0.55;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .environment-controls button {
+      transition:
+        color 180ms ease,
+        background-color 180ms ease;
+    }
+
+    .environment-stage-bar small {
+      transition: color 180ms ease;
+    }
+
+    .topology-node {
+      transition: transform 140ms linear;
+    }
+
+    .environment-motion-control {
+      transition:
+        border-color 180ms ease,
+        transform 180ms ease;
+    }
+
+    .environment-motion-control:active {
+      transform: translateY(1px);
+    }
+
+    [data-environment-motion-active] .environment-panel[data-transition='fade-in'] {
+      animation: environment-panel-fade-in 180ms ease-out both;
+    }
+
+    [data-environment-motion-active] .environment-panel:not([hidden]) .topology-node-card {
+      animation: topology-node-idle var(--topology-idle-duration, 5.8s)
+        cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+      animation-delay: var(--topology-idle-delay, 0s);
+    }
+
+    [data-environment-motion-active] .environment-panel:not([hidden]) .topology-node-card::before {
+      animation: topology-radar-out 4.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      animation-delay: var(--topology-radar-delay, 0s);
+    }
+
+    [data-environment-motion-active] .environment-panel:not([hidden]) .topology-node-card::after {
+      animation: topology-radar-in 4.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      animation-delay: calc(var(--topology-radar-delay, 0s) + 2.1s);
+    }
+
+    [data-environment-motion-active] .environment-panel:not([hidden]) .topology-core::before {
+      animation: topology-core-radar-out 3.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    }
+
+    [data-environment-motion-active] .environment-panel:not([hidden]) .topology-core::after {
+      animation: topology-core-radar-in 3.8s cubic-bezier(0.16, 1, 0.3, 1) 1.9s infinite;
+    }
+
+    [data-environment-motion-active]
+      .environment-panel:not([hidden])
+      .cycle-2
+      :global(.topology-node-icon) {
+      animation: topology-cycle-two var(--topology-cycle-duration, 10.8s)
+        cubic-bezier(0.2, 0.75, 0.25, 1) infinite;
+      animation-delay: var(--topology-cycle-delay);
+    }
+
+    [data-environment-motion-active]
+      .environment-panel:not([hidden])
+      .cycle-3
+      :global(.topology-node-icon) {
+      animation: topology-cycle-three var(--topology-cycle-duration, 10.8s)
+        cubic-bezier(0.2, 0.75, 0.25, 1) infinite;
+      animation-delay: var(--topology-cycle-delay);
+    }
+
+    [data-environment-motion-active]
+      .environment-panel:not([hidden])
+      .cycle-4
+      :global(.topology-node-icon) {
+      animation: topology-cycle-four var(--topology-cycle-duration, 10.8s)
+        cubic-bezier(0.2, 0.75, 0.25, 1) infinite;
+      animation-delay: var(--topology-cycle-delay);
+    }
+
+    [data-environment-motion-active]
+      .environment-panel:not([hidden])
+      .topology-detail-cycle.cycle-2
+      small {
+      animation: topology-detail-cycle-two var(--topology-cycle-duration, 10.8s) steps(1, end)
+        infinite;
+      animation-delay: var(--topology-cycle-delay);
+    }
+
+    [data-environment-motion-active][data-environment-paused]
+      .environment-panel:not([hidden])
+      .topology-node-card,
+    [data-environment-motion-active][data-environment-paused]
+      .environment-panel:not([hidden])
+      .topology-node-card::before,
+    [data-environment-motion-active][data-environment-paused]
+      .environment-panel:not([hidden])
+      .topology-node-card::after,
+    [data-environment-motion-active][data-environment-paused]
+      .environment-panel:not([hidden])
+      .topology-core::before,
+    [data-environment-motion-active][data-environment-paused]
+      .environment-panel:not([hidden])
+      .topology-core::after,
+    [data-environment-motion-active][data-environment-paused]
+      .environment-panel:not([hidden])
+      .topology-node-icon-cycle
+      :global(.topology-node-icon),
+    [data-environment-motion-active][data-environment-paused]
+      .environment-panel:not([hidden])
+      .topology-detail-cycle
+      small {
+      animation-play-state: paused;
+    }
+  }
+
+  @media (max-width: 71.99rem) {
+    .environment-heading {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .environment-panels {
+      height: 53rem;
+    }
+
+    .environment-panel {
+      grid-template-columns: 1fr;
+    }
+
+    .environment-copy {
+      max-width: 45rem;
+      height: 15rem;
+    }
+
+    .environment-topology[data-environment-state] .node-three,
+    .environment-topology[data-environment-state] .node-four {
+      bottom: 10%;
+    }
+  }
+
+  @media (max-width: 49.99rem) {
+    .home-environment {
+      padding: 5.25rem 1rem;
+    }
+
+    .environment-heading h2 {
+      font-size: clamp(2.5rem, 11vw, 3.65rem);
+    }
+
+    .environment-controls {
+      border-radius: 0.65rem;
+    }
+
+    .environment-controls button {
+      min-height: 4rem;
+      display: grid;
+      gap: 0.35rem;
+      padding-inline: 0.45rem;
+      font-size: 0.83rem;
+    }
+
+    .environment-stage {
+      border-radius: 0.75rem;
+    }
+
+    .environment-panel {
+      gap: 1.5rem;
+      padding: 2rem 1rem;
+    }
+
+    .environment-copy {
+      height: 20rem;
+    }
+
+    .environment-panels {
+      height: 48.5rem;
+    }
+
+    .environment-topology {
+      min-height: 23rem;
+    }
+
+    .topology-core {
+      width: 7rem;
+      min-height: 7rem;
+    }
+
+    .topology-node-card {
+      width: clamp(7.8rem, 39vw, 9.25rem);
+      min-height: 3.35rem;
+      gap: 0.5rem;
+      padding: 0.5rem 0.6rem;
+    }
+
+    .topology-node-icon-cycle {
+      width: 1.45rem;
+      height: 1.45rem;
+      flex-basis: 1.45rem;
+    }
+
+    .topology-node-copy > strong {
+      font-size: 0.64rem;
+    }
+
+    .topology-detail-cycle small {
+      font-size: 0.48rem;
+    }
+  }
+
+  @media (max-width: 24rem) {
+    .environment-stage-bar small {
+      display: none;
+    }
+
+    .environment-topology {
+      min-height: 20rem;
+    }
+
+    .environment-topology[data-environment-state] .node-three,
+    .environment-topology[data-environment-state] .node-four {
+      bottom: 14%;
+    }
+
+    .environment-panels {
+      height: 52rem;
+    }
+
+    .environment-copy {
+      height: 26rem;
+    }
+
+    .topology-node-card {
+      width: 5.9rem;
+      min-height: 2.9rem;
+      gap: 0.4rem;
+      padding: 0.4rem 0.45rem;
+    }
+
+    .topology-node-icon-cycle {
+      width: 1.25rem;
+      height: 1.25rem;
+      flex-basis: 1.25rem;
+    }
+
+    .topology-node-copy > strong {
+      font-size: 0.58rem;
+    }
+
+    .topology-detail-cycle {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .environment-motion-control {
+      display: none;
+    }
+
+    .environment-controls button,
+    .environment-stage-bar small,
+    .environment-panel {
+      animation: none;
+      transition: none;
+      transform: none;
+    }
+
+    .topology-node,
+    .topology-node-card,
+    .topology-node-card::before,
+    .topology-node-card::after,
+    .topology-core::before,
+    .topology-core::after,
+    .topology-node-icon-cycle :global(.topology-node-icon),
+    .topology-detail-cycle small {
+      animation: none;
+      transition: none;
+      transform: none;
+    }
+
+    .topology-node,
+    .topology-node-card {
+      will-change: auto;
+    }
+
+    .topology-node-icon-cycle :global(.topology-node-icon),
+    .topology-detail-cycle small {
+      opacity: 0;
+    }
+
+    .topology-node-icon-cycle :global(.topology-node-icon:first-child),
+    .topology-detail-cycle small:first-child {
+      opacity: 1;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .home-environment,
+    .environment-controls,
+    .environment-controls button,
+    .environment-stage,
+    .model-window,
+    .topology-ring,
+    .topology-core,
+    .topology-node-card,
+    .environment-motion-control,
+    .environment-command code,
+    .environment-docs-link {
+      border-color: CanvasText;
+    }
+
+    .environment-controls button[aria-pressed='true']::after {
+      background: Highlight;
+    }
+  }
+</style>

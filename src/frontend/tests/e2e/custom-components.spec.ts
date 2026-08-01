@@ -13,18 +13,176 @@ test('app host builder swaps visible code when toggles and language change', asy
 
   const csharpGroup = builder.locator('.code-lang-group[data-code-lang="csharp"]');
   const typeScriptGroup = builder.locator('.code-lang-group[data-code-lang="typescript"]');
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+  const languageToggles = builder.locator('.lang-toggle');
+  const typeScriptToggle = builder.locator('.lang-toggle[data-lang="typescript"]');
+  const csharpToggle = builder.locator('.lang-toggle[data-lang="csharp"]');
 
-  await expect(csharpGroup).toBeVisible();
-  await expect(csharpGroup).toContainText('AddViteApp("frontend"');
+  await expect(languageToggles).toHaveText(['TypeScript', 'C#']);
+  await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(csharpToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(codeStage).toBeVisible();
+  await expect(codeStage).toHaveAttribute('data-code-lang', 'typescript');
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'frontend');
+  await expect(codeStage).toContainText('.addViteApp("frontend"');
+  await expect(typeScriptGroup).toBeHidden();
+  await expect(csharpGroup).toBeHidden();
 
   await builder.locator('.toggle[data-toggle="database"]').click();
-  await expect(csharpGroup).toContainText('AddPostgres("db")');
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage).toContainText('.addPostgres("db")');
 
-  await builder.locator('.lang-toggle[data-lang="typescript"]').click();
+  await csharpToggle.click();
 
-  await expect(typeScriptGroup).toBeVisible();
+  await expect(csharpToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(codeStage).toHaveAttribute('data-code-lang', 'csharp');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage).toContainText('AddPostgres("db")');
   await expect(csharpGroup).toBeHidden();
-  await expect(typeScriptGroup).toContainText('.addPostgres("db")');
+  await expect(typeScriptGroup).toBeHidden();
+});
+
+test('app host builder types additions and selects removals before deleting them', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+  const databaseToggle = builder.locator('.toggle[data-toggle="database"]');
+
+  await expect(builder.locator('[data-editor-caret]')).toHaveCSS('position', 'absolute');
+  await databaseToggle.click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'typing');
+  await expect(codeStage.locator('[data-editor-inserting]')).toHaveCount(1);
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+
+  await databaseToggle.click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'selecting');
+  await expect(codeStage.locator('[data-editor-selection]')).not.toHaveCount(0);
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'frontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage).not.toContainText('.addPostgres("db")');
+});
+
+test('app host builder applies code changes immediately when reduced motion is requested', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+
+  await builder.locator('.toggle[data-toggle="database"]').click();
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-motion', 'reduced');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage.locator('[data-editor-selection], [data-editor-inserting]')).toHaveCount(
+    0
+  );
+});
+
+test('app host builder can disable typing motion and its caret', async ({ page }) => {
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+  const motionToggle = builder.locator('[data-editor-motion-toggle]');
+  const databaseToggle = builder.locator('.toggle[data-toggle="database"]');
+
+  await expect(motionToggle).toBeChecked();
+  await databaseToggle.click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'typing');
+
+  await motionToggle.uncheck();
+  await expect(builder).toHaveAttribute('data-editor-motion-enabled', 'false');
+  await expect(codeDisplay).toHaveAttribute('data-editor-motion', 'disabled');
+  await expect(builder.locator('[data-editor-caret]')).toBeHidden();
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage.locator('[data-editor-selection], [data-editor-inserting]')).toHaveCount(
+    0
+  );
+
+  await builder.locator('.toggle[data-toggle="api"]').click();
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseApiFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await builder.locator('.lang-toggle[data-lang="csharp"]').click();
+  await expect(codeStage).toHaveAttribute('data-code-lang', 'csharp');
+  await expect(codeStage).toContainText('AddPostgres("db")');
+  await expect(codeStage.locator('[data-editor-selection], [data-editor-inserting]')).toHaveCount(
+    0
+  );
+
+  await motionToggle.check();
+  await expect(builder).toHaveAttribute('data-editor-motion-enabled', 'true');
+  await builder.locator('.toggle[data-toggle="api"]').click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'selecting');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+});
+
+test('AI context tips overlay section content on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const cases = [
+    ['.home-model [data-home-agent-badge]', '.model-proof'],
+    ['[data-home-environments] [data-home-agent-badge]', '.environment-switcher'],
+    ['.home-dashboard [data-home-agent-badge]', '.dashboard-stage'],
+  ] as const;
+
+  for (const [index, [badgeSelector, contentSelector]] of cases.entries()) {
+    const badge = page.locator(badgeSelector);
+    const popover = badge.locator('[role="tooltip"]');
+
+    await badge.scrollIntoViewIfNeeded();
+    await badge.focus();
+    await expect(popover).toBeVisible();
+
+    const geometry = await page.evaluate(
+      ({ badgeSelector, contentSelector }) => {
+        const badge = document.querySelector<HTMLElement>(badgeSelector);
+        const popover = badge?.querySelector<HTMLElement>('[role="tooltip"]');
+        const content = document.querySelector<HTMLElement>(contentSelector);
+        if (!popover || !content) return null;
+
+        const popoverRect = popover.getBoundingClientRect();
+        const contentRect = content.getBoundingClientRect();
+        const overlapLeft = Math.max(popoverRect.left, contentRect.left);
+        const overlapRight = Math.min(popoverRect.right, contentRect.right);
+        const overlapTop = Math.max(popoverRect.top, contentRect.top);
+        const overlapBottom = Math.min(popoverRect.bottom, contentRect.bottom);
+        const overlaps = overlapRight > overlapLeft && overlapBottom > overlapTop;
+        const pointX = overlaps ? (overlapLeft + overlapRight) / 2 : popoverRect.left + 4;
+        const pointY = overlaps ? (overlapTop + overlapBottom) / 2 : popoverRect.top + 4;
+        const topElement = document.elementFromPoint(pointX, pointY);
+
+        return {
+          insideViewport: popoverRect.left >= 0 && popoverRect.right <= window.innerWidth,
+          overlaps,
+          paintsOnTop: topElement === popover || popover.contains(topElement),
+        };
+      },
+      { badgeSelector, contentSelector }
+    );
+
+    expect(geometry).not.toBeNull();
+    expect(geometry?.insideViewport).toBe(true);
+    expect(geometry?.paintsOnTop).toBe(true);
+    if (index < 2) expect(geometry?.overlaps).toBe(true);
+  }
 });
 
 test('accessible code enhancements label code regions and remove disabled copy buttons', async ({
@@ -81,8 +239,10 @@ test('prerequisites presents container runtimes as one choice with Podman setup 
   await expect(podmanChoice.locator('starlight-tabs[data-sync-key="terminal"]')).toBeVisible();
 });
 
-test('testimonial carousel advances cards and enables the previous control', async ({ page }) => {
-  await page.goto('/');
+test('localized testimonial carousel advances cards and enables the previous control', async ({
+  page,
+}) => {
+  await page.goto('/de/');
   await dismissCookieConsentIfVisible(page);
 
   const track = page.locator('.testimonial-carousel [data-track]');
@@ -103,10 +263,10 @@ test('testimonial carousel advances cards and enables the previous control', asy
   }
 });
 
-test('homepage statement player exposes accessible playback and random controls', async ({
+test('localized homepage statement player exposes accessible playback and random controls', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/de/');
   await dismissCookieConsentIfVisible(page);
 
   const player = page.locator('[data-aspire-quote-player]');
@@ -119,20 +279,19 @@ test('homepage statement player exposes accessible playback and random controls'
   const randomButton = player.locator('[data-random-quote]');
   const learnMoreLink = player.locator('[data-quote-link]');
 
-  await expect(player).toHaveAttribute('aria-label', 'Aspire statements');
-  await expect(statement).toContainText(/^Aspire is /);
+  await expect(player).toHaveAttribute('aria-label', /.+/);
+  await expect(statement).toContainText(/^Aspire /);
   await expect(index).toContainText(/^\d{2}$/);
   await expect(heading).not.toBeEmpty();
-  await expect(playbackButton).toHaveAttribute('aria-label', 'Pause statement rotation');
+  await expect(playbackButton).toHaveAttribute('aria-label', /.+/);
   await expect(playbackButton).toHaveAttribute('aria-pressed', 'false');
-  await expect(randomButton).toHaveAttribute('aria-label', 'Show a random Aspire statement');
-  await expect(learnMoreLink).toHaveText('Learn more');
-  await expect(learnMoreLink).toHaveAttribute('aria-label', /^Learn more: /);
+  await expect(randomButton).toHaveAttribute('aria-label', /.+/);
+  await expect(learnMoreLink).not.toBeEmpty();
+  await expect(learnMoreLink).toHaveAttribute('aria-label', /.+/);
   await expect(progress).toHaveCSS('animation-play-state', 'running');
 
   await playbackButton.click();
   await expect(player).toHaveAttribute('data-state', 'paused');
-  await expect(playbackButton).toHaveAttribute('aria-label', 'Play statement rotation');
   await expect(playbackButton).toHaveAttribute('aria-pressed', 'true');
   await expect(progress).toHaveCSS('animation-duration', '7s');
   await expect(progress).toHaveCSS('animation-play-state', 'paused');
@@ -163,18 +322,17 @@ test('homepage statement player exposes accessible playback and random controls'
 
   await playbackButton.click();
   await expect(player).toHaveAttribute('data-state', 'playing');
-  await expect(playbackButton).toHaveAttribute('aria-label', 'Pause statement rotation');
   await expect(playbackButton).toHaveAttribute('aria-pressed', 'false');
   await expect(progress).toHaveCSS('animation-play-state', 'running');
   await expect(player).toHaveAttribute('data-phase', 'typing', { timeout: 10_000 });
   await expect(player.locator('[data-quote-progress]')).toHaveClass(/is-active/);
 });
 
-test('homepage statement player exhausts its shuffled statements before repeating', async ({
+test('localized homepage statement player exhausts its shuffled statements before repeating', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
+  await page.goto('/de/');
   await dismissCookieConsentIfVisible(page);
 
   const player = page.locator('[data-aspire-quote-player]');
@@ -205,9 +363,9 @@ test('homepage statement player exhausts its shuffled statements before repeatin
   expect(repeatedIndex).toBe(initialIndex);
 });
 
-test('homepage statement player honors reduced motion preferences', async ({ page }) => {
+test('localized homepage statement player honors reduced motion preferences', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
+  await page.goto('/de/');
   await dismissCookieConsentIfVisible(page);
 
   const player = page.locator('[data-aspire-quote-player]');
@@ -218,7 +376,6 @@ test('homepage statement player honors reduced motion preferences', async ({ pag
   const index = player.locator('[data-quote-index]');
 
   await expect(player).toHaveAttribute('data-state', 'paused');
-  await expect(playbackButton).toHaveAttribute('aria-label', 'Play statement rotation');
   await expect(playbackButton).toHaveAttribute('aria-pressed', 'true');
   await expect(cursor).toHaveCSS('animation-name', 'none');
   await expect(progress).toHaveCSS('animation-name', 'none');
@@ -231,6 +388,41 @@ test('homepage statement player honors reduced motion preferences', async ({ pag
   await randomButton.click();
   await expect(player).toHaveAttribute('data-phase', 'idle');
   await expect(index).not.toHaveText(initialIndex);
+});
+
+test('homepage environment story exposes a keyboard-operable selected state', async ({ page }) => {
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const environment = page.locator('[data-home-environments]');
+  const localButton = environment.getByRole('button', { name: 'Local' });
+  const productionButton = environment.getByRole('button', { name: 'Production' });
+  const localPanel = environment.locator('[data-environment-panel="local"]');
+  const productionPanel = environment.locator('[data-environment-panel="production"]');
+
+  await expect(localButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(localPanel).toBeVisible();
+  await expect(productionPanel).toBeHidden();
+
+  const selectedIndicator = await localButton.evaluate((button) => {
+    const style = getComputedStyle(button, '::after');
+    return {
+      borderRadius: style.borderRadius,
+      width: Number.parseFloat(style.width),
+      buttonWidth: button.getBoundingClientRect().width,
+    };
+  });
+
+  expect(selectedIndicator.borderRadius).not.toBe('0px');
+  expect(selectedIndicator.width).toBeLessThan(selectedIndicator.buttonWidth);
+
+  await productionButton.focus();
+  await page.keyboard.press('Enter');
+
+  await expect(productionButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(localButton).toHaveAttribute('aria-pressed', 'false');
+  await expect(localPanel).toBeHidden();
+  await expect(productionPanel).toBeVisible();
 });
 
 test('homepage statement player localizes its copy, controls, and destination', async ({

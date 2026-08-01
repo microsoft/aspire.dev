@@ -1,0 +1,1076 @@
+---
+import { Image } from 'astro:assets';
+import { Icon } from '@astrojs/starlight/components';
+
+import claudeLogo from '@assets/icons/agent-claude.svg';
+import openAiLogo from '@assets/icons/agent-openai.svg';
+
+const contextLayers = [
+  {
+    title: 'AppHost',
+    description: 'Services + dependencies',
+  },
+  {
+    title: 'Runtime',
+    description: 'Resources + health',
+  },
+  {
+    title: 'Telemetry',
+    description: 'Logs + traces + errors',
+  },
+] as const;
+
+const agents = [
+  {
+    id: 'github-copilot',
+    name: 'GitHub Copilot',
+    icon: 'github',
+    treatment: 'monochrome',
+    routePath: 'M125 124 C170 156 235 176 310 194',
+    sentence:
+      'Aspire provides GitHub Copilot with live application context, improving its reasoning across resources, dependencies, health, telemetry, and failures.',
+  },
+  {
+    id: 'claude',
+    name: 'Claude',
+    logo: claudeLogo,
+    treatment: 'color',
+    routePath: 'M360 124 C360 150 360 174 360 194',
+    sentence:
+      'Aspire provides Claude with live application context, improving its reasoning across resources, dependencies, health, telemetry, and failures.',
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    logo: openAiLogo,
+    treatment: 'monochrome',
+    routePath: 'M595 124 C550 156 485 176 410 194',
+    sentence:
+      'Aspire provides OpenAI agents with live application context, improving their reasoning across resources, dependencies, health, telemetry, and failures.',
+  },
+] as const;
+
+const defaultAgentId = 'github-copilot';
+const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agents[0];
+---
+
+<section
+  class="home-section home-agent-context"
+  aria-labelledby="home-agent-context-title"
+  data-home-agent-context
+>
+  <div class="agent-grid" aria-hidden="true"></div>
+  <div class="home-shell">
+    <header class="agent-heading" data-home-reveal>
+      <p class="section-index"><span>02</span> Agent-ready</p>
+      <div>
+        <h2 id="home-agent-context-title">
+          Give AI the context to reason across your whole system.
+        </h2>
+        <p>
+          Aspire supplies live context from your application model, running resources, and
+          telemetry, without making you assemble and explain that context by hand.
+        </p>
+      </div>
+    </header>
+
+    <div class="agent-layout">
+      <div class="agent-copy" data-home-reveal>
+        <p class="agent-statement">One connection. Full application context.</p>
+
+        <ul class="agent-context-layers">
+          {
+            contextLayers.map((layer) => (
+              <li>
+                <h3>{layer.title}</h3>
+                <p>{layer.description}</p>
+              </li>
+            ))
+          }
+        </ul>
+
+        <a
+          class="agent-link"
+          href="/get-started/ai-coding-agents/"
+          data-home-link
+          data-home-link-icon
+        >
+          Set up Aspire for your agent
+          <Icon name="right-arrow" size="0.95rem" />
+        </a>
+      </div>
+
+      <div class="agent-visual" data-home-reveal data-home-reveal-distance="major">
+        <div class="agent-visual-toolbar">
+          <p class="agent-visual-label">Choose a tool to explore the connection.</p>
+        </div>
+
+        <div
+          class="agent-network"
+          data-agent-network
+          data-has-active="true"
+          data-active-agent={defaultAgentId}
+          data-default-agent={defaultAgentId}
+        >
+          <svg
+            class="agent-connections"
+            viewBox="0 0 720 420"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <marker
+                id="agent-route-arrow"
+                viewBox="0 0 10 10"
+                refX="5"
+                refY="5"
+                markerWidth="10"
+                markerHeight="10"
+                markerUnits="userSpaceOnUse"
+                orient="auto-start-reverse"
+              >
+                <path class="agent-route-arrowhead" d="M1 1L5 5L1 9"></path>
+              </marker>
+            </defs>
+            {
+              agents.map((agent) => (
+                <g
+                  class="agent-route"
+                  data-agent-route={agent.id}
+                  data-active={String(agent.id === defaultAgentId)}
+                >
+                  <path
+                    class="agent-route-line"
+                    d={agent.routePath}
+                    marker-start="url(#agent-route-arrow)"
+                    marker-end="url(#agent-route-arrow)"
+                  />
+                </g>
+              ))
+            }
+          </svg>
+
+          <div class="agent-core" aria-hidden="true">
+            <span class="agent-core-icon">
+              <Icon name="rocket" size="1.35rem" />
+            </span>
+            <small>Aspire</small>
+            <strong>AppHost</strong>
+            <p>Live application context</p>
+          </div>
+
+          <ul class="agent-logo-list" aria-label="Choose an AI tool to connect to Aspire">
+            {
+              agents.map((agent, index) => (
+                <li class="agent-logo" data-agent-slot={String(index)}>
+                  <button
+                    type="button"
+                    class="agent-logo-button"
+                    aria-label={`Connect ${agent.name} to Aspire`}
+                    aria-pressed={String(agent.id === defaultAgentId)}
+                    data-agent-logo={agent.id}
+                    data-agent-sentence={agent.sentence}
+                    data-active={String(agent.id === defaultAgentId)}
+                  >
+                    {'icon' in agent ? (
+                      <Icon name={agent.icon} size="3.25rem" class="agent-logo-icon" />
+                    ) : (
+                      <Image
+                        src={agent.logo}
+                        alt=""
+                        width={72}
+                        height={72}
+                        class="agent-logo-image"
+                        data-agent-logo-source="lobehub"
+                        data-agent-logo-treatment={agent.treatment}
+                        loading="lazy"
+                      />
+                    )}
+                    <span class="agent-logo-name">{agent.name}</span>
+                  </button>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+
+        <div class="agent-story">
+          <div class="agent-story-copy" aria-hidden="true">
+            {
+              agents.map((agent) => (
+                <p
+                  class="agent-story-sentence"
+                  data-agent-sentence-panel={agent.id}
+                  data-active={String(agent.id === defaultAgentId)}
+                >
+                  {agent.sentence}
+                </p>
+              ))
+            }
+          </div>
+          <p class="agent-story-live" data-agent-active-sentence aria-live="polite">
+            {defaultAgent.sentence}
+          </p>
+          <p class="agent-any-ai-note">Works with any AI tool.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  function initializeAgentLoops() {
+    document.querySelectorAll<HTMLElement>('[data-home-agent-context]').forEach((root) => {
+      if (root.dataset.agentLoopInitialized === 'true') return;
+
+      const network = root.querySelector<HTMLElement>('[data-agent-network]');
+      const activeSentence = root.querySelector<HTMLElement>('[data-agent-active-sentence]');
+      const logoList = root.querySelector<HTMLElement>('.agent-logo-list');
+      const logoItems = Array.from(root.querySelectorAll<HTMLElement>('.agent-logo'));
+      const triggers = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-agent-logo]'));
+      const routes = Array.from(root.querySelectorAll<SVGGElement>('[data-agent-route]'));
+      const sentencePanels = Array.from(
+        root.querySelectorAll<HTMLElement>('[data-agent-sentence-panel]')
+      );
+      if (
+        !network ||
+        !activeSentence ||
+        !logoList ||
+        logoItems.length === 0 ||
+        triggers.length === 0 ||
+        routes.length === 0 ||
+        sentencePanels.length === 0
+      )
+        return;
+
+      const routePaths = routes.map(
+        (route) => route.querySelector('path')?.getAttribute('d') ?? ''
+      );
+      for (let index = logoItems.length - 1; index > 0; index -= 1) {
+        const target = Math.floor(Math.random() * (index + 1));
+        [logoItems[index], logoItems[target]] = [logoItems[target], logoItems[index]];
+      }
+      logoItems.forEach((item, index) => {
+        const id = item.querySelector<HTMLButtonElement>('[data-agent-logo]')?.dataset.agentLogo;
+        item.dataset.agentSlot = String(index);
+        logoList.append(item);
+        const route = routes.find((candidate) => candidate.dataset.agentRoute === id);
+        route?.querySelector('path')?.setAttribute('d', routePaths[index] ?? '');
+      });
+
+      const defaultAgentId = network.dataset.defaultAgent;
+      let pinnedAgent =
+        triggers.find((trigger) => trigger.dataset.agentLogo === defaultAgentId)?.dataset
+          .agentLogo ??
+        triggers[0]?.dataset.agentLogo ??
+        '';
+      let previewAgent = '';
+
+      const activate = (id = '') => {
+        const activeTrigger = triggers.find((trigger) => trigger.dataset.agentLogo === id);
+        network.dataset.activeAgent = id;
+        network.dataset.hasActive = String(Boolean(activeTrigger));
+        activeSentence.textContent = activeTrigger?.dataset.agentSentence ?? '';
+
+        routes.forEach((route) => {
+          route.dataset.active = String(route.dataset.agentRoute === id);
+        });
+
+        sentencePanels.forEach((panel) => {
+          panel.dataset.active = String(panel.dataset.agentSentencePanel === id);
+        });
+
+        triggers.forEach((trigger) => {
+          const isActive = trigger.dataset.agentLogo === id;
+          trigger.dataset.active = String(isActive);
+          trigger.setAttribute(
+            'aria-pressed',
+            String(trigger.dataset.agentLogo === pinnedAgent && Boolean(pinnedAgent))
+          );
+        });
+      };
+
+      const restore = () => {
+        const focusedTrigger = triggers.find((trigger) => trigger === document.activeElement);
+        activate(focusedTrigger?.dataset.agentLogo || previewAgent || pinnedAgent);
+      };
+
+      const cleanupCallbacks: Array<() => void> = [];
+
+      triggers.forEach((trigger) => {
+        const id = trigger.dataset.agentLogo;
+        if (!id) return;
+
+        const handlePointerEnter = () => {
+          previewAgent = id;
+          activate(id);
+        };
+        const handlePointerLeave = () => {
+          previewAgent = '';
+          restore();
+        };
+        const handleFocus = () => activate(id);
+        const handleBlur = () => restore();
+        const handleClick = () => {
+          pinnedAgent = id;
+          activate(id);
+          document.documentElement.dataset.aspireSelectedAgent = id;
+          document.dispatchEvent(
+            new CustomEvent('aspire:agent-selection-change', { detail: { id } })
+          );
+        };
+
+        trigger.addEventListener('pointerenter', handlePointerEnter);
+        trigger.addEventListener('pointerleave', handlePointerLeave);
+        trigger.addEventListener('focus', handleFocus);
+        trigger.addEventListener('blur', handleBlur);
+        trigger.addEventListener('click', handleClick);
+
+        cleanupCallbacks.push(() => {
+          trigger.removeEventListener('pointerenter', handlePointerEnter);
+          trigger.removeEventListener('pointerleave', handlePointerLeave);
+          trigger.removeEventListener('focus', handleFocus);
+          trigger.removeEventListener('blur', handleBlur);
+          trigger.removeEventListener('click', handleClick);
+        });
+      });
+
+      document.addEventListener(
+        'astro:before-swap',
+        () => {
+          cleanupCallbacks.forEach((cleanup) => cleanup());
+          delete root.dataset.agentLoopInitialized;
+        },
+        { once: true }
+      );
+
+      root.dataset.agentLoopInitialized = 'true';
+      activate(pinnedAgent);
+      document.documentElement.dataset.aspireSelectedAgent = pinnedAgent;
+      document.dispatchEvent(
+        new CustomEvent('aspire:agent-selection-change', { detail: { id: pinnedAgent } })
+      );
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeAgentLoops, { once: true });
+  } else {
+    initializeAgentLoops();
+  }
+  document.addEventListener('astro:after-swap', initializeAgentLoops);
+</script>
+
+<style>
+  .home-agent-context {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(6.5rem, 10vw, 10rem) 1.5rem;
+    border-top: 1px solid var(--home-border);
+    color: var(--home-text);
+    background:
+      radial-gradient(
+        circle at 78% 46%,
+        color-mix(in srgb, var(--home-purple) 12%, transparent),
+        transparent 30rem
+      ),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--home-purple) 5%, var(--home-bg)),
+        var(--home-bg) 42%
+      );
+  }
+
+  .agent-grid {
+    position: absolute;
+    inset: 0;
+    opacity: 0.35;
+    background-image:
+      linear-gradient(to right, var(--home-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--home-border) 1px, transparent 1px);
+    background-size: 5rem 5rem;
+    mask-image: radial-gradient(circle at 76% 52%, #000, transparent 57%);
+    pointer-events: none;
+  }
+
+  .home-shell {
+    position: relative;
+    width: min(100%, 84rem);
+    margin-inline: auto;
+  }
+
+  .agent-heading {
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.55fr) minmax(0, 1.45fr);
+    gap: clamp(2rem, 7vw, 7rem);
+    align-items: start;
+  }
+
+  .section-index {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+    color: var(--home-muted);
+    font: 650 0.76rem/1.2 var(--__sl-font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .section-index span {
+    color: var(--home-purple);
+  }
+
+  .agent-heading h2 {
+    max-width: 57rem;
+    margin: 0;
+    color: var(--home-text);
+    font-size: clamp(2.7rem, 5.5vw, 5.2rem);
+    font-weight: 620;
+    line-height: 1.02;
+    letter-spacing: -0.055em;
+    text-wrap: balance;
+  }
+
+  .agent-heading > div > p {
+    max-width: 51rem;
+    margin: 1.4rem 0 0;
+    color: var(--home-muted);
+    font-size: clamp(1.02rem, 1.45vw, 1.22rem);
+    line-height: 1.7;
+  }
+
+  .agent-layout {
+    display: grid;
+    grid-template-columns: minmax(18rem, 0.72fr) minmax(0, 1.28fr);
+    gap: clamp(3.5rem, 7vw, 7rem);
+    align-items: center;
+    margin-top: clamp(4rem, 8vw, 7rem);
+  }
+
+  .agent-copy {
+    min-width: 0;
+  }
+
+  .agent-statement {
+    max-width: 17ch;
+    margin: 0 0 2.5rem;
+    color: var(--home-text);
+    font-size: clamp(1.65rem, 3vw, 2.7rem);
+    font-weight: 600;
+    line-height: 1.12;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
+
+  .agent-context-layers {
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--home-border);
+    list-style: none;
+  }
+
+  .agent-context-layers li {
+    display: grid;
+    grid-template-columns: minmax(5rem, 0.55fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: baseline;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--home-border);
+  }
+
+  .agent-context-layers h3 {
+    margin: 0;
+    color: var(--home-text);
+    font-size: 0.94rem;
+    font-weight: 750;
+    line-height: 1.3;
+  }
+
+  .agent-context-layers p {
+    margin: 0;
+    color: var(--home-muted);
+    font-size: 0.86rem;
+    line-height: 1.4;
+  }
+
+  .agent-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 1.75rem;
+    color: var(--home-purple);
+    font-size: 0.96rem;
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .agent-link:focus-visible {
+    outline: 0.1875rem solid var(--home-purple);
+    outline-offset: 0.25rem;
+    border-radius: 0.25rem;
+  }
+
+  .agent-visual {
+    min-width: 0;
+  }
+
+  .agent-visual-toolbar {
+    min-height: 3.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .agent-visual-label {
+    margin: 0;
+    color: var(--home-muted);
+    font: 650 0.75rem/1.2 var(--__sl-font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .agent-network {
+    position: relative;
+    min-height: 31rem;
+    isolation: isolate;
+    overflow: hidden;
+    border-top: 1px solid var(--home-border);
+    background:
+      radial-gradient(
+        circle at 50% 64%,
+        color-mix(in srgb, var(--home-purple) 16%, transparent),
+        transparent 38%
+      ),
+      color-mix(in srgb, var(--home-surface) 64%, transparent);
+  }
+
+  .agent-network::before {
+    position: absolute;
+    top: 64%;
+    left: 50%;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 20%, transparent);
+    border-radius: 50%;
+    content: '';
+    pointer-events: none;
+    width: 19rem;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+  }
+
+  .agent-network::after {
+    display: none;
+  }
+
+  .agent-connections {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .agent-route {
+    opacity: 0.3;
+  }
+
+  .agent-route > path {
+    fill: none;
+    stroke-width: 1.65;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .agent-route-line {
+    stroke: color-mix(in srgb, var(--home-purple) 64%, var(--home-border));
+  }
+
+  .agent-route-arrowhead {
+    fill: none;
+    stroke: var(--home-purple);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .agent-network[data-has-active='true'] .agent-route {
+    opacity: 0.16;
+  }
+
+  .agent-network[data-has-active='true'] .agent-route[data-active='true'] {
+    opacity: 1;
+  }
+
+  .agent-route[data-active='true'] > path {
+    stroke: var(--home-purple);
+    stroke-width: 2.25;
+  }
+
+  .agent-core {
+    position: absolute;
+    top: 64%;
+    left: 50%;
+    z-index: 3;
+    width: 15rem;
+    min-height: 10.5rem;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    padding: 1.35rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 50%, var(--home-border));
+    border-radius: 0.9rem;
+    color: var(--home-text);
+    background: color-mix(in srgb, var(--home-surface) 92%, transparent);
+    box-shadow: 0 1.8rem 5rem color-mix(in srgb, var(--home-purple) 16%, transparent);
+    transform: translate(-50%, -50%);
+  }
+
+  .agent-network[data-has-active='true'] .agent-core {
+    box-shadow: 0 2rem 6rem color-mix(in srgb, var(--home-purple) 23%, transparent);
+    transform: translate(-50%, -50%) scale(1.015);
+  }
+
+  .agent-core-icon {
+    position: relative;
+    width: 2.65rem;
+    height: 2.65rem;
+    display: grid;
+    place-items: center;
+    margin-bottom: 0.8rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 42%, var(--home-border));
+    border-radius: 50%;
+    color: var(--home-purple);
+    background: color-mix(in srgb, var(--home-purple) 9%, transparent);
+  }
+
+  .agent-core-icon::after {
+    position: absolute;
+    inset: -0.45rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 45%, transparent);
+    border-radius: 50%;
+    content: '';
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  @keyframes agent-core-pulse {
+    0% {
+      opacity: 0;
+      transform: scale(0.72);
+    }
+
+    28% {
+      opacity: 0.65;
+    }
+
+    100% {
+      opacity: 0;
+      transform: scale(1.18);
+    }
+  }
+
+  .agent-core small {
+    color: var(--home-muted);
+    font: 700 0.66rem/1.2 var(--__sl-font-mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .agent-core strong {
+    margin-top: 0.3rem;
+    font-size: 1.68rem;
+    line-height: 1.1;
+    letter-spacing: -0.035em;
+  }
+
+  .agent-core > p {
+    margin: 0.42rem 0 0;
+    color: var(--home-muted);
+    font-size: 0.76rem;
+    line-height: 1.4;
+    text-align: center;
+  }
+
+  .agent-logo-list {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .agent-logo {
+    position: absolute;
+    top: 2rem;
+    width: 9rem;
+    height: 7rem;
+    transform: translateX(-50%);
+  }
+
+  .agent-logo-button {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: 3.25rem auto;
+    place-items: center;
+    gap: 0.55rem;
+    overflow: hidden;
+    padding: 0.75rem 0.8rem;
+    border: 1px solid var(--home-border);
+    border-radius: 0.75rem;
+    color: inherit;
+    background: color-mix(in srgb, var(--home-surface) 90%, transparent);
+    box-shadow: 0 1rem 3rem rgba(17, 15, 35, 0.1);
+    cursor: pointer;
+    opacity: 0.82;
+    transform: translateY(0);
+  }
+
+  .agent-logo-button:hover,
+  .agent-logo-button:focus-visible,
+  .agent-logo-button[data-active='true'] {
+    opacity: 1;
+    transform: translateY(-0.2rem);
+  }
+
+  .agent-logo-button:active {
+    transform: scale(0.98);
+  }
+
+  .agent-logo-button:focus-visible {
+    outline: 0.1875rem solid var(--home-purple);
+    outline-offset: 0.2rem;
+  }
+
+  .agent-network[data-has-active='true'] .agent-logo-button:not([data-active='true']) {
+    opacity: 0.52;
+    transform: translateY(0);
+  }
+
+  .agent-logo-button[data-active='true'] {
+    border-color: var(--home-purple);
+    background: color-mix(in srgb, var(--home-purple) 11%, var(--home-surface));
+  }
+
+  .agent-logo-button :global(.agent-logo-image) {
+    width: 3.25rem;
+    height: 3.25rem;
+    display: block;
+    margin: 0;
+    object-fit: contain;
+  }
+
+  .agent-logo-button :global(.agent-logo-icon) {
+    width: 3.25rem;
+    height: 3.25rem;
+    color: var(--home-text);
+  }
+
+  .agent-logo-name {
+    color: var(--home-text);
+    font-size: 0.72rem;
+    font-weight: 750;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  :global([data-theme='dark'])
+    .agent-logo-button
+    :global(.agent-logo-image[data-agent-logo-treatment='monochrome']) {
+    filter: invert(1);
+  }
+
+  .agent-logo[data-agent-slot='0'] {
+    left: 16.666%;
+  }
+
+  .agent-logo[data-agent-slot='1'] {
+    left: 50%;
+  }
+
+  .agent-logo[data-agent-slot='2'] {
+    left: 83.333%;
+  }
+
+  .agent-story {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1.5rem;
+    align-items: end;
+    padding: 1.4rem clamp(1.25rem, 3vw, 2rem);
+    border-block: 1px solid var(--home-border);
+    color: var(--home-text);
+    background: color-mix(in srgb, var(--home-surface) 82%, transparent);
+  }
+
+  .agent-story-copy {
+    display: grid;
+    min-width: 0;
+    align-items: end;
+  }
+
+  .agent-story-sentence {
+    grid-area: 1 / 1;
+    max-width: 55rem;
+    margin: 0;
+    color: var(--home-text);
+    font-size: clamp(1.05rem, 1.45vw, 1.28rem);
+    font-weight: 560;
+    line-height: 1.55;
+    text-wrap: balance;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate3d(0, 0.45rem, 0);
+  }
+
+  .agent-story-sentence[data-active='true'] {
+    opacity: 1;
+    visibility: visible;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .agent-story-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .agent-story p.agent-any-ai-note {
+    justify-self: end;
+    margin: 0 0 0.15rem;
+    color: var(--home-muted);
+    font: 700 0.68rem/1.35 var(--__sl-font-mono);
+    letter-spacing: 0.08em;
+    text-align: right;
+    text-transform: uppercase;
+    text-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 71.99rem) {
+    .agent-heading,
+    .agent-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .agent-heading {
+      gap: 1.5rem;
+    }
+
+    .agent-layout {
+      gap: 4rem;
+    }
+
+    .agent-statement {
+      max-width: 24ch;
+    }
+
+    .agent-visual {
+      width: min(100%, 56rem);
+      margin-inline: auto;
+    }
+
+  }
+
+  @media (max-width: 49.99rem) {
+    .home-agent-context {
+      padding: 5.25rem 1rem;
+    }
+
+    .agent-heading h2 {
+      font-size: clamp(2.5rem, 11vw, 3.65rem);
+    }
+
+    .agent-layout {
+      margin-top: 3.5rem;
+    }
+
+    .agent-statement {
+      max-width: 19ch;
+      font-size: clamp(1.7rem, 8vw, 2.35rem);
+    }
+
+    .agent-network {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem;
+      border-bottom: 1px solid var(--home-border);
+    }
+
+    .agent-network::before,
+    .agent-network::after,
+    .agent-connections {
+      display: none;
+    }
+
+    .agent-core {
+      position: relative;
+      inset: auto;
+      width: 100%;
+      min-height: 11.5rem;
+      transform: none;
+    }
+
+    .agent-network[data-has-active='true'] .agent-core {
+      transform: none;
+    }
+
+    .agent-logo-list {
+      position: relative;
+      inset: auto;
+      order: -1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.55rem;
+    }
+
+    .agent-logo[data-agent-slot] {
+      position: relative;
+      inset: auto;
+      left: auto;
+      width: 100%;
+      height: 7rem;
+      transform: none;
+    }
+
+    .agent-logo-button {
+      grid-template-rows: 2.75rem auto;
+      padding: 0.65rem 0.45rem;
+    }
+
+    .agent-logo-button :global(.agent-logo-image) {
+      width: 2.75rem;
+      height: 2.75rem;
+    }
+
+    .agent-logo-button :global(.agent-logo-icon) {
+      width: 2.75rem;
+      height: 2.75rem;
+    }
+
+    .agent-story {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      padding: 1.25rem;
+    }
+
+    .agent-story-sentence {
+      font-size: 1rem;
+      text-wrap: pretty;
+    }
+
+    .agent-story p.agent-any-ai-note {
+      font-size: 0.66rem;
+    }
+  }
+
+  @media (max-width: 24rem) {
+    .agent-context-layers li {
+      grid-template-columns: 1fr;
+      gap: 0.28rem;
+    }
+
+    .agent-core strong {
+      font-size: 1.35rem;
+    }
+
+    .agent-story {
+      padding-inline: 0.9rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .agent-route {
+      transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .agent-core {
+      transition:
+        transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .agent-network[data-has-active='true'] .agent-core-icon::after {
+      animation: agent-core-pulse 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    }
+
+    .agent-logo-button {
+      transition:
+        opacity 300ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .agent-story-sentence {
+      transition:
+        opacity 380ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 520ms cubic-bezier(0.16, 1, 0.3, 1),
+        visibility 0s linear 520ms;
+    }
+
+    .agent-story-sentence[data-active='true'] {
+      transition-delay: 80ms;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .agent-route,
+    .agent-core,
+    .agent-logo-button,
+    .agent-story-sentence {
+      transition: none;
+    }
+
+    .agent-network[data-has-active='true'] .agent-core-icon::after {
+      animation: none;
+      opacity: 0.45;
+      transform: scale(1);
+    }
+  }
+
+  @media (forced-colors: active) {
+    .agent-context-layers,
+    .agent-context-layers li,
+    .agent-network,
+    .agent-core,
+    .agent-core-icon,
+    .agent-logo-button,
+    .agent-story {
+      border-color: CanvasText;
+    }
+
+    .agent-core,
+    .agent-logo-button,
+    .agent-story {
+      background: Canvas;
+    }
+
+    .agent-logo-button:focus-visible {
+      outline-color: Highlight;
+    }
+
+    .agent-route-line,
+    .agent-route-arrowhead {
+      stroke: CanvasText;
+    }
+
+    .agent-route-arrowhead {
+      fill: none;
+    }
+
+    .agent-logo-button :global(.agent-logo-image) {
+      forced-color-adjust: none;
+    }
+  }
+</style>

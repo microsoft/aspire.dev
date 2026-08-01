@@ -270,6 +270,50 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   await expect(kbdSelect).toHaveValue('mac');
 });
 
+test('shared footer stays contained across docs page layouts', async ({ page }) => {
+  await page.goto('/get-started/first-app/?aspire-lang=typescript');
+  await dismissCookieConsentIfVisible(page);
+
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 834, height: 1112 },
+    { width: 390, height: 844 },
+    { width: 320, height: 568 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const footer = page.locator('.site-footer-content');
+    await expect(footer).toBeVisible();
+
+    const layout = await footer.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const controls = Array.from(
+        element.querySelectorAll<HTMLElement>('a, button, select')
+      ).map((control) => control.getBoundingClientRect());
+
+      return {
+        documentOverflows:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        footerFits: bounds.left >= 0 && bounds.right <= document.documentElement.clientWidth,
+        controlsFit: controls.every(
+          (control) =>
+            control.left >= bounds.left - 1 &&
+            control.right <= bounds.right + 1 &&
+            control.width <= bounds.width + 1
+        ),
+      };
+    });
+
+    expect(layout).toEqual({
+      documentOverflows: false,
+      footerFits: true,
+      controlsFit: true,
+    });
+    await expect(footer.getByRole('link', { name: /GitHub/ })).toBeVisible();
+    await expect(footer.getByRole('link', { name: /Discord/ })).toBeVisible();
+    await expect(footer.locator('#footer-theme-toggle')).toBeVisible();
+  }
+});
+
 test('terminal tabs stay synced between pages', async ({ page }) => {
   await page.goto('/dashboard/standalone/');
   await dismissCookieConsentIfVisible(page);

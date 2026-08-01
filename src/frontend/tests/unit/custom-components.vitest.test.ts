@@ -11,10 +11,10 @@ import CapabilityGrid from '@components/CapabilityGrid.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
 import ContainerRuntimeChoices from '@components/ContainerRuntimeChoices.astro';
 import Expand from '@components/Expand.astro';
-import FooterLinks from '@components/FooterLinks.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
 import FooterPreferences from '@components/FooterPreferences.astro';
+import FooterSocials from '@components/FooterSocials.astro';
 import FreeAndOpenSourceAside from '@components/FreeAndOpenSourceAside.astro';
 import { aspireQuotes } from '@components/FreeAndOpenSourceAside.quotes';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
@@ -568,6 +568,10 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: [
       'data-code-lang="csharp"',
       'data-code-lang="typescript"',
+      'data-apphost-builder',
+      'data-code-stage',
+      'data-editor-caret',
+      'data-editor-motion-toggle',
       'data-disable-copy',
       'data-toggle="database"',
     ],
@@ -1354,7 +1358,7 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('View on GitHub');
   });
 
-  it('preserves the homepage hero image aspect ratio for non-square assets', async () => {
+  it('preserves localized homepage hero image aspect ratios', async () => {
     const starlightRoute: StarlightRoute = {
       editUrl:
         'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/index.mdx',
@@ -1365,8 +1369,9 @@ describe('custom Astro component render coverage', () => {
         data: {
           title: 'Aspire',
           hero: {
-            title: 'Aspire',
-            tagline: 'Your stack, streamlined.',
+            title: 'Model distributed apps in code.',
+            tagline:
+              'Model, run, observe, and deploy distributed applications from one code-first control plane.',
             image: {
               alt: 'Aspire logo',
               file: heroImage,
@@ -1381,6 +1386,7 @@ describe('custom Astro component render coverage', () => {
         locals: {
           starlightRoute,
         },
+        requestUrl: 'https://aspire.dev/fr/',
       })
     );
 
@@ -1393,13 +1399,49 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('h=1000');
   });
 
-  it('renders footer community links with platform names', async () => {
+  it('renders the English homepage hero as a product story', async () => {
+    const starlightRoute: StarlightRoute = {
+      editUrl:
+        'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/index.mdx',
+      entry: {
+        id: 'index',
+        slug: '',
+        filePath: 'src/content/docs/index.mdx',
+        data: {
+          title: 'Aspire',
+          hero: {
+            title: 'Aspire',
+            tagline: 'Model distributed apps in code.',
+            image: {
+              alt: 'Aspire logo',
+              file: heroImage,
+            },
+          },
+        },
+      },
+    };
+
+    const html = normalizeHtml(
+      await renderComponent(StarlightHero, {
+        locals: {
+          starlightRoute,
+        },
+        requestUrl: 'https://aspire.dev/',
+      })
+    );
+
+    expect(html).toContain('home-hero-story');
+    expect(html).toContain('Model distributed apps in');
+    expect(html).toContain('code.');
+    expect(html).toContain('home-hero-product');
+    expect(html).toContain('The AppHost defines how your resources connect.');
+    expect(html).not.toContain('home-apphost-intro');
+  });
+
+  it('renders the footer community links used by the shared footer', async () => {
     const translations: Record<string, string> = {
       'footer.community': 'Community',
-      'footer.blog': 'Blog',
-      'footer.collab': 'Collaborate',
-      'footer.discuss': 'Discuss',
-      'footer.watch': 'Watch',
+      'footer.opensInNewTab': 'opens in new tab',
     };
     const t = ((key: string) => translations[key] ?? key) as ((key: string) => string) & {
       dir: () => 'ltr';
@@ -1407,13 +1449,12 @@ describe('custom Astro component render coverage', () => {
     t.dir = () => 'ltr';
 
     const html = normalizeHtml(
-      await renderComponent(FooterLinks, {
+      await renderComponent(FooterSocials, {
         locals: { t },
       })
     );
 
     for (const label of [
-      'X (Twitter)',
       'BlueSky',
       'GitHub',
       'Discord',
@@ -1421,64 +1462,17 @@ describe('custom Astro component render coverage', () => {
       'YouTube',
       'Twitch',
       'Blog',
+      'RSS',
     ]) {
       expect(html).toContain(label);
     }
 
-    expect(html).not.toContain('Follow');
-    expect(html).not.toContain('Collaborate');
-    expect(html).not.toContain('Discuss');
-    expect(html).not.toContain('Watch');
-  });
-
-  it('hides footer community links on localized 404 pages', async () => {
-    const html = normalizeHtml(
-      await renderComponent(FooterLinks, {
-        requestUrl: 'https://aspire.dev/ja/404/',
-        locals: {
-          starlightRoute: {
-            editUrl:
-              'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/404.mdx',
-            entry: {
-              id: '404',
-              slug: '404',
-              filePath: 'src/content/docs/404.mdx',
-              data: {},
-            },
-          },
-        },
-      })
-    );
-
-    expect(html).not.toContain('footer.community');
-    expect(html).not.toContain('https://x.com/aspiredotdev');
-  });
-
-  it('hides footer community links when the pathname fallback matches 404 routes', async () => {
-    const fallbackRoute: StarlightRoute = {
-      editUrl:
-        'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/test.mdx',
-      entry: {
-        id: 'docs/test',
-        slug: '',
-        filePath: 'src/content/docs/test.mdx',
-        data: {},
-      },
-    };
-
-    for (const requestUrl of ['https://aspire.dev/404/', 'https://aspire.dev/ja/404/']) {
-      const html = normalizeHtml(
-        await renderComponent(FooterLinks, {
-          requestUrl,
-          locals: {
-            starlightRoute: fallbackRoute,
-          },
-        })
-      );
-
-      expect(html).not.toContain('footer.community');
-      expect(html).not.toContain('https://x.com/aspiredotdev');
-    }
+    expect(html).toContain('aria-labelledby="footer-community-heading"');
+    expect(html).toContain('aria-label="X (opens in new tab)"');
+    expect(html).toContain('aria-label="GitHub (opens in new tab)"');
+    expect(html).toContain('role="group" aria-label="Site tools"');
+    expect(html).toContain('data-cookie-manage-consent');
+    expect(html).not.toContain('data-open-install-modal');
   });
 
   it('renders OsAwareTabs activation logic without anchor-only tab assumptions', async () => {

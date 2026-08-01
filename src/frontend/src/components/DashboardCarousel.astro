@@ -26,6 +26,13 @@ interface Slide {
   dark: ImageMetadata;
 }
 
+interface Props {
+  autoplay?: boolean;
+  presentation?: 'coverflow' | 'stage';
+}
+
+const { autoplay = true, presentation = 'coverflow' } = Astro.props as Props;
+
 const slides: Slide[] = [
   {
     id: 'resources-graph',
@@ -107,6 +114,8 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
   role="group"
   aria-roledescription="carousel"
   aria-label={carouselLabel}
+  data-autoplay={autoplay ? 'true' : 'false'}
+  data-presentation={presentation}
 >
   <div class="stage" data-stage>
     {
@@ -180,6 +189,8 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
 
       const reduce =
         window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const autoplay = root.dataset.autoplay !== 'false';
+      const stagePresentation = root.dataset.presentation === 'stage';
       if (reduce) root.classList.add('reduced-motion');
 
       const MAX_VISIBLE = 2;
@@ -271,6 +282,24 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         for (let i = 0; i < n; i++) {
           const slide = slides[i];
           const o = ringOffset(i);
+          const isActive = o === 0;
+
+          if (stagePresentation) {
+            slide.style.transform = 'none';
+            slide.style.opacity = isActive ? '1' : '0';
+            slide.style.zIndex = isActive ? '2' : '1';
+            slide.style.filter = 'none';
+            slide.style.pointerEvents = isActive ? 'auto' : 'none';
+            slide.classList.toggle('is-active', isActive);
+            setSlideTabbable(slide, isActive);
+            if (isActive) {
+              slide.setAttribute('aria-current', 'true');
+            } else {
+              slide.removeAttribute('aria-current');
+            }
+            continue;
+          }
+
           const abs = Math.abs(o);
           const sign = Math.sign(o);
           const hidden = abs > MAX_VISIBLE;
@@ -427,7 +456,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       let timer = null;
       const DELAY = 5500;
       function startAuto() {
-        if (reduce || timer || zoomOpen || document.hidden) return;
+        if (!autoplay || reduce || timer || zoomOpen || document.hidden) return;
         timer = window.setInterval(next, DELAY);
       }
       function stopAuto() {
@@ -507,6 +536,83 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
   .dashboard-carousel:focus-visible {
     outline: 0.1875rem solid var(--carousel-primary);
     outline-offset: 0.25rem;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] {
+    max-width: none;
+    margin: 0;
+    padding: clamp(1rem, 2.5vw, 2rem);
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .stage {
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid rgba(229, 226, 244, 0.14);
+    border-radius: 0.7rem;
+    perspective: none;
+    transform-style: flat;
+    background: #151423;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .slide {
+    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    transform: none;
+    border: 0;
+    border-radius: 0.65rem;
+    cursor: default;
+    box-shadow: none;
+    transition: opacity 420ms ease;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .slide.is-active {
+    box-shadow: none;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .carousel-footer {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .active-label {
+    color: #ded9eb;
+    font: 650 0.78rem/1.2 var(--__sl-font-mono);
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .dot {
+    position: relative;
+    width: 1.7rem;
+    height: 1.7rem;
+    border: 1px solid transparent;
+    background: transparent;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .dot::after {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: 0.48rem;
+    height: 0.48rem;
+    border-radius: 50%;
+    background: #8d879d;
+    content: '';
+    transform: translate(-50%, -50%);
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .dot[aria-pressed='true'] {
+    border-color: rgba(195, 173, 255, 0.38);
+    background: rgba(195, 173, 255, 0.09);
+    transform: none;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .dot[aria-pressed='true']::after {
+    background: #c3adff;
   }
 
   .stage {
@@ -664,6 +770,22 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
     .nav-btn {
       width: 2.25rem;
       height: 2.25rem;
+    }
+
+    .dashboard-carousel[data-presentation='stage'] {
+      padding: 0.75rem;
+    }
+
+    .dashboard-carousel[data-presentation='stage'] .carousel-footer {
+      align-items: flex-start;
+    }
+
+    .dashboard-carousel[data-presentation='stage'] .active-label {
+      padding-top: 0.55rem;
+    }
+
+    .dashboard-carousel[data-presentation='stage'] .dots {
+      display: none;
     }
   }
 

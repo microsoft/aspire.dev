@@ -1,59 +1,90 @@
 ---
+import { Image } from 'astro:assets';
+import { Icon } from '@astrojs/starlight/components';
 import DefaultFooter from '@astrojs/starlight/components/Footer.astro';
-import FooterLinks from '@components/FooterLinks.astro';
-import FooterLegal from '@components/FooterLegal.astro';
-import FooterResources from '@components/FooterResources.astro';
-import FooterPreferences from '@components/FooterPreferences.astro';
-import FooterSocials from '@components/FooterSocials.astro';
 import AspireMap from '@components/AspireMap.astro';
-import Expand from '@components/Expand.astro';
+import FooterLegal from '@components/FooterLegal.astro';
+import FooterPreferences from '@components/FooterPreferences.astro';
+import FooterResources from '@components/FooterResources.astro';
+import FooterSocials from '@components/FooterSocials.astro';
+import aspireLogo from '@assets/aspire-logo-256.svg';
 
 import { isHomepage } from '@utils/helpers';
 
 const showMap = isHomepage(Astro);
+const footerPromise = Astro.locals.t('landing.statementPlayer.quotes.03.text' as any);
+const commit = (import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMMIT_ID || '').slice(
+  0,
+  7
+);
 ---
 
 <div class="footer-wrapper">
   <div class="footer-container">
-    <DefaultFooter><slot /></DefaultFooter>
+    {
+      !showMap && (
+        <DefaultFooter>
+          <slot />
+        </DefaultFooter>
+      )
+    }
 
-    <!-- Social icons row -->
-    <FooterSocials />
+    <div class:list={['site-footer-content', { 'is-homepage': showMap, 'is-docs': !showMap }]}>
+      <div class="footer-main">
+        <div class="footer-identity">
+          <a class="footer-wordmark" href="/" aria-label="Aspire">
+            <Image src={aspireLogo} alt="" width="48" height="48" />
+            <strong>Aspire</strong>
+          </a>
+          <p class="footer-promise">{footerPromise}</p>
+        </div>
 
-    <!-- Top row: Made with love, centered, full width -->
-    {showMap && (
-      <div class="footer-brand">
-        <Expand summary={Astro.locals.t('footer.madeWithLove' as any)}>
-          <AspireMap />
-        </Expand>
+        <div class="footer-directory">
+          <FooterResources />
+          <FooterLegal />
+        </div>
       </div>
-    )}
 
-    <!-- Middle row: 4 columns (Legal, Community, Resources, Preferences) -->
-    <div class="footer-columns">
-      <FooterLegal />
-      <FooterLinks />
-      <FooterResources />
-      <FooterPreferences />
-    </div>
+      <div class="footer-utility">
+        <FooterSocials />
+        <FooterPreferences />
+      </div>
 
-    <!-- Bottom row: SHA and copyright -->
-    <div class="footer-bottom">
-      <a
-        class="commit-link"
-        href={`${import.meta.env.PUBLIC_REPO_URL}/commit/${import.meta.env.PUBLIC_GIT_COMMIT_ID || ''}`}
-        target="_blank"
-        title={`Built on commit SHA: ${(import.meta.env.PUBLIC_GIT_COMMIT_ID || '').slice(0, 7)}`}
-        rel="noopener noreferrer"
-        >SHA — {
-          (import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMMIT_ID || '').slice(0, 7)
-        }</a
-      >
-      <span class="copyright"
-        >© Microsoft <script is:inline>
-          document.currentScript.parentElement.textContent = `© Microsoft ${new Date().getFullYear()}`;
-        </script></span
-      >
+      <div class="footer-bottom">
+        <span class="copyright"
+          >© Microsoft <script is:inline>
+            document.currentScript.parentElement.textContent = `© Microsoft ${new Date().getFullYear()}`;
+          </script></span
+        >
+
+        {
+          showMap && (
+            <details class="footer-map-disclosure" dir={Astro.locals.t.dir()}>
+              <summary>
+                <span>{Astro.locals.t('footer.madeWithLove' as any)}</span>
+                <Icon name="right-arrow" size="0.85rem" />
+              </summary>
+              <div class="footer-map-content">
+                <AspireMap />
+              </div>
+            </details>
+          )
+        }
+
+        {
+          commit && (
+            <a
+              class="commit-link"
+              href={`${import.meta.env.PUBLIC_REPO_URL}/commit/${import.meta.env.PUBLIC_GIT_COMMIT_ID || ''}`}
+              target="_blank"
+              title={`Built on commit SHA: ${commit}`}
+              rel="noopener noreferrer"
+            >
+              SHA {commit}
+            </a>
+          )
+        }
+      </div>
     </div>
   </div>
 </div>
@@ -61,86 +92,252 @@ const showMap = isHomepage(Astro);
 <style>
   .footer-wrapper {
     padding: 0;
+    container: footer-shell / inline-size;
   }
 
   .footer-container {
-    padding: 1.5rem 0rem;
+    padding: 2rem 0 1.5rem;
   }
 
-  .footer-brand {
-    display: flex;
-    justify-content: center;
-    width: 100%;
+  .footer-container > :global(footer) {
+    margin: 0;
   }
 
-  .footer-brand > :global(*) {
-    width: 100%;
+  .site-footer-content.is-docs {
+    margin-top: 2rem;
   }
 
-  .footer-tagline {
+  .footer-main {
+    display: grid;
+    grid-template-columns: minmax(17rem, 0.8fr) minmax(26rem, 1.2fr);
+    align-items: start;
+    gap: clamp(3rem, 6vw, 5rem);
+    padding: 2rem 0;
+    border-top: 1px solid color-mix(in srgb, var(--sl-color-gray-5) 72%, transparent);
+  }
+
+  .footer-identity {
+    min-width: 0;
+  }
+
+  .footer-wordmark {
+    width: fit-content;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--sl-color-white);
+    text-decoration: none;
+  }
+
+  .footer-wordmark img {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .footer-wordmark strong {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.035em;
+  }
+
+  .footer-wordmark:hover strong {
+    color: var(--sl-color-text-accent);
+  }
+
+  .footer-promise {
+    max-width: 36ch;
+    margin: 1rem 0 0;
     color: var(--sl-color-gray-2);
     font-size: var(--sl-text-sm);
-    margin: 0;
-    text-align: center;
+    line-height: 1.55;
+    text-wrap: pretty;
   }
 
-  .footer-columns {
+  .footer-directory {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 2rem;
-    padding-top: 2rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(2.5rem, 6vw, 5rem);
+  }
+
+  .footer-directory :global(.footer-column) {
+    gap: 0.75rem;
+  }
+
+  .footer-directory :global(.footer-heading) {
+    margin: 0;
+    color: var(--sl-color-white);
+    font-size: var(--sl-text-sm);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .footer-directory :global(.footer-links) {
+    gap: 0.5rem;
+  }
+
+  .footer-directory :global(.footer-links a) {
+    width: fit-content;
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-xs);
+    line-height: 1.45;
+  }
+
+  .footer-directory :global(.footer-links a:hover) {
+    color: var(--sl-color-white);
+  }
+
+  .footer-utility {
+    display: grid;
+    grid-template-columns: minmax(16rem, 0.75fr) minmax(0, 1.25fr);
+    align-items: start;
+    gap: clamp(3rem, 6vw, 5rem);
+    padding: 1.5rem 0;
+    border-top: 1px solid color-mix(in srgb, var(--sl-color-gray-5) 72%, transparent);
   }
 
   .footer-bottom {
+    min-height: 3.25rem;
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
     align-items: center;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--sl-color-gray-5);
-    margin-top: 1.5rem;
+    gap: 0.75rem 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid color-mix(in srgb, var(--sl-color-gray-5) 72%, transparent);
+  }
+
+  .footer-map-disclosure {
+    flex: none;
+  }
+
+  .footer-map-disclosure summary {
+    width: fit-content;
+    min-height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0;
+    border: 0;
+    color: var(--sl-color-gray-3);
+    background: transparent;
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .footer-map-disclosure summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .footer-map-disclosure summary:hover,
+  .footer-map-disclosure summary:focus-visible {
+    color: var(--sl-color-white);
+  }
+
+  .footer-map-disclosure summary :global(svg) {
+    flex: none;
+  }
+
+  .footer-map-disclosure[open] {
+    order: -1;
+    flex: 1 0 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .footer-map-disclosure[open] summary {
+    margin-bottom: 0.75rem;
+  }
+
+  .footer-map-disclosure[open] summary :global(svg) {
+    transform: rotate(90deg);
+  }
+
+  .footer-map-content :global(.map) {
+    border-color: color-mix(in srgb, var(--sl-color-gray-4) 62%, transparent);
+    border-radius: 0.65rem;
+    box-shadow: none;
+  }
+
+  .copyright,
+  .commit-link {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
   }
 
   .commit-link {
-    color: var(--sl-color-gray-2);
+    margin-inline-start: auto;
+    font-family: var(--__sl-font-mono);
+    font-size: var(--sl-text-2xs);
     text-decoration: none;
-    font-size: 0.8rem;
-    transition: color 0.15s ease;
   }
 
   .commit-link:hover {
     color: var(--sl-color-white);
   }
 
-  .copyright {
-    color: var(--sl-color-gray-2);
-    font-size: 0.8rem;
+  .footer-wordmark:focus-visible,
+  .commit-link:focus-visible,
+  .footer-map-disclosure summary:focus-visible,
+  .footer-directory :global(.footer-links a:focus-visible) {
+    border-radius: 0.2rem;
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 0.2rem;
   }
 
-  @media (max-width: 768px) {
-    .footer-columns {
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
+  .footer-wrapper :global(a.external-link::after) {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .footer-wordmark strong,
+    .footer-map-disclosure summary,
+    .footer-map-disclosure summary :global(svg),
+    .footer-directory :global(.footer-links a),
+    .commit-link {
+      transition:
+        color 180ms ease,
+        transform 180ms ease;
     }
   }
 
-  @media (max-width: 500px) {
-    .footer-container {
-      padding: 1rem;
-    }
-
-    .footer-brand {
-      padding: 0.75rem 0 1rem;
-      margin-bottom: 1rem;
-    }
-
-    .footer-columns {
+  @container footer-shell (max-width: 52rem) {
+    .footer-main,
+    .footer-utility {
       grid-template-columns: 1fr;
-      gap: 1.25rem;
+      gap: 2rem;
+    }
+
+    .footer-main {
+      padding-block: 2.25rem;
+    }
+  }
+
+  @container footer-shell (max-width: 40rem) {
+    .footer-container {
+      padding-top: 1.5rem;
+    }
+
+    .footer-directory {
+      gap: 2rem;
+    }
+
+    .footer-utility {
+      padding-block: 1.25rem;
     }
 
     .footer-bottom {
-      padding-top: 1rem;
-      margin-top: 1rem;
+      align-items: flex-start;
+    }
+  }
+
+  @container footer-shell (max-width: 22rem) {
+    .footer-directory {
+      gap: 1.25rem;
+    }
+
+    .commit-link {
+      margin-inline-start: 0;
     }
   }
 </style>
@@ -148,7 +345,7 @@ const showMap = isHomepage(Astro);
 <script is:inline>
   (() => {
     const base = window.location.hostname.replace(/^www\./, '');
-    const treatSubdomainsAsInternal = true; // flip to false to treat subdomains as external
+    const treatSubdomainsAsInternal = true;
 
     const sameSite = (host) => {
       const h = host.replace(/^www\./, '');
@@ -162,7 +359,6 @@ const showMap = isHomepage(Astro);
       document.querySelectorAll('a[href]').forEach((a) => {
         try {
           const url = new URL(a.getAttribute('href'), window.location.origin);
-          // Only handle http/https
           if (!/^https?:$/.test(url.protocol)) return;
 
           if (!sameSite(url.hostname)) {
@@ -170,7 +366,6 @@ const showMap = isHomepage(Astro);
             a.setAttribute('rel', 'noopener noreferrer');
             a.classList.add('external-link');
 
-            // (Optional a11y) announce new tab without clobbering existing label
             const label = a.getAttribute('aria-label');
             const translatedLabel = Astro.locals.t('footer.opensInNewTab');
             const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -181,7 +376,7 @@ const showMap = isHomepage(Astro);
             }
           }
         } catch {
-          /* ignore invalid/relative oddities */
+          /* Ignore malformed URLs. */
         }
       });
     };
