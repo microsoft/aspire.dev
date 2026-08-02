@@ -145,20 +145,63 @@ const dismissKey = bannerHash
 <style>
   @layer starlight.core {
     .sl-banner {
-      --__sl-banner-text: var(--sl-color-banner-text, var(--sl-color-text-invert));
-      padding: var(--sl-nav-pad-y) var(--sl-nav-pad-x);
-      background-color: var(--sl-color-banner-bg, var(--sl-color-bg-accent));
+      --__sl-banner-accent: var(--aspire-action-primary, #512bd4);
+      --__sl-banner-surface: color-mix(
+        in srgb,
+        var(--__sl-banner-accent) 7%,
+        var(--sl-color-bg)
+      );
+      --__sl-banner-surface-strong: color-mix(
+        in srgb,
+        var(--__sl-banner-accent) 13%,
+        var(--sl-color-bg)
+      );
+      --__sl-banner-border: color-mix(
+        in srgb,
+        var(--__sl-banner-accent) 22%,
+        transparent
+      );
+      --__sl-banner-text: var(--sl-color-text);
+      position: relative;
+      padding: 0.5rem var(--sl-nav-pad-x);
+      border-block: 1px solid var(--__sl-banner-border);
+      background: linear-gradient(
+        90deg,
+        var(--__sl-banner-surface),
+        var(--__sl-banner-surface-strong) 50%,
+        var(--__sl-banner-surface)
+      );
       color: var(--__sl-banner-text);
-      line-height: var(--sl-line-height-headings);
+      line-height: 1.4;
       text-align: center;
       text-wrap: balance;
-      box-shadow: var(--sl-shadow-sm);
+      box-shadow: 0 0.5rem 1.5rem -1.35rem
+        color-mix(in srgb, var(--__sl-banner-accent) 45%, transparent);
+    }
+
+    :global([data-theme='dark']) .sl-banner {
+      --__sl-banner-accent: var(--aspire-color-light, #dcd5f6);
+      --__sl-banner-surface: color-mix(
+        in srgb,
+        var(--aspire-color-purple, #512bd4) 14%,
+        var(--sl-color-bg)
+      );
+      --__sl-banner-surface-strong: color-mix(
+        in srgb,
+        var(--aspire-color-purple, #512bd4) 21%,
+        var(--sl-color-bg)
+      );
+      --__sl-banner-border: color-mix(
+        in srgb,
+        var(--aspire-color-secondary, #b9aaee) 24%,
+        transparent
+      );
     }
 
     .sl-banner--dismissable {
       position: relative;
       overflow: clip;
-      padding-inline: calc(var(--sl-nav-pad-x) + 3.5rem);
+      padding-inline: calc(var(--sl-nav-pad-x) + 3rem);
       max-block-size: 12rem;
     }
 
@@ -176,56 +219,115 @@ const dismissKey = bannerHash
         box-shadow 0.22s ease;
     }
 
-    .sl-banner :global(a) {
-      color: var(--__sl-banner-text);
+    .sl-banner__content,
+    .sl-banner__content :global(p) {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem 0.625rem;
+      font-size: var(--sl-text-sm);
     }
 
     .sl-banner__content :global(p) {
       margin: 0;
     }
 
+    .sl-banner__content :global(strong) {
+      color: var(--__sl-banner-text);
+      font-weight: 700;
+    }
+
+    .sl-banner__content :global(a) {
+      display: inline-flex;
+      max-inline-size: 100%;
+      min-height: 2rem;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      border: 1px solid color-mix(in srgb, var(--__sl-banner-accent) 28%, transparent);
+      border-radius: 0.5rem;
+      padding: 0.25rem 0.625rem;
+      background: color-mix(in srgb, var(--__sl-banner-accent) 7%, transparent);
+      color: var(--__sl-banner-accent);
+      font-size: var(--sl-text-sm);
+      font-weight: 600;
+      line-height: 1.2;
+      text-align: center;
+      text-decoration: none;
+      transition:
+        border-color 0.2s ease,
+        background-color 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    .sl-banner__content :global(a)::after {
+      content: '';
+      inline-size: 0.45rem;
+      block-size: 0.45rem;
+      flex: 0 0 auto;
+      border-block-start: 0.1rem solid currentColor;
+      border-inline-end: 0.1rem solid currentColor;
+      transform: rotate(45deg);
+      transition: transform 0.2s ease;
+    }
+
+    .sl-banner__content :global(a):hover {
+      border-color: color-mix(in srgb, var(--__sl-banner-accent) 42%, transparent);
+      background: color-mix(in srgb, var(--__sl-banner-accent) 13%, transparent);
+      color: var(--__sl-banner-accent);
+      filter: none;
+      box-shadow: 0 0.2rem 0.6rem
+        color-mix(in srgb, var(--__sl-banner-accent) 12%, transparent);
+    }
+
+    .sl-banner__content :global(a):hover::after {
+      transform: translateX(0.125rem) rotate(45deg);
+    }
+
+    .sl-banner__content :global(a):focus-visible {
+      outline: 2px solid var(--__sl-banner-accent);
+      outline-offset: 2px;
+    }
+
     .sl-banner__dismiss {
       position: absolute;
-      inset-inline-end: calc(var(--sl-nav-pad-x) - 0.125rem);
+      inset-inline-end: max(0.75rem, calc(var(--sl-nav-pad-x) - 0.125rem));
       top: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      inline-size: 2rem;
-      block-size: 2rem;
-      border: 1px solid color-mix(in srgb, var(--__sl-banner-text) 18%, transparent);
-      border-radius: 1.5rem;
+      inline-size: 2.25rem;
+      block-size: 2.25rem;
+      border: 1px solid color-mix(in srgb, var(--__sl-banner-accent) 20%, transparent);
+      border-radius: 0.5rem;
       padding: 0;
-      background-color: color-mix(in srgb, var(--__sl-banner-text) 8%, transparent);
-      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sl-color-black) 10%, transparent);
-      color: var(--__sl-banner-text);
+      background-color: color-mix(in srgb, var(--__sl-banner-accent) 5%, transparent);
+      color: var(--__sl-banner-accent);
       cursor: pointer;
       transform: translateY(-50%);
       transition:
         border-color 0.2s ease,
         background-color 0.2s ease,
-        box-shadow 0.2s ease,
-        transform 0.2s ease;
+        box-shadow 0.2s ease;
     }
 
     .sl-banner__dismiss:hover,
     .sl-banner__dismiss:focus-visible {
-      border-color: color-mix(in srgb, var(--__sl-banner-text) 26%, transparent);
-      background-color: color-mix(in srgb, var(--__sl-banner-text) 14%, transparent);
-      box-shadow:
-        inset 0 0 0 1px color-mix(in srgb, var(--__sl-banner-text) 10%, transparent),
-        0 0.125rem 0.4rem color-mix(in srgb, var(--sl-color-black) 14%, transparent);
-      transform: translateY(-50%);
+      border-color: color-mix(in srgb, var(--__sl-banner-accent) 38%, transparent);
+      background-color: color-mix(in srgb, var(--__sl-banner-accent) 12%, transparent);
+      box-shadow: 0 0.2rem 0.6rem
+        color-mix(in srgb, var(--__sl-banner-accent) 12%, transparent);
     }
 
     .sl-banner__dismiss:focus-visible {
-      outline: 2px solid currentColor;
+      outline: 2px solid var(--__sl-banner-accent);
       outline-offset: 3px;
     }
 
     .sl-banner__dismiss :global(svg) {
-      opacity: 0.9;
-      transition: transform 0.2s ease, opacity 0.2s ease;
+      opacity: 0.8;
+      transition: opacity 0.2s ease;
     }
 
     .sl-banner__dismiss-label {
@@ -243,22 +345,30 @@ const dismissKey = bannerHash
     .sl-banner__dismiss:hover :global(svg),
     .sl-banner__dismiss:focus-visible :global(svg) {
       opacity: 1;
-      transform: scale(1.03);
     }
 
     @media (max-width: 40rem) {
       .sl-banner--dismissable {
-        padding-inline: calc(var(--sl-nav-pad-x) + 3rem);
+        padding-inline: 3.25rem;
         max-block-size: 16rem;
       }
 
-      .sl-banner__dismiss {
-        inset-inline-end: calc(var(--sl-nav-pad-x) - 0.25rem);
+      .sl-banner__content,
+      .sl-banner__content :global(p) {
+        gap: 0.2rem 0.5rem;
+      }
+
+      .sl-banner__content :global(a) {
+        min-height: 1.875rem;
+        padding: 0.2rem 0.5rem;
+        font-size: var(--sl-text-xs);
       }
     }
 
     @media (prefers-reduced-motion: reduce) {
       .sl-banner--dismissable,
+      .sl-banner__content :global(a),
+      .sl-banner__content :global(a)::after,
       .sl-banner__dismiss,
       .sl-banner__dismiss :global(svg) {
         transition: none;
