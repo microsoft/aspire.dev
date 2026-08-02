@@ -8,6 +8,7 @@ interface Props {
 }
 
 const { id, label, description, tone = 'default', align = 'start' } = Astro.props;
+const t = Astro.locals.t;
 ---
 
 <div
@@ -20,7 +21,13 @@ const { id, label, description, tone = 'default', align = 'start' } = Astro.prop
 >
   <span class="agent-badge-trigger">
     <span class="agent-badge-spark" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="1rem" height="1rem" focusable="false" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        viewBox="0 0 24 24"
+        width="1rem"
+        height="1rem"
+        focusable="false"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <path
           fill="currentColor"
           d="m19 9l-1.25-2.75L15 5l2.75-1.25L19 1l1.25 2.75L23 5l-2.75 1.25zm0 14l-1.25-2.75L15 19l2.75-1.25L19 15l1.25 2.75L23 19l-2.75 1.25zM9 20l-2.5-5.5L1 12l5.5-2.5L9 4l2.5 5.5L17 12l-5.5 2.5z"
@@ -30,10 +37,31 @@ const { id, label, description, tone = 'default', align = 'start' } = Astro.prop
     <span>{label}</span>
   </span>
   <div class="agent-badge-popover" id={`${id}-description`} role="tooltip">
-    <strong>Context from Aspire</strong>
+    <strong>{t('home.agentBadge.heading')}</strong>
     <p>{description}</p>
   </div>
 </div>
+
+<script>
+  // WCAG 1.4.13: content revealed on focus/hover must be dismissable without
+  // moving focus. Escape hides the popover; it re-shows on the next hover/focus.
+  function initAgentBadges() {
+    document.querySelectorAll<HTMLElement>('[data-home-agent-badge]').forEach((badge) => {
+      if (badge.dataset.badgeReady === 'true') return;
+      badge.dataset.badgeReady = 'true';
+      const clear = () => badge.removeAttribute('data-dismissed');
+      badge.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !badge.hasAttribute('data-dismissed')) {
+          badge.setAttribute('data-dismissed', '');
+        }
+      });
+      badge.addEventListener('blur', clear);
+      badge.addEventListener('mouseleave', clear);
+    });
+  }
+  initAgentBadges();
+  document.addEventListener('astro:page-load', initAgentBadges);
+</script>
 
 <style>
   .home-agent-badge {
@@ -87,7 +115,9 @@ const { id, label, description, tone = 'default', align = 'start' } = Astro.prop
     justify-content: center;
     color: var(--home-purple-bright);
     filter: drop-shadow(0 0 0.28rem color-mix(in srgb, var(--home-purple-bright) 45%, transparent));
-    transition: transform 0.25s ease, filter 0.25s ease;
+    transition:
+      transform 0.25s ease,
+      filter 0.25s ease;
   }
 
   .agent-badge-spark svg {
@@ -141,6 +171,10 @@ const { id, label, description, tone = 'default', align = 'start' } = Astro.prop
   .home-agent-badge:hover .agent-badge-popover,
   .home-agent-badge:focus .agent-badge-popover {
     display: block;
+  }
+
+  .home-agent-badge[data-dismissed] .agent-badge-popover {
+    display: none;
   }
 
   .home-agent-badge[data-align='center'] .agent-badge-popover {

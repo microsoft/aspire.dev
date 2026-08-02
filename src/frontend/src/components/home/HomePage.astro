@@ -1,7 +1,6 @@
 ---
 import { Image } from 'astro:assets';
-import { Code } from 'astro:components';
-import { Icon } from '@astrojs/starlight/components';
+import { Code, Icon } from '@astrojs/starlight/components';
 
 import aspireLogo from '@assets/aspire-logo-32.svg';
 import csharpIcon from '@assets/icons/csharp.svg';
@@ -28,6 +27,7 @@ import HomeAgentContext from './HomeAgentContext.astro';
 import HomeEnvironment from './HomeEnvironment.astro';
 import HomeIntegrationRail from './HomeIntegrationRail.astro';
 import HomeTestimonials from './HomeTestimonials.astro';
+import { localizedHref } from '@utils/helpers';
 
 const languages = [
   { name: 'C#', icon: csharpIcon },
@@ -39,8 +39,6 @@ const languages = [
   { name: 'Rust', icon: rustIcon },
   { name: 'Containers', icon: dockerIcon },
 ] as const;
-
-const modelCodeThemes = { light: 'catppuccin-latte', dark: 'laserwave' } as const;
 
 const modelAppHostTypescript = `import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
@@ -99,81 +97,56 @@ const getModelResourceDelay = (
 };
 
 const principles = [
-  {
-    number: '01',
-    icon: 'laptop',
-    title: 'Model the app in code',
-    description:
-      'Define services, containers, data stores, references, and configuration in a readable AppHost.',
-    href: '/get-started/app-host/',
-    label: 'Explore the AppHost',
-  },
-  {
-    number: '02',
-    icon: 'rocket',
-    title: 'Run the whole system',
-    description:
-      'Start every dependency together, with service discovery, local endpoints, and dev-time configuration already connected.',
-    href: '/reference/cli/commands/aspire-run/',
-    label: 'Learn about aspire run',
-  },
-  {
-    number: '03',
-    icon: 'magnifier',
-    title: 'Observe from the first request',
-    description:
-      'Use built-in OpenTelemetry to move from a resource to its logs, traces, metrics, and health without extra setup.',
-    href: '/dashboard/',
-    label: 'Explore the dashboard',
-  },
-  {
-    number: '04',
-    icon: 'star',
-    title: 'Deploy without losing the model',
-    description:
-      'Create deployment artifacts for cloud services, containers, Kubernetes, or the infrastructure path your team already uses.',
-    href: '/deployment/',
-    label: 'Explore deployment options',
-  },
+  { number: '01', icon: 'laptop', key: '01', href: '/get-started/app-host/' },
+  { number: '02', icon: 'rocket', key: '02', href: '/reference/cli/commands/aspire-run/' },
+  { number: '03', icon: 'magnifier', key: '03', href: '/dashboard/' },
+  { number: '04', icon: 'star', key: '04', href: '/deployment/' },
 ] as const;
+
+const t = Astro.locals.t;
+const locale = Astro.locals.starlightRoute?.locale;
+
+const localizedPrinciples = principles.map((principle) => ({
+  number: principle.number,
+  icon: principle.icon,
+  href: localizedHref(principle.href, locale),
+  title: t(`home.principles.${principle.key}.title` as any),
+  description: t(`home.principles.${principle.key}.description` as any),
+  label: t(`home.principles.${principle.key}.label` as any),
+}));
 ---
 
 <div class="aspire-home not-content">
   <section class="home-section home-languages" aria-labelledby="home-languages-title">
     <div class="home-shell">
       <header class="language-heading" data-home-reveal>
-        <p class="section-index"><span>01</span> Polyglot by design</p>
+        <p class="section-index"><span>01</span> {t('home.languages.index')}</p>
         <div>
-          <h2 id="home-languages-title">Bring every service into the same picture.</h2>
-          <p>
-            Keep each part of the application in the language and framework that fits it. Aspire
-            gives the whole stack one model and one workflow.
-          </p>
+          <h2 id="home-languages-title">{t('home.languages.title')}</h2>
+          <p>{t('home.languages.body')}</p>
         </div>
       </header>
 
-      <ul
-        class="language-list"
-        aria-label="Languages and workloads supported by Aspire"
-        data-language-list
-      >
+      <ul class="language-list" aria-label={t('home.languages.listLabel')} data-language-list>
         {
           languages.map((language, index) => (
             <li data-home-reveal style={`--home-reveal-delay: ${index * 45}ms`}>
               <Image src={language.icon} alt="" class="language-icon" width="48" height="48" />
-              <span>{language.name}</span>
+              <span>
+                {language.name === 'Containers' ? t('home.languages.containers') : language.name}
+              </span>
             </li>
           ))
         }
       </ul>
       <a
         class="text-link"
-        href="/get-started/resources/"
+        href={localizedHref('/get-started/resources/', locale)}
         data-home-link
         data-home-link-icon
         data-home-reveal
       >
-        Explore application resources
+        {t('home.languages.link')}
         <Icon name="right-arrow" size="1rem" />
       </a>
     </div>
@@ -183,17 +156,14 @@ const principles = [
   <section class="home-section home-model" aria-labelledby="home-model-title">
     <div class="home-shell">
       <header class="section-heading split-heading" data-home-reveal>
-        <p class="section-index"><span>03</span> One application model</p>
+        <p class="section-index"><span>03</span> {t('home.model.index')}</p>
         <div>
-          <h2 id="home-model-title">Go from repository to running system without the glue work.</h2>
-          <p>
-            The AppHost is the source of truth for how the application fits together. Aspire uses
-            that model throughout development, diagnostics, and deployment.
-          </p>
+          <h2 id="home-model-title">{t('home.model.title')}</h2>
+          <p>{t('home.model.body')}</p>
           <HomeAgentBadge
             id="model-ai-context"
-            label="Built for your AI agent"
-            description="Aspire gives connected AI tools the resource graph, references, configuration, and commands represented here."
+            label={t('home.model.badgeLabel')}
+            description={t('home.model.badgeDescription')}
           />
         </div>
       </header>
@@ -228,7 +198,9 @@ const principles = [
               class="model-story-toggle"
               data-model-story-toggle
               data-paused="false"
-              aria-label="Pause runtime story"
+              aria-label={t('home.model.pause')}
+              data-label-pause={t('home.model.pause')}
+              data-label-play={t('home.model.play')}
               aria-pressed="false"
             >
               <span class="model-story-pause-icon" aria-hidden="true">
@@ -241,12 +213,11 @@ const principles = [
           </div>
 
           <p class="model-story-summary">
-            Running aspire run turns the AppHost application model into a live resource topology,
-            then exposes every healthy resource in the Aspire dashboard.
+            {t('home.model.summary')}
           </p>
 
           <div class="model-story-stage">
-            <div class="model-story-progress" role="group" aria-label="Choose a runtime stage">
+            <div class="model-story-progress" role="group" aria-label={t('home.model.stageLabel')}>
               <button
                 type="button"
                 class="model-story-tab"
@@ -297,7 +268,7 @@ const principles = [
                     <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3m-7-4V8"></path>
                   </svg>
                 </span>
-                <span class="model-tab-text">Topology</span>
+                <span class="model-tab-text">{t('home.model.tabTopology')}</span>
               </button>
               <button
                 type="button"
@@ -322,18 +293,18 @@ const principles = [
                     <rect width="7" height="5" x="3" y="16" rx="1"></rect>
                   </svg>
                 </span>
-                <span class="model-tab-text">Dashboard</span>
+                <span class="model-tab-text">{t('home.model.tabDashboard')}</span>
               </button>
             </div>
 
             <div class="model-story-viewport" aria-hidden="true">
               <div class="model-story-panel model-code" data-story-panel="code">
                 <div class="model-code-variant" data-model-code-language="typescript">
-                  <Code code={modelAppHostTypescript} lang="typescript" themes={modelCodeThemes} />
+                  <Code code={modelAppHostTypescript} lang="typescript" frame="none" />
                 </div>
 
                 <div class="model-code-variant" data-model-code-language="csharp">
-                  <Code code={modelAppHostCsharp} lang="csharp" themes={modelCodeThemes} />
+                  <Code code={modelAppHostCsharp} lang="csharp" frame="none" />
                 </div>
               </div>
 
@@ -568,7 +539,7 @@ const principles = [
 
         <ol class="principle-list">
           {
-            principles.map((principle, index) => (
+            localizedPrinciples.map((principle, index) => (
               <li data-home-reveal style={`--home-reveal-delay: ${index * 70}ms`}>
                 <span class="principle-number">{principle.number}</span>
                 <div class="principle-icon" aria-hidden="true">
@@ -595,21 +566,23 @@ const principles = [
   <section class="home-section home-dashboard" aria-labelledby="home-dashboard-title">
     <div class="home-shell">
       <header class="section-heading dashboard-heading" data-home-reveal>
-        <p class="section-index"><span>05</span> Observability included</p>
-        <h2 id="home-dashboard-title">See the whole application. Not just one service.</h2>
-        <p>
-          Follow a request across resources, move between structured logs and traces, inspect
-          metrics, and act on resource health from one developer dashboard.
-        </p>
+        <p class="section-index"><span>05</span> {t('home.observability.index')}</p>
+        <h2 id="home-dashboard-title">{t('home.observability.title')}</h2>
+        <p>{t('home.observability.body')}</p>
         <HomeAgentBadge
           id="dashboard-ai-context"
-          label="Agents act on these signals"
-          description="Aspire gives connected AI tools dashboard context, including logs, traces, metrics, health, and resource commands."
+          label={t('home.observability.badgeLabel')}
+          description={t('home.observability.badgeDescription')}
           tone="dark"
           align="center"
         />
-        <a class="text-link" href="/dashboard/" data-home-link data-home-link-icon>
-          Explore the Aspire dashboard
+        <a
+          class="text-link"
+          href={localizedHref('/dashboard/', locale)}
+          data-home-link
+          data-home-link-icon
+        >
+          {t('home.observability.link')}
           <Icon name="right-arrow" size="1rem" />
         </a>
       </header>
@@ -628,24 +601,21 @@ const principles = [
   <section class="home-section home-integrations" aria-labelledby="home-integrations-title">
     <div class="home-shell">
       <header class="section-heading integrations-heading" data-home-reveal>
-        <p class="section-index"><span>06</span> Extensible by default</p>
-        <h2 id="home-integrations-title">Use the services you already trust.</h2>
-        <p>
-          Add databases, caches, messaging, cloud resources, and community integrations through the
-          same fluent application model.
-        </p>
+        <p class="section-index"><span>06</span> {t('home.integrations.index')}</p>
+        <h2 id="home-integrations-title">{t('home.integrations.title')}</h2>
+        <p>{t('home.integrations.body')}</p>
       </header>
       <div data-home-reveal data-home-reveal-distance="major">
         <HomeIntegrationRail />
       </div>
       <a
         class="text-link integration-link"
-        href="/integrations/"
+        href={localizedHref('/integrations/', locale)}
         data-home-link
         data-home-link-icon
         data-home-reveal
       >
-        Browse every integration
+        {t('home.integrations.link')}
         <Icon name="right-arrow" size="1rem" />
       </a>
     </div>
@@ -658,23 +628,20 @@ const principles = [
     <div class="closing-orbit orbit-a" aria-hidden="true"></div>
     <div class="closing-orbit orbit-b" aria-hidden="true"></div>
     <div class="home-shell closing-content" data-home-reveal data-home-reveal-distance="major">
-      <p class="section-index"><span>08</span> Start with your stack</p>
-      <h2 id="home-closing-title">Make the whole application easier to build.</h2>
-      <p>
-        Install the Aspire CLI, initialize an existing repository or start fresh, then bring every
-        resource into one clear development loop.
-      </p>
+      <p class="section-index"><span>08</span> {t('home.closing.index')}</p>
+      <h2 id="home-closing-title">{t('home.closing.title')}</h2>
+      <p>{t('home.closing.body')}</p>
       <div class="closing-actions">
-        <a class="closing-action primary" href="/get-started/install-cli/">
-          Install Aspire
+        <a class="closing-action primary" href={localizedHref('/get-started/install-cli/', locale)}>
+          {t('home.closing.install')}
           <Icon name="right-arrow" size="1rem" />
         </a>
-        <a class="closing-action secondary" href="/get-started/first-app/">
-          Build your first app
+        <a class="closing-action secondary" href={localizedHref('/get-started/first-app/', locale)}>
+          {t('home.closing.firstApp')}
         </a>
         <a class="closing-action tertiary" href="https://github.com/dotnet/aspire">
           <Icon name="github" size="1.1rem" />
-          View on GitHub
+          {t('home.closing.github')}
         </a>
       </div>
     </div>
@@ -816,10 +783,9 @@ const principles = [
     const updateControl = () => {
       toggle.dataset.paused = String(manuallyPaused);
       toggle.setAttribute('aria-pressed', String(manuallyPaused));
-      toggle.setAttribute(
-        'aria-label',
-        manuallyPaused ? 'Play runtime story' : 'Pause runtime story'
-      );
+      const playLabel = toggle.dataset.labelPlay ?? 'Play runtime story';
+      const pauseLabel = toggle.dataset.labelPause ?? 'Pause runtime story';
+      toggle.setAttribute('aria-label', manuallyPaused ? playLabel : pauseLabel);
     };
 
     const setStage = (stage: ModelStoryStage) => {
@@ -1783,25 +1749,39 @@ const principles = [
     display: block;
   }
 
-  .model-code :global(pre.astro-code) {
+  /*
+   * The model code uses the site-wide Expressive Code renderer (same as every
+   * other code block on the site) so highlighting is identical and theme-aware
+   * for light/dark, and EC's contrast auto-correction keeps it WCAG AA.
+   */
+  .model-code :global(.expressive-code) {
     height: 100%;
     margin: 0;
-    padding: clamp(0.9rem, 1.5vw, 1.25rem);
-    overflow: hidden;
+    --ec-codeFontSize: clamp(0.74rem, 1.15vw, 0.86rem);
+    --ec-codeLineHeight: 1.5;
+    --ec-codePaddingInline: clamp(0.9rem, 1.5vw, 1.25rem);
+    --ec-codePaddingBlock: clamp(0.9rem, 1.5vw, 1.25rem);
+  }
+
+  .model-code :global(.expressive-code figure),
+  .model-code :global(.expressive-code pre) {
+    height: 100%;
+  }
+
+  .model-code :global(.expressive-code .frame) {
+    box-shadow: none;
+  }
+
+  .model-code :global(.expressive-code pre) {
+    margin: 0;
     border: 0;
-    font: 500 clamp(0.74rem, 1.15vw, 0.86rem) / 1.5 var(--__sl-font-mono);
+    border-radius: 0;
+    overflow: hidden;
   }
 
-  :global([data-theme='dark']) .model-code :global(pre.astro-code) {
-    background-color: var(--shiki-dark-bg) !important;
-  }
-
-  :global([data-theme='dark']) .model-code :global(pre.astro-code),
-  :global([data-theme='dark']) .model-code :global(pre.astro-code span) {
-    color: var(--shiki-dark) !important;
-    font-style: var(--shiki-dark-font-style, normal) !important;
-    font-weight: var(--shiki-dark-font-weight, 500) !important;
-    text-decoration: var(--shiki-dark-text-decoration, none) !important;
+  /* Decorative panel is aria-hidden; keep the copy button out of the tab order. */
+  .model-code :global(.expressive-code .copy) {
+    display: none;
   }
 
   .model-graph {
@@ -2759,8 +2739,8 @@ const principles = [
       height: 26rem;
     }
 
-    .model-code pre {
-      font-size: clamp(0.72rem, 2vw, 0.82rem);
+    .model-code :global(.expressive-code) {
+      --ec-codeFontSize: clamp(0.72rem, 2vw, 0.82rem);
     }
 
     .dash-head,

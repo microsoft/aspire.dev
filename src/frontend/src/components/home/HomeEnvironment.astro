@@ -26,6 +26,7 @@ import sqliteIcon from '@assets/icons/sqlite-icon.png';
 import typescriptIcon from '@assets/icons/typescript.svg';
 import valkeyIcon from '@assets/icons/valkey-icon.png';
 import HomeAgentBadge from './HomeAgentBadge.astro';
+import { localizedHref } from '@utils/helpers';
 
 const frontendIcons = [reactIcon, typescriptIcon, javascriptIcon] as const;
 const apiIcons = [csharpIcon, javaIcon, pythonIcon, goIcon] as const;
@@ -145,6 +146,56 @@ const environments = [
     ],
   },
 ] as const;
+
+const t = Astro.locals.t;
+const locale = Astro.locals.starlightRoute?.locale;
+
+const resourceLabelKeys = {
+  frontend: 'home.environments.resourceFrontend',
+  api: 'home.environments.resourceApi',
+  database: 'home.environments.resourceDatabase',
+  cache: 'home.environments.resourceCache',
+} as const;
+
+const detailKeys: Record<string, string> = {
+  'local process': 'home.environments.detailLocalProcess',
+  'local container': 'home.environments.detailLocalContainer',
+  'dev tunnel': 'home.environments.detailDevTunnel',
+  'staging environment': 'home.environments.detailStagingEnvironment',
+  'staged database': 'home.environments.detailStagedDatabase',
+  'short-lived container': 'home.environments.detailShortLivedContainer',
+};
+
+const detailText = (value: string) => (detailKeys[value] ? t(detailKeys[value] as any) : value);
+const detailJoin = t('home.environments.detailJoin');
+
+const localizedEnvironments = environments.map((environment) => {
+  const label = t(`home.environments.${environment.id}Label` as any);
+  const resources = environment.resources.map((resource) => ({
+    slot: resource.slot,
+    icons: resource.icons,
+    label: t(resourceLabelKeys[resource.slot] as any),
+    details: resource.details.map(detailText),
+  }));
+  const resourceSummary = resources
+    .map((resource) => `${resource.label}: ${resource.details.join(` ${detailJoin} `)}`)
+    .join(', ');
+  return {
+    id: environment.id,
+    accent: environment.accent,
+    action:
+      environment.action.kind === 'command'
+        ? environment.action
+        : { ...environment.action, label: t('home.environments.testDocsLink') },
+    label,
+    eyebrow: t(`home.environments.${environment.id}Eyebrow` as any),
+    title: t(`home.environments.${environment.id}Title` as any),
+    description: t(`home.environments.${environment.id}Description` as any),
+    status: t(`home.environments.${environment.id}Status` as any),
+    resources,
+    topologyAlt: t('home.environments.topologyAlt', { label, resources: resourceSummary }),
+  };
+});
 ---
 
 <section
@@ -156,25 +207,26 @@ const environments = [
   <div class="environment-grid" aria-hidden="true"></div>
   <div class="home-shell">
     <header class="environment-heading" data-home-reveal>
-      <p class="section-index"><span>04</span> Local first, production ready</p>
+      <p class="section-index"><span>04</span> {t('home.environments.index')}</p>
       <div>
-        <h2 id="home-environment-title">Keep the model. Change the environment.</h2>
-        <p>
-          Development, testing, and deployment stay connected to the same application topology. The
-          workflow changes without forcing the architecture to drift.
-        </p>
+        <h2 id="home-environment-title">{t('home.environments.title')}</h2>
+        <p>{t('home.environments.body')}</p>
         <HomeAgentBadge
           id="environment-ai-context"
-          label="Agents see every environment"
-          description="Aspire exposes the selected environment's resources, endpoints, health, and available commands to connected AI tools."
+          label={t('home.environments.badgeLabel')}
+          description={t('home.environments.badgeDescription')}
         />
       </div>
     </header>
 
     <div class="environment-switcher" data-home-reveal>
-      <div class="environment-controls" role="group" aria-label="Choose an environment">
+      <div
+        class="environment-controls"
+        role="group"
+        aria-label={t('home.environments.controlsLabel')}
+      >
         {
-          environments.map((environment, index) => (
+          localizedEnvironments.map((environment, index) => (
             <button
               type="button"
               data-environment-trigger={environment.id}
@@ -192,13 +244,13 @@ const environments = [
       <div class="environment-stage" data-home-reveal data-home-reveal-distance="major">
         <div class="environment-stage-bar" aria-hidden="true">
           <span class="window-controls"><i></i><i></i><i></i></span>
-          <strong>app topology</strong>
-          <small data-environment-stage-label>Local</small>
+          <strong>{t('home.environments.stageBar')}</strong>
+          <small data-environment-stage-label>{localizedEnvironments[0].label}</small>
         </div>
 
         <div class="environment-panels">
           {
-            environments.map((environment, index) => (
+            localizedEnvironments.map((environment, index) => (
               <article
                 id={`home-environment-${environment.id}`}
                 class="environment-panel"
@@ -216,7 +268,7 @@ const environments = [
                     ) : (
                       <a
                         class="environment-docs-link"
-                        href={environment.action.href}
+                        href={localizedHref(environment.action.href, locale)}
                         data-home-link
                         data-home-link-icon
                       >
@@ -234,7 +286,7 @@ const environments = [
                 <div
                   class={`environment-topology topology-${environment.id}`}
                   role="img"
-                  aria-label={`${environment.label} application topology showing ${environment.resources.map((resource) => `${resource.label}: ${resource.details.join(' or ')}`).join(', ')}, coordinated through the Aspire AppHost.`}
+                  aria-label={environment.topologyAlt}
                 >
                   <div class="topology-ring outer" aria-hidden="true" />
                   <div class="topology-ring inner" aria-hidden="true" />
@@ -299,9 +351,11 @@ const environments = [
           type="button"
           class="environment-motion-control"
           data-environment-motion-control
-          aria-label="Pause environment animation"
+          aria-label={t('home.environments.pauseAnimation')}
           aria-pressed="false"
-          title="Pause environment animation"
+          title={t('home.environments.pauseAnimation')}
+          data-label-pause={t('home.environments.pauseAnimation')}
+          data-label-play={t('home.environments.playAnimation')}
         >
           <span data-environment-control-pause aria-hidden="true">
             <PauseIcon width="20" height="20" />
@@ -342,14 +396,11 @@ const environments = [
 
     const updateControl = () => {
       motionControl.hidden = reducedMotion.matches;
-      motionControl.setAttribute(
-        'aria-label',
-        manuallyPaused ? 'Play environment animation' : 'Pause environment animation'
-      );
-      motionControl.setAttribute(
-        'title',
-        manuallyPaused ? 'Play environment animation' : 'Pause environment animation'
-      );
+      const label = manuallyPaused
+        ? (motionControl.dataset.labelPlay ?? 'Play environment animation')
+        : (motionControl.dataset.labelPause ?? 'Pause environment animation');
+      motionControl.setAttribute('aria-label', label);
+      motionControl.setAttribute('title', label);
       motionControl.setAttribute('aria-pressed', String(manuallyPaused));
       pauseIcon.hidden = manuallyPaused;
       playIcon.hidden = !manuallyPaused;

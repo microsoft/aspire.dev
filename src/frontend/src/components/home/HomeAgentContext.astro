@@ -4,19 +4,23 @@ import { Icon } from '@astrojs/starlight/components';
 
 import claudeLogo from '@assets/icons/agent-claude.svg';
 import openAiLogo from '@assets/icons/agent-openai.svg';
+import { localizedHref } from '@utils/helpers';
+
+const t = Astro.locals.t;
+const locale = Astro.locals.starlightRoute?.locale;
 
 const contextLayers = [
   {
-    title: 'AppHost',
-    description: 'Services + dependencies',
+    title: t('home.agent.layerAppHostTitle'),
+    description: t('home.agent.layerAppHostDescription'),
   },
   {
-    title: 'Runtime',
-    description: 'Resources + health',
+    title: t('home.agent.layerRuntimeTitle'),
+    description: t('home.agent.layerRuntimeDescription'),
   },
   {
-    title: 'Telemetry',
-    description: 'Logs + traces + errors',
+    title: t('home.agent.layerTelemetryTitle'),
+    description: t('home.agent.layerTelemetryDescription'),
   },
 ] as const;
 
@@ -27,8 +31,7 @@ const agents = [
     icon: 'github',
     treatment: 'monochrome',
     routePath: 'M125 124 C170 156 235 176 310 194',
-    sentence:
-      'Aspire provides GitHub Copilot with live application context, improving its reasoning across resources, dependencies, health, telemetry, and failures.',
+    sentence: t('home.agent.sentenceGithubCopilot'),
   },
   {
     id: 'claude',
@@ -36,8 +39,7 @@ const agents = [
     logo: claudeLogo,
     treatment: 'color',
     routePath: 'M360 124 C360 150 360 174 360 194',
-    sentence:
-      'Aspire provides Claude with live application context, improving its reasoning across resources, dependencies, health, telemetry, and failures.',
+    sentence: t('home.agent.sentenceClaude'),
   },
   {
     id: 'openai',
@@ -45,8 +47,7 @@ const agents = [
     logo: openAiLogo,
     treatment: 'monochrome',
     routePath: 'M595 124 C550 156 485 176 410 194',
-    sentence:
-      'Aspire provides OpenAI agents with live application context, improving their reasoning across resources, dependencies, health, telemetry, and failures.',
+    sentence: t('home.agent.sentenceOpenai'),
   },
 ] as const;
 
@@ -62,21 +63,16 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
   <div class="agent-grid" aria-hidden="true"></div>
   <div class="home-shell">
     <header class="agent-heading" data-home-reveal>
-      <p class="section-index"><span>02</span> Agent-ready</p>
+      <p class="section-index"><span>02</span> {t('home.agent.index')}</p>
       <div>
-        <h2 id="home-agent-context-title">
-          Give AI the context to reason across your whole system.
-        </h2>
-        <p>
-          Aspire supplies live context from your application model, running resources, and
-          telemetry, without making you assemble and explain that context by hand.
-        </p>
+        <h2 id="home-agent-context-title">{t('home.agent.title')}</h2>
+        <p>{t('home.agent.body')}</p>
       </div>
     </header>
 
     <div class="agent-layout">
       <div class="agent-copy" data-home-reveal>
-        <p class="agent-statement">One connection. Full application context.</p>
+        <p class="agent-statement">{t('home.agent.statement')}</p>
 
         <ul class="agent-context-layers">
           {
@@ -91,18 +87,18 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
 
         <a
           class="agent-link"
-          href="/get-started/ai-coding-agents/"
+          href={localizedHref('/get-started/ai-coding-agents/', locale)}
           data-home-link
           data-home-link-icon
         >
-          Set up Aspire for your agent
+          {t('home.agent.setupLink')}
           <Icon name="right-arrow" size="0.95rem" />
         </a>
       </div>
 
       <div class="agent-visual" data-home-reveal data-home-reveal-distance="major">
         <div class="agent-visual-toolbar">
-          <p class="agent-visual-label">Choose a tool to explore the connection.</p>
+          <p class="agent-visual-label">{t('home.agent.toolbar')}</p>
         </div>
 
         <div
@@ -156,17 +152,17 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
             </span>
             <small>Aspire</small>
             <strong>AppHost</strong>
-            <p>Live application context</p>
+            <p>{t('home.agent.coreCaption')}</p>
           </div>
 
-          <ul class="agent-logo-list" aria-label="Choose an AI tool to connect to Aspire">
+          <ul class="agent-logo-list" aria-label={t('home.agent.listLabel')}>
             {
               agents.map((agent, index) => (
                 <li class="agent-logo" data-agent-slot={String(index)}>
                   <button
                     type="button"
                     class="agent-logo-button"
-                    aria-label={`Connect ${agent.name} to Aspire`}
+                    aria-label={t('home.agent.connect', { name: agent.name })}
                     aria-pressed={String(agent.id === defaultAgentId)}
                     data-agent-logo={agent.id}
                     data-agent-sentence={agent.sentence}
@@ -211,7 +207,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
           <p class="agent-story-live" data-agent-active-sentence aria-live="polite">
             {defaultAgent.sentence}
           </p>
-          <p class="agent-any-ai-note">Works with any AI tool.</p>
+          <p class="agent-any-ai-note">{t('home.agent.anyTool')}</p>
         </div>
       </div>
     </div>

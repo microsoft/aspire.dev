@@ -36,7 +36,6 @@ import SampleGrid from '@components/SampleGrid.astro';
 import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
-import SimpleCard from '@components/SimpleCard.astro';
 import SiteTour from '@components/SiteTour.astro';
 import StreamCard from '@components/StreamCard.astro';
 import TerminalShowcase from '@components/TerminalShowcase.astro';
@@ -577,18 +576,6 @@ const invalidSimpleAppHostCodeProps: PropsOf<typeof SimpleAppHostCode> = {
   lang: 'ruby',
 };
 
-const validSimpleCardProps = {
-  icon: 'open-book',
-  title: 'Docs card',
-  link: '/docs/',
-} satisfies PropsOf<typeof SimpleCard>;
-// @ts-expect-error SimpleCard should reject unknown props.
-const invalidSimpleCardProps: PropsOf<typeof SimpleCard> = {
-  icon: 'open-book',
-  title: 'Docs card',
-  unexpected: true,
-};
-
 const validStreamCardProps = {
   platform: 'YouTube',
   icon: 'play',
@@ -805,8 +792,6 @@ void [
   invalidSessionGridProps,
   validSimpleAppHostCodeProps,
   invalidSimpleAppHostCodeProps,
-  validSimpleCardProps,
-  invalidSimpleCardProps,
   validStreamCardProps,
   invalidStreamCardProps,
   validTerminalShowcaseProps,

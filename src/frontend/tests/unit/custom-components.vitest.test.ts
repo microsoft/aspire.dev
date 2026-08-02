@@ -15,8 +15,6 @@ import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
 import FooterPreferences from '@components/FooterPreferences.astro';
 import FooterSocials from '@components/FooterSocials.astro';
-import FreeAndOpenSourceAside from '@components/FreeAndOpenSourceAside.astro';
-import { aspireQuotes } from '@components/FreeAndOpenSourceAside.quotes';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
 import HeroSection from '@components/HeroSection.astro';
 import IconAside from '@components/IconAside.astro';
@@ -28,10 +26,8 @@ import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import Integrations from '@components/Integrations.astro';
 import IntegrationTotals from '@components/IntegrationTotals.astro';
-import LanguagesSupported from '@components/LanguagesSupported.astro';
 import LearnMore from '@components/LearnMore.astro';
 import LicenseBadge from '@components/LicenseBadge.astro';
-import LocalVsProdEnvironments from '@components/LocalVsProdEnvironments.astro';
 import LoopingVideo from '@components/LoopingVideo.astro';
 import MediaCard from '@components/MediaCard.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
@@ -45,10 +41,8 @@ import SampleGrid from '@components/SampleGrid.astro';
 import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
-import SimpleCard from '@components/SimpleCard.astro';
 import SiteTour from '@components/SiteTour.astro';
 import StarlightHero from '@components/starlight/Hero.astro';
-import TestimonialCarousel from '@components/TestimonialCarousel.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import ThreeTierAspire from '@components/ThreeTierAspire.astro';
 import TopicHero from '@components/TopicHero.astro';
@@ -326,13 +320,6 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['player.twitch.tv/?channel=aspiredotdev', 'parent=aspire.dev', 'Twitch stream'],
   },
   {
-    name: 'SimpleCard renders title, icon and slot content',
-    Component: SimpleCard,
-    props: { icon: 'open-book', title: 'Docs card', link: '/docs/' },
-    slots: { default: 'Short card description.' },
-    includes: ['Docs card', '/docs/', 'Short card description.'],
-  },
-  {
     name: 'IconLinkCard renders title, description and href',
     Component: IconLinkCard,
     props: {
@@ -478,24 +465,6 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['data-sources=', 'looping-video-toggle', 'Pause video'],
   },
   {
-    name: 'LanguagesSupported renders all language cards',
-    Component: LanguagesSupported,
-    includes: ['data-lang-name="TypeScript"', 'data-lang-name="C#"', 'And more...'],
-  },
-  {
-    name: 'FreeAndOpenSourceAside renders quote controls and status',
-    Component: FreeAndOpenSourceAside,
-    requestUrl: 'https://aspire.dev/llms-full.txt',
-    includes: [
-      'data-aspire-quote-player',
-      'data-quote-heading',
-      'data-quote-progress',
-      'data-quote-index',
-      'Pause statement rotation',
-      'Show a random Aspire statement',
-    ],
-  },
-  {
     name: 'OsAwareTabs renders shell tabs and sync key script',
     Component: OsAwareTabs,
     props: { syncKey: 'terminal' },
@@ -577,11 +546,6 @@ const basicRenderCases: BasicRenderCase[] = [
     ],
   },
   {
-    name: 'LocalVsProdEnvironments renders environment commands and disabled-copy regions',
-    Component: LocalVsProdEnvironments,
-    includes: ['aspire run', 'aspire deploy -e test', 'aspire deploy', 'data-disable-copy'],
-  },
-  {
     name: 'YouTubeCard renders metadata and embed shell',
     Component: YouTubeCard,
     props: {
@@ -639,11 +603,6 @@ const basicRenderCases: BasicRenderCase[] = [
       'docker-compose.yml',
       'aria-label="Slide to compare Docker Compose and C# AppHost"',
     ],
-  },
-  {
-    name: 'TestimonialCarousel renders navigation controls',
-    Component: TestimonialCarousel,
-    includes: ['testimonial-carousel', 'prev-btn', 'next-btn'],
   },
 ];
 
@@ -860,40 +819,6 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('fit="contain"');
   });
 
-  it('renders the accessible quote player and complete quote pool', async () => {
-    const html = normalizeHtml(
-      await renderComponent(FreeAndOpenSourceAside, {
-        locals: { t: createTestTranslator(enTranslations) },
-      })
-    );
-
-    expect(html).toContain('aria-label="Aspire statements"');
-    expect(html).toContain('aria-live="polite"');
-    expect(html).toContain('aria-atomic="true"');
-    expect(html).toContain('data-playback-toggle');
-    expect(html).toContain('data-random-quote');
-    expect(html).toContain('quote-progress-fill');
-    expect(html).toContain('typing-cursor');
-    expect(html).toContain('Aspire is an agent-ready, code-first tool');
-    expect(html).toContain('built directly into your everyday development workflow.');
-    expect(html).toContain('data-quote-link');
-    expect(html).toContain('href="/get-started/ai-coding-agents/"');
-    expect(html).toContain('Learn more');
-  });
-
-  it('keeps all quote statements similarly sized and consistently prefixed', () => {
-    const lengths = aspireQuotes.map(({ text }) => text.length);
-    const shortest = Math.min(...lengths);
-    const longest = Math.max(...lengths);
-
-    expect(aspireQuotes).toHaveLength(29);
-    expect(new Set(aspireQuotes.map(({ heading }) => heading)).size).toBe(aspireQuotes.length);
-    expect(new Set(aspireQuotes.map(({ text }) => text)).size).toBe(aspireQuotes.length);
-    expect(aspireQuotes.every(({ text }) => text.startsWith('Aspire is '))).toBe(true);
-    expect(aspireQuotes.every(({ href }) => href.startsWith('/'))).toBe(true);
-    expect(longest - shortest).toBeLessThanOrEqual(10);
-  });
-
   it('keeps every statement-player locale complete and preserves technology names', () => {
     const source = enTranslations.landing.statementPlayer;
     const quoteIds = Object.keys(source.quotes);
@@ -941,38 +866,6 @@ describe('custom Astro component render coverage', () => {
         }
       }
     }
-  });
-
-  it('renders translated playback, controls, and links on localized pages', async () => {
-    const t = createTestTranslator(deTranslations);
-
-    const starlightRoute: StarlightRoute & { locale: string } = {
-      locale: 'de',
-      editUrl:
-        'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/de/index.mdx',
-      entry: {
-        id: 'de/index',
-        slug: 'de',
-        filePath: 'src/content/docs/de/index.mdx',
-        data: {},
-      },
-    };
-
-    const html = normalizeHtml(
-      await renderComponent(FreeAndOpenSourceAside, {
-        requestUrl: 'https://aspire.dev/de/',
-        locals: { t, starlightRoute },
-      })
-    );
-
-    expect(html).toContain('aria-label="Aspire-Aussagen"');
-    expect(html).toContain('Agentenbereit');
-    expect(html).toContain('Aspire ist ein agentenbereites');
-    expect(html).toContain('Eine zufällige Aspire-Aussage anzeigen');
-    expect(html).toContain('Mehr erfahren');
-    expect(html).toContain('href="/de/get-started/ai-coding-agents/"');
-    expect(html).toContain('data-aspire-quote-player');
-    expect(html).not.toContain('Aspire is an agent-ready');
   });
 
   it('filters GitHubRepoStats by repository name when multiple stats are provided', async () => {
@@ -1425,6 +1318,7 @@ describe('custom Astro component render coverage', () => {
       await renderComponent(StarlightHero, {
         locals: {
           starlightRoute,
+          t: createTestTranslator(enTranslations),
         },
         requestUrl: 'https://aspire.dev/',
       })

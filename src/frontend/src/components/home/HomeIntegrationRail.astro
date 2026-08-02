@@ -47,6 +47,7 @@ import rust from '@assets/icons/rust-icon.png';
 import seq from '@assets/icons/seq-icon.png';
 import sqlite from '@assets/icons/sqlite-icon.png';
 import typescript from '@assets/icons/typescript.svg';
+import { localizedHref } from '@utils/helpers';
 
 const foundationIntegrations = [
   { name: 'Redis', icon: redis, search: 'redis' },
@@ -111,6 +112,11 @@ const lanes = [
     integrations: runtimeIntegrations,
   },
 ] as const;
+
+const t = Astro.locals.t;
+const locale = Astro.locals.starlightRoute?.locale;
+const pauseLabel = t('home.integrationRail.pauseAnimation');
+const playLabel = t('home.integrationRail.playAnimation');
 ---
 
 <div class="integration-rail" data-home-integration-rail>
@@ -126,10 +132,10 @@ const lanes = [
             <div class="rail-group">
               {lane.integrations.map((integration) => (
                 <a
-                  href={`/integrations/gallery/?search=${encodeURIComponent(integration.search)}`}
+                  href={localizedHref(`/integrations/gallery/?search=${encodeURIComponent(integration.search)}`, locale)}
                   class="integration-logo"
                   data-integration-name={integration.name}
-                  aria-label={`Explore ${integration.name} integrations`}
+                  aria-label={t('integrations.explore', { integration: integration.name })}
                 >
                   {'lightIcon' in integration ? (
                     <>
@@ -153,7 +159,7 @@ const lanes = [
             <div class="rail-group" aria-hidden="true">
               {lane.integrations.map((integration) => (
                 <a
-                  href={`/integrations/gallery/?search=${encodeURIComponent(integration.search)}`}
+                  href={localizedHref(`/integrations/gallery/?search=${encodeURIComponent(integration.search)}`, locale)}
                   class="integration-logo"
                   data-integration-name={integration.name}
                   tabindex="-1"
@@ -187,9 +193,11 @@ const lanes = [
     type="button"
     class="rail-control"
     data-rail-control
-    aria-label="Pause integration animation"
+    aria-label={pauseLabel}
     aria-pressed="false"
-    title="Pause integration animation"
+    title={pauseLabel}
+    data-label-pause={pauseLabel}
+    data-label-play={playLabel}
   >
     <span data-rail-control-pause aria-hidden="true">
       <PauseIcon width="20" height="20" />
@@ -217,7 +225,9 @@ const lanes = [
 
       function update() {
         const paused = manuallyPaused || reducedMotion.matches;
-        const label = paused ? 'Play integration animation' : 'Pause integration animation';
+        const label = paused
+          ? (control.dataset.labelPlay ?? 'Play integration animation')
+          : (control.dataset.labelPause ?? 'Pause integration animation');
         root.classList.toggle('paused', paused);
         root.toggleAttribute('data-rail-motion-active', isVisible && documentVisible && !paused);
         control.hidden = reducedMotion.matches;
