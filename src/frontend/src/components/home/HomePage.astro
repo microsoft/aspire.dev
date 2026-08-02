@@ -1,5 +1,6 @@
 ---
 import { Image } from 'astro:assets';
+import { Code } from 'astro:components';
 import { Icon } from '@astrojs/starlight/components';
 
 import aspireLogo from '@assets/aspire-logo-32.svg';
@@ -21,10 +22,7 @@ import rustIcon from '@assets/icons/rust-icon.png';
 import sqliteIcon from '@assets/icons/sqlite-icon.png';
 import typescriptIcon from '@assets/icons/typescript.svg';
 import valkeyIcon from '@assets/icons/valkey-icon.png';
-import dashboardResourcesDark from '@assets/dashboard/landing/resources-table-dark.png';
-import dashboardResourcesLight from '@assets/dashboard/landing/resources-table-light.png';
 import DashboardCarousel from '@components/DashboardCarousel.astro';
-import ThemeImage from '@components/ThemeImage.astro';
 import HomeAgentBadge from './HomeAgentBadge.astro';
 import HomeAgentContext from './HomeAgentContext.astro';
 import HomeEnvironment from './HomeEnvironment.astro';
@@ -41,6 +39,44 @@ const languages = [
   { name: 'Rust', icon: rustIcon },
   { name: 'Containers', icon: dockerIcon },
 ] as const;
+
+const modelCodeThemes = { light: 'catppuccin-latte', dark: 'laserwave' } as const;
+
+const modelAppHostTypescript = `import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+const postgres = await builder
+    .addPostgres("postgres")
+    .addDatabase("catalogdb");
+const cache = await builder.addRedis("basketcache");
+
+const catalog = await builder
+    .addNodeApp("catalogservice", "./catalog", "src/index.ts")
+    .withReference(postgres);
+
+await builder.addViteApp("frontend", "./frontend")
+    .withReference(catalog)
+    .withReference(cache);
+
+await builder.build().run();
+`;
+
+const modelAppHostCsharp = `var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .AddDatabase("catalogdb");
+var cache = builder.AddRedis("basketcache");
+
+var catalog = builder
+    .AddProject<Projects.CatalogService>("catalogservice")
+    .WithReference(postgres);
+
+builder.AddProject<Projects.Frontend>("frontend")
+    .WithReference(catalog)
+    .WithReference(cache);
+
+builder.Build().Run();
+`;
 
 const frontendResourceIcons = [reactIcon, typescriptIcon, javascriptIcon] as const;
 const apiResourceIcons = [csharpIcon, javaIcon, pythonIcon, goIcon] as const;
@@ -156,7 +192,7 @@ const principles = [
           </p>
           <HomeAgentBadge
             id="model-ai-context"
-            label="AI can read this model"
+            label="Built for your AI agent"
             description="Aspire gives connected AI tools the resource graph, references, configuration, and commands represented here."
           />
         </div>
@@ -179,10 +215,12 @@ const principles = [
                 <small>aspire-shop</small>
               </div>
               <pre><code><span class="terminal-line terminal-command"><span>$</span> <b data-terminal-command data-command="aspire run">aspire run</b><i class="terminal-caret" /></span>
-<span class="terminal-line" data-terminal-output><em>Starting:</em> AspireShop.AppHost</span>
-<span class="terminal-line" data-terminal-output><em>Resources:</em> 9 starting</span>
-<span class="terminal-line" data-terminal-output><em>Dashboard:</em> https://localhost:18888</span>
-<span class="terminal-line" data-terminal-output><em>Ready:</em> 9 running, 9 healthy</span></code></pre>
+<span class="terminal-line" data-terminal-output data-stage="code"><span class="term-ok">&check;</span> Building apphost&hellip;</span>
+<span class="terminal-line" data-terminal-output data-stage="topology"><span class="term-ok">&check;</span> Starting dashboard&hellip;</span>
+<span class="terminal-line term-grid" data-terminal-output data-stage="topology"><em class="term-key">AppHost</em><span class="term-val">AspireShop.AppHost</span></span>
+<span class="terminal-line term-grid" data-terminal-output data-stage="dashboard"><em class="term-key">Dashboard</em><a class="term-link" tabindex="-1">https://localhost:17178/login?t=b3f9c1e0</a></span>
+<span class="terminal-line term-grid" data-terminal-output data-stage="dashboard"><em class="term-key">Logs</em><span class="term-val">~/.aspire/cli/logs/apphost-2f8c.log</span></span>
+<span class="terminal-line term-hint" data-terminal-output data-stage="dashboard">Press <b>CTRL+C</b> to stop the apphost and exit.</span></code></pre>
             </div>
 
             <button
@@ -207,59 +245,95 @@ const principles = [
             then exposes every healthy resource in the Aspire dashboard.
           </p>
 
-          <div class="model-story-stage" aria-hidden="true">
-            <div class="model-story-progress">
-              <span data-model-stage-label="code" data-active="true">AppHost</span>
-              <span data-model-stage-label="topology" data-active="false">Topology</span>
-              <span data-model-stage-label="dashboard" data-active="false">Dashboard</span>
+          <div class="model-story-stage">
+            <div class="model-story-progress" role="group" aria-label="Choose a runtime stage">
+              <button
+                type="button"
+                class="model-story-tab"
+                data-model-stage-label="code"
+                data-active="true"
+                aria-pressed="true"
+              >
+                <span class="model-tab-icon model-tab-lang" aria-hidden="true">
+                  <Image
+                    src={typescriptIcon}
+                    alt=""
+                    class="model-tab-lang-icon model-tab-lang-typescript"
+                    width="18"
+                    height="18"
+                    loading="eager"
+                  />
+                  <Image
+                    src={csharpIcon}
+                    alt=""
+                    class="model-tab-lang-icon model-tab-lang-csharp"
+                    width="18"
+                    height="18"
+                    loading="eager"
+                  />
+                </span>
+                <span class="model-tab-text">AppHost</span>
+              </button>
+              <button
+                type="button"
+                class="model-story-tab"
+                data-model-stage-label="topology"
+                data-active="false"
+                aria-pressed="false"
+              >
+                <span class="model-tab-icon" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    focusable="false"
+                  >
+                    <rect width="6" height="6" x="16" y="16" rx="1"></rect>
+                    <rect width="6" height="6" x="2" y="16" rx="1"></rect>
+                    <rect width="6" height="6" x="9" y="2" rx="1"></rect>
+                    <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3m-7-4V8"></path>
+                  </svg>
+                </span>
+                <span class="model-tab-text">Topology</span>
+              </button>
+              <button
+                type="button"
+                class="model-story-tab"
+                data-model-stage-label="dashboard"
+                data-active="false"
+                aria-pressed="false"
+              >
+                <span class="model-tab-icon" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    focusable="false"
+                  >
+                    <rect width="7" height="9" x="3" y="3" rx="1"></rect>
+                    <rect width="7" height="5" x="14" y="3" rx="1"></rect>
+                    <rect width="7" height="9" x="14" y="12" rx="1"></rect>
+                    <rect width="7" height="5" x="3" y="16" rx="1"></rect>
+                  </svg>
+                </span>
+                <span class="model-tab-text">Dashboard</span>
+              </button>
             </div>
 
-            <div class="model-story-viewport">
+            <div class="model-story-viewport" aria-hidden="true">
               <div class="model-story-panel model-code" data-story-panel="code">
                 <div class="model-code-variant" data-model-code-language="typescript">
-                  <div class="model-code-file">
-                    <strong>apphost.mts</strong>
-                    <span>TypeScript application model</span>
-                  </div>
-                  <pre><code><span class="code-keyword">import</span> &#123; createBuilder &#125; <span class="code-keyword">from</span> <span class="code-string">"./.aspire/modules/aspire.mjs"</span>;
-
-<span class="code-keyword">const</span> builder = <span class="code-keyword">await</span> <span class="code-call">createBuilder</span>();
-<span class="code-keyword">const</span> postgres = <span class="code-keyword">await</span> builder
-    .<span class="code-call">addPostgres</span>(<span class="code-string">"postgres"</span>)
-    .<span class="code-call">addDatabase</span>(<span class="code-string">"catalogdb"</span>);
-<span class="code-keyword">const</span> cache = <span class="code-keyword">await</span> builder.<span class="code-call">addRedis</span>(<span class="code-string">"basketcache"</span>);
-
-<span class="code-keyword">const</span> catalog = <span class="code-keyword">await</span> builder
-    .<span class="code-call">addNodeApp</span>(<span class="code-string">"catalogservice"</span>, <span class="code-string">"./catalog"</span>, <span class="code-string">"src/index.ts"</span>)
-    .<span class="code-call">withReference</span>(postgres);
-
-<span class="code-keyword">await</span> builder.<span class="code-call">addViteApp</span>(<span class="code-string">"frontend"</span>, <span class="code-string">"./frontend"</span>)
-    .<span class="code-call">withReference</span>(catalog)
-    .<span class="code-call">withReference</span>(cache);
-
-<span class="code-keyword">await</span> builder.<span class="code-call">build</span>().<span class="code-call">run</span>();</code></pre>
+                  <Code code={modelAppHostTypescript} lang="typescript" themes={modelCodeThemes} />
                 </div>
 
                 <div class="model-code-variant" data-model-code-language="csharp">
-                  <div class="model-code-file">
-                    <strong>AppHost.cs</strong>
-                    <span>C# application model</span>
-                  </div>
-                  <pre><code><span class="code-keyword">var</span> builder = DistributedApplication.<span class="code-call">CreateBuilder</span>(args);
-
-<span class="code-keyword">var</span> postgres = builder.<span class="code-call">AddPostgres</span>(<span class="code-string">"postgres"</span>)
-    .<span class="code-call">AddDatabase</span>(<span class="code-string">"catalogdb"</span>);
-<span class="code-keyword">var</span> cache = builder.<span class="code-call">AddRedis</span>(<span class="code-string">"basketcache"</span>);
-
-<span class="code-keyword">var</span> catalog = builder
-    .<span class="code-call">AddProject</span>&lt;Projects.CatalogService&gt;(<span class="code-string">"catalogservice"</span>)
-    .<span class="code-call">WithReference</span>(postgres);
-
-builder.<span class="code-call">AddProject</span>&lt;Projects.Frontend&gt;(<span class="code-string">"frontend"</span>)
-    .<span class="code-call">WithReference</span>(catalog)
-    .<span class="code-call">WithReference</span>(cache);
-
-builder.<span class="code-call">Build</span>().<span class="code-call">Run</span>();</code></pre>
+                  <Code code={modelAppHostCsharp} lang="csharp" themes={modelCodeThemes} />
                 </div>
               </div>
 
@@ -268,114 +342,225 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
                 data-story-panel="topology"
                 data-model-graph
               >
-                <div class="graph-line line-frontend"></div>
-                <div class="graph-line line-api"></div>
-                <div class="graph-line line-database"></div>
-                <div class="graph-line line-cache"></div>
-                <div class="graph-node graph-apphost">
-                  <Image
-                    src={aspireLogo}
-                    alt=""
-                    class="graph-apphost-icon"
-                    width="32"
-                    height="32"
-                    loading="eager"
-                  />
-                  <span>AppHost</span>
-                  <small>running</small>
-                </div>
+                <svg class="graph-flow" viewBox="0 0 100 100" aria-hidden="true">
+                  <path class="graph-flow-line flow-1" data-flow-edge d=""></path>
+                  <path class="graph-flow-line flow-2" data-flow-edge d=""></path>
+                  <path class="graph-flow-line flow-3" data-flow-edge d=""></path>
+                </svg>
                 <div class="graph-resources">
                   <div class="graph-resource resource-frontend">
                     <span class="graph-resource-card">
-                      <span class="graph-resource-icon-cycle cycle-three">
-                        {
-                          frontendResourceIcons.map((icon, index) => (
-                            <Image
-                              src={icon}
-                              alt=""
-                              class="graph-resource-icon"
-                              width="28"
-                              height="28"
-                              loading="eager"
-                              style={`--resource-icon-delay: ${getModelResourceDelay('frontend', frontendResourceIcons.length, index)}s`}
-                            />
-                          ))
-                        }
+                      <span class="graph-handle graph-handle-right" aria-hidden="true"></span>
+                      <span class="graph-node-head">
+                        <span class="graph-resource-icon-cycle cycle-three">
+                          {
+                            frontendResourceIcons.map((icon, index) => (
+                              <Image
+                                src={icon}
+                                alt=""
+                                class="graph-resource-icon"
+                                width="28"
+                                height="28"
+                                loading="eager"
+                                style={`--resource-icon-delay: ${getModelResourceDelay('frontend', frontendResourceIcons.length, index)}s`}
+                              />
+                            ))
+                          }
+                        </span>
+                        <span class="graph-node-type">Frontend</span>
                       </span>
-                      <span>frontend</span>
+                      <span class="graph-node-name">frontend</span>
                     </span>
                   </div>
                   <div class="graph-resource resource-api">
                     <span class="graph-resource-card">
-                      <span class="graph-resource-icon-cycle cycle-four">
-                        {
-                          apiResourceIcons.map((icon, index) => (
-                            <Image
-                              src={icon}
-                              alt=""
-                              class="graph-resource-icon"
-                              width="28"
-                              height="28"
-                              loading="eager"
-                              style={`--resource-icon-delay: ${getModelResourceDelay('api', apiResourceIcons.length, index)}s`}
-                            />
-                          ))
-                        }
+                      <span class="graph-handle graph-handle-left" aria-hidden="true"></span>
+                      <span class="graph-handle graph-handle-right" aria-hidden="true"></span>
+                      <span class="graph-node-head">
+                        <span class="graph-resource-icon-cycle cycle-four">
+                          {
+                            apiResourceIcons.map((icon, index) => (
+                              <Image
+                                src={icon}
+                                alt=""
+                                class="graph-resource-icon"
+                                width="28"
+                                height="28"
+                                loading="eager"
+                                style={`--resource-icon-delay: ${getModelResourceDelay('api', apiResourceIcons.length, index)}s`}
+                              />
+                            ))
+                          }
+                        </span>
+                        <span class="graph-node-type">Service</span>
                       </span>
-                      <span>catalogservice</span>
+                      <span class="graph-node-name">catalogservice</span>
                     </span>
                   </div>
                   <div class="graph-resource resource-database">
                     <span class="graph-resource-card">
-                      <span class="graph-resource-icon-cycle cycle-four">
-                        {
-                          databaseResourceIcons.map((icon, index) => (
-                            <Image
-                              src={icon}
-                              alt=""
-                              class="graph-resource-icon"
-                              width="28"
-                              height="28"
-                              loading="eager"
-                              style={`--resource-icon-delay: ${getModelResourceDelay('database', databaseResourceIcons.length, index)}s`}
-                            />
-                          ))
-                        }
+                      <span class="graph-handle graph-handle-left" aria-hidden="true"></span>
+                      <span class="graph-node-head">
+                        <span class="graph-resource-icon-cycle cycle-four">
+                          {
+                            databaseResourceIcons.map((icon, index) => (
+                              <Image
+                                src={icon}
+                                alt=""
+                                class="graph-resource-icon"
+                                width="28"
+                                height="28"
+                                loading="eager"
+                                style={`--resource-icon-delay: ${getModelResourceDelay('database', databaseResourceIcons.length, index)}s`}
+                              />
+                            ))
+                          }
+                        </span>
+                        <span class="graph-node-type">Database</span>
                       </span>
-                      <span>postgres</span>
+                      <span class="graph-node-name">postgres</span>
                     </span>
                   </div>
                   <div class="graph-resource resource-cache">
                     <span class="graph-resource-card">
-                      <span class="graph-resource-icon-cycle cycle-three">
-                        {
-                          cacheResourceIcons.map((icon, index) => (
-                            <Image
-                              src={icon}
-                              alt=""
-                              class={`graph-resource-icon${index === 0 ? ' cache-icon' : ''}`}
-                              width="28"
-                              height="28"
-                              loading="eager"
-                              style={`--resource-icon-delay: ${getModelResourceDelay('cache', cacheResourceIcons.length, index)}s`}
-                            />
-                          ))
-                        }
+                      <span class="graph-handle graph-handle-left" aria-hidden="true"></span>
+                      <span class="graph-node-head">
+                        <span class="graph-resource-icon-cycle cycle-three">
+                          {
+                            cacheResourceIcons.map((icon, index) => (
+                              <Image
+                                src={icon}
+                                alt=""
+                                class={`graph-resource-icon${index === 0 ? ' cache-icon' : ''}`}
+                                width="28"
+                                height="28"
+                                loading="eager"
+                                style={`--resource-icon-delay: ${getModelResourceDelay('cache', cacheResourceIcons.length, index)}s`}
+                              />
+                            ))
+                          }
+                        </span>
+                        <span class="graph-node-type">Cache</span>
                       </span>
-                      <span>basketcache</span>
+                      <span class="graph-node-name">basketcache</span>
                     </span>
                   </div>
                 </div>
+
+                <div class="graph-flow-labels" aria-hidden="true">
+                  <span class="graph-flow-label label-discovery">
+                    <svg
+                      class="flow-arrow"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"><path d="M4 12h13m-5-5 5 5-5 5"></path></svg
+                    >
+                    <span>service discovery</span>
+                  </span>
+                  <span class="graph-flow-label label-connection">
+                    <svg
+                      class="flow-arrow"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"><path d="M4 12h13m-5-5 5 5-5 5"></path></svg
+                    >
+                    <span>connection string</span>
+                  </span>
+                  <span class="graph-flow-label label-cache">
+                    <svg
+                      class="flow-arrow"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"><path d="M4 12h13m-5-5 5 5-5 5"></path></svg
+                    >
+                    <span>cache client</span>
+                  </span>
+                </div>
               </div>
 
-              <div class="model-story-panel model-dashboard-preview" data-story-panel="dashboard">
-                <ThemeImage
-                  light={dashboardResourcesLight}
-                  dark={dashboardResourcesDark}
-                  alt=""
-                  zoomable={false}
-                  classOverride="model-dashboard-image"
-                />
+              <div
+                class="model-story-panel model-dashboard"
+                data-story-panel="dashboard"
+                data-model-dashboard
+              >
+                <div class="dash-head" aria-hidden="true">
+                  <span class="dash-col-name">Name</span>
+                  <span class="dash-col-state">State</span>
+                  <span class="dash-col-source">Source</span>
+                  <span class="dash-col-url">URLs</span>
+                </div>
+                <div class="dash-body">
+                  <div class="dash-row" data-dash-row>
+                    <span class="dash-name">
+                      <Image src={postgresqlIcon} alt="" class="dash-icon" width="22" height="22" />
+                      <span>postgres</span>
+                    </span>
+                    <span class="dash-state">
+                      <span class="dash-dot" aria-hidden="true"></span>
+                      <span class="dash-state-text"></span>
+                    </span>
+                    <span class="dash-source">docker.io/library/postgres:18.3</span>
+                    <span class="dash-url"
+                      ><a class="dash-link" tabindex="-1">tcp://localhost:5432</a></span
+                    >
+                  </div>
+                  <div class="dash-row" data-dash-row>
+                    <span class="dash-name">
+                      <Image src={redisIcon} alt="" class="dash-icon" width="22" height="22" />
+                      <span>basketcache</span>
+                    </span>
+                    <span class="dash-state">
+                      <span class="dash-dot" aria-hidden="true"></span>
+                      <span class="dash-state-text"></span>
+                    </span>
+                    <span class="dash-source">docker.io/library/redis:8.6</span>
+                    <span class="dash-url"
+                      ><a class="dash-link" tabindex="-1">tcp://localhost:6379</a></span
+                    >
+                  </div>
+                  <div class="dash-row" data-dash-row>
+                    <span class="dash-name">
+                      <Image src={csharpIcon} alt="" class="dash-icon" width="22" height="22" />
+                      <span>catalogservice</span>
+                    </span>
+                    <span class="dash-state">
+                      <span class="dash-dot" aria-hidden="true"></span>
+                      <span class="dash-state-text"></span>
+                    </span>
+                    <span class="dash-source">AspireShop.CatalogService.csproj</span>
+                    <span class="dash-url"
+                      ><a class="dash-link" tabindex="-1">https://localhost:7099</a></span
+                    >
+                  </div>
+                  <div class="dash-row" data-dash-row>
+                    <span class="dash-name">
+                      <Image src={reactIcon} alt="" class="dash-icon" width="22" height="22" />
+                      <span>frontend</span>
+                    </span>
+                    <span class="dash-state">
+                      <span class="dash-dot" aria-hidden="true"></span>
+                      <span class="dash-state-text"></span>
+                    </span>
+                    <span class="dash-source">AspireShop.Frontend.csproj</span>
+                    <span class="dash-url"
+                      ><a class="dash-link" tabindex="-1">https://localhost:7188</a></span
+                    >
+                  </div>
+                </div>
+                <div class="dash-foot" aria-hidden="true">
+                  <span class="dash-foot-count"
+                    ><b data-dash-count>0</b> of 4 resources running</span
+                  >
+                </div>
               </div>
             </div>
           </div>
@@ -418,7 +603,7 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
         </p>
         <HomeAgentBadge
           id="dashboard-ai-context"
-          label="AI can read these signals"
+          label="Agents act on these signals"
           description="Aspire gives connected AI tools dashboard context, including logs, traces, metrics, health, and resource commands."
           tone="dark"
           align="center"
@@ -536,12 +721,81 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     const commandStart = 280;
     const commandInterval = 58;
     const commandEnd = commandStart + Math.max(commandText.length - 1, 0) * commandInterval;
+    const stageOrder: Record<ModelStoryStage, number> = { code: 0, topology: 1, dashboard: 2 };
+    const stageResumeAt: Record<ModelStoryStage, number> = {
+      code: 1_500,
+      topology: 3_800,
+      dashboard: 6_400,
+    };
     const timers = new Set<number>();
     let playing = false;
     let playbackAllowed = false;
     let manuallyPaused = false;
     let cycleElapsed = 0;
     let cycleStartedAt = 0;
+
+    const dashboard = root.querySelector<HTMLElement>('[data-model-dashboard]');
+    const dashRows = dashboard
+      ? Array.from(dashboard.querySelectorAll<HTMLElement>('[data-dash-row]'))
+      : [];
+    const dashCount = dashboard?.querySelector<HTMLElement>('[data-dash-count]') ?? null;
+    const dashTimers = new Set<number>();
+    let dashState: 'idle' | 'animating' | 'final' = 'idle';
+
+    const clearDashTimers = () => {
+      dashTimers.forEach((timer) => window.clearTimeout(timer));
+      dashTimers.clear();
+    };
+
+    const setDashCount = (value: number) => {
+      if (dashCount) dashCount.textContent = String(value);
+    };
+
+    const resetDashboard = () => {
+      if (!dashboard || dashState === 'idle') return;
+      clearDashTimers();
+      dashState = 'idle';
+      dashRows.forEach((row) => row.classList.remove('is-visible', 'is-online'));
+      setDashCount(0);
+    };
+
+    const finalizeDashboard = () => {
+      if (!dashboard) return;
+      clearDashTimers();
+      dashState = 'final';
+      dashRows.forEach((row) => row.classList.add('is-visible', 'is-online'));
+      setDashCount(dashRows.length);
+    };
+
+    const animateDashboard = () => {
+      if (!dashboard || dashState === 'animating') return;
+      clearDashTimers();
+      dashState = 'animating';
+      dashRows.forEach((row) => row.classList.remove('is-visible', 'is-online'));
+      setDashCount(0);
+      let online = 0;
+      dashRows.forEach((row, index) => {
+        const appearAt = 140 + index * 300;
+        const onlineAt = appearAt + 900 + index * 160;
+        const appearTimer = window.setTimeout(() => {
+          dashTimers.delete(appearTimer);
+          row.classList.add('is-visible');
+        }, appearAt);
+        dashTimers.add(appearTimer);
+        const onlineTimer = window.setTimeout(() => {
+          dashTimers.delete(onlineTimer);
+          row.classList.add('is-online');
+          online += 1;
+          setDashCount(online);
+        }, onlineAt);
+        dashTimers.add(onlineTimer);
+      });
+    };
+
+    const showDashboard = (animate: boolean) => {
+      if (animate) animateDashboard();
+      else finalizeDashboard();
+    };
 
     const clearTimers = () => {
       timers.forEach((timer) => window.clearTimeout(timer));
@@ -571,13 +825,43 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     const setStage = (stage: ModelStoryStage) => {
       root.dataset.storyStage = stage;
       stageLabels.forEach((label) => {
-        label.dataset.active = String(label.dataset.modelStageLabel === stage);
+        const active = label.dataset.modelStageLabel === stage;
+        label.dataset.active = String(active);
+        label.setAttribute('aria-pressed', String(active));
       });
       graph?.toggleAttribute('data-graph-active', playing && stage === 'topology');
+      if (stage === 'dashboard') {
+        showDashboard(playing && !reducedMotion);
+      } else {
+        resetDashboard();
+      }
     };
 
     const revealOutput = (index: number) => {
       outputLines[index]?.classList.add('is-visible');
+    };
+
+    const snapToStage = (stage: ModelStoryStage) => {
+      manuallyPaused = true;
+      updateControl();
+      pause();
+      command.textContent = commandText;
+      root.removeAttribute('data-terminal-typing');
+      const order = stageOrder[stage];
+      outputLines.forEach((line) => {
+        const lineStage = (line.dataset.stage as ModelStoryStage) ?? 'code';
+        line.classList.toggle('is-visible', stageOrder[lineStage] <= order);
+      });
+      setStage(stage);
+      graph?.toggleAttribute('data-graph-active', stage === 'topology');
+      cycleElapsed = stageResumeAt[stage];
+    };
+
+    const handleStageClick = (event: Event) => {
+      const stage = (event.currentTarget as HTMLElement).dataset.modelStageLabel;
+      if (stage === 'code' || stage === 'topology' || stage === 'dashboard') {
+        snapToStage(stage);
+      }
     };
 
     const setLanguage = (language: AppHostLanguage) => {
@@ -628,11 +912,13 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
         revealOutput(1);
         setStage('topology');
       }, 2_350);
-      scheduleAt(() => revealOutput(2), 3_950);
+      scheduleAt(() => revealOutput(2), 3_300);
       scheduleAt(() => {
         revealOutput(3);
         setStage('dashboard');
-      }, 5_300);
+      }, 4_600);
+      scheduleAt(() => revealOutput(4), 5_300);
+      scheduleAt(() => revealOutput(5), 6_100);
       scheduleAt(() => {
         cycleElapsed = 0;
         cycleStartedAt = performance.now();
@@ -679,12 +965,115 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
       syncPlayback();
     };
 
+    const flowSvg = graph?.querySelector<SVGSVGElement>('.graph-flow') ?? null;
+    const edgeSpecs = [
+      {
+        path: '.flow-1',
+        from: '.resource-frontend .graph-handle-right',
+        to: '.resource-api .graph-handle-left',
+        label: '.label-discovery',
+      },
+      {
+        path: '.flow-2',
+        from: '.resource-api .graph-handle-right',
+        to: '.resource-database .graph-handle-left',
+        label: '.label-connection',
+      },
+      {
+        path: '.flow-3',
+        from: '.resource-frontend .graph-handle-right',
+        to: '.resource-cache .graph-handle-left',
+        label: '.label-cache',
+      },
+    ];
+
+    const handleCenter = (el: Element, originX: number, originY: number) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2 - originX, y: r.top + r.height / 2 - originY };
+    };
+
+    const routeEdges = () => {
+      if (!graph || !flowSvg) return;
+      const rect = flowSvg.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return;
+      flowSvg.setAttribute('viewBox', `0 0 ${rect.width.toFixed(1)} ${rect.height.toFixed(1)}`);
+      for (const spec of edgeSpecs) {
+        const path = flowSvg.querySelector<SVGPathElement>(spec.path);
+        const fromEl = graph.querySelector(spec.from);
+        const toEl = graph.querySelector(spec.to);
+        if (!path || !fromEl || !toEl) continue;
+        const s = handleCenter(fromEl, rect.left, rect.top);
+        const t = handleCenter(toEl, rect.left, rect.top);
+        const k = Math.max(26, Math.abs(t.x - s.x) * 0.5);
+        path.setAttribute(
+          'd',
+          `M ${s.x.toFixed(1)} ${s.y.toFixed(1)} C ${(s.x + k).toFixed(1)} ${s.y.toFixed(1)}, ${(t.x - k).toFixed(1)} ${t.y.toFixed(1)}, ${t.x.toFixed(1)} ${t.y.toFixed(1)}`
+        );
+        const label = graph.querySelector<HTMLElement>(spec.label);
+        if (label) {
+          label.style.left = `${((s.x + t.x) / 2).toFixed(1)}px`;
+          label.style.top = `${((s.y + t.y) / 2).toFixed(1)}px`;
+          const arrow = label.querySelector<SVGElement>('.flow-arrow');
+          if (arrow) {
+            const angle = (Math.atan2(t.y - s.y, t.x - s.x) * 180) / Math.PI;
+            arrow.style.transform = `rotate(${angle.toFixed(1)}deg)`;
+          }
+        }
+      }
+    };
+
+    let routeRaf = 0;
+    const routeTick = () => {
+      routeEdges();
+      routeRaf = requestAnimationFrame(routeTick);
+    };
+    const stopRouting = () => {
+      if (routeRaf) {
+        cancelAnimationFrame(routeRaf);
+        routeRaf = 0;
+      }
+    };
+    const startRouting = () => {
+      stopRouting();
+      routeRaf = reducedMotion
+        ? requestAnimationFrame(() => {
+            routeEdges();
+            routeRaf = 0;
+          })
+        : requestAnimationFrame(routeTick);
+    };
+    const handleGraphActive = () => {
+      if (graph?.hasAttribute('data-graph-active')) startRouting();
+      else stopRouting();
+    };
+
+    let graphActiveObserver: MutationObserver | null = null;
+    let graphResizeObserver: ResizeObserver | null = null;
+    if (graph && flowSvg) {
+      graphActiveObserver = new MutationObserver(handleGraphActive);
+      graphActiveObserver.observe(graph, {
+        attributes: true,
+        attributeFilter: ['data-graph-active'],
+      });
+      if (typeof ResizeObserver !== 'undefined') {
+        graphResizeObserver = new ResizeObserver(() => routeEdges());
+        graphResizeObserver.observe(graph);
+      }
+      handleGraphActive();
+    }
+
     const destroy = () => {
       pause();
+      stopRouting();
+      clearDashTimers();
+      graphActiveObserver?.disconnect();
+      graphResizeObserver?.disconnect();
       toggle.removeEventListener('click', handleToggle);
+      stageLabels.forEach((label) => label.removeEventListener('click', handleStageClick));
     };
 
     toggle.addEventListener('click', handleToggle);
+    stageLabels.forEach((label) => label.addEventListener('click', handleStageClick));
     updateControl();
 
     if (reducedMotion) {
@@ -1122,6 +1511,39 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     font-style: normal;
   }
 
+  .term-ok {
+    color: #78dfa8;
+    font-weight: 700;
+  }
+
+  .model-window code em.term-key {
+    display: inline-block;
+    min-width: 6.4rem;
+    color: #78dfa8;
+    font-style: normal;
+    font-weight: 650;
+  }
+
+  .term-val {
+    color: #cfc9de;
+  }
+
+  .term-link {
+    color: #8fd0ff;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    text-decoration-color: rgba(143, 208, 255, 0.5);
+  }
+
+  .term-hint {
+    color: #9a94ab;
+  }
+
+  .term-hint b {
+    color: #f7f5ff;
+    font-weight: 650;
+  }
+
   :global(html[data-home-js='true']) .terminal-line[data-terminal-output]:not(.is-visible) {
     opacity: 0;
     transform: translateY(0.35rem);
@@ -1169,7 +1591,7 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
 
   .model-story-stage {
     position: relative;
-    height: clamp(20rem, 34vw, 25rem);
+    height: clamp(21.5rem, 36vw, 27rem);
     margin-top: 1rem;
     overflow: hidden;
     border: 1px solid var(--home-border);
@@ -1190,32 +1612,70 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     background: color-mix(in srgb, var(--home-surface) 94%, transparent);
   }
 
-  .model-story-progress span {
+  .model-story-progress .model-story-tab {
     position: relative;
-    display: grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0 0.5rem;
+    border: 0;
+    border-inline-end: 1px solid var(--home-border);
     color: var(--home-muted);
+    background: transparent;
     font: 650 0.67rem/1 var(--__sl-font-mono);
     letter-spacing: 0.02em;
+    cursor: pointer;
+    transition:
+      color 0.2s ease,
+      background 0.2s ease;
   }
 
-  .model-story-progress span::after {
-    content: '';
-    position: absolute;
-    inset: auto 20% -1px;
-    height: 2px;
-    opacity: 0;
-    background: var(--home-purple);
-    transform: scaleX(0.5);
+  .model-story-progress .model-story-tab:last-child {
+    border-inline-end: 0;
   }
 
-  .model-story-progress span[data-active='true'] {
+  .model-tab-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    color: var(--home-purple);
+  }
+
+  .model-tab-icon svg {
+    display: block;
+    width: 0.95rem;
+    height: 0.95rem;
+  }
+
+  .model-tab-lang :global(.model-tab-lang-icon) {
+    display: none;
+    width: 0.95rem;
+    height: 0.95rem;
+    margin: 0;
+    object-fit: contain;
+  }
+
+  .model-proof[data-story-language='typescript'] :global(.model-tab-lang-typescript),
+  .model-proof[data-story-language='csharp'] :global(.model-tab-lang-csharp) {
+    display: block;
+  }
+
+  .model-story-progress .model-story-tab:hover {
     color: var(--home-text);
+    background: color-mix(in srgb, var(--home-purple) 6%, transparent);
   }
 
-  .model-story-progress span[data-active='true']::after {
-    opacity: 1;
-    transform: scaleX(1);
+  .model-story-progress .model-story-tab[data-active='true'] {
+    color: var(--home-text);
+    background: color-mix(in srgb, var(--home-purple) 12%, transparent);
+  }
+
+  .model-story-progress .model-story-tab:focus-visible {
+    z-index: 2;
+    outline: 0.1875rem solid var(--home-purple);
+    outline-offset: -0.3rem;
   }
 
   .model-story-viewport {
@@ -1308,8 +1768,7 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
   }
 
   .model-code {
-    color: #e9e5f5;
-    background: #171522;
+    height: 100%;
   }
 
   .model-code-variant {
@@ -1324,54 +1783,32 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     display: block;
   }
 
-  .model-code-file {
-    min-height: 2.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    color: #bdb7ce;
-    font: 600 0.68rem/1 var(--__sl-font-mono);
-  }
-
-  .model-code-file strong {
-    color: #f7f5ff;
-    font-weight: 650;
-  }
-
-  .model-code pre {
-    height: calc(100% - 2.5rem);
+  .model-code :global(pre.astro-code) {
+    height: 100%;
     margin: 0;
     padding: clamp(1rem, 2.2vw, 1.65rem);
     overflow: hidden;
     border: 0;
-    color: #e9e5f5;
-    background: transparent;
     font: 500 clamp(0.58rem, 0.85vw, 0.73rem) / 1.58 var(--__sl-font-mono);
   }
 
-  .model-code code {
-    color: inherit;
+  :global([data-theme='dark']) .model-code :global(pre.astro-code) {
+    background-color: var(--shiki-dark-bg) !important;
   }
 
-  .model-code .code-keyword {
-    color: #c8a7ff;
-  }
-
-  .model-code .code-call {
-    color: #7dd3fc;
-  }
-
-  .model-code .code-string {
-    color: #8de8b4;
+  :global([data-theme='dark']) .model-code :global(pre.astro-code),
+  :global([data-theme='dark']) .model-code :global(pre.astro-code span) {
+    color: var(--shiki-dark) !important;
+    font-style: var(--shiki-dark-font-style, normal) !important;
+    font-weight: var(--shiki-dark-font-weight, 500) !important;
+    text-decoration: var(--shiki-dark-text-decoration, none) !important;
   }
 
   .model-graph {
+    position: absolute;
+    inset: 0;
     min-height: 0;
-    display: grid;
-    place-items: center;
+    display: block;
     overflow: hidden;
     background:
       linear-gradient(
@@ -1388,95 +1825,302 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     background-size: 2.25rem 2.25rem;
   }
 
-  .model-dashboard-preview {
-    display: grid;
-    place-items: center;
+  .model-dashboard {
+    --dash-amber: #b45309;
+    display: flex;
+    flex-direction: column;
     background: var(--home-surface);
+    color: var(--home-text);
+    font-size: clamp(0.74rem, 1.15vw, 0.86rem);
+    font-weight: 500;
+    line-height: 1.3;
   }
 
-  .model-dashboard-preview :global(.model-dashboard-image) {
+  :global([data-theme='dark']) .model-dashboard {
+    --dash-amber: #f5b544;
+  }
+
+  .dash-head,
+  .dash-row {
+    display: grid;
+    grid-template-columns: minmax(7.5rem, 1.15fr) 6.4rem minmax(6rem, 1.35fr) minmax(6rem, 1.3fr);
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 clamp(0.9rem, 2.2vw, 1.4rem);
+  }
+
+  .dash-head {
+    min-height: 2.5rem;
+    border-bottom: 1px solid var(--home-border);
+    color: var(--home-muted);
+    font-size: 0.66rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .dash-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .dash-row {
+    flex: 1;
+    border-bottom: 1px solid color-mix(in srgb, var(--home-border) 65%, transparent);
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+
+  :global(html[data-home-js='true']) .dash-row.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .dash-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    font-weight: 600;
+    color: var(--home-text);
+  }
+
+  .dash-name > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dash-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+    object-fit: contain;
+  }
+
+  .dash-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    font-weight: 600;
+    color: var(--dash-amber);
+  }
+
+  .dash-row.is-online .dash-state {
+    color: var(--home-green);
+  }
+
+  .dash-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #e3a008;
+  }
+
+  .dash-row.is-online .dash-dot {
+    background: var(--home-green);
+    box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--home-green) 22%, transparent);
+  }
+
+  .dash-state-text::after {
+    content: 'Starting';
+  }
+
+  .dash-row.is-online .dash-state-text::after {
+    content: 'Running';
+  }
+
+  .dash-source {
+    overflow: hidden;
+    color: var(--home-muted);
+    font-family: var(--__sl-font-mono, ui-monospace, monospace);
+    font-size: 0.94em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dash-url {
+    min-width: 0;
+    opacity: 0;
+    transform: translateY(0.2rem);
+  }
+
+  .dash-row.is-online .dash-url {
+    opacity: 1;
+    transform: none;
+  }
+
+  .dash-link {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--home-purple);
+    font-family: var(--__sl-font-mono, ui-monospace, monospace);
+    font-size: 0.94em;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    text-decoration-color: color-mix(in srgb, var(--home-purple) 45%, transparent);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+
+  .dash-foot {
+    min-height: 2.4rem;
+    display: flex;
+    align-items: center;
+    padding: 0 clamp(0.9rem, 2.2vw, 1.4rem);
+    border-top: 1px solid var(--home-border);
+    color: var(--home-muted);
+    font-size: 0.72rem;
+  }
+
+  .dash-foot-count b {
+    color: var(--home-text);
+    font-weight: 700;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .dash-row,
+    .dash-url {
+      transition:
+        opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 480ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .dash-dot {
+      transition:
+        background 300ms ease,
+        box-shadow 300ms ease;
+    }
+
+    .dash-row.is-visible:not(.is-online) .dash-dot {
+      animation: dash-dot-pulse 1.3s ease-in-out infinite;
+    }
+  }
+
+  @keyframes dash-dot-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(227, 160, 8, 0.55);
+    }
+    50% {
+      box-shadow: 0 0 0 0.3rem rgba(227, 160, 8, 0);
+    }
+  }
+
+  .graph-flow {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
     width: 100%;
     height: 100%;
-    display: block;
-    margin: 0;
-    border: 0;
-    object-fit: contain;
-    object-position: left top;
-  }
-
-  .graph-apphost {
-    position: relative;
-    z-index: 2;
-    isolation: isolate;
-    width: 9rem;
-    min-height: 9rem;
-    display: grid;
-    place-items: center;
-    align-content: center;
-    gap: 0.45rem;
-    border: 1px solid color-mix(in srgb, var(--home-purple) 50%, var(--home-border));
-    border-radius: 50%;
-    color: var(--home-text);
-    background: var(--home-surface);
-    box-shadow:
-      0 0 0 1rem color-mix(in srgb, var(--home-purple) 7%, transparent),
-      0 1.5rem 3rem rgba(49, 24, 139, 0.15);
-  }
-
-  .graph-apphost::before,
-  .graph-apphost::after {
-    position: absolute;
-    inset: -0.8rem;
-    border: 1px solid color-mix(in srgb, var(--home-purple) 48%, transparent);
-    border-radius: 50%;
-    content: '';
-    opacity: 0;
+    overflow: visible;
     pointer-events: none;
   }
 
-  .graph-apphost :global(.graph-apphost-icon) {
-    width: 2rem;
-    height: 2rem;
-    margin: 0;
+  .graph-flow path {
+    fill: none;
+    vector-effect: non-scaling-stroke;
   }
 
-  .graph-apphost span {
-    font-weight: 800;
+  .graph-flow-line {
+    stroke: var(--home-purple-bright);
+    stroke-width: 2.25;
+    stroke-linecap: round;
+    stroke-dasharray: 5 5;
+    stroke-dashoffset: 0;
+    opacity: 0.95;
   }
 
-  .graph-apphost small {
-    color: var(--home-green);
-    font: 650 0.65rem/1 var(--__sl-font-mono);
-    text-transform: uppercase;
+  .graph-flow-labels {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .graph-flow-label {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.16rem 0.5rem 0.16rem 0.4rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 30%, var(--home-border));
+    border-radius: 999px;
+    color: color-mix(in srgb, var(--home-text) 74%, transparent);
+    background: color-mix(in srgb, var(--home-surface) 92%, transparent);
+    font: 600 0.58rem/1 var(--__sl-font-mono);
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    backdrop-filter: blur(2px);
+  }
+
+  .graph-flow-label :global(.flow-arrow) {
+    width: 0.78rem;
+    height: 0.78rem;
+    flex: none;
+    color: var(--home-purple);
+  }
+
+  .label-discovery {
+    top: 38%;
+    left: 27%;
+  }
+
+  .label-discovery :global(.flow-arrow) {
+    transform: rotate(-24deg);
+  }
+
+  .label-connection {
+    top: 33%;
+    left: 63%;
+  }
+
+  .label-connection :global(.flow-arrow) {
+    transform: rotate(11deg);
+  }
+
+  .label-cache {
+    top: 63%;
+    left: 28%;
+  }
+
+  .label-cache :global(.flow-arrow) {
+    transform: rotate(25deg);
   }
 
   .graph-resources {
     position: absolute;
-    inset: 1.25rem;
+    inset: 0;
     z-index: 2;
     pointer-events: none;
   }
 
   .graph-resource {
     position: absolute;
+    transform: translate(-50%, -50%);
     will-change: transform;
   }
 
   .graph-resource-card {
     position: relative;
     isolation: isolate;
-    min-height: 3.25rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.65rem;
-    padding: 0.6rem 0.8rem;
-    border: 1px solid var(--home-border);
-    border-radius: 0.65rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.42rem;
+    min-width: 10.75rem;
+    padding: 0.8rem 1rem 0.85rem;
+    border: 2px solid var(--home-border);
+    border-radius: 0.75rem;
     color: var(--home-text);
     background: var(--home-surface-strong);
-    font: 650 0.76rem/1 var(--__sl-font-mono);
     box-shadow:
-      0 0.8rem 1.7rem rgba(31, 18, 73, 0.1),
+      0 0.7rem 1.5rem rgba(31, 18, 73, 0.12),
       inset 0 1px color-mix(in srgb, var(--home-surface) 65%, transparent);
     will-change: transform;
   }
@@ -1492,14 +2136,54 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     pointer-events: none;
   }
 
-  .graph-resource-card > :global(.graph-resource-icon),
-  .graph-resource-icon-cycle {
-    width: 1.75rem;
-    height: 1.75rem;
-    flex: 0 0 1.75rem;
+  .graph-node-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
-  .graph-resource-card > :global(.graph-resource-icon) {
+  .graph-node-type {
+    font: 700 0.62rem/1 var(--__sl-font-mono);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--home-text) 55%, transparent);
+    white-space: nowrap;
+  }
+
+  .graph-node-name {
+    font: 650 1.02rem/1 var(--__sl-font-mono);
+    color: var(--home-text);
+    white-space: nowrap;
+  }
+
+  .graph-handle {
+    position: absolute;
+    top: 50%;
+    width: 0.62rem;
+    height: 0.62rem;
+    border-radius: 50%;
+    background: var(--home-purple-bright);
+    box-shadow: 0 0 0 2px var(--home-surface-strong);
+    transform: translateY(-50%);
+    z-index: 3;
+  }
+
+  .graph-handle-left {
+    left: -0.33rem;
+  }
+
+  .graph-handle-right {
+    right: -0.33rem;
+  }
+
+  .graph-resource-card :global(.graph-resource-icon),
+  .graph-resource-icon-cycle {
+    width: 1.7rem;
+    height: 1.7rem;
+    flex: 0 0 1.7rem;
+  }
+
+  .graph-resource-card :global(.graph-resource-icon) {
     margin: 0;
     object-fit: contain;
   }
@@ -1530,16 +2214,11 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     --graph-idle-rotate: -0.35deg;
     --graph-idle-duration: 5.9s;
     --graph-idle-delay: -0.8s;
-    --graph-radar-delay: -0.3s;
     --graph-cycle-duration: 10.8s;
     --graph-cycle-enter-x: -0.38rem;
     --graph-cycle-exit-x: 0.38rem;
-    --graph-scroll-from-x: -0.7rem;
-    --graph-scroll-from-y: -0.5rem;
-    --graph-scroll-to-x: 0.45rem;
-    --graph-scroll-to-y: 0.35rem;
-    top: 4%;
-    left: 5%;
+    left: 15%;
+    top: 50%;
   }
 
   .resource-api {
@@ -1548,16 +2227,11 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     --graph-idle-rotate: 0.4deg;
     --graph-idle-duration: 6.7s;
     --graph-idle-delay: -2.6s;
-    --graph-radar-delay: -1.5s;
     --graph-cycle-duration: 13.6s;
     --graph-cycle-enter-x: 0.38rem;
     --graph-cycle-exit-x: -0.38rem;
-    --graph-scroll-from-x: 0.7rem;
-    --graph-scroll-from-y: -0.5rem;
-    --graph-scroll-to-x: -0.45rem;
-    --graph-scroll-to-y: 0.35rem;
-    top: 12%;
-    right: 3%;
+    left: 47%;
+    top: 16%;
   }
 
   .resource-database {
@@ -1566,16 +2240,11 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     --graph-idle-rotate: 0.35deg;
     --graph-idle-duration: 7.3s;
     --graph-idle-delay: -4.1s;
-    --graph-radar-delay: -2.8s;
     --graph-cycle-duration: 11.9s;
     --graph-cycle-enter-x: -0.38rem;
     --graph-cycle-exit-x: 0.38rem;
-    --graph-scroll-from-x: -0.7rem;
-    --graph-scroll-from-y: 0.5rem;
-    --graph-scroll-to-x: 0.45rem;
-    --graph-scroll-to-y: -0.35rem;
-    bottom: 4%;
-    left: 4%;
+    left: 84%;
+    top: 47%;
   }
 
   .resource-cache {
@@ -1584,128 +2253,17 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     --graph-idle-rotate: -0.4deg;
     --graph-idle-duration: 5.4s;
     --graph-idle-delay: -3.7s;
-    --graph-radar-delay: -3.6s;
     --graph-cycle-duration: 15.2s;
     --graph-cycle-enter-x: 0.38rem;
     --graph-cycle-exit-x: -0.38rem;
-    --graph-scroll-from-x: 0.7rem;
-    --graph-scroll-from-y: 0.5rem;
-    --graph-scroll-to-x: -0.45rem;
-    --graph-scroll-to-y: -0.35rem;
-    right: 5%;
-    bottom: 1%;
-  }
-
-  .graph-line {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    z-index: 1;
-    width: 46%;
-    height: 1px;
-    background: linear-gradient(
-      to right,
-      color-mix(in srgb, var(--home-purple) 42%, transparent),
-      color-mix(in srgb, var(--home-purple) 28%, transparent) 72%,
-      transparent
-    );
-    transform-origin: left center;
-  }
-
-  .line-frontend {
-    transform: translateY(-50%) rotate(-153deg);
-  }
-
-  .line-api {
-    transform: translateY(-50%) rotate(-24deg);
-  }
-
-  .line-database {
-    transform: translateY(-50%) rotate(153deg);
-  }
-
-  .line-cache {
-    transform: translateY(-50%) rotate(27deg);
+    left: 46%;
+    top: 84%;
   }
 
   @keyframes graph-resource-idle {
     to {
       transform: translate3d(var(--graph-idle-x), var(--graph-idle-y), 0)
         rotate(var(--graph-idle-rotate));
-    }
-  }
-
-  @keyframes graph-radar-out {
-    0% {
-      opacity: 0;
-      transform: scale(0.88);
-    }
-
-    32% {
-      opacity: 0.24;
-    }
-
-    100% {
-      opacity: 0;
-      transform: scale(1.22);
-    }
-  }
-
-  @keyframes graph-radar-in {
-    0% {
-      opacity: 0;
-      transform: scale(1.22);
-    }
-
-    68% {
-      opacity: 0.18;
-    }
-
-    100% {
-      opacity: 0;
-      transform: scale(0.9);
-    }
-  }
-
-  @keyframes graph-core-radar-out {
-    0% {
-      opacity: 0;
-      transform: scale(0.82);
-    }
-
-    34% {
-      opacity: 0.38;
-    }
-
-    100% {
-      opacity: 0;
-      transform: scale(1.58);
-    }
-  }
-
-  @keyframes graph-core-radar-in {
-    0% {
-      opacity: 0;
-      transform: scale(1.58);
-    }
-
-    66% {
-      opacity: 0.3;
-    }
-
-    100% {
-      opacity: 0;
-      transform: scale(0.84);
-    }
-  }
-
-  @keyframes graph-resource-scroll {
-    from {
-      transform: translate3d(var(--graph-scroll-from-x), var(--graph-scroll-from-y), 0);
-    }
-
-    to {
-      transform: translate3d(var(--graph-scroll-to-x), var(--graph-scroll-to-y), 0);
     }
   }
 
@@ -1747,9 +2305,9 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     }
   }
 
-  @keyframes graph-apphost-idle {
+  @keyframes graph-dash {
     to {
-      transform: translateY(-0.16rem) scale(1.04);
+      stroke-dashoffset: -20;
     }
   }
 
@@ -1758,24 +2316,6 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
       animation: graph-resource-idle var(--graph-idle-duration, 5.8s)
         cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
       animation-delay: var(--graph-idle-delay, 0s);
-    }
-
-    .model-graph[data-graph-active] .graph-resource-card::before {
-      animation: graph-radar-out 4.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-      animation-delay: var(--graph-radar-delay, 0s);
-    }
-
-    .model-graph[data-graph-active] .graph-resource-card::after {
-      animation: graph-radar-in 4.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-      animation-delay: calc(var(--graph-radar-delay, 0s) + 2.1s);
-    }
-
-    .model-graph[data-graph-active] .graph-apphost::before {
-      animation: graph-core-radar-out 3.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-    }
-
-    .model-graph[data-graph-active] .graph-apphost::after {
-      animation: graph-core-radar-in 3.8s cubic-bezier(0.16, 1, 0.3, 1) 1.9s infinite;
     }
 
     .model-graph[data-graph-active] .cycle-three :global(.graph-resource-icon) {
@@ -1790,18 +2330,16 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
       animation-delay: var(--resource-icon-delay);
     }
 
-    .model-graph[data-graph-active] :global(.graph-apphost-icon) {
-      animation: graph-apphost-idle 3.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+    .model-graph[data-graph-active] .graph-flow-line {
+      animation: graph-dash 1.1s linear infinite;
     }
-  }
 
-  @supports (animation-timeline: view()) {
-    @media (prefers-reduced-motion: no-preference) {
-      .graph-resource {
-        animation: graph-resource-scroll linear both;
-        animation-timeline: --model-story;
-        animation-range: cover 10% cover 90%;
-      }
+    .model-graph[data-graph-active] .flow-2 {
+      animation-delay: -0.35s;
+    }
+
+    .model-graph[data-graph-active] .flow-3 {
+      animation-delay: -0.7s;
     }
   }
 
@@ -2095,14 +2633,10 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
         transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .model-story-progress span {
-      transition: color 360ms cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .model-story-progress span::after {
+    .model-story-progress .model-story-tab {
       transition:
-        opacity 360ms cubic-bezier(0.16, 1, 0.3, 1),
-        transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+        color 360ms cubic-bezier(0.16, 1, 0.3, 1),
+        background 360ms cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .model-story-panel {
@@ -2173,7 +2707,13 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
       position: relative;
       top: auto;
       width: min(100%, 48rem);
+      min-width: 0;
       margin-inline: auto;
+    }
+
+    .model-window pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
     }
 
     .principle-list {
@@ -2216,31 +2756,50 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     }
 
     .model-story-stage {
-      height: 22rem;
+      height: 26rem;
     }
 
     .model-code pre {
       font-size: clamp(0.62rem, 1.7vw, 0.68rem);
     }
 
-    .model-dashboard-preview :global(.model-dashboard-image) {
-      object-fit: cover;
+    .dash-head,
+    .dash-row {
+      grid-template-columns: 1.2fr 5.6rem 1.3fr;
+      gap: 0.55rem;
+    }
+
+    .dash-col-source,
+    .dash-source {
+      display: none;
     }
 
     .graph-resources {
-      inset: 0.85rem;
+      inset: 0;
     }
 
-    .graph-apphost {
-      width: 7.5rem;
-      min-height: 7.5rem;
+    .resource-frontend {
+      left: 19%;
+    }
+
+    .resource-database {
+      left: 81%;
     }
 
     .graph-resource-card {
+      min-width: 8rem;
       min-height: 2.85rem;
-      gap: 0.5rem;
+      gap: 0.4rem;
       padding: 0.48rem 0.62rem;
       font-size: 0.65rem;
+    }
+
+    .graph-node-type {
+      font-size: 0.54rem;
+    }
+
+    .graph-node-name {
+      font-size: 0.82rem;
     }
 
     .graph-resource-card > :global(.graph-resource-icon),
@@ -2250,24 +2809,8 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
       flex-basis: 1.4rem;
     }
 
-    .resource-frontend {
-      top: 2%;
-      left: 0;
-    }
-
-    .resource-api {
-      top: 8%;
-      right: 0;
-    }
-
-    .resource-database {
-      bottom: 5%;
-      left: 0;
-    }
-
-    .resource-cache {
-      right: 0;
-      bottom: 1%;
+    .graph-flow-label {
+      display: none;
     }
 
     .principle-list {
@@ -2319,21 +2862,21 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
     }
 
     .model-story-stage {
-      height: 20rem;
+      height: 24rem;
     }
 
-    .model-story-progress span {
+    .model-story-progress .model-story-tab {
       font-size: 0.6rem;
     }
 
-    .graph-apphost {
-      width: 6.75rem;
-      min-height: 6.75rem;
-    }
-
     .graph-resource-card {
+      min-width: 7.25rem;
       padding: 0.35rem 0.45rem;
       font-size: 0.57rem;
+    }
+
+    .graph-node-name {
+      font-size: 0.74rem;
     }
 
     .graph-resource-card > :global(.graph-resource-icon),
@@ -2363,15 +2906,15 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
       transform: none;
     }
 
-    .graph-resource,
     .graph-resource-card,
-    .graph-resource-card::before,
-    .graph-resource-card::after,
-    .graph-apphost::before,
-    .graph-apphost::after,
+    .graph-flow-line,
+    .graph-apphost-pulse,
     .graph-resource-icon-cycle :global(.graph-resource-icon),
     .graph-apphost :global(.graph-apphost-icon) {
       animation: none;
+    }
+
+    .graph-resource-card {
       transform: none;
     }
 
@@ -2390,8 +2933,7 @@ builder.<span class="code-call">Build</span>().<span class="code-call">Run</span
 
     .terminal-line,
     .model-story-panel,
-    .model-story-progress span,
-    .model-story-progress span::after,
+    .model-story-progress .model-story-tab,
     .model-story-toggle,
     .model-story-toggle span {
       transition: none;

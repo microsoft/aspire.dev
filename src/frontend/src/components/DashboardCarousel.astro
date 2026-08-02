@@ -219,6 +219,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       const MAX_VISIBLE = 2;
       let active = 0;
       let zoomOpen = false;
+      let zoomIndex = 0;
       let zoomObserver = null;
       let cleaned = false;
       const cleanupTasks = [];
@@ -613,10 +614,106 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       // Pause autoplay while an image is zoomed open. starlight-image-zoom adds
       // the `starlight-image-zoom-opened` class to <body> for the duration.
       const body = document.body;
+
+      // --- Zoom lightbox prev/next navigation ---------------------------------
+      // starlight-image-zoom portals a `<dialog class="starlight-image-zoom-dialog">`
+      // to <body> and clones the active slide's image into its <figure>. We add
+      // prev/next arrows to that dialog so viewers can flip through every view
+      // without unzooming. Clicks are kept from bubbling to the plugin's
+      // document-level "click anywhere to close" handler.
+      const zoomPrevLabel = (prevBtn && prevBtn.getAttribute('aria-label')) || 'Previous';
+      const zoomNextLabel = (nextBtn && nextBtn.getAttribute('aria-label')) || 'Next';
+
+      function fitZoomClone(clone, natW, natH) {
+        if (!natW || !natH) return;
+        const maxW = Math.min(window.innerWidth, natW);
+        const maxH = Math.min(window.innerHeight, natH);
+        const scale = Math.min(maxW / natW, maxH / natH);
+        const w = natW * scale;
+        const h = natH * scale;
+        clone.style.width = `${w}px`;
+        clone.style.height = `${h}px`;
+        clone.style.top = `${(window.innerHeight - h) / 2}px`;
+        clone.style.left = `${(window.innerWidth - w) / 2}px`;
+        clone.style.transform = '';
+      }
+
+      function zoomStep(dir) {
+        if (n < 2) return;
+        const dialog = document.querySelector('.starlight-image-zoom-dialog');
+        if (!dialog) return;
+        const clone = dialog.querySelector('figure img');
+        if (!clone) return;
+        zoomIndex = (((zoomIndex + dir) % n) + n) % n;
+        const srcImg =
+          slides[zoomIndex].querySelector('img.dashboard-shot') ||
+          slides[zoomIndex].querySelector('img');
+        if (!srcImg) return;
+        const settle = () => {
+          fitZoomClone(clone, srcImg.naturalWidth, srcImg.naturalHeight);
+          requestAnimationFrame(() => clone.classList.remove('is-swapping'));
+        };
+        clone.classList.add('is-swapping');
+        clone.srcset = srcImg.srcset || '';
+        clone.sizes = srcImg.sizes || '';
+        clone.src = srcImg.currentSrc || srcImg.src;
+        clone.alt = srcImg.getAttribute('alt') || '';
+        if (clone.complete && clone.naturalWidth) settle();
+        else clone.addEventListener('load', settle, { once: true });
+        const caption = dialog.querySelector('figcaption');
+        if (caption) caption.textContent = clone.alt || slides[zoomIndex].dataset.slideLabel || '';
+      }
+
+      function injectZoomNav() {
+        if (n < 2) return;
+        const dialog = document.querySelector('.starlight-image-zoom-dialog');
+        if (!dialog || dialog.querySelector('.carousel-zoom-nav')) return;
+        const make = (dir, aria, path) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = `carousel-zoom-nav ${dir < 0 ? 'is-prev' : 'is-next'}`;
+          b.setAttribute('aria-label', aria);
+          b.innerHTML =
+            '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"' +
+            ` stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+          b.addEventListener('pointerdown', (e) => e.stopPropagation());
+          b.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            zoomStep(dir);
+          });
+          return b;
+        };
+        dialog.append(
+          make(-1, zoomPrevLabel, '<polyline points="15 18 9 12 15 6"></polyline>'),
+          make(1, zoomNextLabel, '<polyline points="9 18 15 12 9 6"></polyline>')
+        );
+      }
+
+      addListener(document, 'keydown', (e) => {
+        if (!zoomOpen) return;
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          e.stopPropagation();
+          zoomStep(1);
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          e.stopPropagation();
+          zoomStep(-1);
+        }
+      });
+
       zoomObserver = new MutationObserver(() => {
         const open = body.classList.contains('starlight-image-zoom-opened');
         if (open === zoomOpen) return;
         zoomOpen = open;
+        if (open) {
+          zoomIndex = active;
+          injectZoomNav();
+        } else if (zoomIndex !== active) {
+          // Leave the carousel resting on the last view browsed in the lightbox.
+          manualNav(() => setActive(zoomIndex));
+        }
         refreshPlayback();
       });
       zoomObserver.observe(body, { attributes: true, attributeFilter: ['class'] });
@@ -1043,5 +1140,88 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
   html[data-theme='dark'] .slide {
     background: var(--sl-color-black, #1a1a1a);
     border-color: var(--sl-color-gray-4);
+  }
+</style>
+
+<style is:global>
+  /* Prev/next arrows injected into the starlight-image-zoom lightbox dialog.
+     The dialog is portaled to <body>, so these must be global (unscoped). */
+  .carousel-zoom-nav {
+    position: fixed;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    padding: 0;
+    margin: 0;
+    border: 2px solid var(--sl-color-gray-2);
+    border-radius: 50%;
+    background-color: var(--sl-color-bg-nav);
+    color: var(--sl-color-text, var(--sl-color-white));
+    cursor: pointer;
+    z-index: 2;
+    opacity: 0;
+    transform: translateY(-50%);
+    animation: carousel-zoom-nav-in var(--starlight-image-zoom-animation-duration, 300ms) ease
+      forwards;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      transform 0.2s ease;
+  }
+  .carousel-zoom-nav.is-prev {
+    left: 20px;
+  }
+  .carousel-zoom-nav.is-next {
+    right: 20px;
+  }
+  .carousel-zoom-nav:hover {
+    background-color: color-mix(in srgb, var(--sl-color-bg-nav), var(--sl-color-text) 12%);
+    border-color: var(--sl-color-gray-1);
+    transform: translateY(-50%) scale(1.08);
+  }
+  .carousel-zoom-nav:focus-visible {
+    outline: 3px solid var(--sl-color-accent, #8b5cf6);
+    outline-offset: 2px;
+  }
+  .carousel-zoom-nav svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  @keyframes carousel-zoom-nav-in {
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Soft crossfade as the lightbox image is swapped between views. */
+  .starlight-image-zoom-image.is-swapping {
+    opacity: 0;
+    transition: opacity 140ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .carousel-zoom-nav {
+      animation: none;
+      opacity: 1;
+    }
+    .starlight-image-zoom-image.is-swapping {
+      transition: none;
+    }
+  }
+
+  @media (max-width: 30rem) {
+    .carousel-zoom-nav {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+    .carousel-zoom-nav.is-prev {
+      left: 10px;
+    }
+    .carousel-zoom-nav.is-next {
+      right: 10px;
+    }
   }
 </style>
