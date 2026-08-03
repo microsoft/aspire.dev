@@ -10,6 +10,7 @@ import CTABanner from '@components/CTABanner.astro';
 import CapabilityGrid from '@components/CapabilityGrid.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
 import ContainerRuntimeChoices from '@components/ContainerRuntimeChoices.astro';
+import CustomSelect from '@components/CustomSelect.astro';
 import Expand from '@components/Expand.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
@@ -95,6 +96,24 @@ const statementPlayerTranslations = {
   tr: trTranslations.landing.statementPlayer,
   uk: ukTranslations.landing.statementPlayer,
   'zh-CN': zhCnTranslations.landing.statementPlayer,
+};
+
+const headerActionTranslations = {
+  da: { header: daTranslations.header, tryAspire: daTranslations.home.hero.tryAspire },
+  de: { header: deTranslations.header, tryAspire: deTranslations.home.hero.tryAspire },
+  en: { header: enTranslations.header, tryAspire: enTranslations.home.hero.tryAspire },
+  es: { header: esTranslations.header, tryAspire: esTranslations.home.hero.tryAspire },
+  fr: { header: frTranslations.header, tryAspire: frTranslations.home.hero.tryAspire },
+  hi: { header: hiTranslations.header, tryAspire: hiTranslations.home.hero.tryAspire },
+  id: { header: idTranslations.header, tryAspire: idTranslations.home.hero.tryAspire },
+  it: { header: itTranslations.header, tryAspire: itTranslations.home.hero.tryAspire },
+  ja: { header: jaTranslations.header, tryAspire: jaTranslations.home.hero.tryAspire },
+  ko: { header: koTranslations.header, tryAspire: koTranslations.home.hero.tryAspire },
+  'pt-BR': { header: ptBrTranslations.header, tryAspire: ptBrTranslations.home.hero.tryAspire },
+  ru: { header: ruTranslations.header, tryAspire: ruTranslations.home.hero.tryAspire },
+  tr: { header: trTranslations.header, tryAspire: trTranslations.home.hero.tryAspire },
+  uk: { header: ukTranslations.header, tryAspire: ukTranslations.home.hero.tryAspire },
+  'zh-CN': { header: zhCnTranslations.header, tryAspire: zhCnTranslations.home.hero.tryAspire },
 };
 
 type TestTranslator = ((key: string, values?: Record<string, string | number>) => string) & {
@@ -505,6 +524,26 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['C# AppHost', 'TypeScript AppHost', 'builder.Build().Run'],
   },
   {
+    name: 'CustomSelect renders a themed combobox and listbox',
+    Component: CustomSelect,
+    props: {
+      id: 'sample-select',
+      label: 'Select sample',
+      menuWidth: 'content',
+      options: [
+        { value: 'stable', label: 'Stable', selected: true },
+        { value: 'preview', label: 'Preview', description: 'Prerelease builds' },
+      ],
+    },
+    includes: [
+      'id="sample-select"',
+      'role="combobox"',
+      'role="listbox"',
+      'data-custom-select-option',
+      'Prerelease builds',
+    ],
+  },
+  {
     name: 'InstallCliModal renders the modal controls and variants',
     Component: InstallCliModal,
     includes: [
@@ -522,6 +561,7 @@ const basicRenderCases: BasicRenderCase[] = [
       'role="radiogroup"',
       'id="footer-language-select"',
       'id="footer-kbd-select"',
+      'data-detector="apple"',
       'Select theme',
       'Select keyboard shortcuts style',
     ],
@@ -865,6 +905,14 @@ describe('custom Astro component render coverage', () => {
           }
         }
       }
+    }
+  });
+
+  it('keeps every header action localized with the shared Try Aspire copy', () => {
+    for (const [locale, labels] of Object.entries(headerActionTranslations)) {
+      expect(labels.header.docs.trim(), `${locale} Docs label`).not.toBe('');
+      expect(labels.header.try.trim(), `${locale} compact Try label`).not.toBe('');
+      expect(labels.tryAspire.trim(), `${locale} Try Aspire label`).not.toBe('');
     }
   });
 

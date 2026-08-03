@@ -63,11 +63,18 @@ test('renders a complete semantic landing page without horizontal overflow', asy
       desktopProductEntersViewport:
         window.innerWidth < 1152 ||
         (productRect !== undefined && productRect.top < window.innerHeight),
-      modelProofFramesAlign:
+      modelProofDepthStack:
         modelWindowRect !== undefined &&
         modelStageRect !== undefined &&
-        Math.abs(modelWindowRect.left - modelStageRect.left) <= 1 &&
-        Math.abs(modelWindowRect.width - modelStageRect.width) <= 1,
+        modelWindow?.offsetWidth === modelStage?.offsetWidth &&
+        Math.abs(
+          (modelStageRect.left + modelStageRect.right) / 2 -
+            (modelWindowRect.left + modelWindowRect.right) / 2
+        ) <= 1 &&
+        modelStageRect.width / modelWindowRect.width >= 0.89 &&
+        modelStageRect.width / modelWindowRect.width <= 0.93 &&
+        modelStageRect.top - modelWindowRect.bottom >= 24 &&
+        modelStageRect.top - modelWindowRect.bottom <= 48,
       modelHeadingHasSpacing:
         modelHeadingRect !== undefined &&
         modelSummaryRect !== undefined &&
@@ -79,7 +86,7 @@ test('renders a complete semantic landing page without horizontal overflow', asy
     hasHorizontalOverflow: false,
     footerFits: true,
     desktopProductEntersViewport: true,
-    modelProofFramesAlign: true,
+    modelProofDepthStack: true,
     modelHeadingHasSpacing: true,
   });
 
@@ -101,6 +108,9 @@ test('renders a complete semantic landing page without horizontal overflow', asy
 });
 
 test('presents the application model as a live polyglot topology', async ({ page }) => {
+  const story = page.locator('[data-model-story]');
+  const terminalWindow = story.locator('.model-window');
+  const topologyStage = story.locator('[data-model-stage-label="topology"]');
   const graph = page.locator('[data-model-graph]');
   const storySummary = page.locator('.model-story-summary');
   const cards = graph.locator('.graph-resource-card');
@@ -114,13 +124,29 @@ test('presents the application model as a live polyglot topology', async ({ page
     'Running aspire run turns the AppHost application model into a live resource topology'
   );
   await expect(cards).toHaveCount(4);
-  await expect(cards).toHaveText(['frontend', 'catalogservice', 'postgres', 'basketcache']);
+  await expect(cards.locator('.graph-node-name')).toHaveText([
+    'frontend',
+    'catalogservice',
+    'postgres',
+    'basketcache',
+  ]);
+  await expect(cards.locator('.graph-node-type')).toHaveText([
+    'Frontend',
+    'Service',
+    'Database',
+    'Cache',
+  ]);
   await expect(frontendIcons).toHaveCount(3);
   await expect(apiIcons).toHaveCount(4);
   await expect(databaseIcons).toHaveCount(4);
   await expect(cacheIcons).toHaveCount(3);
-  await expect(graph.locator('.graph-apphost-icon')).toHaveCount(1);
-  await graph.scrollIntoViewIfNeeded();
+  await expect(graph.locator('.graph-apphost')).toHaveCount(0);
+  await terminalWindow.scrollIntoViewIfNeeded();
+  await expect(story).toHaveAttribute('data-story-playing', 'true', { timeout: 10_000 });
+  await expect(story).toHaveAttribute('data-story-focus', 'stage', { timeout: 10_000 });
+  await topologyStage.click();
+  await expect(story).toHaveAttribute('data-story-playing', 'false');
+  await expect(story).toHaveAttribute('data-story-stage', 'topology');
   await expect(graph).toHaveAttribute('data-graph-active', '');
   await expect
     .poll(() =>
@@ -138,7 +164,6 @@ test('presents the application model as a live polyglot topology', async ({ page
     const images = Array.from(element.querySelectorAll<HTMLImageElement>('img'));
     const cards = Array.from(element.querySelectorAll<HTMLElement>('.graph-resource-card'));
     const resources = Array.from(element.querySelectorAll<HTMLElement>('.graph-resource'));
-    const core = element.querySelector<HTMLElement>('.graph-apphost');
 
     return {
       imagesLoaded: images.every((image) => image.complete && image.naturalWidth > 0),
@@ -149,16 +174,11 @@ test('presents the application model as a live polyglot topology', async ({ page
         )
       ),
       cardAnimations: cards.map((card) => getComputedStyle(card).animationName),
-      outwardRadarAnimations: cards.map((card) => getComputedStyle(card, '::before').animationName),
-      inwardRadarAnimations: cards.map((card) => getComputedStyle(card, '::after').animationName),
-      coreOutwardRadarAnimation: core ? getComputedStyle(core, '::before').animationName : null,
-      coreInwardRadarAnimation: core ? getComputedStyle(core, '::after').animationName : null,
-      scrollAnimations: resources.map((resource) => getComputedStyle(resource).animationName),
+      flowAnimations: Array.from(element.querySelectorAll<SVGPathElement>('.graph-flow-line')).map(
+        (line) => getComputedStyle(line).animationName
+      ),
       cycleDurations: resources.map((resource) =>
         getComputedStyle(resource).getPropertyValue('--graph-cycle-duration').trim()
-      ),
-      radarDelays: resources.map((resource) =>
-        getComputedStyle(resource).getPropertyValue('--graph-radar-delay').trim()
       ),
       cycleAnimations: Array.from(
         element.querySelectorAll<HTMLElement>('.graph-resource-icon-cycle .graph-resource-icon')
@@ -175,18 +195,143 @@ test('presents the application model as a live polyglot topology', async ({ page
   expect(topology.iconSources.some((source) => source.includes('redis-icon'))).toBe(true);
   expect(topology.iconSources.some((source) => source.includes('valkey-icon'))).toBe(true);
   expect(topology.cardAnimations.every((name) => name === 'graph-resource-idle')).toBe(true);
-  expect(topology.outwardRadarAnimations.every((name) => name === 'graph-radar-out')).toBe(true);
-  expect(topology.inwardRadarAnimations.every((name) => name === 'graph-radar-in')).toBe(true);
-  expect(topology.coreOutwardRadarAnimation).toBe('graph-core-radar-out');
-  expect(topology.coreInwardRadarAnimation).toBe('graph-core-radar-in');
-  expect(topology.scrollAnimations.every((name) => name === 'graph-resource-scroll')).toBe(true);
+  expect(topology.flowAnimations).toEqual(['graph-dash', 'graph-dash', 'graph-dash']);
   expect(new Set(topology.cycleDurations).size).toBe(4);
-  expect(new Set(topology.radarDelays).size).toBe(4);
   expect(
     topology.cycleAnimations.every(
       (name) => name === 'graph-icon-cycle-three' || name === 'graph-icon-cycle-four'
     )
   ).toBe(true);
+});
+
+test('starts finite motion after complete presentation and rail motion on entry', async ({
+  page,
+}) => {
+  const agent = page.locator('[data-home-agent-context]');
+  const agentStage = agent.locator('.agent-network');
+  const story = page.locator('[data-model-story]');
+  const storyStage = story.locator('.model-window');
+  const environment = page.locator('[data-home-environments]');
+  const environmentStage = environment.locator('.environment-stage');
+  const dashboard = page.locator('[data-dashboard-carousel]');
+  const dashboardStage = dashboard.locator('[data-stage]');
+  const dashboardProgress = dashboard.locator('[data-progress-fill]');
+  const rail = page.locator('[data-home-integration-rail]');
+
+  const maximizeVisibility = async (target: typeof story) => {
+    await target.evaluate((element) => {
+      const header = document.querySelector<HTMLElement>('header.header');
+      const headerBounds = header?.getBoundingClientRect();
+      const viewportTop =
+        headerBounds && headerBounds.top <= 0 && headerBounds.bottom > 0
+          ? Math.min(headerBounds.bottom, window.innerHeight)
+          : 0;
+      const bounds = element.getBoundingClientRect();
+      const documentTop = bounds.top + window.scrollY;
+      const availableHeight = window.innerHeight - viewportTop;
+      const desiredTop =
+        bounds.height <= availableHeight
+          ? viewportTop + Math.max(0, (availableHeight - bounds.height) / 2)
+          : viewportTop;
+      window.scrollTo(0, Math.max(0, documentTop - desiredTop));
+    });
+  };
+  const visibilityShortfall = (target: typeof story) =>
+    target.evaluate((element) => {
+      const header = document.querySelector<HTMLElement>('header.header');
+      const headerBounds = header?.getBoundingClientRect();
+      const viewportTop =
+        headerBounds && headerBounds.top <= 0 && headerBounds.bottom > 0
+          ? Math.min(headerBounds.bottom, window.innerHeight)
+          : 0;
+      const bounds = element.getBoundingClientRect();
+      const visibleHeight = Math.max(
+        0,
+        Math.min(bounds.bottom, window.innerHeight) - Math.max(bounds.top, viewportTop)
+      );
+      return Math.min(bounds.height, window.innerHeight - viewportTop) - visibleHeight;
+    });
+
+  await expect(agent).not.toHaveAttribute('data-agent-motion-active', '');
+  await expect(story).toHaveAttribute('data-story-playing', 'false');
+  await expect(story).not.toHaveAttribute('data-story-viewport-active', '');
+  await expect(environment).not.toHaveAttribute('data-environment-motion-active', '');
+  await expect(dashboard).not.toHaveAttribute('data-viewport-active', '');
+  await expect(rail).not.toHaveAttribute('data-rail-motion-active', '');
+  await expect(story.locator('[data-terminal-command]')).toHaveText('');
+  await expect
+    .poll(() => dashboardProgress.evaluate((element) => element.style.transform))
+    .toBe('scaleX(0)');
+  await page.waitForTimeout(500);
+  await expect(story.locator('[data-terminal-command]')).toHaveText('');
+  await expect(dashboard.locator('[data-slide][data-index="0"]')).not.toHaveAttribute(
+    'aria-hidden',
+    'true'
+  );
+
+  await maximizeVisibility(agentStage);
+  await expect(agent).toHaveAttribute('data-agent-motion-active', '');
+  expect(await visibilityShortfall(agentStage)).toBeLessThanOrEqual(3);
+
+  await storyStage.evaluate((element) => {
+    const documentTop = element.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, documentTop - window.innerHeight + 80));
+  });
+  await page.waitForTimeout(350);
+  await expect(story).toHaveAttribute('data-story-playing', 'false');
+  await expect(story.locator('[data-terminal-command]')).toHaveText('');
+
+  await maximizeVisibility(storyStage);
+  await expect(story).toHaveAttribute('data-story-viewport-active', '');
+  await expect(story).toHaveAttribute('data-story-playing', 'true');
+  expect(await visibilityShortfall(storyStage)).toBeLessThanOrEqual(3);
+
+  await maximizeVisibility(environmentStage);
+  await expect(environment).toHaveAttribute('data-environment-motion-active', '');
+  expect(await visibilityShortfall(environmentStage)).toBeLessThanOrEqual(3);
+
+  await maximizeVisibility(dashboardStage);
+  expect(await visibilityShortfall(dashboardStage)).toBeLessThanOrEqual(3);
+  await expect(dashboard).toHaveAttribute('data-viewport-active', '');
+
+  await rail.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const documentTop = bounds.top + window.scrollY;
+    window.scrollTo(0, Math.max(0, documentTop - window.innerHeight + 64));
+  });
+  await expect(rail).toHaveAttribute('data-rail-motion-active', '');
+  expect(await visibilityShortfall(rail)).toBeGreaterThan(3);
+  expect(
+    await rail
+      .locator('.rail-track')
+      .evaluateAll((tracks) => tracks.map((track) => getComputedStyle(track).animationPlayState))
+  ).toEqual(['running', 'running', 'running']);
+});
+
+test('fails safe when a finite motion stage settles nearly fully in view', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium');
+
+  const agent = page.locator('[data-home-agent-context]');
+  const stage = agent.locator('.agent-network');
+
+  await stage.evaluate((element) => {
+    const header = document.querySelector<HTMLElement>('header.header');
+    const headerBounds = header?.getBoundingClientRect();
+    const viewportTop =
+      headerBounds && headerBounds.top <= 0 && headerBounds.bottom > 0
+        ? Math.min(headerBounds.bottom, window.innerHeight)
+        : 0;
+    const bounds = element.getBoundingClientRect();
+    const documentTop = bounds.top + window.scrollY;
+    const visibleHeight = Math.min(bounds.height, window.innerHeight - viewportTop) * 0.92;
+    window.scrollTo(0, Math.max(0, documentTop - window.innerHeight + visibleHeight));
+  });
+
+  await page.waitForTimeout(350);
+  await expect(agent).not.toHaveAttribute('data-agent-motion-active', '');
+  await expect(agent).toHaveAttribute('data-agent-motion-active', '', { timeout: 2500 });
 });
 
 test('pauses and resumes the runtime story without restarting it', async ({ page }) => {
@@ -197,6 +342,14 @@ test('pauses and resumes the runtime story without restarting it', async ({ page
   );
   const story = page.locator('[data-model-story]');
   const control = story.locator('[data-model-story-toggle]');
+  const focusBorders = story.locator('[data-model-focus-border]');
+  const hasAnimatedFocusBorder = () =>
+    focusBorders.evaluateAll((borders) =>
+      borders.some(
+        (border) =>
+          getComputedStyle(border, '::before').animationName === 'model-focus-border-trace'
+      )
+    );
   const readState = () =>
     story.evaluate((element) =>
       JSON.stringify({
@@ -217,6 +370,7 @@ test('pauses and resumes the runtime story without restarting it', async ({ page
   await expect(control).toHaveAccessibleName('Pause runtime story');
   await expect(control).toHaveAttribute('aria-pressed', 'false');
   await expect(control.locator('svg:visible')).toHaveCount(1);
+  await expect.poll(hasAnimatedFocusBorder).toBe(true);
   const controlPlacement = await control.evaluate((element) => {
     const terminal = element.closest<HTMLElement>('.model-terminal');
     const terminalWindow = terminal?.querySelector<HTMLElement>('.model-window');
@@ -243,6 +397,7 @@ test('pauses and resumes the runtime story without restarting it', async ({ page
   await expect(control).toHaveAccessibleName('Play runtime story');
   await expect(control).toHaveAttribute('aria-pressed', 'true');
   await expect(control.locator('svg:visible')).toHaveCount(1);
+  await expect.poll(hasAnimatedFocusBorder).toBe(false);
   const pausedState = await readState();
 
   await page.waitForTimeout(900);
@@ -253,7 +408,263 @@ test('pauses and resumes the runtime story without restarting it', async ({ page
   await expect(control).toHaveAccessibleName('Pause runtime story');
   await expect(control).toHaveAttribute('aria-pressed', 'false');
   await expect(control.locator('svg:visible')).toHaveCount(1);
+  await expect.poll(hasAnimatedFocusBorder).toBe(true);
   await expect.poll(readState).not.toBe(pausedState);
+});
+
+test('matches foreground Aspire CLI output and replaces startup statuses in place', async ({
+  page,
+}) => {
+  const story = page.locator('[data-model-story]');
+  const control = story.locator('[data-model-story-toggle]');
+  const status = story.locator('[data-terminal-status]');
+  const appHostFile = story.locator('[data-terminal-apphost]');
+  const terminalWindow = story.locator('.model-window');
+  const stageSurface = story.locator('[data-model-story-surface]');
+  const terminalFocusBorder = terminalWindow.locator('[data-model-focus-border]');
+  const stageFocusBorder = stageSurface.locator(':scope > [data-model-focus-border]');
+  const graph = story.locator('[data-model-graph]');
+  const codeStage = story.locator('[data-model-stage-label="code"]');
+  const topologyStage = story.locator('[data-model-stage-label="topology"]');
+  const dashboardStage = story.locator('[data-model-stage-label="dashboard"]');
+  const csharpButton = page.locator('.home-hero-product .lang-toggle[data-lang="csharp"]');
+  const typescriptButton = page.locator('.home-hero-product .lang-toggle[data-lang="typescript"]');
+  const readFocusBorderAnimations = async () => ({
+    terminal: await terminalFocusBorder.evaluate(
+      (element) => getComputedStyle(element, '::before').animationName
+    ),
+    stage: await stageFocusBorder.evaluate(
+      (element) => getComputedStyle(element, '::before').animationName
+    ),
+  });
+  const readLayerState = () =>
+    story.evaluate((element) => {
+      const terminal = element.querySelector<HTMLElement>('.model-terminal');
+      const terminalWindow = element.querySelector<HTMLElement>('.model-window');
+      const stage = element.querySelector<HTMLElement>('[data-model-story-surface]');
+      if (!terminal || !terminalWindow || !stage) return null;
+
+      const terminalStyle = getComputedStyle(terminal);
+      const terminalWindowStyle = getComputedStyle(terminalWindow);
+      const stageStyle = getComputedStyle(stage);
+      const terminalRect = terminal.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      return {
+        terminalZ: Number(terminalStyle.zIndex),
+        stageZ: Number(stageStyle.zIndex),
+        terminalOpacity: Number(terminalWindowStyle.opacity),
+        stageOpacity: Number(stageStyle.opacity),
+        terminalScale: Number(terminalStyle.scale),
+        stageScale: Number(stageStyle.scale),
+        terminalTransition: terminalStyle.transitionProperty,
+        terminalWindowTransition: terminalWindowStyle.transitionProperty,
+        stageTransition: stageStyle.transitionProperty,
+        centerOffsetX:
+          (stageRect.left + stageRect.right) / 2 - (terminalRect.left + terminalRect.right) / 2,
+        visualGap: stageRect.top - terminalRect.bottom,
+        widthRatio: stageRect.width / terminalRect.width,
+        horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
+      };
+    });
+
+  await terminalWindow.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => story.getAttribute('data-story-playing'), { timeout: 10_000 })
+    .toBe('true');
+  await expect(status).toHaveClass(/is-visible/);
+  await expect(status).toHaveText('Preparing Aspire server...');
+  await expect.poll(readFocusBorderAnimations).toEqual({
+    terminal: 'model-focus-border-trace',
+    stage: 'none',
+  });
+  await control.click();
+  await expect(story).toHaveAttribute('data-story-playing', 'false');
+  await expect(story).toHaveAttribute('data-story-language', 'typescript');
+  await expect(story).toHaveAttribute('data-story-focus', 'terminal');
+  await expect(story).toHaveAttribute('data-story-surface', 'hidden');
+  await expect(stageSurface).toHaveAttribute('aria-hidden', 'true');
+  await expect(stageSurface).toHaveAttribute('inert', '');
+  await expect(status).toHaveClass(/is-visible/);
+  await expect(story.locator('[data-terminal-command]')).toHaveText('aspire run');
+  await expect(story.locator('[data-terminal-status]')).toHaveCount(1);
+  await expect(story.locator('[data-terminal-summary].is-visible')).toHaveCount(0);
+  await expect
+    .poll(async () => {
+      const layers = await readLayerState();
+      return (
+        layers !== null &&
+        layers.terminalZ > layers.stageZ &&
+        layers.terminalScale === 1 &&
+        layers.stageScale >= 0.89 &&
+        layers.stageScale <= 0.93 &&
+        layers.stageOpacity >= 0.7 &&
+        Math.abs(layers.centerOffsetX) <= 1 &&
+        layers.widthRatio >= 0.89 &&
+        layers.widthRatio <= 0.93 &&
+        layers.visualGap >= 24 &&
+        layers.visualGap <= 48 &&
+        layers.terminalTransition.includes('scale') &&
+        layers.terminalWindowTransition.includes('opacity') &&
+        layers.stageTransition.includes('scale') &&
+        layers.stageTransition.includes('opacity') &&
+        !layers.horizontalOverflow
+      );
+    })
+    .toBe(true);
+
+  await control.click();
+  await expect(story).toHaveAttribute('data-story-playing', 'true');
+  await expect
+    .poll(() => status.textContent(), { timeout: 5_000 })
+    .toBe('Connecting to AppHost...');
+  await expect(story).toHaveAttribute('data-story-focus', 'stage');
+  await expect(story).toHaveAttribute('data-story-surface', 'visible');
+  await expect(stageSurface).toHaveAttribute('aria-hidden', 'false');
+  await expect(stageSurface).not.toHaveAttribute('inert', '');
+  await expect(codeStage).toHaveAttribute('data-active', 'true');
+  await expect(story).toHaveAttribute('data-story-swap', 'stage');
+  await expect.poll(readFocusBorderAnimations).toEqual({
+    terminal: 'none',
+    stage: 'model-focus-border-trace',
+  });
+  await control.click();
+  await expect(story).toHaveAttribute('data-story-playing', 'false');
+  await expect
+    .poll(async () => {
+      const layers = await readLayerState();
+      return (
+        layers !== null &&
+        layers.stageZ > layers.terminalZ &&
+        layers.stageScale === 1 &&
+        layers.terminalScale >= 0.89 &&
+        layers.terminalScale <= 0.93 &&
+        layers.stageOpacity === 1 &&
+        layers.terminalOpacity < 0.8 &&
+        Math.abs(layers.centerOffsetX) <= 1 &&
+        layers.widthRatio >= 1.07 &&
+        layers.widthRatio <= 1.11 &&
+        layers.visualGap >= 24 &&
+        layers.visualGap <= 48 &&
+        !layers.horizontalOverflow
+      );
+    })
+    .toBe(true);
+
+  await control.click();
+  await expect(story).toHaveAttribute('data-story-playing', 'true');
+  await expect(topologyStage).toHaveAttribute('data-active', 'true');
+  await expect(graph).toHaveAttribute('data-graph-active', '');
+  await control.click();
+  await expect(story).toHaveAttribute('data-story-playing', 'false');
+
+  await control.click();
+  await expect(story).toHaveAttribute('data-story-playing', 'true');
+  await expect(story).toHaveAttribute('data-story-focus', 'terminal');
+  await expect(story).toHaveAttribute('data-story-swap', 'terminal');
+  await expect(story).toHaveAttribute('data-story-surface', 'visible');
+  await expect(stageSurface).toHaveAttribute('aria-hidden', 'true');
+  await expect(stageSurface).toHaveAttribute('inert', '');
+  await expect(graph).toHaveAttribute('data-graph-active', '');
+  await expect.poll(readFocusBorderAnimations).toEqual({
+    terminal: 'model-focus-border-trace',
+    stage: 'none',
+  });
+  await control.click();
+  await expect(story).toHaveAttribute('data-story-playing', 'false');
+  await expect
+    .poll(async () => {
+      const layers = await readLayerState();
+      return (
+        layers !== null &&
+        layers.terminalZ > layers.stageZ &&
+        layers.terminalScale === 1 &&
+        layers.stageScale >= 0.89 &&
+        layers.stageScale <= 0.93 &&
+        layers.terminalOpacity === 1 &&
+        layers.stageOpacity < 0.8 &&
+        Math.abs(layers.centerOffsetX) <= 1 &&
+        layers.widthRatio >= 0.89 &&
+        layers.widthRatio <= 0.93 &&
+        layers.visualGap >= 24 &&
+        layers.visualGap <= 48 &&
+        !layers.horizontalOverflow
+      );
+    })
+    .toBe(true);
+
+  await control.click();
+  await expect(story).toHaveAttribute('data-story-playing', 'true');
+  await expect.poll(() => status.textContent(), { timeout: 5_000 }).toBe('Starting dashboard...');
+  await expect
+    .poll(() => story.locator('[data-terminal-summary].is-visible').count(), { timeout: 5_000 })
+    .toBe(4);
+  await expect(story).toHaveAttribute('data-story-focus', 'stage');
+  await expect(story).toHaveAttribute('data-story-swap', 'stage');
+  await expect(dashboardStage).toHaveAttribute('data-active', 'true');
+  await expect(graph).not.toHaveAttribute('data-graph-active', '');
+  await expect(stageSurface).toHaveAttribute('aria-hidden', 'false');
+  await expect(stageSurface).not.toHaveAttribute('inert', '');
+  await expect.poll(readFocusBorderAnimations).toEqual({
+    terminal: 'none',
+    stage: 'model-focus-border-trace',
+  });
+  await control.click();
+  await expect(story).toHaveAttribute('data-story-playing', 'false');
+
+  await expect(status).not.toHaveClass(/is-visible/);
+  await expect(story.locator('.term-key')).toHaveText(['AppHost:', 'Dashboard:', 'Logs:']);
+  await expect(appHostFile).toHaveText('apphost.mts');
+  await expect(story.locator('.term-link')).toHaveText('https://localhost:17178/login?t=b3f9c1e0');
+  await expect(story.locator('.term-val').last()).toHaveText('~/.aspire/cli/logs/apphost-2f8c.log');
+  await expect(story.locator('.term-hint')).toHaveText(
+    'Press CTRL+C to stop the AppHost and exit.'
+  );
+
+  await csharpButton.click();
+  await expect(story).toHaveAttribute('data-story-language', 'csharp');
+  await expect(appHostFile).toHaveText('apphost.cs');
+  await codeStage.click();
+  await expect(status).toHaveText('Checking project type... apphost.cs');
+  await terminalWindow.scrollIntoViewIfNeeded();
+  await control.click();
+  await expect.poll(() => status.textContent()).toBe('Building AppHost... apphost.cs');
+  await control.click();
+
+  await typescriptButton.click();
+  await expect(story).toHaveAttribute('data-story-language', 'typescript');
+  await expect(status).toHaveText('Preparing Aspire server...');
+  await expect(appHostFile).toHaveText('apphost.mts');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await expect(story).toHaveAttribute('data-story-stage', 'dashboard');
+  await expect(story).toHaveAttribute('data-story-focus', 'stage');
+  await expect(story).toHaveAttribute('data-story-surface', 'visible');
+  await expect(control).toBeDisabled();
+  await expect(stageSurface).toHaveAttribute('aria-hidden', 'false');
+  await expect(stageSurface).not.toHaveAttribute('inert', '');
+  await expect(status).not.toHaveClass(/is-visible/);
+  await expect(story.locator('[data-terminal-summary].is-visible')).toHaveCount(4);
+  await expect(appHostFile).toHaveText('apphost.mts');
+  await expect
+    .poll(() =>
+      story
+        .locator('[data-model-focus-border]')
+        .evaluateAll((borders) =>
+          borders.map((border) => getComputedStyle(border, '::before').animationName)
+        )
+    )
+    .toEqual(['none', 'none']);
+  const [terminalBorderColor, stageBorderColor] = await Promise.all([
+    terminalWindow.evaluate((element) => getComputedStyle(element).borderColor),
+    stageSurface.evaluate((element) => getComputedStyle(element).borderColor),
+  ]);
+  expect(stageBorderColor).not.toBe(terminalBorderColor);
+  await expect
+    .poll(() =>
+      story.locator('.term-spinner').evaluate((element) => getComputedStyle(element).animationName)
+    )
+    .toBe('none');
 });
 
 test('reveals editorial link underlines from left to right', async ({ page }) => {
@@ -262,12 +673,21 @@ test('reveals editorial link underlines from left to right', async ({ page }) =>
 
   const link = links.first();
   await link.scrollIntoViewIfNeeded();
-  const underlineScale = () =>
-    link.evaluate((element) => getComputedStyle(element, '::after').transform);
+  const underline = () =>
+    link.evaluate((element) => {
+      const style = getComputedStyle(element, '::after');
+      return { height: style.height, transform: style.transform };
+    });
 
-  await expect.poll(underlineScale).toBe('matrix(0, 0, 0, 1, 0, 0)');
+  await expect.poll(underline).toEqual({
+    height: '2px',
+    transform: 'matrix(0, 0, 0, 1, 0, 0)',
+  });
   await link.hover();
-  await expect.poll(underlineScale).toBe('matrix(1, 0, 0, 1, 0, 0)');
+  await expect.poll(underline).toEqual({
+    height: '2px',
+    transform: 'matrix(1, 0, 0, 1, 0, 0)',
+  });
 });
 
 test('places executable agent context after the polyglot section', async ({ page }) => {
@@ -379,17 +799,17 @@ test('places passive AI context tips beside the model, environment, and dashboar
   const cases = [
     {
       selector: '.home-model [data-home-agent-badge]',
-      label: 'AI can read this model',
+      label: 'Built for your AI agent',
       description: 'resource graph, references, configuration, and commands',
     },
     {
       selector: '[data-home-environments] [data-home-agent-badge]',
-      label: 'AI can read this environment',
+      label: 'Agents see every environment',
       description: 'resources, endpoints, health, and available commands',
     },
     {
       selector: '.home-dashboard [data-home-agent-badge]',
-      label: 'AI can read these signals',
+      label: 'Agents act on these signals',
       description: 'logs, traces, metrics, health, and resource commands',
     },
   ];
@@ -578,7 +998,7 @@ test('keeps the environment frame stable while each topology changes', async ({ 
   const stateHeights: number[] = [];
   const stateAccents: string[] = [];
 
-  await environment.scrollIntoViewIfNeeded();
+  await stage.scrollIntoViewIfNeeded();
   await expect(environment).toHaveAttribute('data-environment-motion-active', '');
 
   for (const state of ['Local', 'Test', 'Production']) {
@@ -931,25 +1351,80 @@ test('provides an explicit integrations motion control and non-tabbable duplicat
   await expect(rail.locator('.integration-logo[title]')).toHaveCount(0);
 
   if (isMobile) {
-    await expect(control).toBeHidden();
+    await rail.scrollIntoViewIfNeeded();
+    await expect(control).toBeVisible();
+    await expect(control).toHaveAccessibleName('Pause integration animation');
+    await expect(control).toHaveAttribute('aria-pressed', 'false');
+    await expect(rail.locator('.rail-lanes')).toBeVisible();
     expect(
       await tracks.evaluateAll((items) => items.map((item) => getComputedStyle(item).animationName))
+    ).toEqual(['integration-scroll-left', 'integration-scroll-right', 'integration-scroll-left']);
+
+    const firstLane = rail.locator('.rail-viewport').first();
+    const laneMetrics = await firstLane.evaluate((element) => {
+      const group = element.querySelector<HTMLElement>('.rail-group');
+      const style = getComputedStyle(element);
+      return {
+        edgeFade: style.maskImage,
+        overflowX: style.overflowX,
+        scrollLeft: element.scrollLeft,
+        scrollLimit: Math.max(0, (group?.scrollWidth ?? 0) - element.clientWidth),
+        touchAction: style.touchAction,
+      };
+    });
+    expect(laneMetrics.overflowX).toBe('auto');
+    expect(laneMetrics.edgeFade).toContain('linear-gradient');
+    expect(laneMetrics.touchAction).toContain('pan-x');
+    expect(laneMetrics.scrollLimit).toBeGreaterThan(0);
+    expect(laneMetrics.scrollLeft).toBeGreaterThan(0);
+
+    await firstLane.evaluate((element) => element.scrollBy({ left: 80 }));
+    await expect
+      .poll(() => firstLane.evaluate((element) => element.scrollLeft))
+      .toBeGreaterThan(laneMetrics.scrollLeft);
+
+    await firstLane.dispatchEvent('pointerdown', {
+      isPrimary: true,
+      pointerId: 1,
+      pointerType: 'touch',
+    });
+    await expect(firstLane).toHaveAttribute('data-rail-interacting', '');
+    await expect
+      .poll(() =>
+        firstLane
+          .locator('.rail-track')
+          .evaluate((item) => getComputedStyle(item).animationPlayState)
+      )
+      .toBe('paused');
+    await expect(firstLane).not.toHaveAttribute('data-rail-interacting', '', { timeout: 2_000 });
+    await expect
+      .poll(() =>
+        firstLane
+          .locator('.rail-track')
+          .evaluate((item) => getComputedStyle(item).animationPlayState)
+      )
+      .toBe('running');
+
+    await control.click();
+    await expect(rail).toHaveClass(/paused/);
+    await expect(control).toHaveAccessibleName('Play integration animation');
+    expect(
+      await tracks.evaluateAll((items) =>
+        items.map((item) => getComputedStyle(item).animationPlayState)
+      )
+    ).toEqual(['paused', 'paused', 'paused']);
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.reload();
+    const reducedRail = page.locator('[data-home-integration-rail]');
+    await reducedRail.scrollIntoViewIfNeeded();
+    await expect(reducedRail.locator('[data-rail-control]')).toBeHidden();
+    expect(
+      await reducedRail
+        .locator('.rail-track')
+        .evaluateAll((items) => items.map((item) => getComputedStyle(item).animationName))
     ).toEqual(['none', 'none', 'none']);
-    const mobileLayout = await rail.locator('.rail-viewport').evaluateAll((viewports) =>
-      viewports.map((viewport) => {
-        const group = viewport.querySelector<HTMLElement>('.rail-group:not([aria-hidden])');
-        return {
-          groupDisplay: group ? getComputedStyle(group).display : null,
-          overflowX: getComputedStyle(viewport).overflowX,
-          scrolls: viewport.scrollWidth > viewport.clientWidth,
-        };
-      })
-    );
-    expect(mobileLayout).toEqual([
-      { groupDisplay: 'grid', overflowX: 'visible', scrolls: false },
-      { groupDisplay: 'grid', overflowX: 'visible', scrolls: false },
-      { groupDisplay: 'grid', overflowX: 'visible', scrolls: false },
-    ]);
+    await expect(reducedRail.locator('.rail-lanes')).toBeVisible();
   } else {
     await rail.scrollIntoViewIfNeeded();
     await expect(rail).toHaveAttribute('data-rail-motion-active', '');
@@ -996,6 +1471,35 @@ test('provides an explicit integrations motion control and non-tabbable duplicat
       )
     ).toEqual(['paused', 'paused', 'paused']);
   }
+
+  const logoContainment = await page
+    .locator('[data-home-integration-rail] .integration-logo:visible')
+    .evaluateAll((logos) =>
+      logos.every((logo) => {
+        const tile = logo.getBoundingClientRect();
+        const style = getComputedStyle(logo);
+        const content = {
+          left: tile.left + Number.parseFloat(style.paddingLeft),
+          right: tile.right - Number.parseFloat(style.paddingRight),
+          top: tile.top + Number.parseFloat(style.paddingTop),
+          bottom: tile.bottom - Number.parseFloat(style.paddingBottom),
+        };
+        const images = Array.from(
+          logo.querySelectorAll<HTMLImageElement>('.integration-icon')
+        ).filter((image) => getComputedStyle(image).display !== 'none');
+
+        return images.every((image) => {
+          const bounds = image.getBoundingClientRect();
+          return (
+            bounds.left >= content.left - 1 &&
+            bounds.right <= content.right + 1 &&
+            bounds.top >= content.top - 1 &&
+            bounds.bottom <= content.bottom + 1
+          );
+        });
+      })
+    );
+  expect(logoContainment).toBe(true);
 });
 
 test('lets the user drive the dashboard tour and resume playback', async ({ page }) => {
@@ -1005,11 +1509,14 @@ test('lets the user drive the dashboard tour and resume playback', async ({ page
 
   await carousel.scrollIntoViewIfNeeded();
 
-  // The dashboard tour starts playing on the homepage.
+  // The dashboard tour starts playing only after its stage reaches the viewport.
+  await expect(carousel).toHaveAttribute('data-viewport-active', '');
   await expect(playback).toHaveAttribute('data-playing', 'true');
 
   // Jumping to a known slide drops into manual mode and pauses the tour.
-  await carousel.getByRole('button', { name: 'Resource graph' }).click();
+  await carousel
+    .locator('[data-dot][data-index="0"]')
+    .evaluate((button: HTMLButtonElement) => button.click());
   await expect(label).toHaveText('Resource graph');
   await expect(playback).toHaveAttribute('data-playing', 'false');
 
@@ -1025,6 +1532,70 @@ test('lets the user drive the dashboard tour and resume playback', async ({ page
   // Pressing play resumes the tour.
   await playback.click();
   await expect(playback).toHaveAttribute('data-playing', 'true');
+});
+
+test('keeps every dashboard screenshot loaded and fully contained in both themes', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
+  const slideLabels = [
+    'Resource graph',
+    'Resource dashboard',
+    'Console logs',
+    'Structured logs',
+    'Distributed traces',
+    'Trace detail',
+    'Metrics',
+  ];
+
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => localStorage.setItem('starlight-theme', value), theme);
+    await page.reload();
+    await dismissCookieConsentIfVisible(page);
+
+    const carousel = page.locator('[data-dashboard-carousel]');
+    await carousel.scrollIntoViewIfNeeded();
+
+    for (const [index, label] of slideLabels.entries()) {
+      await carousel
+        .locator(`[data-dot][data-index="${index}"]`)
+        .evaluate((button: HTMLButtonElement) => button.click());
+      await expect(carousel.locator('[data-slide][aria-current="true"]')).toHaveAttribute(
+        'data-slide-label',
+        label
+      );
+
+      await expect
+        .poll(() =>
+          carousel.evaluate((root) => {
+            const stage = root.querySelector<HTMLElement>('[data-stage]');
+            const activeSlide = root.querySelector<HTMLElement>(
+              '[data-slide][aria-current="true"]'
+            );
+            const image = Array.from(
+              activeSlide?.querySelectorAll<HTMLImageElement>('img.dashboard-shot') ?? []
+            ).find((candidate) => getComputedStyle(candidate).display !== 'none');
+            const stageBounds = stage?.getBoundingClientRect();
+            const imageBounds = image?.getBoundingClientRect();
+
+            return {
+              naturalSize: image ? [image.naturalWidth, image.naturalHeight] : null,
+              contained:
+                Boolean(stageBounds && imageBounds) &&
+                imageBounds!.left >= stageBounds!.left - 1 &&
+                imageBounds!.right <= stageBounds!.right + 1 &&
+                imageBounds!.top >= stageBounds!.top - 1 &&
+                imageBounds!.bottom <= stageBounds!.bottom + 1,
+            };
+          })
+        )
+        .toEqual({
+          naturalSize: [1680, 1050],
+          contained: true,
+        });
+    }
+  }
 });
 
 test('resolves motion immediately when reduced motion is requested', async ({ page }) => {
@@ -1051,7 +1622,6 @@ test('resolves motion immediately when reduced motion is requested', async ({ pa
     const topologyCycles = Array.from(
       document.querySelectorAll<HTMLElement>('.graph-resource-icon-cycle')
     );
-    const topologyCore = document.querySelector<HTMLElement>('.graph-apphost');
     const environmentPanel = document.querySelector<HTMLElement>(
       '[data-environment-panel]:not([hidden])'
     );
@@ -1074,12 +1644,6 @@ test('resolves motion immediately when reduced motion is requested', async ({ pa
       topologyScrollAnimations: topologyResources.map(
         (resource) => getComputedStyle(resource).animationName
       ),
-      topologyCoreRadarAnimations: topologyCore
-        ? [
-            getComputedStyle(topologyCore, '::before').animationName,
-            getComputedStyle(topologyCore, '::after').animationName,
-          ]
-        : [],
       visibleTopologyCycleIcons: topologyCycles.map(
         (cycle) =>
           Array.from(cycle.querySelectorAll<HTMLElement>('.graph-resource-icon')).filter(
@@ -1113,7 +1677,6 @@ test('resolves motion immediately when reduced motion is requested', async ({ pa
     railAnimations: ['none', 'none', 'none'],
     topologyCardAnimations: ['none', 'none', 'none', 'none'],
     topologyScrollAnimations: ['none', 'none', 'none', 'none'],
-    topologyCoreRadarAnimations: ['none', 'none'],
     visibleTopologyCycleIcons: [1, 1, 1, 1],
     environmentCardAnimations: ['none', 'none', 'none', 'none'],
     environmentScrollAnimations: ['none', 'none', 'none', 'none'],

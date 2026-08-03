@@ -51,11 +51,19 @@ const commit = (import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMM
       </div>
 
       <div class="footer-bottom">
-        <span class="copyright"
-          >© Microsoft <script is:inline>
-            document.currentScript.parentElement.textContent = `© Microsoft ${new Date().getFullYear()}`;
-          </script></span
-        >
+        {
+          commit && (
+            <a
+              class="commit-link"
+              href={`${import.meta.env.PUBLIC_REPO_URL}/commit/${import.meta.env.PUBLIC_GIT_COMMIT_ID || ''}`}
+              target="_blank"
+              title={`Built on commit SHA: ${commit}`}
+              rel="noopener noreferrer"
+            >
+              SHA {commit}
+            </a>
+          )
+        }
 
         {
           showMap && (
@@ -71,19 +79,11 @@ const commit = (import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMM
           )
         }
 
-        {
-          commit && (
-            <a
-              class="commit-link"
-              href={`${import.meta.env.PUBLIC_REPO_URL}/commit/${import.meta.env.PUBLIC_GIT_COMMIT_ID || ''}`}
-              target="_blank"
-              title={`Built on commit SHA: ${commit}`}
-              rel="noopener noreferrer"
-            >
-              SHA {commit}
-            </a>
-          )
-        }
+        <span class="copyright"
+          >© Microsoft <script is:inline>
+            document.currentScript.parentElement.textContent = `© Microsoft ${new Date().getFullYear()}`;
+          </script></span
+        >
       </div>
     </div>
   </div>
@@ -266,10 +266,13 @@ const commit = (import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMM
   }
 
   .commit-link {
-    margin-inline-start: auto;
     font-family: var(--__sl-font-mono);
     font-size: var(--sl-text-2xs);
     text-decoration: none;
+  }
+
+  .copyright {
+    margin-inline-start: auto;
   }
 
   .commit-link:hover {
@@ -312,17 +315,15 @@ const commit = (import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMM
       padding-block: 2.25rem;
     }
 
-    /* Stack the bottom row into a single left-aligned column so the
-       copyright, "Made with love" disclosure, and commit SHA line up
-       cleanly instead of scattering across the row (and keeps the SHA
-       clear of the floating scroll-to-top button on tablet). */
+    /* Keep the SHA-first source order when the metadata stacks, and keep
+       every item clear of the floating scroll-to-top button on tablet. */
     .footer-bottom {
       flex-direction: column;
       align-items: flex-start;
       gap: 0.65rem;
     }
 
-    .commit-link {
+    .copyright {
       margin-inline-start: 0;
     }
 
@@ -476,9 +477,7 @@ const commit = (import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMM
         const endHeight = this.summary.offsetHeight;
 
         const maxScrollAfter =
-          document.documentElement.scrollHeight -
-          (startHeight - endHeight) -
-          window.innerHeight;
+          document.documentElement.scrollHeight - (startHeight - endHeight) - window.innerHeight;
         const overshoot = window.scrollY - Math.max(0, maxScrollAfter);
         if (overshoot > 0) {
           this.smoothScrollTo(window.scrollY - overshoot, SCROLL_DURATION);

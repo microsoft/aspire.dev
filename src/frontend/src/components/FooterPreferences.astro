@@ -1,11 +1,29 @@
 ---
 import { Icon } from '@astrojs/starlight/components';
+import CustomSelect, { type CustomSelectOption } from '@components/CustomSelect.astro';
 
 // Keyboard OS types configuration (matching starlight-kbd config)
-const kbdTypes = [
-  { id: 'mac', label: 'macOS', detector: 'apple' },
-  { id: 'windows', label: 'Windows', detector: 'windows', default: true },
-  { id: 'linux', label: 'Linux', detector: 'linux' },
+const kbdTypes: CustomSelectOption[] = [
+  { value: 'mac', label: 'macOS', detector: 'apple' },
+  { value: 'windows', label: 'Windows', detector: 'windows', selected: true },
+  { value: 'linux', label: 'Linux', detector: 'linux' },
+];
+const languageOptions: CustomSelectOption[] = [
+  { value: 'en', label: 'English', selected: true },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'es', label: 'Español' },
+  { value: 'ja', label: '日本語' },
+  { value: 'fr', label: 'Français' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'id', label: 'Bahasa Indonesia' },
+  { value: 'zh-CN', label: '简体中文' },
+  { value: 'pt-BR', label: 'Português do Brasil' },
+  { value: 'ko', label: '한국어' },
+  { value: 'tr', label: 'Türkçe' },
+  { value: 'ru', label: 'Русский' },
+  { value: 'hi', label: 'हिंदी' },
+  { value: 'da', label: 'Dansk' },
+  { value: 'uk', label: 'Українська' },
 ];
 
 const themeLabels = {
@@ -70,35 +88,27 @@ const themeLabels = {
 
     <!-- Language selector -->
     <div class="preference-item">
-      <div class="select-wrapper">
-        <Icon name="translate" class="select-icon" />
-        <select id="footer-language-select" class="preference-select" aria-label="Select language">
-          <option value="en" selected>English</option>
-          <option value="de">Deutsch</option>
-          <option value="es">Español</option>
-          <option value="ja">日本語</option>
-          <option value="fr">Français</option>
-          <option value="it">Italiano</option>
-          <option value="id">Bahasa Indonesia</option>
-          <option value="zh-CN">简体中文</option>
-          <option value="pt-BR">Português do Brasil</option>
-          <option value="ko">한국어</option>
-          <option value="tr">Türkçe</option>
-          <option value="ru">Русский</option>
-          <option value="hi">हिंदी</option>
-          <option value="da">Dansk</option>
-          <option value="uk">Українська</option>
-        </select>
-        <Icon name="down-caret" class="select-caret" />
-      </div>
+      <CustomSelect
+        id="footer-language-select"
+        class="footer-custom-select"
+        label="Select language"
+        options={languageOptions}
+      >
+        <Icon slot="icon" name="translate" />
+      </CustomSelect>
     </div>
 
     <!-- Keyboard OS selector -->
     <div class="preference-item">
-      <div class="select-wrapper">
+      <CustomSelect
+        id="footer-kbd-select"
+        class="footer-custom-select"
+        label="Select keyboard shortcuts style"
+        options={kbdTypes}
+      >
         <svg
+          slot="icon"
           xmlns="http://www.w3.org/2000/svg"
-          class="select-icon kbd-icon"
           width="16"
           height="16"
           viewBox="0 0 24 24"
@@ -108,21 +118,7 @@ const themeLabels = {
             d="M6.21 13.29a.93.93 0 0 0-.33-.21 1 1 0 0 0-.76 0 .9.9 0 0 0-.54.54 1 1 0 1 0 1.84 0 1 1 0 0 0-.21-.33ZM13.5 11h1a1 1 0 0 0 0-2h-1a1 1 0 0 0 0 2Zm-4 0h1a1 1 0 0 0 0-2h-1a1 1 0 0 0 0 2Zm-3-2h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2ZM20 5H4a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h16a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3Zm1 11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1Zm-6-3H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2Zm3.5-4h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm.71 4.29a1 1 0 0 0-.33-.21 1 1 0 0 0-.76 0 .93.93 0 0 0-.33.21 1 1 0 0 0-.21.33 1 1 0 1 0 1.92.38.84.84 0 0 0-.08-.38 1 1 0 0 0-.21-.33Z"
           ></path>
         </svg>
-        <select
-          id="footer-kbd-select"
-          class="preference-select"
-          aria-label="Select keyboard shortcuts style"
-        >
-          {
-            kbdTypes.map((type) => (
-              <option value={type.id} selected={type.default} data-detector={type.detector}>
-                {type.label}
-              </option>
-            ))
-          }
-        </select>
-        <Icon name="down-caret" class="select-caret" />
-      </div>
+      </CustomSelect>
     </div>
   </div>
 </section>
@@ -251,6 +247,7 @@ const themeLabels = {
         (isApiReferencePath(currentPath) ? storedPreferredLocale : undefined) ??
         DEFAULT_LOCALE;
       languageSelect.value = getLanguageOptionValue(currentLang);
+      languageSelect.dispatchEvent(new Event('aspire:custom-select-sync'));
 
       languageSelect.addEventListener('change', (e) => {
         const target = e.target as HTMLSelectElement;
@@ -297,6 +294,7 @@ const themeLabels = {
       } else if (storedKbd) {
         kbdSelect.value = storedKbd;
       }
+      kbdSelect.dispatchEvent(new Event('aspire:custom-select-sync'));
 
       kbdSelect.addEventListener('change', (e) => {
         const target = e.target as HTMLSelectElement;
@@ -331,6 +329,8 @@ const themeLabels = {
 
 <style>
   .footer-preferences {
+    --footer-preference-surface: color-mix(in srgb, var(--sl-color-bg-nav) 96%, var(--sl-color-bg));
+
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -355,65 +355,13 @@ const themeLabels = {
     flex-direction: column;
   }
 
-  .select-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 100%;
-  }
-
-  .select-icon {
-    position: absolute;
-    left: 0.625rem;
-    pointer-events: none;
-    color: var(--sl-color-gray-3);
-    z-index: 1;
-  }
-
-  .select-icon :global(svg) {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  /* Keyboard icon is a raw SVG, not wrapped in Icon component */
-  svg.select-icon.kbd-icon {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  .preference-select {
-    appearance: none;
-    width: 100%;
-    min-height: 2.5rem;
-    padding: 0.45rem 2rem 0.45rem 2.25rem;
-    border: 1px solid color-mix(in srgb, var(--sl-color-gray-5) 82%, transparent);
-    border-radius: 0.5rem;
-    color: var(--sl-color-gray-1);
-    background: transparent;
-    font-size: var(--sl-text-xs);
-    cursor: pointer;
-  }
-
-  .preference-select:hover {
-    border-color: color-mix(in srgb, var(--sl-color-text-accent) 38%, var(--sl-color-gray-4));
-    background: color-mix(in srgb, var(--sl-color-gray-6) 45%, transparent);
-  }
-
-  .preference-select:focus {
-    outline: 2px solid var(--aspire-color-primary, #7455dd);
-    outline-offset: 2px;
-  }
-
-  .select-caret {
-    position: absolute;
-    right: 0.625rem;
-    pointer-events: none;
-    color: var(--sl-color-gray-3);
-  }
-
-  .select-caret :global(svg) {
-    width: 0.625rem;
-    height: 0.625rem;
+  :global(.footer-custom-select) {
+    --custom-select-bg: var(--footer-preference-surface);
+    --custom-select-hover-bg: color-mix(in srgb, var(--sl-color-gray-6) 45%, transparent);
+    --custom-select-text: var(--sl-color-gray-1);
+    --custom-select-menu-bg: var(--footer-preference-surface);
+    --custom-select-menu-text: var(--sl-color-gray-1);
+    --custom-select-selected-text: var(--sl-color-white);
   }
 
   .theme-toggle {
@@ -427,7 +375,7 @@ const themeLabels = {
     padding: 0.25rem;
     border: 1px solid color-mix(in srgb, var(--sl-color-gray-5) 82%, transparent);
     border-radius: 0.5rem;
-    background: transparent;
+    background: var(--footer-preference-surface);
   }
 
   .theme-toggle::before {
@@ -520,7 +468,6 @@ const themeLabels = {
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .preference-select,
     .theme-toggle,
     .theme-toggle::before,
     .theme-toggle-option {

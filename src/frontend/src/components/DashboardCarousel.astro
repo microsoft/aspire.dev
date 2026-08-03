@@ -268,8 +268,12 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         if (cleaned) return;
         cleaned = true;
         stopPlayback();
+        if (viewportRafId !== null) cancelAnimationFrame(viewportRafId);
+        viewportRafId = null;
+        clearViewportFailSafe();
         if (zoomObserver) zoomObserver.disconnect();
         cleanupTasks.splice(0).forEach((dispose) => dispose());
+        root.removeAttribute('data-viewport-active');
         delete root.dataset.initialized;
       }
 
@@ -364,10 +368,10 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       }
 
       function measure() {
-        // Keep the stage exactly as tall as the centered (unscaled) slide.
+        // Round up so fractional responsive heights never clip the screenshot.
         const centered = slides[active];
         const h = centered.getBoundingClientRect().height;
-        if (h) stage.style.height = `${Math.round(h)}px`;
+        if (h) stage.style.height = `${Math.ceil(h)}px`;
       }
 
       // --- Controls ---
@@ -498,9 +502,98 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       let lastTs = 0;
       let hovered = false;
       let focusWithin = false;
+      let viewportActivated = !stagePresentation;
+      let viewportActive = !stagePresentation;
+      let viewportRafId = null;
+      let viewportFailSafeTimer = null;
+      let viewportFailSafeReady = false;
+
+      function clearViewportFailSafe() {
+        if (viewportFailSafeTimer !== null) clearTimeout(viewportFailSafeTimer);
+        viewportFailSafeTimer = null;
+        viewportFailSafeReady = false;
+      }
+
+      function revealHasSettled() {
+        const reveal = root.closest('[data-home-reveal]');
+        if (!reveal) return true;
+        if (!reveal.classList.contains('home-visible')) return false;
+
+        const styles = getComputedStyle(reveal);
+        if (Number.parseFloat(styles.opacity) < 0.995) return false;
+        if (styles.transform === 'none') return true;
+
+        try {
+          const transform = new DOMMatrixReadOnly(styles.transform);
+          return Math.abs(transform.m41) <= 2 && Math.abs(transform.m42) <= 2;
+        } catch {
+          return true;
+        }
+      }
+
+      function evaluateViewport() {
+        viewportRafId = null;
+        if (!stagePresentation) return;
+
+        const header = document.querySelector('header.header');
+        const headerBounds = header && header.getBoundingClientRect();
+        const viewportTop =
+          headerBounds && headerBounds.top <= 0 && headerBounds.bottom > 0
+            ? Math.min(headerBounds.bottom, window.innerHeight)
+            : 0;
+        const viewportBottom = window.innerHeight;
+        const availableHeight = Math.max(0, viewportBottom - viewportTop);
+        const bounds = stage.getBoundingClientRect();
+        const visibleTop = Math.max(bounds.top, viewportTop);
+        const visibleBottom = Math.min(bounds.bottom, viewportBottom);
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+        const maximumVisibleHeight = Math.min(bounds.height, availableHeight);
+        const intersects = visibleHeight > 2;
+        const fullyPresented =
+          maximumVisibleHeight > 0 && visibleHeight >= maximumVisibleHeight - 2;
+        const failSafeEligible =
+          maximumVisibleHeight > 0 && visibleHeight / maximumVisibleHeight >= 0.9;
+
+        if (!viewportActivated) {
+          if (
+            revealHasSettled() &&
+            (fullyPresented || (viewportFailSafeReady && failSafeEligible))
+          ) {
+            viewportActivated = true;
+            clearViewportFailSafe();
+            progress = 0;
+            setActive(0);
+            updateProgressUI();
+          } else if (failSafeEligible && viewportFailSafeTimer === null && !viewportFailSafeReady) {
+            viewportFailSafeTimer = window.setTimeout(() => {
+              viewportFailSafeTimer = null;
+              viewportFailSafeReady = true;
+              scheduleViewportEvaluation();
+            }, 1000);
+          } else if (!failSafeEligible) {
+            clearViewportFailSafe();
+          }
+        }
+
+        const nextActive = viewportActivated && intersects;
+        if (nextActive === viewportActive) return;
+        viewportActive = nextActive;
+        root.toggleAttribute('data-viewport-active', viewportActive);
+        refreshPlayback();
+      }
+
+      function scheduleViewportEvaluation() {
+        if (viewportRafId !== null) return;
+        viewportRafId = requestAnimationFrame(evaluateViewport);
+      }
+
+      function handleViewportChange() {
+        if (!viewportActivated) clearViewportFailSafe();
+        scheduleViewportEvaluation();
+      }
 
       function suspended() {
-        if (zoomOpen || document.hidden) return true;
+        if (!viewportActive || zoomOpen || document.hidden) return true;
         // In coverflow mode the pointer/focus pause keeps the marquee polite.
         // In stage mode the explicit button owns the play state, so hovering
         // must not fight the user's choice.
@@ -606,6 +699,11 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         refreshPlayback();
       });
       addListener(document, 'visibilitychange', refreshPlayback);
+      if (stagePresentation) {
+        addListener(window, 'scroll', handleViewportChange, { passive: true });
+        addListener(window, 'resize', handleViewportChange, { passive: true });
+        addListener(document, 'transitionend', scheduleViewportEvaluation, true);
+      }
 
       function stopPlayback() {
         stopRaf();
@@ -727,6 +825,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         render();
         updateToggleUI();
         updateProgressUI();
+        scheduleViewportEvaluation();
         resume();
       });
     }

@@ -96,7 +96,12 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
         </a>
       </div>
 
-      <div class="agent-visual" data-home-reveal data-home-reveal-distance="major">
+      <div
+        class="agent-visual"
+        data-home-reveal
+        data-home-reveal-distance="major"
+        data-home-reveal-anchor=".agent-network"
+      >
         <div class="agent-visual-toolbar">
           <p class="agent-visual-label">{t('home.agent.toolbar')}</p>
         </div>
@@ -215,6 +220,8 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
 </section>
 
 <script>
+  import { createViewportActivationObserver } from '@utils/viewport-activation';
+
   function initializeAgentLoops() {
     document.querySelectorAll<HTMLElement>('[data-home-agent-context]').forEach((root) => {
       if (root.dataset.agentLoopInitialized === 'true') return;
@@ -261,6 +268,10 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
         triggers[0]?.dataset.agentLogo ??
         '';
       let previewAgent = '';
+      const motionObserver = createViewportActivationObserver((_, active) => {
+        root.toggleAttribute('data-agent-motion-active', active);
+      });
+      motionObserver.observe(network);
 
       const activate = (id = '') => {
         const activeTrigger = triggers.find((trigger) => trigger.dataset.agentLogo === id);
@@ -335,6 +346,8 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
         'astro:before-swap',
         () => {
           cleanupCallbacks.forEach((cleanup) => cleanup());
+          motionObserver.disconnect();
+          root.removeAttribute('data-agent-motion-active');
           delete root.dataset.agentLoopInitialized;
         },
         { once: true }
@@ -875,7 +888,6 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
       width: min(100%, 56rem);
       margin-inline: auto;
     }
-
   }
 
   @media (max-width: 49.99rem) {
@@ -998,7 +1010,9 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
         box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .agent-network[data-has-active='true'] .agent-core-icon::after {
+    .home-agent-context[data-agent-motion-active]
+      .agent-network[data-has-active='true']
+      .agent-core-icon::after {
       animation: agent-core-pulse 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
     }
 

@@ -132,7 +132,10 @@ const playLabel = t('home.integrationRail.playAnimation');
             <div class="rail-group">
               {lane.integrations.map((integration) => (
                 <a
-                  href={localizedHref(`/integrations/gallery/?search=${encodeURIComponent(integration.search)}`, locale)}
+                  href={localizedHref(
+                    `/integrations/gallery/?search=${encodeURIComponent(integration.search)}`,
+                    locale
+                  )}
                   class="integration-logo"
                   data-integration-name={integration.name}
                   aria-label={t('integrations.explore', { integration: integration.name })}
@@ -159,7 +162,10 @@ const playLabel = t('home.integrationRail.playAnimation');
             <div class="rail-group" aria-hidden="true">
               {lane.integrations.map((integration) => (
                 <a
-                  href={localizedHref(`/integrations/gallery/?search=${encodeURIComponent(integration.search)}`, locale)}
+                  href={localizedHref(
+                    `/integrations/gallery/?search=${encodeURIComponent(integration.search)}`,
+                    locale
+                  )}
                   class="integration-logo"
                   data-integration-name={integration.name}
                   tabindex="-1"
@@ -209,6 +215,8 @@ const playLabel = t('home.integrationRail.playAnimation');
 </div>
 
 <script>
+  import { createViewportActivationObserver } from '@utils/viewport-activation';
+
   function initializeIntegrationRails() {
     document.querySelectorAll('[data-home-integration-rail]').forEach((root) => {
       if (!(root instanceof HTMLElement) || root.dataset.initialized === 'true') return;
@@ -219,9 +227,54 @@ const playLabel = t('home.integrationRail.playAnimation');
       if (!(pauseIcon instanceof HTMLElement) || !(playIcon instanceof HTMLElement)) return;
 
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const mobileViewport = window.matchMedia('(max-width: 49.999rem)');
+      const laneViewports = Array.from(root.querySelectorAll<HTMLElement>('.rail-viewport'));
+      const interactionTimers = new Map<HTMLElement, number>();
       let manuallyPaused = false;
-      let isVisible = !('IntersectionObserver' in window);
+      let isVisible = false;
       let documentVisible = document.visibilityState === 'visible';
+
+      function getMobileScrollLimit(viewport: HTMLElement) {
+        const group = viewport.querySelector<HTMLElement>('.rail-group');
+        return Math.max(0, (group?.scrollWidth ?? 0) - viewport.clientWidth);
+      }
+
+      function stopInteraction(viewport: HTMLElement) {
+        const timer = interactionTimers.get(viewport);
+        if (timer) window.clearTimeout(timer);
+        interactionTimers.delete(viewport);
+        viewport.removeAttribute('data-rail-interacting');
+      }
+
+      function markInteraction(viewport: HTMLElement) {
+        if (!mobileViewport.matches) return;
+        const timer = interactionTimers.get(viewport);
+        if (timer) window.clearTimeout(timer);
+        viewport.setAttribute('data-rail-interacting', '');
+        interactionTimers.set(
+          viewport,
+          window.setTimeout(() => stopInteraction(viewport), 900)
+        );
+      }
+
+      function syncMobileLanes() {
+        for (const viewport of laneViewports) {
+          if (!mobileViewport.matches) {
+            stopInteraction(viewport);
+            viewport.scrollLeft = 0;
+            delete viewport.dataset.mobilePositioned;
+            continue;
+          }
+
+          const limit = getMobileScrollLimit(viewport);
+          if (viewport.dataset.mobilePositioned !== 'true') {
+            viewport.dataset.mobilePositioned = 'true';
+            viewport.scrollLeft = limit / 2;
+          } else {
+            viewport.scrollLeft = Math.min(Math.max(0, viewport.scrollLeft), limit);
+          }
+        }
+      }
 
       function update() {
         const paused = manuallyPaused || reducedMotion.matches;
@@ -236,6 +289,7 @@ const playLabel = t('home.integrationRail.playAnimation');
         control.setAttribute('title', label);
         pauseIcon.hidden = paused;
         playIcon.hidden = !paused;
+        syncMobileLanes();
       }
 
       const toggle = () => {
@@ -243,33 +297,57 @@ const playLabel = t('home.integrationRail.playAnimation');
         update();
       };
       const handlePreference = () => update();
+      const handleViewport = () => update();
       const handleVisibility = () => {
         documentVisible = document.visibilityState === 'visible';
         update();
       };
-      const motionObserver =
-        'IntersectionObserver' in window
-          ? new IntersectionObserver(
-              ([entry]) => {
-                isVisible = entry?.isIntersecting ?? false;
-                update();
-              },
-              { rootMargin: '10% 0px' }
-            )
-          : null;
+      const laneListeners = laneViewports.map((viewport) => {
+        const handlePointerDown = () => markInteraction(viewport);
+        const handleScroll = () => {
+          if (!mobileViewport.matches) return;
+          const limit = getMobileScrollLimit(viewport);
+          if (viewport.scrollLeft > limit) viewport.scrollLeft = limit;
+          if (viewport.scrollLeft < 0) viewport.scrollLeft = 0;
+          markInteraction(viewport);
+        };
+
+        viewport.addEventListener('pointerdown', handlePointerDown, { passive: true });
+        viewport.addEventListener('scroll', handleScroll, { passive: true });
+
+        return { viewport, handlePointerDown, handleScroll };
+      });
+      const motionObserver = createViewportActivationObserver(
+        (_, active) => {
+          isVisible = active;
+          update();
+        },
+        { requireComplete: false, waitForReveal: false }
+      );
+      const resizeObserver =
+        'ResizeObserver' in window ? new ResizeObserver(() => syncMobileLanes()) : null;
       const cleanup = () => {
         control.removeEventListener('click', toggle);
         reducedMotion.removeEventListener('change', handlePreference);
+        mobileViewport.removeEventListener('change', handleViewport);
         document.removeEventListener('visibilitychange', handleVisibility);
-        motionObserver?.disconnect();
+        laneListeners.forEach(({ viewport, handlePointerDown, handleScroll }) => {
+          viewport.removeEventListener('pointerdown', handlePointerDown);
+          viewport.removeEventListener('scroll', handleScroll);
+          stopInteraction(viewport);
+        });
+        motionObserver.disconnect();
+        resizeObserver?.disconnect();
         root.removeAttribute('data-rail-motion-active');
         delete root.dataset.initialized;
       };
 
       control.addEventListener('click', toggle);
       reducedMotion.addEventListener('change', handlePreference);
+      mobileViewport.addEventListener('change', handleViewport);
       document.addEventListener('visibilitychange', handleVisibility);
-      motionObserver?.observe(root);
+      motionObserver.observe(root);
+      resizeObserver?.observe(root);
       document.addEventListener('astro:before-swap', cleanup, { once: true });
       root.dataset.initialized = 'true';
       update();
@@ -349,17 +427,13 @@ const playLabel = t('home.integrationRail.playAnimation');
   }
 
   .integration-logo :global(.integration-icon) {
-    width: auto;
-    height: auto;
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
     margin: 0;
+    display: block;
     object-fit: contain;
-  }
-
-  .integration-logo[data-integration-name='Java'] :global(.integration-icon) {
-    max-width: 78%;
-    max-height: 78%;
   }
 
   .integration-logo :global(.integration-icon-light) {
@@ -459,6 +533,7 @@ const playLabel = t('home.integrationRail.playAnimation');
     .rail-control {
       transition:
         border-color 180ms ease,
+        opacity 180ms ease,
         transform 180ms ease;
     }
 
@@ -474,6 +549,10 @@ const playLabel = t('home.integrationRail.playAnimation');
     .integration-rail.paused .rail-track {
       animation-play-state: paused;
     }
+
+    .rail-viewport[data-rail-interacting] .rail-track {
+      animation-play-state: paused;
+    }
   }
 
   @media (max-width: 49.999rem) {
@@ -482,44 +561,40 @@ const playLabel = t('home.integrationRail.playAnimation');
     }
 
     .rail-lanes {
-      gap: 0.75rem;
+      display: grid;
+      gap: 0.7rem;
     }
 
     .rail-viewport {
-      margin: 0;
-      padding: 0;
-      -webkit-mask-image: none;
-      mask-image: none;
-      overflow: visible;
+      margin-block: -0.5rem;
+      padding-block: 0.5rem;
+      overflow-x: auto;
+      overflow-y: hidden;
+      overscroll-behavior-inline: contain;
+      scrollbar-width: none;
+      touch-action: pan-x pan-y;
+      -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0%,
+        black 14%,
+        black 86%,
+        transparent 100%
+      );
+      mask-image: linear-gradient(to right, transparent 0%, black 14%, black 86%, transparent 100%);
     }
 
-    .rail-viewport[data-rail-direction] .rail-track {
-      display: block;
-      width: auto;
-      animation: none;
-      transform: none;
-      will-change: auto;
+    .rail-viewport::-webkit-scrollbar {
+      display: none;
     }
 
     .rail-group {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(4.75rem, 1fr));
-      gap: 0.6rem;
-      padding: 0;
-    }
-
-    .rail-group[aria-hidden='true'] {
-      display: none;
+      gap: 0.7rem;
+      padding-right: 0.7rem;
     }
 
     .integration-logo {
-      width: 100%;
-      min-width: 0;
-      padding: clamp(0.8rem, 3.5vw, 1rem);
-    }
-
-    .rail-control {
-      display: none;
+      width: clamp(4.4rem, 21vw, 5.25rem);
+      padding: clamp(0.85rem, 4vw, 1rem);
     }
   }
 

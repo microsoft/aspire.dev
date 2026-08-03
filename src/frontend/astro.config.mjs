@@ -90,12 +90,6 @@ export default defineConfig({
         plugins: [
           starlightPageActions({
             share: true,
-            // Use the plugin's built-in actions so each entry renders its real
-            // brand icon. Custom actions are always given the plugin's generic
-            // "AI" sparkle glyph, which is why every "Open in …" item previously
-            // showed the same icon. The built-in hrefs match what we want, and
-            // the GitHub Copilot mark is restyled to the site's GitHub logo in
-            // src/components/starlight/PageTitle.astro.
             actions: {
               chatgpt: true,
               claude: true,
@@ -128,6 +122,7 @@ export default defineConfig({
             showTooltip: true,
             threshold: 10,
             showOnHomepage: true,
+            svgStrokeWidth: 4,
             tooltipText: {
               da: 'Rul op',
               de: 'Nach oben scrollen',

@@ -370,6 +370,8 @@ const localizedEnvironments = environments.map((environment) => {
 </section>
 
 <script>
+  import { createViewportActivationObserver } from '@utils/viewport-activation';
+
   function initializeHomeEnvironments() {
     const root = document.querySelector<HTMLElement>('[data-home-environments]');
     if (!root || root.dataset.environmentInitialized === 'true') return;
@@ -522,17 +524,11 @@ const localizedEnvironments = environments.map((environment) => {
     document.addEventListener('visibilitychange', handleVisibility);
     selectEnvironment(activeId, false);
 
-    const motionObserver =
-      'IntersectionObserver' in window
-        ? new IntersectionObserver(
-            ([entry]) => {
-              stageVisible = entry?.isIntersecting ?? false;
-              if (!stageVisible) settlePanels();
-              syncMotion();
-            },
-            { rootMargin: '15% 0px' }
-          )
-        : null;
+    const motionObserver = createViewportActivationObserver((_, active) => {
+      stageVisible = active;
+      if (!stageVisible) settlePanels();
+      syncMotion();
+    });
     const scrollObserver =
       'IntersectionObserver' in window
         ? new IntersectionObserver(
@@ -556,12 +552,7 @@ const localizedEnvironments = environments.map((environment) => {
             { threshold: Array.from({ length: 21 }, (_, index) => index / 20) }
           )
         : null;
-    if (motionObserver) {
-      motionObserver?.observe(stage);
-    } else {
-      stageVisible = true;
-      syncMotion();
-    }
+    motionObserver.observe(stage);
     scrollObserver?.observe(stage);
 
     document.addEventListener(
@@ -697,6 +688,21 @@ const localizedEnvironments = environments.map((environment) => {
     cursor: pointer;
   }
 
+  .environment-controls button::after {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.5rem;
+    left: 0.75rem;
+    height: 0.1875rem;
+    border-radius: 999px;
+    background: var(--environment-accent);
+    content: '';
+    opacity: 0;
+    transform: scaleX(0.4);
+    transform-origin: center;
+    pointer-events: none;
+  }
+
   .environment-controls button:last-child {
     border-inline-end: 0;
   }
@@ -714,6 +720,11 @@ const localizedEnvironments = environments.map((environment) => {
   .environment-controls button[aria-pressed='true'] {
     color: #ffffff;
     background: color-mix(in srgb, var(--environment-accent) 18%, transparent);
+  }
+
+  .environment-controls button[aria-pressed='true']::after {
+    opacity: 1;
+    transform: scaleX(1);
   }
 
   .environment-controls button[aria-pressed='true'] span {
@@ -1399,6 +1410,12 @@ const localizedEnvironments = environments.map((environment) => {
         background-color 180ms ease;
     }
 
+    .environment-controls button::after {
+      transition:
+        opacity 180ms ease,
+        transform 180ms ease;
+    }
+
     .environment-stage-bar small {
       transition: color 180ms ease;
     }
@@ -1682,6 +1699,7 @@ const localizedEnvironments = environments.map((environment) => {
     }
 
     .environment-controls button,
+    .environment-controls button::after,
     .environment-stage-bar small,
     .environment-panel {
       animation: none;
@@ -1731,6 +1749,10 @@ const localizedEnvironments = environments.map((environment) => {
     .environment-command code,
     .environment-docs-link {
       border-color: CanvasText;
+    }
+
+    .environment-controls button[aria-pressed='true']::after {
+      background: Highlight;
     }
   }
 </style>

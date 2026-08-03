@@ -66,11 +66,21 @@ test('install CLI entry adapts to viewport and remembers the selected channel', 
 
   const installModal = page.locator('#install-cli-modal');
   const versionSelect = installModal.locator('#version-select');
+  const channelTrigger = installModal.getByRole('combobox', {
+    name: 'Select release channel',
+  });
 
   await expect(installModal).toBeVisible();
-  await versionSelect.selectOption('dev');
+  await channelTrigger.click();
+  await expect(channelTrigger).toHaveAttribute('aria-expanded', 'true');
+  const channelListbox = page.getByRole('listbox', { name: 'Select release channel' });
+  await expect(channelListbox).toBeVisible();
+  await expect(channelListbox).toHaveAttribute('data-side', /top|bottom/);
+  await channelListbox.getByRole('option', { name: /^Dev/ }).click();
 
   await expect(versionSelect).toHaveValue('dev');
+  await expect(channelTrigger).toContainText('Dev');
+  await expect(channelTrigger).toHaveAttribute('aria-expanded', 'false');
   await expect(installModal.locator('.quality-aside[data-quality="dev"]')).toBeVisible();
   await expect(installModal.locator('.code-wrapper[data-version="dev"]').first()).toBeVisible();
   await expect
@@ -82,6 +92,7 @@ test('install CLI entry adapts to viewport and remembers the selected channel', 
 
   await openInstallButton.click();
   await expect(versionSelect).toHaveValue('dev');
+  await expect(channelTrigger).toContainText('Dev');
 });
 
 test('homepage header actions stay reachable at zoomed and reflow widths', async ({ page }) => {
@@ -196,7 +207,7 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
     await expect(banner.getByRole('link', { name: 'Aspire', exact: true })).toBeVisible();
     await expect(banner.getByRole('button', { name: 'Search' })).toBeVisible();
     await expect(banner.getByRole('link', { name: 'Docs', exact: true })).toBeVisible();
-    await expect(banner.getByRole('link', { name: /^Try$/ })).toBeVisible();
+    await expect(banner.getByRole('link', { name: 'Try Aspire', exact: true })).toBeVisible();
 
     if (!isSiteTourEnabled) {
       await expect(banner.locator('[data-tour-trigger]')).toHaveCount(0);
@@ -227,6 +238,42 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
   }
 });
 
+test('localizes the shared header Docs and Try Aspire actions', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'Localized desktop and compact header labels are covered once from the desktop project.'
+  );
+
+  await page.goto('/de/');
+  await dismissCookieConsentIfVisible(page);
+
+  const banner = page.getByRole('banner');
+  const desktopDocs = banner.locator('.docs-btn');
+  const desktopTry = banner.locator('.try-aspire-btn');
+  await expect(desktopDocs).toBeVisible();
+  await expect(desktopDocs).toHaveText('Dokumentation');
+  await expect(desktopDocs).toHaveAttribute('href', '/de/docs/');
+  await expect(desktopTry).toBeVisible();
+  await expect(desktopTry).toHaveText('Aspire ausprobieren');
+  await expect(desktopTry).toHaveAttribute('href', '/de/get-started/first-app/');
+
+  await page.setViewportSize({ width: 640, height: 900 });
+  const compactDocs = banner.locator('.docs-btn-mobile');
+  const compactTry = banner.locator('.try-aspire-btn-mobile');
+  await expect(compactDocs).toBeVisible();
+  await expect(compactDocs).toHaveText('Dokumentation');
+  await expect(compactTry).toBeVisible();
+  await expect(compactTry).toHaveText('Ausprobieren');
+  await expect(compactTry).toHaveAccessibleName('Aspire ausprobieren');
+
+  await page.setViewportSize({ width: 320, height: 568 });
+  const layout = await banner.locator(':scope > .header').evaluate((element) => ({
+    documentOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    headerOverflows: element.scrollWidth > element.clientWidth,
+  }));
+  expect(layout).toEqual({ documentOverflows: false, headerOverflows: false });
+});
+
 test('footer preferences persist theme and keyboard style selections', async ({ page }) => {
   await page.goto('/get-started/aspire-vscode-extension/');
   await dismissCookieConsentIfVisible(page);
@@ -236,6 +283,11 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   const lightThemeButton = themeToggle.getByRole('radio', { name: 'Light' });
   const autoThemeButton = themeToggle.getByRole('radio', { name: 'Auto' });
   const kbdSelect = page.locator('#footer-kbd-select');
+  const languageTrigger = page.getByRole('combobox', { name: 'Select language' });
+  const kbdTrigger = page.getByRole('combobox', {
+    name: 'Select keyboard shortcuts style',
+  });
+  const languageListbox = page.locator('#footer-language-select-listbox');
 
   async function expectThemeSelection(selectedTheme: 'light' | 'auto' | 'dark') {
     await expect(lightThemeButton).toHaveAttribute(
@@ -246,21 +298,80 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
     await expect(darkThemeButton).toHaveAttribute('aria-checked', String(selectedTheme === 'dark'));
   }
 
+  async function expectMatchingPreferenceSurfaces() {
+    const menuBackground = await languageListbox.evaluate(
+      (element) => getComputedStyle(element).backgroundColor
+    );
+
+    expect(menuBackground).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(themeToggle).toHaveCSS('background-color', menuBackground);
+    await expect(languageTrigger).toHaveCSS('background-color', menuBackground);
+  }
+
   await darkThemeButton.click();
   await expectThemeSelection('dark');
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('starlight-theme')))
     .toBe('dark');
+  await expectMatchingPreferenceSurfaces();
 
   await lightThemeButton.click();
   await expectThemeSelection('light');
   await expect
     .poll(() => page.evaluate(() => document.documentElement.dataset.theme))
     .toBe('light');
+  await expectMatchingPreferenceSurfaces();
 
-  await kbdSelect.selectOption('mac');
+  await languageTrigger.click();
+  await expect(languageListbox).toBeVisible();
+  await expect(languageListbox).toHaveAttribute('data-side', 'top');
+  await expect(languageListbox.getByRole('option')).toHaveCount(15);
+  await expect(languageListbox).toHaveCSS(
+    'border-radius',
+    await languageTrigger.evaluate((element) => getComputedStyle(element).borderRadius)
+  );
+  expect(
+    await languageListbox.evaluate((element) => {
+      const scrollbarButton = getComputedStyle(element, '::-webkit-scrollbar-button');
+      const scrollbarThumb = getComputedStyle(element, '::-webkit-scrollbar-thumb');
+      const colorProbe = document.createElement('span');
+      colorProbe.style.backgroundColor = 'var(--aspire-color-primary)';
+      element.append(colorProbe);
+      const primaryColor = getComputedStyle(colorProbe).backgroundColor;
+      colorProbe.remove();
+
+      return {
+        button: {
+          display: scrollbarButton.display,
+          height: scrollbarButton.height,
+          width: scrollbarButton.width,
+        },
+        thumbUsesPrimaryColor: scrollbarThumb.backgroundColor === primaryColor,
+      };
+    })
+  ).toEqual({
+    button: { display: 'none', height: '0px', width: '0px' },
+    thumbUsesPrimaryColor: true,
+  });
+  await page.evaluate(() => window.scrollBy(0, -8));
+  await expect(languageTrigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(languageListbox).toBeHidden();
+
+  await kbdTrigger.click();
+  await expect(kbdTrigger).toHaveAttribute('aria-expanded', 'true');
+  const macOption = page
+    .getByRole('listbox', { name: 'Select keyboard shortcuts style' })
+    .getByRole('option', { name: 'macOS' });
+  await expect(macOption).toHaveAttribute('data-detector', 'apple');
+  await expect
+    .poll(() => macOption.evaluate((option) => getComputedStyle(option).alignContent))
+    .toBe('center');
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Enter');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('sl-kbd-type'))).toBe('mac');
+  await expect(kbdSelect).toHaveValue('mac');
+  await expect(kbdTrigger).toContainText('macOS');
   await expect(page.locator('[data-sl-kbd-type="mac"][data-sl-kbd-active]').first()).toBeVisible();
   await expect(page.locator('[data-sl-kbd-type="windows"][data-sl-kbd-active]')).toHaveCount(0);
 
@@ -268,6 +379,7 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
 
   await expectThemeSelection('light');
   await expect(kbdSelect).toHaveValue('mac');
+  await expect(kbdTrigger).toContainText('macOS');
 });
 
 test('shared footer stays contained across docs page layouts', async ({ page }) => {
@@ -286,9 +398,9 @@ test('shared footer stays contained across docs page layouts', async ({ page }) 
 
     const layout = await footer.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
-      const controls = Array.from(
-        element.querySelectorAll<HTMLElement>('a, button, select')
-      ).map((control) => control.getBoundingClientRect());
+      const controls = Array.from(element.querySelectorAll<HTMLElement>('a, button, select'))
+        .filter((control) => control.getClientRects().length > 0)
+        .map((control) => control.getBoundingClientRect());
 
       return {
         documentOverflows:
@@ -308,9 +420,79 @@ test('shared footer stays contained across docs page layouts', async ({ page }) 
       footerFits: true,
       controlsFit: true,
     });
+    const metadataLayout = await footer.locator('.footer-bottom').evaluate((element) => {
+      const sha = element.querySelector<HTMLElement>('.commit-link')?.getBoundingClientRect();
+      const copyright = element.querySelector<HTMLElement>('.copyright')?.getBoundingClientRect();
+      return {
+        order: Array.from(element.children).map((child) =>
+          child.classList.contains('commit-link') ? 'commit-link' : 'copyright'
+        ),
+        shaBeforeCopyright:
+          Boolean(sha && copyright) &&
+          (sha!.top < copyright!.top ||
+            (Math.abs(sha!.top - copyright!.top) < 1 && sha!.left < copyright!.left)),
+      };
+    });
+    expect(metadataLayout.order).toEqual(['commit-link', 'copyright']);
+    expect(metadataLayout.shaBeforeCopyright).toBe(true);
     await expect(footer.getByRole('link', { name: /GitHub/ })).toBeVisible();
     await expect(footer.getByRole('link', { name: /Discord/ })).toBeVisible();
     await expect(footer.locator('#footer-theme-toggle')).toBeVisible();
+  }
+});
+
+test('aligns the scroll-to-top control with the header action at each breakpoint', async ({
+  page,
+}) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'Breakpoint alignment is covered once from the desktop project with explicit viewport sizes.'
+  );
+
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  for (const viewport of [
+    { width: 1440, height: 900, bottom: 32 },
+    { width: 834, height: 1112, bottom: 24 },
+    { width: 390, height: 844, bottom: 16 },
+    { width: 320, height: 568, bottom: 16 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+    const scrollToTop = page.locator('#scroll-to-top-button');
+    const headerAction = page.locator(
+      viewport.width >= 800 ? '.try-aspire-btn' : '.try-aspire-btn-mobile'
+    );
+    await expect(scrollToTop).toBeVisible();
+    await expect(headerAction).toBeVisible();
+
+    const placement = await scrollToTop.evaluate((button, expected) => {
+      const action = document.querySelector<HTMLElement>(
+        window.innerWidth >= 800 ? '.try-aspire-btn' : '.try-aspire-btn-mobile'
+      );
+      const buttonBounds = button.getBoundingClientRect();
+      const actionBounds = action?.getBoundingClientRect();
+      const buttonStyle = getComputedStyle(button);
+      const actionStyle = action ? getComputedStyle(action) : null;
+      return {
+        bottomGap: window.innerHeight - buttonBounds.bottom,
+        colorsMatch:
+          actionStyle !== null &&
+          buttonStyle.backgroundColor === actionStyle.backgroundColor &&
+          buttonStyle.borderTopColor === actionStyle.borderTopColor &&
+          buttonStyle.color === actionStyle.color,
+        expectedBottom: expected,
+        rightEdgeDelta: actionBounds
+          ? Math.abs(actionBounds.right - buttonBounds.right)
+          : Number.POSITIVE_INFINITY,
+      };
+    }, viewport.bottom);
+
+    expect(placement.bottomGap).toBeCloseTo(placement.expectedBottom, 0);
+    expect(placement.colorsMatch).toBe(true);
+    expect(placement.rightEdgeDelta).toBeLessThanOrEqual(1);
   }
 });
 
@@ -754,9 +936,7 @@ test('sidebar collapse toggle stays visible without overlapping the H1 on no-TOC
 
   // Sanity check: this is a no-TOC page on the topic-nav layout —
   // both conditions the no-TOC anchor + padding rules depend on.
-  const hasToc = await page.evaluate(() =>
-    document.documentElement.hasAttribute('data-has-toc')
-  );
+  const hasToc = await page.evaluate(() => document.documentElement.hasAttribute('data-has-toc'));
   expect(hasToc).toBe(false);
   await expect(page.locator('.topics-sidebar[data-topic-nav]')).toBeVisible();
 
