@@ -1,14 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
-  clickCookiePreferencesAction,
   dismissCookieConsentIfVisible,
   isNarrowViewport,
-  openCookiePreferences,
   resetCookieConsentState,
   waitForApiSidebarReady,
-  waitForAnalyticsConsent,
-  waitForConsentCategories,
-  waitForConsentRecorded,
   waitForTopicSidebarReady,
 } from '@tests/e2e/helpers';
 
@@ -104,6 +99,13 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
   // motion makes Starlight skip the view-transition animations, which keeps
   // the page interactive across the repeated navigations.
   await page.emulateMedia({ reducedMotion: 'reduce' });
+
+  // The "Manage cookies" button is region-gated: once WCP resolves the
+  // visitor's region it hides the button where consent isn't required (which
+  // is how most CI runner IPs resolve). Block the WCP CDN so this layout test
+  // always sees the failsafe default — every header control present — keeping
+  // the expected order deterministic regardless of where the runner lives.
+  await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
 
   const expectedCompactHeaderOrder = [
     'Aspire',
@@ -223,29 +225,6 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
     await installModal.getByRole('button', { name: /close modal/i }).click();
     await expect(installModal).not.toBeVisible();
   }
-});
-
-test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
-  await resetCookieConsentState(page);
-  await page.goto('/get-started/prerequisites/');
-  await openCookiePreferences(page);
-
-  await clickCookiePreferencesAction(page, /reject all/i);
-  await waitForConsentRecorded(page);
-  await waitForAnalyticsConsent(page, false);
-  await waitForConsentCategories(page, ['necessary']);
-});
-
-test('cookie preferences and accept-all enable analytics tracking consent', async ({ page }) => {
-  await resetCookieConsentState(page);
-  await page.goto('/get-started/prerequisites/');
-  await openCookiePreferences(page);
-
-  await clickCookiePreferencesAction(page, /accept all/i);
-
-  await waitForConsentRecorded(page);
-  await waitForAnalyticsConsent(page, true);
-  await waitForConsentCategories(page, ['necessary', 'analytics', 'advertising']);
 });
 
 test('footer preferences persist theme and keyboard style selections', async ({ page }) => {

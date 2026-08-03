@@ -4,7 +4,6 @@ import { unified } from '@astrojs/markdown-remark';
 import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
 import { redirects } from './config/redirects.mjs';
 import { iconPacks } from './config/icon-packs.mjs';
-import { cookieConfig } from './config/cookie.config';
 import { locales } from './config/locales.ts';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
@@ -20,7 +19,6 @@ import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
-import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
 import buildTiming from './config/build-timing.mjs';
 import UnoCSS from 'unocss/astro';
 import Icons from 'starlight-plugin-icons';
@@ -229,7 +227,6 @@ export default defineConfig({
       optimize: true,
       gfm: true,
     }),
-    jopSoftwarecookieconsent(cookieConfig),
     ...(isBuildTimingEnabled ? [buildTiming()] : []),
   ],
   build: {
