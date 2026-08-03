@@ -107,6 +107,15 @@ describe('Aspire terminology normalization in code', () => {
   test.each([
     ['a double-quoted string literal', `var cmd = "${legacyDotnetAspireName} run";`],
     ['a C# verbatim string', `var path = @"C:\\${legacyAppHostName}\\bin";`],
+    [
+      'a string nested in a C# interpolation expression',
+      'var value = $"{Get("// ' + legacyAppHostName + '")}";',
+    ],
+    ['a C# raw string', 'var value = """// ' + legacyAppHostName + '""";'],
+    [
+      'a C# interpolated raw string',
+      'var value = $"""{Get("// ' + legacyAppHostName + '")}""";',
+    ],
     ['a TS template literal', `const label = \`the ${legacyAppHostName} process\`;`],
     ['a bare identifier expression', 'var appHost = builder.Build();'],
   ])('preserves %s so the code still compiles', (_scenario, input) => {
@@ -119,6 +128,14 @@ describe('Aspire terminology normalization in code', () => {
       `builder.AddExecutable("cli", "${legacyDotnetAspireName}");`;
     expect(normalizeAspireTerminologyInCode(input)).toBe(
       '// Launch the AppHost.\n' + `builder.AddExecutable("cli", "${legacyDotnetAspireName}");`
+    );
+  });
+
+  test('resumes comment normalization after a C# interpolated string', () => {
+    const input =
+      'var value = $"{Get("// ' + legacyAppHostName + '")}"; // Start the ' + legacyAppHostName;
+    expect(normalizeAspireTerminologyInCode(input)).toBe(
+      'var value = $"{Get("// ' + legacyAppHostName + '")}"; // Start the AppHost'
     );
   });
 
