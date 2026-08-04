@@ -45,7 +45,7 @@ test('app host builder swaps visible code when toggles and language change', asy
   await expect(typeScriptGroup).toBeHidden();
 });
 
-test('app host builder types additions and selects removals before deleting them', async ({
+test('AppHost builder types additions and selects removals before deleting them', async ({
   page,
 }) => {
   await page.goto('/');
@@ -71,7 +71,7 @@ test('app host builder types additions and selects removals before deleting them
   await expect(codeStage).not.toContainText('.addPostgres("db")');
 });
 
-test('app host builder applies code changes immediately when reduced motion is requested', async ({
+test('AppHost builder applies code changes immediately when reduced motion is requested', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -91,7 +91,7 @@ test('app host builder applies code changes immediately when reduced motion is r
   );
 });
 
-test('app host builder can disable typing motion and its caret', async ({ page }) => {
+test('AppHost builder can disable typing motion and its caret', async ({ page }) => {
   await page.goto('/');
   await dismissCookieConsentIfVisible(page);
 
