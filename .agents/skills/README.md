@@ -18,7 +18,7 @@ there's no central registry to update. Add a new skill by creating `.agents/skil
 | [`doc-writer`](./doc-writer/SKILL.md) | Write and maintain accurate documentation pages. |
 | [`hex1b`](./hex1b/SKILL.md) | Automate any terminal app in a headless virtual terminal. |
 | [`playwright-cli`](./playwright-cli/SKILL.md) | Drive a browser for web testing, screenshots, and data extraction. |
-| [`pr-review`](./pr-review/SKILL.md) | Review code changes (C#, TypeScript, Astro, HTML, CSS) for bugs and test coverage — no nits. |
+| [`code-review`](./code-review/SKILL.md) | Review code changes (C#, TypeScript, Astro, HTML, CSS) for bugs and test coverage — no nits. |
 | [`twoslash-validator`](./twoslash-validator/SKILL.md) | Validate and fix two-slash TypeScript code samples. |
 | [`update-integrations`](./update-integrations/SKILL.md) | Sync integration docs links and API reference data. |
 | [`update-samples`](./update-samples/SKILL.md) | Refresh the samples data file from `microsoft/aspire-samples`. |

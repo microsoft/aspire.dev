@@ -1,9 +1,9 @@
 ---
-name: pr-review
+name: code-review
 description: "Reviews new or changed CODE on aspire.dev for correctness, safety, and adequate test coverage — not documentation prose. USE FOR: reviewing a PR supplied as a number or URL (or the current branch's diff), checking C#/TypeScript/Astro/HTML/CSS changes for bugs, catching correctness/security/data-loss/accessibility regressions, verifying that important scenarios have unit tests, e2e tests (desktop/tablet/mobile), and axe-core accessibility tests. DO NOT USE FOR: validating documentation content or examples (use doc-tester), reviewing a documentation PR for factual accuracy (use doc-pr-reviewer), writing or fixing docs pages (use doc-writer), two-slash TypeScript blocks (use twoslash-validator), or nitpicking style/formatting (ESLint and Prettier own that). INVOKES: git (read-only diff inspection), gh (to resolve and fetch a PR by number or URL), and optionally the repo's existing test commands for verification. FOR SINGLE OPERATIONS: read the diff with git or gh pr diff and apply the relevant language checklist directly."
 ---
 
-# PR Review Skill
+# Code Review Skill
 
 Use this skill to review **code** changes on aspire.dev and produce a high-signal review. The bar is
 the highest possible code quality: correct, safe, tested, and accessible. This skill mirrors the
