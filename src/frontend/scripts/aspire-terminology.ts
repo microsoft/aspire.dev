@@ -103,12 +103,31 @@ export function normalizeAspireTerminologyInCode(
 
     // Skip complete C#/TypeScript literals so comment-like text inside them is
     // never rewritten. Interpolated literals scan nested expressions to find the
-    // real closing delimiter rather than stopping at an expression's string.
-    index = findLiteralEnd(code, index) ?? index + 1;
+    // real closing delimiter rather than stopping at an expression's string, and
+    // report any comments found inside those expressions so real code comments
+    // are still normalized while surrounding literal bytes stay identical.
+    const commentSpans: CommentSpan[] = [];
+    const literalEnd = findLiteralEnd(code, index, commentSpans);
+    if (literalEnd === undefined) {
+      index += 1;
+      continue;
+    }
+
+    for (const [spanStart, spanEnd] of commentSpans) {
+      result += code.slice(lastIndex, spanStart);
+      result += normalizeProse(code.slice(spanStart, spanEnd));
+      lastIndex = spanEnd;
+    }
+
+    index = literalEnd;
   }
 
   return result + code.slice(lastIndex);
 }
+
+// Half-open `[start, end)` range of a comment discovered inside an interpolation
+// expression, collected so the caller can normalize just those spans.
+type CommentSpan = readonly [start: number, end: number];
 
 function findCommentEnd(code: string, index: number): number | undefined {
   if (code.startsWith('//', index)) {
@@ -124,18 +143,22 @@ function findCommentEnd(code: string, index: number): number | undefined {
   return undefined;
 }
 
-function findLiteralEnd(code: string, index: number): number | undefined {
+function findLiteralEnd(
+  code: string,
+  index: number,
+  commentSpans: CommentSpan[]
+): number | undefined {
   const rawStringEnd = findCSharpRawStringEnd(code, index);
   if (rawStringEnd !== undefined) {
     return rawStringEnd;
   }
 
   if (code.startsWith('$@"', index) || code.startsWith('@$"', index)) {
-    return findCSharpInterpolatedStringEnd(code, index + 3, true);
+    return findCSharpInterpolatedStringEnd(code, index + 3, true, commentSpans);
   }
 
   if (code.startsWith('$"', index)) {
-    return findCSharpInterpolatedStringEnd(code, index + 2, false);
+    return findCSharpInterpolatedStringEnd(code, index + 2, false, commentSpans);
   }
 
   if (code.startsWith('@"', index)) {
@@ -148,7 +171,7 @@ function findLiteralEnd(code: string, index: number): number | undefined {
   }
 
   if (delimiter === '`') {
-    return findTypeScriptTemplateEnd(code, index + 1);
+    return findTypeScriptTemplateEnd(code, index + 1, commentSpans);
   }
 
   return undefined;
@@ -174,7 +197,12 @@ function findCSharpRawStringEnd(code: string, index: number): number | undefined
   return closingStart === -1 ? code.length : closingStart + quoteCount;
 }
 
-function findCSharpInterpolatedStringEnd(code: string, index: number, verbatim: boolean): number {
+function findCSharpInterpolatedStringEnd(
+  code: string,
+  index: number,
+  verbatim: boolean,
+  commentSpans: CommentSpan[]
+): number {
   while (index < code.length) {
     if (!verbatim && code[index] === '\\') {
       index += 2;
@@ -193,7 +221,7 @@ function findCSharpInterpolatedStringEnd(code: string, index: number, verbatim: 
       if (code[index + 1] === '{') {
         index += 2;
       } else {
-        index = findInterpolationExpressionEnd(code, index + 1);
+        index = findInterpolationExpressionEnd(code, index + 1, commentSpans);
       }
       continue;
     }
@@ -209,14 +237,18 @@ function findCSharpInterpolatedStringEnd(code: string, index: number, verbatim: 
   return code.length;
 }
 
-function findTypeScriptTemplateEnd(code: string, index: number): number {
+function findTypeScriptTemplateEnd(
+  code: string,
+  index: number,
+  commentSpans: CommentSpan[]
+): number {
   while (index < code.length) {
     if (code[index] === '\\') {
       index += 2;
     } else if (code[index] === '`') {
       return index + 1;
     } else if (code[index] === '$' && code[index + 1] === '{') {
-      index = findInterpolationExpressionEnd(code, index + 2);
+      index = findInterpolationExpressionEnd(code, index + 2, commentSpans);
     } else {
       index++;
     }
@@ -225,17 +257,24 @@ function findTypeScriptTemplateEnd(code: string, index: number): number {
   return code.length;
 }
 
-function findInterpolationExpressionEnd(code: string, index: number): number {
+function findInterpolationExpressionEnd(
+  code: string,
+  index: number,
+  commentSpans: CommentSpan[]
+): number {
   let braceDepth = 1;
 
   while (index < code.length) {
     const commentEnd = findCommentEnd(code, index);
     if (commentEnd !== undefined) {
+      // A comment inside an interpolation expression is executable-code prose,
+      // not string content, so record it for normalization by the caller.
+      commentSpans.push([index, commentEnd]);
       index = commentEnd;
       continue;
     }
 
-    const literalEnd = findLiteralEnd(code, index);
+    const literalEnd = findLiteralEnd(code, index, commentSpans);
     if (literalEnd !== undefined) {
       index = literalEnd;
       continue;

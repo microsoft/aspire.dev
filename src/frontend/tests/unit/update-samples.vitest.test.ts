@@ -105,6 +105,28 @@ describe('Aspire terminology normalization in code', () => {
   });
 
   test.each([
+    [
+      'a C# interpolation expression',
+      `var value = $"{Get(/* ${legacyAppHostName} */ 1)}";`,
+      'var value = $"{Get(/* AppHost */ 1)}";',
+    ],
+    [
+      'a TS template interpolation expression',
+      `const value = \`\${Get(/* ${legacyAppHostName} */ 1)}\`;`,
+      'const value = `${Get(/* AppHost */ 1)}`;',
+    ],
+  ])('normalizes a comment nested inside %s', (_scenario, input, expected) => {
+    expect(normalizeAspireTerminologyInCode(input)).toBe(expected);
+  });
+
+  test('normalizes an interpolation comment while preserving a nested string literal', () => {
+    const input = `var value = $"{Get(/* ${legacyAppHostName} */ "// ${legacyAppHostName}")}";`;
+    expect(normalizeAspireTerminologyInCode(input)).toBe(
+      `var value = $"{Get(/* AppHost */ "// ${legacyAppHostName}")}";`
+    );
+  });
+
+  test.each([
     ['a double-quoted string literal', `var cmd = "${legacyDotnetAspireName} run";`],
     ['a C# verbatim string', `var path = @"C:\\${legacyAppHostName}\\bin";`],
     [
