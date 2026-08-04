@@ -1523,8 +1523,9 @@ test('provides an explicit integrations motion control and non-tabbable duplicat
 
 test('lets the user drive the dashboard tour and resume playback', async ({ page }) => {
   const carousel = page.locator('[data-dashboard-carousel]');
-  const label = carousel.locator('[data-active-label]');
   const playback = carousel.locator('[data-playback-toggle]');
+  const previous = carousel.getByRole('button', { name: 'Previous view' });
+  const next = carousel.getByRole('button', { name: 'Next view' });
 
   await carousel.scrollIntoViewIfNeeded();
 
@@ -1532,20 +1533,45 @@ test('lets the user drive the dashboard tour and resume playback', async ({ page
   await expect(carousel).toHaveAttribute('data-viewport-active', '');
   await expect(playback).toHaveAttribute('data-playing', 'true');
 
-  // Jumping to a known slide drops into manual mode and pauses the tour.
-  await carousel
-    .locator('[data-dot][data-index="0"]')
-    .evaluate((button: HTMLButtonElement) => button.click());
-  await expect(label).toHaveText('Resource graph');
+  // The visible slide description was removed from the tour footer.
+  await expect(carousel.locator('[data-active-label]')).toHaveCount(0);
+
+  // The playback button shares the controls row and sits to the left of prev/next.
+  const [playbackBox, previousBox, nextBox] = await Promise.all([
+    playback.boundingBox(),
+    previous.boundingBox(),
+    next.boundingBox(),
+  ]);
+  expect(playbackBox).not.toBeNull();
+  expect(previousBox).not.toBeNull();
+  expect(nextBox).not.toBeNull();
+  const playbackCenterY = playbackBox!.y + playbackBox!.height / 2;
+  const previousCenterY = previousBox!.y + previousBox!.height / 2;
+  const nextCenterY = nextBox!.y + nextBox!.height / 2;
+  expect(Math.abs(playbackCenterY - previousCenterY)).toBeLessThan(4);
+  expect(Math.abs(playbackCenterY - nextCenterY)).toBeLessThan(4);
+  expect(playbackBox!.x + playbackBox!.width).toBeLessThan(previousBox!.x);
+
+  // The active slide carries a transform + opacity transition so views glide.
+  const activeTransition = await carousel
+    .locator('[data-slide][aria-current="true"]')
+    .evaluate((slide) => {
+      const styles = getComputedStyle(slide);
+      return { property: styles.transitionProperty, duration: styles.transitionDuration };
+    });
+  expect(activeTransition.property).toContain('transform');
+  expect(activeTransition.duration).not.toBe('0s');
+
+  // Pausing stops the tour before any manual navigation.
+  await playback.click();
   await expect(playback).toHaveAttribute('data-playing', 'false');
 
   // Manual navigation keeps the tour paused and advances one view.
-  await carousel.getByRole('button', { name: 'Next view' }).click();
-  await expect(label).toHaveText('Resource dashboard');
-  await expect(carousel.locator('[data-slide][aria-current="true"]')).toHaveAttribute(
-    'data-slide-label',
-    'Resource dashboard'
-  );
+  const activeSlide = carousel.locator('[data-slide][aria-current="true"]');
+  const activeIndex = Number(await activeSlide.getAttribute('data-index'));
+  const slideCount = await carousel.locator('[data-slide]').count();
+  await next.click();
+  await expect(activeSlide).toHaveAttribute('data-index', String((activeIndex + 1) % slideCount));
   await expect(playback).toHaveAttribute('data-playing', 'false');
 
   // Pressing play resumes the tour.

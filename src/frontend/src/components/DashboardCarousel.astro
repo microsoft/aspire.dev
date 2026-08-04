@@ -144,7 +144,13 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         </div>
       ))
     }
+  </div>
 
+  <div class="carousel-progress" data-progress aria-hidden="true">
+    <span class="carousel-progress-fill" data-progress-fill></span>
+  </div>
+
+  <div class="carousel-footer">
     <button
       type="button"
       class="carousel-playback-btn"
@@ -158,14 +164,6 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       <span class="carousel-pause-icon" aria-hidden="true"><PauseIcon /></span>
       <span class="carousel-play-icon" aria-hidden="true"><PlayIcon /></span>
     </button>
-  </div>
-
-  <div class="carousel-progress" data-progress aria-hidden="true">
-    <span class="carousel-progress-fill" data-progress-fill></span>
-  </div>
-
-  <div class="carousel-footer">
-    <p class="active-label" data-active-label>{localizedSlides[0].label}</p>
     <div class="controls">
       <button type="button" class="nav-btn prev-btn" data-prev aria-label={previousLabel}>
         <Icon name="left-arrow" size="1.5rem" />
@@ -201,7 +199,6 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       const stage = root.querySelector('[data-stage]');
       const slides = Array.from(root.querySelectorAll('[data-slide]'));
       const dots = Array.from(root.querySelectorAll('[data-dot]'));
-      const label = root.querySelector('[data-active-label]');
       const prevBtn = root.querySelector('[data-prev]');
       const nextBtn = root.querySelector('[data-next]');
       const n = slides.length;
@@ -224,7 +221,6 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       let cleaned = false;
       const cleanupTasks = [];
 
-      const labels = slides.map((s) => s.dataset.slideLabel || '');
       const focusableSelector = [
         'a[href]',
         'button',
@@ -313,7 +309,10 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
           const isActive = o === 0;
 
           if (stagePresentation) {
-            slide.style.transform = 'none';
+            const stageOffset = Math.max(-1, Math.min(1, o));
+            slide.style.transform = `translate3d(${stageOffset * 3.5}%, 0, 0) scale(${
+              isActive ? 1 : 0.985
+            })`;
             slide.style.opacity = isActive ? '1' : '0';
             slide.style.zIndex = isActive ? '2' : '1';
             slide.style.filter = 'none';
@@ -352,7 +351,6 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
           }
         }
         dots.forEach((d, i) => d.setAttribute('aria-pressed', i === active ? 'true' : 'false'));
-        if (label) label.textContent = labels[active] || '';
       }
 
       function setActive(i) {
@@ -889,12 +887,14 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
     top: 0;
     left: 0;
     width: 100%;
-    transform: none;
+    transform: translate3d(0, 0, 0) scale(1);
     border: 0;
     border-radius: 0.65rem;
     cursor: default;
     box-shadow: none;
-    transition: opacity 420ms ease;
+    transition:
+      transform 560ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 420ms ease;
   }
 
   .dashboard-carousel[data-presentation='stage'] .slide.is-active {
@@ -906,11 +906,6 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
     justify-content: space-between;
     gap: 1rem;
     margin-top: 1rem;
-  }
-
-  .dashboard-carousel[data-presentation='stage'] .active-label {
-    color: #ded9eb;
-    font: 650 0.78rem/1.2 var(--__sl-font-mono);
   }
 
   .dashboard-carousel[data-presentation='stage'] .dot {
@@ -949,22 +944,17 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
   }
 
   .dashboard-carousel[data-playback='on'] .carousel-playback-btn {
-    position: absolute;
-    left: 0.75rem;
-    bottom: 0.75rem;
-    z-index: 120;
-    width: 2.75rem;
-    height: 2.75rem;
     display: grid;
     place-items: center;
+    flex: 0 0 auto;
+    width: 2.625rem;
+    height: 2.625rem;
     margin: 0;
     padding: 0;
     border: 1px solid rgba(229, 226, 244, 0.22);
     border-radius: 0.625rem;
     color: #ded9eb;
-    background: rgba(15, 14, 26, 0.66);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
+    background: rgba(229, 226, 244, 0.08);
     cursor: pointer;
     transition:
       border-color 160ms ease,
@@ -974,7 +964,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
 
   .dashboard-carousel[data-playback='on'] .carousel-playback-btn:hover {
     border-color: rgba(195, 173, 255, 0.6);
-    background: rgba(15, 14, 26, 0.82);
+    background: rgba(195, 173, 255, 0.14);
   }
 
   .dashboard-carousel[data-playback='on'] .carousel-playback-btn:active {
@@ -1157,20 +1147,6 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
     margin-top: 1.25rem;
   }
 
-  .active-label {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    /* Light-purple accent reads well on the dark page background (~7.8:1). */
-    color: var(--aspire-color-secondary);
-  }
-
-  /* On the light theme's white background the light-purple accent fails WCAG AA
-     (~1.9:1), so switch to the deeper brand purple (~5.1:1 on white). */
-  html[data-theme='light'] .active-label {
-    color: var(--aspire-color-primary);
-  }
-
   .dots {
     display: flex;
     gap: 0.55rem;
@@ -1213,11 +1189,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
     }
 
     .dashboard-carousel[data-presentation='stage'] .carousel-footer {
-      align-items: flex-start;
-    }
-
-    .dashboard-carousel[data-presentation='stage'] .active-label {
-      padding-top: 0.55rem;
+      align-items: center;
     }
 
     .dashboard-carousel[data-presentation='stage'] .dots {
@@ -1227,12 +1199,12 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
 
   /* Respect users who prefer reduced motion: no 3D animation, no autoplay. */
   .dashboard-carousel.reduced-motion .slide {
-    transition: opacity 0.2s ease;
+    transition: none;
     filter: none !important;
   }
   @media (prefers-reduced-motion: reduce) {
     .slide {
-      transition: opacity 0.2s ease;
+      transition: none;
     }
   }
 
