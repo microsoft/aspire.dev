@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: "Reviews new or changed CODE on aspire.dev for correctness, safety, and adequate test coverage — not documentation prose. USE FOR: reviewing a PR or diff, checking C#/TypeScript/Astro/HTML/CSS changes for bugs, catching correctness/security/data-loss/accessibility regressions, verifying that important scenarios have unit tests, e2e tests (desktop/tablet/mobile), and axe-core accessibility tests. DO NOT USE FOR: validating documentation content or examples (use doc-tester), reviewing a documentation PR for factual accuracy (use doc-pr-reviewer), writing or fixing docs pages (use doc-writer), two-slash TypeScript blocks (use twoslash-validator), or nitpicking style/formatting (ESLint and Prettier own that). INVOKES: git (read-only diff inspection), and optionally the repo's existing test commands for verification. FOR SINGLE OPERATIONS: read the diff with git and apply the relevant language checklist directly."
+description: "Reviews new or changed CODE on aspire.dev for correctness, safety, and adequate test coverage — not documentation prose. USE FOR: reviewing a PR supplied as a number or URL (or the current branch's diff), checking C#/TypeScript/Astro/HTML/CSS changes for bugs, catching correctness/security/data-loss/accessibility regressions, verifying that important scenarios have unit tests, e2e tests (desktop/tablet/mobile), and axe-core accessibility tests. DO NOT USE FOR: validating documentation content or examples (use doc-tester), reviewing a documentation PR for factual accuracy (use doc-pr-reviewer), writing or fixing docs pages (use doc-writer), two-slash TypeScript blocks (use twoslash-validator), or nitpicking style/formatting (ESLint and Prettier own that). INVOKES: git (read-only diff inspection), gh (to resolve and fetch a PR by number or URL), and optionally the repo's existing test commands for verification. FOR SINGLE OPERATIONS: read the diff with git or gh pr diff and apply the relevant language checklist directly."
 ---
 
 # PR Review Skill
@@ -13,6 +13,37 @@ only real, high-confidence problems and gaps that a maintainer must act on.
 This skill reviews code (C#, TypeScript, Astro, HTML, CSS). It does **not** validate documentation
 accuracy or prose — that belongs to `doc-tester`, `doc-writer`, and (for reviewing a docs PR)
 `doc-pr-reviewer`.
+
+## Input
+
+This skill reviews **one change set**, supplied in any of these forms:
+
+- a **PR number** (e.g. `1422`),
+- a **full PR URL** (e.g. `https://github.com/microsoft/aspire.dev/pull/1422`), or
+- **nothing** — review the current local branch's diff against its base branch.
+
+Unless the caller says otherwise, a PR belongs to this `aspire.dev` repository. Review exactly the PR
+you are given — there is no eligibility filter or selection step; do not go looking for other PRs.
+Before reviewing, resolve the PR's **base branch**, **head SHA**, and **changed files** (see below).
+
+### Resolve a PR with `gh` (read-only)
+
+Prefer inspecting the diff without switching branches; check the PR out only when you need to run
+something (tests/build). A PR URL can be passed directly; for a bare number, pass `--repo` so `gh`
+targets the right repository rather than a fork remote.
+
+```powershell
+# Metadata: base branch, head SHA, and the list of changed files
+gh pr view <number-or-url> --repo microsoft/aspire.dev --json number,baseRefName,headRefName,headRefOid,files
+
+# The full unified diff to review
+gh pr diff <number-or-url> --repo microsoft/aspire.dev
+
+# Check it out locally — only needed to run the optional verification commands
+gh pr checkout <number-or-url> --repo microsoft/aspire.dev
+```
+
+Use the resolved **base branch** wherever the workflow below references a base ref.
 
 ## ⚠️ Core rule: signal over noise
 
@@ -165,12 +196,14 @@ focus/keyboard behavior, or color/theming — should be covered by an `@axe-core
 
 ## Review workflow
 
-1. **Get the change set.** Inspect the diff (read-only), e.g.:
+1. **Get the change set.** If given a PR (number or URL), resolve it with `gh` per [Input](#input) —
+   read `gh pr diff <pr>` plus the changed-file list, and `gh pr checkout <pr>` only if you need to
+   run something. Otherwise review the current local branch, substituting the PR's base branch for
+   `<base>` (usually `main`):
    ```powershell
-   git --no-pager diff --stat origin/main...HEAD
-   git --no-pager diff origin/main...HEAD
+   git --no-pager diff --stat <base>...HEAD
+   git --no-pager diff <base>...HEAD
    ```
-   Substitute the correct base ref for the PR.
 2. **Classify changed files** by language/area (C#, TS, Astro, HTML, CSS, tests) and by whether they
    are in scope. Set docs-only prose aside.
 3. **Read for real understanding.** Open changed files and enough surrounding context to trace each
