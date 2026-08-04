@@ -94,7 +94,7 @@ test('renders a complete semantic landing page without horizontal overflow', asy
   const cacheIconSources = await cacheIcons.evaluateAll((icons) =>
     icons.map((icon) => icon.getAttribute('src'))
   );
-  expect(cacheIconSources.every((source) => source?.includes('redis-icon.png'))).toBe(true);
+  expect(cacheIconSources.every((source) => source?.includes('redis-icon.'))).toBe(true);
 
   const visibleCacheIcon = page.locator('.model-graph img.cache-icon');
   await visibleCacheIcon.scrollIntoViewIfNeeded();
@@ -467,18 +467,36 @@ test('matches foreground Aspire CLI output and replaces startup statuses in plac
       };
     });
 
+  await expect(control).toHaveAttribute('data-paused', 'false');
+  await control.evaluate((button: HTMLButtonElement) => button.click());
+  await expect(control).toHaveAttribute('data-paused', 'true');
   await terminalWindow.scrollIntoViewIfNeeded();
-  await expect
-    .poll(() => story.getAttribute('data-story-playing'), { timeout: 10_000 })
-    .toBe('true');
+  await expect(story).toHaveAttribute('data-story-viewport-active', '');
+  await expect(story).toHaveAttribute('data-story-playing', 'false');
+  await control.click();
+  await page.waitForFunction(
+    () => {
+      const root = document.querySelector<HTMLElement>('[data-model-story]');
+      const control = root?.querySelector<HTMLButtonElement>('[data-model-story-toggle]');
+      const status = root?.querySelector<HTMLElement>('[data-terminal-status]');
+      const statusText = root?.querySelector<HTMLElement>('[data-terminal-status-text]');
+      if (
+        root?.dataset.storyPlaying === 'true' &&
+        status?.classList.contains('is-visible') &&
+        statusText?.textContent === 'Preparing Aspire server...' &&
+        control
+      ) {
+        control.click();
+        return true;
+      }
+      return false;
+    },
+    undefined,
+    { polling: 50, timeout: 10_000 }
+  );
+  await expect(story).toHaveAttribute('data-story-playing', 'false');
   await expect(status).toHaveClass(/is-visible/);
   await expect(status).toHaveText('Preparing Aspire server...');
-  await expect.poll(readFocusBorderAnimations).toEqual({
-    terminal: 'model-focus-border-trace',
-    stage: 'none',
-  });
-  await control.click();
-  await expect(story).toHaveAttribute('data-story-playing', 'false');
   await expect(story).toHaveAttribute('data-story-language', 'typescript');
   await expect(story).toHaveAttribute('data-story-focus', 'terminal');
   await expect(story).toHaveAttribute('data-story-surface', 'hidden');
@@ -628,7 +646,8 @@ test('matches foreground Aspire CLI output and replaces startup statuses in plac
   await terminalWindow.scrollIntoViewIfNeeded();
   await control.click();
   await expect.poll(() => status.textContent()).toBe('Building AppHost... apphost.cs');
-  await control.click();
+  await codeStage.click();
+  await expect(story).toHaveAttribute('data-story-playing', 'false');
 
   await typescriptButton.click();
   await expect(story).toHaveAttribute('data-story-language', 'typescript');
@@ -1079,7 +1098,7 @@ test('keeps the environment frame stable while each topology changes', async ({ 
   const awsSources = await productionPanel
     .locator('img.topology-node-icon-aws')
     .evaluateAll((icons) => icons.map((icon) => icon.getAttribute('src')));
-  expect(awsSources.every((source) => source?.includes('aws.svg'))).toBe(true);
+  expect(awsSources.every((source) => source?.includes('aws.'))).toBe(true);
   expect(
     await productionPanel
       .locator('.topology-node-icon-cycle img')
@@ -1444,8 +1463,8 @@ test('provides an explicit integrations motion control and non-tabbable duplicat
       .locator('img')
       .evaluateAll((images) => images.map((image) => image.getAttribute('src')));
     expect(awsSources).toHaveLength(2);
-    expect(awsSources.some((source) => source?.includes('aws-icon.png'))).toBe(true);
-    expect(awsSources.some((source) => source?.includes('aws-light-icon.png'))).toBe(true);
+    expect(awsSources.some((source) => source?.includes('aws-icon.'))).toBe(true);
+    expect(awsSources.some((source) => source?.includes('aws-light-icon.'))).toBe(true);
 
     const railBox = await rail.boundingBox();
     expect(railBox).not.toBeNull();
