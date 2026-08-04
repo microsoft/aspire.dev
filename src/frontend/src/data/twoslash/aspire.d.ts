@@ -2964,12 +2964,12 @@ export interface IDistributedApplicationResourceEvent {
 
 export interface ExternalServiceResource extends IResource {
   /**
-   * Adds an HTTP health check to the external service for polyglot app hosts.
+   * Adds an HTTP health check to the external service for polyglot AppHosts.
    */
 
   withHttpHealthCheck(options?: { path?: string; statusCode?: number; endpointName?: string }): this;
   /**
-   * Adds an HTTP health check to the external service for polyglot app hosts.
+   * Adds an HTTP health check to the external service for polyglot AppHosts.
    */
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
@@ -6930,12 +6930,12 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
 
   withMigrationOutputDirectory(outputDirectory: string): this;
   /**
-   * Configures a separate project containing migrations for polyglot app hosts.
+   * Configures a separate project containing migrations for polyglot AppHosts.
    */
 
   withMigrationsProject(options?: { migrationsProject?: ProjectResource }): this;
   /**
-   * Configures a separate project containing migrations for polyglot app hosts.
+   * Configures a separate project containing migrations for polyglot AppHosts.
    */
 
   withMigrationsProject(migrationsProject?: ProjectResource): this;
@@ -16898,12 +16898,12 @@ export interface CSharpAppResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
@@ -20542,12 +20542,12 @@ export interface ProjectResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
