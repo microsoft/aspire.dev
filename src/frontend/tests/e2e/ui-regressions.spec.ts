@@ -382,6 +382,57 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   await expect(kbdTrigger).toContainText('macOS');
 });
 
+test('language selector stays open while its listbox is scrolled', async ({ page }) => {
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+
+  const languageTrigger = page.getByRole('combobox', { name: 'Select language' });
+  const languageListbox = page.locator('#footer-language-select-listbox');
+  const options = languageListbox.getByRole('option');
+
+  await languageTrigger.click();
+  await expect(languageListbox).toBeVisible();
+  await expect(options).toHaveCount(15);
+
+  // The 15 locales overflow the capped listbox, so it scrolls internally.
+  const isScrollable = await languageListbox.evaluate(
+    (element) => element.scrollHeight > element.clientHeight + 1
+  );
+  expect(isScrollable).toBe(true);
+
+  // Regression: a capture-phase window scroll listener used to close the menu on
+  // *any* descendant scroll, so scrolling within the listbox (wheel/touch, or the
+  // programmatic scrollIntoView triggered by keyboard navigation) dismissed it and
+  // left below-the-fold locales unreachable. Scrolling inside must keep it open.
+  await languageListbox.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect(languageTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(languageListbox).toBeVisible();
+
+  const lastOption = options.last();
+  await expect(lastOption).toBeInViewport();
+  await lastOption.hover();
+  await expect(languageListbox).toBeVisible();
+
+  // Keyboard paging to the last option calls scrollIntoView() on the listbox; the
+  // menu must stay open and move the active option all the way to the bottom.
+  await page.keyboard.press('End');
+  await expect(languageTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(languageListbox).toBeVisible();
+  await expect(lastOption).toHaveAttribute('data-active', '');
+  await expect(languageTrigger).toHaveAttribute(
+    'aria-activedescendant',
+    (await lastOption.getAttribute('id')) ?? ''
+  );
+
+  // Scrolling the page (not the listbox) still dismisses the menu as intended.
+  await page.evaluate(() => window.scrollBy(0, -8));
+  await expect(languageTrigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(languageListbox).toBeHidden();
+});
+
 test('shared footer stays contained across docs page layouts', async ({ page }) => {
   await page.goto('/get-started/first-app/?aspire-lang=typescript');
   await dismissCookieConsentIfVisible(page);

@@ -350,7 +350,16 @@ const hasIcon = Astro.slots.has('icon');
       const handleOtherSelect = (event: Event) => {
         if (event instanceof CustomEvent && event.detail !== root) close();
       };
-      const handleViewportChange = () => close();
+      const handleViewportChange = (event: Event) => {
+        // Scrolling the page (or resizing) should dismiss the menu, but scrolling
+        // *inside* the fixed, overflowing listbox must not. A capture-phase scroll
+        // listener on window also fires for scrolls targeted at the listbox
+        // (e.g. wheel/touch, or option.scrollIntoView() during keyboard nav), so
+        // ignore any scroll that originates within the menu.
+        const target = event.target;
+        if (target instanceof Node && listbox.contains(target)) return;
+        close();
+      };
       const handleSync = () => syncFromNative();
       const handleBeforeSwap = () => {
         window.clearTimeout(typeaheadTimer);
