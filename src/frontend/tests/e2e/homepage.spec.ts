@@ -107,6 +107,40 @@ test('renders a complete semantic landing page without horizontal overflow', asy
     .toBe(true);
 });
 
+test('serves every internal homepage link successfully', async ({ page, request }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium');
+
+  const internalPaths = await page.locator('a[href]').evaluateAll((links) =>
+    Array.from(
+      new Set(
+        links.flatMap((link) => {
+          const href = link.getAttribute('href');
+
+          if (!href) {
+            return [];
+          }
+
+          const url = new URL(href, document.baseURI);
+          return url.origin === window.location.origin && ['http:', 'https:'].includes(url.protocol)
+            ? [url.pathname]
+            : [];
+        })
+      )
+    ).sort()
+  );
+  const failedLinks: Array<{ path: string; status: number }> = [];
+
+  for (const path of internalPaths) {
+    const response = await request.get(path);
+
+    if (!response.ok()) {
+      failedLinks.push({ path, status: response.status() });
+    }
+  }
+
+  expect(failedLinks, 'Internal homepage links should return successful responses.').toEqual([]);
+});
+
 test('presents the application model as a live polyglot topology', async ({ page }) => {
   const story = page.locator('[data-model-story]');
   const terminalWindow = story.locator('.model-window');
@@ -1066,7 +1100,7 @@ test('keeps the environment frame stable while each topology changes', async ({ 
   const testPanel = environment.locator('[data-environment-panel="test"]');
   await expect(testPanel.getByRole('link', { name: 'Testing docs' })).toHaveAttribute(
     'href',
-    '/testing/'
+    '/testing/overview/'
   );
   await expect(testPanel).not.toContainText('dotnet test');
   await expect(testPanel.locator('.topology-detail-cycle')).toContainText([
