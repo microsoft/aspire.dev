@@ -145,16 +145,17 @@ test('AI context tips overlay section content on mobile', async ({ page }) => {
 
   for (const [index, [badgeSelector, contentSelector]] of cases.entries()) {
     const badge = page.locator(badgeSelector);
-    const popover = badge.locator('[role="tooltip"]');
+    const trigger = badge.getByRole('button');
+    const popover = badge.getByRole('region');
 
     await badge.scrollIntoViewIfNeeded();
-    await badge.focus();
+    await trigger.focus();
     await expect(popover).toBeVisible();
 
     const geometry = await page.evaluate(
       ({ badgeSelector, contentSelector }) => {
         const badge = document.querySelector<HTMLElement>(badgeSelector);
-        const popover = badge?.querySelector<HTMLElement>('[role="tooltip"]');
+        const popover = badge?.querySelector<HTMLElement>('[role="region"]');
         const content = document.querySelector<HTMLElement>(contentSelector);
         if (!popover || !content) return null;
 

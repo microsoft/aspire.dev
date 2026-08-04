@@ -32,7 +32,6 @@ const agents = [
     icon: 'github',
     treatment: 'monochrome',
     routePath: 'M125 124 C170 156 235 176 310 194',
-    sentence: t('home.agent.sentenceGithubCopilot'),
   },
   {
     id: 'claude',
@@ -40,7 +39,6 @@ const agents = [
     logo: claudeLogo,
     treatment: 'color',
     routePath: 'M360 124 C360 150 360 174 360 194',
-    sentence: t('home.agent.sentenceClaude'),
   },
   {
     id: 'openai',
@@ -48,12 +46,8 @@ const agents = [
     logo: openAiLogo,
     treatment: 'monochrome',
     routePath: 'M595 124 C550 156 485 176 410 194',
-    sentence: t('home.agent.sentenceOpenai'),
   },
 ] as const;
-
-const defaultAgentId = 'github-copilot';
-const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agents[0];
 ---
 
 <section
@@ -73,8 +67,6 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
 
     <div class="agent-layout">
       <div class="agent-copy" data-home-reveal>
-        <p class="agent-statement">{t('home.agent.statement')}</p>
-
         <ul class="agent-context-layers">
           {
             contextLayers.map((layer) => (
@@ -103,17 +95,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
         data-home-reveal-distance="major"
         data-home-reveal-anchor=".agent-network"
       >
-        <div class="agent-visual-toolbar">
-          <p class="agent-visual-label">{t('home.agent.toolbar')}</p>
-        </div>
-
-        <div
-          class="agent-network"
-          data-agent-network
-          data-has-active="true"
-          data-active-agent={defaultAgentId}
-          data-default-agent={defaultAgentId}
-        >
+        <div class="agent-network" data-agent-network>
           <svg
             class="agent-connections"
             viewBox="0 0 720 420"
@@ -136,11 +118,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
             </defs>
             {
               agents.map((agent) => (
-                <g
-                  class="agent-route"
-                  data-agent-route={agent.id}
-                  data-active={String(agent.id === defaultAgentId)}
-                >
+                <g class="agent-route" data-agent-route={agent.id}>
                   <path
                     class="agent-route-line"
                     d={agent.routePath}
@@ -161,19 +139,11 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
             <p>{t('home.agent.coreCaption')}</p>
           </div>
 
-          <ul class="agent-logo-list" aria-label={t('home.agent.listLabel')}>
+          <ul class="agent-logo-list" aria-label={t('home.agent.anyTool')}>
             {
               agents.map((agent, index) => (
                 <li class="agent-logo" data-agent-slot={String(index)}>
-                  <button
-                    type="button"
-                    class="agent-logo-button"
-                    aria-label={t('home.agent.connect', { name: agent.name })}
-                    aria-pressed={String(agent.id === defaultAgentId)}
-                    data-agent-logo={agent.id}
-                    data-agent-sentence={agent.sentence}
-                    data-active={String(agent.id === defaultAgentId)}
-                  >
+                  <div class="agent-logo-card" data-agent-logo={agent.id}>
                     {'icon' in agent ? (
                       <Icon name={agent.icon} size="3.25rem" class="agent-logo-icon" />
                     ) : (
@@ -189,7 +159,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
                       />
                     )}
                     <span class="agent-logo-name">{agent.name}</span>
-                  </button>
+                  </div>
                 </li>
               ))
             }
@@ -197,22 +167,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
         </div>
 
         <div class="agent-story">
-          <div class="agent-story-copy" aria-hidden="true">
-            {
-              agents.map((agent) => (
-                <p
-                  class="agent-story-sentence"
-                  data-agent-sentence-panel={agent.id}
-                  data-active={String(agent.id === defaultAgentId)}
-                >
-                  {agent.sentence}
-                </p>
-              ))
-            }
-          </div>
-          <p class="agent-story-live" data-agent-active-sentence aria-live="polite">
-            {defaultAgent.sentence}
-          </p>
+          <p class="agent-story-sentence">{t('home.agent.statement')}</p>
           <p class="agent-any-ai-note">{t('home.agent.anyTool')}</p>
         </div>
       </div>
@@ -220,162 +175,11 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
   </div>
 </section>
 
-<script>
-  import { createViewportActivationObserver } from '@utils/viewport-activation';
-
-  function initializeAgentLoops() {
-    document.querySelectorAll<HTMLElement>('[data-home-agent-context]').forEach((root) => {
-      if (root.dataset.agentLoopInitialized === 'true') return;
-
-      const network = root.querySelector<HTMLElement>('[data-agent-network]');
-      const activeSentence = root.querySelector<HTMLElement>('[data-agent-active-sentence]');
-      const logoList = root.querySelector<HTMLElement>('.agent-logo-list');
-      const logoItems = Array.from(root.querySelectorAll<HTMLElement>('.agent-logo'));
-      const triggers = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-agent-logo]'));
-      const routes = Array.from(root.querySelectorAll<SVGGElement>('[data-agent-route]'));
-      const sentencePanels = Array.from(
-        root.querySelectorAll<HTMLElement>('[data-agent-sentence-panel]')
-      );
-      if (
-        !network ||
-        !activeSentence ||
-        !logoList ||
-        logoItems.length === 0 ||
-        triggers.length === 0 ||
-        routes.length === 0 ||
-        sentencePanels.length === 0
-      )
-        return;
-
-      const routePaths = routes.map(
-        (route) => route.querySelector('path')?.getAttribute('d') ?? ''
-      );
-      for (let index = logoItems.length - 1; index > 0; index -= 1) {
-        const target = Math.floor(Math.random() * (index + 1));
-        [logoItems[index], logoItems[target]] = [logoItems[target], logoItems[index]];
-      }
-      logoItems.forEach((item, index) => {
-        const id = item.querySelector<HTMLButtonElement>('[data-agent-logo]')?.dataset.agentLogo;
-        item.dataset.agentSlot = String(index);
-        logoList.append(item);
-        const route = routes.find((candidate) => candidate.dataset.agentRoute === id);
-        route?.querySelector('path')?.setAttribute('d', routePaths[index] ?? '');
-      });
-
-      const defaultAgentId = network.dataset.defaultAgent;
-      let pinnedAgent =
-        triggers.find((trigger) => trigger.dataset.agentLogo === defaultAgentId)?.dataset
-          .agentLogo ??
-        triggers[0]?.dataset.agentLogo ??
-        '';
-      let previewAgent = '';
-      const motionObserver = createViewportActivationObserver((_, active) => {
-        root.toggleAttribute('data-agent-motion-active', active);
-      });
-      motionObserver.observe(network);
-
-      const activate = (id = '') => {
-        const activeTrigger = triggers.find((trigger) => trigger.dataset.agentLogo === id);
-        network.dataset.activeAgent = id;
-        network.dataset.hasActive = String(Boolean(activeTrigger));
-        activeSentence.textContent = activeTrigger?.dataset.agentSentence ?? '';
-
-        routes.forEach((route) => {
-          route.dataset.active = String(route.dataset.agentRoute === id);
-        });
-
-        sentencePanels.forEach((panel) => {
-          panel.dataset.active = String(panel.dataset.agentSentencePanel === id);
-        });
-
-        triggers.forEach((trigger) => {
-          const isActive = trigger.dataset.agentLogo === id;
-          trigger.dataset.active = String(isActive);
-          trigger.setAttribute(
-            'aria-pressed',
-            String(trigger.dataset.agentLogo === pinnedAgent && Boolean(pinnedAgent))
-          );
-        });
-      };
-
-      const restore = () => {
-        const focusedTrigger = triggers.find((trigger) => trigger === document.activeElement);
-        activate(focusedTrigger?.dataset.agentLogo || previewAgent || pinnedAgent);
-      };
-
-      const cleanupCallbacks: Array<() => void> = [];
-
-      triggers.forEach((trigger) => {
-        const id = trigger.dataset.agentLogo;
-        if (!id) return;
-
-        const handlePointerEnter = () => {
-          previewAgent = id;
-          activate(id);
-        };
-        const handlePointerLeave = () => {
-          previewAgent = '';
-          restore();
-        };
-        const handleFocus = () => activate(id);
-        const handleBlur = () => restore();
-        const handleClick = () => {
-          pinnedAgent = id;
-          activate(id);
-          document.documentElement.dataset.aspireSelectedAgent = id;
-          document.dispatchEvent(
-            new CustomEvent('aspire:agent-selection-change', { detail: { id } })
-          );
-        };
-
-        trigger.addEventListener('pointerenter', handlePointerEnter);
-        trigger.addEventListener('pointerleave', handlePointerLeave);
-        trigger.addEventListener('focus', handleFocus);
-        trigger.addEventListener('blur', handleBlur);
-        trigger.addEventListener('click', handleClick);
-
-        cleanupCallbacks.push(() => {
-          trigger.removeEventListener('pointerenter', handlePointerEnter);
-          trigger.removeEventListener('pointerleave', handlePointerLeave);
-          trigger.removeEventListener('focus', handleFocus);
-          trigger.removeEventListener('blur', handleBlur);
-          trigger.removeEventListener('click', handleClick);
-        });
-      });
-
-      document.addEventListener(
-        'astro:before-swap',
-        () => {
-          cleanupCallbacks.forEach((cleanup) => cleanup());
-          motionObserver.disconnect();
-          root.removeAttribute('data-agent-motion-active');
-          delete root.dataset.agentLoopInitialized;
-        },
-        { once: true }
-      );
-
-      root.dataset.agentLoopInitialized = 'true';
-      activate(pinnedAgent);
-      document.documentElement.dataset.aspireSelectedAgent = pinnedAgent;
-      document.dispatchEvent(
-        new CustomEvent('aspire:agent-selection-change', { detail: { id: pinnedAgent } })
-      );
-    });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeAgentLoops, { once: true });
-  } else {
-    initializeAgentLoops();
-  }
-  document.addEventListener('astro:after-swap', initializeAgentLoops);
-</script>
-
 <style>
   .home-agent-context {
     position: relative;
     overflow: hidden;
-    padding: clamp(6.5rem, 10vw, 10rem) 1.5rem;
+    padding: clamp(5rem, 6.5vw, 6.5rem) 1.5rem;
     border-top: 1px solid var(--home-border);
     color: var(--home-text);
     background:
@@ -435,7 +239,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     max-width: 57rem;
     margin: 0;
     color: var(--home-text);
-    font-size: clamp(2.7rem, 5.5vw, 5.2rem);
+    font-size: clamp(2.7rem, 5vw, 4.75rem);
     font-weight: 620;
     line-height: 1.02;
     letter-spacing: -0.055em;
@@ -453,24 +257,13 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
   .agent-layout {
     display: grid;
     grid-template-columns: minmax(18rem, 0.72fr) minmax(0, 1.28fr);
-    gap: clamp(3.5rem, 7vw, 7rem);
+    gap: clamp(3rem, 5vw, 5rem);
     align-items: center;
-    margin-top: clamp(4rem, 8vw, 7rem);
+    margin-top: clamp(2.75rem, 4vw, 3.75rem);
   }
 
   .agent-copy {
     min-width: 0;
-  }
-
-  .agent-statement {
-    max-width: 17ch;
-    margin: 0 0 2.5rem;
-    color: var(--home-text);
-    font-size: clamp(1.65rem, 3vw, 2.7rem);
-    font-weight: 600;
-    line-height: 1.12;
-    letter-spacing: -0.04em;
-    text-wrap: balance;
   }
 
   .agent-context-layers {
@@ -525,25 +318,9 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     min-width: 0;
   }
 
-  .agent-visual-toolbar {
-    min-height: 3.25rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .agent-visual-label {
-    margin: 0;
-    color: var(--home-muted);
-    font: 650 0.75rem/1.2 var(--__sl-font-mono);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
   .agent-network {
     position: relative;
-    min-height: 31rem;
+    min-height: 25.5rem;
     isolation: isolate;
     overflow: hidden;
     border-top: 1px solid var(--home-border);
@@ -584,18 +361,18 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
   }
 
   .agent-route {
-    opacity: 0.3;
+    opacity: 1;
   }
 
   .agent-route > path {
     fill: none;
-    stroke-width: 1.65;
+    stroke-width: 2.25;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
   }
 
   .agent-route-line {
-    stroke: color-mix(in srgb, var(--home-purple) 64%, var(--home-border));
+    stroke: var(--home-purple);
   }
 
   .agent-route-arrowhead {
@@ -604,19 +381,6 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     stroke-width: 1.5;
     stroke-linecap: round;
     stroke-linejoin: round;
-  }
-
-  .agent-network[data-has-active='true'] .agent-route {
-    opacity: 0.16;
-  }
-
-  .agent-network[data-has-active='true'] .agent-route[data-active='true'] {
-    opacity: 1;
-  }
-
-  .agent-route[data-active='true'] > path {
-    stroke: var(--home-purple);
-    stroke-width: 2.25;
   }
 
   .agent-core {
@@ -638,11 +402,6 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     transform: translate(-50%, -50%);
   }
 
-  .agent-network[data-has-active='true'] .agent-core {
-    box-shadow: 0 2rem 6rem color-mix(in srgb, var(--home-purple) 23%, transparent);
-    transform: translate(-50%, -50%) scale(1.015);
-  }
-
   .agent-core-icon {
     position: relative;
     width: 2.65rem;
@@ -662,24 +421,8 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     border: 1px solid color-mix(in srgb, var(--home-purple) 45%, transparent);
     border-radius: 50%;
     content: '';
-    opacity: 0;
-    transform: scale(0.72);
-  }
-
-  @keyframes agent-core-pulse {
-    0% {
-      opacity: 0;
-      transform: scale(0.72);
-    }
-
-    28% {
-      opacity: 0.65;
-    }
-
-    100% {
-      opacity: 0;
-      transform: scale(1.18);
-    }
+    opacity: 0.45;
+    transform: scale(1);
   }
 
   .agent-core small {
@@ -721,7 +464,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     transform: translateX(-50%);
   }
 
-  .agent-logo-button {
+  .agent-logo-card {
     width: 100%;
     height: 100%;
     display: grid;
@@ -730,43 +473,16 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     gap: 0.55rem;
     overflow: hidden;
     padding: 0.75rem 0.8rem;
-    border: 1px solid var(--home-border);
+    border: 1px solid var(--home-purple);
     border-radius: 0.75rem;
     color: inherit;
-    background: color-mix(in srgb, var(--home-surface) 90%, transparent);
-    box-shadow: 0 1rem 3rem rgba(17, 15, 35, 0.1);
-    cursor: pointer;
-    opacity: 0.82;
-    transform: translateY(0);
-  }
-
-  .agent-logo-button:hover,
-  .agent-logo-button:focus-visible,
-  .agent-logo-button[data-active='true'] {
-    opacity: 1;
-    transform: translateY(-0.2rem);
-  }
-
-  .agent-logo-button:active {
-    transform: scale(0.98);
-  }
-
-  .agent-logo-button:focus-visible {
-    outline: 0.1875rem solid var(--home-purple);
-    outline-offset: 0.2rem;
-  }
-
-  .agent-network[data-has-active='true'] .agent-logo-button:not([data-active='true']) {
-    opacity: 0.52;
-    transform: translateY(0);
-  }
-
-  .agent-logo-button[data-active='true'] {
-    border-color: var(--home-purple);
     background: color-mix(in srgb, var(--home-purple) 11%, var(--home-surface));
+    box-shadow: 0 1rem 3rem rgba(17, 15, 35, 0.1);
+    opacity: 1;
+    transform: translateY(0);
   }
 
-  .agent-logo-button :global(.agent-logo-image) {
+  .agent-logo-card :global(.agent-logo-image) {
     width: 3.25rem;
     height: 3.25rem;
     display: block;
@@ -774,7 +490,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     object-fit: contain;
   }
 
-  .agent-logo-button :global(.agent-logo-icon) {
+  .agent-logo-card :global(.agent-logo-icon) {
     width: 3.25rem;
     height: 3.25rem;
     color: var(--home-text);
@@ -789,7 +505,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
   }
 
   :global([data-theme='dark'])
-    .agent-logo-button
+    .agent-logo-card
     :global(.agent-logo-image[data-agent-logo-treatment='monochrome']) {
     filter: invert(1);
   }
@@ -810,21 +526,14 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 1.5rem;
-    align-items: end;
+    align-items: center;
     padding: 1.4rem clamp(1.25rem, 3vw, 2rem);
     border-block: 1px solid var(--home-border);
     color: var(--home-text);
     background: color-mix(in srgb, var(--home-surface) 82%, transparent);
   }
 
-  .agent-story-copy {
-    display: grid;
-    min-width: 0;
-    align-items: end;
-  }
-
   .agent-story-sentence {
-    grid-area: 1 / 1;
     max-width: 55rem;
     margin: 0;
     color: var(--home-text);
@@ -832,27 +541,6 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     font-weight: 560;
     line-height: 1.55;
     text-wrap: balance;
-    opacity: 0;
-    visibility: hidden;
-    transform: translate3d(0, 0.45rem, 0);
-  }
-
-  .agent-story-sentence[data-active='true'] {
-    opacity: 1;
-    visibility: visible;
-    transform: translate3d(0, 0, 0);
-  }
-
-  .agent-story-live {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
   }
 
   .agent-story p.agent-any-ai-note {
@@ -881,10 +569,6 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
       gap: 4rem;
     }
 
-    .agent-statement {
-      max-width: 24ch;
-    }
-
     .agent-visual {
       width: min(100%, 56rem);
       margin-inline: auto;
@@ -893,7 +577,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
 
   @media (max-width: 49.99rem) {
     .home-agent-context {
-      padding: 5.25rem 1rem;
+      padding: 4.5rem 1rem;
     }
 
     .agent-heading h2 {
@@ -901,12 +585,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     }
 
     .agent-layout {
-      margin-top: 3.5rem;
-    }
-
-    .agent-statement {
-      max-width: 19ch;
-      font-size: clamp(1.7rem, 8vw, 2.35rem);
+      margin-top: 2.75rem;
     }
 
     .agent-network {
@@ -932,10 +611,6 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
       transform: none;
     }
 
-    .agent-network[data-has-active='true'] .agent-core {
-      transform: none;
-    }
-
     .agent-logo-list {
       position: relative;
       inset: auto;
@@ -954,17 +629,18 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
       transform: none;
     }
 
-    .agent-logo-button {
-      grid-template-rows: 2.75rem auto;
+    .agent-logo-card {
+      grid-template-rows: auto auto;
+      align-content: center;
       padding: 0.65rem 0.45rem;
     }
 
-    .agent-logo-button :global(.agent-logo-image) {
+    .agent-logo-card :global(.agent-logo-image) {
       width: 2.75rem;
       height: 2.75rem;
     }
 
-    .agent-logo-button :global(.agent-logo-icon) {
+    .agent-logo-card :global(.agent-logo-icon) {
       width: 2.75rem;
       height: 2.75rem;
     }
@@ -1000,75 +676,21 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
     }
   }
 
-  @media (prefers-reduced-motion: no-preference) {
-    .agent-route {
-      transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .agent-core {
-      transition:
-        transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
-        box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .home-agent-context[data-agent-motion-active]
-      .agent-network[data-has-active='true']
-      .agent-core-icon::after {
-      animation: agent-core-pulse 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-    }
-
-    .agent-logo-button {
-      transition:
-        opacity 300ms cubic-bezier(0.16, 1, 0.3, 1),
-        transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .agent-story-sentence {
-      transition:
-        opacity 380ms cubic-bezier(0.16, 1, 0.3, 1),
-        transform 520ms cubic-bezier(0.16, 1, 0.3, 1),
-        visibility 0s linear 520ms;
-    }
-
-    .agent-story-sentence[data-active='true'] {
-      transition-delay: 80ms;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .agent-route,
-    .agent-core,
-    .agent-logo-button,
-    .agent-story-sentence {
-      transition: none;
-    }
-
-    .agent-network[data-has-active='true'] .agent-core-icon::after {
-      animation: none;
-      opacity: 0.45;
-      transform: scale(1);
-    }
-  }
-
   @media (forced-colors: active) {
     .agent-context-layers,
     .agent-context-layers li,
     .agent-network,
     .agent-core,
     .agent-core-icon,
-    .agent-logo-button,
+    .agent-logo-card,
     .agent-story {
       border-color: CanvasText;
     }
 
     .agent-core,
-    .agent-logo-button,
+    .agent-logo-card,
     .agent-story {
       background: Canvas;
-    }
-
-    .agent-logo-button:focus-visible {
-      outline-color: Highlight;
     }
 
     .agent-route-line,
@@ -1080,7 +702,7 @@ const defaultAgent = agents.find((agent) => agent.id === defaultAgentId) ?? agen
       fill: none;
     }
 
-    .agent-logo-button :global(.agent-logo-image) {
+    .agent-logo-card :global(.agent-logo-image) {
       forced-color-adjust: none;
     }
   }

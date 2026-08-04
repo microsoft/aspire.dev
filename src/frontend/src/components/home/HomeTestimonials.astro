@@ -17,10 +17,7 @@ interface HomeTestimonial {
   link?: string | null;
 }
 
-const testimonials = processAvatars(testimonialsData).map((testimonial) => ({
-  ...testimonial,
-  text: testimonial.text.replace(' — ', '. '),
-})) as unknown as HomeTestimonial[];
+const testimonials = processAvatars(testimonialsData) as unknown as HomeTestimonial[];
 
 const t = Astro.locals.t;
 const locale = getLocaleFromPath(Astro.url.pathname);
@@ -43,7 +40,13 @@ const locale = getLocaleFromPath(Astro.url.pathname);
 
           return (
             <figure
-              class:list={['testimonial', { featured: index === 0 }]}
+              class:list={[
+                'testimonial',
+                {
+                  featured: index === 0,
+                  'testimonial-closing': index === testimonials.length - 1,
+                },
+              ]}
               data-testimonial-name={testimonial.name}
             >
               <span class="quote-mark" aria-hidden="true">
@@ -94,7 +97,7 @@ const locale = getLocaleFromPath(Astro.url.pathname);
 <style>
   .home-testimonials {
     position: relative;
-    padding: clamp(6.5rem, 10vw, 10rem) 1.5rem;
+    padding: clamp(5rem, 6.5vw, 6.5rem) 1.5rem;
     border-top: 1px solid var(--home-border);
     color: var(--home-text);
     background: var(--home-surface);
@@ -109,7 +112,7 @@ const locale = getLocaleFromPath(Astro.url.pathname);
     display: grid;
     grid-template-columns: minmax(12rem, 0.55fr) minmax(0, 1.45fr);
     gap: clamp(2rem, 7vw, 7rem);
-    margin-bottom: clamp(3.5rem, 7vw, 6rem);
+    margin-bottom: clamp(2.5rem, 4vw, 3.5rem);
   }
 
   .section-index {
@@ -130,7 +133,7 @@ const locale = getLocaleFromPath(Astro.url.pathname);
   .testimonial-heading h2 {
     margin: 0;
     color: var(--home-text);
-    font-size: clamp(2.7rem, 5.5vw, 5.2rem);
+    font-size: clamp(2.7rem, 5vw, 4.75rem);
     font-weight: 620;
     line-height: 1.02;
     letter-spacing: -0.055em;
@@ -155,19 +158,22 @@ const locale = getLocaleFromPath(Astro.url.pathname);
 
   .testimonial {
     min-width: 0;
-    min-height: 20rem;
+    min-height: 14.5rem;
     display: grid;
     grid-template-rows: auto 1fr auto;
-    gap: 1.5rem;
+    gap: 1.25rem;
     margin: 0;
-    padding: clamp(1.5rem, 3vw, 2.75rem);
+    padding: clamp(1.5rem, 2vw, 1.9rem);
     border-bottom: 1px solid var(--home-border);
     border-inline-end: 1px solid var(--home-border);
   }
 
   .testimonial.featured {
-    grid-column: 1 / -1;
-    min-height: 22rem;
+    grid-column: span 2;
+  }
+
+  .testimonial.testimonial-closing {
+    grid-column: span 2;
   }
 
   .quote-mark {
@@ -184,7 +190,7 @@ const locale = getLocaleFromPath(Astro.url.pathname);
   blockquote p {
     margin: 0;
     color: var(--home-text);
-    font-size: clamp(1.3rem, 2.1vw, 1.75rem);
+    font-size: clamp(1.25rem, 1.8vw, 1.55rem);
     font-weight: 590;
     line-height: 1.35;
     letter-spacing: -0.025em;
@@ -192,10 +198,8 @@ const locale = getLocaleFromPath(Astro.url.pathname);
   }
 
   .featured blockquote p {
-    max-width: 20ch;
-    font-size: clamp(2.25rem, 4vw, 4rem);
-    line-height: 1.08;
-    letter-spacing: -0.045em;
+    max-width: 42ch;
+    font-size: clamp(1.4rem, 1.9vw, 1.75rem);
   }
 
   figcaption {
@@ -275,13 +279,16 @@ const locale = getLocaleFromPath(Astro.url.pathname);
 
     .testimonial.featured {
       grid-column: 1 / -1;
-      min-height: 22rem;
+    }
+
+    .testimonial.testimonial-closing {
+      grid-column: auto;
     }
   }
 
   @media (max-width: 49.99rem) {
     .home-testimonials {
-      padding: 5.25rem 1rem;
+      padding: 4.5rem 1rem;
     }
 
     .testimonial-heading h2 {
@@ -291,21 +298,71 @@ const locale = getLocaleFromPath(Astro.url.pathname);
     .testimonial-ledger {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+      overflow: visible;
     }
 
     .testimonial,
-    .testimonial.featured {
+    .testimonial.featured,
+    .testimonial.testimonial-closing {
       min-height: 0;
+      grid-column: auto;
+      gap: 1rem;
+      padding: 1.35rem;
       border-inline-end: 1px solid var(--home-border);
       border-bottom: 1px solid var(--home-border);
+    }
+
+    .featured blockquote p {
+      font-size: clamp(1.3rem, 5.5vw, 1.65rem);
+    }
+  }
+
+  @media (min-width: 23rem) and (max-width: 49.99rem) {
+    .testimonial-ledger {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .testimonial.featured {
       grid-column: 1 / -1;
     }
 
-    .featured blockquote p {
-      font-size: clamp(1.85rem, 8.5vw, 2.55rem);
+    .testimonial:not(.featured) {
+      position: relative;
+      grid-template-rows: 1fr auto;
+      gap: 0.9rem;
+      padding: 1.15rem 1rem;
+    }
+
+    .testimonial:not(.featured) .quote-mark {
+      position: absolute;
+      top: 0.8rem;
+      right: 0.85rem;
+      font-size: 2.25rem;
+      opacity: 0.55;
+    }
+
+    .testimonial:not(.featured) blockquote p {
+      font-size: 1.05rem;
+      line-height: 1.38;
+      text-wrap: pretty;
+    }
+
+    .testimonial:not(.featured) figcaption {
+      gap: 0.65rem;
+    }
+
+    .testimonial:not(.featured) figcaption :global(img) {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+
+    .testimonial:not(.featured) figcaption strong {
+      font-size: 0.8rem;
+    }
+
+    .testimonial:not(.featured) figcaption small {
+      font-size: 0.68rem;
+      line-height: 1.35;
     }
   }
 

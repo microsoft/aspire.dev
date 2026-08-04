@@ -830,6 +830,12 @@ describe('custom Astro component render coverage', () => {
     });
   }
 
+  it('AppHostBuilder omits invalid npm package installation APIs from every code variant', async () => {
+    const html = normalizeHtml(await renderComponent(AppHostBuilder));
+
+    expect(html).not.toMatch(/withNpmPackageInstallation/i);
+  });
+
   it('ThemeImage contains non-square artwork via the optimizer, not rendered markup', async () => {
     // The no-crop behavior for non-square theme images must come from the
     // `getImage({ fit: 'contain' })` optimizer options (baked into the

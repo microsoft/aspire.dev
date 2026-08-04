@@ -70,6 +70,7 @@ const environments = [
     action: { kind: 'command', label: 'aspire run' },
     status: '4 resources healthy',
     accent: '#75dca8',
+    lightAccent: '#137a4b',
     resources: [
       { slot: 'frontend', label: 'frontend', details: ['local process'], icons: frontendIcons },
       { slot: 'api', label: 'api', details: ['local process'], icons: apiIcons },
@@ -92,6 +93,7 @@ const environments = [
     action: { kind: 'link', label: 'Testing docs', href: '/testing/overview/' },
     status: 'isolated test resources',
     accent: '#7db9ff',
+    lightAccent: '#2667a8',
     resources: [
       { slot: 'frontend', label: 'frontend', details: ['dev tunnel'], icons: [devTunnelsIcon] },
       { slot: 'api', label: 'api', details: ['staging environment'], icons: apiIcons },
@@ -119,6 +121,7 @@ const environments = [
     action: { kind: 'command', label: 'aspire deploy' },
     status: 'release ready',
     accent: '#c3adff',
+    lightAccent: '#6741c2',
     resources: [
       {
         slot: 'frontend',
@@ -184,6 +187,7 @@ const localizedEnvironments = environments.map((environment) => {
   return {
     id: environment.id,
     accent: environment.accent,
+    lightAccent: environment.lightAccent,
     action:
       environment.action.kind === 'command'
         ? environment.action
@@ -233,7 +237,7 @@ const localizedEnvironments = environments.map((environment) => {
               data-environment-trigger={environment.id}
               aria-controls={`home-environment-${environment.id}`}
               aria-pressed={index === 0 ? 'true' : 'false'}
-              style={`--environment-accent: ${environment.accent}`}
+              style={`--environment-accent-dark: ${environment.accent}; --environment-accent-light: ${environment.lightAccent}`}
             >
               <span>{String(index + 1).padStart(2, '0')}</span>
               {environment.label}
@@ -256,7 +260,7 @@ const localizedEnvironments = environments.map((environment) => {
                 id={`home-environment-${environment.id}`}
                 class="environment-panel"
                 data-environment-panel={environment.id}
-                style={`--environment-accent: ${environment.accent}`}
+                style={`--environment-accent-dark: ${environment.accent}; --environment-accent-light: ${environment.lightAccent}`}
                 hidden={index !== 0}
               >
                 <div class="environment-copy">
@@ -585,22 +589,33 @@ const localizedEnvironments = environments.map((environment) => {
 
 <style>
   .home-environment {
-    --environment-active-accent: #75dca8;
+    --environment-active-accent: #137a4b;
     --environment-scroll-factor: 0;
     position: relative;
     overflow: hidden;
-    padding: clamp(6.5rem, 10vw, 10rem) 1.5rem;
+    padding: clamp(5rem, 6.5vw, 6.5rem) 1.5rem;
     border-top: 1px solid var(--home-border);
-    color: #f7f5ff;
-    background: #171522;
+    color: var(--home-text);
+    background:
+      radial-gradient(
+        circle at 76% 40%,
+        color-mix(in srgb, var(--home-purple) 10%, transparent),
+        transparent 34rem
+      ),
+      var(--home-lavender, #eeebf8);
   }
 
   .home-environment[data-environment-state='test'] {
-    --environment-active-accent: #7db9ff;
+    --environment-active-accent: #2667a8;
   }
 
   .home-environment[data-environment-state='production'] {
-    --environment-active-accent: #c3adff;
+    --environment-active-accent: #6741c2;
+  }
+
+  .environment-controls button,
+  .environment-panel {
+    --environment-accent: var(--environment-accent-light);
   }
 
   .home-shell {
@@ -615,8 +630,8 @@ const localizedEnvironments = environments.map((environment) => {
     inset: 0;
     opacity: 0.2;
     background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.13) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.13) 1px, transparent 1px);
+      linear-gradient(to right, var(--home-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--home-border) 1px, transparent 1px);
     background-size: 4rem 4rem;
     mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
   }
@@ -627,7 +642,8 @@ const localizedEnvironments = environments.map((environment) => {
     display: grid;
     grid-template-columns: minmax(12rem, 0.55fr) minmax(0, 1.45fr);
     gap: clamp(2rem, 7vw, 7rem);
-    margin-bottom: clamp(3.5rem, 7vw, 6rem);
+    align-items: start;
+    margin-bottom: clamp(2.5rem, 4vw, 3.5rem);
   }
 
   .section-index {
@@ -635,20 +651,20 @@ const localizedEnvironments = environments.map((environment) => {
     align-items: flex-start;
     gap: 0.75rem;
     margin: 0;
-    color: #bdb7ce;
+    color: var(--home-muted);
     font: 650 0.76rem/1.2 var(--__sl-font-mono);
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
 
   .section-index span {
-    color: #c3adff;
+    color: var(--home-purple);
   }
 
   .environment-heading h2 {
     margin: 0;
-    color: #f7f5ff;
-    font-size: clamp(2.7rem, 5.5vw, 5.2rem);
+    color: var(--home-text);
+    font-size: clamp(2.7rem, 5vw, 4.75rem);
     font-weight: 620;
     line-height: 1.02;
     letter-spacing: -0.055em;
@@ -658,7 +674,7 @@ const localizedEnvironments = environments.map((environment) => {
   .environment-heading > div > p {
     max-width: 49rem;
     margin: 1.4rem 0 0;
-    color: #c8c3d6;
+    color: var(--home-muted);
     font-size: clamp(1.02rem, 1.45vw, 1.22rem);
     line-height: 1.7;
   }
@@ -670,7 +686,7 @@ const localizedEnvironments = environments.map((environment) => {
     overflow: hidden;
     border: 1px solid rgba(229, 226, 244, 0.18);
     border-radius: 0.75rem;
-    background: rgba(255, 255, 255, 0.035);
+    background: #201e31;
   }
 
   .environment-controls button {
@@ -748,6 +764,24 @@ const localizedEnvironments = environments.map((environment) => {
     box-shadow:
       0 3rem 7rem rgba(0, 0, 0, 0.38),
       0 0 0 0.4rem rgba(255, 255, 255, 0.035);
+  }
+
+  :global([data-theme='dark']) .home-environment {
+    --environment-active-accent: #75dca8;
+    background: #171522;
+  }
+
+  :global([data-theme='dark']) .home-environment[data-environment-state='test'] {
+    --environment-active-accent: #7db9ff;
+  }
+
+  :global([data-theme='dark']) .home-environment[data-environment-state='production'] {
+    --environment-active-accent: #c3adff;
+  }
+
+  :global([data-theme='dark']) .environment-controls button,
+  :global([data-theme='dark']) .environment-panel {
+    --environment-accent: var(--environment-accent-dark);
   }
 
   .environment-stage-bar {
@@ -1125,6 +1159,90 @@ const localizedEnvironments = environments.map((environment) => {
   .topology-detail-cycle small:first-child {
     opacity: 1;
     transform: none;
+  }
+
+  :global([data-theme='light']) .environment-controls {
+    border-color: var(--home-border);
+    background: color-mix(in srgb, var(--home-surface) 94%, transparent);
+    box-shadow: 0 1rem 2.5rem color-mix(in srgb, var(--home-purple) 8%, transparent);
+  }
+
+  :global([data-theme='light']) .environment-controls button {
+    border-inline-end-color: var(--home-border);
+    color: var(--home-muted);
+  }
+
+  :global([data-theme='light']) .environment-controls button span {
+    color: color-mix(in srgb, var(--environment-accent) 78%, var(--home-muted));
+  }
+
+  :global([data-theme='light']) .environment-controls button:hover,
+  :global([data-theme='light']) .environment-controls button[aria-pressed='true'] {
+    color: var(--home-text);
+  }
+
+  :global([data-theme='light']) .environment-stage {
+    border-color: var(--home-border);
+    background: var(--home-surface);
+    box-shadow:
+      0 2.25rem 5rem color-mix(in srgb, var(--home-purple) 13%, transparent),
+      0 0 0 0.35rem color-mix(in srgb, var(--home-purple) 4%, transparent);
+  }
+
+  :global([data-theme='light']) .environment-stage-bar {
+    border-bottom-color: var(--home-border);
+    color: var(--home-muted);
+    background: var(--home-surface-strong);
+  }
+
+  :global([data-theme='light']) .environment-stage-bar strong {
+    color: var(--home-text);
+  }
+
+  :global([data-theme='light']) .environment-motion-control {
+    border-color: var(--home-border);
+    color: var(--home-text);
+    background: var(--home-surface-strong);
+  }
+
+  :global([data-theme='light']) .environment-copy h3,
+  :global([data-theme='light']) .topology-core,
+  :global([data-theme='light']) .topology-node-card,
+  :global([data-theme='light']) .topology-node-copy > strong,
+  :global([data-theme='light']) .topology-detail-cycle small {
+    color: var(--home-text);
+  }
+
+  :global([data-theme='light']) .environment-copy > p:not(:first-child),
+  :global([data-theme='light']) .environment-command > span {
+    color: var(--home-muted);
+  }
+
+  :global([data-theme='light']) .environment-command code,
+  :global([data-theme='light']) .environment-docs-link {
+    border-color: var(--home-border);
+    background: var(--home-surface-strong);
+  }
+
+  :global([data-theme='light']) .environment-command code {
+    color: var(--home-text);
+  }
+
+  :global([data-theme='light']) .topology-core {
+    background: color-mix(in srgb, var(--environment-accent) 7%, var(--home-surface));
+    box-shadow:
+      0 0 0 1rem color-mix(in srgb, var(--environment-accent) 7%, transparent),
+      0 1.5rem 3rem color-mix(in srgb, var(--home-purple) 12%, transparent);
+  }
+
+  :global([data-theme='light']) .topology-node-card {
+    border-color: color-mix(in srgb, var(--environment-accent) 34%, var(--home-border));
+    background: var(--home-surface);
+    box-shadow: 0 1rem 2rem color-mix(in srgb, var(--home-purple) 10%, transparent);
+  }
+
+  :global([data-theme='light']) .topology-node-icon-cycle :global(.topology-node-icon-aws) {
+    filter: none;
   }
 
   .node-frontend {
@@ -1553,7 +1671,7 @@ const localizedEnvironments = environments.map((environment) => {
 
   @media (max-width: 49.99rem) {
     .home-environment {
-      padding: 5.25rem 1rem;
+      padding: 4.5rem 1rem;
     }
 
     .environment-heading h2 {

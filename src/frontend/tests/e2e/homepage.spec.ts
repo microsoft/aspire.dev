@@ -107,6 +107,147 @@ test('renders a complete semantic landing page without horizontal overflow', asy
     .toBe(true);
 });
 
+test('uses concise section copy and a compact editorial rhythm', async ({ page }) => {
+  const expectedHeadings = [
+    'Bring every service into one model.',
+    'Give AI the full application context.',
+    'From repository to running system.',
+    'One model. Every environment.',
+    'See the whole application.',
+    'Use the services you already trust.',
+    'Keep teams moving forward.',
+    'Start building with less friction.',
+  ];
+
+  await expect(page.locator('.aspire-home h2')).toHaveText(expectedHeadings);
+  await expect(
+    page.getByRole('heading', { level: 3, name: 'Deploy with the same application model' })
+  ).toBeVisible();
+  await expect(
+    page.getByText('Hit F5 to begin. Skip the setup boss fight and ship code faster.')
+  ).toBeVisible();
+
+  const layout = await page.evaluate(() => {
+    const sectionIndex = document.querySelector<HTMLElement>('.home-model .section-index');
+    const sectionHeading = document.querySelector<HTMLElement>('.home-model h2');
+    const headingLines = Array.from(document.querySelectorAll<HTMLElement>('.aspire-home h2')).map(
+      (heading) =>
+        Math.round(
+          heading.getBoundingClientRect().height /
+            Number.parseFloat(getComputedStyle(heading).lineHeight)
+        )
+    );
+    const sectionHeights = [
+      '.home-agent-context',
+      '.home-model',
+      '.home-environment',
+      '.home-dashboard',
+      '.home-testimonials',
+    ].map((selector) =>
+      Math.round(document.querySelector<HTMLElement>(selector)?.getBoundingClientRect().height ?? 0)
+    );
+
+    return {
+      width: window.innerWidth,
+      pageHeight: document.documentElement.scrollHeight,
+      headingLines,
+      modelHeadingOffset:
+        sectionIndex && sectionHeading
+          ? Math.abs(
+              sectionIndex.getBoundingClientRect().top - sectionHeading.getBoundingClientRect().top
+            )
+          : Number.POSITIVE_INFINITY,
+      sectionHeights,
+    };
+  });
+
+  if (layout.width >= 1200) {
+    expect(layout.modelHeadingOffset).toBeLessThanOrEqual(2);
+    expect(layout.pageHeight).toBeLessThanOrEqual(11_250);
+    expect(Math.max(...layout.headingLines)).toBeLessThanOrEqual(2);
+    expect(Math.max(...layout.sectionHeights)).toBeLessThanOrEqual(1575);
+  } else if (layout.width <= 500) {
+    expect(layout.pageHeight).toBeLessThanOrEqual(12_400);
+  }
+});
+
+test('uses lavender canvases, theme-matched product surfaces, and an inverted banner', async ({
+  page,
+}) => {
+  await page.evaluate(() => localStorage.setItem('starlight-theme', 'light'));
+  await page.reload();
+  await dismissCookieConsentIfVisible(page);
+
+  const lightPalette = await page.evaluate(() => {
+    const read = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`Missing homepage surface: ${selector}`);
+      const style = getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        backgroundImage: style.backgroundImage,
+        color: style.color,
+      };
+    };
+
+    return {
+      environment: read('.home-environment'),
+      dashboard: read('.home-dashboard'),
+      closing: read('.home-closing'),
+      controls: read('.environment-controls'),
+      topology: read('.environment-stage'),
+      dashboardStage: read('.dashboard-stage'),
+      dashboardMediaStage: read('[data-dashboard-carousel] .stage'),
+      dashboardPlayback: read('[data-playback-toggle]'),
+      banner: read('.sl-banner'),
+    };
+  });
+
+  expect(lightPalette.environment.backgroundColor).toBe('rgb(240, 237, 249)');
+  expect(lightPalette.dashboard.backgroundColor).toBe('rgb(240, 237, 249)');
+  expect(lightPalette.closing.backgroundImage).toContain('rgb(240, 237, 249)');
+  expect(lightPalette.controls.backgroundColor).not.toBe('rgb(32, 30, 49)');
+  expect(
+    new Set([lightPalette.topology.backgroundColor, lightPalette.dashboardStage.backgroundColor])
+  ).toEqual(new Set(['rgb(255, 255, 255)']));
+  expect(lightPalette.dashboardMediaStage.backgroundColor).toBe('rgb(240, 238, 248)');
+  expect(lightPalette.dashboardPlayback.backgroundColor).toBe('rgb(255, 255, 255)');
+  expect(lightPalette.dashboardPlayback.color).toBe('rgb(31, 30, 51)');
+  expect(lightPalette.banner.backgroundColor).toBe('rgb(116, 85, 221)');
+  expect(lightPalette.banner.backgroundImage).toBe('none');
+  expect(lightPalette.banner.color).toBe('rgb(255, 255, 255)');
+
+  await page.evaluate(() => localStorage.setItem('starlight-theme', 'dark'));
+  await page.reload();
+  await dismissCookieConsentIfVisible(page);
+
+  const darkSurfaces = await page.evaluate(() => {
+    const background = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`Missing homepage surface: ${selector}`);
+      return getComputedStyle(element).backgroundColor;
+    };
+
+    return {
+      controls: background('.environment-controls'),
+      topology: background('.environment-stage'),
+      dashboardStage: background('.dashboard-stage'),
+      dashboardMediaStage: background('[data-dashboard-carousel] .stage'),
+      dashboardPlayback: background('[data-playback-toggle]'),
+    };
+  });
+
+  expect(darkSurfaces).toEqual({
+    controls: 'rgb(32, 30, 49)',
+    topology: 'rgb(32, 30, 49)',
+    dashboardStage: 'rgb(32, 30, 49)',
+    dashboardMediaStage: 'rgb(21, 20, 35)',
+    dashboardPlayback: 'rgba(229, 226, 244, 0.08)',
+  });
+  await expect(page.locator('.sl-banner')).toHaveCSS('background-color', 'rgb(220, 213, 246)');
+  await expect(page.locator('.sl-banner')).toHaveCSS('color', 'rgb(32, 30, 49)');
+});
+
 test('serves every internal homepage link successfully', async ({ page, request }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium');
 
@@ -241,8 +382,6 @@ test('presents the application model as a live polyglot topology', async ({ page
 test('starts finite motion after complete presentation and rail motion on entry', async ({
   page,
 }) => {
-  const agent = page.locator('[data-home-agent-context]');
-  const agentStage = agent.locator('.agent-network');
   const story = page.locator('[data-model-story]');
   const storyStage = story.locator('.model-window');
   const environment = page.locator('[data-home-environments]');
@@ -286,7 +425,6 @@ test('starts finite motion after complete presentation and rail motion on entry'
       return Math.min(bounds.height, window.innerHeight - viewportTop) - visibleHeight;
     });
 
-  await expect(agent).not.toHaveAttribute('data-agent-motion-active', '');
   await expect(story).toHaveAttribute('data-story-playing', 'false');
   await expect(story).not.toHaveAttribute('data-story-viewport-active', '');
   await expect(environment).not.toHaveAttribute('data-environment-motion-active', '');
@@ -302,10 +440,6 @@ test('starts finite motion after complete presentation and rail motion on entry'
     'aria-hidden',
     'true'
   );
-
-  await maximizeVisibility(agentStage);
-  await expect(agent).toHaveAttribute('data-agent-motion-active', '');
-  expect(await visibilityShortfall(agentStage)).toBeLessThanOrEqual(3);
 
   await storyStage.evaluate((element) => {
     const documentTop = element.getBoundingClientRect().top + window.scrollY;
@@ -340,32 +474,6 @@ test('starts finite motion after complete presentation and rail motion on entry'
       .locator('.rail-track')
       .evaluateAll((tracks) => tracks.map((track) => getComputedStyle(track).animationPlayState))
   ).toEqual(['running', 'running', 'running']);
-});
-
-test('fails safe when a finite motion stage settles nearly fully in view', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop-chromium');
-
-  const agent = page.locator('[data-home-agent-context]');
-  const stage = agent.locator('.agent-network');
-
-  await stage.evaluate((element) => {
-    const header = document.querySelector<HTMLElement>('header.header');
-    const headerBounds = header?.getBoundingClientRect();
-    const viewportTop =
-      headerBounds && headerBounds.top <= 0 && headerBounds.bottom > 0
-        ? Math.min(headerBounds.bottom, window.innerHeight)
-        : 0;
-    const bounds = element.getBoundingClientRect();
-    const documentTop = bounds.top + window.scrollY;
-    const visibleHeight = Math.min(bounds.height, window.innerHeight - viewportTop) * 0.92;
-    window.scrollTo(0, Math.max(0, documentTop - window.innerHeight + visibleHeight));
-  });
-
-  await page.waitForTimeout(350);
-  await expect(agent).not.toHaveAttribute('data-agent-motion-active', '');
-  await expect(agent).toHaveAttribute('data-agent-motion-active', '', { timeout: 2500 });
 });
 
 test('pauses and resumes the runtime story without restarting it', async ({ page }) => {
@@ -720,6 +828,33 @@ test('matches foreground Aspire CLI output and replaces startup statuses in plac
     .toBe('none');
 });
 
+test('keeps the compact runtime terminal outline uniformly thin', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium');
+
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 568 });
+    const terminal = page.locator('.model-window');
+    await terminal.scrollIntoViewIfNeeded();
+
+    const outline = await terminal.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const focusBorder = element.querySelector<HTMLElement>('[data-model-focus-border]');
+      return {
+        widths: [
+          style.borderTopWidth,
+          style.borderRightWidth,
+          style.borderBottomWidth,
+          style.borderLeftWidth,
+        ],
+        focusBorderDisplay: focusBorder ? getComputedStyle(focusBorder).display : null,
+      };
+    });
+
+    expect(outline.widths).toEqual(['1px', '1px', '1px', '1px']);
+    expect(outline.focusBorderDisplay).toBe('none');
+  }
+});
+
 test('reveals editorial link underlines from left to right', async ({ page }) => {
   const links = page.locator('[data-home-link]');
   await expect(links).not.toHaveCount(0);
@@ -748,7 +883,7 @@ test('places executable agent context after the polyglot section', async ({ page
   await expect(
     agentSection.getByRole('heading', {
       level: 2,
-      name: 'Give AI the context to reason across your whole system.',
+      name: 'Give AI the full application context.',
     })
   ).toBeVisible();
 
@@ -789,66 +924,57 @@ test('places executable agent context after the polyglot section', async ({ page
     .toBe(true);
 });
 
-test('activates a two-way Aspire loop for each AI tool', async ({ page }) => {
+test('presents every AI tool with the same persistent Aspire connection', async ({ page }) => {
   const section = page.locator('[data-home-agent-context]');
   const network = section.locator('[data-agent-network]');
   const routes = network.locator('[data-agent-route]');
-  const githubCopilot = section.locator('[data-agent-logo="github-copilot"]');
-  const claude = section.locator('[data-agent-logo="claude"]');
-  const claudeRoute = network.locator('[data-agent-route="claude"]');
-  const activeSentence = section.locator('[data-agent-active-sentence]');
+  const logos = section.locator('[data-agent-logo]');
 
   await section.scrollIntoViewIfNeeded();
   await expect(routes).toHaveCount(3);
   await expect(routes.locator('path[marker-start][marker-end]')).toHaveCount(3);
-  await expect(network).toHaveAttribute('data-has-active', 'true');
-  await expect(network).toHaveAttribute('data-active-agent', 'github-copilot');
-  await expect(githubCopilot).toHaveAttribute('aria-pressed', 'true');
-  await expect(activeSentence).toContainText('Aspire provides GitHub Copilot');
+  await expect(logos).toHaveCount(3);
+  await expect(section.locator('[data-agent-logo] button')).toHaveCount(0);
+  await expect(network).not.toHaveAttribute('data-has-active', /.+/);
+  await expect(network).not.toHaveAttribute('data-active-agent', /.+/);
+  await expect(section.getByText('One connection. Full application context.')).toBeVisible();
 
-  await claude.hover();
-  await expect(network).toHaveAttribute('data-active-agent', 'claude');
-  await expect(claudeRoute).toHaveAttribute('data-active', 'true');
-  await expect(activeSentence).toContainText('Aspire provides Claude');
+  const presentation = await section.evaluate((element) => ({
+    width: window.innerWidth,
+    logoOrder: Array.from(element.querySelectorAll<HTMLElement>('[data-agent-logo]')).map(
+      (logo) => logo.dataset.agentLogo
+    ),
+    routeOpacity: Array.from(element.querySelectorAll<SVGElement>('[data-agent-route]')).map(
+      (route) => getComputedStyle(route).opacity
+    ),
+    routeStrokeWidth: Array.from(
+      element.querySelectorAll<SVGPathElement>('[data-agent-route] .agent-route-line')
+    ).map((route) => getComputedStyle(route).strokeWidth),
+    compactCardBalance: Array.from(element.querySelectorAll<HTMLElement>('.agent-logo-card')).map(
+      (card) => {
+        const logo = card.querySelector<HTMLElement>('.agent-logo-icon, .agent-logo-image');
+        const name = card.querySelector<HTMLElement>('.agent-logo-name');
+        if (!logo || !name) throw new Error('Agent card is missing its logo or name');
 
-  await page.mouse.move(0, 0);
-  await expect(network).toHaveAttribute('data-active-agent', 'github-copilot');
+        const cardRect = card.getBoundingClientRect();
+        return Math.abs(
+          logo.getBoundingClientRect().top -
+            cardRect.top -
+            (cardRect.bottom - name.getBoundingClientRect().bottom)
+        );
+      }
+    ),
+  }));
 
-  await claude.focus();
-  await expect(network).toHaveAttribute('data-active-agent', 'claude');
-  await expect(claude).toHaveAttribute('aria-pressed', 'false');
-
-  await claude.click();
-  await expect(claude).toHaveAttribute('aria-pressed', 'true');
-});
-
-test('keeps AI provider copy stable while the active sentence crossfades', async ({ page }) => {
-  const section = page.locator('[data-home-agent-context]');
-  const story = section.locator('.agent-story');
-  const network = section.locator('[data-agent-network]');
-  const heights: number[] = [];
-
-  await section.scrollIntoViewIfNeeded();
-  for (const id of ['github-copilot', 'claude', 'openai']) {
-    await section.locator(`[data-agent-logo="${id}"]`).click();
-    await expect(network).toHaveAttribute('data-active-agent', id);
-    await expect(section.locator(`[data-agent-sentence-panel="${id}"]`)).toHaveAttribute(
-      'data-active',
-      'true'
-    );
-    await expect(section.locator(`[data-agent-sentence-panel="${id}"]`)).toHaveCSS(
-      'visibility',
-      'visible'
-    );
-    heights.push(await story.evaluate((element) => element.getBoundingClientRect().height));
+  expect(presentation.logoOrder).toEqual(['github-copilot', 'claude', 'openai']);
+  expect(new Set(presentation.routeOpacity)).toEqual(new Set(['1']));
+  expect(new Set(presentation.routeStrokeWidth)).toEqual(new Set(['2.25px']));
+  if (presentation.width < 800) {
+    expect(Math.max(...presentation.compactCardBalance)).toBeLessThanOrEqual(1);
   }
-
-  expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
 });
 
-test('places passive AI context tips beside the model, environment, and dashboard', async ({
-  page,
-}) => {
+test('opens AI context disclosures by hover, focus, click, and tap', async ({ page }) => {
   const cases = [
     {
       selector: '.home-model [data-home-agent-badge]',
@@ -870,24 +996,36 @@ test('places passive AI context tips beside the model, environment, and dashboar
   await expect(page.locator('[data-home-agent-badge]')).toHaveCount(3);
   for (const context of cases) {
     const badge = page.locator(context.selector);
-    const popover = badge.getByRole('tooltip');
+    const trigger = badge.getByRole('button', { name: context.label });
+    const popover = badge.getByRole('region', { name: context.label });
 
     await badge.scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
     await expect(badge).toContainText(context.label);
-    await expect(badge.locator('button, details, summary')).toHaveCount(0);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger.locator('svg')).toHaveCount(1);
     await expect(popover).toBeHidden();
 
     await badge.hover();
     await expect(popover).toBeVisible();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
     await expect(popover).toContainText('Context from Aspire');
     await expect(popover).toContainText(context.description);
 
     await page.mouse.move(0, 0);
     await expect(popover).toBeHidden();
-    await badge.focus();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await trigger.focus();
     await expect(popover).toBeVisible();
-    await page.keyboard.press('Tab');
+    await trigger.click();
+    await page.mouse.move(0, 0);
+    await expect(popover).toBeVisible();
+    await trigger.click();
     await expect(popover).toBeHidden();
+    await trigger.click();
+    await page.keyboard.press('Escape');
+    await expect(popover).toBeHidden();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   }
 });
 
@@ -1347,7 +1485,9 @@ test('passes WCAG AA checks in every environment state', async ({ page }) => {
   }
 });
 
-test('reflows testimonials without a horizontal mobile scroller', async ({ page }) => {
+test('reflows testimonials into a compact mobile ledger without horizontal scrolling', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await dismissCookieConsentIfVisible(page);
@@ -1363,19 +1503,32 @@ test('reflows testimonials without a horizontal mobile scroller', async ({ page 
       columns: columns.size,
       display: getComputedStyle(element).display,
       overflowX: getComputedStyle(element).overflowX,
+      scrollSnapType: getComputedStyle(element).scrollSnapType,
+      cardSnapAlign: cards.map((card) => getComputedStyle(card).scrollSnapAlign),
       scrolls: element.scrollWidth > element.clientWidth,
       tabindex: element.getAttribute('tabindex'),
+      featuredSpansLedger:
+        Math.abs(cards[0].getBoundingClientRect().width - element.getBoundingClientRect().width) <=
+        1,
     };
   });
 
-  expect(layout).toEqual({
+  expect(layout).toMatchObject({
     cards: 7,
-    columns: 1,
     display: 'grid',
     overflowX: 'visible',
     scrolls: false,
     tabindex: null,
+    featuredSpansLedger: true,
   });
+  expect(layout.columns).toBe(2);
+  expect(layout.scrollSnapType).toBe('none');
+  expect(layout.cardSnapAlign.every((value) => value === 'none')).toBe(true);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth
+    )
+  ).toBe(false);
 });
 
 test('provides an explicit integrations motion control and non-tabbable duplicate content', async ({
