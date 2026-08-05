@@ -38,11 +38,11 @@ aspire add azure-redis
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.Azure.Redis@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.Azure.Redis" Version="*" />
 ```
 
@@ -76,7 +76,7 @@ Once you've installed the hosting integration in your AppHost project, you can a
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddAzureManagedRedis("cache");
@@ -89,7 +89,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -131,7 +131,7 @@ To run the resource as a container, chain a call to `RunAsContainer` (or `runAsC
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddAzureManagedRedis("cache")
@@ -145,7 +145,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -174,7 +174,7 @@ If you already have an Azure Cache for Redis instance you want to use, call `AsE
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var existingRedisName = builder.AddParameter("existingRedisName");
@@ -191,7 +191,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -219,7 +219,7 @@ By default, the Azure Managed Redis resource uses Microsoft Entra ID authenticat
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddAzureManagedRedis("cache")
@@ -233,7 +233,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -260,30 +260,34 @@ If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manage
 @description('The location for the resource(s) to be deployed.')
 param location string = resourceGroup().location
 
-resource cache 'Microsoft.Cache/redis@2024-11-01' = {
-  name: take('cache-${uniqueString(resourceGroup().id)}', 63)
+resource cache 'Microsoft.Cache/redisEnterprise@2025-07-01' = {
+  name: take('cache-${uniqueString(resourceGroup().id)}', 60)
   location: location
-  properties: {
-    sku: {
-      name: 'Basic'
-      family: 'C'
-      capacity: 1
-    }
-    enableNonSslPort: false
-    disableAccessKeyAuthentication: true
-    minimumTlsVersion: '1.2'
-    redisConfiguration: {
-      'aad-enabled': 'true'
-    }
+  sku: {
+    name: 'Balanced_B0'
   }
-  tags: {
-    'aspire-resource-name': 'cache'
+  properties: {
+    minimumTlsVersion: '1.2'
+    publicNetworkAccess: 'Enabled'
   }
 }
 
-output connectionString string = '${cache.properties.hostName},ssl=true'
+resource cache_default 'Microsoft.Cache/redisEnterprise/databases@2025-07-01' = {
+  name: 'default'
+  properties: {
+    accessKeysAuthentication: 'Disabled'
+    port: 10000
+  }
+  parent: cache
+}
+
+output connectionString string = '${cache.properties.hostName}:10000,ssl=true'
 
 output name string = cache.name
+
+output id string = cache.id
+
+output hostName string = cache.properties.hostName
 ```
 
 In addition, role assignments are created for the Azure resource in a separate module:
@@ -296,20 +300,24 @@ param cache_outputs_name string
 
 param principalId string
 
-param principalName string
-
-resource cache 'Microsoft.Cache/redis@2024-11-01' existing = {
+resource cache 'Microsoft.Cache/redisEnterprise@2025-07-01' existing = {
   name: cache_outputs_name
 }
 
-resource cache_contributor 'Microsoft.Cache/redis/accessPolicyAssignments@2024-11-01' = {
-  name: guid(cache.id, principalId, 'Data Contributor')
-  properties: {
-    accessPolicyName: 'Data Contributor'
-    objectId: principalId
-    objectIdAlias: principalName
-  }
+resource cache_default 'Microsoft.Cache/redisEnterprise/databases@2025-07-01' existing = {
+  name: 'default'
   parent: cache
+}
+
+resource cache_default_contributor 'Microsoft.Cache/redisEnterprise/databases/accessPolicyAssignments@2025-07-01' = {
+  name: guid(cache_default.id, principalId, 'default')
+  properties: {
+    accessPolicyName: 'default'
+    user: {
+      objectId: principalId
+    }
+  }
+  parent: cache_default
 }
 ```
 
@@ -321,20 +329,19 @@ All Aspire Azure resources are subclasses of the `AzureProvisioningResource` typ
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureManagedRedis("cache")
     .ConfigureInfrastructure(infra =>
     {
         var redisCache = infra.GetProvisionableResources()
-                              .OfType<RedisCache>()
+                              .OfType<RedisEnterpriseCluster>()
                               .Single();
 
-        redisCache.Sku = new RedisSku
+        redisCache.Sku = new RedisEnterpriseSku
         {
-            Name = RedisSkuName.Standard,
-            Family = RedisSkuFamily.C,
+            Name = RedisEnterpriseSkuName.BalancedB1,
             Capacity = 1,
         };
         redisCache.Tags.Add("ExampleKey", "Example value");
@@ -345,7 +352,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -354,7 +361,7 @@ await builder.addAzureManagedRedis("cache")
     .configureInfrastructure(async (infra) => {
         // Use the AzureResourceInfrastructure API to customize Bicep
         // parameters or resources directly.
-        await infra.addParameter("skuName", "Standard");
+        await infra.addParameter("skuName", "BalancedB1");
     });
 
 // After adding all resources, run the app...
@@ -363,7 +370,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-The preceding C# code retrieves the `RedisCache` resource from the infrastructure and updates the SKU to `Standard` tier with capacity 1, then adds a tag. The TypeScript AppHost exposes the same `configureInfrastructure` API for adding Bicep parameters and customizing resource configuration.
+The preceding C# code retrieves the `RedisEnterpriseCluster` resource from the infrastructure and updates the SKU to `BalancedB1` tier with capacity 1, then adds a tag. The TypeScript AppHost exposes the same `configureInfrastructure` API for adding Bicep parameters and customizing resource configuration.
 
 For more configuration options, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
 

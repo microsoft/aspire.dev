@@ -2,11 +2,12 @@
 import { Badge, Icon } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import { Code } from 'astro-expressive-code/components';
-import { marked } from 'marked';
+import type { Paragraph, PhrasingContent, Root, RootContent } from 'mdast';
+import { markdownToMdast } from 'satteri';
 
 import SampleReadmeBlocks from '@components/SampleReadmeBlocks.astro';
 import ThemeAwareImage from '@components/ThemeImage.astro';
-import { getStandaloneImageTokens, getThemeImageTokenPair } from '@utils/sample-readme-images';
+import { getStandaloneImageNodes, getThemeImageNodePair } from '@utils/sample-readme-images';
 import { tagLabel } from '@utils/sample-tags';
 import { stripReadmeTitle } from '@utils/sample-readme-headings';
 import {
@@ -54,18 +55,18 @@ function resolveReadmeImage(href: string): ImageMetadata | null {
   return allImages[importPath]?.default ?? null;
 }
 
-function getStandaloneImage(token: marked.Token): SampleImage | null {
-  const imageTokens = getStandaloneImageTokens(token);
-  if (!imageTokens) {
+function getStandaloneImage(node: RootContent): SampleImage | null {
+  const imageNodes = getStandaloneImageNodes(node);
+  if (!imageNodes) {
     return null;
   }
 
-  const themePair = getThemeImageTokenPair(imageTokens);
+  const themePair = getThemeImageNodePair(imageNodes);
   if (themePair) {
-    const light = resolveReadmeImage(themePair.light.href);
-    const dark = resolveReadmeImage(themePair.dark.href);
+    const light = resolveReadmeImage(themePair.light.url);
+    const dark = resolveReadmeImage(themePair.dark.url);
     const alt = normalizeThemeImageAlt(
-      themePair.light.text || themePair.dark.text || `Screenshot of the ${sample.title} sample`
+      themePair.light.alt || themePair.dark.alt || `Screenshot of the ${sample.title} sample`
     );
 
     if (!light || !dark) {
@@ -87,12 +88,12 @@ function getStandaloneImage(token: marked.Token): SampleImage | null {
     };
   }
 
-  if (imageTokens.length !== 1) {
+  if (imageNodes.length !== 1) {
     return null;
   }
 
-  const imageToken = imageTokens[0];
-  const image = resolveReadmeImage(imageToken.href);
+  const imageNode = imageNodes[0];
+  const image = resolveReadmeImage(imageNode.url);
   if (!image) {
     return null;
   }
@@ -100,26 +101,26 @@ function getStandaloneImage(token: marked.Token): SampleImage | null {
   return {
     kind: 'single',
     src: image,
-    alt: imageToken.text || `Screenshot of the ${sample.title} sample`,
+    alt: imageNode.alt || `Screenshot of the ${sample.title} sample`,
   };
 }
 
-function collectStandaloneImages(tokens: marked.Token[]): SampleImage[] {
+function collectStandaloneImages(nodes: RootContent[]): SampleImage[] {
   const images: SampleImage[] = [];
 
-  for (const token of tokens) {
-    const image = getStandaloneImage(token);
+  for (const node of nodes) {
+    const image = getStandaloneImage(node);
     if (image) {
       images.push(image);
       continue;
     }
 
-    if (token.type === 'list') {
-      for (const item of (token as marked.Tokens.List).items ?? []) {
-        images.push(...collectStandaloneImages(item.tokens ?? []));
+    if (node.type === 'list') {
+      for (const item of node.children) {
+        images.push(...collectStandaloneImages(item.children));
       }
-    } else if (token.type === 'blockquote') {
-      images.push(...collectStandaloneImages((token as marked.Tokens.Blockquote).tokens ?? []));
+    } else if (node.type === 'blockquote') {
+      images.push(...collectStandaloneImages(node.children));
     }
   }
 
@@ -130,88 +131,77 @@ function normalizeForCompare(value: string): string {
   return value.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-function paragraphPlainText(token: marked.Tokens.Paragraph): string {
+function paragraphPlainText(node: Paragraph): string {
   const parts: string[] = [];
-  // marked carries both a `text` field AND a `tokens` array on `strong`,
-  // `em`, `del`, and `link` — the `text` field is the rendered text without
-  // markers, and `tokens` holds the same content as inline children. Walking
-  // *both* would yield "foofoo" for `**foo**`. The leaf-only types (`text`,
-  // `codespan`) carry just `text`, so push it directly; the wrapping types
-  // recurse so inner `text`/`codespan` contribute the actual characters once.
-  const walk = (nodes: marked.Token[] | undefined): void => {
+  // Leaf phrasing nodes (`text`, `inlineCode`) carry their characters on
+  // `value`, so push it directly. Wrapping nodes (`emphasis`, `strong`,
+  // `delete`, `link`) hold their content only in `children`, so recurse to
+  // collect the inner text exactly once. A soft/hard break contributes a
+  // single space, matching the rendered output.
+  const walk = (nodes: PhrasingContent[] | undefined): void => {
     if (!nodes) return;
-    for (const node of nodes) {
-      switch (node.type) {
+    for (const child of nodes) {
+      switch (child.type) {
         case 'text':
-        case 'codespan':
-          parts.push((node as marked.Tokens.Text | marked.Tokens.Codespan).text ?? '');
+        case 'inlineCode':
+          parts.push(child.value);
           break;
-        case 'em':
+        case 'emphasis':
         case 'strong':
-        case 'del':
+        case 'delete':
         case 'link':
-          walk(
-            (
-              node as
-                | marked.Tokens.Em
-                | marked.Tokens.Strong
-                | marked.Tokens.Del
-                | marked.Tokens.Link
-            ).tokens
-          );
+          walk(child.children);
           break;
-        case 'br':
+        case 'break':
           parts.push(' ');
           break;
         default:
-          walk((node as { tokens?: marked.Token[] }).tokens);
+          if ('children' in child && Array.isArray(child.children)) {
+            walk(child.children as PhrasingContent[]);
+          }
       }
     }
   };
-  walk(token.tokens);
+  walk(node.children);
   return parts.join('');
 }
 
 function dropLeadingSummaryParagraph(
-  blocks: marked.Token[],
+  blocks: RootContent[],
   summary: string | undefined
-): marked.Token[] {
+): RootContent[] {
   if (!summary) return blocks;
   const summaryHead = normalizeForCompare(summary).slice(0, 80);
   if (summaryHead.length < 20) return blocks;
-  const firstContent = blocks.find((token) => token.type !== 'space');
+  const firstContent = blocks[0];
   if (!firstContent || firstContent.type !== 'paragraph') return blocks;
-  const paragraphText = normalizeForCompare(
-    paragraphPlainText(firstContent as marked.Tokens.Paragraph)
-  );
+  const paragraphText = normalizeForCompare(paragraphPlainText(firstContent));
   if (!paragraphText.startsWith(summaryHead)) return blocks;
-  const startIndex = blocks.indexOf(firstContent);
-  return blocks.slice(startIndex + 1);
+  return blocks.slice(1);
 }
 
-function paragraphIsShortLabel(token: marked.Token): boolean {
-  if (token.type !== 'paragraph') return false;
-  const paragraph = token as marked.Tokens.Paragraph;
-  const tokens = paragraph.tokens ?? [];
+function paragraphIsShortLabel(node: RootContent): boolean {
+  if (node.type !== 'paragraph') return false;
+  const children = node.children;
   // Only allow short inline content — no images, no links, no breaks.
-  for (const child of tokens) {
+  for (const child of children) {
     if (
       child.type !== 'text' &&
       child.type !== 'strong' &&
-      child.type !== 'em' &&
-      child.type !== 'codespan' &&
-      child.type !== 'del'
+      child.type !== 'emphasis' &&
+      child.type !== 'inlineCode' &&
+      child.type !== 'delete'
     ) {
       return false;
     }
   }
-  const text = paragraphPlainText(paragraph).trim();
+  const text = paragraphPlainText(node).trim();
   if (text.length === 0 || text.length > 60) return false;
   // Treat a paragraph as a label when it has emphasis (most labels do) OR
   // when it lacks trailing sentence punctuation. This avoids stripping a
   // full sentence that happens to precede an extracted screenshot.
-  const hasEmphasis = tokens.some(
-    (child) => child.type === 'strong' || child.type === 'em' || child.type === 'codespan'
+  const hasEmphasis = children.some(
+    (child) => child.type === 'strong' || child.type === 'emphasis' || child.type === 'inlineCode'
   );
   if (hasEmphasis) return true;
   return !/[.!?:]$/.test(text);
@@ -221,36 +211,33 @@ function paragraphIsShortLabel(token: marked.Token): boolean {
 // image. After `getStandaloneImage` extracts the image into the gallery, the
 // orphaned label paragraph is left behind in the README body as dangling
 // text with no associated image, which looks broken.
-function filterDanglingLabels(tokens: marked.Token[]): marked.Token[] {
-  const out: marked.Token[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
+function filterDanglingLabels(nodes: RootContent[]): RootContent[] {
+  const out: RootContent[] = [];
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
 
-    if (paragraphIsShortLabel(token)) {
-      let next = i + 1;
-      while (next < tokens.length && tokens[next].type === 'space') next++;
-      if (next < tokens.length && getStandaloneImage(tokens[next])) {
+    if (paragraphIsShortLabel(node)) {
+      const next = i + 1;
+      if (next < nodes.length && getStandaloneImage(nodes[next])) {
         continue;
       }
     }
 
-    if (token.type === 'list') {
-      const list = token as marked.Tokens.List;
-      const filteredItems = list.items.map((item) => ({
+    if (node.type === 'list') {
+      const filteredItems = node.children.map((item) => ({
         ...item,
-        tokens: filterDanglingLabels(item.tokens ?? []),
+        children: filterDanglingLabels(item.children),
       }));
-      out.push({ ...list, items: filteredItems });
+      out.push({ ...node, children: filteredItems });
       continue;
     }
 
-    if (token.type === 'blockquote') {
-      const bq = token as marked.Tokens.Blockquote;
-      out.push({ ...bq, tokens: filterDanglingLabels(bq.tokens ?? []) });
+    if (node.type === 'blockquote') {
+      out.push({ ...node, children: filterDanglingLabels(node.children) });
       continue;
     }
 
-    out.push(token);
+    out.push(node);
   }
   return out;
 }
@@ -268,7 +255,11 @@ const sampleSummary = sampleDescriptionText(sample.description)
   .find((line) => line.trim().length > 0)
   ?.trim();
 
-const rawReadmeBlocks = marked.lexer(stripReadmeTitle(sample.readme), { gfm: true });
+const rawReadmeBlocks = (
+  markdownToMdast(stripReadmeTitle(sample.readme), {
+    features: { gfm: true, frontmatter: false },
+  }) as Root
+).children;
 const readmeBlocks = filterDanglingLabels(
   dropLeadingSummaryParagraph(rawReadmeBlocks, sampleSummary)
 );

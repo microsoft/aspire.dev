@@ -49,7 +49,7 @@ This article is inspired by existing Aspire integrations, and based on the team'
 
 The next step is to add the following NuGet packages that the integration relies on. Add the following package references to your `MailKit.Client.csproj` file:
 
-```diff lang="xml" title="XML — MailKit.Client.csproj"
+```diff lang="xml" title="MailKit.Client.csproj"
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -74,7 +74,7 @@ The next step is to add the following NuGet packages that the integration relies
 
 Whenever you're creating an Aspire integration, it's best to understand the client library that you're mapping to. With MailKit, you need to understand the configuration settings that are required to connect to a Simple Mail Transfer Protocol (SMTP) server. But it's also important to understand if the library has support for _health checks_, _tracing_ and _metrics_. MailKit supports _tracing_ and _metrics_, through its [`Telemetry.SmtpClient` class](https://github.com/jstedfast/MailKit/blob/master/MailKit/Telemetry.cs#L112-L189). When adding _health checks_, you should use any established or existing health checks where possible. Otherwise, you might consider implementing your own in the integration. Replace the `Class1.cs` file with the following code to the `MailKit.Client` project in rename it as `MailKitClientSettings.cs`:
 
-```csharp title="C# — MailKitClientSettings.cs"
+```csharp title="MailKitClientSettings.cs"
 using System.Data.Common;
 
 namespace MailKit.Client;
@@ -184,7 +184,7 @@ If neither of these values are provided, an exception is thrown.
 
 The goal of Aspire integrations is to expose the underlying client library to consumers through dependency injection. With MailKit and for this example, the `SmtpClient` class is what you want to expose. You're not wrapping any functionality, but rather mapping configuration settings to an `SmtpClient` class. It's common to expose both standard and keyed-service registrations for integrations. Standard registrations are used when there's only one instance of a service, and keyed-service registrations are used when there are multiple instances of a service. Sometimes, to achieve multiple registrations of the same type you use a factory pattern. Add the following code to the `MailKit.Client` project in a file named `MailKitClientFactory.cs`:
 
-```csharp title="C# — MailKitClientFactory.cs"
+```csharp title="MailKitClientFactory.cs"
 using MailKit.Net.Smtp;
 
 namespace MailKit.Client;
@@ -235,7 +235,7 @@ public sealed class MailKitClientFactory(MailKitClientSettings settings)
 
 The `MailKitClientFactory` class is a factory that creates an `ISmtpClient` instance based on the configuration settings. It's responsible for returning an `ISmtpClient` implementation that has an active connection to a configured SMTP server. Next, you need to expose the functionality for the consumers to register this factory with the dependency injection container. Add the following code to the `MailKit.Client` project in a file named `MailKitExtensions.cs`:
 
-```csharp title="C# — MailKitExtensions.cs"
+```csharp title="MailKitExtensions.cs"
 using MailKit;
 using MailKit.Client;
 using MailKit.Net.Smtp;
@@ -394,7 +394,7 @@ The registration of health checks, and telemetry are described in a bit more det
 
 [Health checks](/fundamentals/health-checks/) are a way to monitor the health of an integration. With MailKit, you can check if the connection to the SMTP server is healthy. Add the following code to the `MailKit.Client` project in a file named `MailKitHealthCheck.cs`:
 
-```csharp title="C# — MailKitHealthCheck.cs"
+```csharp title="MailKitHealthCheck.cs"
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace MailKit.Client;
@@ -492,7 +492,7 @@ dotnet add package Scalar.AspNetCore --project ./MailDevResource.NewsletterServi
 
 The final step is to replace the existing `Program.cs` file in the `MailDevResource.NewsletterService` project with the following C# code:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using System.Net.Mail;
 using MailKit.Client;
 using MailKit.Net.Smtp;
@@ -562,7 +562,7 @@ The most notable changes in the preceding code are:
 
 Back in the `AppHost.cs` file, update it to configure the scalar API reference endpoint:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var maildev = builder.AddMailDev("maildev");

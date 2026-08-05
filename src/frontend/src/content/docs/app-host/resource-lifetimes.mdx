@@ -5,6 +5,7 @@ description: Learn how session, persistent, resource-scoped, and parent-process 
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
 import persistentContainer from '@assets/whats-new/aspire-9/persistent-container.png';
 import persistentContainerDocker from '@assets/whats-new/aspire-9/persistent-container-docker-desktop.png';
 
@@ -40,7 +41,11 @@ Persistent resources are automatically recreated when the AppHost detects meanin
 
 Persistent containers use proxied endpoints by default, just like session containers. The proxy runs only while the AppHost is running, so the proxy address isn't reachable after the AppHost stops. Persistent executables and projects default to proxyless endpoints so their direct addresses stay stable and reachable even after the AppHost stops.
 
-You can still configure endpoint proxy behavior explicitly on any persistent resource. Set `isProxied: false` on an individual endpoint, or call `WithEndpointProxySupport(false)` to make every endpoint on a resource proxyless. Persistent executable endpoints must have a concrete `port` or `targetPort`; automatically persisted random executable ports aren't supported. For proxyless container endpoints with only a `targetPort`, Aspire immediately uses the target port as the allocated host port.
+You can still configure endpoint proxy behavior explicitly on any persistent resource. Set `isProxied: false` on an individual endpoint, or call `WithEndpointProxySupport(false)` to make every endpoint on a resource proxyless. When a proxyless endpoint doesn't specify a public `port`, Aspire allocates one before the resource is created. For persistent resources, Aspire stores the allocated port in user secrets when user secrets are available and reuses it on later AppHost runs.
+
+<LearnMore>
+  For more information, see [Allocate ports for dynamic proxyless endpoints](/fundamentals/networking-overview/#allocate-ports-for-dynamic-proxyless-endpoints).
+</LearnMore>
 
 :::danger[Persistent container &ne; persistent data]
 Persistent container lifetime doesn't guarantee data durability. For details, see [Container lifetime vs. data durability](#container-lifetime-vs-data-durability).
@@ -157,7 +162,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-Configure a concrete `port` or `targetPort` for persistent executable endpoints; automatically persisted random executable ports aren't supported.
+The preceding example configures a concrete `port` so the endpoint address is explicit. If you omit the public `port`, Aspire allocates one before the executable starts and reuses it from user secrets on later AppHost runs when user secrets are available.
 
 ## Configure a persistent project
 

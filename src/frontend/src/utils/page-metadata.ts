@@ -1,4 +1,5 @@
 import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+import { locales } from '../../config/locales';
 import { isApiReferencePath } from '@utils/api-reference-routes';
 
 /**
@@ -41,30 +42,11 @@ export const FALLBACK_DESCRIPTION =
 /** Maximum length we trim Open Graph descriptions to. */
 const OG_DESCRIPTION_MAX_LENGTH = 200;
 
-/**
- * Known locale path segments. Mirrors `config/locales.ts` but lives here so
- * the OG image endpoint (which runs at build time outside the Astro/Starlight
- * route context) can detect translated entries without importing the locale
- * config from a different module graph.
- */
-const NON_DEFAULT_LOCALE_PREFIXES = [
-  'da',
-  'de',
-  'es',
-  'fr',
-  'hi',
-  'id',
-  'it',
-  'ja',
-  'ko',
-  'pt-br',
-  'ru',
-  'tr',
-  'uk',
-  'zh-cn',
-] as const;
-
-const localePrefixPattern = new RegExp(`^(?:${NON_DEFAULT_LOCALE_PREFIXES.join('|')})(?:/|$)`, 'i');
+const nonDefaultLocalePrefixes = Object.keys(locales).filter((locale) => locale !== 'root');
+const localePrefixPattern = new RegExp(
+  `^(?:${nonDefaultLocalePrefixes.map(escapeRegExp).join('|')})(?:/|$)`,
+  'i'
+);
 
 const releaseNotePattern = /^whats-new\/aspire-/i;
 
@@ -102,6 +84,8 @@ export interface OgMetadata {
   type: OgType;
   /** Resolved `og:image` URL. */
   image: string;
+  /** `og:image:type` MIME type inferred from the image URL (e.g. `image/png`). */
+  imageType: string;
   /** `og:image:alt` text. */
   imageAlt: string;
   /** Image pixel dimensions (matches the dynamic template). */
@@ -271,6 +255,36 @@ export function resolveOgImage(
 }
 
 /**
+ * Infer the `og:image:type` MIME type from an image URL's file extension.
+ * Every card the site emits today is a PNG (the dynamic `/og/<slug>.png`
+ * endpoint and the static `/og-image.png` fallback), but an explicit
+ * `ogImage` frontmatter override could point at another format, so we map
+ * the extension and fall back to `image/png` when it is unknown.
+ */
+export function resolveOgImageType(image: string): string {
+  const withoutQuery = image.split(/[?#]/, 1)[0];
+  const match = /\.([a-z0-9]+)$/i.exec(withoutQuery);
+  const extension = match?.[1]?.toLowerCase();
+
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    case 'svg':
+      return 'image/svg+xml';
+    case 'avif':
+      return 'image/avif';
+    case 'png':
+    default:
+      return 'image/png';
+  }
+}
+
+/**
  * Whether the dynamic OG image endpoint should skip a given entry. The
  * endpoint and the meta-tag emitter both consult this so the URL written into
  * `og:image` matches the file actually produced at build time.
@@ -309,6 +323,7 @@ export function getOgMetadata(
   const description = resolveOgDescription(route);
   const type = resolveOgType(route, contentBasePath);
   const image = resolveOgImage(route, contentBasePath, siteUrl, isDefaultLocale);
+  const imageType = resolveOgImageType(image);
   const imageAlt = title;
 
   return {
@@ -318,6 +333,7 @@ export function getOgMetadata(
     url,
     type,
     image,
+    imageType,
     imageAlt,
     imageWidth: DEFAULT_OG_IMAGE_WIDTH,
     imageHeight: DEFAULT_OG_IMAGE_HEIGHT,
@@ -344,6 +360,10 @@ export function resolveSiteUrl(site: URL | string | undefined, currentUrl: URL):
 
 function normalizeEntryId(entryId: string): string {
   return entryId.replace(/\\/g, '/');
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function isPagesRoute(route: MinimalRoute): boolean {

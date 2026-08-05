@@ -1,34 +1,737 @@
 ---
+import { Icon } from '@astrojs/starlight/components';
+import PauseIcon from '@assets/icons/pause.svg';
+import PlayIcon from '@assets/icons/play.svg';
+import LearnMore from '@components/LearnMore.astro';
+import { addLocaleToPath, getLocaleFromPath } from '@utils/locale-routes';
+import { aspireQuoteDefinitions, englishStatementPlayer } from './FreeAndOpenSourceAside.quotes';
+
 /**
- * This aside component displays a localized "Free & Open Source" message.
+ * Displays a localized, interactive collection of Aspire statements.
  */
+type TranslationValues = Record<string, string | number>;
+
+const isLlmsRoute = Astro.url.pathname.startsWith('/llms');
+const locale = getLocaleFromPath(Astro.url.pathname);
+
+function interpolate(template: string, values: TranslationValues = {}) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{{${key}}}`, String(value)),
+    template
+  );
+}
+
+function translate(key: string, fallback: string, values?: TranslationValues) {
+  return isLlmsRoute ? interpolate(fallback, values) : Astro.locals.t(key as any, values as any);
+}
+
+const announcementValues = {
+  index: '__INDEX__',
+  total: '__TOTAL__',
+  heading: '__HEADING__',
+  text: '__TEXT__',
+};
+
+const playerText = {
+  regionLabel: translate('landing.statementPlayer.regionLabel', englishStatementPlayer.regionLabel),
+  controlsLabel: translate(
+    'landing.statementPlayer.controlsLabel',
+    englishStatementPlayer.controlsLabel
+  ),
+  pauseLabel: translate('landing.statementPlayer.pauseLabel', englishStatementPlayer.pauseLabel),
+  playLabel: translate('landing.statementPlayer.playLabel', englishStatementPlayer.playLabel),
+  randomLabel: translate('landing.statementPlayer.randomLabel', englishStatementPlayer.randomLabel),
+  learnMoreLabel: translate(
+    'landing.statementPlayer.learnMoreLabel',
+    englishStatementPlayer.learnMoreLabel
+  ),
+  announcementTemplate: translate(
+    'landing.statementPlayer.announcement',
+    englishStatementPlayer.announcement,
+    announcementValues
+  ),
+};
+
+const aspireQuotes = aspireQuoteDefinitions.map(({ id, heading, text, href }) => ({
+  heading: translate(`landing.statementPlayer.quotes.${id}.heading`, heading),
+  text: translate(`landing.statementPlayer.quotes.${id}.text`, text),
+  href: addLocaleToPath(href, locale),
+}));
+
+const firstQuote = aspireQuotes[0];
+const total = aspireQuotes.length;
+const firstAnnouncement = playerText.announcementTemplate
+  .replaceAll(announcementValues.index, '1')
+  .replaceAll(announcementValues.total, String(total))
+  .replaceAll(announcementValues.heading, firstQuote.heading)
+  .replaceAll(announcementValues.text, firstQuote.text);
 ---
 
-<div class="free-open-source-aside">
-  <p class="aside-title">{Astro.locals.t('landing.freeAndOSS')}</p>
-  <p>
-    {Astro.locals.t('landing.aspirePromise')}
+<div
+  class="free-open-source-aside not-content"
+  role="region"
+  aria-label={playerText.regionLabel}
+  data-aspire-quote-player
+  data-quotes={JSON.stringify(aspireQuotes)}
+  data-announcement-template={playerText.announcementTemplate}
+  data-pause-label={playerText.pauseLabel}
+  data-play-label={playerText.playLabel}
+  data-learn-more-label={playerText.learnMoreLabel}
+  data-state="playing"
+  data-phase="idle"
+>
+  <div class="aside-header" aria-hidden="true">
+    <p class="aside-title" data-quote-heading>{firstQuote.heading}</p>
+    <span class="aside-index" data-quote-index>01</span>
+  </div>
+
+  <div class="quote-stage">
+    <p class="aside-quote" aria-hidden="true">
+      <span data-quote-text>{firstQuote.text}</span><span class="typing-cursor"></span>
+    </p>
+    {
+      aspireQuotes.map((quote) => (
+        <p class="quote-size-probe" aria-hidden="true">
+          {quote.text}
+          <span class="typing-cursor" />
+        </p>
+      ))
+    }
+  </div>
+
+  <p class="sr-only" data-quote-announcer aria-live="polite" aria-atomic="true">
+    {firstAnnouncement}
   </p>
+
+  <div class="quote-progress" data-quote-progress aria-hidden="true">
+    <span class="quote-progress-fill"></span>
+  </div>
+
+  <div class="quote-footer">
+    <div class="quote-controls" role="group" aria-label={playerText.controlsLabel}>
+      <button
+        type="button"
+        class="control-btn pause-btn"
+        aria-label={playerText.pauseLabel}
+        aria-pressed="false"
+        data-playback-toggle
+      >
+        <span class="icon-pause" aria-hidden="true">
+          <PauseIcon width="24" height="24" />
+        </span>
+        <span class="icon-play" aria-hidden="true">
+          <PlayIcon width="24" height="24" />
+        </span>
+      </button>
+      <button
+        type="button"
+        class="control-btn random-btn"
+        aria-label={playerText.randomLabel}
+        data-random-quote
+      >
+        <Icon name="random" size="24px" aria-hidden="true" />
+      </button>
+    </div>
+
+    <div class="quote-learn-more">
+      <LearnMore>
+        <a
+          href={firstQuote.href}
+          aria-label={`${playerText.learnMoreLabel}: ${firstQuote.heading}`}
+          data-quote-link
+        >
+          {playerText.learnMoreLabel}
+        </a>
+      </LearnMore>
+    </div>
+  </div>
 </div>
 
-<style>
-  .aside-title {
-    margin-bottom: 1rem;
-    font-size: 1.5rem;
-    font-weight: 600;
+<script>
+  interface Quote {
+    heading: string;
+    text: string;
+    href: string;
   }
 
+  const AUTO_ADVANCE_DELAY = 7_000;
+  const TYPE_DELAY = 12;
+  const DELETE_DELAY = 4;
+  const ANNOUNCEMENT_INDEX = '__INDEX__';
+  const ANNOUNCEMENT_TOTAL = '__TOTAL__';
+  const ANNOUNCEMENT_HEADING = '__HEADING__';
+  const ANNOUNCEMENT_TEXT = '__TEXT__';
+
+  function isQuote(value: unknown): value is Quote {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'heading' in value &&
+      typeof value.heading === 'string' &&
+      'text' in value &&
+      typeof value.text === 'string' &&
+      'href' in value &&
+      typeof value.href === 'string'
+    );
+  }
+
+  function readQuotes(root: HTMLElement): Quote[] | undefined {
+    const source = root.dataset.quotes;
+    if (!source) {
+      console.error('Aspire quote player is missing its quote data.');
+      return;
+    }
+
+    try {
+      const parsed: unknown = JSON.parse(source);
+      if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every(isQuote)) {
+        console.error('Aspire quote player received invalid quote data.');
+        return;
+      }
+
+      return parsed;
+    } catch (error) {
+      console.error('Aspire quote player could not parse its quote data.', error);
+    }
+  }
+
+  function wait(delay: number, signal: AbortSignal): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (signal.aborted) {
+        resolve(false);
+        return;
+      }
+
+      const timer = window.setTimeout(() => {
+        signal.removeEventListener('abort', handleAbort);
+        resolve(true);
+      }, delay);
+
+      function handleAbort() {
+        window.clearTimeout(timer);
+        resolve(false);
+      }
+
+      signal.addEventListener('abort', handleAbort, { once: true });
+    });
+  }
+
+  function initializeQuotePlayer(root: HTMLElement) {
+    if (root.dataset.initialized === 'true') return;
+
+    const quotes = readQuotes(root);
+    const headingElement = root.querySelector('[data-quote-heading]');
+    const textElement = root.querySelector('[data-quote-text]');
+    const indexElement = root.querySelector('[data-quote-index]');
+    const announcer = root.querySelector('[data-quote-announcer]');
+    const progressElement = root.querySelector('[data-quote-progress]');
+    const playbackButton = root.querySelector('[data-playback-toggle]');
+    const randomButton = root.querySelector('[data-random-quote]');
+    const learnMoreLink = root.querySelector('[data-quote-link]');
+    const announcementTemplate = root.dataset.announcementTemplate;
+    const pauseLabel = root.dataset.pauseLabel;
+    const playLabel = root.dataset.playLabel;
+    const learnMoreLabel = root.dataset.learnMoreLabel;
+
+    if (
+      !quotes ||
+      !(headingElement instanceof HTMLElement) ||
+      !(textElement instanceof HTMLElement) ||
+      !(indexElement instanceof HTMLElement) ||
+      !(announcer instanceof HTMLElement) ||
+      !(progressElement instanceof HTMLElement) ||
+      !(playbackButton instanceof HTMLButtonElement) ||
+      !(randomButton instanceof HTMLButtonElement) ||
+      !(learnMoreLink instanceof HTMLAnchorElement) ||
+      !announcementTemplate ||
+      !pauseLabel ||
+      !playLabel ||
+      !learnMoreLabel
+    ) {
+      console.error('Aspire quote player is missing required elements.');
+      return;
+    }
+
+    root.dataset.initialized = 'true';
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let currentIndex = Math.floor(Math.random() * quotes.length);
+    let isPaused = reducedMotion.matches;
+    let remainingDisplayTime = AUTO_ADVANCE_DELAY;
+    let rotationDeadline = 0;
+    let rotationTimer: number | undefined;
+    let transitionController: AbortController | undefined;
+    let pendingIndex: number | undefined;
+    let randomQueue = createRandomQueue();
+
+    function accessibleQuote(index: number) {
+      const quote = quotes[index];
+      return announcementTemplate
+        .replaceAll(ANNOUNCEMENT_INDEX, String(index + 1))
+        .replaceAll(ANNOUNCEMENT_TOTAL, String(quotes.length))
+        .replaceAll(ANNOUNCEMENT_HEADING, quote.heading)
+        .replaceAll(ANNOUNCEMENT_TEXT, quote.text);
+    }
+
+    function updateMetadata(index: number) {
+      const quote = quotes[index];
+      headingElement.textContent = quote.heading;
+      indexElement.textContent = String(index + 1).padStart(2, '0');
+      learnMoreLink.href = quote.href;
+      learnMoreLink.setAttribute('aria-label', `${learnMoreLabel}: ${quote.heading}`);
+    }
+
+    function renderFullQuote(index: number, announce = true) {
+      currentIndex = index;
+      updateMetadata(index);
+      textElement.textContent = quotes[index].text;
+      root.dataset.phase = 'idle';
+      if (announce) announcer.textContent = accessibleQuote(index);
+    }
+
+    function clearRotationTimer() {
+      if (rotationTimer !== undefined) {
+        window.clearTimeout(rotationTimer);
+        rotationTimer = undefined;
+      }
+    }
+
+    function stopProgress() {
+      progressElement.classList.remove('is-active');
+    }
+
+    function restartProgress(duration: number) {
+      stopProgress();
+      progressElement.style.setProperty('--quote-progress-duration', `${duration}ms`);
+      void progressElement.offsetWidth;
+      progressElement.classList.add('is-active');
+    }
+
+    function createRandomQueue() {
+      const indices = Array.from({ length: quotes.length }, (_, index) => index).filter(
+        (index) => index !== currentIndex
+      );
+
+      for (let index = indices.length - 1; index > 0; index--) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [indices[index], indices[swapIndex]] = [indices[swapIndex], indices[index]];
+      }
+
+      // Return to the cycle's starting statement only after every other statement.
+      indices.unshift(currentIndex);
+      return indices;
+    }
+
+    function randomIndex() {
+      if (quotes.length === 1) return 0;
+      if (randomQueue.length === 0) randomQueue = createRandomQueue();
+
+      const nextIndex = randomQueue.pop();
+      if (nextIndex === undefined) {
+        throw new Error('Aspire quote player could not select its next statement.');
+      }
+
+      return nextIndex;
+    }
+
+    function cancelTransition() {
+      transitionController?.abort();
+      transitionController = undefined;
+
+      if (pendingIndex !== undefined) {
+        randomQueue.push(pendingIndex);
+        pendingIndex = undefined;
+      }
+    }
+
+    function scheduleNext(delay = AUTO_ADVANCE_DELAY, restart = true) {
+      clearRotationTimer();
+      if (isPaused) return;
+
+      remainingDisplayTime = delay;
+      rotationDeadline = performance.now() + delay;
+      if (restart) restartProgress(delay);
+
+      rotationTimer = window.setTimeout(() => {
+        rotationTimer = undefined;
+        remainingDisplayTime = 0;
+        stopProgress();
+        if (root.isConnected) void transitionTo(randomIndex());
+      }, delay);
+    }
+
+    async function transitionTo(nextIndex: number) {
+      clearRotationTimer();
+      stopProgress();
+      cancelTransition();
+
+      if (reducedMotion.matches) {
+        renderFullQuote(nextIndex);
+        if (!isPaused) scheduleNext();
+        return;
+      }
+
+      const controller = new AbortController();
+      transitionController = controller;
+      pendingIndex = nextIndex;
+      root.dataset.phase = 'deleting';
+
+      let visibleText = textElement.textContent ?? '';
+      while (visibleText.length > 0) {
+        visibleText = visibleText.slice(0, -1);
+        textElement.textContent = visibleText;
+        if (!(await wait(DELETE_DELAY, controller.signal))) return;
+      }
+
+      currentIndex = nextIndex;
+      pendingIndex = undefined;
+      updateMetadata(currentIndex);
+      root.dataset.phase = 'typing';
+      restartProgress(quotes[currentIndex].text.length * TYPE_DELAY + AUTO_ADVANCE_DELAY);
+
+      for (const character of quotes[currentIndex].text) {
+        textElement.textContent += character;
+        if (!(await wait(TYPE_DELAY, controller.signal))) return;
+      }
+
+      transitionController = undefined;
+      root.dataset.phase = 'idle';
+      announcer.textContent = accessibleQuote(currentIndex);
+      if (!isPaused) scheduleNext(AUTO_ADVANCE_DELAY, false);
+    }
+
+    function syncPlaybackState() {
+      root.dataset.state = isPaused ? 'paused' : 'playing';
+      root.classList.toggle('is-paused', isPaused);
+      playbackButton.setAttribute('aria-pressed', isPaused.toString());
+      playbackButton.setAttribute('aria-label', isPaused ? playLabel : pauseLabel);
+    }
+
+    function setPaused(nextPaused: boolean) {
+      if (nextPaused === isPaused) return;
+
+      if (nextPaused && rotationTimer !== undefined) {
+        remainingDisplayTime = Math.max(0, rotationDeadline - performance.now());
+      }
+
+      isPaused = nextPaused;
+      clearRotationTimer();
+      syncPlaybackState();
+
+      if (isPaused) {
+        if (transitionController) {
+          cancelTransition();
+          renderFullQuote(currentIndex);
+          remainingDisplayTime = AUTO_ADVANCE_DELAY;
+          restartProgress(AUTO_ADVANCE_DELAY);
+        }
+      } else {
+        const hasPausedProgress = progressElement.classList.contains('is-active');
+        const delay = remainingDisplayTime > 0 ? remainingDisplayTime : AUTO_ADVANCE_DELAY;
+        scheduleNext(delay, !hasPausedProgress);
+      }
+    }
+
+    function showRandomQuote() {
+      clearRotationTimer();
+      stopProgress();
+      cancelTransition();
+      renderFullQuote(randomIndex());
+      remainingDisplayTime = AUTO_ADVANCE_DELAY;
+      if (isPaused) {
+        restartProgress(AUTO_ADVANCE_DELAY);
+      } else {
+        scheduleNext();
+      }
+    }
+
+    playbackButton.addEventListener('click', () => setPaused(!isPaused));
+    randomButton.addEventListener('click', showRandomQuote);
+
+    function handleReducedMotion(event: MediaQueryListEvent) {
+      if (event.matches) setPaused(true);
+    }
+
+    reducedMotion.addEventListener('change', handleReducedMotion);
+
+    function cleanup() {
+      clearRotationTimer();
+      cancelTransition();
+      reducedMotion.removeEventListener('change', handleReducedMotion);
+    }
+
+    document.addEventListener('astro:before-swap', cleanup, { once: true });
+
+    renderFullQuote(currentIndex, false);
+    announcer.textContent = accessibleQuote(currentIndex);
+    syncPlaybackState();
+    if (isPaused) {
+      restartProgress(AUTO_ADVANCE_DELAY);
+    } else {
+      scheduleNext();
+    }
+  }
+
+  function initializeQuotePlayers() {
+    document.querySelectorAll('[data-aspire-quote-player]').forEach((element) => {
+      if (element instanceof HTMLElement) initializeQuotePlayer(element);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeQuotePlayers, { once: true });
+  } else {
+    initializeQuotePlayers();
+  }
+
+  document.addEventListener('astro:page-load', initializeQuotePlayers);
+</script>
+
+<style>
   .free-open-source-aside {
+    --quote-control-spacing: 1.25rem;
     font-size: 1.25rem;
     line-height: 1.5;
+    color: var(--aspire-color-white);
     background: var(--aspire-color-primary);
     padding: 2rem 4rem;
     border-radius: 1rem;
     margin-bottom: 2rem;
+    overflow: hidden;
   }
 
   .free-open-source-aside,
-  .aside-title {
+  .aside-title,
+  .aside-quote,
+  .typing-cursor {
     color: var(--aspire-color-white);
+  }
+
+  .aside-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .aside-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .aside-index {
+    flex: none;
+    color: color-mix(in srgb, var(--aspire-color-white) 85%, var(--aspire-color-secondary));
+    font-family: var(--__sl-font-mono);
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .quote-stage {
+    display: grid;
+  }
+
+  .aside-quote,
+  .quote-size-probe {
+    grid-area: 1 / 1;
+    margin: 0;
+  }
+
+  .quote-size-probe {
+    visibility: hidden;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .typing-cursor {
+    display: inline-block;
+    width: 0.09em;
+    height: 1.05em;
+    background: currentColor;
+    vertical-align: -0.12em;
+    animation: blink-cursor 0.8s steps(1, end) infinite;
+  }
+
+  .quote-footer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: var(--quote-control-spacing);
+  }
+
+  .quote-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.75rem;
+  }
+
+  .quote-learn-more {
+    display: flex;
+    margin-inline-start: auto;
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .quote-learn-more :global(.learn-more) {
+    align-items: center;
+  }
+
+  .quote-learn-more :global(.learn-more .icon),
+  .quote-learn-more a {
+    color: var(--aspire-color-white);
+  }
+
+  .quote-learn-more a {
+    text-decoration: underline;
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.2em;
+  }
+
+  .quote-learn-more a:hover {
+    text-decoration-thickness: 0.12em;
+  }
+
+  .quote-learn-more a:focus-visible {
+    border-radius: 0.125rem;
+    outline: 0.1875rem solid var(--aspire-color-white);
+    outline-offset: 0.1875rem;
+  }
+
+  .quote-progress {
+    height: 0.25rem;
+    margin-top: var(--quote-control-spacing);
+    background: rgb(255 255 255 / 24%);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .quote-progress-fill {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--aspire-color-white);
+    border-radius: inherit;
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+
+  .quote-progress.is-active .quote-progress-fill {
+    animation: fill-progress var(--quote-progress-duration, 7000ms) linear forwards;
+  }
+
+  .free-open-source-aside.is-paused .quote-progress-fill {
+    animation-play-state: paused;
+  }
+
+  .control-btn {
+    background: var(--aspire-color-white);
+    color: var(--aspire-color-primary);
+    border: none;
+    border-radius: 0.5rem;
+    width: 42px;
+    height: 42px;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+      background 0.25s ease,
+      transform 0.25s ease;
+  }
+
+  .control-btn:hover {
+    transform: scale(1.06);
+  }
+
+  .control-btn:focus-visible {
+    outline: 0.1875rem solid var(--aspire-color-white);
+    outline-offset: 0.1875rem;
+  }
+
+  .icon-pause,
+  .icon-play {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+  }
+
+  .icon-play {
+    display: none;
+  }
+
+  .control-btn[aria-pressed='true'] .icon-pause {
+    display: none;
+  }
+
+  .control-btn[aria-pressed='true'] .icon-play {
+    display: flex;
+  }
+
+  @keyframes blink-cursor {
+    0%,
+    49% {
+      opacity: 1;
+    }
+
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fill-progress {
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .free-open-source-aside {
+      padding: 1.5rem;
+      font-size: 1.125rem;
+    }
+
+    .aside-header {
+      align-items: flex-start;
+    }
+
+    .aside-title {
+      font-size: 1.25rem;
+    }
+  }
+
+  @media (max-width: 22rem) {
+    .free-open-source-aside {
+      padding: 1.25rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .typing-cursor {
+      animation: none;
+    }
+
+    .quote-progress.is-active .quote-progress-fill {
+      animation: none;
+    }
+
+    .control-btn {
+      transition: none;
+    }
+
+    .control-btn:hover {
+      transform: none;
+    }
   }
 </style>

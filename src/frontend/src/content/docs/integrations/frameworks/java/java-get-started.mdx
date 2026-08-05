@@ -1,0 +1,93 @@
+---
+title: Get started with Java and Aspire
+description: Run Java applications with Aspire, model executable and container resources, and configure Maven or Gradle development workflows.
+---
+
+import {
+  Badge,
+  LinkButton,
+  TabItem,
+  Tabs,
+} from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import javaIcon from '@assets/icons/java-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={javaIcon}
+  alt="Java logo"
+  width={100}
+  height={100}
+  fit="contain"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire) Java hosting integration adds Java executable and container applications to your [AppHost](/get-started/app-host/). It supports Maven and Gradle wrapper workflows, running an existing JAR, and container images.
+
+## How the integration works
+
+The integration is a hosting integration: install it in the AppHost, create a Java app resource, and apply a launch mode. An executable resource runs the local Java command, Maven wrapper, or Gradle wrapper from the configured project directory. A container resource runs an image. Both resource types can have endpoints, environment variables, health checks, and references configured through the AppHost.
+
+Build helpers create setup resources that the executable application waits for during local development. JVM arguments and optional OpenTelemetry Java-agent configuration are supplied through `JAVA_TOOL_OPTIONS`.
+
+## Prerequisites
+
+- Install a compatible [JDK](https://adoptium.net/) and ensure `java` is available on your `PATH` for executable resources.
+- Include the Maven or Gradle wrapper in your Java project and ensure its script is executable when you use those launch modes.
+- Install the [Aspire CLI](/get-started/install-cli/) and meet the [Aspire prerequisites](/get-started/prerequisites/).
+- Download the [OpenTelemetry Java agent](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases) if you plan to configure an agent path.
+
+## Add a Java app
+
+Add `CommunityToolkit.Aspire.Hosting.Java` to the AppHost, then configure an executable Java application. This short example runs a Spring Boot application through its Maven wrapper:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddJavaApp("java-api", "../java-api")
+    .WithMavenGoal("spring-boot:run")
+    .WithHttpEndpoint(targetPort: 8080, env: "SERVER_PORT")
+    .WithHttpHealthCheck("/health");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder
+  .addJavaApp('java-api', '../java-api')
+  .withMavenGoal('spring-boot:run', [])
+  .withHttpEndpoint({ targetPort: 8080, env: 'SERVER_PORT' })
+  .withHttpHealthCheck({ path: '/health' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<LinkButton
+  variant="secondary"
+  iconPlacement="end"
+  icon="right-arrow"
+  href="/integrations/frameworks/java/java-host/"
+>
+  Set up Java apps in the AppHost
+</LinkButton>
+
+## See also
+
+- [Java documentation](https://dev.java/learn/)
+- [Java AppHost API reference](/integrations/frameworks/java/java-host/)
+- [Aspire integrations overview](/integrations/overview/)

@@ -1,45 +1,43 @@
-import type { Token, Tokens } from 'marked';
+import type { Image, PhrasingContent, RootContent } from 'mdast';
 
 import { sampleImageTheme } from '@utils/samples';
 
-function isWhitespaceTextToken(token: Token): boolean {
-  if (token.type !== 'text') {
-    return false;
+function isWhitespacePhrasing(node: PhrasingContent): boolean {
+  if (node.type === 'break') {
+    return true;
   }
 
-  const text = (token as Token & { text?: unknown }).text;
-  return typeof text === 'string' && text.trim() === '';
+  return node.type === 'text' && node.value.trim() === '';
 }
 
-export function getStandaloneImageTokens(token: Token): Tokens.Image[] | null {
-  if (token.type !== 'paragraph') {
+export function getStandaloneImageNodes(node: RootContent): Image[] | null {
+  if (node.type !== 'paragraph') {
     return null;
   }
 
-  const paragraph = token as Tokens.Paragraph;
-  const tokens = paragraph.tokens ?? [];
-  const imageTokens = tokens.filter((child) => child.type === 'image') as Tokens.Image[];
-  const hasOnlyImagesAndWhitespace = tokens.every(
-    (child) => child.type === 'image' || isWhitespaceTextToken(child)
+  const children = node.children;
+  const imageNodes = children.filter((child): child is Image => child.type === 'image');
+  const hasOnlyImagesAndWhitespace = children.every(
+    (child) => child.type === 'image' || isWhitespacePhrasing(child)
   );
 
-  if (!hasOnlyImagesAndWhitespace || imageTokens.length === 0) {
+  if (!hasOnlyImagesAndWhitespace || imageNodes.length === 0) {
     return null;
   }
 
-  return imageTokens;
+  return imageNodes;
 }
 
-export function getThemeImageTokenPair(
-  imageTokens: readonly Tokens.Image[]
-): { light: Tokens.Image; dark: Tokens.Image } | null {
-  if (imageTokens.length !== 2) {
+export function getThemeImageNodePair(
+  imageNodes: readonly Image[]
+): { light: Image; dark: Image } | null {
+  if (imageNodes.length !== 2) {
     return null;
   }
 
-  const [first, second] = imageTokens;
-  const firstTheme = sampleImageTheme(first.href);
-  const secondTheme = sampleImageTheme(second.href);
+  const [first, second] = imageNodes;
+  const firstTheme = sampleImageTheme(first.url);
+  const secondTheme = sampleImageTheme(second.url);
 
   if (!firstTheme || !secondTheme || firstTheme === secondTheme) {
     return null;
@@ -48,11 +46,11 @@ export function getThemeImageTokenPair(
   return firstTheme === 'light' ? { light: first, dark: second } : { light: second, dark: first };
 }
 
-export function isStandaloneSampleImageBlock(token: Token): boolean {
-  const imageTokens = getStandaloneImageTokens(token);
-  if (!imageTokens) {
+export function isStandaloneSampleImageBlock(node: RootContent): boolean {
+  const imageNodes = getStandaloneImageNodes(node);
+  if (!imageNodes) {
     return false;
   }
 
-  return imageTokens.length === 1 || getThemeImageTokenPair(imageTokens) !== null;
+  return imageNodes.length === 1 || getThemeImageNodePair(imageNodes) !== null;
 }

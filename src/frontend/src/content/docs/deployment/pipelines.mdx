@@ -490,7 +490,7 @@ The pipeline system allows you to add custom steps to handle application-specifi
 
 Use `builder.Pipeline.AddStep` to add custom steps that apply to your entire application:
 
-```csharp title="C# — Application-level custom step"
+```csharp title="Application-level custom step"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add a custom validation step
@@ -522,7 +522,7 @@ aspire do validate
 
 Resources can contribute their own pipeline steps using `WithPipelineStepFactory`:
 
-```csharp title="C# — Resource-level custom step"
+```csharp title="Resource-level custom step"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPipelineStepFactory(context =>
     {
@@ -548,7 +548,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 Control step execution order using dependencies:
 
-```csharp title="C# — Step with dependencies"
+```csharp title="Step with dependencies"
 // Step that depends on other steps
 builder.Pipeline.AddStep("database-migration", async (context) =>
 {
@@ -580,7 +580,7 @@ To deepen your understanding of pipelines, let's examine scenarios where you mig
 
 If you're deploying to testing, staging, production, or other environments, you might want to take different deployment actions in each case. You can use the pipeline context to create environment-specific pipeline steps:
 
-```csharp title="C# — Multi-environment deployment"
+```csharp title="Multi-environment deployment"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add environment-specific validation
@@ -618,7 +618,7 @@ aspire do deploy --environment Production
 
 Add custom build logic that integrates with the pipeline:
 
-```csharp title="C# — Custom build step"
+```csharp title="Custom build step"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add custom pre-build step
@@ -644,7 +644,7 @@ builder.Build().Run();
 
 If you want to ensure a database is populated as part of your deployment, you can create a step that integrates database migrations into the deployment pipeline:
 
-```csharp title="C# — Database migrations step"
+```csharp title="Database migrations step"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var database = builder.AddPostgres("db");
@@ -710,7 +710,7 @@ Here are some code examples that show Aspire 9.x code and the Aspire 13.x equiva
 
 **Before (Aspire 9.x):**
 
-```csharp title="C# — Old publishing callback"
+```csharp title="Old publishing callback"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPublishingCallback(async (context, cancellationToken) =>
     {
@@ -721,7 +721,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 **After (Aspire 13.0):**
 
-```csharp title="C# — New pipeline step"
+```csharp title="New pipeline step"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPipelineStepFactory(context =>
     {
@@ -742,7 +742,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 **Before (Aspire 9.x):**
 
-```csharp title="C# — Old application-level callback"
+```csharp title="Old application-level callback"
 builder.Services.AddLifecycleHook<CustomPublishingHook>();
 
 public class CustomPublishingHook : IDistributedApplicationLifecycleHook
@@ -759,7 +759,7 @@ public class CustomPublishingHook : IDistributedApplicationLifecycleHook
 
 **After (Aspire 13.0):**
 
-```csharp title="C# — New pipeline step"
+```csharp title="New pipeline step"
 builder.Pipeline.AddStep("notify-deployment", async (context) =>
 {
     // Custom logic
@@ -772,7 +772,7 @@ dependsOn: [WellKnownPipelineSteps.Deploy]);
 
 **Before (Aspire 9.x):**
 
-```csharp title="C# — Old complex callback"
+```csharp title="Old complex callback"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPublishingCallback(async (context, cancellationToken) =>
     {
@@ -787,7 +787,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 **After (Aspire 13.0):**
 
-```csharp title="C# — New pipeline steps with dependencies"
+```csharp title="New pipeline steps with dependencies"
 // Break down into discrete steps with dependencies
 builder.Pipeline.AddStep("provision-infra", async (context) =>
 {
