@@ -1,0 +1,3393 @@
+---
+import { Image } from 'astro:assets';
+import { Code, Icon } from '@astrojs/starlight/components';
+
+import aspireLogo from '@assets/aspire-logo-32.svg';
+import csharpIcon from '@assets/icons/csharp.svg';
+import dockerIcon from '@assets/icons/docker.svg';
+import garnetIcon from '@assets/icons/garnet-icon.png';
+import goIcon from '@assets/icons/go-light-icon.png';
+import javaIcon from '@assets/icons/java.svg';
+import javascriptIcon from '@assets/icons/javascript.svg';
+import mongodbIcon from '@assets/icons/mongodb-icon.png';
+import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
+import PauseIcon from '@assets/icons/pause.svg';
+import PlayIcon from '@assets/icons/play.svg';
+import postgresqlIcon from '@assets/icons/postgresql-icon.png';
+import pythonIcon from '@assets/icons/python.svg';
+import reactIcon from '@assets/icons/react-icon.svg';
+import redisIcon from '@assets/icons/redis-icon.png';
+import rustIcon from '@assets/icons/rust-icon.png';
+import sqliteIcon from '@assets/icons/sqlite-icon.png';
+import typescriptIcon from '@assets/icons/typescript.svg';
+import valkeyIcon from '@assets/icons/valkey-icon.png';
+import DashboardCarousel from '@components/DashboardCarousel.astro';
+import HomeAgentBadge from './HomeAgentBadge.astro';
+import HomeAgentContext from './HomeAgentContext.astro';
+import HomeEnvironment from './HomeEnvironment.astro';
+import HomeIntegrationRail from './HomeIntegrationRail.astro';
+import HomeTestimonials from './HomeTestimonials.astro';
+import { localizedHref } from '@utils/helpers';
+import { getLocaleFromPath } from '@utils/locale-routes';
+
+const languages = [
+  { name: 'C#', icon: csharpIcon },
+  { name: 'TypeScript', icon: typescriptIcon },
+  { name: 'JavaScript', icon: javascriptIcon },
+  { name: 'Python', icon: pythonIcon },
+  { name: 'Java', icon: javaIcon },
+  { name: 'Go', icon: goIcon },
+  { name: 'Rust', icon: rustIcon },
+  { name: 'Containers', icon: dockerIcon },
+] as const;
+
+const modelAppHostTypescript = `import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+const postgres = await builder
+    .addPostgres("postgres")
+    .addDatabase("catalogdb");
+const cache = await builder.addRedis("basketcache");
+
+const catalog = await builder
+    .addNodeApp("catalogservice", "./catalog", "src/index.ts")
+    .withReference(postgres);
+
+await builder.addViteApp("frontend", "./frontend")
+    .withReference(catalog)
+    .withReference(cache);
+
+await builder.build().run();
+`;
+
+const modelAppHostCsharp = `var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .AddDatabase("catalogdb");
+var cache = builder.AddRedis("basketcache");
+
+var catalog = builder
+    .AddProject<Projects.CatalogService>("catalogservice")
+    .WithReference(postgres);
+
+builder.AddProject<Projects.Frontend>("frontend")
+    .WithReference(catalog)
+    .WithReference(cache);
+
+builder.Build().Run();
+`;
+
+const frontendResourceIcons = [reactIcon, typescriptIcon, javascriptIcon] as const;
+const apiResourceIcons = [csharpIcon, javaIcon, pythonIcon, goIcon] as const;
+const databaseResourceIcons = [postgresqlIcon, mongodbIcon, mysqlIcon, sqliteIcon] as const;
+const cacheResourceIcons = [redisIcon, valkeyIcon, garnetIcon] as const;
+const modelResourceMotion = {
+  frontend: { duration: 10.8, offset: -1.4 },
+  api: { duration: 13.6, offset: -5.7 },
+  database: { duration: 11.9, offset: -8.2 },
+  cache: { duration: 15.2, offset: -3.3 },
+} as const;
+
+const getModelResourceDelay = (
+  resource: keyof typeof modelResourceMotion,
+  count: number,
+  index: number
+) => {
+  const motion = modelResourceMotion[resource];
+  return motion.offset + index * (motion.duration / count);
+};
+
+const principles = [
+  { number: '01', icon: 'laptop', key: '01', href: '/get-started/app-host/' },
+  { number: '02', icon: 'rocket', key: '02', href: '/reference/cli/commands/aspire-run/' },
+  { number: '03', icon: 'magnifier', key: '03', href: '/dashboard/' },
+  { number: '04', icon: 'star', key: '04', href: '/deployment/' },
+] as const;
+
+const t = Astro.locals.t;
+const locale = getLocaleFromPath(Astro.url.pathname);
+
+const localizedPrinciples = principles.map((principle) => ({
+  number: principle.number,
+  icon: principle.icon,
+  href: localizedHref(principle.href, locale),
+  title: t(`home.principles.${principle.key}.title` as any),
+  description: t(`home.principles.${principle.key}.description` as any),
+  label: t(`home.principles.${principle.key}.label` as any),
+}));
+---
+
+<div class="aspire-home not-content">
+  <section class="home-section home-languages" aria-labelledby="home-languages-title">
+    <div class="home-shell">
+      <header class="language-heading" data-home-reveal>
+        <p class="section-index"><span>01</span> {t('home.languages.index')}</p>
+        <div>
+          <h2 id="home-languages-title">{t('home.languages.title')}</h2>
+          <p>{t('home.languages.body')}</p>
+        </div>
+      </header>
+
+      <ul class="language-list" aria-label={t('home.languages.listLabel')} data-language-list>
+        {
+          languages.map((language, index) => (
+            <li data-home-reveal style={`--home-reveal-delay: ${index * 45}ms`}>
+              <Image src={language.icon} alt="" class="language-icon" width="48" height="48" />
+              <span>
+                {language.name === 'Containers' ? t('home.languages.containers') : language.name}
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+      <a
+        class="text-link"
+        href={localizedHref('/get-started/resources/', locale)}
+        data-home-link
+        data-home-link-icon
+        data-home-reveal
+      >
+        {t('home.languages.link')}
+        <Icon name="right-arrow" size="1rem" />
+      </a>
+    </div>
+  </section>
+  <HomeAgentContext />
+
+  <section class="home-section home-model" aria-labelledby="home-model-title">
+    <div class="home-shell">
+      <header class="section-heading split-heading" data-home-reveal>
+        <p class="section-index"><span>03</span> {t('home.model.index')}</p>
+        <div>
+          <h2 id="home-model-title">{t('home.model.title')}</h2>
+          <p>{t('home.model.body')}</p>
+          <HomeAgentBadge
+            id="model-ai-context"
+            label={t('home.model.badgeLabel')}
+            description={t('home.model.badgeDescription')}
+          />
+        </div>
+      </header>
+
+      <div class="model-layout">
+        <div
+          class="model-proof"
+          data-home-reveal
+          data-home-reveal-distance="major"
+          data-home-reveal-anchor=".model-window"
+          data-model-story
+          data-story-stage="code"
+          data-story-focus="terminal"
+          data-story-surface="hidden"
+          data-story-language="typescript"
+        >
+          <div class="model-story-stack">
+            <div class="model-terminal">
+              <div class="model-window" aria-hidden="true">
+                <div class="model-window-bar" aria-hidden="true">
+                  <span><i></i><i></i><i></i></span>
+                  <strong>terminal</strong>
+                  <small>aspire-shop</small>
+                </div>
+                <pre><code><span class="terminal-line terminal-command"><span>$</span> <b data-terminal-command data-command="aspire run">aspire run</b><i class="terminal-caret" /></span>
+<span class="terminal-line terminal-status" data-terminal-output data-terminal-status data-stage="code" hidden><span class="term-spinner" aria-hidden="true" /><span data-terminal-status-text>Preparing Aspire server...</span></span>
+<span class="terminal-line term-grid" data-terminal-output data-terminal-summary data-stage="topology"><em class="term-key">AppHost:</em><span class="term-val" data-terminal-apphost>apphost.mts</span></span>
+<span class="terminal-line term-grid" data-terminal-output data-terminal-summary data-stage="dashboard"><em class="term-key">Dashboard:</em><a class="term-link" tabindex="-1">https://localhost:17178/login?t=b3f9c1e0</a></span>
+<span class="terminal-line term-grid" data-terminal-output data-terminal-summary data-stage="dashboard"><em class="term-key">Logs:</em><span class="term-val">~/.aspire/cli/logs/apphost-2f8c.log</span></span>
+<span class="terminal-line term-hint" data-terminal-output data-terminal-summary data-stage="dashboard">Press <b>CTRL+C</b> to stop the AppHost and exit.</span></code></pre>
+                <span class="model-focus-border" data-model-focus-border aria-hidden="true"></span>
+              </div>
+
+              <button
+                type="button"
+                class="model-story-toggle"
+                data-model-story-toggle
+                data-paused="false"
+                aria-label={t('home.model.pause')}
+                data-label-pause={t('home.model.pause')}
+                data-label-play={t('home.model.play')}
+                aria-pressed="false"
+              >
+                <span class="model-story-pause-icon" aria-hidden="true">
+                  <PauseIcon />
+                </span>
+                <span class="model-story-play-icon" aria-hidden="true">
+                  <PlayIcon />
+                </span>
+              </button>
+            </div>
+
+            <p class="model-story-summary">
+              {t('home.model.summary')}
+            </p>
+
+            <div class="model-story-stage" data-model-story-surface aria-hidden="true" inert>
+              <div
+                class="model-story-progress"
+                role="group"
+                aria-label={t('home.model.stageLabel')}
+              >
+                <button
+                  type="button"
+                  class="model-story-tab"
+                  data-model-stage-label="code"
+                  data-active="true"
+                  aria-pressed="true"
+                >
+                  <span class="model-tab-icon model-tab-lang" aria-hidden="true">
+                    <Image
+                      src={typescriptIcon}
+                      alt=""
+                      class="model-tab-lang-icon model-tab-lang-typescript"
+                      width="18"
+                      height="18"
+                      loading="eager"
+                    />
+                    <Image
+                      src={csharpIcon}
+                      alt=""
+                      class="model-tab-lang-icon model-tab-lang-csharp"
+                      width="18"
+                      height="18"
+                      loading="eager"
+                    />
+                  </span>
+                  <span class="model-tab-text">AppHost</span>
+                </button>
+                <button
+                  type="button"
+                  class="model-story-tab"
+                  data-model-stage-label="topology"
+                  data-active="false"
+                  aria-pressed="false"
+                >
+                  <span class="model-tab-icon" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      focusable="false"
+                    >
+                      <rect width="6" height="6" x="16" y="16" rx="1"></rect>
+                      <rect width="6" height="6" x="2" y="16" rx="1"></rect>
+                      <rect width="6" height="6" x="9" y="2" rx="1"></rect>
+                      <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3m-7-4V8"></path>
+                    </svg>
+                  </span>
+                  <span class="model-tab-text">{t('home.model.tabTopology')}</span>
+                </button>
+                <button
+                  type="button"
+                  class="model-story-tab"
+                  data-model-stage-label="dashboard"
+                  data-active="false"
+                  aria-pressed="false"
+                >
+                  <span class="model-tab-icon" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      focusable="false"
+                    >
+                      <rect width="7" height="9" x="3" y="3" rx="1"></rect>
+                      <rect width="7" height="5" x="14" y="3" rx="1"></rect>
+                      <rect width="7" height="9" x="14" y="12" rx="1"></rect>
+                      <rect width="7" height="5" x="3" y="16" rx="1"></rect>
+                    </svg>
+                  </span>
+                  <span class="model-tab-text">{t('home.model.tabDashboard')}</span>
+                </button>
+              </div>
+
+              <div class="model-story-viewport" aria-hidden="true">
+                <div class="model-story-panel model-code" data-story-panel="code">
+                  <div class="model-code-variant" data-model-code-language="typescript">
+                    <Code code={modelAppHostTypescript} lang="typescript" frame="none" />
+                  </div>
+
+                  <div class="model-code-variant" data-model-code-language="csharp">
+                    <Code code={modelAppHostCsharp} lang="csharp" frame="none" />
+                  </div>
+                </div>
+
+                <div
+                  class="model-story-panel model-graph"
+                  data-story-panel="topology"
+                  data-model-graph
+                >
+                  <svg class="graph-flow" viewBox="0 0 100 100" aria-hidden="true">
+                    <path class="graph-flow-line flow-1" data-flow-edge d=""></path>
+                    <path class="graph-flow-line flow-2" data-flow-edge d=""></path>
+                    <path class="graph-flow-line flow-3" data-flow-edge d=""></path>
+                  </svg>
+                  <div class="graph-resources">
+                    <div class="graph-resource resource-frontend">
+                      <span class="graph-resource-card">
+                        <span class="graph-handle graph-handle-right" aria-hidden="true"></span>
+                        <span class="graph-node-head">
+                          <span class="graph-resource-icon-cycle cycle-three">
+                            {
+                              frontendResourceIcons.map((icon, index) => (
+                                <Image
+                                  src={icon}
+                                  alt=""
+                                  class="graph-resource-icon"
+                                  width="28"
+                                  height="28"
+                                  loading="eager"
+                                  style={`--resource-icon-delay: ${getModelResourceDelay('frontend', frontendResourceIcons.length, index)}s`}
+                                />
+                              ))
+                            }
+                          </span>
+                          <span class="graph-node-type">Frontend</span>
+                        </span>
+                        <span class="graph-node-name">frontend</span>
+                      </span>
+                    </div>
+                    <div class="graph-resource resource-api">
+                      <span class="graph-resource-card">
+                        <span class="graph-handle graph-handle-left" aria-hidden="true"></span>
+                        <span class="graph-handle graph-handle-right" aria-hidden="true"></span>
+                        <span class="graph-node-head">
+                          <span class="graph-resource-icon-cycle cycle-four">
+                            {
+                              apiResourceIcons.map((icon, index) => (
+                                <Image
+                                  src={icon}
+                                  alt=""
+                                  class="graph-resource-icon"
+                                  width="28"
+                                  height="28"
+                                  loading="eager"
+                                  style={`--resource-icon-delay: ${getModelResourceDelay('api', apiResourceIcons.length, index)}s`}
+                                />
+                              ))
+                            }
+                          </span>
+                          <span class="graph-node-type">Service</span>
+                        </span>
+                        <span class="graph-node-name">catalogservice</span>
+                      </span>
+                    </div>
+                    <div class="graph-resource resource-database">
+                      <span class="graph-resource-card">
+                        <span class="graph-handle graph-handle-left" aria-hidden="true"></span>
+                        <span class="graph-node-head">
+                          <span class="graph-resource-icon-cycle cycle-four">
+                            {
+                              databaseResourceIcons.map((icon, index) => (
+                                <Image
+                                  src={icon}
+                                  alt=""
+                                  class="graph-resource-icon"
+                                  width="28"
+                                  height="28"
+                                  loading="eager"
+                                  style={`--resource-icon-delay: ${getModelResourceDelay('database', databaseResourceIcons.length, index)}s`}
+                                />
+                              ))
+                            }
+                          </span>
+                          <span class="graph-node-type">Database</span>
+                        </span>
+                        <span class="graph-node-name">postgres</span>
+                      </span>
+                    </div>
+                    <div class="graph-resource resource-cache">
+                      <span class="graph-resource-card">
+                        <span class="graph-handle graph-handle-left" aria-hidden="true"></span>
+                        <span class="graph-node-head">
+                          <span class="graph-resource-icon-cycle cycle-three">
+                            {
+                              cacheResourceIcons.map((icon, index) => (
+                                <Image
+                                  src={icon}
+                                  alt=""
+                                  class={`graph-resource-icon${index === 0 ? ' cache-icon' : ''}`}
+                                  width="28"
+                                  height="28"
+                                  loading="eager"
+                                  style={`--resource-icon-delay: ${getModelResourceDelay('cache', cacheResourceIcons.length, index)}s`}
+                                />
+                              ))
+                            }
+                          </span>
+                          <span class="graph-node-type">Cache</span>
+                        </span>
+                        <span class="graph-node-name">basketcache</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="graph-flow-labels" aria-hidden="true">
+                    <span class="graph-flow-label label-discovery">
+                      <svg
+                        class="flow-arrow"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.4"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"><path d="M4 12h13m-5-5 5 5-5 5"></path></svg
+                      >
+                      <span>service discovery</span>
+                    </span>
+                    <span class="graph-flow-label label-connection">
+                      <svg
+                        class="flow-arrow"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.4"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"><path d="M4 12h13m-5-5 5 5-5 5"></path></svg
+                      >
+                      <span>connection string</span>
+                    </span>
+                    <span class="graph-flow-label label-cache">
+                      <svg
+                        class="flow-arrow"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.4"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"><path d="M4 12h13m-5-5 5 5-5 5"></path></svg
+                      >
+                      <span>cache client</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div
+                  class="model-story-panel model-dashboard"
+                  data-story-panel="dashboard"
+                  data-model-dashboard
+                >
+                  <div class="dash-head" aria-hidden="true">
+                    <span class="dash-col-name">Name</span>
+                    <span class="dash-col-state">State</span>
+                    <span class="dash-col-source">Source</span>
+                    <span class="dash-col-url">URLs</span>
+                  </div>
+                  <div class="dash-body">
+                    <div class="dash-row" data-dash-row>
+                      <span class="dash-name">
+                        <Image
+                          src={postgresqlIcon}
+                          alt=""
+                          class="dash-icon"
+                          width="22"
+                          height="22"
+                        />
+                        <span>postgres</span>
+                      </span>
+                      <span class="dash-state">
+                        <span class="dash-dot" aria-hidden="true"></span>
+                        <span class="dash-state-text"></span>
+                      </span>
+                      <span class="dash-source">docker.io/library/postgres:18.3</span>
+                      <span class="dash-url"
+                        ><a class="dash-link" tabindex="-1">tcp://localhost:5432</a></span
+                      >
+                    </div>
+                    <div class="dash-row" data-dash-row>
+                      <span class="dash-name">
+                        <Image src={redisIcon} alt="" class="dash-icon" width="22" height="22" />
+                        <span>basketcache</span>
+                      </span>
+                      <span class="dash-state">
+                        <span class="dash-dot" aria-hidden="true"></span>
+                        <span class="dash-state-text"></span>
+                      </span>
+                      <span class="dash-source">docker.io/library/redis:8.6</span>
+                      <span class="dash-url"
+                        ><a class="dash-link" tabindex="-1">tcp://localhost:6379</a></span
+                      >
+                    </div>
+                    <div class="dash-row" data-dash-row>
+                      <span class="dash-name">
+                        <Image src={csharpIcon} alt="" class="dash-icon" width="22" height="22" />
+                        <span>catalogservice</span>
+                      </span>
+                      <span class="dash-state">
+                        <span class="dash-dot" aria-hidden="true"></span>
+                        <span class="dash-state-text"></span>
+                      </span>
+                      <span class="dash-source">AspireShop.CatalogService.csproj</span>
+                      <span class="dash-url"
+                        ><a class="dash-link" tabindex="-1">https://localhost:7099</a></span
+                      >
+                    </div>
+                    <div class="dash-row" data-dash-row>
+                      <span class="dash-name">
+                        <Image src={reactIcon} alt="" class="dash-icon" width="22" height="22" />
+                        <span>frontend</span>
+                      </span>
+                      <span class="dash-state">
+                        <span class="dash-dot" aria-hidden="true"></span>
+                        <span class="dash-state-text"></span>
+                      </span>
+                      <span class="dash-source">AspireShop.Frontend.csproj</span>
+                      <span class="dash-url"
+                        ><a class="dash-link" tabindex="-1">https://localhost:7188</a></span
+                      >
+                    </div>
+                  </div>
+                  <div class="dash-foot" aria-hidden="true">
+                    <span class="dash-foot-count"
+                      ><b data-dash-count>0</b> of 4 resources running</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <span class="model-focus-border" data-model-focus-border aria-hidden="true"></span>
+            </div>
+          </div>
+        </div>
+
+        <ol class="principle-list">
+          {
+            localizedPrinciples.map((principle, index) => (
+              <li data-home-reveal style={`--home-reveal-delay: ${index * 70}ms`}>
+                <span class="principle-number">{principle.number}</span>
+                <div class="principle-icon" aria-hidden="true">
+                  <Icon name={principle.icon} size="1.25rem" />
+                </div>
+                <div>
+                  <h3>{principle.title}</h3>
+                  <p>{principle.description}</p>
+                  <a href={principle.href} data-home-link data-home-link-icon>
+                    {principle.label}
+                    <Icon name="right-arrow" size="0.95rem" />
+                  </a>
+                </div>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <HomeEnvironment />
+
+  <section class="home-section home-dashboard" aria-labelledby="home-dashboard-title">
+    <div class="home-shell">
+      <header class="section-heading dashboard-heading" data-home-reveal>
+        <p class="section-index"><span>05</span> {t('home.observability.index')}</p>
+        <h2 id="home-dashboard-title">{t('home.observability.title')}</h2>
+        <p>{t('home.observability.body')}</p>
+        <HomeAgentBadge
+          id="dashboard-ai-context"
+          label={t('home.observability.badgeLabel')}
+          description={t('home.observability.badgeDescription')}
+          align="center"
+        />
+        <a
+          class="text-link"
+          href={localizedHref('/dashboard/', locale)}
+          data-home-link
+          data-home-link-icon
+        >
+          {t('home.observability.link')}
+          <Icon name="right-arrow" size="1rem" />
+        </a>
+      </header>
+
+      <div
+        class="dashboard-stage"
+        data-home-reveal
+        data-home-reveal-distance="major"
+        data-home-reveal-anchor="[data-stage]"
+      >
+        <div class="dashboard-stage-bar" aria-hidden="true">
+          <span><i></i><i></i><i></i></span>
+          <strong>Aspire dashboard</strong>
+          <small>Resources / Graph</small>
+        </div>
+        <DashboardCarousel autoplay={true} presentation="stage" />
+      </div>
+    </div>
+  </section>
+
+  <section class="home-section home-integrations" aria-labelledby="home-integrations-title">
+    <div class="home-shell">
+      <header class="section-heading integrations-heading" data-home-reveal>
+        <p class="section-index"><span>06</span> {t('home.integrations.index')}</p>
+        <h2 id="home-integrations-title">{t('home.integrations.title')}</h2>
+        <p>{t('home.integrations.body')}</p>
+      </header>
+      <div
+        data-home-reveal
+        data-home-reveal-distance="major"
+        data-home-reveal-anchor="[data-home-integration-rail]"
+        data-home-reveal-on-entry
+      >
+        <HomeIntegrationRail />
+      </div>
+      <a
+        class="text-link integration-link"
+        href={localizedHref('/integrations/', locale)}
+        data-home-link
+        data-home-link-icon
+        data-home-reveal
+      >
+        {t('home.integrations.link')}
+        <Icon name="right-arrow" size="1rem" />
+      </a>
+    </div>
+  </section>
+
+  <HomeTestimonials />
+
+  <section class="home-section home-closing" aria-labelledby="home-closing-title">
+    <div class="closing-grid" aria-hidden="true"></div>
+    <div class="closing-orbit orbit-a" aria-hidden="true"></div>
+    <div class="closing-orbit orbit-b" aria-hidden="true"></div>
+    <div class="home-shell closing-content" data-home-reveal data-home-reveal-distance="major">
+      <p class="section-index"><span>08</span> {t('home.closing.index')}</p>
+      <h2 id="home-closing-title">{t('home.closing.title')}</h2>
+      <p>{t('home.closing.body')}</p>
+      <div class="closing-actions">
+        <a class="closing-action primary" href={localizedHref('/get-started/install-cli/', locale)}>
+          {t('home.closing.install')}
+          <Icon name="right-arrow" size="1rem" />
+        </a>
+        <a class="closing-action secondary" href={localizedHref('/get-started/first-app/', locale)}>
+          {t('home.closing.firstApp')}
+        </a>
+        <a class="closing-action tertiary" href="https://github.com/dotnet/aspire">
+          <Icon name="github" size="1.1rem" />
+          {t('home.closing.github')}
+        </a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  import { createViewportActivationObserver } from '@utils/viewport-activation';
+
+  type AppHostLanguage = 'csharp' | 'typescript';
+  type ModelStoryStage = 'code' | 'topology' | 'dashboard';
+  type TerminalStatus = 'checking' | 'building' | 'preparing' | 'connecting' | 'dashboard';
+
+  function isAppHostLanguage(value: unknown): value is AppHostLanguage {
+    return value === 'csharp' || value === 'typescript';
+  }
+
+  function randomizeLanguageOrder(page: HTMLElement) {
+    const list = page.querySelector<HTMLElement>('[data-language-list]');
+    if (!list || list.dataset.randomized === 'true') return;
+
+    const items = Array.from(list.querySelectorAll<HTMLElement>(':scope > li'));
+    for (let index = items.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [items[index], items[randomIndex]] = [items[randomIndex]!, items[index]!];
+    }
+
+    const fragment = document.createDocumentFragment();
+    items.forEach((item, index) => {
+      item.style.setProperty('--home-reveal-delay', `${index * 45}ms`);
+      fragment.append(item);
+    });
+    list.append(fragment);
+    list.dataset.randomized = 'true';
+  }
+
+  function createModelStory(root: HTMLElement, reducedMotion: boolean) {
+    const command = root.querySelector<HTMLElement>('[data-terminal-command]');
+    const toggle = root.querySelector<HTMLButtonElement>('[data-model-story-toggle]');
+    const outputLines = Array.from(root.querySelectorAll<HTMLElement>('[data-terminal-output]'));
+    const statusLine = root.querySelector<HTMLElement>('[data-terminal-status]');
+    const statusText = root.querySelector<HTMLElement>('[data-terminal-status-text]');
+    const summaryLines = Array.from(root.querySelectorAll<HTMLElement>('[data-terminal-summary]'));
+    const appHostOutput = root.querySelector<HTMLElement>('[data-terminal-apphost]');
+    const stageLabels = Array.from(root.querySelectorAll<HTMLElement>('[data-model-stage-label]'));
+    const stageSurface = root.querySelector<HTMLElement>('[data-model-story-surface]');
+    const graph = root.querySelector<HTMLElement>('[data-model-graph]');
+    if (!command || !toggle || !statusLine || !statusText || !appHostOutput || !stageSurface) {
+      return null;
+    }
+
+    const commandText = command.dataset.command ?? 'aspire run';
+    const cycleDuration = 15_500;
+    const commandStart = 280;
+    const commandInterval = 58;
+    const commandEnd = commandStart + Math.max(commandText.length - 1, 0) * commandInterval;
+    const stageResumeAt: Record<ModelStoryStage, number> = {
+      code: 1_250,
+      topology: 5_050,
+      dashboard: 9_650,
+    };
+    const timers = new Set<number>();
+    let playing = false;
+    let playbackAllowed = false;
+    let manuallyPaused = false;
+    let cycleElapsed = 0;
+    let cycleStartedAt = 0;
+    const initialLanguage = root.dataset.storyLanguage;
+    let storyLanguage: AppHostLanguage = isAppHostLanguage(initialLanguage)
+      ? initialLanguage
+      : 'typescript';
+    let activeStatus: TerminalStatus | null = null;
+
+    const dashboard = root.querySelector<HTMLElement>('[data-model-dashboard]');
+    const dashRows = dashboard
+      ? Array.from(dashboard.querySelectorAll<HTMLElement>('[data-dash-row]'))
+      : [];
+    const dashCount = dashboard?.querySelector<HTMLElement>('[data-dash-count]') ?? null;
+    const dashTimers = new Set<number>();
+    let dashState: 'idle' | 'animating' | 'final' = 'idle';
+
+    const clearDashTimers = () => {
+      dashTimers.forEach((timer) => window.clearTimeout(timer));
+      dashTimers.clear();
+    };
+
+    const setDashCount = (value: number) => {
+      if (dashCount) dashCount.textContent = String(value);
+    };
+
+    const resetDashboard = () => {
+      if (!dashboard || dashState === 'idle') return;
+      clearDashTimers();
+      dashState = 'idle';
+      dashRows.forEach((row) => row.classList.remove('is-visible', 'is-online'));
+      setDashCount(0);
+    };
+
+    const finalizeDashboard = () => {
+      if (!dashboard) return;
+      clearDashTimers();
+      dashState = 'final';
+      dashRows.forEach((row) => row.classList.add('is-visible', 'is-online'));
+      setDashCount(dashRows.length);
+    };
+
+    const animateDashboard = () => {
+      if (!dashboard || dashState === 'animating') return;
+      clearDashTimers();
+      dashState = 'animating';
+      dashRows.forEach((row) => row.classList.remove('is-visible', 'is-online'));
+      setDashCount(0);
+      let online = 0;
+      dashRows.forEach((row, index) => {
+        const appearAt = 140 + index * 300;
+        const onlineAt = appearAt + 900 + index * 160;
+        const appearTimer = window.setTimeout(() => {
+          dashTimers.delete(appearTimer);
+          row.classList.add('is-visible');
+        }, appearAt);
+        dashTimers.add(appearTimer);
+        const onlineTimer = window.setTimeout(() => {
+          dashTimers.delete(onlineTimer);
+          row.classList.add('is-online');
+          online += 1;
+          setDashCount(online);
+        }, onlineAt);
+        dashTimers.add(onlineTimer);
+      });
+    };
+
+    const showDashboard = (animate: boolean) => {
+      if (animate) animateDashboard();
+      else finalizeDashboard();
+    };
+
+    const clearTimers = () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers.clear();
+    };
+
+    const scheduleAt = (callback: () => void, timestamp: number) => {
+      const delay = timestamp - cycleElapsed;
+      if (delay < 0) return;
+
+      const timer = window.setTimeout(() => {
+        timers.delete(timer);
+        if (playing) callback();
+      }, delay);
+      timers.add(timer);
+    };
+
+    const updateControl = () => {
+      toggle.dataset.paused = String(manuallyPaused);
+      toggle.setAttribute('aria-pressed', String(manuallyPaused));
+      const playLabel = toggle.dataset.labelPlay ?? 'Play runtime story';
+      const pauseLabel = toggle.dataset.labelPause ?? 'Pause runtime story';
+      toggle.setAttribute('aria-label', manuallyPaused ? playLabel : pauseLabel);
+    };
+
+    const getAppHostFileName = () =>
+      storyLanguage === 'typescript' ? 'apphost.mts' : 'apphost.cs';
+
+    const getStatusText = (status: TerminalStatus) => {
+      switch (status) {
+        case 'checking':
+          return `Checking project type... ${getAppHostFileName()}`;
+        case 'building':
+          return `Building AppHost... ${getAppHostFileName()}`;
+        case 'preparing':
+          return 'Preparing Aspire server...';
+        case 'connecting':
+          return 'Connecting to AppHost...';
+        case 'dashboard':
+          return 'Starting dashboard...';
+      }
+    };
+
+    const syncTerminalLanguage = () => {
+      appHostOutput.textContent = getAppHostFileName();
+      if (activeStatus) {
+        statusText.textContent = getStatusText(activeStatus);
+      }
+    };
+
+    const showStatus = (status: TerminalStatus) => {
+      activeStatus = status;
+      syncTerminalLanguage();
+      statusLine.hidden = false;
+      statusLine.classList.add('is-visible');
+      summaryLines.forEach((line) => line.classList.remove('is-visible'));
+    };
+
+    const showSummary = () => {
+      activeStatus = null;
+      statusLine.classList.remove('is-visible');
+      statusLine.hidden = false;
+      summaryLines.forEach((line) => line.classList.add('is-visible'));
+    };
+
+    const syncStageInteractivity = () => {
+      const interactive =
+        root.dataset.storySurface === 'visible' && root.dataset.storyFocus === 'stage';
+      stageSurface.toggleAttribute('inert', !interactive);
+      stageSurface.setAttribute('aria-hidden', String(!interactive));
+    };
+
+    const setSurfaceVisible = (visible: boolean) => {
+      root.dataset.storySurface = visible ? 'visible' : 'hidden';
+      syncStageInteractivity();
+      graph?.toggleAttribute(
+        'data-graph-active',
+        playing && visible && root.dataset.storyStage === 'topology'
+      );
+    };
+
+    const setFocus = (focus: 'terminal' | 'stage') => {
+      const previousFocus = root.dataset.storyFocus;
+      if (previousFocus && previousFocus !== focus) {
+        root.dataset.storySwap = focus;
+      }
+      root.dataset.storyFocus = focus;
+      syncStageInteractivity();
+    };
+
+    const setStage = (stage: ModelStoryStage) => {
+      root.dataset.storyStage = stage;
+      stageLabels.forEach((label) => {
+        const active = label.dataset.modelStageLabel === stage;
+        label.dataset.active = String(active);
+        label.setAttribute('aria-pressed', String(active));
+      });
+      graph?.toggleAttribute(
+        'data-graph-active',
+        playing && root.dataset.storySurface === 'visible' && stage === 'topology'
+      );
+      if (stage === 'dashboard') {
+        showDashboard(playing && !reducedMotion);
+      } else {
+        resetDashboard();
+      }
+    };
+
+    const snapToStage = (stage: ModelStoryStage) => {
+      manuallyPaused = true;
+      updateControl();
+      pause();
+      command.textContent = commandText;
+      root.removeAttribute('data-terminal-typing');
+      if (stage === 'code') {
+        showStatus(storyLanguage === 'typescript' ? 'preparing' : 'checking');
+      } else if (stage === 'topology') {
+        showStatus('connecting');
+      } else {
+        showSummary();
+      }
+      setStage(stage);
+      setSurfaceVisible(true);
+      setFocus('stage');
+      graph?.toggleAttribute('data-graph-active', stage === 'topology');
+      cycleElapsed = stageResumeAt[stage];
+    };
+
+    const handleStageClick = (event: Event) => {
+      const stage = (event.currentTarget as HTMLElement).dataset.modelStageLabel;
+      if (stage === 'code' || stage === 'topology' || stage === 'dashboard') {
+        snapToStage(stage);
+      }
+    };
+
+    const setLanguage = (language: AppHostLanguage) => {
+      storyLanguage = language;
+      root.dataset.storyLanguage = language;
+      if (
+        language === 'typescript' &&
+        (activeStatus === 'checking' || activeStatus === 'building')
+      ) {
+        activeStatus = 'preparing';
+      } else if (language === 'csharp' && activeStatus === 'preparing') {
+        activeStatus = 'building';
+      }
+      syncTerminalLanguage();
+    };
+
+    const reset = () => {
+      command.textContent = '';
+      activeStatus = null;
+      statusLine.hidden = false;
+      outputLines.forEach((line) => line.classList.remove('is-visible'));
+      root.setAttribute('data-terminal-typing', 'true');
+      setStage('code');
+      setSurfaceVisible(false);
+      setFocus('terminal');
+    };
+
+    const pause = () => {
+      if (playing) {
+        cycleElapsed = Math.min(cycleDuration, performance.now() - cycleStartedAt);
+      }
+      playing = false;
+      clearTimers();
+      clearDashTimers();
+      root.removeAttribute('data-terminal-typing');
+      root.dataset.storyPlaying = 'false';
+      graph?.removeAttribute('data-graph-active');
+    };
+
+    const showFinalState = () => {
+      pause();
+      command.textContent = commandText;
+      showSummary();
+      setStage('dashboard');
+      setSurfaceVisible(true);
+      setFocus('stage');
+      cycleElapsed = cycleDuration;
+    };
+
+    const scheduleTimeline = () => {
+      Array.from(commandText).forEach((_, index) => {
+        scheduleAt(
+          () => {
+            command.textContent = commandText.slice(0, index + 1);
+            if (index === commandText.length - 1) {
+              root.removeAttribute('data-terminal-typing');
+            }
+          },
+          commandStart + index * commandInterval
+        );
+      });
+
+      scheduleAt(
+        () => showStatus(storyLanguage === 'typescript' ? 'preparing' : 'checking'),
+        1_250
+      );
+      scheduleAt(() => {
+        if (storyLanguage === 'csharp') {
+          showStatus('building');
+        }
+      }, 2_050);
+      scheduleAt(() => {
+        showStatus('connecting');
+        setStage('code');
+        setSurfaceVisible(true);
+        setFocus('stage');
+      }, 2_900);
+      scheduleAt(() => setStage('topology'), 5_050);
+      scheduleAt(() => setFocus('terminal'), 7_200);
+      scheduleAt(() => showStatus('dashboard'), 7_600);
+      scheduleAt(showSummary, 8_850);
+      scheduleAt(() => {
+        setStage('dashboard');
+        setFocus('stage');
+      }, 9_650);
+      scheduleAt(() => {
+        cycleElapsed = 0;
+        cycleStartedAt = performance.now();
+        reset();
+        scheduleTimeline();
+      }, cycleDuration);
+    };
+
+    const resume = () => {
+      if (playing || reducedMotion || manuallyPaused || !playbackAllowed) return;
+
+      if (cycleElapsed >= cycleDuration) {
+        cycleElapsed = 0;
+      }
+      if (cycleElapsed === 0) {
+        reset();
+      }
+
+      clearTimers();
+      playing = true;
+      cycleStartedAt = performance.now() - cycleElapsed;
+      root.dataset.storyPlaying = 'true';
+      root.toggleAttribute('data-terminal-typing', cycleElapsed < commandEnd);
+      graph?.toggleAttribute(
+        'data-graph-active',
+        root.dataset.storySurface === 'visible' && root.dataset.storyStage === 'topology'
+      );
+      scheduleTimeline();
+    };
+
+    const syncPlayback = () => {
+      if (playbackAllowed && !manuallyPaused) {
+        resume();
+      } else {
+        pause();
+      }
+    };
+
+    const setPlaybackAllowed = (allowed: boolean) => {
+      playbackAllowed = allowed;
+      syncPlayback();
+    };
+
+    const handleToggle = () => {
+      manuallyPaused = !manuallyPaused;
+      updateControl();
+      syncPlayback();
+    };
+
+    const flowSvg = graph?.querySelector<SVGSVGElement>('.graph-flow') ?? null;
+    const edgeSpecs = [
+      {
+        path: '.flow-1',
+        from: '.resource-frontend .graph-handle-right',
+        to: '.resource-api .graph-handle-left',
+        label: '.label-discovery',
+      },
+      {
+        path: '.flow-2',
+        from: '.resource-api .graph-handle-right',
+        to: '.resource-database .graph-handle-left',
+        label: '.label-connection',
+      },
+      {
+        path: '.flow-3',
+        from: '.resource-frontend .graph-handle-right',
+        to: '.resource-cache .graph-handle-left',
+        label: '.label-cache',
+      },
+    ];
+
+    const handleCenter = (el: Element, originX: number, originY: number) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2 - originX, y: r.top + r.height / 2 - originY };
+    };
+
+    const routeEdges = () => {
+      if (!graph || !flowSvg) return;
+      const rect = flowSvg.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return;
+      flowSvg.setAttribute('viewBox', `0 0 ${rect.width.toFixed(1)} ${rect.height.toFixed(1)}`);
+      for (const spec of edgeSpecs) {
+        const path = flowSvg.querySelector<SVGPathElement>(spec.path);
+        const fromEl = graph.querySelector(spec.from);
+        const toEl = graph.querySelector(spec.to);
+        if (!path || !fromEl || !toEl) continue;
+        const s = handleCenter(fromEl, rect.left, rect.top);
+        const t = handleCenter(toEl, rect.left, rect.top);
+        const k = Math.max(26, Math.abs(t.x - s.x) * 0.5);
+        path.setAttribute(
+          'd',
+          `M ${s.x.toFixed(1)} ${s.y.toFixed(1)} C ${(s.x + k).toFixed(1)} ${s.y.toFixed(1)}, ${(t.x - k).toFixed(1)} ${t.y.toFixed(1)}, ${t.x.toFixed(1)} ${t.y.toFixed(1)}`
+        );
+        const label = graph.querySelector<HTMLElement>(spec.label);
+        if (label) {
+          label.style.left = `${((s.x + t.x) / 2).toFixed(1)}px`;
+          label.style.top = `${((s.y + t.y) / 2).toFixed(1)}px`;
+          const arrow = label.querySelector<SVGElement>('.flow-arrow');
+          if (arrow) {
+            const angle = (Math.atan2(t.y - s.y, t.x - s.x) * 180) / Math.PI;
+            arrow.style.transform = `rotate(${angle.toFixed(1)}deg)`;
+          }
+        }
+      }
+    };
+
+    let routeRaf = 0;
+    const routeTick = () => {
+      routeEdges();
+      routeRaf = requestAnimationFrame(routeTick);
+    };
+    const stopRouting = () => {
+      if (routeRaf) {
+        cancelAnimationFrame(routeRaf);
+        routeRaf = 0;
+      }
+    };
+    const startRouting = () => {
+      stopRouting();
+      routeRaf = reducedMotion
+        ? requestAnimationFrame(() => {
+            routeEdges();
+            routeRaf = 0;
+          })
+        : requestAnimationFrame(routeTick);
+    };
+    const handleGraphActive = () => {
+      if (graph?.hasAttribute('data-graph-active')) startRouting();
+      else stopRouting();
+    };
+
+    let graphActiveObserver: MutationObserver | null = null;
+    let graphResizeObserver: ResizeObserver | null = null;
+    if (graph && flowSvg) {
+      graphActiveObserver = new MutationObserver(handleGraphActive);
+      graphActiveObserver.observe(graph, {
+        attributes: true,
+        attributeFilter: ['data-graph-active'],
+      });
+      if (typeof ResizeObserver !== 'undefined') {
+        graphResizeObserver = new ResizeObserver(() => routeEdges());
+        graphResizeObserver.observe(graph);
+      }
+      handleGraphActive();
+    }
+
+    const destroy = () => {
+      pause();
+      stopRouting();
+      clearDashTimers();
+      graphActiveObserver?.disconnect();
+      graphResizeObserver?.disconnect();
+      toggle.removeEventListener('click', handleToggle);
+      stageLabels.forEach((label) => label.removeEventListener('click', handleStageClick));
+    };
+
+    toggle.addEventListener('click', handleToggle);
+    stageLabels.forEach((label) => label.addEventListener('click', handleStageClick));
+    updateControl();
+
+    if (reducedMotion) {
+      toggle.disabled = true;
+      showFinalState();
+    } else {
+      reset();
+      root.dataset.storyPlaying = 'false';
+    }
+
+    return { destroy, setLanguage, setPlaybackAllowed };
+  }
+
+  function initializeHomeReveals() {
+    const page = document.querySelector<HTMLElement>('.aspire-home');
+    if (!page || page.dataset.revealsInitialized === 'true') return;
+
+    randomizeLanguageOrder(page);
+    page.dataset.revealsInitialized = 'true';
+    document.documentElement.dataset.homeJs = 'true';
+    const items = Array.from(document.querySelectorAll<HTMLElement>('[data-home-reveal]'));
+    const modelStoryRoot = page.querySelector<HTMLElement>('[data-model-story]');
+    const modelStoryActivationTarget =
+      modelStoryRoot?.querySelector<HTMLElement>('.model-window') ?? null;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const modelStory = modelStoryRoot
+      ? createModelStory(modelStoryRoot, reducedMotion.matches)
+      : null;
+    const selectedLanguage = page.querySelector<HTMLButtonElement>(
+      '.home-hero-product .lang-toggle[aria-pressed="true"]'
+    )?.dataset.lang;
+    if (modelStory && isAppHostLanguage(selectedLanguage)) {
+      modelStory.setLanguage(selectedLanguage);
+    }
+
+    const handleAppHostLanguageChange = (event: Event) => {
+      const language = (event as CustomEvent<{ language?: unknown }>).detail?.language;
+      if (modelStory && isAppHostLanguage(language)) {
+        modelStory.setLanguage(language);
+      }
+    };
+    document.addEventListener('aspire:apphost-language-change', handleAppHostLanguageChange);
+
+    let modelStoryVisible = false;
+    const revealItemsByTarget = new Map<HTMLElement, HTMLElement[]>();
+    const entryRevealItemsByTarget = new Map<HTMLElement, HTMLElement[]>();
+    items.forEach((item) => {
+      const target =
+        (item.dataset.homeRevealAnchor
+          ? item.querySelector<HTMLElement>(item.dataset.homeRevealAnchor)
+          : null) ?? item;
+      const revealMap = item.hasAttribute('data-home-reveal-on-entry')
+        ? entryRevealItemsByTarget
+        : revealItemsByTarget;
+      const revealItems = revealMap.get(target) ?? [];
+      revealItems.push(item);
+      revealMap.set(target, revealItems);
+    });
+
+    const revealItems = (revealMap: Map<HTMLElement, HTMLElement[]>, target: HTMLElement) => {
+      revealMap.get(target)?.forEach((item) => item.classList.add('home-visible'));
+      document.dispatchEvent(new Event('aspire:viewport-activation-refresh'));
+    };
+    const revealObserver = reducedMotion.matches
+      ? null
+      : createViewportActivationObserver(
+          (target) => {
+            revealItems(revealItemsByTarget, target);
+          },
+          { once: true, waitForReveal: false }
+        );
+    const entryRevealObserver = reducedMotion.matches
+      ? null
+      : createViewportActivationObserver(
+          (target) => {
+            revealItems(entryRevealItemsByTarget, target);
+          },
+          { once: true, requireComplete: false, waitForReveal: false }
+        );
+    if (reducedMotion.matches) {
+      items.forEach((item) => item.classList.add('home-visible'));
+    } else {
+      revealItemsByTarget.forEach((_, target) => revealObserver?.observe(target));
+      entryRevealItemsByTarget.forEach((_, target) => entryRevealObserver?.observe(target));
+    }
+
+    const updateModelStoryPlayback = () => {
+      if (!modelStory || reducedMotion.matches) return;
+      modelStory.setPlaybackAllowed(modelStoryVisible && !document.hidden);
+    };
+
+    const storyObserver =
+      modelStoryRoot && modelStoryActivationTarget && modelStory && !reducedMotion.matches
+        ? createViewportActivationObserver((_, active) => {
+            modelStoryVisible = active;
+            modelStoryRoot.toggleAttribute('data-story-viewport-active', active);
+            updateModelStoryPlayback();
+          })
+        : null;
+    if (modelStoryActivationTarget && storyObserver) {
+      storyObserver.observe(modelStoryActivationTarget);
+    } else if (modelStory && !reducedMotion.matches) {
+      modelStoryVisible = true;
+      updateModelStoryPlayback();
+    }
+
+    document.addEventListener('visibilitychange', updateModelStoryPlayback);
+
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        revealObserver?.disconnect();
+        entryRevealObserver?.disconnect();
+        storyObserver?.disconnect();
+        modelStory?.destroy();
+        document.removeEventListener('visibilitychange', updateModelStoryPlayback);
+        document.removeEventListener('aspire:apphost-language-change', handleAppHostLanguageChange);
+        delete page.dataset.revealsInitialized;
+      },
+      { once: true }
+    );
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeHomeReveals, { once: true });
+  } else {
+    initializeHomeReveals();
+  }
+  document.addEventListener('astro:after-swap', initializeHomeReveals);
+</script>
+
+<style>
+  .aspire-home {
+    --home-bg: #f5f6f8;
+    --home-surface: #ffffff;
+    --home-surface-strong: #f0eef8;
+    --home-surface-dark: #201e31;
+    --home-border: rgba(31, 30, 51, 0.14);
+    --home-text: #1f1e33;
+    --home-muted: #5b586c;
+    --home-purple: #512bd4;
+    --home-purple-bright: #754cff;
+    --home-lavender: #f0edf9;
+    --home-lavender-strong: #e8e3f5;
+    --home-accent: var(--home-purple);
+    --home-green: #178854;
+    width: 100%;
+    overflow: clip;
+    color: var(--home-text);
+    background: var(--home-bg);
+  }
+
+  :global([data-theme='dark']) .aspire-home {
+    --home-bg: #151423;
+    --home-surface: #201e31;
+    --home-surface-strong: #29263c;
+    --home-surface-dark: #100f19;
+    --home-border: rgba(229, 226, 244, 0.16);
+    --home-text: #f7f5ff;
+    --home-muted: #c5c0d5;
+    --home-purple: #ad92ff;
+    --home-purple-bright: #c3adff;
+    --home-lavender: #171522;
+    --home-lavender-strong: #14121f;
+    --home-accent: var(--home-purple);
+    --home-green: #61d89a;
+  }
+
+  .home-section {
+    position: relative;
+    padding: clamp(5rem, 6.5vw, 6.5rem) 1.5rem;
+    border-top: 1px solid var(--home-border);
+  }
+
+  .home-shell {
+    width: min(100%, 84rem);
+    margin-inline: auto;
+  }
+
+  .section-index {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+    color: var(--home-muted);
+    font: 650 0.76rem/1.2 var(--__sl-font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .section-index span {
+    color: var(--home-purple);
+  }
+
+  .section-heading h2,
+  .language-heading h2,
+  .closing-content h2 {
+    margin: 0;
+    color: var(--home-text);
+    font-size: clamp(2.7rem, 5vw, 4.75rem);
+    font-weight: 620;
+    line-height: 1.02;
+    letter-spacing: -0.055em;
+    text-wrap: balance;
+  }
+
+  .section-heading > p:not(.section-index),
+  .language-heading > div > p,
+  .split-heading > div > p,
+  .closing-content > p:not(.section-index) {
+    margin: 1.4rem 0 0;
+    color: var(--home-muted);
+    font-size: clamp(1.02rem, 1.45vw, 1.22rem);
+    line-height: 1.7;
+  }
+
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--home-purple);
+    font-size: 0.96rem;
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  :global([data-home-link]) {
+    position: relative;
+  }
+
+  :global([data-home-link]::after) {
+    position: absolute;
+    right: 0;
+    bottom: -0.18rem;
+    left: 0;
+    height: 2px;
+    background: currentColor;
+    content: '';
+    pointer-events: none;
+    transform: scaleX(0);
+    transform-origin: right;
+  }
+
+  :global([data-home-link][data-home-link-icon]::after) {
+    right: 1.4rem;
+  }
+
+  :global([data-home-link]:is(:hover, :focus-visible)::after) {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  .text-link:focus-visible,
+  .principle-list a:focus-visible,
+  .closing-action:focus-visible {
+    outline: 0.1875rem solid var(--home-purple);
+    outline-offset: 0.25rem;
+    border-radius: 0.25rem;
+  }
+
+  .home-languages {
+    padding-block: clamp(4.25rem, 6vw, 5.5rem);
+    background: var(--home-surface);
+  }
+
+  .language-heading {
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.62fr) minmax(0, 1.38fr);
+    gap: clamp(2rem, 7vw, 7rem);
+    align-items: start;
+  }
+
+  .language-heading h2 {
+    max-width: 58rem;
+    font-size: clamp(2.5rem, 4.6vw, 4.5rem);
+  }
+
+  .language-heading > div > p {
+    max-width: 50rem;
+  }
+
+  .language-list {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    margin: clamp(2.5rem, 4vw, 3.75rem) 0 1.5rem;
+    padding: 0;
+    border-block: 1px solid var(--home-border);
+    list-style: none;
+  }
+
+  .language-list li {
+    min-width: 0;
+    min-height: 7.5rem;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 0.75rem;
+    border-inline-end: 1px solid var(--home-border);
+    color: var(--home-text);
+  }
+
+  .language-list li:last-child {
+    border-inline-end: 0;
+  }
+
+  .language-list li :global(.language-icon) {
+    width: 2.5rem;
+    height: 2.5rem;
+    object-fit: contain;
+  }
+
+  .language-list li span {
+    overflow: hidden;
+    font-size: 0.79rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .home-model {
+    background:
+      radial-gradient(
+        circle at 8% 45%,
+        color-mix(in srgb, var(--home-purple) 10%, transparent),
+        transparent 23rem
+      ),
+      var(--home-bg);
+  }
+
+  .split-heading {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.55fr) minmax(0, 1.45fr);
+    gap: clamp(2rem, 7vw, 7rem);
+    align-items: start;
+    margin-bottom: clamp(3rem, 5vw, 4.75rem);
+  }
+
+  .split-heading h2 {
+    max-width: 61rem;
+  }
+
+  .split-heading > div > p {
+    max-width: 49rem;
+  }
+
+  .model-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+    gap: clamp(3rem, 5vw, 5rem);
+    align-items: start;
+    view-timeline: --model-story block;
+  }
+
+  .model-proof {
+    position: sticky;
+    top: calc(var(--sl-nav-height, 4rem) + 3rem);
+  }
+
+  .model-story-stack {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(1rem, 2vw, 1.5rem);
+    overflow-anchor: none;
+  }
+
+  .model-terminal {
+    position: relative;
+    z-index: 3;
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    scale: 1;
+    translate: 0 0;
+  }
+
+  .model-window {
+    position: relative;
+    opacity: 1;
+    overflow: hidden;
+    border: 1px solid var(--home-border);
+    border-radius: 0.8rem;
+    color: #f7f5ff;
+    background: #171522;
+    box-shadow: 0 2rem 4rem rgba(31, 18, 73, 0.16);
+    transform: translate3d(0, 0, 0);
+    transform-origin: 50% 100%;
+  }
+
+  .model-window-bar,
+  .dashboard-stage-bar {
+    min-height: 2.75rem;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 1rem;
+    padding: 0 0.9rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    color: #bdb7ce;
+    font: 600 0.7rem/1 var(--__sl-font-mono);
+  }
+
+  .model-window-bar > span,
+  .dashboard-stage-bar > span {
+    display: inline-flex;
+    gap: 0.35rem;
+  }
+
+  .model-window-bar i,
+  .dashboard-stage-bar i {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: #7f7a8f;
+  }
+
+  .model-window-bar i:first-child,
+  .dashboard-stage-bar i:first-child {
+    background: #ee6a5f;
+  }
+
+  .model-window-bar i:nth-child(2),
+  .dashboard-stage-bar i:nth-child(2) {
+    background: #f3be4f;
+  }
+
+  .model-window-bar i:last-child,
+  .dashboard-stage-bar i:last-child {
+    background: #61c554;
+  }
+
+  .model-window-bar strong,
+  .dashboard-stage-bar strong {
+    color: #f7f5ff;
+    font-weight: 650;
+  }
+
+  .model-window-bar small,
+  .dashboard-stage-bar small {
+    justify-self: end;
+    font-size: inherit;
+  }
+
+  .model-window pre {
+    min-height: 13.5rem;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    overflow-x: auto;
+    color: #e9e5f5;
+    border: 0;
+    background: transparent;
+    font: 500 clamp(0.78rem, 1.2vw, 0.92rem)/1.9 var(--__sl-font-mono);
+  }
+
+  .model-window code {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .terminal-line {
+    display: block;
+    opacity: 1;
+    transform: none;
+  }
+
+  .terminal-command > span {
+    color: #78dfa8;
+  }
+
+  .terminal-command b {
+    color: #f7f5ff;
+    font: inherit;
+    font-weight: 650;
+  }
+
+  .terminal-status {
+    align-items: center;
+    gap: 0.65rem;
+    white-space: nowrap;
+  }
+
+  .terminal-status.is-visible {
+    display: flex;
+  }
+
+  .terminal-status[hidden] {
+    display: none;
+  }
+
+  .term-spinner {
+    width: 0.78em;
+    height: 0.78em;
+    flex: 0 0 auto;
+    border: 0.12em solid rgba(120, 223, 168, 0.3);
+    border-top-color: #78dfa8;
+    border-radius: 50%;
+  }
+
+  .term-grid {
+    display: grid;
+    grid-template-columns: 13ch max-content;
+    column-gap: 2ch;
+  }
+
+  .terminal-line[data-terminal-summary] + .terminal-line[data-terminal-summary] {
+    margin-top: 1.9em;
+  }
+
+  .terminal-status[hidden] + .terminal-line[data-terminal-summary] {
+    margin-top: 1.9em;
+  }
+
+  .model-window code em {
+    color: #ad92ff;
+    font-style: normal;
+  }
+
+  .model-window code em.term-key {
+    color: #78dfa8;
+    font-style: normal;
+    font-weight: 650;
+    text-align: right;
+  }
+
+  .term-val {
+    color: #cfc9de;
+    white-space: nowrap;
+  }
+
+  .term-link {
+    color: #8fd0ff;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    text-decoration-color: rgba(143, 208, 255, 0.5);
+  }
+
+  .term-hint {
+    box-sizing: border-box;
+    padding-left: 15ch;
+    color: #9a94ab;
+    white-space: nowrap;
+  }
+
+  .term-hint b {
+    color: #f7f5ff;
+    font-weight: 650;
+  }
+
+  :global(html[data-home-js='true']) .terminal-line[data-terminal-output]:not(.is-visible) {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+
+  .terminal-caret {
+    width: 0.48em;
+    height: 1.05em;
+    display: inline-block;
+    margin-left: 0.15em;
+    opacity: 0;
+    vertical-align: -0.15em;
+    background: #78dfa8;
+  }
+
+  @keyframes terminal-caret {
+    0%,
+    45% {
+      opacity: 1;
+    }
+
+    46%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes terminal-spinner {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .model-proof[data-terminal-typing='true'] .terminal-caret {
+      animation: terminal-caret 760ms steps(1, end) infinite;
+    }
+
+    .model-proof[data-story-playing='true'] .terminal-status.is-visible .term-spinner {
+      animation: terminal-spinner 720ms linear infinite;
+    }
+  }
+
+  .model-story-summary {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .model-story-stage {
+    position: relative;
+    z-index: 1;
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    height: clamp(24rem, 37vw, 28rem);
+    margin-top: 0;
+    overflow: hidden;
+    border: 1px solid var(--home-border);
+    border-radius: 0.8rem;
+    opacity: 0.74;
+    background: var(--home-surface);
+    box-shadow: 0 2rem 4rem rgba(31, 18, 73, 0.12);
+    scale: 0.92;
+    translate: 0 0;
+  }
+
+  .model-proof[data-story-focus='terminal'] .model-window,
+  .model-proof[data-story-surface='visible'][data-story-focus='stage'] .model-story-stage {
+    border-color: color-mix(in srgb, var(--home-purple-bright) 78%, var(--home-border));
+  }
+
+  .model-focus-border {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    overflow: hidden;
+    padding: 2px;
+    border-radius: inherit;
+    opacity: 0;
+    pointer-events: none;
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+  }
+
+  .model-focus-border::before {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 180%;
+    aspect-ratio: 1;
+    content: '';
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg 248deg,
+      color-mix(in srgb, var(--home-purple-bright) 14%, transparent) 276deg,
+      var(--home-purple-bright) 314deg,
+      transparent 348deg 360deg
+    );
+    transform: translate(-50%, -50%) rotate(0turn);
+  }
+
+  @keyframes model-focus-border-trace {
+    to {
+      transform: translate(-50%, -50%) rotate(1turn);
+    }
+  }
+
+  @supports ((-webkit-mask-composite: xor) or (mask-composite: exclude)) {
+    @media (prefers-reduced-motion: no-preference) {
+      .model-focus-border {
+        transition: opacity 180ms ease;
+      }
+
+      .model-proof[data-story-playing='true'][data-story-viewport-active][data-story-focus='terminal']
+        .model-window
+        > .model-focus-border,
+      .model-proof[data-story-playing='true'][data-story-viewport-active][data-story-surface='visible'][data-story-focus='stage']
+        .model-story-stage
+        > .model-focus-border {
+        opacity: 1;
+      }
+
+      .model-proof[data-story-playing='true'][data-story-viewport-active][data-story-focus='terminal']
+        .model-window
+        > .model-focus-border::before,
+      .model-proof[data-story-playing='true'][data-story-viewport-active][data-story-surface='visible'][data-story-focus='stage']
+        .model-story-stage
+        > .model-focus-border::before {
+        animation: model-focus-border-trace 2.8s linear infinite;
+      }
+    }
+  }
+
+  .model-proof[data-story-focus='terminal'] .model-terminal {
+    z-index: 3;
+    grid-row: 1;
+    margin-top: 0;
+    scale: 1;
+    translate: 0 0;
+  }
+
+  .model-proof[data-story-focus='terminal'] .model-window {
+    opacity: 1;
+  }
+
+  .model-proof[data-story-focus='terminal'] .model-story-stage {
+    z-index: 1;
+    grid-row: 2;
+    margin-top: 0;
+    opacity: 0.74;
+    pointer-events: none;
+    scale: 0.92;
+    translate: 0 0;
+  }
+
+  .model-proof[data-story-focus='stage'] .model-terminal {
+    z-index: 1;
+    grid-row: 1;
+    margin-top: 0;
+    scale: 0.92;
+    translate: 0 0;
+  }
+
+  .model-proof[data-story-focus='stage'] .model-window {
+    opacity: 0.72;
+  }
+
+  .model-proof[data-story-focus='stage'] .model-story-stage {
+    z-index: 3;
+    grid-row: 2;
+    margin-top: 0;
+    opacity: 1;
+    pointer-events: auto;
+    scale: 1;
+    translate: 0 0;
+  }
+
+  .model-story-progress {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 5;
+    min-height: 2.75rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    border-bottom: 1px solid var(--home-border);
+    background: color-mix(in srgb, var(--home-surface) 94%, transparent);
+  }
+
+  .model-story-progress .model-story-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0 0.5rem;
+    border: 0;
+    border-inline-end: 1px solid var(--home-border);
+    color: var(--home-muted);
+    background: transparent;
+    font: 650 0.67rem/1 var(--__sl-font-mono);
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition:
+      color 0.2s ease,
+      background 0.2s ease;
+  }
+
+  .model-story-progress .model-story-tab:last-child {
+    border-inline-end: 0;
+  }
+
+  .model-tab-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    color: var(--home-purple);
+  }
+
+  .model-tab-icon svg {
+    display: block;
+    width: 0.95rem;
+    height: 0.95rem;
+  }
+
+  .model-tab-lang :global(.model-tab-lang-icon) {
+    display: none;
+    width: 0.95rem;
+    height: 0.95rem;
+    margin: 0;
+    object-fit: contain;
+  }
+
+  .model-proof[data-story-language='typescript'] :global(.model-tab-lang-typescript),
+  .model-proof[data-story-language='csharp'] :global(.model-tab-lang-csharp) {
+    display: block;
+  }
+
+  .model-story-progress .model-story-tab:hover {
+    color: var(--home-text);
+    background: color-mix(in srgb, var(--home-purple) 6%, transparent);
+  }
+
+  .model-story-progress .model-story-tab[data-active='true'] {
+    color: var(--home-text);
+    background: color-mix(in srgb, var(--home-purple) 12%, transparent);
+  }
+
+  .model-story-progress .model-story-tab:focus-visible {
+    z-index: 2;
+    outline: 0.1875rem solid var(--home-purple);
+    outline-offset: -0.3rem;
+  }
+
+  .model-story-viewport {
+    position: absolute;
+    inset: 2.75rem 0 0;
+    overflow: hidden;
+    contain: paint;
+  }
+
+  .model-story-panel {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    backface-visibility: hidden;
+    transform: translate3d(0, 0.65rem, 0) scale(0.992);
+  }
+
+  .model-proof[data-story-stage='code'] [data-story-panel='code'],
+  .model-proof[data-story-stage='topology'] [data-story-panel='topology'],
+  .model-proof[data-story-stage='dashboard'] [data-story-panel='dashboard'] {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  .model-story-toggle {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    z-index: 8;
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--home-border);
+    border-radius: 0.625rem;
+    color: var(--home-text);
+    background: var(--home-surface);
+    cursor: pointer;
+  }
+
+  .model-story-toggle:hover {
+    border-color: color-mix(in srgb, var(--home-accent) 62%, var(--home-border));
+  }
+
+  .model-story-toggle:active {
+    transform: translateY(1px);
+  }
+
+  .model-story-toggle:focus-visible {
+    outline: 0.1875rem solid var(--home-accent);
+    outline-offset: 0.2rem;
+  }
+
+  .model-story-toggle span {
+    grid-area: 1 / 1;
+    width: 1rem;
+    height: 1rem;
+    display: grid;
+    place-items: center;
+  }
+
+  .model-story-toggle :global(svg) {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+  }
+
+  .model-story-play-icon {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.7);
+  }
+
+  .model-story-toggle[data-paused='true'] .model-story-pause-icon {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.7);
+  }
+
+  .model-story-toggle[data-paused='true'] .model-story-play-icon {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+  }
+
+  .model-code {
+    height: 100%;
+  }
+
+  .model-code-variant {
+    height: 100%;
+    display: none;
+  }
+
+  .model-proof[data-story-language='typescript']
+    .model-code-variant[data-model-code-language='typescript'],
+  .model-proof[data-story-language='csharp']
+    .model-code-variant[data-model-code-language='csharp'] {
+    display: block;
+  }
+
+  /*
+   * The model code uses the site-wide Expressive Code renderer (same as every
+   * other code block on the site) so highlighting is identical and theme-aware
+   * for light/dark, and EC's contrast auto-correction keeps it WCAG AA.
+   */
+  .model-code :global(.expressive-code) {
+    height: 100%;
+    margin: 0;
+    --ec-codeFontSize: clamp(0.74rem, 1.15vw, 0.86rem);
+    --ec-codeLineHeight: 1.5;
+    --ec-codePaddingInline: clamp(0.9rem, 1.5vw, 1.25rem);
+    --ec-codePaddingBlock: clamp(0.9rem, 1.5vw, 1.25rem);
+  }
+
+  .model-code :global(.expressive-code figure),
+  .model-code :global(.expressive-code pre) {
+    height: 100%;
+  }
+
+  .model-code :global(.expressive-code .frame) {
+    box-shadow: none;
+  }
+
+  .model-code :global(.expressive-code pre) {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  /* Decorative panel is aria-hidden; keep the copy button out of the tab order. */
+  .model-code :global(.expressive-code .copy) {
+    display: none;
+  }
+
+  .model-graph {
+    position: absolute;
+    inset: 0;
+    min-height: 0;
+    display: block;
+    overflow: hidden;
+    background:
+      linear-gradient(
+        to right,
+        color-mix(in srgb, var(--home-border) 48%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--home-border) 48%, transparent) 1px,
+        transparent 1px
+      ),
+      var(--home-surface);
+    background-size: 2.25rem 2.25rem;
+  }
+
+  .model-dashboard {
+    --dash-amber: #b45309;
+    display: flex;
+    flex-direction: column;
+    background: var(--home-surface);
+    color: var(--home-text);
+    font-size: clamp(0.74rem, 1.15vw, 0.86rem);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  :global([data-theme='dark']) .model-dashboard {
+    --dash-amber: #f5b544;
+  }
+
+  .dash-head,
+  .dash-row {
+    display: grid;
+    grid-template-columns: minmax(7.5rem, 1.15fr) 6.4rem minmax(6rem, 1.35fr) minmax(6rem, 1.3fr);
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 clamp(0.9rem, 2.2vw, 1.4rem);
+  }
+
+  .dash-head {
+    min-height: 2.5rem;
+    border-bottom: 1px solid var(--home-border);
+    color: var(--home-muted);
+    font-size: 0.66rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .dash-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .dash-row {
+    flex: 1;
+    border-bottom: 1px solid color-mix(in srgb, var(--home-border) 65%, transparent);
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+
+  :global(html[data-home-js='true']) .dash-row.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .dash-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    font-weight: 600;
+    color: var(--home-text);
+  }
+
+  .dash-name > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dash-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+    object-fit: contain;
+  }
+
+  .dash-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    font-weight: 600;
+    color: var(--dash-amber);
+  }
+
+  .dash-row.is-online .dash-state {
+    color: var(--home-green);
+  }
+
+  .dash-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #e3a008;
+  }
+
+  .dash-row.is-online .dash-dot {
+    background: var(--home-green);
+    box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--home-green) 22%, transparent);
+  }
+
+  .dash-state-text::after {
+    content: 'Starting';
+  }
+
+  .dash-row.is-online .dash-state-text::after {
+    content: 'Running';
+  }
+
+  .dash-source {
+    overflow: hidden;
+    color: var(--home-muted);
+    font-family: var(--__sl-font-mono, ui-monospace, monospace);
+    font-size: 0.94em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dash-url {
+    min-width: 0;
+    opacity: 0;
+    transform: translateY(0.2rem);
+  }
+
+  .dash-row.is-online .dash-url {
+    opacity: 1;
+    transform: none;
+  }
+
+  .dash-link {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--home-purple);
+    font-family: var(--__sl-font-mono, ui-monospace, monospace);
+    font-size: 0.94em;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    text-decoration-color: color-mix(in srgb, var(--home-purple) 45%, transparent);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+
+  .dash-foot {
+    min-height: 2.4rem;
+    display: flex;
+    align-items: center;
+    padding: 0 clamp(0.9rem, 2.2vw, 1.4rem);
+    border-top: 1px solid var(--home-border);
+    color: var(--home-muted);
+    font-size: 0.72rem;
+  }
+
+  .dash-foot-count b {
+    color: var(--home-text);
+    font-weight: 700;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .dash-row,
+    .dash-url {
+      transition:
+        opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 480ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .dash-dot {
+      transition:
+        background 300ms ease,
+        box-shadow 300ms ease;
+    }
+
+    .dash-row.is-visible:not(.is-online) .dash-dot {
+      animation: dash-dot-pulse 1.3s ease-in-out infinite;
+    }
+  }
+
+  @keyframes dash-dot-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(227, 160, 8, 0.55);
+    }
+    50% {
+      box-shadow: 0 0 0 0.3rem rgba(227, 160, 8, 0);
+    }
+  }
+
+  .graph-flow {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .graph-flow path {
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .graph-flow-line {
+    stroke: var(--home-purple-bright);
+    stroke-width: 2.25;
+    stroke-linecap: round;
+    stroke-dasharray: 5 5;
+    stroke-dashoffset: 0;
+    opacity: 0.95;
+  }
+
+  .graph-flow-labels {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .graph-flow-label {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.16rem 0.5rem 0.16rem 0.4rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 30%, var(--home-border));
+    border-radius: 999px;
+    color: color-mix(in srgb, var(--home-text) 74%, transparent);
+    background: color-mix(in srgb, var(--home-surface) 92%, transparent);
+    font: 600 0.58rem/1 var(--__sl-font-mono);
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    backdrop-filter: blur(2px);
+  }
+
+  .graph-flow-label :global(.flow-arrow) {
+    width: 0.78rem;
+    height: 0.78rem;
+    flex: none;
+    color: var(--home-purple);
+  }
+
+  .label-discovery {
+    top: 38%;
+    left: 27%;
+  }
+
+  .label-discovery :global(.flow-arrow) {
+    transform: rotate(-24deg);
+  }
+
+  .label-connection {
+    top: 33%;
+    left: 63%;
+  }
+
+  .label-connection :global(.flow-arrow) {
+    transform: rotate(11deg);
+  }
+
+  .label-cache {
+    top: 63%;
+    left: 28%;
+  }
+
+  .label-cache :global(.flow-arrow) {
+    transform: rotate(25deg);
+  }
+
+  .graph-resources {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .graph-resource {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    will-change: transform;
+  }
+
+  .graph-resource-card {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.42rem;
+    min-width: 10.75rem;
+    padding: 0.8rem 1rem 0.85rem;
+    border: 2px solid var(--home-border);
+    border-radius: 0.75rem;
+    color: var(--home-text);
+    background: var(--home-surface-strong);
+    box-shadow:
+      0 0.7rem 1.5rem rgba(31, 18, 73, 0.12),
+      inset 0 1px color-mix(in srgb, var(--home-surface) 65%, transparent);
+    will-change: transform;
+  }
+
+  .graph-resource-card::before,
+  .graph-resource-card::after {
+    position: absolute;
+    inset: -0.35rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 38%, transparent);
+    border-radius: 0.85rem;
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .graph-node-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .graph-node-type {
+    font: 700 0.62rem/1 var(--__sl-font-mono);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--home-text) 55%, transparent);
+    white-space: nowrap;
+  }
+
+  .graph-node-name {
+    font: 650 1.02rem/1 var(--__sl-font-mono);
+    color: var(--home-text);
+    white-space: nowrap;
+  }
+
+  .graph-handle {
+    position: absolute;
+    top: 50%;
+    width: 0.62rem;
+    height: 0.62rem;
+    border-radius: 50%;
+    background: var(--home-purple-bright);
+    box-shadow: 0 0 0 2px var(--home-surface-strong);
+    transform: translateY(-50%);
+    z-index: 3;
+  }
+
+  .graph-handle-left {
+    left: -0.33rem;
+  }
+
+  .graph-handle-right {
+    right: -0.33rem;
+  }
+
+  .graph-resource-card :global(.graph-resource-icon),
+  .graph-resource-icon-cycle {
+    width: 1.7rem;
+    height: 1.7rem;
+    flex: 0 0 1.7rem;
+  }
+
+  .graph-resource-card :global(.graph-resource-icon) {
+    margin: 0;
+    object-fit: contain;
+  }
+
+  .graph-resource-icon-cycle {
+    position: relative;
+  }
+
+  .graph-resource-icon-cycle :global(.graph-resource-icon) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    object-fit: contain;
+    transform: scale(0.78) rotate(-7deg);
+  }
+
+  .graph-resource-icon-cycle :global(.graph-resource-icon:first-child) {
+    opacity: 1;
+    transform: none;
+  }
+
+  .resource-frontend {
+    --graph-idle-x: 0.3rem;
+    --graph-idle-y: -0.28rem;
+    --graph-idle-rotate: -0.35deg;
+    --graph-idle-duration: 5.9s;
+    --graph-idle-delay: -0.8s;
+    --graph-cycle-duration: 10.8s;
+    --graph-cycle-enter-x: -0.38rem;
+    --graph-cycle-exit-x: 0.38rem;
+    left: 15%;
+    top: 50%;
+  }
+
+  .resource-api {
+    --graph-idle-x: -0.28rem;
+    --graph-idle-y: -0.32rem;
+    --graph-idle-rotate: 0.4deg;
+    --graph-idle-duration: 6.7s;
+    --graph-idle-delay: -2.6s;
+    --graph-cycle-duration: 13.6s;
+    --graph-cycle-enter-x: 0.38rem;
+    --graph-cycle-exit-x: -0.38rem;
+    left: 47%;
+    top: 16%;
+  }
+
+  .resource-database {
+    --graph-idle-x: 0.32rem;
+    --graph-idle-y: 0.26rem;
+    --graph-idle-rotate: 0.35deg;
+    --graph-idle-duration: 7.3s;
+    --graph-idle-delay: -4.1s;
+    --graph-cycle-duration: 11.9s;
+    --graph-cycle-enter-x: -0.38rem;
+    --graph-cycle-exit-x: 0.38rem;
+    left: 84%;
+    top: 47%;
+  }
+
+  .resource-cache {
+    --graph-idle-x: -0.3rem;
+    --graph-idle-y: 0.3rem;
+    --graph-idle-rotate: -0.4deg;
+    --graph-idle-duration: 5.4s;
+    --graph-idle-delay: -3.7s;
+    --graph-cycle-duration: 15.2s;
+    --graph-cycle-enter-x: 0.38rem;
+    --graph-cycle-exit-x: -0.38rem;
+    left: 46%;
+    top: 84%;
+  }
+
+  @keyframes graph-resource-idle {
+    to {
+      transform: translate3d(var(--graph-idle-x), var(--graph-idle-y), 0)
+        rotate(var(--graph-idle-rotate));
+    }
+  }
+
+  @keyframes graph-icon-cycle-three {
+    0% {
+      opacity: 0;
+      transform: translate3d(var(--graph-cycle-enter-x), 0, 0) scale(0.96);
+    }
+
+    7%,
+    26% {
+      opacity: 1;
+      transform: none;
+    }
+
+    33.333%,
+    100% {
+      opacity: 0;
+      transform: translate3d(var(--graph-cycle-exit-x), 0, 0) scale(0.98);
+    }
+  }
+
+  @keyframes graph-icon-cycle-four {
+    0% {
+      opacity: 0;
+      transform: translate3d(var(--graph-cycle-enter-x), 0, 0) scale(0.96);
+    }
+
+    6%,
+    19% {
+      opacity: 1;
+      transform: none;
+    }
+
+    25%,
+    100% {
+      opacity: 0;
+      transform: translate3d(var(--graph-cycle-exit-x), 0, 0) scale(0.98);
+    }
+  }
+
+  @keyframes graph-dash {
+    to {
+      stroke-dashoffset: -20;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .model-graph[data-graph-active] .graph-resource-card {
+      animation: graph-resource-idle var(--graph-idle-duration, 5.8s)
+        cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+      animation-delay: var(--graph-idle-delay, 0s);
+    }
+
+    .model-graph[data-graph-active] .cycle-three :global(.graph-resource-icon) {
+      animation: graph-icon-cycle-three var(--graph-cycle-duration, 10.8s)
+        cubic-bezier(0.2, 0.75, 0.25, 1) infinite;
+      animation-delay: var(--resource-icon-delay);
+    }
+
+    .model-graph[data-graph-active] .cycle-four :global(.graph-resource-icon) {
+      animation: graph-icon-cycle-four var(--graph-cycle-duration, 10.8s)
+        cubic-bezier(0.2, 0.75, 0.25, 1) infinite;
+      animation-delay: var(--resource-icon-delay);
+    }
+
+    .model-graph[data-graph-active] .graph-flow-line {
+      animation: graph-dash 1.1s linear infinite;
+    }
+
+    .model-graph[data-graph-active] .flow-2 {
+      animation-delay: -0.35s;
+    }
+
+    .model-graph[data-graph-active] .flow-3 {
+      animation-delay: -0.7s;
+    }
+  }
+
+  .principle-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .principle-list li {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 1.25rem;
+    padding: 1.2rem 0;
+    border-top: 1px solid var(--home-border);
+  }
+
+  .principle-list li:last-child {
+    border-bottom: 1px solid var(--home-border);
+  }
+
+  .principle-number {
+    padding-top: 0.65rem;
+    color: var(--home-muted);
+    font: 650 0.68rem/1 var(--__sl-font-mono);
+  }
+
+  .principle-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--home-border);
+    border-radius: 50%;
+    color: var(--home-purple);
+    background: var(--home-surface);
+  }
+
+  .principle-list h3 {
+    margin: 0;
+    color: var(--home-text);
+    font-size: clamp(1.35rem, 2vw, 1.7rem);
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+  }
+
+  .principle-list p {
+    margin: 0.55rem 0 0.75rem;
+    color: var(--home-muted);
+    font-size: 0.96rem;
+    line-height: 1.55;
+  }
+
+  .principle-list a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--home-purple);
+    font-size: 0.86rem;
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .home-dashboard {
+    color: var(--home-text);
+    background:
+      radial-gradient(
+        circle at 50% 20%,
+        color-mix(in srgb, var(--home-purple) 14%, transparent),
+        transparent 35rem
+      ),
+      var(--home-lavender);
+  }
+
+  .dashboard-heading {
+    position: relative;
+    z-index: 2;
+    width: min(100%, 66rem);
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .dashboard-heading .section-index {
+    justify-content: center;
+    color: var(--home-muted);
+  }
+
+  .dashboard-heading h2 {
+    margin-top: 1.2rem;
+    color: var(--home-text);
+  }
+
+  .dashboard-heading > p:not(.section-index) {
+    max-width: 48rem;
+    margin-inline: auto;
+    color: var(--home-muted);
+  }
+
+  .dashboard-heading .text-link {
+    margin-top: 1.35rem;
+    color: var(--home-purple);
+  }
+
+  .dashboard-stage {
+    width: min(100%, 82rem);
+    margin: clamp(3rem, 5vw, 4.25rem) auto 0;
+    overflow: hidden;
+    border: 1px solid var(--home-border);
+    border-radius: 1rem;
+    background: var(--home-surface);
+    box-shadow:
+      0 2.5rem 6rem color-mix(in srgb, var(--home-purple) 14%, transparent),
+      0 0 0 0.35rem color-mix(in srgb, var(--home-purple) 4%, transparent);
+  }
+
+  .dashboard-stage-bar {
+    border-bottom-color: var(--home-border);
+    color: var(--home-muted);
+    background: var(--home-surface-strong);
+  }
+
+  .dashboard-stage-bar strong {
+    color: var(--home-text);
+  }
+
+  :global([data-theme='dark']) .dashboard-stage {
+    border-color: rgba(229, 226, 244, 0.18);
+    background: #201e31;
+    box-shadow:
+      0 3rem 7rem rgba(0, 0, 0, 0.4),
+      0 0 0 0.4rem rgba(255, 255, 255, 0.04);
+  }
+
+  :global([data-theme='dark']) .dashboard-stage-bar {
+    border-bottom-color: rgba(255, 255, 255, 0.12);
+    color: #bdb7ce;
+    background: #1a1827;
+  }
+
+  :global([data-theme='dark']) .dashboard-stage-bar strong {
+    color: #f7f5ff;
+  }
+
+  .home-integrations {
+    background:
+      linear-gradient(
+        to right,
+        color-mix(in srgb, var(--home-border) 40%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--home-border) 40%, transparent) 1px,
+        transparent 1px
+      ),
+      var(--home-bg);
+    background-size: 4rem 4rem;
+  }
+
+  .integrations-heading {
+    width: min(100%, 64rem);
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .integrations-heading .section-index {
+    justify-content: center;
+  }
+
+  .integrations-heading h2 {
+    margin-top: 1.2rem;
+  }
+
+  .integrations-heading > p:not(.section-index) {
+    max-width: 45rem;
+    margin-inline: auto;
+  }
+
+  .integration-link {
+    width: max-content;
+    display: flex;
+    margin: 2rem auto 0;
+  }
+
+  .home-closing {
+    min-height: 34rem;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    color: var(--home-text);
+    background:
+      radial-gradient(
+        circle at 50% 48%,
+        color-mix(in srgb, var(--home-purple) 18%, transparent),
+        transparent 27rem
+      ),
+      linear-gradient(180deg, var(--home-lavender), var(--home-lavender-strong));
+  }
+
+  .closing-content {
+    position: relative;
+    z-index: 2;
+    width: min(100%, 69rem);
+    text-align: center;
+  }
+
+  .closing-content .section-index {
+    justify-content: center;
+    color: var(--home-muted);
+  }
+
+  .closing-content .section-index span {
+    color: var(--home-purple);
+  }
+
+  .closing-content h2 {
+    margin-top: 1.2rem;
+    color: var(--home-text);
+    font-size: clamp(3rem, 5vw, 4.75rem);
+  }
+
+  .closing-content > p:not(.section-index) {
+    max-width: 47rem;
+    margin-inline: auto;
+    color: var(--home-muted);
+  }
+
+  .closing-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.8rem;
+    margin-top: 2rem;
+  }
+
+  .closing-action {
+    min-height: 3.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    padding: 0.8rem 1.25rem;
+    border: 1px solid var(--home-border);
+    border-radius: 0.65rem;
+    color: var(--home-text);
+    font-size: 0.94rem;
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .closing-action:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--home-purple) 54%, var(--home-border));
+  }
+
+  .closing-action.primary {
+    color: #ffffff;
+    border-color: var(--aspire-action-primary, #512bd4);
+    background: var(--aspire-action-primary, #512bd4);
+  }
+
+  .closing-action.primary:hover {
+    border-color: var(--aspire-action-primary-hover, #4323b4);
+    background: var(--aspire-action-primary-hover, #4323b4);
+  }
+
+  .closing-action.secondary {
+    background: color-mix(in srgb, var(--home-surface) 94%, transparent);
+  }
+
+  .closing-action.secondary:hover {
+    border-color: color-mix(in srgb, var(--home-purple) 54%, var(--home-border));
+    background: var(--home-surface);
+  }
+
+  .closing-action.tertiary {
+    background: transparent;
+  }
+
+  .closing-grid {
+    position: absolute;
+    inset: 0;
+    opacity: 0.22;
+    background-image:
+      linear-gradient(to right, var(--home-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--home-border) 1px, transparent 1px);
+    background-size: 4.5rem 4.5rem;
+    mask-image: radial-gradient(circle at center, #000, transparent 67%);
+  }
+
+  .closing-orbit {
+    position: absolute;
+    width: min(74vw, 64rem);
+    aspect-ratio: 1.9;
+    border: 1px solid rgba(195, 173, 255, 0.22);
+    border-radius: 50%;
+  }
+
+  .orbit-a {
+    transform: rotate(12deg);
+  }
+
+  .orbit-b {
+    transform: rotate(-14deg) scale(0.72);
+  }
+
+  :global(html[data-home-js='true']) [data-home-reveal] {
+    opacity: 0.82;
+    transform: translateY(1.5rem);
+  }
+
+  :global(html[data-home-js='true']) [data-home-reveal][data-home-reveal-distance='major'] {
+    transform: translateY(3.75rem);
+  }
+
+  :global(html[data-home-js='true']) [data-home-reveal].home-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :global([data-home-link]::after) {
+      transition: transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .terminal-line {
+      transition:
+        opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .model-terminal {
+      transition: scale 600ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .model-window {
+      transition:
+        opacity 520ms cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 220ms ease;
+    }
+
+    .model-story-stage {
+      transition:
+        scale 600ms cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 520ms cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 220ms ease;
+    }
+
+    .model-story-progress .model-story-tab {
+      transition:
+        color 360ms cubic-bezier(0.16, 1, 0.3, 1),
+        background 360ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .model-story-panel {
+      transition:
+        opacity 520ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 680ms cubic-bezier(0.16, 1, 0.3, 1),
+        visibility 0s linear 680ms;
+      will-change: transform, opacity;
+    }
+
+    .model-proof[data-story-stage='code'] [data-story-panel='code'],
+    .model-proof[data-story-stage='topology'] [data-story-panel='topology'],
+    .model-proof[data-story-stage='dashboard'] [data-story-panel='dashboard'] {
+      transition-delay: 70ms, 40ms, 0s;
+    }
+
+    .model-story-toggle {
+      transition:
+        border-color 180ms ease,
+        transform 180ms ease;
+    }
+
+    .model-story-toggle span {
+      transition:
+        opacity 220ms ease,
+        transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .closing-action {
+      transition:
+        transform 180ms ease,
+        border-color 180ms ease,
+        background-color 180ms ease;
+    }
+
+    :global(html[data-home-js='true']) [data-home-reveal] {
+      transition:
+        opacity 800ms cubic-bezier(0.2, 0.75, 0.25, 1) var(--home-reveal-delay, 0ms),
+        transform 800ms cubic-bezier(0.2, 0.75, 0.25, 1) var(--home-reveal-delay, 0ms);
+    }
+  }
+
+  @media (max-width: 71.99rem) {
+    .language-heading,
+    .split-heading {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .language-list {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .language-list li:nth-child(4) {
+      border-inline-end: 0;
+    }
+
+    .language-list li:nth-child(-n + 4) {
+      border-bottom: 1px solid var(--home-border);
+    }
+
+    .model-layout {
+      grid-template-columns: 1fr;
+      gap: 3rem;
+    }
+
+    .model-proof {
+      position: relative;
+      top: auto;
+      width: min(100%, 48rem);
+      min-width: 0;
+      margin-inline: auto;
+    }
+
+    .model-window pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .principle-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 2rem;
+    }
+
+    .principle-list li:nth-last-child(-n + 2) {
+      border-bottom: 1px solid var(--home-border);
+    }
+  }
+
+  @media (max-width: 49.99rem) {
+    .home-section {
+      padding: 4.5rem 1rem;
+    }
+
+    .model-focus-border {
+      display: none;
+    }
+
+    .section-heading h2,
+    .language-heading h2,
+    .closing-content h2 {
+      font-size: clamp(2.5rem, 11vw, 3.65rem);
+    }
+
+    .language-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .language-list li {
+      min-height: 6.5rem;
+      border-bottom: 1px solid var(--home-border);
+    }
+
+    .language-list li:nth-child(even) {
+      border-inline-end: 0;
+    }
+
+    .language-list li:nth-last-child(-n + 2) {
+      border-bottom: 0;
+    }
+
+    .model-story-stage {
+      height: 26rem;
+    }
+
+    .model-code :global(.expressive-code) {
+      --ec-codeFontSize: clamp(0.72rem, 2vw, 0.82rem);
+    }
+
+    .dash-head,
+    .dash-row {
+      grid-template-columns: 1.2fr 5.6rem 1.3fr;
+      gap: 0.55rem;
+    }
+
+    .dash-col-source,
+    .dash-source {
+      display: none;
+    }
+
+    .graph-resources {
+      inset: 0;
+    }
+
+    .resource-frontend {
+      left: 19%;
+    }
+
+    .resource-database {
+      left: 81%;
+    }
+
+    .graph-resource-card {
+      min-width: 8rem;
+      min-height: 2.85rem;
+      gap: 0.4rem;
+      padding: 0.48rem 0.62rem;
+      font-size: 0.65rem;
+    }
+
+    .graph-node-type {
+      font-size: 0.54rem;
+    }
+
+    .graph-node-name {
+      font-size: 0.82rem;
+    }
+
+    .graph-resource-card > :global(.graph-resource-icon),
+    .graph-resource-icon-cycle {
+      width: 1.4rem;
+      height: 1.4rem;
+      flex-basis: 1.4rem;
+    }
+
+    .graph-flow-label {
+      display: none;
+    }
+
+    .principle-list {
+      grid-template-columns: 1fr;
+    }
+
+    .principle-list li {
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 1rem;
+    }
+
+    .principle-list li:nth-last-child(2) {
+      border-bottom: 0;
+    }
+
+    .principle-number {
+      display: none;
+    }
+
+    .dashboard-stage {
+      margin-top: 3rem;
+      border-radius: 0.75rem;
+    }
+
+    .dashboard-stage-bar small {
+      display: none;
+    }
+
+    .closing-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      width: min(100%, 24rem);
+      margin-inline: auto;
+    }
+
+    .closing-action {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 24rem) {
+    .model-window-bar small {
+      display: none;
+    }
+
+    .model-window pre {
+      padding: 1.25rem 1rem;
+      font-size: 0.7rem;
+    }
+
+    .model-story-stage {
+      height: 24rem;
+    }
+
+    .model-story-progress .model-story-tab {
+      font-size: 0.6rem;
+    }
+
+    .graph-resource-card {
+      min-width: 7.25rem;
+      padding: 0.35rem 0.45rem;
+      font-size: 0.57rem;
+    }
+
+    .graph-node-name {
+      font-size: 0.74rem;
+    }
+
+    .graph-resource-card > :global(.graph-resource-icon),
+    .graph-resource-icon-cycle {
+      width: 1.2rem;
+      height: 1.2rem;
+      flex-basis: 1.2rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global([data-home-link]::after) {
+      transition: none;
+    }
+
+    :global(html[data-home-js='true']) [data-home-reveal] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+
+    .closing-action {
+      transition: none;
+    }
+
+    .closing-action:hover {
+      transform: none;
+    }
+
+    .graph-resource-card,
+    .graph-flow-line,
+    .graph-apphost-pulse,
+    .graph-resource-icon-cycle :global(.graph-resource-icon),
+    .graph-apphost :global(.graph-apphost-icon) {
+      animation: none;
+    }
+
+    .graph-resource-card {
+      transform: none;
+    }
+
+    .graph-resource,
+    .graph-resource-card {
+      will-change: auto;
+    }
+
+    .graph-resource-icon-cycle :global(.graph-resource-icon) {
+      opacity: 0;
+    }
+
+    .graph-resource-icon-cycle :global(.graph-resource-icon:first-child) {
+      opacity: 1;
+    }
+
+    .terminal-line,
+    .model-terminal,
+    .model-window,
+    .model-story-stage,
+    .model-story-panel,
+    .model-focus-border,
+    .model-focus-border::before,
+    .model-story-progress .model-story-tab,
+    .model-story-toggle,
+    .model-story-toggle span {
+      transition: none;
+      animation: none;
+    }
+
+    .model-story-toggle {
+      display: none;
+    }
+
+    .model-focus-border {
+      display: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    :global([data-home-link]::after) {
+      display: none;
+    }
+
+    :global([data-home-link]:is(:hover, :focus-visible)) {
+      text-decoration: underline;
+      text-underline-offset: 0.22rem;
+    }
+
+    .home-section,
+    .language-list,
+    .language-list li,
+    .model-window,
+    .model-graph,
+    .graph-apphost,
+    .graph-resource-card,
+    .principle-list li,
+    .principle-icon,
+    .dashboard-stage,
+    .model-story-toggle,
+    .closing-action {
+      border-color: CanvasText;
+    }
+
+    .model-proof[data-story-focus='terminal'] .model-window,
+    .model-proof[data-story-surface='visible'][data-story-focus='stage'] .model-story-stage {
+      border-color: Highlight;
+    }
+
+    .model-focus-border {
+      display: none;
+    }
+
+    .closing-action.primary,
+    .closing-action.secondary {
+      color: ButtonText;
+      background: ButtonFace;
+    }
+  }
+</style>

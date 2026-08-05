@@ -496,6 +496,16 @@ export declare const GoFeatureFlagLogLevel: {
 };
 
 /**
+ * Enum Aspire.Hosting.ClusterLifetime
+ */
+
+export type ClusterLifetime = "Session" | "Persistent";
+export declare const ClusterLifetime: {
+  readonly Session: "Session";
+  readonly Persistent: "Persistent";
+};
+
+/**
  * Enum Aspire.Hosting.McpTransportType
  */
 
@@ -11146,6 +11156,59 @@ export interface K8sManifestResource extends ContainerResource, IComputeResource
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.KindClusterResource
+ */
+
+export interface KindClusterResource extends IKindResource, IResource, IResourceWithWaitSupport {
+  /**
+   * Adds a Helm chart to be deployed to the Kind cluster.
+   */
+
+  addHelmChart(name: string, chartRef: string): KindHelmChartResource;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.KindDeployedResource
+ */
+
+export interface KindDeployedResource extends IResource, IResourceWithParent, IResourceWithWaitSupport {
+  /**
+   * Sets the Kubernetes namespace for the deployment.
+   */
+
+  withNamespace(namespace: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.KindEnvironmentResource
+ */
+
+export interface KindEnvironmentResource extends IKindResource, IResource, IResourceWithParent {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.KindHelmChartResource
+ */
+
+export interface KindHelmChartResource extends KindDeployedResource, IResource, IResourceWithParent, IResourceWithWaitSupport {
+  /**
+   * Sets the chart version (maps to `helm install --version`).
+   */
+
+  withChartVersion(version: string): this;
+  /**
+   * Sets a Helm value (maps to `helm install --set key=value`).
+   */
+
+  withHelmValue(key: string, value: string): this;
+  /**
+   * Adds a values file (maps to `helm install -f path`).
+   */
+
+  withHelmValuesFile(path: string): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.KurrentDBResource
  */
 
@@ -11242,6 +11305,118 @@ export interface LavinMQContainerResource extends ContainerResource, IComputeRes
    */
 
   withDataVolume(name: string, isReadOnly?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ListmonkResource
+ */
+
+export interface ListmonkResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences, IResourceWithServiceDiscovery {
+  /**
+   * Gets the connection string expression for the listmonk instance.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary HTTP endpoint for the listmonk instance.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the listmonk instance.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Configures the first-run listmonk Super Admin credentials.
+   */
+
+  withAdminCredentials(username: string, password: string | ParameterResource): this;
+  /**
+   * Configures the first-run listmonk Super Admin password.
+   */
+
+  withAdminPassword(password: string | ParameterResource): this;
+  /**
+   * Configures the first-run listmonk Super Admin username.
+   */
+
+  withAdminUser(username: string): this;
+  /**
+   * Configures the listmonk web server address.
+   */
+
+  withAppAddress(address: string): this;
+  /**
+   * Configures the maximum number of idle PostgreSQL connections.
+   */
+
+  withDatabaseMaxIdleConnections(maxIdle: number): this;
+  /**
+   * Configures the maximum lifetime for PostgreSQL connections.
+   */
+
+  withDatabaseMaxLifetime(maxLifetime: string): this;
+  /**
+   * Configures the maximum number of open PostgreSQL connections.
+   */
+
+  withDatabaseMaxOpenConnections(maxOpen: number): this;
+  /**
+   * Configures additional PostgreSQL DSN parameters.
+   */
+
+  withDatabaseParameters(parameters: string): this;
+  /**
+   * Configures the PostgreSQL SSL mode used by listmonk.
+   */
+
+  withDatabaseSslMode(sslMode: string): this;
+  /**
+   * Configures the group ID used by the listmonk container entrypoint.
+   */
+
+  withGroupId(groupId: number): this;
+  /**
+   * References a `PostgresDatabaseResource` as the PostgreSQL database for the listmonk resource.
+   */
+
+  withReference(database: PostgresDatabaseResource): this;
+  /**
+   * Configures the time zone used by the listmonk container.
+   */
+
+  withTimeZone(timeZone: string): this;
+  /**
+   * Adds a bind mount for listmonk media uploads.
+   */
+
+  withUploadsBindMount(source: string): this;
+  /**
+   * Adds a named volume for listmonk media uploads.
+   */
+
+  withUploadsVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for listmonk media uploads.
+   */
+
+  withUploadsVolume(name?: string): this;
+  /**
+   * Configures the user ID used by the listmonk container entrypoint.
+   */
+
+  withUserId(userId: number): this;
 }
 
 /**
@@ -13435,6 +13610,11 @@ export interface IDistributedApplicationBuilder {
 
   addK3sCluster(name: string, apiServerPort?: number, agentCount?: number): K3sClusterResource;
   /**
+   * Adds a Kind cluster resource to the application model.
+   */
+
+  addKindCluster(name: string): KindClusterResource;
+  /**
    * Adds a KurrentDB resource to the application model. A container is used for local development. The default image is and the tag is .
    */
 
@@ -13454,6 +13634,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addLavinMQ(name: string, amqpPort?: number, managementPort?: number): LavinMQContainerResource;
+  /**
+   * Adds a listmonk container resource to the application model. The default image is and the tag is .
+   */
+
+  addListmonk(name: string, options?: { port?: number }): ListmonkResource;
+  /**
+   * Adds a listmonk container resource to the application model. The default image is and the tag is .
+   */
+
+  addListmonk(name: string, port?: number): ListmonkResource;
   /**
    * Adds a Logto resource to the Aspire distributed application by configuring it with the specified name, associated PostgreSQL server resource, and database name.
    */
@@ -16084,6 +16274,21 @@ export interface ContainerResource {
 
   withOtelAgent(agentPath?: string): this;
   /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
+  /**
+   * Configures a container resource to reference the Kind cluster by bind-mounting the container-compatible kubeconfig, injecting environment variables, and connecting to the Kind container network.
+   */
+
+  withKindContainerReference(kind: KindClusterResource): this;
+  /**
+   * Connects a container resource to the Kind container network, enabling it to communicate with the Kind cluster's API server and nodes.
+   */
+
+  withKindNetwork(): this;
+  /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */
 
@@ -16783,6 +16988,11 @@ export interface CSharpAppResource {
 
   withOtelAgent(agentPath?: string): this;
   /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
+  /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */
 
@@ -17461,6 +17671,11 @@ export interface DotnetToolResource {
 
   withOtelAgent(agentPath?: string): this;
   /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
+  /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */
 
@@ -18128,6 +18343,11 @@ export interface ExecutableResource {
 
   withOtelAgent(agentPath?: string): this;
   /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
+  /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */
 
@@ -18622,6 +18842,24 @@ export interface IHostEnvironment {
   isStaging(): boolean;
 }
 
+export interface IKindResource {
+  /**
+   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted when the AppHost shuts down. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
+   */
+
+  withClusterLifetime(lifetime: ClusterLifetime): this;
+  /**
+   * Sets the Kubernetes version for the Kind cluster.
+   */
+
+  withKubernetesVersion(version: string): this;
+  /**
+   * Sets the number of worker nodes for the Kind cluster.
+   */
+
+  withWorkerNodes(count: number): this;
+}
+
 export interface ILogger {
   /**
    * Logs a message with a specified log level.
@@ -18757,6 +18995,11 @@ export interface IResourceWithEnvironment {
 
   withOtelAgent(agentPath?: string): this;
   /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
+  /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */
 
@@ -18876,6 +19119,53 @@ export interface KeycloakResource {
   withPostgres(database: PostgresDatabaseResource, username?: string | ParameterResource, password?: string | ParameterResource, xaEnabled?: boolean): this;
 }
 
+// augments handle type KindClusterResource with extension methods
+export interface KindClusterResource {
+  /**
+   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted when the AppHost shuts down. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
+   */
+
+  withClusterLifetime(lifetime: ClusterLifetime): this;
+  /**
+   * Sets the Kubernetes version for the Kind cluster.
+   */
+
+  withKubernetesVersion(version: string): this;
+  /**
+   * Sets the number of worker nodes for the Kind cluster.
+   */
+
+  withWorkerNodes(count: number): this;
+}
+
+// augments handle type KindEnvironmentResource with extension methods
+export interface KindEnvironmentResource {
+  /**
+   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted when the AppHost shuts down. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
+   */
+
+  withClusterLifetime(lifetime: ClusterLifetime): this;
+  /**
+   * Sets the Kubernetes version for the Kind cluster.
+   */
+
+  withKubernetesVersion(version: string): this;
+  /**
+   * Sets the number of worker nodes for the Kind cluster.
+   */
+
+  withWorkerNodes(count: number): this;
+}
+
+// augments handle type KindHelmChartResource with extension methods
+export interface KindHelmChartResource {
+  /**
+   * Sets the Kubernetes namespace for the deployment.
+   */
+
+  withNamespace(namespace: string): this;
+}
+
 // augments handle type KubernetesAspireDashboardResource with extension methods
 export interface KubernetesAspireDashboardResource {
   /**
@@ -18888,6 +19178,21 @@ export interface KubernetesAspireDashboardResource {
    */
 
   withNodePool(nodePool: KubernetesNodePoolResource): this;
+  /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
+  /**
+   * Configures a container resource to reference the Kind cluster by bind-mounting the container-compatible kubeconfig, injecting environment variables, and connecting to the Kind container network.
+   */
+
+  withKindContainerReference(kind: KindClusterResource): this;
+  /**
+   * Connects a container resource to the Kind container network, enabling it to communicate with the Kind cluster's API server and nodes.
+   */
+
+  withKindNetwork(): this;
 }
 
 // augments handle type KubernetesEnvironmentResource with extension methods
@@ -18897,6 +19202,11 @@ export interface KubernetesEnvironmentResource {
    */
 
   withNodePool(nodePool: KubernetesNodePoolResource): this;
+  /**
+   * Configures the Kubernetes environment to create and deploy to a local Kind cluster. Enables `aspire deploy` to provision the cluster, load container images, and install the generated Helm chart.
+   */
+
+  withKind(): this;
 }
 
 // augments handle type KubernetesGatewayResource with extension methods
@@ -20321,6 +20631,11 @@ export interface ProjectResource {
    */
 
   withOtelAgent(agentPath?: string): this;
+  /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
   /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */

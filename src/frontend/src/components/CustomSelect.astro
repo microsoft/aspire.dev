@@ -1,0 +1,640 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+
+export interface CustomSelectOption {
+  value: string;
+  label: string;
+  description?: string;
+  detector?: string;
+  disabled?: boolean;
+  selected?: boolean;
+}
+
+interface Props {
+  id: string;
+  label: string;
+  options: CustomSelectOption[];
+  class?: string;
+  menuWidth?: 'trigger' | 'content';
+  placement?: 'auto' | 'up' | 'down';
+}
+
+const {
+  id,
+  label,
+  options,
+  class: className,
+  menuWidth = 'trigger',
+  placement = 'auto',
+} = Astro.props;
+const selectedOption = options.find((option) => option.selected && !option.disabled) ?? options[0];
+const listboxId = `${id}-listbox`;
+const hasIcon = Astro.slots.has('icon');
+---
+
+<div
+  class:list={['custom-select', className]}
+  data-custom-select
+  data-has-icon={String(hasIcon)}
+  data-menu-width={menuWidth}
+  data-placement={placement}
+>
+  <select
+    id={id}
+    class="custom-select-native"
+    aria-hidden="true"
+    tabindex="-1"
+    data-custom-select-native
+  >
+    {
+      options.map((option) => (
+        <option
+          value={option.value}
+          selected={option.value === selectedOption?.value}
+          disabled={option.disabled}
+          title={option.description}
+          data-detector={option.detector}
+        >
+          {option.label}
+        </option>
+      ))
+    }
+  </select>
+
+  <button
+    type="button"
+    class="custom-select-trigger"
+    role="combobox"
+    aria-label={label}
+    aria-controls={listboxId}
+    aria-expanded="false"
+    aria-haspopup="listbox"
+    aria-autocomplete="none"
+    data-custom-select-trigger
+  >
+    {
+      hasIcon && (
+        <span class="custom-select-leading" aria-hidden="true">
+          <slot name="icon" />
+        </span>
+      )
+    }
+    <span class="custom-select-value" data-custom-select-value>
+      {selectedOption?.label}
+    </span>
+    <Icon name="down-caret" class="custom-select-caret" />
+  </button>
+
+  <div
+    id={listboxId}
+    class="custom-select-listbox"
+    role="listbox"
+    aria-label={label}
+    data-custom-select-listbox
+    popover="manual"
+    hidden
+  >
+    {
+      options.map((option, index) => (
+        <button
+          type="button"
+          id={`${listboxId}-option-${index}`}
+          class="custom-select-option"
+          role="option"
+          tabindex="-1"
+          aria-selected={String(option.value === selectedOption?.value)}
+          aria-disabled={option.disabled ? 'true' : undefined}
+          disabled={option.disabled}
+          data-custom-select-option
+          data-value={option.value}
+          data-detector={option.detector}
+        >
+          <span class="custom-select-option-label">{option.label}</span>
+          {option.description && (
+            <span class="custom-select-option-description">{option.description}</span>
+          )}
+        </button>
+      ))
+    }
+  </div>
+</div>
+
+<script>
+  type CustomSelectRoot = HTMLElement & {
+    syncCustomSelect?: () => void;
+    closeCustomSelect?: () => void;
+  };
+
+  const openEventName = 'aspire:custom-select-open';
+  const syncEventName = 'aspire:custom-select-sync';
+
+  function initializeCustomSelects() {
+    document.querySelectorAll<CustomSelectRoot>('[data-custom-select]').forEach((root) => {
+      if (root.dataset.customSelectInitialized === 'true') return;
+
+      const nativeSelect = root.querySelector<HTMLSelectElement>('[data-custom-select-native]');
+      const trigger = root.querySelector<HTMLButtonElement>('[data-custom-select-trigger]');
+      const value = root.querySelector<HTMLElement>('[data-custom-select-value]');
+      const listbox = root.querySelector<HTMLElement>('[data-custom-select-listbox]');
+      const options = Array.from(
+        root.querySelectorAll<HTMLButtonElement>('[data-custom-select-option]')
+      );
+      if (!nativeSelect || !trigger || !value || !listbox || options.length === 0) return;
+
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      let activeIndex = Math.max(
+        0,
+        options.findIndex((option) => option.dataset.value === nativeSelect.value)
+      );
+      let typeahead = '';
+      let typeaheadTimer = 0;
+
+      const isOpen = () => root.hasAttribute('data-open');
+
+      function setActive(index: number, scroll = true) {
+        const nextIndex = Math.min(Math.max(index, 0), options.length - 1);
+        const option = options[nextIndex];
+        if (!option || option.disabled) return;
+
+        activeIndex = nextIndex;
+        options.forEach((candidate, candidateIndex) => {
+          candidate.toggleAttribute('data-active', candidateIndex === activeIndex);
+        });
+        trigger.setAttribute('aria-activedescendant', option.id);
+        if (scroll && isOpen()) option.scrollIntoView({ block: 'nearest' });
+      }
+
+      function syncFromNative() {
+        const selectedIndex = options.findIndex(
+          (option) => option.dataset.value === nativeSelect.value
+        );
+        const nextIndex = selectedIndex >= 0 ? selectedIndex : 0;
+        const selected = options[nextIndex];
+        if (!selected) return;
+
+        value.textContent =
+          selected.querySelector('.custom-select-option-label')?.textContent ?? '';
+        options.forEach((option, optionIndex) => {
+          option.setAttribute('aria-selected', String(optionIndex === nextIndex));
+        });
+        setActive(nextIndex, false);
+      }
+
+      function positionListbox() {
+        const triggerRect = trigger.getBoundingClientRect();
+        const viewportMargin = 8;
+        const gap = 8;
+        const availableWidth = Math.max(0, window.innerWidth - viewportMargin * 2);
+        const contentWidth =
+          root.dataset.menuWidth === 'content'
+            ? Math.max(triggerRect.width, Math.min(320, availableWidth))
+            : triggerRect.width;
+        const menuWidth = Math.min(contentWidth, availableWidth);
+        const maxHeight = Math.min(320, Math.max(160, window.innerHeight - viewportMargin * 2));
+
+        listbox.style.width = `${menuWidth}px`;
+        listbox.style.maxHeight = `${maxHeight}px`;
+
+        const menuHeight = Math.min(listbox.scrollHeight, maxHeight);
+        const spaceAbove = triggerRect.top - viewportMargin - gap;
+        const spaceBelow = window.innerHeight - triggerRect.bottom - viewportMargin - gap;
+        const requestedPlacement = root.dataset.placement ?? 'auto';
+        const opensUp =
+          requestedPlacement === 'up' ||
+          (requestedPlacement === 'auto' &&
+            spaceBelow < Math.min(menuHeight, 180) &&
+            spaceAbove > spaceBelow);
+        const left = Math.min(
+          Math.max(viewportMargin, triggerRect.left),
+          window.innerWidth - menuWidth - viewportMargin
+        );
+        const top = opensUp
+          ? Math.max(viewportMargin, triggerRect.top - menuHeight - gap)
+          : Math.min(window.innerHeight - menuHeight - viewportMargin, triggerRect.bottom + gap);
+
+        listbox.dataset.side = opensUp ? 'top' : 'bottom';
+        listbox.style.left = `${left}px`;
+        listbox.style.top = `${top}px`;
+      }
+
+      function close({ restoreFocus = false } = {}) {
+        if (!isOpen()) return;
+
+        if (typeof listbox.hidePopover === 'function' && listbox.matches(':popover-open')) {
+          listbox.hidePopover();
+        }
+        listbox.hidden = true;
+        root.removeAttribute('data-open');
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.removeAttribute('aria-activedescendant');
+        if (restoreFocus) trigger.focus();
+      }
+
+      function open() {
+        if (isOpen()) return;
+
+        document.dispatchEvent(new CustomEvent(openEventName, { detail: root }));
+        listbox.hidden = false;
+        if (typeof listbox.showPopover === 'function') {
+          listbox.showPopover();
+        }
+        root.setAttribute('data-open', '');
+        trigger.setAttribute('aria-expanded', 'true');
+        syncFromNative();
+        positionListbox();
+        setActive(activeIndex);
+
+        if (!reducedMotion.matches) {
+          const offset = listbox.dataset.side === 'top' ? 6 : -6;
+          listbox.animate(
+            [
+              { opacity: 0, transform: `translateY(${offset}px) scale(0.985)` },
+              { opacity: 1, transform: 'translateY(0) scale(1)' },
+            ],
+            { duration: 160, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }
+          );
+        }
+      }
+
+      function selectOption(index: number) {
+        const option = options[index];
+        const nextValue = option?.dataset.value;
+        if (!option || option.disabled || !nextValue) return;
+
+        nativeSelect.value = nextValue;
+        syncFromNative();
+        nativeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        close({ restoreFocus: true });
+      }
+
+      function moveActive(direction: 1 | -1) {
+        let nextIndex = activeIndex;
+        do {
+          nextIndex = (nextIndex + direction + options.length) % options.length;
+        } while (options[nextIndex]?.disabled && nextIndex !== activeIndex);
+        setActive(nextIndex);
+      }
+
+      function handleTypeahead(key: string) {
+        window.clearTimeout(typeaheadTimer);
+        typeahead += key.toLocaleLowerCase();
+        typeaheadTimer = window.setTimeout(() => {
+          typeahead = '';
+          typeaheadTimer = 0;
+        }, 500);
+
+        const startIndex = activeIndex + 1;
+        const orderedOptions = [...options.slice(startIndex), ...options.slice(0, startIndex)];
+        const match = orderedOptions.find(
+          (option) =>
+            !option.disabled &&
+            option
+              .querySelector('.custom-select-option-label')
+              ?.textContent?.trim()
+              .toLocaleLowerCase()
+              .startsWith(typeahead)
+        );
+        const matchIndex = match ? options.indexOf(match) : -1;
+        if (matchIndex >= 0) {
+          if (!isOpen()) open();
+          setActive(matchIndex);
+        }
+      }
+
+      const handleTriggerClick = () => (isOpen() ? close() : open());
+      const handleTriggerKeydown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape' && isOpen()) {
+          event.preventDefault();
+          close();
+          return;
+        }
+        if (event.key === 'Tab') {
+          close();
+          return;
+        }
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          if (isOpen()) selectOption(activeIndex);
+          else open();
+          return;
+        }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          if (!isOpen()) open();
+          else moveActive(event.key === 'ArrowDown' ? 1 : -1);
+          return;
+        }
+        if (event.key === 'Home' || event.key === 'End') {
+          event.preventDefault();
+          if (!isOpen()) open();
+          const ordered = event.key === 'Home' ? options : [...options].reverse();
+          const option = ordered.find((candidate) => !candidate.disabled);
+          if (option) setActive(options.indexOf(option));
+          return;
+        }
+        if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          handleTypeahead(event.key);
+        }
+      };
+      const handleDocumentPointer = (event: PointerEvent) => {
+        const target = event.target;
+        if (
+          isOpen() &&
+          target instanceof Node &&
+          !root.contains(target) &&
+          !listbox.contains(target)
+        ) {
+          close();
+        }
+      };
+      const handleOtherSelect = (event: Event) => {
+        if (event instanceof CustomEvent && event.detail !== root) close();
+      };
+      const handleViewportChange = (event: Event) => {
+        // Scrolling the page (or resizing) should dismiss the menu, but scrolling
+        // *inside* the fixed, overflowing listbox must not. A capture-phase scroll
+        // listener on window also fires for scrolls targeted at the listbox
+        // (e.g. wheel/touch, or option.scrollIntoView() during keyboard nav), so
+        // ignore any scroll that originates within the menu.
+        const target = event.target;
+        if (target instanceof Node && listbox.contains(target)) return;
+        close();
+      };
+      const handleSync = () => syncFromNative();
+      const handleBeforeSwap = () => {
+        window.clearTimeout(typeaheadTimer);
+        trigger.removeEventListener('click', handleTriggerClick);
+        trigger.removeEventListener('keydown', handleTriggerKeydown);
+        nativeSelect.removeEventListener('change', handleSync);
+        nativeSelect.removeEventListener(syncEventName, handleSync);
+        document.removeEventListener('pointerdown', handleDocumentPointer);
+        document.removeEventListener(openEventName, handleOtherSelect);
+        window.removeEventListener('resize', handleViewportChange);
+        window.removeEventListener('scroll', handleViewportChange, true);
+        close();
+        delete root.dataset.customSelectInitialized;
+        delete root.syncCustomSelect;
+        delete root.closeCustomSelect;
+      };
+
+      options.forEach((option, index) => {
+        option.addEventListener('pointermove', () => setActive(index, false));
+        option.addEventListener('click', () => selectOption(index));
+      });
+      trigger.addEventListener('click', handleTriggerClick);
+      trigger.addEventListener('keydown', handleTriggerKeydown);
+      nativeSelect.addEventListener('change', handleSync);
+      nativeSelect.addEventListener(syncEventName, handleSync);
+      document.addEventListener('pointerdown', handleDocumentPointer);
+      document.addEventListener(openEventName, handleOtherSelect);
+      window.addEventListener('resize', handleViewportChange, { passive: true });
+      window.addEventListener('scroll', handleViewportChange, { passive: true, capture: true });
+      document.addEventListener('astro:before-swap', handleBeforeSwap, { once: true });
+
+      root.syncCustomSelect = syncFromNative;
+      root.closeCustomSelect = close;
+      root.dataset.customSelectInitialized = 'true';
+      syncFromNative();
+    });
+  }
+
+  document.addEventListener('astro:page-load', initializeCustomSelects);
+  initializeCustomSelects();
+</script>
+
+<style>
+  .custom-select {
+    position: relative;
+    min-width: 0;
+    width: 100%;
+    color: var(--custom-select-text, var(--sl-color-text));
+  }
+
+  .custom-select-native {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .custom-select-trigger {
+    width: 100%;
+    min-height: var(--custom-select-height, 2.5rem);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    margin: 0;
+    padding: var(--custom-select-padding, 0.5rem 0.7rem);
+    border: 1px solid
+      var(--custom-select-border, color-mix(in srgb, var(--sl-color-gray-5) 82%, transparent));
+    border-radius: var(--custom-select-radius, 0.5rem);
+    background: var(--custom-select-bg, color-mix(in srgb, var(--sl-color-bg) 94%, transparent));
+    color: inherit;
+    font: inherit;
+    font-size: var(--custom-select-font-size, var(--sl-text-xs));
+    line-height: 1.25;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sl-color-white) 5%, transparent);
+  }
+
+  .custom-select[data-has-icon='true'] .custom-select-trigger {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .custom-select-trigger:hover,
+  .custom-select[data-open] .custom-select-trigger {
+    border-color: var(
+      --custom-select-hover-border,
+      color-mix(in srgb, var(--sl-color-text-accent) 48%, var(--sl-color-gray-4))
+    );
+    background: var(
+      --custom-select-hover-bg,
+      color-mix(in srgb, var(--sl-color-gray-6) 72%, var(--sl-color-bg))
+    );
+  }
+
+  .custom-select-trigger:focus-visible {
+    outline: 2px solid var(--aspire-color-primary, var(--sl-color-accent));
+    outline-offset: 2px;
+  }
+
+  .custom-select-leading,
+  .custom-select-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--custom-select-icon, var(--sl-color-gray-3));
+    pointer-events: none;
+  }
+
+  .custom-select-leading :global(svg) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .custom-select-caret :global(svg) {
+    width: 0.625rem;
+    height: 0.625rem;
+  }
+
+  .custom-select-value {
+    min-width: 0;
+    overflow: hidden;
+    color: inherit;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .custom-select-listbox {
+    position: fixed;
+    inset: auto;
+    max-width: calc(100vw - 1rem);
+    margin: 0;
+    padding: 0.35rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: var(--aspire-color-primary, #7455dd) transparent;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    border: 1px solid
+      var(--custom-select-menu-border, color-mix(in srgb, var(--sl-color-gray-4) 82%, transparent));
+    border-radius: var(--custom-select-menu-radius, var(--custom-select-radius, 0.5rem));
+    background: var(--custom-select-menu-bg, var(--sl-color-bg-nav));
+    color: var(--custom-select-menu-text, var(--sl-color-text));
+    font: inherit;
+    box-shadow:
+      0 1rem 2.5rem color-mix(in srgb, var(--sl-color-black) 32%, transparent),
+      inset 0 1px 0 color-mix(in srgb, var(--sl-color-white) 7%, transparent);
+  }
+
+  .custom-select-listbox::-webkit-scrollbar {
+    width: 0.7rem;
+  }
+
+  .custom-select-listbox::-webkit-scrollbar-track {
+    margin-block: 0.35rem;
+    background: transparent;
+  }
+
+  .custom-select-listbox::-webkit-scrollbar-thumb {
+    min-height: 2.5rem;
+    border: 0.2rem solid transparent;
+    border-radius: 999px;
+    background: var(--aspire-color-primary, #7455dd);
+    background-clip: padding-box;
+  }
+
+  .custom-select-listbox::-webkit-scrollbar-thumb:hover {
+    background: var(--aspire-color-secondary, #b9aaee);
+    background-clip: padding-box;
+  }
+
+  .custom-select-listbox::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .custom-select-listbox[hidden] {
+    display: none;
+  }
+
+  .custom-select-option {
+    position: relative;
+    width: 100%;
+    min-height: 2.5rem;
+    display: grid;
+    align-content: center;
+    justify-items: stretch;
+    gap: 0.15rem;
+    margin: 0;
+    padding: 0.55rem 0.7rem;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1.3;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .custom-select-option:is(:hover, [data-active]) {
+    background: color-mix(in srgb, var(--aspire-color-primary, #7455dd) 16%, transparent);
+  }
+
+  .custom-select-option[aria-selected='true'] {
+    background: color-mix(in srgb, var(--aspire-color-primary, #7455dd) 24%, transparent);
+    color: var(--custom-select-selected-text, var(--sl-color-white));
+  }
+
+  .custom-select-option[aria-selected='true']::before {
+    content: '';
+    position: absolute;
+    top: 0.55rem;
+    bottom: 0.55rem;
+    left: 0.2rem;
+    width: 2px;
+    border-radius: 999px;
+    background: var(--aspire-color-primary, #7455dd);
+  }
+
+  .custom-select-option:focus {
+    outline: none;
+  }
+
+  .custom-select-option:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .custom-select-option-label {
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+  }
+
+  .custom-select-option-description {
+    color: var(--custom-select-description, var(--sl-color-gray-2));
+    font-size: var(--sl-text-xs);
+    line-height: 1.4;
+  }
+
+  .custom-select[data-open] .custom-select-caret {
+    transform: rotate(180deg);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .custom-select-trigger,
+    .custom-select-caret,
+    .custom-select-option {
+      transition:
+        color 150ms ease,
+        border-color 150ms ease,
+        background-color 150ms ease,
+        transform 160ms ease;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .custom-select-trigger,
+    .custom-select-listbox {
+      border-color: CanvasText;
+    }
+
+    .custom-select-option[aria-selected='true'] {
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+      color: CanvasText;
+    }
+  }
+</style>

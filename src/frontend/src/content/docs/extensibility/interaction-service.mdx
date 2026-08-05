@@ -24,9 +24,10 @@ This is useful for scenarios where you need to gather information from the user 
 If you need to collect input for a [custom resource command](/fundamentals/custom-resource-commands/), consider using [command arguments](/fundamentals/custom-resource-commands/#command-arguments) instead of the interaction service. Command arguments display the same input UI in the dashboard but also work when running commands from the Aspire CLI.
 
 Commands can also display a [progress dialog](/fundamentals/custom-resource-commands/#command-progress) while they execute.
+
 </Aside>
 
-## The `IInteractionService` API
+## The interaction service API
 
 The `IInteractionService` interface provides methods for prompting users. In C#, it's retrieved from the dependency injection container. In TypeScript, it's resolved from the command context's service provider. Always check if the service is available before use — if you attempt to call a method when it's not available, an exception is thrown. For example, the interaction service isn't available when a command is triggered from the CLI.
 
@@ -52,18 +53,17 @@ if (interactionService.IsAvailable)
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-const interactionService =
-    await context.services().getInteractionService();
+const interactionService = await context.services().getInteractionService();
 
 if (await interactionService.isAvailable()) {
-    const result = await interactionService.promptConfirmation(
-        "Delete confirmation",
-        "Are you sure you want to delete the data?",
-    );
+  const result = await interactionService.promptConfirmation(
+    'Delete confirmation',
+    'Are you sure you want to delete the data?'
+  );
 
-    if (!result.canceled) {
-        // Run your resource/command logic.
-    }
+  if (!result.canceled) {
+    // Run your resource/command logic.
+  }
 }
 ```
 
@@ -77,17 +77,21 @@ The interaction service has several methods that you use to interact with users 
 
 The following sections describe how to use these APIs effectively in both contexts:
 
-| Method | Description | Contexts supported |
-|--------|-------------|-------------------|
-| `PromptMessageBoxAsync` | Displays a modal dialog box with a message and buttons for user interaction. | Dashboard only |
-| `PromptNotificationAsync` | Displays a non-modal notification in the dashboard as a message bar. | Dashboard only |
-| `PromptConfirmationAsync` | Displays a confirmation dialog with options for the user to confirm or cancel an action. | Dashboard only |
-| `PromptInputAsync` | Prompts the user for a single input value, such as text or secret. | Dashboard, CLI |
-| `PromptInputsAsync` | Prompts the user for multiple input values in a single dialog (dashboard) or sequentially (CLI). | Dashboard, CLI |
-| `PromptProgressAsync` | Displays a progress dialog with an indeterminate progress indicator during long-running operations. | Dashboard only |
+| Method                    | Description                                                                                         | Contexts supported |
+| ------------------------- | --------------------------------------------------------------------------------------------------- | ------------------ |
+| `PromptMessageBoxAsync`   | Displays a modal dialog box with a message and buttons for user interaction.                        | Dashboard only     |
+| `PromptNotificationAsync` | Displays a non-modal notification in the dashboard as a message bar.                                | Dashboard only     |
+| `PromptConfirmationAsync` | Displays a confirmation dialog with options for the user to confirm or cancel an action.            | Dashboard only     |
+| `PromptInputAsync`        | Prompts the user for a single input value, such as text or secret.                                  | Dashboard, CLI     |
+| `PromptInputsAsync`       | Prompts the user for multiple input values in a single dialog (dashboard) or sequentially (CLI).    | Dashboard, CLI     |
+| `PromptProgressAsync`     | Displays a progress dialog with an indeterminate progress indicator during long-running operations. | Dashboard only     |
 
 <Aside type="caution">
-During `aspire publish` and `aspire deploy` operations, only `PromptInputAsync` and `PromptInputsAsync` are available. Other interaction methods (`PromptMessageBoxAsync`, `PromptNotificationAsync`, `PromptConfirmationAsync`, and `PromptProgressAsync`) will throw an exception if called in CLI contexts.
+  During `aspire publish` and `aspire deploy` operations, only
+  `PromptInputAsync` and `PromptInputsAsync` are available. Other interaction
+  methods (`PromptMessageBoxAsync`, `PromptNotificationAsync`,
+  `PromptConfirmationAsync`, and `PromptProgressAsync`) will throw an exception
+  if called in CLI contexts.
 </Aside>
 
 ## Where to use the interaction service
@@ -139,6 +143,7 @@ builder
 ```
 
 For CLI specific contexts, the interaction service is retrieved from either the `PublishingContext` or `PipelineStepContext` depending on the operation being performed.
+
 </Aside>
 
 ## Display messages
@@ -149,7 +154,10 @@ There are several ways to display messages to the user:
 - **Notification messages**: Display less critical information in a notification.
 
 <Aside type="note">
-Message display methods (`PromptMessageBoxAsync` and `PromptNotificationAsync`) are only available in dashboard contexts. These methods throw an exception if called during `aspire publish` or `aspire deploy` operations.
+  Message display methods (`PromptMessageBoxAsync` and
+  `PromptNotificationAsync`) are only available in dashboard contexts. These
+  methods throw an exception if called during `aspire publish` or `aspire
+  deploy` operations.
 </Aside>
 
 ### Display a dialog message box
@@ -197,23 +205,22 @@ else
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-const interactionService =
-    await context.services().getInteractionService();
+const interactionService = await context.services().getInteractionService();
 
 const result = await interactionService.promptMessageBox(
-    "Apply migrations",
-    "The database schema is out of date.\nWould you like to apply pending migrations now?",
-    {
-        enableMessageMarkdown: true,
-        primaryButtonText: "Apply",
-        secondaryButtonText: "Skip",
-        showSecondaryButton: true,
-    },
+  'Apply migrations',
+  'The database schema is out of date.\nWould you like to apply pending migrations now?',
+  {
+    enableMessageMarkdown: true,
+    primaryButtonText: 'Apply',
+    secondaryButtonText: 'Skip',
+    showSecondaryButton: true,
+  }
 );
 
 if (!result.canceled) {
-    // User clicked "Apply"
-    // Run migrations.
+  // User clicked "Apply"
+  // Run migrations.
 }
 ```
 
@@ -222,7 +229,10 @@ if (!result.canceled) {
 
 **Dashboard view:**
 
-<Image src={messageDialog} alt="Aspire dashboard interface showing a message dialog with a title, message, and buttons." />
+<Image
+  src={messageDialog}
+  alt="Aspire dashboard interface showing a message dialog with a title, message, and buttons."
+/>
 
 **CLI view:**
 
@@ -233,7 +243,11 @@ The `PromptMessageBoxAsync` method only works in the dashboard context. If you c
 Notification messages provide non-modal notifications.
 
 <Aside type="tip">
-In the dashboard, notification messages appear stacked at the top, so you can show several messages at once. You can display notifications one after another by awaiting each dismissal before showing the next. Or, you can display multiple notifications at the same time without waiting for each to be dismissed.
+  In the dashboard, notification messages appear stacked at the top, so you can
+  show several messages at once. You can display notifications one after another
+  by awaiting each dismissal before showing the next. Or, you can display
+  multiple notifications at the same time without waiting for each to be
+  dismissed.
 </Aside>
 
 The `PromptNotificationAsync` method displays informational messages with optional action links in the dashboard context. You don't have to await the result of a notification message if you don't need to. This is especially useful for notifications, since you might want to display a notification and continue without waiting for user to dismiss it.
@@ -269,27 +283,26 @@ await interactionService.PromptNotificationAsync(
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-const interactionService =
-    await context.services().getInteractionService();
+const interactionService = await context.services().getInteractionService();
 
 await interactionService.promptNotification(
-    "Success",
-    "Your operation completed successfully.",
-    {
-        intent: MessageIntent.Success,
-        linkText: "View Details",
-        linkUrl: "/",
-    },
+  'Success',
+  'Your operation completed successfully.',
+  {
+    intent: MessageIntent.Success,
+    linkText: 'View Details',
+    linkUrl: '/',
+  }
 );
 
 await interactionService.promptNotification(
-    "Warning",
-    "Your SSL certificate will expire soon.",
-    {
-        intent: MessageIntent.Warning,
-        linkText: "Renew Certificate",
-        linkUrl: "https://portal.azure.com/certificates",
-    },
+  'Warning',
+  'Your SSL certificate will expire soon.',
+  {
+    intent: MessageIntent.Warning,
+    linkText: 'Renew Certificate',
+    linkUrl: 'https://portal.azure.com/certificates',
+  }
 );
 ```
 
@@ -300,7 +313,10 @@ The previous example demonstrates how to use the notification API with different
 
 **Dashboard view:**
 
-<Image src={messageBar} alt="Aspire dashboard interface showing multiple notification messages stacked near the top of the page. There are five notifications displayed, each with a different type of notification." />
+<Image
+  src={messageBar}
+  alt="Aspire dashboard interface showing multiple notification messages stacked near the top of the page. There are five notifications displayed, each with a different type of notification."
+/>
 
 **CLI view:**
 
@@ -342,23 +358,22 @@ if (resetConfirmation.Data)
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-const interactionService =
-    await context.services().getInteractionService();
+const interactionService = await context.services().getInteractionService();
 
 const resetConfirmation = await interactionService.promptConfirmation(
-    "Confirm Reset",
-    "Are you sure you want to reset the database? This action cannot be undone.",
-    {
-        intent: MessageIntent.Confirmation,
-        primaryButtonText: "Reset",
-        secondaryButtonText: "Cancel",
-        showSecondaryButton: true,
-        enableMessageMarkdown: true,
-    },
+  'Confirm Reset',
+  'Are you sure you want to reset the database? This action cannot be undone.',
+  {
+    intent: MessageIntent.Confirmation,
+    primaryButtonText: 'Reset',
+    secondaryButtonText: 'Cancel',
+    showSecondaryButton: true,
+    enableMessageMarkdown: true,
+  }
 );
 
 if (!resetConfirmation.canceled) {
-    // Perform the reset operation...
+  // Perform the reset operation...
 }
 ```
 
@@ -367,7 +382,10 @@ if (!resetConfirmation.canceled) {
 
 **Dashboard view:**
 
-<Image src={confirmation} alt="Aspire dashboard interface showing a confirmation dialog with a title, message, and buttons for confirming or canceling the operation." />
+<Image
+  src={confirmation}
+  alt="Aspire dashboard interface showing a confirmation dialog with a title, message, and buttons for confirming or canceling the operation."
+/>
 
 **CLI view:**
 
@@ -378,7 +396,7 @@ The `PromptConfirmationAsync` method isn't available in CLI contexts. If you cal
 The interaction service API allows you to prompt users for input in various ways. You can collect single values or multiple values, with support for different input types including text, secrets, choices, booleans, numbers, and files. The presentation adapts automatically to the execution context.
 
 | Type         | Dashboard                 | CLI prompt            |
-|--------------|---------------------------|-----------------------|
+| ------------ | ------------------------- | --------------------- |
 | `Text`       | Textbox                   | Text prompt           |
 | `SecretText` | Textbox with masked input | Masked text prompt    |
 | `Choice`     | Dropdown box of options   | Choice prompt         |
@@ -396,7 +414,10 @@ Each `InteractionInput` has a `Name` and a `Label` property:
 You can prompt for a single value using the `PromptInputAsync` method, or collect multiple pieces of information with `PromptInputsAsync`. In the dashboard, multiple inputs appear together in a single dialog. In the CLI, each input is requested one after another.
 
 <Aside type="caution">
-It's possible to create wizard-like flows using the interaction service. By chaining multiple prompts together—handling the results from one prompt before moving to the next—you can guide users through a series of related questions, making it easier to collect all the necessary information.
+  It's possible to create wizard-like flows using the interaction service. By
+  chaining multiple prompts together—handling the results from one prompt before
+  moving to the next—you can guide users through a series of related questions,
+  making it easier to collect all the necessary information.
 </Aside>
 
 Consider the following example, which prompts the user for multiple input values:
@@ -478,54 +499,50 @@ if (!appConfigurationInput.Canceled)
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-const interactionService =
-    await context.services().getInteractionService();
+const interactionService = await context.services().getInteractionService();
 
-const appName = await interactionService.createTextInput("AppName", {
-    label: "Application Name",
-    required: true,
-    placeholder: "my-app",
+const appName = await interactionService.createTextInput('AppName', {
+  label: 'Application Name',
+  required: true,
+  placeholder: 'my-app',
 });
 
-const environment = await interactionService.createChoiceInput(
-    "Environment",
-    {
-        choices: [
-            { value: "dev", label: "Development" },
-            { value: "staging", label: "Staging" },
-            { value: "test", label: "Testing" },
-        ],
-        options: { required: true },
-    },
-);
+const environment = await interactionService.createChoiceInput('Environment', {
+  choices: [
+    { value: 'dev', label: 'Development' },
+    { value: 'staging', label: 'Staging' },
+    { value: 'test', label: 'Testing' },
+  ],
+  options: { required: true },
+});
 
 const instanceCount = await interactionService.createNumberInput(
-    "InstanceCount",
-    {
-        label: "Instance Count",
-        required: true,
-        placeholder: "1",
-    },
+  'InstanceCount',
+  {
+    label: 'Instance Count',
+    required: true,
+    placeholder: '1',
+  }
 );
 
 const enableMonitoring = await interactionService.createBooleanInput(
-    "EnableMonitoring",
-    { label: "Enable Monitoring" },
+  'EnableMonitoring',
+  { label: 'Enable Monitoring' }
 );
 
 const result = await interactionService.promptInputs(
-    "Application Configuration",
-    "Configure your application deployment settings:",
-    [appName, environment, instanceCount, enableMonitoring],
+  'Application Configuration',
+  'Configure your application deployment settings:',
+  [appName, environment, instanceCount, enableMonitoring]
 );
 
 if (!(await result.canceled())) {
-    const name = await result.inputs().value("AppName");
-    const env = await result.inputs().value("Environment");
-    const count = await result.inputs().value("InstanceCount");
-    const monitoring = await result.inputs().value("EnableMonitoring");
+  const name = await result.inputs().value('AppName');
+  const env = await result.inputs().value('Environment');
+  const count = await result.inputs().value('InstanceCount');
+  const monitoring = await result.inputs().value('EnableMonitoring');
 
-    // Use the collected values as needed
+  // Use the collected values as needed
 }
 ```
 
@@ -536,15 +553,24 @@ if (!(await result.canceled())) {
 
 This renders on the dashboard as shown in the following image:
 
-<Image src={multipleInput} alt="Aspire dashboard interface showing a multiple input dialog with labels, input fields, and buttons for confirming or canceling the input." />
+<Image
+  src={multipleInput}
+  alt="Aspire dashboard interface showing a multiple input dialog with labels, input fields, and buttons for confirming or canceling the input."
+/>
 
 Imagine you fill out the dialog with the following values:
 
-<Image src={multipleInputFilled} alt="Aspire dashboard interface showing a multiple input dialog with filled input fields and buttons for confirming or canceling the input." />
+<Image
+  src={multipleInputFilled}
+  alt="Aspire dashboard interface showing a multiple input dialog with filled input fields and buttons for confirming or canceling the input."
+/>
 
 After you select the **Ok** button, the resource logs display the following output:
 
-<Image src={multipleInputLogs} alt="Aspire dashboard interface showing logs with the input values entered in the multiple input dialog." />
+<Image
+  src={multipleInputLogs}
+  alt="Aspire dashboard interface showing logs with the input values entered in the multiple input dialog."
+/>
 
 **CLI view:**
 
@@ -649,42 +675,41 @@ if (!result.Canceled)
 Use `withDynamicLoading` to populate options based on other inputs. The callback runs server-side, receives a `loadContext`, and updates the loading input through `loadContext.input()`:
 
 ```typescript title="apphost.mts"
-const interactionService =
-    await context.services().getInteractionService();
+const interactionService = await context.services().getInteractionService();
 
-const dbType = await interactionService.createChoiceInput("DatabaseType", {
-    label: "Database Type",
-    choices: [
-        { value: "postgres", label: "PostgreSQL" },
-        { value: "mysql", label: "MySQL" },
-        { value: "sqlserver", label: "SQL Server" },
-    ],
-    options: { required: true },
+const dbType = await interactionService.createChoiceInput('DatabaseType', {
+  label: 'Database Type',
+  choices: [
+    { value: 'postgres', label: 'PostgreSQL' },
+    { value: 'mysql', label: 'MySQL' },
+    { value: 'sqlserver', label: 'SQL Server' },
+  ],
+  options: { required: true },
 });
 
 const dbVersion = await (
-    await interactionService.createChoiceInput("DatabaseVersion", {
-        label: "Database Version",
-        options: { required: true },
-    })
+  await interactionService.createChoiceInput('DatabaseVersion', {
+    label: 'Database Version',
+    options: { required: true },
+  })
 ).withDynamicLoading(
-    async (loadContext) => {
-        const selectedType = await loadContext.inputs().value("DatabaseType");
-        const versions = await getAvailableVersions(selectedType);
-        await loadContext.input().setChoiceOptions(versions);
-    },
-    { dependsOnInputs: ["DatabaseType"] },
+  async (loadContext) => {
+    const selectedType = await loadContext.inputs().value('DatabaseType');
+    const versions = await getAvailableVersions(selectedType);
+    await loadContext.input().setChoiceOptions(versions);
+  },
+  { dependsOnInputs: ['DatabaseType'] }
 );
 
 const result = await interactionService.promptInputs(
-    "Database configuration",
-    "Select a database type and version",
-    [dbType, dbVersion],
+  'Database configuration',
+  'Select a database type and version',
+  [dbType, dbVersion]
 );
 
 if (!(await result.canceled())) {
-    const version = await result.inputs().value("DatabaseVersion");
-    // Use version-specific configuration...
+  const version = await result.inputs().value('DatabaseVersion');
+  // Use version-specific configuration...
 }
 ```
 
@@ -781,53 +806,50 @@ if (!dbResult.Canceled && dbResult.Data != null)
 Supply a `validationCallback` on the options object. The callback reads submitted values through `validationContext.inputs().value(name)` and registers per-field errors through `validationContext.addValidationError(field, message)`:
 
 ```typescript title="apphost.mts"
-const interactionService =
-    await context.services().getInteractionService();
+const interactionService = await context.services().getInteractionService();
 
-const password = await interactionService.createSecretInput("password", {
-    label: "Password",
-    required: true,
-    placeholder: "Enter a strong password",
+const password = await interactionService.createSecretInput('password', {
+  label: 'Password',
+  required: true,
+  placeholder: 'Enter a strong password',
 });
 
 const confirmPassword = await interactionService.createSecretInput(
-    "confirmPassword",
-    {
-        label: "Confirm password",
-        required: true,
-        placeholder: "Confirm your password",
-    },
+  'confirmPassword',
+  {
+    label: 'Confirm password',
+    required: true,
+    placeholder: 'Confirm your password',
+  }
 );
 
 const result = await interactionService.promptInputs(
-    "Database configuration",
-    "Configure your PostgreSQL database connection:",
-    [password, confirmPassword],
-    {
-        validationCallback: async (validationContext) => {
-            const pw = await validationContext.inputs().value("password");
-            const cpw = await validationContext
-                .inputs()
-                .value("confirmPassword");
+  'Database configuration',
+  'Configure your PostgreSQL database connection:',
+  [password, confirmPassword],
+  {
+    validationCallback: async (validationContext) => {
+      const pw = await validationContext.inputs().value('password');
+      const cpw = await validationContext.inputs().value('confirmPassword');
 
-            if (pw && pw.length < 8) {
-                await validationContext.addValidationError(
-                    "password",
-                    "Password must be at least 8 characters long",
-                );
-            }
-            if (pw !== cpw) {
-                await validationContext.addValidationError(
-                    "confirmPassword",
-                    "Passwords do not match",
-                );
-            }
-        },
+      if (pw && pw.length < 8) {
+        await validationContext.addValidationError(
+          'password',
+          'Password must be at least 8 characters long'
+        );
+      }
+      if (pw !== cpw) {
+        await validationContext.addValidationError(
+          'confirmPassword',
+          'Passwords do not match'
+        );
+      }
     },
+  }
 );
 
 if (!(await result.canceled())) {
-    // Use the validated configuration
+  // Use the validated configuration
 }
 ```
 
@@ -885,30 +907,29 @@ await using var stream = file.OpenRead();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-const interactionService =
-    await context.services().getInteractionService();
+const interactionService = await context.services().getInteractionService();
 
-const fileInput = await interactionService.createFileInput("ConfigFile", {
-    label: "Configuration file",
-    description: "Select a file to import",
-    required: true,
-    maxFileSize: 10 * 1024 * 1024, // 10 MB
+const fileInput = await interactionService.createFileInput('ConfigFile', {
+  label: 'Configuration file',
+  description: 'Select a file to import',
+  required: true,
+  maxFileSize: 10 * 1024 * 1024, // 10 MB
 });
 
 const result = await interactionService.promptInput(
-    "Import configuration",
-    "Select a configuration file to import.",
-    fileInput,
-    { primaryButtonText: "Upload" },
+  'Import configuration',
+  'Select a configuration file to import.',
+  fileInput,
+  { primaryButtonText: 'Upload' }
 );
 
 if (result.canceled) {
-    return { success: false, message: "Canceled" };
+  return { success: false, message: 'Canceled' };
 }
 
 const files = result.input?.files ?? [];
 if (files.length === 0) {
-    return { success: false, message: "No file uploaded" };
+  return { success: false, message: 'No file uploaded' };
 }
 
 const file = files[0];
@@ -986,24 +1007,23 @@ if (result.Canceled)
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-const interactionService =
-    await context.services().getInteractionService();
+const interactionService = await context.services().getInteractionService();
 
 const result = await interactionService.promptProgress(
-    "Please wait while resources are being downloaded...",
-    {
-        title: "Downloading resources",
-        options: {
-            primaryButtonText: "Cancel",
-            work: async () => {
-                await downloadResources();
-            },
-        },
+  'Please wait while resources are being downloaded...',
+  {
+    title: 'Downloading resources',
+    options: {
+      primaryButtonText: 'Cancel',
+      work: async () => {
+        await downloadResources();
+      },
     },
+  }
 );
 
 if (result.canceled) {
-    // User clicked the cancel button.
+  // User clicked the cancel button.
 }
 ```
 
@@ -1063,7 +1083,12 @@ When you run `aspire publish` or `aspire deploy`, interactions are prompted thro
 - **Limited functionality**: Message boxes, notifications, confirmation dialogs, and progress dialogs aren't available and throw exceptions if called.
 
 <Aside type="caution">
-The interaction service adapts automatically to dashboard and CLI contexts. In CLI mode, only input-related methods—`PromptInputAsync` and `PromptInputsAsync`—are supported. Calling `PromptMessageBoxAsync`, `PromptNotificationAsync`, `PromptConfirmationAsync`, or `PromptProgressAsync` in CLI operations like `aspire publish` or `aspire deploy` results in an exception.
+  The interaction service adapts automatically to dashboard and CLI contexts. In
+  CLI mode, only input-related methods—`PromptInputAsync` and
+  `PromptInputsAsync`—are supported. Calling `PromptMessageBoxAsync`,
+  `PromptNotificationAsync`, `PromptConfirmationAsync`, or `PromptProgressAsync`
+  in CLI operations like `aspire publish` or `aspire deploy` results in an
+  exception.
 </Aside>
 
 ## See also

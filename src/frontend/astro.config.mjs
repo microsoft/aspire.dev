@@ -4,7 +4,6 @@ import { unified } from '@astrojs/markdown-remark';
 import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
 import { redirects } from './config/redirects.mjs';
 import { iconPacks } from './config/icon-packs.mjs';
-import { cookieConfig } from './config/cookie.config';
 import { locales } from './config/locales.ts';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
@@ -22,7 +21,6 @@ import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
-import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
 import buildTiming from './config/build-timing.mjs';
 import UnoCSS from 'unocss/astro';
 import Icons from 'starlight-plugin-icons';
@@ -96,12 +94,6 @@ export default defineConfig({
         plugins: [
           starlightPageActions({
             share: true,
-            // Use the plugin's built-in actions so each entry renders its real
-            // brand icon. Custom actions are always given the plugin's generic
-            // "AI" sparkle glyph, which is why every "Open in …" item previously
-            // showed the same icon. The built-in hrefs match what we want, and
-            // the GitHub Copilot mark is restyled to the site's GitHub logo in
-            // src/components/starlight/PageTitle.astro.
             actions: {
               chatgpt: true,
               claude: true,
@@ -134,6 +126,7 @@ export default defineConfig({
             showTooltip: true,
             threshold: 10,
             showOnHomepage: true,
+            svgStrokeWidth: 4,
             tooltipText: {
               da: 'Rul op',
               de: 'Nach oben scrollen',
@@ -233,7 +226,6 @@ export default defineConfig({
       optimize: true,
       gfm: true,
     }),
-    jopSoftwarecookieconsent(cookieConfig),
     ...(isBuildTimingEnabled ? [buildTiming()] : []),
     aspireVersionPlaceholdersIntegration(),
   ],
