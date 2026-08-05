@@ -157,8 +157,10 @@ describe('two-package manifests', () => {
     for (const augmentation of augmentations) {
       // The owning package publishes the page for the type; this item only carries the members this
       // package contributes, so it must point back at the real owner and never reuse its item ID.
+      // The contributing package is part of the ID too, because every integration that extends
+      // DistributedApplicationBuilder augments the same interface name.
       expect(augmentation.owningAssembly).not.toBe(integration.package.name);
-      expect(augmentation.id.startsWith('augmentation:')).toBe(true);
+      expect(augmentation.id.startsWith(`augmentation:${integration.package.name}:`)).toBe(true);
       expect(augmentation.members?.length ?? 0).toBeGreaterThan(0);
     }
 
@@ -166,6 +168,17 @@ describe('two-package manifests', () => {
       .flatMap((item) => item.members ?? [])
       .find((member) => member.name === 'addRedis');
     expect(addRedis?.declaration).toContain('addRedis(');
+  });
+
+  it('keeps item IDs unique across a multi-package manifest', () => {
+    // We key pages off item IDs, so a collision between two packages silently drops one of them.
+    // An earlier build emitted `interface:DistributedApplicationBuilder` from every integration.
+    const ids = [core, integration]
+      .flatMap((document) => document.modules)
+      .flatMap((module) => module.items)
+      .map((item) => item.id);
+
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('resolves every declaration ID referenced across the manifest exactly once', () => {
