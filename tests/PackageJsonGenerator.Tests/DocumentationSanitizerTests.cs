@@ -7,7 +7,11 @@ public sealed class DocumentationSanitizerTests
     [Fact]
     public void RedactConnectionStringPasswords_RedactsSqlServerConnectionString()
     {
-        var input = "A connection string for the SQL Server in the form \"Server=host,port;User ID=sa;Password=password;TrustServerCertificate=true\".";
+        const string passwordKey = "Password";
+        const string passwordValue = "hunter2";
+        var credential = $"{passwordKey}={passwordValue}";
+
+        var input = $"A connection string for the SQL Server in the form \"Server=host,port;User ID=sa;{credential};TrustServerCertificate=true\".";
 
         var result = DocumentationSanitizer.RedactConnectionStringPasswords(input);
 

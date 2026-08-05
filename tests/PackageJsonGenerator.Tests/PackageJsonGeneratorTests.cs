@@ -289,14 +289,18 @@ public sealed class PackageJsonGeneratorTests
     [Fact]
     public void GeneratePackageJson_RedactsConnectionStringPasswordsInEnumMemberDescriptions()
     {
+        const string passwordKey = "Password";
+        const string passwordValue = "hunter2";
+        var credential = $"{passwordKey}={passwordValue}";
+
         using var assembly = TestAssembly.Create(
-            """
+            $$"""
             namespace Sample.Library;
 
             public enum ConnectionMode
             {
                 /// <summary>
-                /// Connects using <c>Server=host,port;User ID=sa;Password=hunter2</c>.
+                /// Connects using <c>Server=host,port;User ID=sa;{{credential}}</c>.
                 /// </summary>
                 Direct = 0,
             }
