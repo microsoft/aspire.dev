@@ -13,7 +13,7 @@ Aspire resources support a number of different lifetime modes. For example, the 
 Resource lifetimes apply to containers, executables, and projects. Persistent executable and project lifetimes are experimental in Aspire 13.4. You can use different lifetimes for resources that take time to initialize, need stable local endpoints, should remain available while you restart or rebuild the AppHost, or need to match another resource's lifetime.
 
 :::caution[Experimental shared lifetime APIs]
-The shared lifetime APIs are experimental and emit diagnostic `ASPIREPERSISTENCE001`. The existing container-specific `WithLifetime(ContainerLifetime.Persistent)` and `WithLifetime(ContainerLifetime.Session)` APIs remain supported for container resources.
+The shared lifetime APIs are experimental and emit the [`ASPIREPERSISTENCE001`](/diagnostics/aspirepersistence001/) diagnostic. The existing container-specific `WithLifetime(ContainerLifetime.Persistent)` and `WithLifetime(ContainerLifetime.Session)` APIs remain supported for container resources.
 :::
 
 ## Lifetime modes
@@ -94,6 +94,10 @@ var job = builder.AddExecutable("batch-job", "dotnet", ".", "run", "--project", 
 builder.Build().Run();
 ```
 
+:::note[Placeholder API used for demonstration]
+`GetApiKeyAsync` is a placeholder used to demonstrate deferred, callback-based configuration. Its implementation isn't shown because the relevant behavior is retrieving a value when the callback runs and assigning that value to an environment variable on the target resource.
+:::
+
 ### Persistent explicit-start resources
 
 For persistent resources, Aspire must register the resource with the Developer Control Plane (DCP) immediately at startup so it can discover any existing running instance. However, when you manually start a persistent explicit-start resource, Aspire patches the existing DCP resource to start it rather than deleting and recreating it. This means the execution configuration callbacks run once during startup registration and are **not** re-evaluated when you manually start the resource.
@@ -103,6 +107,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 // Persistent explicit-start resources are registered at startup to detect existing instances.
 // The callback runs during startup registration — not again when manually started.
+#pragma warning disable ASPIREPERSISTENCE001
 var cache = builder.AddContainer("long-lived-cache", "my-cache-image")
     .WithPersistentLifetime()
     .WithExplicitStart()
@@ -110,6 +115,8 @@ var cache = builder.AddContainer("long-lived-cache", "my-cache-image")
     {
         context.EnvironmentVariables["CACHE_SIZE"] = "512mb";
     });
+
+#pragma warning restore ASPIREPERSISTENCE001
 
 builder.Build().Run();
 ```
