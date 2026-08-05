@@ -35,10 +35,9 @@ public static class DocumentationSanitizer
     /// </summary>
     /// <remarks>
     /// Documentation is copied verbatim from package XML docs and often contains
-    /// example connection strings (for example the SqlServer
-    /// <c>GetConnectionString</c> returns text
-    /// <c>"Server=host,port;User ID=sa;Password=password;TrustServerCertificate=true"</c>).
-    /// Those literal credential tokens are not real secrets, but they trip
+    /// example connection strings, such as the text returned by SqlServer's
+    /// <c>GetConnectionString</c>. Literal credential tokens in those examples
+    /// are not real secrets, but they trip
     /// push-time secret scanners such as CredScan <c>SqlLegacyCredentials</c>
     /// (SEC101/037) when the generated JSON is mirrored to a protected remote.
     /// The <c>Placeholder</c> token contains no markup or brace characters, so the
