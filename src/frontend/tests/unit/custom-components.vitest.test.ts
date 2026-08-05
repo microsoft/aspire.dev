@@ -16,6 +16,7 @@ import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
 import FooterPreferences from '@components/FooterPreferences.astro';
 import FreeAndOpenSourceAside from '@components/FreeAndOpenSourceAside.astro';
+import { aspireQuotes } from '@components/FreeAndOpenSourceAside.quotes';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
 import HeroSection from '@components/HeroSection.astro';
 import IconAside from '@components/IconAside.astro';
@@ -58,6 +59,21 @@ import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 import samplesData from '@data/samples.json';
+import daTranslations from '../../src/content/i18n/da.json';
+import deTranslations from '../../src/content/i18n/de.json';
+import enTranslations from '../../src/content/i18n/en.json';
+import esTranslations from '../../src/content/i18n/es.json';
+import frTranslations from '../../src/content/i18n/fr.json';
+import hiTranslations from '../../src/content/i18n/hi.json';
+import idTranslations from '../../src/content/i18n/id.json';
+import itTranslations from '../../src/content/i18n/it.json';
+import jaTranslations from '../../src/content/i18n/ja.json';
+import koTranslations from '../../src/content/i18n/ko.json';
+import ptBrTranslations from '../../src/content/i18n/pt-BR.json';
+import ruTranslations from '../../src/content/i18n/ru.json';
+import trTranslations from '../../src/content/i18n/tr.json';
+import ukTranslations from '../../src/content/i18n/uk.json';
+import zhCnTranslations from '../../src/content/i18n/zh-CN.json';
 import { normalizeHtml, renderComponent, type StarlightRoute } from './astro-test-utils';
 
 type BasicRenderCase = {
@@ -68,6 +84,50 @@ type BasicRenderCase = {
   includes: string[];
   requestUrl?: string;
 };
+
+const statementPlayerTranslations = {
+  da: daTranslations.landing.statementPlayer,
+  de: deTranslations.landing.statementPlayer,
+  en: enTranslations.landing.statementPlayer,
+  es: esTranslations.landing.statementPlayer,
+  fr: frTranslations.landing.statementPlayer,
+  hi: hiTranslations.landing.statementPlayer,
+  id: idTranslations.landing.statementPlayer,
+  it: itTranslations.landing.statementPlayer,
+  ja: jaTranslations.landing.statementPlayer,
+  ko: koTranslations.landing.statementPlayer,
+  'pt-BR': ptBrTranslations.landing.statementPlayer,
+  ru: ruTranslations.landing.statementPlayer,
+  tr: trTranslations.landing.statementPlayer,
+  uk: ukTranslations.landing.statementPlayer,
+  'zh-CN': zhCnTranslations.landing.statementPlayer,
+};
+
+type TestTranslator = ((key: string, values?: Record<string, string | number>) => string) & {
+  dir: () => 'ltr';
+};
+
+function createTestTranslator(source: Record<string, unknown>): TestTranslator {
+  const translator = ((key: string, values: Record<string, string | number> = {}) => {
+    const value = key.split('.').reduce<unknown>((current, segment) => {
+      if (typeof current !== 'object' || current === null || !(segment in current)) {
+        return undefined;
+      }
+
+      return (current as Record<string, unknown>)[segment];
+    }, source);
+
+    if (typeof value !== 'string') return key;
+
+    return Object.entries(values).reduce(
+      (result, [name, replacement]) => result.replaceAll(`{{${name}}}`, String(replacement)),
+      value
+    );
+  }) as TestTranslator;
+
+  translator.dir = () => 'ltr';
+  return translator;
+}
 
 const featureItems = [
   {
@@ -388,6 +448,24 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['Visualize your app', 'Zoomed diagram', 'Read the guide'],
   },
   {
+    name: 'ImageShowcase renders theme-aware images',
+    Component: ImageShowcase,
+    props: {
+      title: 'Debug with agents',
+      description: 'Give agents dashboard context.',
+      lightImage: heroImage,
+      darkImage: heroImage,
+      imageAlt: 'Themed dashboard dialog',
+    },
+    includes: [
+      'Debug with agents',
+      'theme-image',
+      'data-light=',
+      'data-dark=',
+      'Themed dashboard dialog',
+    ],
+  },
+  {
     name: 'LoopingVideo renders sources and toggle button state',
     Component: LoopingVideo,
     props: {
@@ -405,9 +483,17 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['data-lang-name="TypeScript"', 'data-lang-name="C#"', 'And more...'],
   },
   {
-    name: 'FreeAndOpenSourceAside renders translated copy',
+    name: 'FreeAndOpenSourceAside renders quote controls and status',
     Component: FreeAndOpenSourceAside,
-    includes: ['landing.freeAndOSS', 'landing.aspirePromise'],
+    requestUrl: 'https://aspire.dev/llms-full.txt',
+    includes: [
+      'data-aspire-quote-player',
+      'data-quote-heading',
+      'data-quote-progress',
+      'data-quote-index',
+      'Pause statement rotation',
+      'Show a random Aspire statement',
+    ],
   },
   {
     name: 'OsAwareTabs renders shell tabs and sync key script',
@@ -460,10 +546,11 @@ const basicRenderCases: BasicRenderCase[] = [
     ],
   },
   {
-    name: 'FooterPreferences renders selectors and storage keys',
+    name: 'FooterPreferences renders theme toggle, selectors, and storage keys',
     Component: FooterPreferences,
     includes: [
-      'id="footer-theme-select"',
+      'id="footer-theme-toggle"',
+      'role="radiogroup"',
       'id="footer-language-select"',
       'id="footer-kbd-select"',
       'Select theme',
@@ -593,7 +680,17 @@ const sampleDetailFixture = {
     '',
     '![Screenshot of the sample](~/assets/samples/aspire-shop/aspireshop-frontend-complete.png)',
     '',
+    '**Theme-aware view**',
+    '',
+    '![Theme-aware app in light mode](~/assets/samples/aspire-shop/aspireshop-frontend-light.png#gh-light-mode-only)',
+    '![Theme-aware app in dark mode](~/assets/samples/aspire-shop/aspireshop-frontend-dark.png#gh-dark-mode-only)',
+    '',
+    '![Partial theme fallback in light mode](~/assets/samples/aspire-shop/aspireshop-frontend-light.png#gh-light-mode-only)',
+    '![Partial theme fallback in dark mode](~/assets/samples/aspire-shop/missing-dark.png#gh-dark-mode-only)',
+    '',
     'See the [application project](./src/RedisSample.AppHost) for implementation details.',
+    '',
+    'A [broken empty link]() must be dropped, not rewritten.',
     '',
     '1. Open the app.',
     '',
@@ -663,6 +760,18 @@ const sampleGridSamples = [
     tags: ['metrics', 'postgresql'],
     thumbnail: null,
   },
+  {
+    name: 'aspire-shop',
+    title: 'Aspire Shop',
+    description: 'Catalog and cart sample.',
+    href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/aspire-shop',
+    readme: 'README.md',
+    tags: ['blazor'],
+    thumbnail: {
+      light: '~/assets/samples/aspire-shop/aspireshop-frontend-light.png#gh-light-mode-only',
+      dark: '~/assets/samples/aspire-shop/aspireshop-frontend-dark.png#gh-dark-mode-only',
+    },
+  },
 ];
 
 const sessions = [
@@ -717,6 +826,150 @@ describe('custom Astro component render coverage', () => {
       }
     });
   }
+
+  it('ThemeImage contains non-square artwork via the optimizer, not rendered markup', async () => {
+    // The no-crop behavior for non-square theme images must come from the
+    // `getImage({ fit: 'contain' })` optimizer options (baked into the
+    // pre-generated `data-light`/`data-dark` variants) plus CSS `object-fit` —
+    // NOT from a `fit` attribute on the rendered <img>. `fit` is not a valid
+    // HTML image attribute, so passing it through would emit inert, invalid
+    // markup (see PR #1372 review). `heroImage` is a non-square (2350x1808)
+    // asset requested at 100x100, so containment is meaningful here.
+    const html = normalizeHtml(
+      await renderComponent(ThemeImage, {
+        props: {
+          light: heroImage,
+          dark: heroImage,
+          alt: 'Themed diagram',
+          width: 100,
+          height: 100,
+          zoomable: false,
+        },
+      })
+    );
+
+    // Optimizer contract: both themed variants are generated with fit=contain.
+    expect(html).toMatch(/data-light="[^"]*fit=contain/);
+    expect(html).toMatch(/data-dark="[^"]*fit=contain/);
+
+    // Regression: `fit` must not leak onto the rendered <img> as an attribute.
+    expect(html).not.toContain('fit="contain"');
+  });
+
+  it('renders the accessible quote player and complete quote pool', async () => {
+    const html = normalizeHtml(
+      await renderComponent(FreeAndOpenSourceAside, {
+        locals: { t: createTestTranslator(enTranslations) },
+      })
+    );
+
+    expect(html).toContain('aria-label="Aspire statements"');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('aria-atomic="true"');
+    expect(html).toContain('data-playback-toggle');
+    expect(html).toContain('data-random-quote');
+    expect(html).toContain('quote-progress-fill');
+    expect(html).toContain('typing-cursor');
+    expect(html).toContain('Aspire is an agent-ready, code-first tool');
+    expect(html).toContain('built directly into your everyday development workflow.');
+    expect(html).toContain('data-quote-link');
+    expect(html).toContain('href="/get-started/ai-coding-agents/"');
+    expect(html).toContain('Learn more');
+  });
+
+  it('keeps all quote statements similarly sized and consistently prefixed', () => {
+    const lengths = aspireQuotes.map(({ text }) => text.length);
+    const shortest = Math.min(...lengths);
+    const longest = Math.max(...lengths);
+
+    expect(aspireQuotes).toHaveLength(29);
+    expect(new Set(aspireQuotes.map(({ heading }) => heading)).size).toBe(aspireQuotes.length);
+    expect(new Set(aspireQuotes.map(({ text }) => text)).size).toBe(aspireQuotes.length);
+    expect(aspireQuotes.every(({ text }) => text.startsWith('Aspire is '))).toBe(true);
+    expect(aspireQuotes.every(({ href }) => href.startsWith('/'))).toBe(true);
+    expect(longest - shortest).toBeLessThanOrEqual(10);
+  });
+
+  it('keeps every statement-player locale complete and preserves technology names', () => {
+    const source = enTranslations.landing.statementPlayer;
+    const quoteIds = Object.keys(source.quotes);
+    const expectedPlaceholders = ['{{heading}}', '{{index}}', '{{text}}', '{{total}}'];
+    const technologyNames = [
+      'Aspire',
+      'AppHost',
+      'OpenTelemetry',
+      'Kubernetes',
+      'CI/CD',
+      'YAML',
+      'C#',
+      'JavaScript',
+      'Python',
+      'Java',
+      'Go',
+    ];
+
+    for (const [locale, player] of Object.entries(statementPlayerTranslations)) {
+      expect(Object.keys(player.quotes), `${locale} quote IDs`).toEqual(quoteIds);
+      expect(player.regionLabel.trim(), `${locale} region label`).not.toBe('');
+      expect(player.controlsLabel.trim(), `${locale} controls label`).not.toBe('');
+      expect(player.pauseLabel.trim(), `${locale} pause label`).not.toBe('');
+      expect(player.playLabel.trim(), `${locale} play label`).not.toBe('');
+      expect(player.randomLabel.trim(), `${locale} random label`).not.toBe('');
+      expect(player.learnMoreLabel.trim(), `${locale} Learn more label`).not.toBe('');
+
+      const placeholders = player.announcement.match(/\{\{[^}]+\}\}/g)?.sort() ?? [];
+      expect(placeholders, `${locale} announcement placeholders`).toEqual(expectedPlaceholders);
+
+      for (const quoteId of quoteIds) {
+        const sourceQuote = source.quotes[quoteId as keyof typeof source.quotes];
+        const translatedQuote = player.quotes[quoteId as keyof typeof player.quotes];
+
+        expect(translatedQuote.heading.trim(), `${locale} quote ${quoteId} heading`).not.toBe('');
+        expect(translatedQuote.text, `${locale} quote ${quoteId} Aspire prefix`).toMatch(/^Aspire/);
+
+        for (const technologyName of technologyNames) {
+          if (sourceQuote.text.includes(technologyName)) {
+            expect(
+              translatedQuote.text,
+              `${locale} quote ${quoteId} must preserve ${technologyName}`
+            ).toContain(technologyName);
+          }
+        }
+      }
+    }
+  });
+
+  it('renders translated playback, controls, and links on localized pages', async () => {
+    const t = createTestTranslator(deTranslations);
+
+    const starlightRoute: StarlightRoute & { locale: string } = {
+      locale: 'de',
+      editUrl:
+        'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/de/index.mdx',
+      entry: {
+        id: 'de/index',
+        slug: 'de',
+        filePath: 'src/content/docs/de/index.mdx',
+        data: {},
+      },
+    };
+
+    const html = normalizeHtml(
+      await renderComponent(FreeAndOpenSourceAside, {
+        requestUrl: 'https://aspire.dev/de/',
+        locals: { t, starlightRoute },
+      })
+    );
+
+    expect(html).toContain('aria-label="Aspire-Aussagen"');
+    expect(html).toContain('Agentenbereit');
+    expect(html).toContain('Aspire ist ein agentenbereites');
+    expect(html).toContain('Eine zufällige Aspire-Aussage anzeigen');
+    expect(html).toContain('Mehr erfahren');
+    expect(html).toContain('href="/de/get-started/ai-coding-agents/"');
+    expect(html).toContain('data-aspire-quote-player');
+    expect(html).not.toContain('Aspire is an agent-ready');
+  });
 
   it('filters GitHubRepoStats by repository name when multiple stats are provided', async () => {
     const html = normalizeHtml(
@@ -789,8 +1042,13 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('aria-label="1 sample"');
     expect(html).toContain('Orders sample');
     expect(html).toContain('Catalog sample');
+    expect(html).toContain('Aspire Shop');
     expect(html).toContain('/reference/samples/orders/');
     expect(html).toContain('/reference/samples/catalog/');
+    expect(html).toContain('/reference/samples/aspire-shop/');
+    expect(html).toContain('theme-image');
+    expect(html).toContain('data-light=');
+    expect(html).toContain('data-dark=');
     expect(html).toContain('Try removing a filter or adjusting your search.');
 
     // The redesigned filter UI replaces the boxy "Filtered by" bar with a
@@ -853,13 +1111,32 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('Screenshot of the sample');
     expect(html).toContain('starlight-image-zoom-zoomable');
     expect(html).toContain('Zoom image: Screenshot of the sample');
+    expect(html).toContain('Zoom image: Theme-aware app');
+    expect(html).toContain('Zoom image: Partial theme fallback');
     expect(html).toContain('Zoom image: Screenshot of the sample step');
     expect(html).toContain('Select an image to zoom in.');
+    expect(html).toContain('theme-image');
+    expect(html).toContain('data-light=');
+    expect(html).toContain('data-dark=');
+    expect(html).toMatch(/<figcaption[^>]*>Theme-aware app<\/figcaption>/);
+    expect(html).not.toContain('Theme-aware app in light mode');
+    expect(html).not.toContain('Theme-aware app in dark mode');
+    expect(html).toMatch(/<figcaption[^>]*>Partial theme fallback<\/figcaption>/);
+    expect(html).not.toContain('Partial theme fallback in light mode');
+    expect(html).not.toContain('Partial theme fallback in dark mode');
     expect(html).toContain('View on GitHub');
     expect(html).toContain('Browse all samples');
     expect(html).toContain('href="/reference/samples/"');
     expect(html).toContain(
       'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample/src/RedisSample.AppHost"'
+    );
+
+    // A link with an empty destination (`[text]()`) must be dropped entirely —
+    // matching the previous marked renderer — rather than being rewritten to a
+    // broken sample-relative URL pointing at the sample root (PR #1311 review).
+    expect(html).not.toContain('broken empty link');
+    expect(html).not.toContain(
+      'href="https://github.com/dotnet/aspire-samples/tree/main/samples/redis-sample/"'
     );
 
     // The AppHost code section renders above the README with the kicker,
@@ -894,6 +1171,7 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('Zoom image: React app');
     expect(html).not.toMatch(/<p>\s*<strong>\s*Angular\s*<\/strong>\s*<\/p>/);
     expect(html).not.toMatch(/<p>\s*<strong>\s*React\s*<\/strong>\s*<\/p>/);
+    expect(html).not.toMatch(/<p>\s*<strong>\s*Theme-aware view\s*<\/strong>\s*<\/p>/);
 
     // The primary "View on GitHub" CTA in the hero uses the Starlight `github`
     // icon on the left of the label and no longer ships the external-link
@@ -967,7 +1245,9 @@ describe('custom Astro component render coverage', () => {
     //    time in the README body and the count rises to 2.
     const escaped = distinctiveSummarySentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const summaryMatches = html.match(new RegExp(escaped, 'g')) ?? [];
-    expect(summaryMatches.length, 'summary sentence should appear exactly once (hero only)').toBe(1);
+    expect(summaryMatches.length, 'summary sentence should appear exactly once (hero only)').toBe(
+      1
+    );
 
     // 2. The long emphasized label is gone from the body. Its image still
     //    surfaces in the gallery so the screenshot itself is preserved.

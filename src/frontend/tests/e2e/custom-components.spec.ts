@@ -103,6 +103,181 @@ test('testimonial carousel advances cards and enables the previous control', asy
   }
 });
 
+test('homepage statement player exposes accessible playback and random controls', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const player = page.locator('[data-aspire-quote-player]');
+  const heading = player.locator('[data-quote-heading]');
+  const statement = player.locator('[data-quote-text]');
+  const index = player.locator('[data-quote-index]');
+  const announcer = player.locator('[data-quote-announcer]');
+  const progress = player.locator('.quote-progress-fill');
+  const playbackButton = player.locator('[data-playback-toggle]');
+  const randomButton = player.locator('[data-random-quote]');
+  const learnMoreLink = player.locator('[data-quote-link]');
+
+  await expect(player).toHaveAttribute('aria-label', 'Aspire statements');
+  await expect(statement).toContainText(/^Aspire is /);
+  await expect(index).toContainText(/^\d{2}$/);
+  await expect(heading).not.toBeEmpty();
+  await expect(playbackButton).toHaveAttribute('aria-label', 'Pause statement rotation');
+  await expect(playbackButton).toHaveAttribute('aria-pressed', 'false');
+  await expect(randomButton).toHaveAttribute('aria-label', 'Show a random Aspire statement');
+  await expect(learnMoreLink).toHaveText('Learn more');
+  await expect(learnMoreLink).toHaveAttribute('aria-label', /^Learn more: /);
+  await expect(progress).toHaveCSS('animation-play-state', 'running');
+
+  await playbackButton.click();
+  await expect(player).toHaveAttribute('data-state', 'paused');
+  await expect(playbackButton).toHaveAttribute('aria-label', 'Play statement rotation');
+  await expect(playbackButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(progress).toHaveCSS('animation-duration', '7s');
+  await expect(progress).toHaveCSS('animation-play-state', 'paused');
+
+  const initialIndex = await index.textContent();
+  const initialStatement = await statement.textContent();
+  if (!initialIndex || !initialStatement) {
+    throw new Error('The statement player did not render its initial content.');
+  }
+
+  await randomButton.click();
+  await expect(player).toHaveAttribute('data-phase', 'idle');
+  await expect(index).not.toHaveText(initialIndex);
+  await expect(statement).not.toHaveText(initialStatement);
+
+  const updatedStatement = await statement.textContent();
+  if (!updatedStatement) {
+    throw new Error('The statement player did not render its randomized content.');
+  }
+  await expect(announcer).toContainText(updatedStatement);
+
+  const quoteData = JSON.parse((await player.getAttribute('data-quotes')) ?? '[]') as Array<{
+    href: string;
+  }>;
+  const updatedIndex = Number(await index.textContent());
+  expect(updatedIndex).toBeGreaterThan(0);
+  await expect(learnMoreLink).toHaveAttribute('href', quoteData[updatedIndex - 1].href);
+
+  await playbackButton.click();
+  await expect(player).toHaveAttribute('data-state', 'playing');
+  await expect(playbackButton).toHaveAttribute('aria-label', 'Pause statement rotation');
+  await expect(playbackButton).toHaveAttribute('aria-pressed', 'false');
+  await expect(progress).toHaveCSS('animation-play-state', 'running');
+  await expect(player).toHaveAttribute('data-phase', 'typing', { timeout: 10_000 });
+  await expect(player.locator('[data-quote-progress]')).toHaveClass(/is-active/);
+});
+
+test('homepage statement player exhausts its shuffled statements before repeating', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const player = page.locator('[data-aspire-quote-player]');
+  const randomButton = player.locator('[data-random-quote]');
+  const index = player.locator('[data-quote-index]');
+
+  const initialIndex = await index.textContent();
+  if (!initialIndex) {
+    throw new Error('The statement player did not render its initial content.');
+  }
+
+  const seenIndices = new Set([initialIndex]);
+  for (let count = 1; count < 29; count++) {
+    await randomButton.click();
+    await expect(player).toHaveAttribute('data-phase', 'idle');
+
+    const nextIndex = await index.textContent();
+    if (!nextIndex) {
+      throw new Error('The statement player did not render its randomized index.');
+    }
+    expect(seenIndices.has(nextIndex)).toBe(false);
+    seenIndices.add(nextIndex);
+  }
+  expect(seenIndices.size).toBe(29);
+
+  await randomButton.click();
+  const repeatedIndex = await index.textContent();
+  expect(repeatedIndex).toBe(initialIndex);
+});
+
+test('homepage statement player honors reduced motion preferences', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const player = page.locator('[data-aspire-quote-player]');
+  const playbackButton = player.locator('[data-playback-toggle]');
+  const randomButton = player.locator('[data-random-quote]');
+  const cursor = player.locator('.typing-cursor').first();
+  const progress = player.locator('.quote-progress-fill');
+  const index = player.locator('[data-quote-index]');
+
+  await expect(player).toHaveAttribute('data-state', 'paused');
+  await expect(playbackButton).toHaveAttribute('aria-label', 'Play statement rotation');
+  await expect(playbackButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(cursor).toHaveCSS('animation-name', 'none');
+  await expect(progress).toHaveCSS('animation-name', 'none');
+
+  const initialIndex = await index.textContent();
+  if (!initialIndex) {
+    throw new Error('The statement player did not render its initial index.');
+  }
+
+  await randomButton.click();
+  await expect(player).toHaveAttribute('data-phase', 'idle');
+  await expect(index).not.toHaveText(initialIndex);
+});
+
+test('homepage statement player localizes its copy, controls, and destination', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/de/');
+  await dismissCookieConsentIfVisible(page);
+
+  const player = page.locator('[data-aspire-quote-player]');
+  const statement = player.locator('[data-quote-text]');
+  const index = player.locator('[data-quote-index]');
+  const playbackButton = player.locator('[data-playback-toggle]');
+  const randomButton = player.locator('[data-random-quote]');
+  const learnMoreLink = player.locator('[data-quote-link]');
+
+  await expect(player).toHaveAttribute('aria-label', 'Aspire-Aussagen');
+  await expect(statement).toContainText(/^Aspire /);
+  await expect(playbackButton).toHaveAttribute('aria-label', 'Rotation der Aussagen abspielen');
+  await expect(randomButton).toHaveAttribute(
+    'aria-label',
+    'Eine zufällige Aspire-Aussage anzeigen'
+  );
+  await expect(learnMoreLink).toHaveText('Mehr erfahren');
+  await expect(learnMoreLink).toHaveAttribute('aria-label', /^Mehr erfahren: /);
+
+  const quoteData = JSON.parse((await player.getAttribute('data-quotes')) ?? '[]') as Array<{
+    href: string;
+  }>;
+  const currentIndex = Number(await index.textContent());
+  expect(currentIndex).toBeGreaterThan(0);
+  expect(quoteData[currentIndex - 1].href).toMatch(/^\/de\//);
+  await expect(learnMoreLink).toHaveAttribute('href', quoteData[currentIndex - 1].href);
+
+  await page.setViewportSize({ width: 320, height: 800 });
+  expect(await player.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+
+  const footerBox = await player.locator('.quote-footer').boundingBox();
+  const linkBox = await player.locator('.quote-learn-more').boundingBox();
+  if (!footerBox || !linkBox) {
+    throw new Error('The responsive statement controls did not render.');
+  }
+  expect(Math.abs(footerBox.x + footerBox.width - (linkBox.x + linkBox.width))).toBeLessThanOrEqual(
+    2
+  );
+});
+
 test('os aware tabs default first-time Windows visitors to PowerShell', async ({ browser }) => {
   const context = await browser.newContext();
 
@@ -180,9 +355,7 @@ test('samples grid hydrates filters from the URL and syncs them back on change',
   // browser history stays clean.
   const redisChip = page.locator('[data-tag="redis"]');
   await redisChip.click();
-  await expect
-    .poll(() => page.url())
-    .toMatch(/tags=databases%2Credis|tags=databases,redis/);
+  await expect.poll(() => page.url()).toMatch(/tags=databases%2Credis|tags=databases,redis/);
 
   // The "Clear all" link resets every filter at once (search + tags) and
   // hides itself when there is nothing left to clear.

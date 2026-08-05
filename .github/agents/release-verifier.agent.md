@@ -121,7 +121,22 @@ Scan the documentation for version strings that should have been updated for thi
 
 Determine the immediately prior version. For `13.2` the prior is `13.1`; for `13.0` the prior is `9.5` (or whatever the last release of the previous major is). Use the existing what's-new files to determine this.
 
-#### 4b. Scan for stale version references
+#### 4b. Verify shared version placeholders
+
+Read `src/frontend/config/aspire-versions.mjs` and verify the exported current
+version constants match the release being verified:
+
+| Export | Expected value |
+|--------|----------------|
+| `currentAspireMajorMinorVersion` | `{VERSION}` (for example, `13.2`) |
+| `currentAspireVersion` | `{NUGET_VERSION}` (for example, `13.2.0`) |
+
+These constants drive the `%ASPIRE_VERSION_MAJOR_MINOR%` and
+`%ASPIRE_VERSION%` documentation placeholders. If either value is stale, flag it
+as a **critical** failure because generated docs can show the wrong current
+release version.
+
+#### 4c. Scan for stale version references
 
 Search the docs content tree for references to the prior NuGet version that appear **outside** of intentional historical context (e.g., upgrade-from examples that deliberately show the old version).
 
@@ -139,7 +154,7 @@ grep -rn 'Aspire.AppHost.Sdk.*Version="{PRIOR_NUGET_VERSION}"' src/frontend/src/
   --include="*.mdx"
 ```
 
-#### 4c. Evaluate each match
+#### 4d. Evaluate each match
 
 For every match found:
 
@@ -149,7 +164,7 @@ For every match found:
    - **Stale (should be updated)**: The reference is in current guidance, installation instructions, or sample code that a user would copy today. Flag these for update.
 3. Log each stale reference with file path, line number, and surrounding context.
 
-#### 4d. Verify new version references
+#### 4e. Verify new version references
 
 Spot-check that key documentation pages reference the release version:
 

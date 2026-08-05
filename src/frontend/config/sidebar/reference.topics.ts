@@ -495,6 +495,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-resource',
             },
             {
+              label: 'aspire resources',
+              slug: 'reference/cli/commands/aspire-resources',
+            },
+            {
               label: 'aspire restore',
               slug: 'reference/cli/commands/aspire-restore',
             },
@@ -534,6 +538,24 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-start',
             },
             { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
+            {
+              label: 'aspire terminal',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire terminal',
+                  slug: 'reference/cli/commands/aspire-terminal',
+                },
+                {
+                  label: 'aspire terminal attach',
+                  slug: 'reference/cli/commands/aspire-terminal-attach',
+                },
+                {
+                  label: 'aspire terminal ps',
+                  slug: 'reference/cli/commands/aspire-terminal-ps',
+                },
+              ],
+            },
             {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',

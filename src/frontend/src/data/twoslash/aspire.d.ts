@@ -2005,7 +2005,7 @@ export interface IExpressionValue {
 
 export interface InitializeResourceEvent extends IDistributedApplicationEvent, IDistributedApplicationResourceEvent {
   /**
-   * The `IDistributedApplicationEventing` service for the app host.
+   * The `IDistributedApplicationEventing` service for the AppHost.
    */
 
   eventing: PropertyAccessor<IDistributedApplicationEventing>;
@@ -2015,7 +2015,7 @@ export interface InitializeResourceEvent extends IDistributedApplicationEvent, I
 
   logger: PropertyAccessor<ILogger>;
   /**
-   * The `ResourceNotificationService` for the app host.
+   * The `ResourceNotificationService` for the AppHost.
    */
 
   notifications: PropertyAccessor<ResourceNotificationService>;
@@ -2025,7 +2025,7 @@ export interface InitializeResourceEvent extends IDistributedApplicationEvent, I
 
   resource: PropertyAccessor<IResource>;
   /**
-   * The `IServiceProvider` for the app host.
+   * The `IServiceProvider` for the AppHost.
    */
 
   services: PropertyAccessor<IServiceProvider>;
@@ -2533,7 +2533,7 @@ export interface LogFacade {
 
 export interface ParameterResource extends IExpressionValue, IManifestExpressionProvider, IResource, IValueProvider {
   /**
-   * Sets a custom input for the parameter resource from a polyglot app host.
+   * Sets a custom input for the parameter resource from a polyglot AppHost.
    */
 
   withCustomInput(options: ParameterCustomInputOptions): this;
@@ -2954,12 +2954,12 @@ export interface IDistributedApplicationResourceEvent {
 
 export interface ExternalServiceResource extends IResource {
   /**
-   * Adds an HTTP health check to the external service for polyglot app hosts.
+   * Adds an HTTP health check to the external service for polyglot AppHosts.
    */
 
   withHttpHealthCheck(options?: { path?: string; statusCode?: number; endpointName?: string }): this;
   /**
-   * Adds an HTTP health check to the external service for polyglot app hosts.
+   * Adds an HTTP health check to the external service for polyglot AppHosts.
    */
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
@@ -3101,7 +3101,7 @@ export interface IDistributedApplicationBuilder {
 
   getConfiguration(): IConfiguration;
   /**
-   * Directory of the project where the app host is located. Defaults to the content root if there's no project.
+   * Directory of the project where the AppHost is located. Defaults to the content root if there's no project.
    */
 
   appHostDirectory: PropertyAccessor<string>;
@@ -3598,7 +3598,7 @@ export interface AfterPublishEvent extends IDistributedApplicationEvent {
 
   model: PropertyAccessor<DistributedApplicationModel>;
   /**
-   * The `IServiceProvider` for the app host.
+   * The `IServiceProvider` for the AppHost.
    */
 
   services: PropertyAccessor<IServiceProvider>;
@@ -3615,7 +3615,7 @@ export interface BeforePublishEvent extends IDistributedApplicationEvent {
 
   model: PropertyAccessor<DistributedApplicationModel>;
   /**
-   * The `IServiceProvider` for the app host.
+   * The `IServiceProvider` for the AppHost.
    */
 
   services: PropertyAccessor<IServiceProvider>;
@@ -5451,6 +5451,105 @@ export interface BlazorWasmAppResource extends IResource, IResourceWithEnvironme
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.ClickHouseDatabaseResource
+ */
+
+export interface ClickHouseDatabaseResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the ClickHouse database.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the database name.
+   */
+
+  databaseName: PropertyAccessor<string>;
+  /**
+   * Gets the parent ClickHouse container resource.
+   */
+
+  parent: PropertyAccessor<ClickHouseServerResource>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ClickHouseServerResource
+ */
+
+export interface ClickHouseServerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Adds a ClickHouse database to the application model.
+   */
+
+  addDatabase(name: string, options?: { databaseName?: string }): ClickHouseDatabaseResource;
+  /**
+   * Adds a ClickHouse database to the application model.
+   */
+
+  addDatabase(name: string, databaseName?: string): ClickHouseDatabaseResource;
+  /**
+   * Gets the connection string expression for the ClickHouse server.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * A dictionary where the key is the resource name and the value is the database name.
+   */
+
+  databases: PropertyAccessor<Dict<string,string>>;
+  /**
+   * Gets the host expression for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the parameter that contains the ClickHouse server password.
+   */
+
+  passwordParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets the port expression for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the ClickHouse server.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the parameter that contains the ClickHouse server username.
+   */
+
+  userNameParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets a reference to the user name for the ClickHouse server.
+   */
+
+  userNameReference: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a bind mount for the data folder to a ClickHouse container resource.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the data folder to a ClickHouse container resource.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the data folder to a ClickHouse container resource.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the data folder to a ClickHouse container resource.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+}
+
+/**
  * Handle Aspire.Hosting.DevTunnels.DevTunnelResource
  */
 
@@ -6821,12 +6920,12 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
 
   withMigrationOutputDirectory(outputDirectory: string): this;
   /**
-   * Configures a separate project containing migrations for polyglot app hosts.
+   * Configures a separate project containing migrations for polyglot AppHosts.
    */
 
   withMigrationsProject(options?: { migrationsProject?: ProjectResource }): this;
   /**
-   * Configures a separate project containing migrations for polyglot app hosts.
+   * Configures a separate project containing migrations for polyglot AppHosts.
    */
 
   withMigrationsProject(migrationsProject?: ProjectResource): this;
@@ -10418,6 +10517,90 @@ export interface AzureStorageExplorerResource extends ContainerResource, IComput
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.BitwardenSecretManagerResource
+ */
+
+export interface BitwardenSecretManagerResource extends IResource, IResourceWithWaitSupport {
+  /**
+   * Adds a managed Bitwarden secret whose local and remote names are the same. The secret value is resolved from configuration key `Parameters:{parentName}-{name}`.
+   */
+
+  addSecret(name: string): BitwardenSecretResource;
+  /**
+   * Adds a managed Bitwarden secret with distinct Aspire and remote names. The secret value is resolved from configuration key `Parameters:{parentName}-{name}`.
+   */
+
+  addSecretWithRemoteName(name: string, remoteName: string): BitwardenSecretResource;
+  /**
+   * Gets or creates a Bitwarden secret reference whose Aspire and remote names are the same. The secret must already exist in Bitwarden; use `AddSecret` if Aspire should own and write the secret value.
+   */
+
+  getSecret(name: string): BitwardenSecretResource;
+  /**
+   * Gets or creates a Bitwarden secret reference by secret identifier. Use this when multiple secrets share the same name and the identifier is the only unambiguous key. The secret must already exist in Bitwarden; use `AddSecret` if Aspire should own and write the secret value.
+   */
+
+  getSecretById(name: string, secretId: guid): BitwardenSecretResource;
+  /**
+   * Gets or creates a Bitwarden secret reference with distinct Aspire and remote names. The secret must already exist in Bitwarden; use `AddSecret` if Aspire should own and write the secret value.
+   */
+
+  getSecretWithRemoteName(name: string, remoteName: string): BitwardenSecretResource;
+  /**
+   * Overrides the Bitwarden API URL.
+   */
+
+  withApiUrl(apiUrl: string): this;
+  /**
+   * Overrides the Bitwarden API URL using an external service resource. The Bitwarden resource will wait for the external service before authenticating.
+   */
+
+  withApiUrlFromExternalService(server: ExternalServiceResource): this;
+  /**
+   * Overrides the Bitwarden API URL using a parameter.
+   */
+
+  withApiUrlFromParameter(apiUrl: string | ParameterResource): this;
+  /**
+   * Overrides the AppHost auth cache directory (Bitwarden SDK auth session used by the AppHost reconciler). Defaults to the Aspire store when not set. Override to reuse a cached auth session across CI runs. To configure the auth cache directory inside the deployed app, use `WithBitwardenAuthCacheDirectory``1`.
+   */
+
+  withAuthCacheDirectory(authCacheDirectory: string): this;
+  /**
+   * Overrides the AppHost cache file path (integration bookkeeping: Bitwarden project ID, secret ID mappings). Defaults to `.bitwarden/{resourceName}.{environment}.json` relative to the AppHost directory. Override to share the cache across multiple AppHost projects, or to store it in a CI cache directory.
+   */
+
+  withCacheFile(cacheFile: string): this;
+  /**
+   * Overrides the Bitwarden identity URL.
+   */
+
+  withIdentityUrl(identityUrl: string): this;
+  /**
+   * Overrides the Bitwarden identity URL using an external service resource. The Bitwarden resource will wait for the external service before authenticating.
+   */
+
+  withIdentityUrlFromExternalService(server: ExternalServiceResource): this;
+  /**
+   * Overrides the Bitwarden identity URL using a parameter.
+   */
+
+  withIdentityUrlFromParameter(identityUrl: string | ParameterResource): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.BitwardenSecretResource
+ */
+
+export interface BitwardenSecretResource extends ParameterResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Returns an `IExpressionValue` that resolves to the Bitwarden secret identifier. Pass it to `WithEnvironment` to inject the secret ID as an environment variable. The app then uses the Bitwarden SDK to fetch the secret value at runtime.
+   */
+
+  asSecretId(): IExpressionValue;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.DbGateContainerResource
  */
 
@@ -10455,6 +10638,23 @@ export interface DbGateContainerResource extends ContainerResource, IComputeReso
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.DbxContainerResource
+ */
+
+export interface DbxContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the primary endpoint for the dbx resource.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Configures the host port that the dbx resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.DenoAppResource
  */
 
@@ -10464,6 +10664,18 @@ export interface DenoAppResource extends ExecutableResource, ContainerResource, 
    */
 
   withDenoPackageInstallation(): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.DuckDBResource
+ */
+
+export interface DuckDBResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IValueProvider, IValueWithReferences {
+  /**
+   * Configures the DuckDB resource to open the database in read-only mode.
+   */
+
+  withReadOnly(): this;
 }
 
 /**
@@ -10726,6 +10938,214 @@ export interface TurborepoResource extends IResource {
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.HelmReleaseResource
+ */
+
+export interface HelmReleaseResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the Kubernetes namespace the chart is installed into.
+   */
+
+  namespace: PropertyAccessor<string>;
+  /**
+   * Gets the Parent property
+   */
+
+  parent: PropertyAccessor<K3sClusterResource>;
+  /**
+   * Gets the Helm release name passed to `helm upgrade --install`.
+   */
+
+  releaseName: PropertyAccessor<string>;
+  /**
+   * Adds a Helm `--set key=value` override to the release.
+   */
+
+  withHelmValue(key: string, value: string): this;
+  /**
+   * Supplies a YAML values file to the Helm release (`--values`).
+   */
+
+  withHelmValuesFile(path: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.K3sClusterResource
+ */
+
+export interface K3sClusterResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Installs a Helm chart into the k3s cluster.
+   */
+
+  addHelmRelease(name: string, chart: string, options?: { repo?: string; version?: string; namespace?: string }): HelmReleaseResource;
+  /**
+   * Installs a Helm chart into the k3s cluster.
+   */
+
+  addHelmRelease(name: string, chart: string, repo?: string, version?: string, namespace?: string): HelmReleaseResource;
+  /**
+   * Applies Kubernetes YAML manifests or a Kustomize overlay to the cluster.
+   */
+
+  addK8sManifest(name: string, path: string): K8sManifestResource;
+  /**
+   * Exposes a Kubernetes Service from the cluster as an Aspire endpoint resource.
+   */
+
+  addServiceEndpoint(name: string, serviceName: string, servicePort: number, options?: { namespace?: string; scheme?: string }): K3sServiceEndpointResource;
+  /**
+   * Exposes a Kubernetes Service from the cluster as an Aspire endpoint resource.
+   */
+
+  addServiceEndpoint(name: string, serviceName: string, servicePort: number, namespace?: string, scheme?: string): K3sServiceEndpointResource;
+  /**
+   * Gets the endpoint reference for the k3s API server (port 6443).
+   */
+
+  apiEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Overrides the default `ConnectionStrings__` prefix so Aspire injects `KUBECONFIG`.
+   */
+
+  connectionStringEnvironmentVariable: PropertyAccessor<string>;
+  /**
+   * Manifest expression for the local kubeconfig path.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Sets the number of k3s agent (worker) nodes to add to the cluster.
+   */
+
+  withAgentCount(count: number): this;
+  /**
+   * Mounts a named Docker volume at the k3s data directory so cluster state persists across AppHost restarts.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Mounts a named Docker volume at the k3s data directory so cluster state persists across AppHost restarts.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Disables a built-in k3s component (`--disable=<component>`).
+   */
+
+  withDisabledComponent(component: string): this;
+  /**
+   * Appends a raw argument to the `k3s server` command line.
+   */
+
+  withExtraArg(arg: string): this;
+  /**
+   * Overrides the container image used to run `helm upgrade --install` for all `HelmReleaseResource` children of this cluster.
+   */
+
+  withHelmImage(options?: { tag?: string; image?: string; registry?: string }): this;
+  /**
+   * Overrides the container image used to run `helm upgrade --install` for all `HelmReleaseResource` children of this cluster.
+   */
+
+  withHelmImage(tag?: string, image?: string, registry?: string): this;
+  /**
+   * Sets the k3s image version used by the cluster server and all its agent nodes.
+   */
+
+  withK3sVersion(tag: string): this;
+  /**
+   * Overrides the container image used to run `kubectl apply` for all `K8sManifestResource` children of this cluster.
+   */
+
+  withKubectlImage(options?: { tag?: string; image?: string; registry?: string }): this;
+  /**
+   * Overrides the container image used to run `kubectl apply` for all `K8sManifestResource` children of this cluster.
+   */
+
+  withKubectlImage(tag?: string, image?: string, registry?: string): this;
+  /**
+   * Sets the container lifetime for the k3s cluster and all its agent nodes.
+   */
+
+  withLifetime(lifetime: ContainerLifetime): this;
+  /**
+   * Sets the CIDR range for pod IP addresses (`--cluster-cidr`).
+   */
+
+  withPodSubnet(cidr: string): this;
+  /**
+   * Sets the CIDR range for Service cluster IPs (`--service-cidr`).
+   */
+
+  withServiceSubnet(cidr: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource
+ */
+
+export interface K3sServiceEndpointResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * The environment variable name used to inject the service URL into dependents (`services__{name}__url`), following the Aspire service-discovery convention.
+   */
+
+  connectionStringEnvironmentVariable: PropertyAccessor<string>;
+  /**
+   * Gets the manifest expression for the service URL. Resolves to `http(s)://localhost:{hostPort}` when the endpoint is ready.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host port bound by the port-forward listener.
+   */
+
+  hostPort: PropertyAccessor<number>;
+  /**
+   * Gets the Kubernetes namespace that contains the Service.
+   */
+
+  namespace: PropertyAccessor<string>;
+  /**
+   * Gets the Parent property
+   */
+
+  parent: PropertyAccessor<K3sClusterResource>;
+  /**
+   * Gets the name of the Kubernetes Service being forwarded.
+   */
+
+  serviceName: PropertyAccessor<string>;
+  /**
+   * Gets the port number declared on the Kubernetes Service.
+   */
+
+  servicePort: PropertyAccessor<number>;
+  /**
+   * Gets the host port bound by the port-forward listener.
+   */
+
+  setHostPort(value: number): K3sServiceEndpointResource;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.K8sManifestResource
+ */
+
+export interface K8sManifestResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the Parent property
+   */
+
+  parent: PropertyAccessor<K3sClusterResource>;
+  /**
+   * Gets the absolute host path to the YAML file, plain directory, or Kustomize directory that contains the manifests to apply.
+   */
+
+  path: PropertyAccessor<string>;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.KurrentDBResource
  */
 
@@ -10822,6 +11242,118 @@ export interface LavinMQContainerResource extends ContainerResource, IComputeRes
    */
 
   withDataVolume(name: string, isReadOnly?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.LogtoResource
+ */
+
+export interface LogtoResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the ConnectionStringExpression property
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the Host property
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the Port property
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the PrimaryEndpoint property
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the Logto container resource.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Configures the specified Logto resource to include an administrative endpoint with the given URL.
+   */
+
+  withAdminEndpoint(url: string): this;
+  /**
+   * Configures the Logto resource to connect to the specified PostgreSQL database.
+   */
+
+  withDatabase(postgres: PostgresServerResource, options?: { databaseName?: string }): this;
+  /**
+   * Configures the Logto resource to connect to the specified PostgreSQL database.
+   */
+
+  withDatabase(postgres: PostgresServerResource, databaseName?: string): this;
+  /**
+   * Starts Logto by running the database seed command before the application process.
+   */
+
+  withDatabaseSeeding(): this;
+  /**
+   * Configures the Logto resource to use a data bind mount with the specified source directory.
+   */
+
+  withDataBindMount(source: string): this;
+  /**
+   * Configures the Logto resource with a data volume, allowing persistent storage.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Configures the Logto resource with a data volume, allowing persistent storage.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Enables Node.js deprecation tracing for the Logto by setting the NODE_OPTIONS environment variable to '--trace-deprecation'. This allows stack traces to be printed for deprecated API usage.
+   */
+
+  withDeprecationTracing(): this;
+  /**
+   * Configures the Logto resource to disable the Admin Console port.
+   */
+
+  withDisableAdminConsole(disable: boolean): this;
+  /**
+   * Configures the Logto resource to use the specified Node.js environment value by setting the corresponding environment variable.
+   */
+
+  withNodeEnv(env: string): this;
+  /**
+   * Configures the Logto resource to use a specified Redis resource for caching or other functionality.
+   */
+
+  withRedis(redis: RedisResource): this;
+  /**
+   * Configures HTTP endpoints for the given Logto resource builder with specified port settings.
+   */
+
+  withResourcePort(options?: { port?: number; adminPort?: number }): this;
+  /**
+   * Configures HTTP endpoints for the given Logto resource builder with specified port settings.
+   */
+
+  withResourcePort(port?: number, adminPort?: number): this;
+  /**
+   * Configures the Logto resource to use a secret vault with the specified key encryption key (KEK).
+   */
+
+  withSecretVault(secretVaultKek: string): this;
+  /**
+   * Specifies whether the username is case-sensitive.
+   */
+
+  withSensitiveUsername(sensitiveUsername: boolean): this;
+  /**
+   * Configures the Logto resource to enable or disable the trust proxy header behavior.
+   */
+
+  withTrustProxyHeader(trustProxyHeader: boolean): this;
 }
 
 /**
@@ -11634,6 +12166,117 @@ export interface RustAppExecutableResource extends ExecutableResource, Container
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.RustFsBucketResource
+ */
+
+export interface RustFsBucketResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RustFsResource
+ */
+
+export interface RustFsResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Adds a bucket to the RustFs resource. The bucket is created by issuing a signed `PUT` request to the RustFs S3 API after the server resource becomes ready.
+   */
+
+  addBucket(bucketName: string): RustFsBucketResource;
+  /**
+   * Adds multiple buckets to the RustFs resource. Each bucket is registered as its own `RustFsBucketResource` child resource and created via the RustFs S3 API once the server resource becomes ready.
+   */
+
+  addBuckets(bucketNames: string[]): RustFsResource;
+  /**
+   * Adds a bind mount for the data folder to a RustFs container resource.
+   */
+
+  withDataBindMount(source: string): this;
+  /**
+   * Adds a named volume for the data folder to a RustFs container resource.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for the data folder to a RustFs container resource.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Sets the AWS signing region used when creating buckets via the S3 API. Defaults to `us-east-1` if not specified.
+   */
+
+  withSigningRegion(region: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.SeaweedFSContainerResource
+ */
+
+export interface SeaweedFSContainerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Configures the Access Key that the SeaweedFS S3 resource uses.
+   */
+
+  withAccessKey(accessKey: string | ParameterResource): this;
+  /**
+   * Adds a bind mount for the SeaweedFS data folder.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the SeaweedFS data folder.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the SeaweedFS data folder.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the SeaweedFS data folder.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Enables the SeaweedFS Native Filer API.
+   */
+
+  withFiler(options?: { filerPort?: number }): this;
+  /**
+   * Enables the SeaweedFS Native Filer API.
+   */
+
+  withFiler(filerPort?: number): this;
+  /**
+   * Configures the Master API host port that the SeaweedFS resource is exposed on.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
+   * Enables the SeaweedFS S3-Compatible API Gateway.
+   */
+
+  withS3(options?: { s3Port?: number }): this;
+  /**
+   * Enables the SeaweedFS S3-Compatible API Gateway.
+   */
+
+  withS3(s3Port?: number): this;
+  /**
+   * Configures the SeaweedFS S3 API to use a specific external security configuration file.
+   */
+
+  withS3ConfigFile(configFilePath: string): this;
+  /**
+   * Configures the Secret Key that the SeaweedFS S3 resource uses.
+   */
+
+  withSecretKey(secretKey: string | ParameterResource): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.SftpContainerResource
  */
 
@@ -11842,6 +12485,13 @@ export interface SqliteWebResource extends ContainerResource, IComputeResource, 
    */
 
   uriExpression: PropertyAccessor<ReferenceExpression>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.SquadResource
+ */
+
+export interface SquadResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IValueProvider, IValueWithReferences {
 }
 
 /**
@@ -12308,6 +12958,16 @@ export interface IDistributedApplicationBuilder {
 
   addBlazorWasmProject(name: string, projectPath: string): BlazorWasmAppResource;
   /**
+   * Adds a ClickHouse resource to the application model.
+   */
+
+  addClickHouse(name: string, options?: { port?: number; userName?: string | ParameterResource; password?: string | ParameterResource }): ClickHouseServerResource;
+  /**
+   * Adds a ClickHouse resource to the application model.
+   */
+
+  addClickHouse(name: string, port?: number, userName?: string | ParameterResource, password?: string | ParameterResource): ClickHouseServerResource;
+  /**
    * Adds a Dev Tunnel resource to the distributed application model.
    */
 
@@ -12633,6 +13293,21 @@ export interface IDistributedApplicationBuilder {
 
   addDataAPIBuilder(name: string, configFilePaths?: string[], httpPort?: number): DataApiBuilderContainerResource;
   /**
+   * Adds a Bitwarden Secrets Manager resource. The `projectNameOrId` parameter resolves to either a project name (creates or finds by name) or a project identifier GUID (adopts the existing project by ID).
+   */
+
+  addBitwardenSecretManager(name: string, projectNameOrId: string | ParameterResource, organizationId: string | ParameterResource, accessToken: string | ParameterResource): BitwardenSecretManagerResource;
+  /**
+   * Adds a Bun app to the builder.
+   */
+
+  addBunApp(name: string, options?: { workingDirectory?: string; entryPoint?: string; watch?: boolean }): BunAppResource;
+  /**
+   * Adds a Bun app to the builder.
+   */
+
+  addBunApp(name: string, workingDirectory?: string, entryPoint?: string, watch?: boolean): BunAppResource;
+  /**
    * Adds a DbGate container resource to the application.
    */
 
@@ -12642,6 +13317,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addDbGate(name?: string, port?: number): DbGateContainerResource;
+  /**
+   * Adds a dbx container resource to the application.
+   */
+
+  addDbx(options?: { name?: string; port?: number }): DbxContainerResource;
+  /**
+   * Adds a dbx container resource to the application.
+   */
+
+  addDbx(name?: string, port?: number): DbxContainerResource;
   /**
    * Adds a Deno application to the application model. Deno should available on the PATH.
    */
@@ -12662,6 +13347,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addDenoTask(name: string, workingDirectory?: string, taskName?: string, args?: string[]): DenoAppResource;
+  /**
+   * Adds a DuckDB resource to the application builder.
+   */
+
+  addDuckDB(name: string, options?: { databasePath?: string; databaseFileName?: string }): DuckDBResource;
+  /**
+   * Adds a DuckDB resource to the application builder.
+   */
+
+  addDuckDB(name: string, databasePath?: string, databaseFileName?: string): DuckDBResource;
   /**
    * Adds a flagd container to the application model.
    */
@@ -12730,6 +13425,16 @@ export interface IDistributedApplicationBuilder {
 
   addTurborepoApp(name: string, workingDirectory?: string): TurborepoResource;
   /**
+   * Adds a k3s Kubernetes cluster to the distributed application.
+   */
+
+  addK3sCluster(name: string, options?: { apiServerPort?: number; agentCount?: number }): K3sClusterResource;
+  /**
+   * Adds a k3s Kubernetes cluster to the distributed application.
+   */
+
+  addK3sCluster(name: string, apiServerPort?: number, agentCount?: number): K3sClusterResource;
+  /**
    * Adds a KurrentDB resource to the application model. A container is used for local development. The default image is and the tag is .
    */
 
@@ -12749,6 +13454,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addLavinMQ(name: string, amqpPort?: number, managementPort?: number): LavinMQContainerResource;
+  /**
+   * Adds a Logto resource to the Aspire distributed application by configuring it with the specified name, associated PostgreSQL server resource, and database name.
+   */
+
+  addLogto(name: string, postgres: PostgresServerResource, options?: { databaseName?: string; port?: number; adminPort?: number }): LogtoResource;
+  /**
+   * Adds a Logto resource to the Aspire distributed application by configuring it with the specified name, associated PostgreSQL server resource, and database name.
+   */
+
+  addLogto(name: string, postgres: PostgresServerResource, databaseName?: string, port?: number, adminPort?: number): LogtoResource;
   /**
    * Adds a MailPit container resource
    */
@@ -12889,6 +13604,21 @@ export interface IDistributedApplicationBuilder {
 
   addRustApp(name: string, workingDirectory: string, args?: string[]): RustAppExecutableResource;
   /**
+   * Adds a RustFs container to the application model. The default image is "rustfs/rustfs".
+   */
+
+  addRustFs(name: string, options?: { accessKey?: string | ParameterResource; secretKey?: string | ParameterResource; port?: number; consolePort?: number }): RustFsResource;
+  /**
+   * Adds a RustFs container to the application model. The default image is "rustfs/rustfs".
+   */
+
+  addRustFs(name: string, accessKey?: string | ParameterResource, secretKey?: string | ParameterResource, port?: number, consolePort?: number): RustFsResource;
+  /**
+   * Adds a base SeaweedFS container (Master and Volume APIs) to the application model. Chain with .WithS3() or .WithFiler() to enable additional APIs.
+   */
+
+  addSeaweedFS(name: string): SeaweedFSContainerResource;
+  /**
    * Adds atmoz SFTP to the application model.
    */
 
@@ -12923,6 +13653,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addSqlite(name: string, databasePath?: string, databaseFileName?: string): SqliteResource;
+  /**
+   * Adds a Squad AI-agent team to the distributed application. The lifecycle hook discovers agents from `.squad/team.md` (or the default roster when the file does not exist), publishes `Spawning` to `Active` state transitions visible in the Aspire dashboard, and injects a custom `squad://` descriptor that downstream services can consume as metadata. The Squad resource is a logical dashboard/resource-graph entry; it does not start a server process by itself.
+   */
+
+  addSquad(name: string, options?: { teamRoot?: string }): SquadResource;
+  /**
+   * Adds a Squad AI-agent team to the distributed application. The lifecycle hook discovers agents from `.squad/team.md` (or the default roster when the file does not exist), publishes `Spawning` to `Active` state transitions visible in the Aspire dashboard, and injects a custom `squad://` descriptor that downstream services can consume as metadata. The Squad resource is a logical dashboard/resource-graph entry; it does not start a server process by itself.
+   */
+
+  addSquad(name: string, teamRoot?: string): SquadResource;
   /**
    * Adds the Stripe CLI to the application model for local webhook forwarding.
    */
@@ -14362,6 +15102,11 @@ export interface BunAppResource {
 
   withYarn(install?: boolean, installArgs?: string[]): this;
   /**
+   * Ensures the Bun packages are installed before the application starts using Bun as the package manager.
+   */
+
+  withBunPackageInstallation(): this;
+  /**
    * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
    */
 
@@ -15289,6 +16034,41 @@ export interface ContainerResource {
 
   withOrleansReference(orleansService: OrleansService): this;
   /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -15913,12 +16693,12 @@ export interface CSharpAppResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
@@ -15952,6 +16732,41 @@ export interface CSharpAppResource {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
   /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
@@ -16596,6 +17411,41 @@ export interface DotnetToolResource {
 
   withOrleansReference(orleansService: OrleansService): this;
   /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -17228,6 +18078,41 @@ export interface ExecutableResource {
 
   withOrleansReference(orleansService: OrleansService): this;
   /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -17821,6 +18706,41 @@ export interface IResourceWithEnvironment {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
   /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
@@ -19312,12 +20232,12 @@ export interface ProjectResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
@@ -19351,6 +20271,41 @@ export interface ProjectResource {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
   /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
@@ -19773,6 +20728,7 @@ export interface arg1 {}
 export interface arg2 {}
 export interface callback {}
 export interface cancellationToken {}
+export interface guid {}
 export interface obj {}
 export interface timespan {}
 export interface uri {}

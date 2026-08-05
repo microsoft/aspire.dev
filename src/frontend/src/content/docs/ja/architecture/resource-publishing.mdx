@@ -1,0 +1,75 @@
+---
+title: リソースの公開
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Aspire は、リソースマニフェストを公開するための柔軟な仕組みを提供し、様々なデプロイ環境とのシームレスな統合を可能にします。リソースは JSON 形式にシリアル化され、デプロイツールで利用できます。
+
+JSON マニフェストエントリを公開するカスタムリソースでは、次の対応が必要です。
+
+<Steps>
+
+1. コンストラクターで `ManifestPublishingCallbackAnnotation` を使って **コールバックを登録** します。  
+1. **コールバックを実装** し、`ManifestPublishingContext.Writer` を介して JSON を書き込みます。  
+1. 構造化フィールドには **値オブジェクト**（`IManifestExpressionProvider`）を使用します。
+
+</Steps>
+
+リソースは、`IResourceBuilder<T>` に対して `ExcludeFromManifest()` 拡張メソッドを呼び出すことで、公開マニフェストへの含有を完全にオプトアウトできます。この方法でマークされたリソースは、Docker Compose ファイルや Kubernetes マニフェストなどの公開アセットを生成する際に除外されます。
+
+### コールバックの登録
+
+次の例は、パラメーターをマニフェストに公開するカスタム Azure Bicep リソースを示しています。
+
+```csharp title="C# — AzureBicepResource.cs"
+public class AzureBicepResource : Resource, IAzureResource
+{
+    public AzureBicepResource(string name, ...) : base(name)
+    {
+        Annotations.Add(new ManifestPublishingCallbackAnnotation(WriteToManifest));
+    }
+}
+```
+
+### マニフェストへの書き込み
+
+例として、`WriteToManifest` メソッドはリソースのパラメーターを JSON オブジェクトへシリアル化します。このメソッドは、マニフェスト公開フェーズ中に呼び出されます。
+
+```csharp
+public virtual void WriteToManifest(ManifestPublishingContext context)
+{
+    context.Writer.WriteString("type", "azure.bicep.v0");
+    context.Writer.WriteString("path", context.GetManifestRelativePath(path));
+
+    context.Writer.WriteStartObject("params");
+    foreach (var kv in Parameters)
+    {
+        context.Writer.WritePropertyName(kv.Key);
+        var v = kv.Value is IManifestExpressionProvider p ? p.ValueExpression : kv.Value?.ToString();
+        context.Writer.WriteString(kv.Key, v ?? "");
+        context.TryAddDependentResources(kv.Value);
+    }
+    context.Writer.WriteEndObject();
+}
+```
+
+### サマリーテーブル
+
+次の表は、リソースを公開する際の主要なステップと規約をまとめたものです：
+
+| ステップ | API / 呼び出し | 目的 |
+|--|--|--|
+| コールバックの登録 | `Annotations.Add(new ManifestPublishingCallbackAnnotation(WriteToManifest))` | カスタム JSON ライターをフックする |
+| `WriteToManifest` の実装 | `context.Writer` を使って JSON プロパティを出力する | リソースのマニフェスト表現を定義する |
+| 構造化フィールド | `IManifestExpressionProvider.ValueExpression` | 公開時のプレースホルダーが保持されるようにする |
+
+## 主要な規約
+
+| 規約 | 理由 |
+|--|--|
+| データのみのリソースクラス | データモデルと動作を分離する |
+| `*BuilderExtensions` クラス | 統合ごとにすべての API メソッドをまとめる |
+| Public な注釈 | 実行時に動的な追加や削除を可能にする |
+| `[ResourceName]` 属性 | コンパイル時に有効なリソース名を強制する |
+| パラメーター/値オブジェクトを保持する | シークレットや出力の遅延評価を確実にする |

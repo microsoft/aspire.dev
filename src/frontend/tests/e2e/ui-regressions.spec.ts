@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  clickCookiePreferencesAction,
   dismissCookieConsentIfVisible,
   isNarrowViewport,
   openCookiePreferences,
@@ -93,6 +94,16 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
     page.viewportSize()?.width !== 1440,
     'This regression is covered once from the desktop project with explicit narrow widths.'
   );
+
+  // This test loops over narrow widths and, at each one, clicks the install
+  // button — which navigates to /get-started/install-cli/ — before looping
+  // back to the homepage. Starlight's view transitions animate each of those
+  // navigations, and in headless Chromium a transition kicked off on the
+  // second homepage visit can stall the compositor (requestAnimationFrame
+  // stops firing), leaving the whole page frozen and unclickable. Disabling
+  // motion makes Starlight skip the view-transition animations, which keeps
+  // the page interactive across the repeated navigations.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
 
   const expectedCompactHeaderOrder = [
     'Aspire',
@@ -219,10 +230,7 @@ test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
   await page.goto('/get-started/prerequisites/');
   await openCookiePreferences(page);
 
-  await page
-    .getByRole('button', { name: /reject all/i })
-    .last()
-    .click();
+  await clickCookiePreferencesAction(page, /reject all/i);
   await waitForConsentRecorded(page);
   await waitForAnalyticsConsent(page, false);
   await waitForConsentCategories(page, ['necessary']);
@@ -233,10 +241,7 @@ test('cookie preferences and accept-all enable analytics tracking consent', asyn
   await page.goto('/get-started/prerequisites/');
   await openCookiePreferences(page);
 
-  await page
-    .getByRole('button', { name: /accept all/i })
-    .last()
-    .click();
+  await clickCookiePreferencesAction(page, /accept all/i);
 
   await waitForConsentRecorded(page);
   await waitForAnalyticsConsent(page, true);
@@ -247,16 +252,30 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   await page.goto('/get-started/aspire-vscode-extension/');
   await dismissCookieConsentIfVisible(page);
 
-  const themeSelect = page.locator('#footer-theme-select');
+  const themeToggle = page.locator('#footer-theme-toggle');
+  const darkThemeButton = themeToggle.getByRole('radio', { name: 'Dark' });
+  const lightThemeButton = themeToggle.getByRole('radio', { name: 'Light' });
+  const autoThemeButton = themeToggle.getByRole('radio', { name: 'Auto' });
   const kbdSelect = page.locator('#footer-kbd-select');
 
-  await themeSelect.selectOption('dark');
+  async function expectThemeSelection(selectedTheme: 'light' | 'auto' | 'dark') {
+    await expect(lightThemeButton).toHaveAttribute(
+      'aria-checked',
+      String(selectedTheme === 'light')
+    );
+    await expect(autoThemeButton).toHaveAttribute('aria-checked', String(selectedTheme === 'auto'));
+    await expect(darkThemeButton).toHaveAttribute('aria-checked', String(selectedTheme === 'dark'));
+  }
+
+  await darkThemeButton.click();
+  await expectThemeSelection('dark');
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('starlight-theme')))
     .toBe('dark');
 
-  await themeSelect.selectOption('light');
+  await lightThemeButton.click();
+  await expectThemeSelection('light');
   await expect
     .poll(() => page.evaluate(() => document.documentElement.dataset.theme))
     .toBe('light');
@@ -268,7 +287,7 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
 
   await page.reload();
 
-  await expect(themeSelect).toHaveValue('light');
+  await expectThemeSelection('light');
   await expect(kbdSelect).toHaveValue('mac');
 });
 

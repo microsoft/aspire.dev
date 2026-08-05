@@ -583,9 +583,22 @@ var api = builder.AddProject<Projects.Api>("api")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-:::note
-The `WithImagePushOptions` API is not yet available in the TypeScript AppHost SDK.
-:::
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api
+  .publishAsDockerComposeService(async (resource, service) => {
+    await service.name.set('api');
+  })
+  .withImagePushOptions(async (context) => {
+    const imageName = context.resource.getResourceName().toLowerCase();
+    context.options.setRemoteImageName(`myorg/${imageName}`);
+    context.options.setRemoteImageTag('latest');
+  });
+```
 </TabItem>
 </Tabs>
 
