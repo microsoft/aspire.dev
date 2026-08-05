@@ -27,12 +27,11 @@ When executed without the `--apphost` option, the command:
 3. If only one AppHost is running in scope, stops it directly.
 4. If no in-scope AppHosts are found but out-of-scope AppHosts exist, displays all running AppHosts for selection.
 
-The command sends a stop signal to the running AppHost process, which ensures a clean shutdown of all resources including the dashboard and any containers or processes that were started.
+The command requests a graceful shutdown of the selected AppHost process (and its process tree), coordinating a clean shutdown of the AppHost, dashboard, and non-persistent containers and processes. Resources configured with a [persistent lifetime](/app-host/resource-lifetimes/#persistent-lifetime) remain available for later runs.
 
 ### Stopping a detached AppHost
 
-When stopping an AppHost that was started with [`aspire run --detach`](/reference/cli/commands/aspire-run/#options), the `aspire stop` command waits for the AppHost process to terminate and then removes the backchannel socket file it previously used for communication. Cleaning up the socket file ensures that subsequent CLI commands such as `aspire add` or `aspire describe` do not encounter stale-connection errors from a dead AppHost process.
-The command requests a graceful shutdown of the selected AppHost process (and its process tree), coordinating a clean shutdown of the AppHost, dashboard, and non-persistent containers and processes. Resources configured with a [persistent lifetime](/app-host/resource-lifetimes/#persistent-lifetime) remain available for later runs.
+When stopping an AppHost that was started with [`aspire run --detach`](/reference/cli/commands/aspire-run/#options), the `aspire stop` command waits for the AppHost process to terminate before removing its backchannel socket file. Removing the socket prevents subsequent CLI commands, such as `aspire add` or `aspire describe`, from attempting to connect to the stopped process.
 
 ### Clean up persistent resources
 
