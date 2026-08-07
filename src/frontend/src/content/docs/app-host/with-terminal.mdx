@@ -164,7 +164,12 @@ Add a terminal to a resource only once. Calling `WithTerminal()` more than once 
 
 When a resource has `WithTerminal` applied, its **Console Logs** page in the [Aspire dashboard](/dashboard/overview/) gains a live terminal session alongside the usual console log stream. You can drive the running process directly in the browser without leaving the dashboard. For example, you can type commands, scroll the scrollback buffer, and switch between replicas. Each replica appears as its own entry (for example, `agent-r0`, `agent-r1`, `agent-r2`) with an independent session.
 
-The page defaults to the **Console logs** view so that hosting messages—such as "Waiting for resource X to become healthy..." or a startup failure—are visible immediately, even before the terminal's PTY has attached. Open the toolbar's options (⋯) menu and choose **Terminal** to switch to the interactive terminal view, or choose **Console logs** to switch back. Both views stay live while you're on the page: switching between them never tears down the terminal session or loses console log scrollback, and selecting a different resource resets the page back to the **Console logs** view.
+The page picks a default view based on the resource's state at the moment you navigate to it:
+
+- **Running** (the PTY is live) → the page defaults to the **Terminal** view, so the interactive session is the first thing you see.
+- **Waiting**/**Starting** or already **Exited**/**Finished**/**FailedToStart** → the page defaults to the **Console logs** view, so hosting messages—such as "Waiting for resource X to become healthy..." or a startup failure—and post-exit output remain visible immediately.
+
+Open the toolbar's options (⋯) menu and choose **Terminal** or **Console logs** to switch views manually at any time. Both views stay live while you're on the page: switching between them never tears down the terminal session or loses console log scrollback, and a later state transition (for example, `Waiting` → `Running`) doesn't auto-switch the view once you've navigated to the page. Selecting a different resource re-evaluates the default for that resource.
 
 <Aside type="note">
 The view you pick only affects what's currently displayed—it doesn't change what's captured. Console logs keep streaming, and the terminal session keeps running, regardless of which view is active.
