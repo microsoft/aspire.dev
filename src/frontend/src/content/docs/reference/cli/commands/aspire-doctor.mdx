@@ -35,6 +35,14 @@ This command is useful for troubleshooting when you encounter issues with Aspire
 - **Container checks**: Validates container runtime (Docker and/or Podman) availability, running status, and version. Reports which runtime is active and why (explicit configuration, auto-detected default, or auto-detected only runtime running)
 - **Environment checks**: Reports operating system information (type, version, and Linux distro details when available) and validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun)
 
+<Aside type="note">
+  On Linux, `aspire doctor` reports a warning when `certutil` is unavailable.
+  Aspire uses `certutil` to query and update the NSS certificate databases used
+  by Firefox and Chromium browsers, so without it browser certificate trust may
+  be incomplete. Install `certutil` from your distribution's NSS tools package,
+  for example `libnss3-tools`, to resolve the warning.
+</Aside>
+
 The command displays results with clear status indicators:
 
 - ✅ (green) - Check passed
@@ -127,6 +135,15 @@ the check results. When any warning or failure is present, Aspire also prints
 AppHost version messages include an inline `(channel: <name>)` suffix; the same
 channel data appears in JSON metadata as `identityChannel`,
 `latestVersionChannel`, or `pinnedChannel` when available.
+
+On Linux, when `certutil` is not installed, the Environment section reports a warning instead of failing the check:
+
+```bash title="Aspire CLI"
+Environment
+  ✅ Operating system: Linux Ubuntu 24.04
+  ⚠️ certutil is not available; browser certificate trust may be incomplete
+       Install certutil from your distribution's NSS tools package (for example, libnss3-tools).
+```
 
 When only Podman is running:
 
