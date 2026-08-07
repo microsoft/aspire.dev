@@ -893,9 +893,9 @@ New APIs in this area include `AddProject`, `AddModelDeployment`, `WithAppInsigh
 
 <Aside type="caution">
   This is a breaking change. `Aspire.Hosting.Azure.AIFoundry` has been replaced
-  by `Aspire.Hosting.Foundry`. See the [AIFoundry to Foundry
-  transition](#aifoundry-to-foundry-transition) in breaking changes for
-  migration steps.
+  by `Aspire.Hosting.Foundry`. See the [Foundry package and namespace
+  transition](#foundry-package-and-namespace-transition) in breaking changes
+  for migration steps.
 </Aside>
 
 <LearnMore>
@@ -1300,22 +1300,29 @@ C# apps that consume the Aspire client integrations (for example, `AddNpgsqlData
 
 For the full per-resource property catalog, see the **Connection properties** section on each integration's *connect* page — for example, [Connect to Azure Cosmos DB](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-connect/#connection-properties), [Connect to SQL Server](/integrations/databases/sql-server/sql-server-connect/#connection-properties), or [Connect to GitHub Models](/integrations/ai/github-models/github-models-connect/#connection-properties).
 
-### AIFoundry to Foundry transition
+### Foundry package and namespace transition
 
-`Aspire.Hosting.Azure.AIFoundry` was replaced by the broader `Aspire.Hosting.Foundry` surface.
+Aspire 13.2 standardizes the Foundry hosting surface under `Aspire.Hosting.Foundry`.
 
-When upgrading, make both of these changes:
+| Previous 13.1 name | 13.2 name |
+| ------------------ | --------- |
+| Hosting package: `Aspire.Hosting.Azure.AIFoundry` | Hosting package: `Aspire.Hosting.Foundry` |
+| Resource and model namespace: `Aspire.Hosting.Azure` | Resource and model namespace: `Aspire.Hosting.Foundry` |
+| `AddAzureAIFoundry(...)` | `AddFoundry(...)` |
+| `AzureAIFoundryResource` | `FoundryResource` |
+| `AzureAIFoundryExtensions` | `FoundryExtensions` |
+| `AzureAIFoundryDeploymentResource` | `FoundryDeploymentResource` |
+| `AIFoundryModel` | `FoundryModel` |
 
-- Replace the `Aspire.Hosting.Azure.AIFoundry` package reference with `Aspire.Hosting.Foundry`.
-- Migrate from `AddAzureAIFoundry()` to `AddFoundry()`, then add deployments explicitly with `AddDeployment()` or `AddModelDeployment()`.
+Migration tip: update your package reference, add `using Aspire.Hosting.Foundry;` for direct resource or model type references, and rename `AddAzureAIFoundry(...)` to `AddFoundry(...)`. Remove `using Aspire.Hosting.Azure;` only if your code no longer uses other types from that namespace. Extension methods remain in the `Aspire.Hosting` namespace.
 
-```xml title="AppHost project file"
+```xml title="XML — AppHost project file"
 <ItemGroup>
   <PackageReference Include="Aspire.Hosting.Foundry" Version="13.2.0" />
 </ItemGroup>
 ```
 
-```csharp title="Migration example"
+```csharp title="C# — Migration example"
 // Before
 var ai = builder.AddAzureAIFoundry("ai");
 
