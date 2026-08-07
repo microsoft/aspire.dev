@@ -1,0 +1,193 @@
+---
+title: Set up .NET / C# apps in the AppHost
+seoTitle: 'Set up .NET / C# apps in the Aspire AppHost: hosting integration'
+description: Learn how to use the Aspire Dotnet hosting integration to add C# projects and file-based C# apps by path in an Aspire solution.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import csharpIcon from '@assets/icons/csharp.svg';
+
+<ThemeImage
+  light={csharpIcon}
+  dark={csharpIcon}
+  alt="C# logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+This article is the reference for the Aspire Dotnet hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to add C# projects and file-based C# apps **by path** in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Dotnet integration, start with the [Get started with the .NET / C# app integration](/integrations/frameworks/dotnet/dotnet-get-started/) guide.
+
+:::caution[Experimental]
+`AddDotnetProject` / `addDotnetProject` is experimental and exposed under the `ASPIREDOTNETPROJECT001` diagnostic. Its API surface may change in future releases.
+:::
+
+:::note[Prerequisites]
+The **.NET SDK** must be available on the `PATH` of the machine running the AppHost. File-based C# apps (`.cs`) require **.NET 10 or later**.
+:::
+
+## Installation
+
+To start building an Aspire app that adds a C# project or file-based app by path, install the [📦 Aspire.Hosting.Dotnet](https://www.nuget.org/packages/Aspire.Hosting.Dotnet) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Dotnet
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Dotnet@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Dotnet" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Dotnet
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Dotnet hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Dotnet": "13.5.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add a C# project or file-based app by path
+
+Use `AddDotnetProject` / `addDotnetProject` to add a C# project or file-based app resource by path. The `path` argument can point at a project file (`.csproj`), a directory containing a single `.csproj`, or a file-based app (`.cs`). If the path isn't absolute, it's computed relative to the AppHost directory.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddDotnetProject("api", "../api/api.csproj")
+    .WithHttpEndpoint(port: 8080)
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addDotnetProject('api', '../api/api.csproj');
+await api.withHttpEndpoint({ port: 8080 });
+await api.withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The resource launches with `dotnet run --project <path>` for a project file, or `dotnet run --file <path>` for a file-based app. Endpoints, environment variables, and service discovery are configured from the project's `launchSettings.json` and Kestrel configuration, matching `AddProject<T>`.
+
+## Add a file-based C# app
+
+A file-based app is a single `.cs` file run directly with `dotnet run --file`, without a `.csproj`. File-based apps require **.NET 10 or later**.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDotnetProject("inventoryservice", @"..\InventoryService.cs");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addDotnetProject('inventoryservice', '../InventoryService.cs');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Configure options
+
+Pass a configuration action to set additional options such as the launch profile:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDotnetProject("inventoryservice", @"..\InventoryService.cs", o => o.LaunchProfileName = "https");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addDotnetProject('inventoryservice', '../InventoryService.cs', {
+  launchProfileName: 'https',
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The resource is added as an [`ExecutableResource`](/app-host/) rather than a `ProjectResource`, so it doesn't need to be referenced from the AppHost's own solution. Before the resource starts, Aspire validates that the path resolves to a `.csproj` or `.cs` file (or a directory containing a single `.csproj`) and, for file-based apps, that the active .NET SDK version is 10 or later.
+
+## See also
+
+- [.NET documentation](https://learn.microsoft.com/dotnet/)
+- [Get started with the .NET / C# app integration](/integrations/frameworks/dotnet/dotnet-get-started/)
+- [Aspire integrations overview](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)
