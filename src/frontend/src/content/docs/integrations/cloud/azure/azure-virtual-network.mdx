@@ -336,6 +336,50 @@ A single NSG can be shared across multiple subnets.
   `InvalidOperationException` to prevent silent rule loss.
 </Aside>
 
+### Delegate subnets to compute environments
+
+Compute environment integrations that support regional virtual network integration expose a `WithDelegatedSubnet` (or `withDelegatedSubnet` in TypeScript) extension method that assigns a subnet to the environment, enabling subnet delegation so the environment can inject its infrastructure. For example, [Azure Container Apps](/integrations/cloud/azure/configure-container-apps/) and [Azure App Service](/integrations/cloud/azure/azure-app-service/azure-app-service-host/#regional-virtual-network-integration) both support `WithDelegatedSubnet`:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var subnet = vnet.AddSubnet("compute-subnet", "10.0.0.0/24");
+
+// Azure Container Apps environment
+builder.AddAzureContainerAppEnvironment("aca-env")
+    .WithDelegatedSubnet(subnet);
+
+// -- or --
+
+// Azure App Service environment (requires ASPIREAZURE003 suppression)
+#pragma warning disable ASPIREAZURE003
+builder.AddAzureAppServiceEnvironment("app-service-env")
+    .WithDelegatedSubnet(subnet);
+#pragma warning restore ASPIREAZURE003
+````
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+const vnet = await builder.addAzureVirtualNetwork("vnet");
+const subnet = await vnet.addSubnet("compute-subnet", "10.0.0.0/24");
+
+// Azure Container Apps environment
+await builder.addAzureContainerAppEnvironment("aca-env")
+    .withDelegatedSubnet(subnet);
+
+// -- or --
+
+// Azure App Service environment
+await builder.addAzureAppServiceEnvironment("app-service-env")
+    .withDelegatedSubnet(subnet);
+````
+
+</TabItem>
+</Tabs>
+
+Each compute environment delegates the subnet to its own Azure service (for example, App Service delegates to `Microsoft.Web/serverFarms`). Regional virtual network integration affects outbound traffic only—it doesn't make ingress private and doesn't enable Route All.
+
 ### Add private endpoints
 
 [Private endpoints](https://learn.microsoft.com/azure/private-link/) enable secure connectivity to Azure services over a private network. Call `AddPrivateEndpoint` (or `addPrivateEndpoint`) on a subnet builder and pass the Azure resource to connect to:

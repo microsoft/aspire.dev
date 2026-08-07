@@ -419,6 +419,65 @@ await api.publishAsAzureAppServiceWebsite({
 </TabItem>
 </Tabs>
 
+## Regional virtual network integration
+
+To configure [regional virtual network integration](https://learn.microsoft.com/azure/app-service/overview-vnet-integration) for the websites in an App Service environment, add the [📦 Aspire.Hosting.Azure.Network](https://www.nuget.org/packages/Aspire.Hosting.Azure.Network) integration and delegate a subnet to the environment with `WithDelegatedSubnet` (or `withDelegatedSubnet` in TypeScript):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003 // Azure Virtual Network APIs are experimental.
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var subnet = vnet.AddSubnet("app-service-subnet", "10.0.0.0/24");
+
+var appServiceEnv = builder.AddAzureAppServiceEnvironment("app-service-env")
+    .WithDelegatedSubnet(subnet);
+
+#pragma warning restore ASPIREAZURE003
+
+builder.AddProject<Projects.WebApi>("api");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const vnet = await builder.addAzureVirtualNetwork('vnet');
+const subnet = await vnet.addSubnet('app-service-subnet', '10.0.0.0/24');
+
+const appServiceEnv = await builder
+  .addAzureAppServiceEnvironment('app-service-env')
+  .withDelegatedSubnet(subnet);
+
+await builder.addProject('api', '../WebApi/WebApi.csproj');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+`WithDelegatedSubnet` delegates the subnet to `Microsoft.Web/serverFarms` and configures every generated website, deployment slot, and the default Aspire Dashboard to use it for regional virtual network integration. The subnet must meet the [Azure App Service regional virtual network integration requirements](https://learn.microsoft.com/azure/app-service/overview-vnet-integration).
+
+<Aside type="note">
+  Regional virtual network integration affects outbound traffic only. It
+  doesn't make website or dashboard ingress private, and it doesn't enable
+  Route All. Configure private endpoints or access restrictions, and Route
+  All, separately when those behaviors are required.
+</Aside>
+
+For more information on configuring virtual networks and subnets, see [Azure Virtual Network](/integrations/cloud/azure/azure-virtual-network/).
+
 ## Customize provisioning infrastructure
 
 All Aspire Azure resources expose a `ConfigureInfrastructure` API (or `configureInfrastructure` in TypeScript) that lets you customize the generated Bicep through the [Azure.Provisioning](https://learn.microsoft.com/dotnet/api/azure.provisioning) APIs. For example, you can change the App Service Plan SKU:
@@ -493,6 +552,7 @@ The generated Bicep is a starting point and is influenced by changes to the prov
 ## See also
 
 - [Azure App Service runtime configuration](../azure-app-service-connect/)
+- [Azure Virtual Network](/integrations/cloud/azure/azure-virtual-network/)
 - [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/)
 - [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources)
 - [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/)
