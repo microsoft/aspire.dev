@@ -986,6 +986,57 @@ Common environment variables for JavaScript frameworks:
 - **VITE_PORT**: For Vite applications
 - **HOST**: Some frameworks also use this to bind to specific interfaces
 
+### Read referenced connection strings
+
+When you reference a resource that exposes a connection string, Aspire injects the connection string into the JavaScript app's environment:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres").AddDatabase("mydb");
+
+var app = builder.AddJavaScriptApp("app", "./app")
+    .WithHttpEndpoint(port: 3000, env: "PORT")
+    .WithReference(db);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const db = await postgres.addDatabase('mydb');
+
+const app = await builder
+  .addJavaScriptApp('app', './app')
+  .withHttpEndpoint({ port: 3000, env: 'PORT' });
+await app.withReference(db);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Read the connection string in your JavaScript code:
+
+```javascript title="app.js"
+const connectionString = process.env.ConnectionStrings__mydb;
+```
+
+For details about how resource names map to environment variable names, see [Environment variables](/fundamentals/environment-variables/).
+
 ## Customize Vite configuration
 
 For Vite applications, you can specify a custom configuration file if you need to override the default Vite configuration resolution behavior:
@@ -1427,6 +1478,7 @@ configuration, configure the production-serving resource separately.
 
 ## See also
 
+- [Environment variables](/fundamentals/environment-variables/) - How Aspire generates environment variable names from resources
 - [External parameters](/fundamentals/external-parameters/) - Learn how to use parameters in Aspire
 - [JavaScript monorepo hosting extensions](/integrations/frameworks/nodejs-extensions/) - Community Toolkit extensions for Nx and Turborepo workspaces
 - [Deploy JavaScript apps](/deployment/javascript-apps/) - Production deployment patterns including `PublishAsStaticWebsite`, `PublishAsNodeServer`, and `PublishAsPackageScript`
