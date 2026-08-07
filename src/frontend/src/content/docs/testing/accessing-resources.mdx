@@ -46,6 +46,16 @@ await app.ResourceNotifications.WaitForResourceHealthyAsync(
 
 This resource-notification pattern ensures that the resources are available before running the tests, avoiding potential issues with the tests failing due to the resources not being ready.
 
+<Aside type="tip">
+  If a resource fails during startup (for example, a container exits
+  immediately or an executable can't be found), Aspire flushes any captured
+  resource logs before it publishes the terminal (`Exited` or `FailedToStart`)
+  state notification. That means test code awaiting `WaitForResourceAsync`
+  with a terminal state can rely on the resource's stdout/stderr output being
+  present in the captured host logs at the point the wait completes, which
+  makes fast-failing resources easier to diagnose.
+</Aside>
+
 ## Start & Stop
 
 In some cases, you may want to manually start a resource when it is not initially started, for when the resource was created `WithExplicitStart` for example.
