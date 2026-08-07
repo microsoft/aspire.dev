@@ -847,10 +847,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           label: 'Startup performance',
           slug: 'fundamentals/startup-performance',
         },
-        {
-          label: 'Hot reload and watch mode',
-          slug: 'fundamentals/hot-reload',
-        },
       ],
     },
     {

@@ -1,5 +1,6 @@
 ---
 title: Debug Aspire apps
+seoTitle: Debug Aspire app resources across IDEs and environments
 description: Learn how to debug Aspire applications across different IDEs including Visual Studio, VS Code, JetBrains Rider, and the command line.
 ---
 
@@ -7,23 +8,25 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
 
-Debugging distributed applications with Aspire is straightforward because Aspire orchestrates all your services and containers in a single session. You can attach a debugger to any or all of your services simultaneously, debug selectively, or run some services without a debugger while debugging others. This guide explains how to debug Aspire apps across different IDEs and environments.
+Aspire coordinates IDE debugging for supported resources while orchestrating the rest of your application in the same session. You can debug multiple resources, attach to a specific process, or run the application without a debugger. This guide explains how to debug Aspire apps across different IDEs and environments.
 
 ## How Aspire debugging works
 
-When you start an Aspire application in debug mode, the AppHost launches all configured resources and sets up the Aspire dashboard. Each service project is started with the debugger attached if requested. You can:
+When an IDE starts an Aspire application in debug mode, the AppHost launches the configured resources and sets up the Aspire dashboard. Debug support is annotation-driven: each resource that declares support supplies a launch configuration, and the IDE starts a debugger only for the launch configuration types it understands. Built-in integrations use this mechanism for .NET projects, Python, JavaScript and TypeScript, Go, .NET MAUI, and Azure Functions resources.
 
-- Attach the debugger to **all** services at once
-- Debug only **specific** services while running others normally
-- Use your IDE's standard debugging features (breakpoints, watch windows, call stacks) across all attached services
+You can:
+
+- Attach the debugger to multiple **supported** resources
+- Debug a **specific** resource while running others normally
+- Use your IDE's standard debugging features (breakpoints, watch windows, call stacks) across all attached resources
 
 <Aside type="note">
-Aspire's debugging support works for .NET project resources. Containers and executable resources can be debugged using their own tooling, but the Aspire AppHost does not attach a debugger to them automatically.
+Debug support isn't determined by whether a resource was added with `AddProject<T>()`. An integration must declare debug launch support, and the active IDE or extension must understand that launch configuration type. Generic containers and executable resources don't gain debugger support automatically; use their runtime- or IDE-specific tooling unless their integration declares it.
 </Aside>
 
 ## Debug in Visual Studio
 
-Visual Studio offers the tightest Aspire integration. When you open an Aspire solution in Visual Studio and press **F5** (or select **Debug** > **Start Debugging**), Visual Studio automatically starts the AppHost and attaches the debugger to all service projects.
+Visual Studio offers tight Aspire integration. When you open an Aspire solution in Visual Studio and press **F5** (or select **Debug** > **Start Debugging**), Visual Studio automatically starts the AppHost and attaches the debugger to supported .NET project resources.
 
 ### Start debugging
 
@@ -35,7 +38,7 @@ Visual Studio offers the tightest Aspire integration. When you open an Aspire so
 
 </Steps>
 
-Visual Studio builds all projects, starts the AppHost, and attaches the debugger to every .NET service project in your solution.
+Visual Studio builds the projects, starts the AppHost, and attaches the debugger to supported .NET project resources.
 
 ### Debug a specific service
 
@@ -45,9 +48,9 @@ To debug only specific services while running others normally, use the **Attach 
 
 1. Start the Aspire solution without debugging from the command line:
 
-    ```bash title="Aspire CLI — Run without debugger"
-    aspire run
-    ```
+   ```bash title="Aspire CLI — Run without debugger"
+   aspire run
+   ```
 
 1. In Visual Studio, select **Debug** > **Attach to Process** (<Kbd windows='Ctrl+Alt+P' />).
 1. Find and select the specific service process you want to debug, then select **Attach**.
@@ -61,7 +64,8 @@ This lets you choose exactly which service to debug without attaching to all ser
 Visual Studio allows you to set breakpoints in any service project. When a breakpoint is hit, Visual Studio pauses that service's execution, while all other services continue to run normally.
 
 <LearnMore>
-For more information, see [Launch profiles](/fundamentals/launch-profiles/).
+  For more information, see [Launch
+  profiles](/integrations/dotnet/launch-profiles/).
 </LearnMore>
 
 ## Debug in Visual Studio Code
@@ -104,7 +108,7 @@ The extension creates a `.vscode/launch.json` with the Aspire debugger configura
 
 </Steps>
 
-VS Code attaches the debugger to all .NET service projects in your Aspire solution and opens the Aspire dashboard in your browser.
+VS Code opens the Aspire dashboard and starts debuggers for resources whose launch configuration types are supported by your installed extensions.
 
 ### Debug a specific project
 
@@ -128,7 +132,7 @@ Point the `program` field to the specific AppHost project file you want to use.
 
 ## Debug in JetBrains Rider
 
-JetBrains Rider supports Aspire projects natively from Rider 2024.1. You can run and debug Aspire solutions directly from the IDE.
+JetBrains Rider includes Aspire support through its bundled .NET Aspire plugin. You can run and debug Aspire solutions directly from the IDE.
 
 ### Start debugging
 
@@ -140,16 +144,17 @@ JetBrains Rider supports Aspire projects natively from Rider 2024.1. You can run
 
 </Steps>
 
-Rider launches the AppHost, starts all configured services, and attaches the debugger to .NET service projects.
+Rider launches the AppHost, starts all configured services, and attaches the debugger to supported .NET project resources.
 
 ### Troubleshooting Rider
 
-- **Missing run configuration**: If no Aspire run configuration appears, ensure you have a supported Rider version (2024.1 or later) and that the [.NET Aspire plugin](https://plugins.jetbrains.com/plugin/23162) is installed and enabled.
+- **Missing run configuration**: If no Aspire run configuration appears, update Rider and ensure the bundled [.NET Aspire plugin](https://plugins.jetbrains.com/plugin/23289--net-aspire) is enabled under **Settings** > **Plugins** > **Installed**.
 - **Debugger not attaching**: Check that the AppHost project targets the correct .NET SDK version. See the [prerequisites](/get-started/prerequisites/) for supported versions.
 - **Certificate issues**: Run `aspire doctor` from the terminal to diagnose HTTPS certificate problems.
 
 <LearnMore>
-For more information about Rider and Aspire, see the [JetBrains blog post on .NET Aspire support](https://blog.jetbrains.com/dotnet/2024/02/19/jetbrains-rider-and-the-net-aspire-plugin/).
+  For more information, see [Aspire support in JetBrains
+  Rider](https://www.jetbrains.com/help/rider/NET_Aspire.html).
 </LearnMore>
 
 ## Debug in Neovim or other terminal editors
@@ -162,43 +167,23 @@ You can debug services in Aspire from any editor that supports the Debug Adapter
 
 1. Start the Aspire solution from the CLI without a debug session:
 
-    ```bash title="Aspire CLI — Start Aspire"
-    aspire run
-    ```
+   ```bash title="Aspire CLI — Start Aspire"
+   aspire run
+   ```
 
 1. Find the process ID of the service you want to debug:
 
-    ```bash title="Bash — Find service process"
-    ps aux | grep MyService
-    ```
+   ```bash title="Bash — Find service process"
+   ps aux | grep MyService
+   ```
 
 1. In your editor, use the attach-to-process feature to attach to that PID. For Neovim with `nvim-dap`, configure a `coreclr` adapter using the `attach` request type and the discovered PID.
 
 </Steps>
 
-### Start a VS Code debug session from the CLI
-
-If you're using VS Code or an editor that supports the VS Code debug adapter protocol, you can start a debug session from the terminal:
-
-<Steps>
-
-1. Run the Aspire app with the debug session flag:
-
-    ```bash title="Aspire CLI — Start with debug session"
-    aspire run --start-debug-session
-    ```
-
-    The CLI outputs a VS Code debug session URI to the console.
-
-1. Open VS Code and connect to the debug session URI printed by the CLI.
-
-1. Set breakpoints and begin debugging as normal.
-
-</Steps>
-
 ## Debug Linux-only projects
 
-Some projects can only run on Linux (for example, projects using Linux-specific APIs or targeting Linux containers). You have several options for debugging these in Aspire.
+Some projects can only run on Linux (for example, projects using Linux-specific APIs or targeting Linux containers). The following approaches keep the debugger and target process in a supported Linux development environment.
 
 ### Option 1: Run Aspire on Linux
 
@@ -211,50 +196,7 @@ The most straightforward approach is to develop and debug directly on Linux (or 
 
 </Steps>
 
-### Option 2: Use Docker containers with remote debugging
-
-For projects that run as Linux containers, you can configure remote debugging:
-
-<Steps>
-
-1. Add a development-time Dockerfile for your Linux service that publishes in Debug configuration and includes the .NET debugger tools:
-
-    ```dockerfile title="Dockerfile — Linux service with debugger"
-    FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-    WORKDIR /src
-    COPY . .
-    # Publish in Debug configuration so that .pdb files are included
-    RUN dotnet publish -c Debug -o /app/publish
-
-    FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS debug
-    WORKDIR /app
-    COPY --from=build /app/publish .
-    EXPOSE 4024
-    # Install vsdbg (the .NET debugger)
-    RUN apt-get update \
-        && apt-get install -y unzip \
-        && curl -sSL https://aka.ms/getvsdbgsh | bash /dev/stdin -v latest -l /vsdbg
-    ENTRYPOINT ["dotnet", "MyLinuxService.dll"]
-    ```
-
-    Building with `-c Debug` ensures `.pdb` symbol files are published alongside the assemblies, which are required for the remote debugger to map execution back to your source code.
-
-1. In your AppHost, reference the container and expose the debug port:
-
-    ```csharp title="C# — AppHost.cs"
-    var builder = DistributedApplication.CreateBuilder(args);
-
-    var linuxService = builder.AddDockerfile("linux-service", "../MyLinuxService")
-        .WithEndpoint(targetPort: 4024, name: "debug");
-
-    builder.Build().Run();
-    ```
-
-1. Attach your IDE's remote debugger to the container on port 4024.
-
-</Steps>
-
-### Option 3: Use WSL2 on Windows
+### Option 2: Use WSL2 on Windows
 
 If you're on Windows and need to test Linux-specific behavior, use WSL2 to run the Linux portions:
 
@@ -267,43 +209,19 @@ If you're on Windows and need to test Linux-specific behavior, use WSL2 to run t
 </Steps>
 
 <LearnMore>
-For more information about WSL2 development, see the [VS Code Remote Development documentation](https://code.visualstudio.com/docs/remote/wsl).
+  For more information about WSL2 development, see the [VS Code Remote
+  Development documentation](https://code.visualstudio.com/docs/remote/wsl).
 </LearnMore>
 
 ## Selective debugging
 
-When working with large Aspire solutions, you may want to debug only specific services rather than attaching the debugger to everything. This reduces overhead and keeps focus on the service under investigation.
-
-### Exclude services from debugging
-
-In your AppHost, you can configure specific resources to start without the debugger:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-// These services run without a debugger
-var cache = builder.AddRedis("cache");
-var db = builder.AddPostgres("db").AddDatabase("appdb");
-
-// Attach debugger only to this service
-var api = builder.AddProject<Projects.ApiService>("api")
-    .WithReference(cache)
-    .WithReference(db);
-
-builder.Build().Run();
-```
-
-Containers (like Redis and PostgreSQL above) never have the .NET debugger attached by default. Only `.AddProject<T>()` resources receive debugger attachment.
-
-### Start without debugging
-
-You can also start the entire solution without the debugger and attach manually later:
+When working with large Aspire solutions, start the application without a debug session and attach only to the process you need. This reduces debugger overhead while Aspire continues to orchestrate the full application.
 
 ```bash title="Aspire CLI — Run without debugger"
 aspire run
 ```
 
-Then attach from your IDE when you want to investigate a specific service. In Visual Studio, use **Debug** > **Attach to Process** and select the service process. In VS Code, add an attach configuration to your `launch.json`:
+Then attach from your IDE. In Visual Studio, use **Debug** > **Attach to Process** and select the service process. For a local .NET process in VS Code, add an attach configuration to your `launch.json`:
 
 ```json title="JSON — .vscode/launch.json (attach)"
 {
@@ -313,7 +231,7 @@ Then attach from your IDE when you want to investigate a specific service. In Vi
       "name": "Attach to ApiService",
       "type": "coreclr",
       "request": "attach",
-      "processName": "ApiService"
+      "processId": "${command:pickProcess}"
     }
   ]
 }
@@ -329,7 +247,8 @@ Even without a traditional debugger, the Aspire dashboard provides powerful diag
 - **Console logs** — see raw stdout/stderr from any service or container
 
 <LearnMore>
-For more information about the Aspire dashboard, see [Explore Aspire dashboard](/dashboard/explore/).
+  For more information about the Aspire dashboard, see [Explore Aspire
+  dashboard](/dashboard/explore/).
 </LearnMore>
 
 ## Common debugging issues
@@ -347,7 +266,8 @@ For more information about the Aspire dashboard, see [Explore Aspire dashboard](
 
 ### Cannot debug a service
 
-- Confirm the service is added with `AddProject<T>()`, not as a container or executable, for automatic debugger attachment.
+- Confirm the resource's integration declares debug support and your IDE or extension supports its launch configuration type.
+- For a generic container or executable resource, use its runtime- or IDE-specific debugging workflow.
 - If using VS Code, ensure the `.vscode/launch.json` is properly configured using the **Aspire: Configure launch.json** command.
 
 ### Port conflicts
@@ -356,12 +276,13 @@ For more information about the Aspire dashboard, see [Explore Aspire dashboard](
 - Review the networking overview to understand how Aspire assigns ports.
 
 <LearnMore>
-For more information about networking, see [Networking overview](/fundamentals/networking-overview/).
+  For more information about networking, see [Networking
+  overview](/fundamentals/networking-overview/).
 </LearnMore>
 
 ## See also
 
-- [Launch profiles](/fundamentals/launch-profiles/)
+- [Launch profiles](/integrations/dotnet/launch-profiles/)
 - [Aspire VS Code extension](/get-started/aspire-vscode-extension/)
 - [Explore Aspire dashboard](/dashboard/explore/)
 - [Networking overview](/fundamentals/networking-overview/)

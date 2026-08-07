@@ -1,5 +1,6 @@
 ---
 title: Startup performance
+seoTitle: Improve Aspire app startup performance during development
 description: Learn how to optimize Aspire application startup time, speed up NuGet restore, and reduce container pull delays.
 ---
 
@@ -37,7 +38,9 @@ dotnet nuget locals all --clear
 ```
 
 <Aside type="tip">
-Clearing the NuGet cache forces a full re-download on the next restore. Only clear it when you suspect corruption or need to force a refresh of specific packages.
+  Clearing the NuGet cache forces a full re-download on the next restore. Only
+  clear it when you suspect corruption or need to force a refresh of specific
+  packages.
 </Aside>
 
 ### Disable floating version ranges
@@ -54,18 +57,19 @@ Using wildcard or floating version constraints (for example, `*` or `1.0.*`) for
 
 ### Use a NuGet feed mirror or proxy
 
-If your NuGet restore is slow because of network latency to nuget.org, consider configuring a closer mirror or a local proxy like [Azure Artifacts](https://learn.microsoft.com/azure/devops/artifacts/nuget/upstream-sources) or a corporate feed. Add the feed in a `nuget.config` at the solution root:
+If restore is slow because of network latency to nuget.org, configure a closer proxy such as [Azure Artifacts with an upstream source](https://learn.microsoft.com/azure/devops/artifacts/nuget/upstream-sources) or a corporate feed. If the proxy mirrors nuget.org, make it the only package source so package resolution remains deterministic:
 
 ```xml title="XML — nuget.config"
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <packageSources>
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-    <!-- Optional: add a local or corporate mirror -->
-    <!-- <add key="local-mirror" value="https://pkgs.dev.azure.com/myorg/_packaging/myfeed/nuget/v3/index.json" /> -->
+    <clear />
+    <add key="corporate-proxy" value="https://pkgs.dev.azure.com/myorg/_packaging/myfeed/nuget/v3/index.json" />
   </packageSources>
 </configuration>
 ```
+
+NuGet ignores package source order. If you must keep both public and private feeds, use [Package Source Mapping](https://learn.microsoft.com/nuget/consume-packages/package-source-mapping) to specify which source resolves each package pattern.
 
 ### Run restore before building
 
@@ -102,33 +106,11 @@ Container images can be large (several hundred MB to several GB). The first `asp
 
 ### Pre-pull container images
 
-Before starting your development session, pull the images you need in advance:
-
-```bash title="Bash — Pre-pull Docker images"
-docker pull redis:latest
-docker pull postgres:16
-```
-
-### Pin container image versions
-
-Using `latest` or a floating tag forces the container runtime to check for updates. Pin to a specific digest or version tag to use the cached image:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-// Uses a specific version; Docker can use the cached layer
-var cache = builder.AddRedis("cache")
-    .WithImageTag("7.4");
-
-var db = builder.AddPostgres("postgres")
-    .WithImageTag("16.3");
-
-builder.Build().Run();
-```
+Aspire integrations select a tested default image and tag. Pre-pull the exact resolved image shown in the resource details or startup output with `docker pull <resolved-image-reference>` instead of substituting a different tag.
 
 ### Use persistent containers
 
-By default, Aspire creates and destroys containers on each run. Using [persistent containers](/app-host/persistent-containers/) keeps containers running between sessions, eliminating the startup cost of creating and initializing new containers:
+By default, Aspire creates and destroys containers on each run. Using [persistent containers](/app-host/resource-lifetimes/) keeps containers running between sessions, eliminating the startup cost of creating and initializing new containers:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -140,11 +122,14 @@ builder.Build().Run();
 ```
 
 <Aside type="caution">
-Persistent containers retain data between runs, which can cause unexpected state during development. Only use persistent containers when you understand the implications for your workflow.
+  Persistent containers retain data between runs, which can cause unexpected
+  state during development. Only use persistent containers when you understand
+  the implications for your workflow.
 </Aside>
 
 <LearnMore>
-For more information about persistent containers, see [Persistent containers](/app-host/persistent-containers/).
+  For more information about persistent containers, see [Resource
+  lifetimes](/app-host/resource-lifetimes/).
 </LearnMore>
 
 ### Switch to a faster container runtime
@@ -155,7 +140,8 @@ If Docker Desktop is slow on your machine, consider using an alternative OCI-com
 - **[Rancher Desktop](https://rancherdesktop.io/)** — Provides containerd or moby (Docker) as the runtime.
 
 <LearnMore>
-For supported container runtimes, see [Prerequisites](/get-started/prerequisites/).
+  For supported container runtimes, see
+  [Prerequisites](/get-started/prerequisites/).
 </LearnMore>
 
 ## Optimize AppHost startup
@@ -180,18 +166,20 @@ var frontend = builder.AddProject<Projects.Frontend>("frontend")
 builder.Build().Run();
 ```
 
-### Profile startup with aspire doctor
+### Diagnose startup delays
 
-Use `aspire doctor` to identify common configuration issues that can slow startup:
+Use `aspire doctor` to rule out prerequisite and environment problems:
 
 ```bash title="Aspire CLI — Diagnose issues"
 aspire doctor
 ```
 
-The command checks for certificate issues, container runtime availability, .NET SDK version compatibility, and other common problems.
+The command checks environment health, including certificates, the container runtime, and installed SDKs. It doesn't profile application startup or report phase timings. For process-level .NET startup analysis, use [`dotnet-trace`](https://learn.microsoft.com/dotnet/core/diagnostics/dotnet-trace) to launch and trace the AppHost or an individual service from startup. Use Aspire dashboard logs and traces to correlate delays across resources.
 
 <LearnMore>
-For more information, see [`aspire doctor`](/reference/cli/commands/aspire-doctor/).
+  For more information, see [`aspire
+  doctor`](/reference/cli/commands/aspire-doctor/) and [Explore Aspire
+  dashboard](/dashboard/explore/).
 </LearnMore>
 
 ## Common slow startup scenarios
@@ -203,7 +191,7 @@ The first run is always slower because NuGet packages aren't cached and containe
 <Steps>
 
 1. Run `dotnet restore` to pre-restore NuGet packages.
-1. Pull required container images with `docker pull`.
+1. Pull required container images by using the exact resolved image names and tags.
 1. Run `aspire run`.
 
 </Steps>
@@ -240,7 +228,7 @@ dotnet restore --verbosity detailed 2>&1 | grep -E "(Restoring|OK|Error)"
 
 ## See also
 
-- [Persistent containers](/app-host/persistent-containers/)
-- [Launch profiles](/fundamentals/launch-profiles/)
+- [Resource lifetimes](/app-host/resource-lifetimes/)
+- [Launch profiles](/integrations/dotnet/launch-profiles/)
 - [`aspire doctor`](/reference/cli/commands/aspire-doctor/)
 - [Prerequisites](/get-started/prerequisites/)
