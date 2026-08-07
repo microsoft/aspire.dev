@@ -18,6 +18,15 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Agent-readiness middlewares MUST run before UseDefaultFiles + UseRouting:
+//   * UseDefaultFiles rewrites /foo/ -> /foo/index.html, breaking .md-companion mapping.
+//   * MapStaticAssets registers endpoints during UseRouting, so a path rewrite
+//     after UseRouting wouldn't re-trigger endpoint selection.
+// MarkdownNegotiationMiddleware short-circuits to serve the .md body directly;
+// LinkHeaderMiddleware attaches a Link header on HTML 2xx responses via OnStarting.
+app.UseAgentReadiness();
+
 app.UseDefaultFiles();
 
 // add routing after default files, so the default file middleware can modify the path first

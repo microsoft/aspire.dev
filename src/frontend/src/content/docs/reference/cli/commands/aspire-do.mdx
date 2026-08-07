@@ -1,5 +1,6 @@
 ---
 title: aspire do command
+seoTitle: aspire do command reference for the Aspire CLI
 description: Learn about the aspire do command and its usage. This command executes a specific pipeline step and its dependencies.
 sidebar:
   badge: Preview
@@ -33,7 +34,8 @@ The command allows you to:
 - Discover available steps and their dependencies using the diagnostics step
 
 <LearnMore>
-For more information, see [Pipelines and app topology](/get-started/pipelines/).
+  For more information, see [Pipelines and app
+  topology](/deployment/pipelines/).
 </LearnMore>
 
 ## Arguments
@@ -58,7 +60,7 @@ The following options are available:
 
   The optional output path for artifacts.
 
-- **`--log-level`**
+- **`--pipeline-log-level`**
 
   Set the minimum log level for pipeline logging. Valid values are: `trace`, `debug`, `information`, `warning`, `error`, `critical`. The default is `information`.
 
@@ -70,19 +72,69 @@ The following options are available:
 
   Include exception details (stack traces) in pipeline logs.
 
+- <Include relativePath="reference/cli/includes/option-list-steps.md" />
+
+- <Include relativePath="reference/cli/includes/option-no-build.md" />
+
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
-- <Include relativePath="reference/cli/includes/option-debug.md" />
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
 
 - <Include relativePath="reference/cli/includes/option-wait.md" />
 
 ## Discovering available steps
 
-Before executing a pipeline step, you can discover what steps are available in your application's pipeline and understand their dependencies using the `diagnostics` step.
+Before executing a pipeline step, you can discover what steps are available in your application's pipeline and understand their dependencies. Aspire provides two complementary tools for this:
 
-### Understanding pipeline structure
+- `aspire do <step> --list-steps` — a quick, compact listing of every pipeline step with its direct dependencies and tags. Available on `aspire deploy`, `aspire publish`, `aspire destroy`, and `aspire do`. Useful for a fast "what would happen?" view before running a command. The `step` argument is required when using `--list-steps` with `aspire do`.
+- `aspire do diagnostics` — a verbose, in-depth report. The `diagnostics` step is itself part of the pipeline, so `aspire do diagnostics` runs it like any other step.
 
-The `aspire do diagnostics` command provides comprehensive information about your pipeline, including:
+### Quick listing with `--list-steps`
+
+Running `aspire do <step> --list-steps` produces a numbered list of every step in the pipeline, what each one depends on, and any tags it carries. The `step` argument is required — `aspire do` is always step-targeted, so `--list-steps` without a step has no meaningful scope. Omitting the step produces a friendly error that suggests concrete examples:
+
+```bash title="Aspire CLI"
+aspire do deploy --list-steps
+```
+
+Example output:
+
+```text title="Output"
+1. parameter-prompt
+   └─ No dependencies
+
+2. provision-redis-infra
+   ├─ Depends on: parameter-prompt
+   └─ Tags: provision-infra
+
+3. build-webapi
+   ├─ Depends on: parameter-prompt
+   └─ Tags: build-compute
+
+4. deploy-webapi
+   ├─ Depends on: provision-redis-infra, build-webapi
+   └─ Tags: deploy-compute
+```
+
+Each entry shows the step's position in execution order, the steps it depends on, and any tags it declares. Steps with no dependencies and no tags are shown as `└─ No dependencies`.
+
+Use this when you just need to confirm a step exists or check its direct dependencies.
+
+### In-depth report with `aspire do diagnostics`
+
+For comprehensive information about your pipeline, run the `diagnostics` step:
+
+```bash title="Aspire CLI"
+aspire do diagnostics
+```
+
+The `diagnostics` step provides a deeper analysis than `--list-steps`, including:
 
 - All available steps and their dependencies
 - Execution order with parallelization indicators
@@ -106,13 +158,21 @@ Resources in your application can contribute their own custom steps, and you can
 
 The following examples demonstrate common pipeline operations:
 
-- Examine the pipeline structure and available steps:
+- Quickly list the steps in your pipeline for a specific step:
+
+  ```bash title="Aspire CLI"
+  aspire do deploy --list-steps
+  ```
+
+  This displays a compact view of every step with its dependencies and tags. Use it for a fast "what would happen?" check before running a pipeline command. A `step` argument is required; `aspire do --list-steps` without a step produces a friendly error.
+
+- Run the `diagnostics` step for an in-depth report:
 
   ```bash title="Aspire CLI"
   aspire do diagnostics
   ```
 
-  This displays all steps in your pipeline, their dependencies, and execution order. Use this to understand what steps are available and how they relate to each other.
+  This runs the `diagnostics` pipeline step, which produces a verbose report with execution order, parallelization, target resources, and configuration issues like orphaned steps or circular dependencies.
 
 - Build container images for your application:
 
@@ -133,7 +193,7 @@ The following examples demonstrate common pipeline operations:
 - Execute a pipeline step with debug logging:
 
   ```bash title="Aspire CLI"
-  aspire do deploy --log-level debug
+  aspire do deploy --pipeline-log-level debug
   ```
 
   Use debug logging to get detailed troubleshooting output during step execution.

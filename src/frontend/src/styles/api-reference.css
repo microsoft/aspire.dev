@@ -1,0 +1,837 @@
+/* ================================================================ */
+/*  API Reference — Shared Design Tokens & Utilities                */
+/*                                                                  */
+/*  Centralizes border-radius, font sizes, spacing, badge styles,  */
+/*  kind colors, table styles, cards, and breadcrumbs so every API  */
+/*  reference page shares a single, consistent visual language.     */
+/* ================================================================ */
+
+/* ----------------------------- Tokens ----------------------------- */
+:root {
+  /* Radius – three levels matching the site (CapabilityGrid, FeatureShowcase) */
+  --api-radius-lg: 0.75rem;   /* cards, containers, hero blocks */
+  --api-radius-md: 0.5rem;    /* code blocks, interactive elements */
+  --api-radius-sm: 0.25rem;   /* inline badges, small chips */
+
+  /* Font scale – bumped for readability */
+  --api-text-xs: 0.75rem;     /* labels, tiny badges */
+  --api-text-sm: 0.875rem;    /* secondary text, descriptions */
+  --api-text-base: 1rem;      /* body text */
+  --api-text-md: 1.05rem;     /* member names, key text */
+  --api-text-lg: 1.125rem;    /* summaries */
+
+  /* WCAG AA contrast-safe accent for text on dark surfaces.
+     --sl-color-accent (#7455dd) only reaches 2.28:1 on gray-5 (#35383e).
+     --sl-color-accent-high (#c6c2f2) is the Starlight "high contrast" variant
+     which comfortably passes 4.5:1 on all API reference backgrounds. */
+  --api-accent-text: var(--sl-color-accent-high);
+
+  /* Kind colors — darkened to meet WCAG AA 4.5:1 with white text */
+  --api-kind-class: #7455dd;
+  --api-kind-interface: #6d3dc8;
+  --api-kind-enum: #9a6400;
+  --api-kind-struct: #0a7d56;
+  --api-kind-record: #047e94;
+  --api-kind-delegate: #b33a70;
+  --api-kind-record-struct: #0a7d56;
+
+  /* Parameter type colors — faded, themed hues assigned by type name hash */
+  --api-param-type-0: hsl(300, 45%, 72%);   /* soft magenta */
+  --api-param-type-1: hsl(185, 50%, 65%);   /* soft cyan */
+  --api-param-type-2: hsl(35, 60%, 68%);    /* soft amber */
+  --api-param-type-3: hsl(145, 40%, 65%);   /* soft green */
+
+  /* Surfaces – using the same color-mix pattern as FeatureShowcase/CapabilityGrid */
+  --api-surface: color-mix(in srgb, var(--sl-color-gray-6) 50%, transparent);
+  --api-surface-solid: var(--sl-color-gray-6);
+  --api-border: color-mix(in srgb, var(--sl-color-gray-4) 40%, transparent);
+  --api-border-subtle: var(--sl-color-gray-6);
+  --api-border-hover: color-mix(in srgb, var(--sl-color-accent) 40%, transparent);
+}
+
+/* ----------------------------- Page title ----------------------------- */
+.content-panel h1.api-page-title#_top {
+  font-size: 2em;
+}
+
+/* ---- Prevent long inline code/links from blowing out page width ---- */
+.content-panel code:not(:where(.not-content *)) {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.content-panel a:not(:where(.not-content *)) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.content-panel pre:not(:where(.not-content *)) {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* ----------------------------- Hero card ----------------------------- */
+.api-hero {
+  background: var(--api-surface);
+  border: 1px solid var(--api-border);
+  border-radius: var(--api-radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+.api-hero-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.api-hero-summary {
+  font-size: var(--api-text-lg);
+  line-height: 1.7;
+  color: var(--sl-color-gray-1);
+}
+.api-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--api-border-subtle);
+}
+/* When meta is the first child in the hero (e.g. package pages), remove the top border */
+.api-hero-meta:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* Meta field pair (label + value) */
+.api-meta-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.api-meta-label {
+  font-size: var(--api-text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sl-color-gray-3);
+}
+.api-meta-value {
+  font-size: var(--api-text-base);
+  color: var(--sl-color-text);
+  background: none;
+  padding: 0;
+}
+
+/* ----------------------------- Badges ----------------------------- */
+
+/* Kind pill (class, interface, enum…) */
+.api-kind-pill {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--api-radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: var(--api-kind-class);
+}
+.api-kind-pill.kind-handle       { background: var(--api-kind-class); }
+.api-kind-pill.kind-interface    { background: var(--api-kind-interface); }
+.api-kind-pill.kind-enum         { background: var(--api-kind-enum); }
+.api-kind-pill.kind-struct       { background: var(--api-kind-struct); }
+.api-kind-pill.kind-record       { background: var(--api-kind-record); }
+.api-kind-pill.kind-delegate     { background: var(--api-kind-delegate); }
+.api-kind-pill.kind-record-struct { background: var(--api-kind-record-struct); }
+
+/* Modifier badge (static, abstract, sealed…) */
+.api-mod-badge {
+  display: inline-block;
+  font-size: var(--api-text-xs);
+  font-weight: 500;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--api-radius-sm);
+  background: var(--sl-color-gray-5);
+  color: var(--sl-color-gray-1);
+  letter-spacing: 0.02em;
+}
+
+/* Mini / inline badge (used in lists) */
+.api-mini-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.05rem 0.3rem;
+  border-radius: var(--api-radius-sm);
+  background: var(--sl-color-gray-5);
+  color: var(--sl-color-gray-2);
+}
+.api-mini-badge.obsolete {
+  background: color-mix(in srgb, var(--sl-color-orange) 20%, var(--sl-color-gray-5));
+  color: var(--sl-color-orange);
+}
+
+/* Accessor badge for properties (get; set) */
+.api-accessor-badge {
+  display: inline-block;
+  font-size: var(--api-text-xs);
+  font-weight: 500;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--api-radius-sm);
+  background: color-mix(in srgb, var(--sl-color-accent) 12%, var(--sl-color-gray-5));
+  color: var(--sl-color-gray-1);
+  font-family: var(--sl-font-system-mono, monospace);
+  letter-spacing: 0;
+}
+
+/* Extension badge — text lightened vs raw --api-kind-interface for WCAG AA on gray-5 mix */
+.api-ext-badge {
+  background: color-mix(in srgb, var(--api-kind-interface) 15%, var(--sl-color-gray-5));
+  color: var(--sl-color-gray-1);
+}
+
+/* Count badge (member counts in headings) */
+.api-count-badge {
+  font-size: 0.65em;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--kind-tint, var(--sl-color-accent)) 18%, var(--sl-color-gray-5));
+  color: var(--kind-tint, var(--api-accent-text));
+  padding: 0.15em 0.55em;
+  border-radius: var(--api-radius-sm);
+  line-height: 1;
+  vertical-align: middle;
+  display: inline-block;
+  margin-inline-start: 0.3em;
+  margin-inline-end: 0.15em;
+}
+
+/* ----------------------------- List layout ----------------------------- */
+/* Replaces tables — works cleanly at every viewport width. */
+
+.api-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0.75rem 0 1.5rem;
+  font-size: var(--api-text-base);
+  overflow-x: hidden;
+}
+
+/* Individual list item — clickable row with hover highlight */
+a.api-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--api-radius-md);
+  transition: background 0.12s;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+a.api-list-item:hover {
+  background: var(--api-surface);
+  text-decoration: none;
+}
+/* Non-link variant (e.g. enum members) */
+.api-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--api-radius-md);
+  transition: background 0.12s;
+  min-width: 0;
+}
+.api-list-item:hover {
+  background: var(--api-surface);
+}
+
+/* Item header — name + inline badges + trailing metadata */
+.api-list-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.api-list-header .trailing {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* Item description / summary */
+.api-list-desc {
+  font-size: var(--api-text-sm);
+  color: var(--sl-color-gray-2);
+  line-height: 1.6;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+/* Keep all inline elements (code-styled links, cref codes, etc.) flowing inline */
+.api-list-desc code,
+.api-list-desc a,
+.api-list-desc .type-link,
+.api-list-desc .doc-inline-code,
+.api-list-desc .doc-cref,
+.api-list-desc .doc-cref-link,
+.api-list-desc .doc-langword,
+.api-list-desc .doc-paramref {
+  display: inline;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* Collapse block-level doc nodes (paragraphs, lists) to inline in compact list descriptions */
+.api-list-desc p,
+.api-list-desc .doc-para,
+.api-list-desc .doc-content {
+  display: inline;
+  margin: 0;
+}
+
+/* Compact meta values shown inline (version, type count, enum value…) */
+.api-list-meta {
+  font-size: var(--api-text-sm);
+  color: var(--sl-color-gray-2);
+  min-width: 0;
+}
+.api-list-meta code {
+  font-size: var(--api-text-xs);
+  color: var(--sl-color-gray-2);
+  background: none;
+  padding: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* ----------------------------- Links ----------------------------- */
+.api-type-link {
+  text-decoration: none;
+  color: var(--api-accent-text);
+  font-weight: 500;
+  transition: color 0.1s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+}
+.api-type-link:hover {
+  text-decoration: underline;
+}
+.api-pkg-link {
+  font-weight: 600;
+  color: var(--sl-color-white);
+  text-decoration: none;
+  transition: color 0.1s;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.api-pkg-link:hover {
+  color: var(--api-accent-text);
+  text-decoration: underline;
+}
+
+/* ----------------------------- Chip / pill links (implements, see also) ---- */
+.api-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--api-text-sm);
+  font-weight: 500;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--api-radius-sm);
+  background: var(--api-surface-solid);
+  border: 1px solid var(--api-border-subtle);
+  color: var(--api-accent-text);
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+a.api-chip:hover {
+  border-color: var(--api-border-hover);
+  text-decoration: none;
+}
+.api-chip.muted {
+  color: var(--sl-color-gray-2);
+}
+
+/* ----------------------------- Section label (Parameters, Returns…) ------- */
+.api-section-label {
+  font-size: var(--api-text-base);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--api-section-label-color, var(--aspire-color-light, var(--api-accent-text)));
+  margin: 0.65rem 0 0.35rem;
+  padding: 0;
+}
+
+/* ----------------------------- MemberCardBase (shared mc-* layout) --------- */
+.mcb {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mcb .mc-section {
+  margin-top: 0.65rem;
+  min-width: 0;
+}
+.mcb .mc-sig {
+  margin-top: 0.5rem;
+  border-radius: var(--api-radius-md);
+  overflow: hidden;
+  border: 1px solid var(--api-border);
+}
+.mcb .mc-sig .astro-code {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--api-radius-md);
+  font-size: var(--api-text-base);
+  line-height: 1.6;
+}
+.mcb .mc-sig pre {
+  margin: 0;
+  border-radius: var(--api-radius-md);
+}
+.mcb .mc-sig figure.frame {
+  margin: 0;
+  border: none;
+  border-radius: var(--api-radius-md);
+}
+.mcb .mc-params {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.mcb .mc-param {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--api-radius-sm);
+}
+.mcb .mc-param:hover {
+  background: var(--api-surface);
+}
+.mcb .mc-param-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.mcb .mc-param-name {
+  font-weight: 600;
+  font-size: var(--api-text-base);
+  color: var(--sl-color-text);
+  background: none;
+  padding: 0;
+  overflow-wrap: anywhere;
+}
+.mcb .mc-param-type {
+  font-size: var(--api-text-sm);
+  color: var(--sl-color-gray-2);
+  overflow-wrap: anywhere;
+}
+.mcb .mc-param-type code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit !important;
+}
+.mcb .mc-param-type-0 { color: var(--api-param-type-0) !important; }
+.mcb .mc-param-type-1 { color: var(--api-param-type-1) !important; }
+.mcb .mc-param-type-2 { color: var(--api-param-type-2) !important; }
+.mcb .mc-param-type-3 { color: var(--api-param-type-3) !important; }
+.mcb .mc-param-desc {
+  font-size: var(--api-text-sm);
+  color: var(--sl-color-gray-2);
+  line-height: 1.5;
+  padding-left: 0.1rem;
+}
+.mcb .mc-returns {
+  font-size: var(--api-text-base);
+  color: var(--sl-color-gray-2);
+  line-height: 1.6;
+}
+.mcb .mc-return-inline {
+  font-weight: 600;
+  background: none;
+  padding: 0;
+  font-size: var(--api-text-sm);
+  color: inherit !important;
+}
+
+/* ----------------------------- Obsolete aside ----------------------------- */
+.api-obsolete-aside {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: color-mix(in srgb, var(--sl-color-orange) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sl-color-orange) 25%, transparent);
+  border-radius: var(--api-radius-md);
+  color: var(--sl-color-orange);
+  font-size: var(--api-text-base);
+  line-height: 1.5;
+}
+/* Remove top margin when obsolete is the first child in a card or hero */
+.api-hero > .api-obsolete-aside:first-child,
+.mc > .api-obsolete-aside:first-child {
+  margin-top: 0;
+}
+.api-obsolete-aside svg {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+.api-obsolete-aside span {
+  color: var(--sl-color-gray-2);
+}
+
+/* ----------------------------- Experimental aside ----------------------------- */
+.api-experimental-aside {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: color-mix(in srgb, var(--sl-color-purple) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sl-color-purple) 25%, transparent);
+  border-radius: var(--api-radius-md);
+  color: var(--sl-color-purple);
+  font-size: var(--api-text-base);
+  line-height: 1.5;
+}
+.api-hero > .api-experimental-aside:first-child,
+.mc > .api-experimental-aside:first-child {
+  margin-top: 0;
+}
+.api-experimental-aside svg {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+.api-experimental-aside span {
+  color: var(--sl-color-gray-2);
+}
+.api-experimental-aside a {
+  color: var(--sl-color-text-accent);
+  text-decoration: none;
+}
+.api-experimental-aside a:hover {
+  text-decoration: underline;
+}
+
+/* ----------------------------- Remarks block ----------------------------- */
+.api-remarks {
+  margin-bottom: 1.5rem;
+  font-size: var(--api-text-base);
+  line-height: 1.7;
+  color: var(--sl-color-gray-1);
+  padding: 0.85rem 1rem;
+  background: var(--api-surface);
+  border-left: 3px solid var(--kind-tint, var(--api-border));
+  border-radius: 0 var(--api-radius-md) var(--api-radius-md) 0;
+}
+.api-remarks p { margin: 0.5rem 0; }
+.api-remarks p:first-child { margin-top: 0; }
+.api-remarks p:last-child { margin-bottom: 0; }
+
+/* ----------------------------- Grid layouts ----------------------------- */
+.api-kv-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.api-kv-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 0.5rem 0.75rem;
+  background: var(--api-surface);
+  border-radius: var(--api-radius-sm);
+}
+
+/* ----------------------------- Prose ----------------------------- */
+.api-prose {
+  font-size: var(--api-text-base);
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
+  color: var(--sl-color-gray-1);
+}
+
+/* ================================================================ */
+/*  Responsive — Mobile & Tablet                                    */
+/* ================================================================ */
+
+@media (max-width: 768px) {
+  /* Hero */
+  .api-hero {
+    padding: 1rem;
+  }
+  .api-hero-meta {
+    gap: 1rem;
+  }
+  .api-hero-summary {
+    font-size: var(--api-text-base);
+  }
+
+  /* Headings — reduce size to avoid wrapping */
+  .anchor-heading,
+  .sl-heading-wrapper.level-h2 {
+    font-size: 1.25rem;
+  }
+  .sl-heading-wrapper.level-h1 h1 {
+    font-size: 1.5rem;
+    word-break: break-word;
+  }
+
+  /* Lists — stack header vertically on mobile */
+  a.api-list-item,
+  .api-list-item {
+    padding: 0.5rem 0.5rem;
+  }
+  .api-list-header {
+    gap: 0.25rem 0.35rem;
+    flex-wrap: wrap;
+  }
+  /* Package name: truncate with ellipsis but never collapse */
+  .api-list-header > .api-pkg-link {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1 1 auto;
+    width: 100%;
+  }
+  /* Trailing metadata: allow wrapping to its own line */
+  .api-list-header .trailing {
+    margin-left: 0;
+    gap: 0.5rem;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .api-list-header .trailing .api-list-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .api-list-header .trailing .api-list-meta code {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Search result name: truncate long type names */
+  .api-result-name-wrap {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .api-search-result-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+  }
+  /* Kind micro badge: keep inline but let it shrink */
+  .api-kind-micro {
+    flex-shrink: 0;
+  }
+
+  /* Chips / see-also */
+  .api-chip {
+    font-size: var(--api-text-sm);
+    padding: 0.2rem 0.5rem;
+  }
+
+  /* KV grid — stack instead of side-by-side */
+  .api-kv-item {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  /* Obsolete aside */
+  .api-obsolete-aside,
+  .api-experimental-aside {
+    padding: 0.5rem 0.75rem;
+    font-size: var(--api-text-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  /* Hero */
+  .api-hero {
+    padding: 0.75rem;
+    border-radius: var(--api-radius-md);
+  }
+  .api-hero-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* Headings — even smaller on phone */
+  .anchor-heading,
+  .sl-heading-wrapper.level-h2 {
+    font-size: 1.1rem;
+  }
+  .sl-heading-wrapper.level-h1 h1 {
+    font-size: 1.25rem;
+    word-break: break-word;
+  }
+
+  /* Badges — keep readable */
+  .api-kind-pill {
+    font-size: 0.65rem;
+    padding: 0.08rem 0.35rem;
+  }
+  .api-mod-badge,
+  .api-accessor-badge {
+    font-size: var(--api-text-xs);
+  }
+
+  /* Lists — fully stacked on small phones */
+  a.api-list-item,
+  .api-list-item {
+    padding: 0.4rem 0.35rem;
+  }
+  .api-list-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+  .api-list-header > .api-pkg-link {
+    max-width: 100%;
+    width: 100%;
+    overflow-wrap: break-word;
+    white-space: normal;
+  }
+  .api-list-header .trailing {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  /* Search results: stack name row */
+  .api-result-name-wrap {
+    max-width: 100%;
+  }
+  .api-list-desc {
+    font-size: var(--api-text-sm);
+  }
+}
+
+/* ================================================================ */
+/*  Source link button                                               */
+/* ================================================================ */
+
+.api-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  font-size: var(--api-text-sm);
+  font-weight: 600;
+  color: var(--sl-color-black);
+  background: var(--sl-color-gray-2);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.api-source-link:hover {
+  color: var(--sl-color-black);
+  background: var(--sl-color-gray-3);
+  border-color: transparent;
+}
+.api-source-link svg {
+  flex-shrink: 0;
+}
+
+/* ================================================================ */
+/*  Light Theme — WCAG AA contrast overrides                        */
+/* ================================================================ */
+
+:root[data-theme='light'] {
+  /* Accent text needs to be darker on light backgrounds for 4.5:1 ratio */
+  --api-accent-text: var(--sl-color-accent);
+
+  /* Kind pill colors — darkened for WCAG AA 4.5:1 on white/light bg */
+  --api-kind-class: #5a3bb8;
+  --api-kind-interface: #5a30b0;
+  --api-kind-enum: #7d5200;
+  --api-kind-struct: #0a7d56;
+  --api-kind-record: #035e6e;
+  --api-kind-delegate: #9a2d55;
+  --api-kind-record-struct: #0a7d56;
+
+  /* Section labels (Parameters, Remarks…) — #736e81 gives 4.91:1 on white */
+  --api-section-label-color: #736e81;
+
+  /* Parameter type colors — darkened for light backgrounds */
+  --api-param-type-0: hsl(300, 50%, 40%);
+  --api-param-type-1: hsl(185, 60%, 32%);
+  --api-param-type-2: hsl(35, 65%, 38%);
+  --api-param-type-3: hsl(145, 50%, 30%);
+}
+
+/* Light theme kind pills — ghost style: colored text on tinted bg */
+:root[data-theme='light'] .api-kind-pill {
+  color: var(--api-kind-class);
+  background: color-mix(in srgb, var(--api-kind-class) 10%, #f5f5f5);
+  border: 1px solid color-mix(in srgb, var(--api-kind-class) 25%, transparent);
+}
+:root[data-theme='light'] .api-kind-pill.kind-handle {
+  color: var(--api-kind-class);
+  background: color-mix(in srgb, var(--api-kind-class) 10%, #f5f5f5);
+  border-color: color-mix(in srgb, var(--api-kind-class) 25%, transparent);
+}
+:root[data-theme='light'] .api-kind-pill.kind-interface {
+  color: var(--api-kind-interface);
+  background: color-mix(in srgb, var(--api-kind-interface) 10%, #f5f5f5);
+  border-color: color-mix(in srgb, var(--api-kind-interface) 25%, transparent);
+}
+:root[data-theme='light'] .api-kind-pill.kind-enum {
+  color: var(--api-kind-enum);
+  background: color-mix(in srgb, var(--api-kind-enum) 10%, #f5f5f5);
+  border-color: color-mix(in srgb, var(--api-kind-enum) 25%, transparent);
+}
+:root[data-theme='light'] .api-kind-pill.kind-struct {
+  color: var(--api-kind-struct);
+  background: color-mix(in srgb, var(--api-kind-struct) 10%, #f5f5f5);
+  border-color: color-mix(in srgb, var(--api-kind-struct) 25%, transparent);
+}
+:root[data-theme='light'] .api-kind-pill.kind-record {
+  color: var(--api-kind-record);
+  background: color-mix(in srgb, var(--api-kind-record) 10%, #f5f5f5);
+  border-color: color-mix(in srgb, var(--api-kind-record) 25%, transparent);
+}
+:root[data-theme='light'] .api-kind-pill.kind-delegate {
+  color: var(--api-kind-delegate);
+  background: color-mix(in srgb, var(--api-kind-delegate) 10%, #f5f5f5);
+  border-color: color-mix(in srgb, var(--api-kind-delegate) 25%, transparent);
+}
+:root[data-theme='light'] .api-kind-pill.kind-record-struct {
+  color: var(--api-kind-record-struct);
+  background: color-mix(in srgb, var(--api-kind-record-struct) 10%, #f5f5f5);
+  border-color: color-mix(in srgb, var(--api-kind-record-struct) 25%, transparent);
+}
+
+/* Source link — light theme: dark bg + white text for contrast */
+:root[data-theme='light'] .api-source-link {
+  color: #fff;
+  background: #24292f;
+  border-color: transparent;
+}
+:root[data-theme='light'] .api-source-link:hover {
+  color: #fff;
+  background: #32383f;
+}

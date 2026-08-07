@@ -1,11 +1,30 @@
 ---
 import { Code, Icon, Aside } from '@astrojs/starlight/components';
+import CustomSelect, { type CustomSelectOption } from '@components/CustomSelect.astro';
 
 interface Props {
   id?: string;
 }
 
 const { id = 'install-cli-modal' } = Astro.props;
+const channelOptions: CustomSelectOption[] = [
+  {
+    value: 'release',
+    label: 'Stable',
+    description: 'Latest stable release for production use',
+    selected: true,
+  },
+  {
+    value: 'staging',
+    label: 'Staging',
+    description: 'Prerelease builds from the current release branch',
+  },
+  {
+    value: 'dev',
+    label: 'Dev',
+    description: 'Latest builds from main, frequently built and not fully tested',
+  },
+];
 ---
 
 <dialog id={id} class="install-cli-modal">
@@ -107,25 +126,14 @@ const { id = 'install-cli-modal' } = Astro.props;
         <Icon name="right-arrow" />
       </a>
       <div class="version-selector">
-        <label for="version-select">Channel:</label>
-        <div class="select-wrapper">
-          <select id="version-select" class="version-dropdown">
-            <option value="release" title="Latest stable release - intended for production use"
-              >Stable</option
-            >
-            <option
-              value="staging"
-              title="Prerelease builds from the current release branch - not recommended for production"
-              >Staging</option
-            >
-            <option
-              value="dev"
-              title="Latest builds from main branch - frequently built and not fully tested"
-              >Dev</option
-            >
-          </select>
-          <Icon name="down-caret" class="select-icon" />
-        </div>
+        <span class="version-label">Channel:</span>
+        <CustomSelect
+          id="version-select"
+          class="channel-custom-select"
+          label="Select release channel"
+          options={channelOptions}
+          menuWidth="content"
+        />
         <a href="/reference/cli/install-script/#options" class="info-icon">
           <Icon name="information" color="var(--sl-color-text-accent)" />
         </a>
@@ -172,65 +180,68 @@ const { id = 'install-cli-modal' } = Astro.props;
     if (!modal) return;
 
     const versionSelect = modal.querySelector('#version-select') as HTMLSelectElement;
-    const selectIcon = modal.querySelector('.select-icon') as HTMLElement;
-    const openBtn = document.querySelector('[data-open-install-modal]');
+    const openBtns = document.querySelectorAll<HTMLElement>('[data-open-install-modal]');
     const closeBtn = modal.querySelector('[data-close-modal]');
+
+    const openModal = (openBtn: HTMLElement) => {
+      // On mobile (under 50em/800px), or if mobile menu is open, redirect to the full page
+      // Modal can't compete with mobile sidebar's z-index
+      const mobileMenuBtn = document.querySelector('starlight-menu-button button');
+      const mobileMenuOpen = mobileMenuBtn?.getAttribute('aria-expanded') === 'true';
+      if (window.innerWidth < 800 || mobileMenuOpen) {
+        window.location.assign('/get-started/install-cli/');
+        return;
+      }
+
+      modal.showModal();
+
+      // Position modal below the button on larger screens
+      const btnRect = openBtn.getBoundingClientRect();
+      const modalContent = modal.querySelector('.modal-content') as HTMLElement;
+
+      if (modalContent) {
+        // Reset any previous positioning
+        modalContent.style.position = '';
+        modalContent.style.top = '';
+        modalContent.style.right = '';
+
+        // Only position absolutely below button on larger screens (72rem/1152px)
+        if (window.innerWidth >= 1152) {
+          modalContent.style.position = 'absolute';
+          modalContent.style.top = `${btnRect.bottom + 8}px`;
+          modalContent.style.right = `${window.innerWidth - btnRect.right}px`;
+        }
+      }
+
+      // Load stored quality or default to release
+      if (versionSelect) {
+        const storedQuality = getStoredQuality();
+        versionSelect.value = storedQuality;
+        versionSelect.dispatchEvent(new Event('aspire:custom-select-sync'));
+        updateVersionDisplay(storedQuality);
+      }
+    };
 
     // Quality selector change handler
     if (versionSelect) {
       versionSelect.addEventListener('change', (e) => {
         const quality = (e.target as HTMLSelectElement).value as 'release' | 'staging' | 'dev';
         updateVersionDisplay(quality);
-        selectIcon?.classList.remove('rotated');
       });
-
-      // Dropdown visual feedback
-      versionSelect.addEventListener('mousedown', () => selectIcon?.classList.add('rotated'));
-      versionSelect.addEventListener('blur', () => selectIcon?.classList.remove('rotated'));
     }
 
     // Open modal and position it
-    if (openBtn) {
+    openBtns.forEach((openBtn) => {
+      if (openBtn.dataset.installModalBound === 'true') {
+        return;
+      }
+
+      openBtn.dataset.installModalBound = 'true';
       openBtn.addEventListener('click', (e) => {
         e.preventDefault();
-
-        // On mobile (under 50em/800px), or if mobile menu is open, redirect to the full page
-        // Modal can't compete with mobile sidebar's z-index
-        const mobileMenuBtn = document.querySelector('starlight-menu-button button');
-        const mobileMenuOpen = mobileMenuBtn?.getAttribute('aria-expanded') === 'true';
-        if (window.innerWidth < 800 || mobileMenuOpen) {
-          window.location.assign('/get-started/install-cli/');
-          return;
-        }
-
-        modal.showModal();
-
-        // Position modal below the button on larger screens
-        const btnRect = openBtn.getBoundingClientRect();
-        const modalContent = modal.querySelector('.modal-content') as HTMLElement;
-
-        if (modalContent) {
-          // Reset any previous positioning
-          modalContent.style.position = '';
-          modalContent.style.top = '';
-          modalContent.style.right = '';
-
-          // Only position absolutely below button on larger screens (72rem/1152px)
-          if (window.innerWidth >= 1152) {
-            modalContent.style.position = 'absolute';
-            modalContent.style.top = `${btnRect.bottom + 8}px`;
-            modalContent.style.right = `${window.innerWidth - btnRect.right}px`;
-          }
-        }
-
-        // Load stored quality or default to release
-        if (versionSelect) {
-          const storedQuality = getStoredQuality();
-          versionSelect.value = storedQuality;
-          updateVersionDisplay(storedQuality);
-        }
+        openModal(openBtn);
       });
-    }
+    });
 
     // Close modal handlers
     closeBtn?.addEventListener('click', () => modal.close());
@@ -258,17 +269,6 @@ const { id = 'install-cli-modal' } = Astro.props;
     if (!openBtn) return;
 
     e.preventDefault();
-
-    // On mobile (under 50em/800px), or if mobile menu is open, redirect to the full page
-    // Modal can't compete with mobile sidebar's z-index
-    const mobileMenuBtn = document.querySelector('starlight-menu-button button');
-    const mobileMenuOpen = mobileMenuBtn?.getAttribute('aria-expanded') === 'true';
-    if (window.innerWidth < 800 || mobileMenuOpen) {
-      window.location.assign('/get-started/install-cli/');
-      return;
-    }
-
-    // Otherwise show the modal (handled by initializeModal's listener)
   });
 
   // Initialize on page load
@@ -422,53 +422,21 @@ const { id = 'install-cli-modal' } = Astro.props;
     justify-content: flex-end;
   }
 
-  .version-selector label {
+  .version-label {
     font-size: var(--sl-text-sm);
     font-weight: 500;
     color: var(--sl-color-text);
   }
 
-  .select-wrapper {
-    position: relative;
-    display: inline-block;
-  }
-
-  .version-dropdown {
-    padding: 0.375rem 2rem 0.375rem 0.75rem;
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.375rem;
-    background-color: var(--sl-color-bg);
-    color: var(--sl-color-text);
-    font-size: var(--sl-text-sm);
-    cursor: pointer;
-    transition: border-color 0.2s;
-    appearance: none;
-  }
-
-  .select-icon {
-    position: absolute;
-    right: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    color: var(--sl-color-text);
-    width: 1rem;
-    height: 1rem;
-    transition: transform 0.2s ease;
-  }
-
-  .select-icon.rotated {
-    transform: translateY(-50%) rotate(180deg);
-  }
-
-  .version-dropdown:hover {
-    border-color: var(--sl-color-text-accent);
-  }
-
-  .version-dropdown:focus {
-    outline: 2px solid var(--sl-color-text-accent);
-    outline-offset: 2px;
-    border-color: var(--sl-color-text-accent);
+  :global(.channel-custom-select) {
+    width: 8.5rem;
+    --custom-select-height: 2.375rem;
+    --custom-select-font-size: var(--sl-text-sm);
+    --custom-select-bg: color-mix(in srgb, var(--sl-color-bg) 92%, var(--sl-color-gray-6));
+    --custom-select-hover-bg: color-mix(in srgb, var(--sl-color-gray-6) 74%, var(--sl-color-bg));
+    --custom-select-menu-bg: var(--sl-color-bg-nav);
+    --custom-select-menu-text: var(--sl-color-text);
+    --custom-select-selected-text: var(--sl-color-text);
   }
 
   .info-icon {

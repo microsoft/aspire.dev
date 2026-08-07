@@ -1,9 +1,10 @@
 ---
-title: Redis hosting extensions
+title: Use community extensions for Redis hosting
+description: Extend the functionality of your Redis hosting with community-built extensions, including management UIs like DbGate.
+next: false
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import { Aside } from '@astrojs/starlight/components';
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
 import redisIcon from '@assets/icons/redis-icon.png';
@@ -13,48 +14,137 @@ import redisIcon from '@assets/icons/redis-icon.png';
 <Image
   src={redisIcon}
   alt="Redis logo"
-  width={80}
-  height={80}
+  width={100}
+  height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-The Aspire Community Toolkit Redis hosting extensions package provides extra functionality to the [Aspire.Hosting.Redis](https://www.nuget.org/packages/Aspire.Hosting.Redis) hosting package.
+The Aspire Community Toolkit Redis hosting extensions package provides extra functionality to the [Aspire.Hosting.Redis](https://www.nuget.org/packages/Aspire.Hosting.Redis) hosting package. These extensions are built and maintained by the community and are separate from the official [Redis integration](/integrations/caching/redis/redis-get-started/).
 
 This package provides the following features:
 
 - [DbGate](https://dbgate.org/) management UI
+- dbx management UI
 
 ## Hosting integration
 
 To get started with the Aspire Community Toolkit Redis hosting extensions, install the [CommunityToolkit.Aspire.Hosting.Redis.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Redis.Extensions) NuGet package in the app host project.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Redis.Extensions" />
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Redis.Extensions
+```
+
+This updates your `aspire.config.json` with the Redis extensions package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Redis.Extensions": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Add management UI
 
 ### DbGate management UI
 
-To add the DbGate management UI to your Redis resource, call the `WithDbGate` method on the `RedisResource` instance:
+To add the DbGate management UI, decorate the official Redis resource with `WithDbGate` / `withDbGate`:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddRedis("redis")
-                   .WithDbGate();
+    .WithDbGate();
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(redis);
+builder.AddProject<Projects.ExampleProject>("example-project")
+    .WithReference(redis);
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const redis = await builder.addRedis('redis');
+await redis.withDbGate();
+
+const exampleProject = await builder.addProject(
+  'example-project',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await exampleProject.withReference(redis);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 This adds a new DbGate resource to the app host which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your Redis databases.
+
+### dbx management UI
+
+[dbx](https://github.com/t8y2/dbx) is a lightweight, web-based database client and an alternative management UI to DbGate and Adminer. Decorate the Redis resource with `WithDbx` / `withDbx` to add it:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("redis")
+    .WithDbx();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const redis = await builder.addRedis('redis');
+await redis.withDbx({
+  containerName: 'redis-dbx',
+  imageTag: '0.5.33',
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
 
 ## See also
 
 - [DbGate documentation](https://dbgate.org/)
-- [Redis integration](/integrations/caching/redis/)
+- [Redis integration](/integrations/caching/redis/redis-get-started/)
 - [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
 - [Aspire integrations overview](/integrations/overview/)
-- [Aspire GitHub repo](https://github.com/dotnet/aspire)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)

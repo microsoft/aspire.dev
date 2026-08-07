@@ -1,0 +1,208 @@
+---
+import CookiesSvg from '@assets/icons/cookies.svg';
+import { Icon } from '@astrojs/starlight/components';
+import { socialConfig, type SocialLink } from '../../config/socials.config';
+
+type FooterSocialLink = {
+  icon: SocialLink['icon'] | 'rss' | 'reddit';
+  label: string;
+  href: string;
+  external: boolean;
+};
+
+const footerSocialLinks: FooterSocialLink[] = [
+  ...socialConfig.map((social) => ({
+    ...social,
+    external: true,
+  })),
+  {
+    icon: 'reddit',
+    label: 'Reddit',
+    href: 'https://www.reddit.com/r/aspiredotdev',
+    external: true,
+  },
+  {
+    icon: 'rss',
+    label: 'RSS',
+    href: '/rss.xml',
+    external: true,
+  },
+];
+
+const opensInNewTab = Astro.locals.t('footer.opensInNewTab' as any);
+---
+
+<section class="footer-socials" aria-labelledby="footer-community-heading">
+  <p id="footer-community-heading" class="footer-heading">
+    {Astro.locals.t('footer.community' as any)}
+  </p>
+
+  <div class="social-actions">
+    <ul class="social-links">
+      {
+        footerSocialLinks.map((social) => (
+          <li>
+            <a
+              href={social.href}
+              target={social.external ? '_blank' : undefined}
+              rel={social.external ? 'noopener noreferrer' : undefined}
+              aria-label={social.external ? `${social.label} (${opensInNewTab})` : social.label}
+              title={social.label}
+            >
+              <Icon name={social.icon} />
+              <span class="sr-only">{social.label}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="footer-mobile-tools" role="group" aria-label="Site tools">
+      <button
+        type="button"
+        class="footer-mobile-tool-btn cookie-consent-btn"
+        data-cookie-manage-consent
+        data-tour-target="cookie-preferences"
+        data-tour-step="cookie-preferences"
+        data-placement="top"
+        aria-label="Open cookie preferences dialog"
+        title="Cookies"
+      >
+        <CookiesSvg />
+        <span class="footer-mobile-tool-label">Cookies</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<style>
+  .footer-socials {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .footer-heading {
+    margin: 0;
+    color: var(--sl-color-white);
+    font-size: var(--sl-text-sm);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .social-actions,
+  .social-links,
+  .footer-mobile-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .social-actions {
+    min-width: 0;
+  }
+
+  .social-links {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .social-links a,
+  .footer-mobile-tool-btn {
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 0.4rem;
+    color: var(--sl-color-gray-2);
+    background: transparent;
+  }
+
+  .social-links a {
+    text-decoration: none;
+  }
+
+  .social-links a:hover,
+  .social-links a:focus-visible,
+  .footer-mobile-tool-btn:hover,
+  .footer-mobile-tool-btn:focus-visible {
+    color: var(--sl-color-white);
+    background: color-mix(in srgb, var(--sl-color-gray-5) 56%, transparent);
+  }
+
+  .social-links a:focus-visible,
+  .footer-mobile-tool-btn:focus-visible {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 0.15rem;
+  }
+
+  .social-links a :global(svg),
+  .footer-mobile-tool-btn :global(svg) {
+    --sl-icon-size: 1rem !important;
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+  }
+
+  .social-links :global(a.external-link)::after {
+    display: none;
+  }
+
+  .footer-mobile-tools {
+    display: none;
+  }
+
+  .footer-mobile-tool-label {
+    font-size: var(--sl-text-2xs);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 49.999rem) {
+    .footer-mobile-tools {
+      display: flex;
+      flex: 1 0 100%;
+      margin-top: 0.25rem;
+    }
+
+    .footer-mobile-tool-btn {
+      width: auto;
+      min-width: 3.5rem;
+      display: inline-flex;
+      gap: 0.35rem;
+      padding-inline: 0.55rem;
+      border-color: color-mix(in srgb, var(--sl-color-gray-5) 72%, transparent);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .social-links a,
+    .footer-mobile-tool-btn {
+      transition:
+        color 160ms ease,
+        background-color 160ms ease;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .social-links a,
+    .footer-mobile-tool-btn {
+      border-color: CanvasText;
+    }
+  }
+</style>

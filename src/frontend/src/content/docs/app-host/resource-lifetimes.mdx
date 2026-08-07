@@ -1,0 +1,452 @@
+---
+title: Configure resource lifetimes in Aspire
+description: Learn how session, persistent, resource-scoped, and parent-process lifetimes control Aspire containers, executables, and projects.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import persistentContainer from '@assets/whats-new/aspire-9/persistent-container.png';
+import persistentContainerDocker from '@assets/whats-new/aspire-9/persistent-container-docker-desktop.png';
+
+Aspire resources support a number of different lifetime modes. For example, the default **session lifetime** starts a resource when the AppHost starts and shuts it down when the AppHost exits. A **persistent lifetime** leaves a resource running when the AppHost exits and can reuse the same instance on the next run.
+
+Resource lifetimes apply to containers, executables, and projects. Persistent executable and project lifetimes are experimental in Aspire 13.4. You can use different lifetimes for resources that take time to initialize, need stable local endpoints, should remain available while you restart or rebuild the AppHost, or need to match another resource's lifetime.
+
+:::caution[Experimental shared lifetime APIs]
+The shared lifetime APIs are experimental and emit diagnostic `ASPIREPERSISTENCE001`. The existing container-specific `WithLifetime(ContainerLifetime.Persistent)` and `WithLifetime(ContainerLifetime.Session)` APIs remain supported for container resources.
+:::
+
+## Lifetime modes
+
+Use the shared lifetime APIs for new code. They support container, executable, and project resources.
+
+### Session lifetime
+
+A session lifetime creates the resource when the AppHost starts and disposes of it when the AppHost stops. This is the default lifetime for resources, so you usually don't need to configure it explicitly.
+
+Use session lifetime for resources that should only exist while the AppHost is running, such as local test dependencies, temporary containers, or processes that don't need stable state across runs. Session resources also default to proxied endpoints, which are available while the AppHost is running.
+
+If you previously configured another lifetime and want to return a resource to the default behavior, call `WithSessionLifetime()`. For container resources, `WithLifetime(ContainerLifetime.Session)` is still supported.
+
+### Persistent lifetime
+
+A persistent lifetime reuses a previously created resource when possible and doesn't dispose of it when the AppHost stops. Configure this behavior with `WithPersistentLifetime()`, or with the existing container-specific `WithLifetime(ContainerLifetime.Persistent)` API for container resources.
+
+Use persistent lifetime for resources that are expensive to initialize, need stable local endpoints, or should remain available while you restart or rebuild the AppHost. Common examples include databases, message brokers, emulators, long-running executables, and project resources that should continue running after the AppHost exits.
+
+:::caution[Configuration changes can recreate persistent resources]
+Persistent resources are automatically recreated when the AppHost detects meaningful configuration changes. If the configuration differs, the resource is recreated with the new settings.
+:::
+
+Persistent resources default to proxyless endpoints so a stable local endpoint can remain reachable after the AppHost stops. You can still configure endpoint proxy behavior explicitly. For example, set `isProxied: true` or `IsProxied = true` when you need Aspire's proxy for a specific endpoint, or disable endpoint proxy support when you intentionally want every endpoint on a resource to be proxyless. Persistent executable endpoints must have a concrete `port` or `targetPort`; automatically persisted random executable ports aren't supported.
+
+:::danger[Persistent container &ne; persistent data]
+Persistent container lifetime doesn't guarantee data durability. For details, see [Container lifetime vs. data durability](#container-lifetime-vs-data-durability).
+:::
+
+:::note[Persistent resources and replicas]
+Persistent resources don't support replicas because they depend on a single unique resource identifier to be resolved across AppHost runs.
+
+Persistent resources aren't compatible with Aspire IDE debugging sessions. If you need to debug a persistent executable or project, use your debugger's attach mode if one is available.
+:::
+
+### Parent-process lifetime
+
+A parent-process lifetime keeps a resource available across AppHost restarts, but scopes cleanup to a parent process. Configure this behavior with `WithParentProcessLifetime(processId)`.
+
+Use parent-process lifetime for resources that should outlive an individual AppHost run but still be cleaned up when a broader development tool, IDE, or other owning process exits.
+
+Parent-process lifetime resources share persistent resource behavior across AppHost runs. If Aspire detects meaningful configuration changes on a subsequent run, the resource is recreated with the new settings.
+
+The parent process ID must be the valid ID of a running process. Aspire records both the process ID and the process identity timestamp so cleanup follows the specific process instance instead of accidentally matching a reused process ID.
+
+### Resource-scoped lifetime
+
+A resource-scoped lifetime configures one resource to use another resource's effective lifetime. Configure this behavior with `WithLifetimeOf(resource)`.
+
+Use resource-scoped lifetime when a companion resource should follow the lifetime choice of another resource. This is useful for sidecars, helper executables, or child resources that should become persistent only when the resource they support is persistent.
+
+Aspire evaluates the source resource's lifetime when it prepares the application model, so later lifetime changes to the source resource are reflected by the dependent resource. The source and dependent resources must both support lifetime configuration.
+
+## Configure a persistent container
+
+For new code, configure a persistent container with `WithPersistentLifetime()`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithPersistentLifetime()
+    .WithDataVolume();
+
+var db = postgres.AddDatabase("inventorydb");
+
+builder.AddProject<Projects.InventoryService>("inventory")
+    .WithReference(db);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+await postgres.withPersistentLifetime();
+await postgres.withDataVolume();
+
+const db = postgres.addDatabase('inventorydb');
+
+const inventory = await builder.addProject(
+  'inventory',
+  './InventoryService/InventoryService.csproj'
+);
+await inventory.withReference(db);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+In the preceding example, the PostgreSQL container persists between AppHost runs, and `WithDataVolume()` stores database data in a named volume that survives container recreation. The `inventory` project references the database as normal.
+
+## Configure a persistent executable
+
+Executable resources can also use persistent lifetimes. Persistent executables are useful for local services that have expensive startup, need stable process identity, or should remain reachable while the AppHost restarts.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var worker = builder.AddExecutable("worker", "node", "../worker", "server.js")
+    .WithHttpEndpoint(port: 5050, targetPort: 5050)
+    .WithPersistentLifetime();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const worker = await builder.addExecutable('worker', 'node', '../worker', [
+  'server.js',
+]);
+await worker.withHttpEndpoint({ port: 5050, targetPort: 5050 });
+await worker.withPersistentLifetime();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Configure a concrete `port` or `targetPort` for persistent executable endpoints; automatically persisted random executable ports aren't supported.
+
+## Configure a persistent project
+
+Project resources can use persistent lifetimes when you want the project process to continue running after the AppHost exits.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.ApiService>("api")
+    .WithPersistentLifetime();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+await api.withPersistentLifetime();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Persistent project and executable resources are run by Aspire's orchestrator so it can manage their lifecycle consistently. Persistent project and executable resources don't support replicas.
+
+## Match another resource's lifetime
+
+Use `WithLifetimeOf` when a companion resource should follow another resource's lifetime. This is useful when a sidecar, helper process, or supporting service should become persistent only when its source resource is persistent.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var database = builder.AddPostgres("postgres")
+    .WithPersistentLifetime()
+    .WithDataVolume();
+
+var companion = builder.AddExecutable("companion", "dotnet", "../Companion", "Companion.dll")
+    .WithLifetimeOf(database);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const database = await builder.addPostgres('postgres');
+await database.withPersistentLifetime();
+await database.withDataVolume();
+
+const companion = await builder.addExecutable(
+  'companion',
+  'dotnet',
+  '../Companion',
+  ['Companion.dll']
+);
+await companion.withLifetimeOf(database);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The dependent resource's lifetime is evaluated when Aspire prepares the application model, so later changes to the source resource's lifetime are reflected by the dependent resource.
+
+## Scope cleanup to a parent process
+
+Use `WithParentProcessLifetime` when a resource should survive AppHost restarts but be cleaned up when another process exits. Aspire records the parent process identity instead of retaining a live process handle, so the cleanup scope follows the specific process instance instead of a reused process ID.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var parentProcessId = int.Parse(builder.Configuration["RESOURCE_PARENT_PROCESS_ID"]!);
+
+var worker = builder.AddExecutable("scoped-worker", "node", "../worker", "server.js")
+    .WithParentProcessLifetime(parentProcessId);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const parentProcessId = 1234;
+
+const worker = await builder.addExecutable(
+  'scoped-worker',
+  'node',
+  '../worker',
+  ['server.js']
+);
+await worker.withParentProcessLifetime(parentProcessId);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The parent process ID must be greater than zero and identify a running process.
+
+## Use the container-specific lifetime API
+
+The older container-specific lifetime API is still supported. Use `WithLifetime(ContainerLifetime.Persistent)` to keep a container running across AppHost restarts, or `WithLifetime(ContainerLifetime.Session)` to explicitly use the default session behavior.
+
+For new code, prefer the shared `WithPersistentLifetime()` and `WithSessionLifetime()` APIs because they work consistently across containers, executables, and projects.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithDataVolume();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { ContainerLifetime, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+await postgres.withLifetime(ContainerLifetime.Persistent);
+await postgres.withDataVolume();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Dashboard visualization
+
+The Aspire dashboard shows persistent resources with a distinctive pin icon to help you identify them:
+
+<Image
+  src={persistentContainer}
+  alt="Screenshot of the Aspire dashboard showing a persistent resource with a pin icon."
+/>
+
+After the AppHost stops, persistent containers continue running and can be seen in your container runtime (such as Docker Desktop):
+
+<Image
+  src={persistentContainerDocker}
+  alt="Screenshot of Docker Desktop showing a persistent RabbitMQ container still running after the AppHost stopped."
+/>
+
+## Container naming and uniqueness
+
+By default, persistent containers use a naming pattern that combines:
+
+- The service name you specify in your AppHost.
+- A postfix based on a hash of the AppHost project path.
+
+This naming scheme ensures that persistent containers are unique to each AppHost project, preventing conflicts when multiple Aspire projects use the same service names.
+
+For example, if you have a service named `"postgres"` in an AppHost project located at `/path/to/MyApp.AppHost`, the container name might be `postgres-abc123def` where `abc123def` is derived from the project path hash.
+
+### Custom container names
+
+For advanced scenarios, you can set a custom container name using the `WithContainerName` method:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithPersistentLifetime()
+    .WithContainerName("my-shared-postgres");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+await postgres.withPersistentLifetime();
+await postgres.withContainerName('my-shared-postgres');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+When you specify a custom container name, Aspire first checks if a container with that name already exists. If a container with that name exists and was previously created by Aspire, it follows the normal persistent container behavior and can be automatically recreated if the configuration changes. If a container with that name exists but wasn't created by Aspire, it won't be managed or recreated by the AppHost. If no container with the custom name exists, Aspire creates a new one.
+
+## Executable and project naming and uniqueness
+
+Persistent executable and project resources are scoped to a specific AppHost instance and uniquely identified by their resource name within that scope. Two executable or project resources with the same name in different AppHosts don't collide with each other; they result in separate process instances.
+
+## Manual cleanup
+
+:::caution
+Persistent resources aren't automatically removed when you stop the AppHost. To delete them, stop and remove the underlying container or process with the resource's runtime or operating system tools.
+:::
+
+For persistent containers, use Docker CLI commands, Docker Desktop, or your preferred container management tool to stop and remove the container:
+
+```bash title="Stop and remove a persistent container"
+# Stop the container
+docker stop my-container-name
+
+# Remove the container
+docker rm my-container-name
+```
+
+For persistent executable and project resources, stop the running process with your operating system process manager or terminal tools. You can also stop a persistent resource from the Aspire dashboard if the runtime-specific cleanup option isn't straightforward.
+
+## Container lifetime vs. data durability
+
+`WithPersistentLifetime()` and `WithDataVolume()` serve different purposes and are often used together. The following table summarizes the behavior of each combination for container resources:
+
+| Configuration                    | Container behavior                  | Data behavior                                                                                                |
+| -------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Neither (default)                | Created on start, destroyed on stop | Lost every time the AppHost stops                                                                            |
+| `WithPersistentLifetime()` only  | Stays running between AppHost runs  | Survives AppHost restarts, but **lost if the container is recreated** (config change, pruning, image update) |
+| `WithDataVolume()` only          | Created on start, destroyed on stop | Persists in a named volume—**survives container recreation**                                                 |
+| Both (recommended for databases) | Stays running between AppHost runs  | Persists in a named volume—survives container recreation                                                     |
+
+For **databases and other stateful services**, use both APIs together so you get fast startup (the container stays running) _and_ data safety (a volume protects data even if the container is recreated):
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var postgres = builder.AddPostgres("postgres")
+    .WithPersistentLifetime()
+    .WithDataVolume();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+await postgres.withPersistentLifetime();
+await postgres.withDataVolume();
+```
+
+</TabItem>
+</Tabs>
+
+For **caches or other ephemeral state**, `WithPersistentLifetime()` alone may be sufficient because losing data on container recreation is acceptable.
+
+:::tip
+For more details on volumes and bind mounts, see [Persist data using volumes](/fundamentals/persist-data-volumes/).
+:::

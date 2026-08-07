@@ -1,0 +1,327 @@
+---
+title: Set up GitHub Models in the AppHost
+description: Learn how to use the Aspire GitHub Models hosting integration to orchestrate and configure GitHub Model resources in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import githubIcon from '@assets/icons/github-icon.png';
+
+<Image
+  src={githubIcon}
+  alt="GitHub logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the reference for the Aspire GitHub Models hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model GitHub Model resources in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the GitHub Models integration, start with the [Get started with GitHub Models integrations](/integrations/ai/github-models/github-models-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to GitHub Models](../github-models-connect/).
+
+## Installation
+
+To start building an Aspire app that uses GitHub Models, install the [📦 Aspire.Hosting.GitHub.Models](https://www.nuget.org/packages/Aspire.Hosting.GitHub.Models) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add github-models
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.GitHub.Models@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.GitHub.Models" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add github-models
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the GitHub Models hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.GitHub.Models": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add a GitHub Model resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a GitHub Model resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var chat = builder.AddGitHubModel("chat", GitHubModel.OpenAI.OpenAIGpt4oMini);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts" twoslash
+import { createBuilder, GitHubModelName } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const chat = await builder.addGitHubModel("chat", GitHubModelName.OpenAIGpt4oMini);
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. Calling `AddGitHubModel` (or `addGitHubModel`) creates a `GitHubModelResource`. It registers a secret parameter for the API key that defaults to the `GITHUB_TOKEN` environment variable.
+
+1. The model identifier selects which GitHub-hosted model to target. In C#, use the strongly-typed `GitHubModel` constants grouped by publisher; in TypeScript, use the `GitHubModelName` enum.
+
+1. The AppHost reference call configures a connection in the consuming project named after the resource (for example, `chat` in the preceding example).
+
+</Steps>
+
+<Aside type="note">
+    When you reference a GitHub Model resource from the AppHost, Aspire makes several properties available to the consuming project, such as the endpoint URI, API key, and model name. For a complete list of these properties and per-language connection examples, see [Connect to GitHub Models](../github-models-connect/).
+</Aside>
+
+## Use a model identifier string
+
+If you prefer to specify the model by its raw string identifier rather than a constant, use `AddGitHubModel` (C#) with the string overload or `addGitHubModelById` (TypeScript):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var chat = builder.AddGitHubModel("chat", "openai/gpt-4o-mini");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const chat = await builder.addGitHubModelById("chat", "openai/gpt-4o-mini");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+  In C#, use the strongly-typed `GitHubModel` constants to avoid typos — they're
+  grouped by publisher (for example, `GitHubModel.OpenAI.OpenAIGpt4oMini`,
+  `GitHubModel.Microsoft.Phi4MiniInstruct`, `GitHubModel.DeepSeek.DeepSeekV30324`).
+  In TypeScript, use the `GitHubModelName` enum (for example,
+  `GitHubModelName.OpenAIGpt4oMini`, `GitHubModelName.DeepSeekV30324`).
+</Aside>
+
+## Use default API key parameter
+
+Calling `AddGitHubModel("chat", ...)` (or `addGitHubModel("chat", ...)`) automatically creates a secret parameter named `chat-gh-apikey`. Aspire resolves its value in this order:
+
+1. The `Parameters:chat-gh-apikey` configuration key (user secrets, `appsettings.*`, or environment variables).
+2. The `GITHUB_TOKEN` environment variable.
+
+If neither source provides a value, startup throws an exception. In Codespaces and GitHub Actions, `GITHUB_TOKEN` is populated automatically. For local development, provide a fine-grained personal access token with `models: read` scope via user secrets:
+
+```bash title="Terminal"
+aspire secret set Parameters:chat-gh-apikey github_pat_YOUR_TOKEN_HERE
+```
+
+## Use a custom API key parameter
+
+Replace the default parameter by creating your own secret parameter and passing it to `WithApiKey` (or `withApiKey`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apiKey = builder.AddParameter("my-gh-token", secret: true);
+
+var chat = builder.AddGitHubModel("chat", GitHubModel.OpenAI.OpenAIGpt4oMini)
+                  .WithApiKey(apiKey);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts" twoslash
+import { createBuilder, GitHubModelName } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const apiKey = await builder.addParameter("my-gh-token", { secret: true });
+
+const chat = await builder.addGitHubModel("chat", GitHubModelName.OpenAIGpt4oMini);
+await chat.withApiKey(apiKey);
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">Parameters marked <code>secret: true</code> are stored in the user secrets store and never appear in plain text in logs or the dashboard.</Aside>
+
+## Specify an organization
+
+For organization-attributed requests, pass an organization parameter:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var organization = builder.AddParameter("github-org");
+
+var chat = builder.AddGitHubModel("chat", GitHubModel.OpenAI.OpenAIGpt4oMini, organization);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts" twoslash
+import { createBuilder, GitHubModelName } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const organization = await builder.addParameter("github-org");
+
+const chat = await builder.addGitHubModel("chat", GitHubModelName.OpenAIGpt4oMini, {
+    organization,
+});
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+When an organization is specified, the endpoint changes to `https://models.github.ai/orgs/{organization}/inference` and the token must be attributed to that organization in GitHub.
+
+## Add a health check
+
+Add an optional health check to verify endpoint reachability and API key validity:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var chat = builder.AddGitHubModel("chat", GitHubModel.OpenAI.OpenAIGpt4oMini)
+                  .WithHealthCheck();
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts" twoslash
+import { createBuilder, GitHubModelName } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const chat = await builder.addGitHubModel("chat", GitHubModelName.OpenAIGpt4oMini);
+chat.enableHealthCheck();
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  Because health checks count against GitHub Models rate limits, use this
+  sparingly — for example when debugging connectivity issues. The health check
+  executes only once per application instance to minimize API usage.
+</Aside>
+
+## Available models
+
+GitHub Models supports a broad and growing catalog of models. Use the strongly-typed constants for the most accurate list:
+
+| Publisher  | C# constant (examples)                             | TypeScript enum (examples)                          |
+| ---------- | --------------------------------------------------- | --------------------------------------------------- |
+| OpenAI     | `GitHubModel.OpenAI.OpenAIGpt4oMini`               | `GitHubModelName.OpenAIGpt4oMini`                   |
+| OpenAI     | `GitHubModel.OpenAI.OpenAIGpt41Mini`               | `GitHubModelName.OpenAIGpt41Mini`                   |
+| DeepSeek   | `GitHubModel.DeepSeek.DeepSeekV30324`              | `GitHubModelName.DeepSeekV30324`                    |
+| DeepSeek   | `GitHubModel.DeepSeek.DeepSeekR1`                  | `GitHubModelName.DeepSeekR1`                        |
+| Microsoft  | `GitHubModel.Microsoft.Phi4MiniInstruct`           | `GitHubModelName.Phi4MiniInstruct` *(see note)*     |
+| Meta       | `GitHubModel.Meta.MetaLlama318BInstruct`           | `GitHubModelName.MetaLlama318BInstruct`             |
+
+<Aside type="note">
+  In TypeScript, the `GitHubModelName` enum is a single flat list and does not
+  use publisher-grouped sub-namespaces. This is a known gap compared to the C#
+  API. Check the enum values in `.aspire/modules/aspire.mjs` for the complete list.
+</Aside>
+
+For the full catalogue, visit the [GitHub Models Marketplace](https://github.com/marketplace/models).
+
+## Connection properties
+
+For the full reference of GitHub Models connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to GitHub Models](../github-models-connect/).
+
+## See also
+
+- [Get started with the GitHub Models integrations](/integrations/ai/github-models/github-models-get-started/)
+- [Connect to GitHub Models](/integrations/ai/github-models/github-models-connect/)
+- [GitHub Models Marketplace](https://github.com/marketplace/models)
+- [GitHub Models documentation](https://docs.github.com/github-models)

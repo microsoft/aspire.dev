@@ -1,0 +1,218 @@
+---
+import { resolveTypeLink, shortTypeName } from '@utils/packages';
+import { findAttribute, getAttributeArgument, getAttributeFlag } from '@utils/api-attributes';
+
+interface Props {
+  attributes?: any[];
+  context: 'type' | 'member' | 'parameter';
+  entityName?: string;
+  packageName?: string;
+  allTypes?: any[];
+}
+
+const {
+  attributes = [],
+  context,
+  entityName = '',
+  packageName = '',
+  allTypes = [],
+} = Astro.props;
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const exportAttr = findAttribute(attributes, 'AspireExport');
+const dtoAttr = findAttribute(attributes, 'AspireDto');
+const ignoreAttr = findAttribute(attributes, 'AspireExportIgnore');
+const unionAttr = findAttribute(attributes, 'AspireUnion');
+
+const hasPolyglotMetadata = !!(exportAttr || dtoAttr || ignoreAttr || unionAttr);
+
+const exportId = exportAttr?.constructorArguments?.[0];
+const exportMethodName = getAttributeArgument(exportAttr, 'MethodName');
+const exportType = getAttributeArgument(exportAttr, 'Type');
+const exposeProperties = getAttributeFlag(exportAttr, 'ExposeProperties');
+const exposeMethods = getAttributeFlag(exportAttr, 'ExposeMethods');
+const runSyncOnBackgroundThread = getAttributeFlag(exportAttr, 'RunSyncOnBackgroundThread');
+
+const dtoTypeId = getAttributeArgument(dtoAttr, 'DtoTypeId');
+const ignoreReason = getAttributeArgument(ignoreAttr, 'Reason');
+const unionTypes: string[] = unionAttr?.constructorArguments ?? [];
+---
+
+{hasPolyglotMetadata && (
+  <div class="polyglot-panel not-content">
+    {exportAttr && (
+      <aside class="polyglot-note export">
+        <div class="polyglot-title">ATS export</div>
+        {/* Developer note: assembly-level exports for external types are not yet modeled as separate API reference entities. */}
+        <div class="polyglot-body">
+          {context === 'member' && exportId && (
+            <div class="polyglot-row">
+              <span class="polyglot-label">Capability ID: </span>
+              <code>{packageName ? `${packageName}/${exportId}` : exportId}</code>
+            </div>
+          )}
+          {context === 'type' && !exportType && entityName && packageName && (
+            <div class="polyglot-row">
+              <span class="polyglot-label">Type ID: </span>
+              <code>{`${packageName}/${entityName}`}</code>
+            </div>
+          )}
+          {exportType && (
+            <div class="polyglot-row">
+              <span class="polyglot-label">Export target: </span>
+              <code>{shortTypeName(exportType)}</code>
+            </div>
+          )}
+          {!exportId && !exportType && !(context === 'type' && entityName && packageName) && (
+            <div class="polyglot-row">Available to Polyglot AppHosts through the Aspire Type System.</div>
+          )}
+          {exportMethodName && (
+            <div class="polyglot-row">
+              <span class="polyglot-label">Generated method name override: </span>
+              <code>{exportMethodName}</code>
+            </div>
+          )}
+          {exposeProperties && <div class="polyglot-row">Public instance properties are exported as ATS capabilities.</div>}
+          {exposeMethods && <div class="polyglot-row">Public instance methods are exported as ATS capabilities.</div>}
+          {runSyncOnBackgroundThread && <div class="polyglot-row">Synchronous exports run on a background thread.</div>}
+        </div>
+      </aside>
+    )}
+
+    {dtoAttr && (
+      <aside class="polyglot-note dto">
+        <div class="polyglot-title">ATS DTO</div>
+        <div class="polyglot-body">
+          {dtoTypeId ? (
+            <div class="polyglot-row">
+              <span class="polyglot-label">Serialized type identifier: </span>
+              <code>{dtoTypeId}</code>
+            </div>
+          ) : (
+            <div class="polyglot-row">Serialized as a plain JSON object without a <code>$type</code> discriminator.</div>
+          )}
+        </div>
+      </aside>
+    )}
+
+    {ignoreAttr && (
+      <aside class="polyglot-note ignore">
+        <div class="polyglot-title">Ignored by ATS</div>
+        <div class="polyglot-body">
+          <div class="polyglot-row">
+            {ignoreReason ? (
+              <>
+                <span class="polyglot-label">Reason: </span>
+                <span>{ignoreReason}</span>
+              </>
+            ) : (
+              'Excluded from automatic Polyglot export.'
+            )}
+          </div>
+        </div>
+      </aside>
+    )}
+
+    {unionAttr && unionTypes.length > 0 && (
+      <aside class="polyglot-note union">
+        <div class="polyglot-title">ATS union</div>
+        <div class="polyglot-body">
+          <div class="polyglot-row">
+            <span class="polyglot-label">Accepted types: </span>
+            <span class="polyglot-type-list">
+              {unionTypes.map((typeName, index) => {
+                const link = resolveTypeLink(typeName, allTypes, base, packageName);
+                const label = shortTypeName(typeName);
+
+                return (
+                  <Fragment>
+                    {index > 0 && <span class="polyglot-separator"> | </span>}
+                    {link ? (
+                      <a href={link.href} class="polyglot-type-link">{label}</a>
+                    ) : (
+                      <code>{label}</code>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </span>
+          </div>
+        </div>
+      </aside>
+    )}
+  </div>
+)}
+
+<style>
+  .polyglot-panel {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+  }
+
+  .polyglot-note {
+    padding: 0;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .polyglot-title {
+    font-size: var(--api-text-base);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+    color: var(--api-section-label-color, var(--aspire-color-light, var(--api-accent-text)));
+  }
+
+  .polyglot-body {
+    padding: 0.3rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .polyglot-row {
+    margin: 0;
+    font-size: var(--api-text-base);
+    color: var(--sl-color-gray-1);
+    line-height: 1.6;
+    display: block;
+  }
+
+  .polyglot-label {
+    font-size: inherit;
+    font-weight: 600;
+    color: var(--sl-color-text);
+  }
+
+  .polyglot-note code {
+    font-size: inherit;
+  }
+
+  .polyglot-type-link {
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+  }
+
+  .polyglot-type-link:hover {
+    text-decoration: underline;
+  }
+
+  .polyglot-type-list {
+    display: inline;
+  }
+
+  .polyglot-separator {
+    color: var(--sl-color-gray-3);
+  }
+
+  @media (max-width: 40rem) {
+    .polyglot-note {
+      padding: 0.75rem 0.85rem;
+    }
+  }
+</style>

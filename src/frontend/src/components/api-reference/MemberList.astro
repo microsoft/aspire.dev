@@ -1,0 +1,72 @@
+---
+/**
+ * MemberList — renders all members of a type, grouped by kind.
+ *
+ * Each kind group is a top-level <h2> section for clean navigation.
+ */
+import MemberCard from './MemberCard.astro';
+import AnchorHeading from './AnchorHeading.astro';
+import { groupMembersByKind, memberKindLabels } from '@utils/packages';
+import type { ParentTypeInfo } from '@utils/packages';
+
+interface Props {
+  members: any[];
+  allTypes?: any[];
+  packageName?: string;
+  parentType?: ParentTypeInfo;
+  sourceBaseUrl?: string;
+  diagnosticSlugs?: Set<string>;
+}
+
+const { members = [], allTypes = [], packageName = '', parentType, sourceBaseUrl, diagnosticSlugs } = Astro.props;
+const groups = groupMembersByKind(members);
+---
+
+{groups.size > 0 && (
+  <div class="ml">
+    {[...groups.entries()].map(([kind, items]) => (
+      <section class="ml-group">
+        <AnchorHeading id={`members-${kind}`} text={memberKindLabels[kind] ?? kind}>
+          <span class="api-count-badge">{items.length}</span>
+        </AnchorHeading>
+        <div class="ml-cards">
+          {items.map((m: any) => (
+            <MemberCard
+              member={m}
+              allTypes={allTypes}
+              packageName={packageName}
+              parentType={parentType}
+              sourceBaseUrl={sourceBaseUrl}
+              diagnosticSlugs={diagnosticSlugs}
+            />
+          ))}
+        </div>
+      </section>
+    ))}
+  </div>
+)}
+
+<style>
+  .ml {
+    margin: 0.5rem 0;
+  }
+  .ml-group {
+    margin-bottom: 2.5rem;
+  }
+  .ml-group:last-child {
+    margin-bottom: 1rem;
+  }
+  .ml-group :global(.anchor-heading) {
+    margin: 0 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--sl-color-gray-5);
+  }
+  .ml-group :global(.anchor-heading h2) {
+    font-size: 1.25rem;
+  }
+  .ml-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+</style>

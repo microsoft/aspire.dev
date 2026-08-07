@@ -1,6 +1,6 @@
 ---
 title: Secure communication between integrations
-description: Learn how to secure communication between hosting and client integrations.
+description: Learn how to secure communication between Aspire hosting and client integrations with HTTPS, mutual TLS, secret-backed parameters, and managed identities in production.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
@@ -33,7 +33,7 @@ The resulting solution from these previous articles contains the following proje
 1. `MailDev.Hosting`: Contains the custom resource type for the MailDev container.
 2. `MailDevResource.AppHost`: The [AppHost](/get-started/app-host/) that uses the custom resource and defines it as a dependency for a Newsletter service.
 3. `MailDevResource.NewsletterService`: An ASP.NET Core Web API project that sends emails using the MailDev container.
-4. `MailDevResource.ServiceDefaults`: Contains the [default service configurations](/fundamentals/service-defaults/) intended for sharing.
+4. `MailDevResource.ServiceDefaults`: Contains the [default service configurations](/get-started/csharp-service-defaults/) intended for sharing.
 5. `MailKit.Client`: Contains the custom client integration that exposes the MailKit `SmtpClient` through a factory.
 
 </Steps>
@@ -180,7 +180,7 @@ The preceding code updates the `AddMailDev` extension method to include the `use
 
 Now that the resource is updated to include the username and password parameters, you need to update the AppHost to include these parameters. Update the `AppHost.cs` file in the `MailDevResource.AppHost` project with the following C# code:
 
-```csharp {3-4,6-9} title="C# — AppHost.cs"
+```csharp {3-4,6-9} title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mailDevUsername = builder.AddParameter("maildev-username");
@@ -213,14 +213,14 @@ Next, configure the secrets for these parameters. Right-click on the `MailDevRes
 }
 ```
 
-Alternatively, you can use the `dotnet user-secrets` CLI to set these parameters:
+Alternatively, you can use the Aspire CLI to set these parameters:
 
 ```bash
-dotnet user-secrets set "Parameters:maildev-username" "@admin"
+aspire secret set "Parameters:maildev-username" "@admin"
 ```
 
 ```bash
-dotnet user-secrets set "Parameters:maildev-password" "t3st1ng"
+aspire secret set "Parameters:maildev-password" "t3st1ng"
 ```
 
 <Aside type="danger">
@@ -414,7 +414,7 @@ When the factory determines that credentials have been configured, it authentica
 
 ## Run the sample
 
-Now that you've updated the resource, corresponding integration projects, and the AppHost, you're ready to run the sample app. To run the sample from your IDE, select <Kbd mac="F5" windows="F5" /> or use `aspire run` from the root directory of the solution to start the application—you should see the [Aspire dashboard](/dashboard/overview/). Navigate to the `maildev` container resource and view the details. You should see the username and password parameters as resources.
+Now that you've updated the resource, corresponding integration projects, and the AppHost, you're ready to run the sample app. To run the sample from your IDE, select <Kbd mac="F5" windows="F5" /> or use [`aspire run`](/reference/cli/commands/aspire-run/) from the root directory of the solution to start the application—you should see the [Aspire dashboard](/dashboard/overview/). Navigate to the `maildev` container resource and view the details. You should see the username and password parameters as resources.
 
 <Steps>
 

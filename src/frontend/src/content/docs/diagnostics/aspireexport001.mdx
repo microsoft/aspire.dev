@@ -1,0 +1,44 @@
+---
+title: Compiler Error ASPIREEXPORT001
+seoTitle: "ASPIREEXPORT001: A method marked with [AspireExport] must be"
+description: Learn what causes the Aspire compiler error ASPIREEXPORT001 — a method marked with [AspireExport] must be static — and how to fix it in your AppHost.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Method '{0}' marked with [AspireExport] must be static.
+
+This diagnostic error is reported when a method decorated with the `[AspireExport]` attribute is not declared as `static`. Methods exported to other language runtimes via the Aspire Type Specification (ATS) must be static because they are invoked by the ATS runtime without an object instance.
+
+## Example
+
+The following code generates `ASPIREEXPORT001`:
+
+```csharp title="Integration.cs"
+[AspireExport("addRedis")]
+public IResourceBuilder<RedisResource> AddRedis(
+    IResourceBuilder<IResourceWithEnvironment> builder)
+{
+    return builder.WithReference(...);
+}
+```
+
+## To correct this error
+
+Add the `static` modifier to the method:
+
+```csharp title="Integration.cs"
+[AspireExport("addRedis")]
+public static IResourceBuilder<RedisResource> AddRedis(
+    IResourceBuilder<IResourceWithEnvironment> builder)
+{
+    return builder.WithReference(...);
+}
+```

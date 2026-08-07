@@ -1,0 +1,195 @@
+---
+/**
+ * TypeSignature — renders a type's C# declaration.
+ */
+import { Code } from '@astrojs/starlight/components';
+import { typeHref, shortTypeName, genericArity } from '@utils/packages';
+
+interface Props {
+  type: any;
+  allTypes?: any[];
+  packageName?: string;
+}
+
+const { type, allTypes = [], packageName = '' } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const modifiers = [
+  type.accessibility ?? 'public',
+  type.isStatic ? 'static' : null,
+  type.isAbstract ? 'abstract' : null,
+  type.isSealed ? 'sealed' : null,
+  type.isReadOnly ? 'readonly' : null,
+].filter(Boolean).join(' ');
+
+let signature = '';
+
+// File-scoped namespace prefix
+const ns = type.namespace;
+const nsPrefix = ns ? `namespace ${ns};\n\n` : '';
+
+// Delegate types get a special signature format
+if (type.kind === 'delegate') {
+  const retType = type.delegateReturnType ?? 'void';
+  let delegateSig = `${modifiers} delegate ${retType} ${type.name}`;
+  if (type.isGeneric && type.genericParameters?.length) {
+    delegateSig += `<${type.genericParameters.map((g: any) => g.name).join(', ')}>`;
+  }
+  const delegateParams = type.delegateParameters ?? [];
+  if (delegateParams.length > 0) {
+    delegateSig += '(\n' + delegateParams.map((p: any, i: number) => {
+      const comma = i < delegateParams.length - 1 ? ',' : '';
+      return `    ${p.type} ${p.name}${comma}`;
+    }).join('\n') + ')';
+  } else {
+    delegateSig += '()';
+  }
+  signature = delegateSig;
+} else {
+  signature = `${modifiers} ${type.kind} ${type.name}`;
+  if (type.isGeneric && type.genericParameters?.length) {
+    signature += `<${type.genericParameters.map((g: any) => g.name).join(', ')}>`;
+  }
+}
+
+const bases: string[] = [];
+if (type.baseType) bases.push(type.baseType);
+if (type.interfaces?.length) bases.push(...type.interfaces);
+
+if (bases.length && type.kind !== 'delegate') {
+  signature += `\n    : ${bases.join(',\n      ')}`;
+}
+
+const constraints = (type.genericParameters ?? [])
+  .filter((gp: any) => gp.constraints?.length > 0)
+  .map((gp: any) => {
+    const shortConstraints = gp.constraints.map((c: string) => shortTypeName(c));
+    return `    where ${gp.name} : ${shortConstraints.join(', ')}`;
+  });
+
+if (constraints.length) {
+  signature += '\n' + constraints.join('\n');
+}
+
+// Add class body for classes, records, structs, interfaces (not delegates or enums)
+const hasBody = !['delegate', 'enum'].includes(type.kind);
+if (hasBody) {
+  signature += '\n{\n    // ...\n}';
+}
+
+signature = nsPrefix + signature;
+---
+
+<div class="ts not-content">
+  <div class="ts-code">
+    <Code code={signature} lang="csharp" showLineNumbers={false} />
+  </div>
+
+  {type.genericParameters?.length > 0 && (
+    <div class="ts-generics">
+      {type.genericParameters.map((gp: any) => (
+        <div class="ts-gp">
+          <code class="ts-gp-name">{gp.name}</code>
+          {gp.constraints?.length > 0 && (
+            <span class="ts-gp-constraint">
+              : {gp.constraints.map((c: string, ci: number) => {
+                const target = allTypes.find((t: any) => t.fullName === c);
+                const label = shortTypeName(c);
+                return (
+                  <>{ci > 0 && ', '}{target ? (
+                    <a href={typeHref(base, packageName, target.name, genericArity(target))} class="ts-constraint-link">{label}</a>
+                  ) : (
+                    <span>{label}</span>
+                  )}</>
+                );
+              })}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  )}
+
+  {bases.length > 0 && (
+    <div class="ts-bases">
+      {bases.map((b: string) => {
+        const target = allTypes.find((t: any) => t.fullName === b);
+        const shortName = shortTypeName(b);
+        return target ? (
+          <a href={typeHref(base, packageName, target.name, genericArity(target))} class="api-chip">{shortName}</a>
+        ) : (
+          <span class="api-chip muted">{shortName}</span>
+        );
+      })}
+    </div>
+  )}
+</div>
+
+<style>
+  .ts {
+    margin-bottom: 1.5rem;
+    margin-top: 1rem;
+  }
+  .ts-code {
+    margin: 0;
+    border-radius: var(--api-radius-md);
+    overflow: hidden;
+    border: 1px solid var(--api-border);
+  }
+  .ts-code :global(.astro-code) {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    border-radius: var(--api-radius-md);
+    font-size: var(--api-text-base);
+    line-height: 1.55;
+  }
+  .ts-code :global(pre) {
+    margin: 0;
+    border-radius: var(--api-radius-md);
+  }
+  .ts-code :global(figure.frame) {
+    margin: 0;
+    border: none;
+    border-radius: var(--api-radius-md);
+  }
+  .ts-generics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+  .ts-gp {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    font-size: var(--api-text-base);
+    padding: 0.3rem 0.6rem;
+    background: var(--api-surface);
+    border-radius: var(--api-radius-sm);
+    border: 1px solid var(--api-border-subtle);
+  }
+  .ts-gp-name {
+    font-weight: 600;
+    color: var(--api-accent-text);
+    background: none;
+    padding: 0;
+    font-size: inherit;
+  }
+  .ts-gp-constraint {
+    color: var(--sl-color-gray-3);
+    font-size: var(--api-text-sm);
+  }
+  .ts-constraint-link {
+    color: var(--api-accent-text);
+    text-decoration: none;
+  }
+  .ts-constraint-link:hover {
+    text-decoration: underline;
+  }
+  .ts-bases {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+  }
+</style>

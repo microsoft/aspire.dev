@@ -1,0 +1,453 @@
+---
+title: Set up Azure Functions in the AppHost
+description: Learn how to use the Aspire Azure Functions Hosting integration to orchestrate and configure an Azure Functions project resource in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import functionsIcon from '@assets/icons/azure-functionapps-icon.png';
+import vsAzureFunctionsOptions from '@assets/integrations/cloud/azure/functions/visual-studio-azure-functions-options.png';
+
+<Image
+  src={functionsIcon}
+  alt="Azure Functions logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the reference for the Aspire Azure Functions Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure Functions project resource in your [`AppHost`](/get-started/app-host/) project.
+
+If you are new to the Azure Functions integration, start with the [Get started with the Azure Functions integration](/integrations/cloud/azure/azure-functions/azure-functions-get-started/) guide. For how your Functions code reads the connection information this page sets up, see [Azure Functions runtime configuration](../azure-functions-connect/).
+
+## Project constraints
+
+The Aspire Azure Functions integration has the following project constraints for .NET Functions projects:
+
+- You must target .NET 8.0 or later.
+- You must use a .NET 9 SDK or later.
+- It currently only supports .NET workers with the [isolated worker model](https://learn.microsoft.com/azure/azure-functions/dotnet-isolated-process-guide).
+- Requires the following NuGet packages:
+  - [📦 Microsoft.Azure.Functions.Worker](https://www.nuget.org/packages/Microsoft.Azure.Functions.Worker): Use the `FunctionsApplicationBuilder`.
+  - [📦 Microsoft.Azure.Functions.Worker.Sdk](https://www.nuget.org/packages/Microsoft.Azure.Functions.Worker.Sdk): Adds support for [`aspire run`](/reference/cli/commands/aspire-run/) and [`aspire deploy`](/reference/cli/commands/aspire-deploy/).
+  - [📦 Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore](https://www.nuget.org/packages/Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore): Adds HTTP trigger-supporting APIs.
+
+:::tip[Visual Studio tooling]
+If you encounter the error **"There is no Functions runtime available that matches the version specified in the project"** in Visual Studio, check for an update on the Azure Functions tooling. Open the **Options** dialog, navigate to **Projects and Solutions**, and then select **Azure Functions**. Select **Check for updates** to get the latest version.
+
+<Image
+  src={vsAzureFunctionsOptions}
+  alt="Visual Studio: Options / Projects and Solutions / Azure Functions." />
+:::
+
+## Installation
+
+To start building an Aspire app that uses Azure Functions, install the [📦 Aspire.Hosting.Azure.Functions](https://www.nuget.org/packages/Aspire.Hosting.Azure.Functions) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add azure-functions
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Azure.Functions@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.Functions" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-functions
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Functions hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Functions": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add Azure Functions resource
+
+The Azure Functions hosting integration models Azure Functions projects as the `AzureFunctionsProjectResource` type. Call `addAzureFunctionsProject` on the `builder` instance to add an Azure Functions project resource to the app model.
+
+There are two ways to add an Azure Functions project in C#, depending on whether the Functions project is referenced by the AppHost project. The TypeScript AppHost always uses the file path approach.
+
+### Add a referenced Functions project (C# only)
+
+If the Azure Functions project is referenced in your C# AppHost project, use the generic overload of `AddAzureFunctionsProject`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var functions = builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+    .WithExternalHttpEndpoints();
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(functions)
+    .WaitFor(functions);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+### Add a Functions project by file path
+
+If the Azure Functions project is not referenced in your AppHost project (or you are using a TypeScript AppHost), specify the path to the project file:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var functions = builder.AddAzureFunctionsProject("functions", "../MyFunctions/MyFunctions.csproj")
+    .WithExternalHttpEndpoints();
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(functions)
+    .WaitFor(functions);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const functions = await builder.addAzureFunctionsProject(
+    "functions",
+    "../MyFunctions/MyFunctions.csproj"
+);
+await functions.withExternalHttpEndpoints();
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(functions)
+    .waitFor(functions);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. The path to the Functions project file is relative to the AppHost project directory. If the path is not absolute, it is resolved relative to the AppHost directory.
+
+1. The `functions` resource can be referenced by other project resources. The `WithReference` (or `withReference`) method configures a connection named `"functions"` in the consuming project.
+
+1. If the Functions project exposes an HTTP trigger and you call `WithExternalHttpEndpoints` (or `withExternalHttpEndpoints`), the trigger endpoint is publicly accessible when deployed.
+
+</Steps>
+
+<Aside type="note">
+    When you reference an Azure Functions resource from the AppHost, Aspire injects connection information for all referenced Azure resources as environment variables into the Functions host. For details on how your function code reads those values, see [Azure Functions runtime configuration](../azure-functions-connect/).
+</Aside>
+
+## Add Azure Functions resource with host storage
+
+Azure Functions requires an Azure Storage account as host storage for checkpoints, leases, and other internal state. By default, Aspire creates an implicit host storage resource automatically. To use a specific storage account, call `WithHostStorage` (or `withHostStorage`) on the Azure Functions resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage")
+    .RunAsEmulator();
+
+var functions = builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+    .WithHostStorage(storage);
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(functions)
+    .WaitFor(functions);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage("storage");
+await storage.runAsEmulator();
+
+const functions = await builder.addAzureFunctionsProject(
+    "functions",
+    "../MyFunctions/MyFunctions.csproj"
+);
+await functions.withHostStorage(storage);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
+
+The preceding code relies on the [📦 Aspire.Hosting.Azure.Storage](https://www.nuget.org/packages/Aspire.Hosting.Azure.Storage) NuGet package to add an Azure Storage resource running as an emulator. The `storage` resource is passed to `WithHostStorage`, setting the host storage to the emulated account.
+
+<Aside type="note">
+If you are not using implicit host storage, you must manually assign the `StorageAccountContributor` role to your resource for deployed instances. The implicit host storage is automatically configured with the following roles:
+
+- `StorageBlobDataContributor`
+- `StorageTableDataContributor`
+- `StorageQueueDataContributor`
+- `StorageAccountContributor`
+
+For production, register the storage account explicitly and assign a minimal set of roles:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage");
+
+builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+       .WithHostStorage(storage)
+       .WithRoleAssignments(storage, StorageBuiltInRole.StorageBlobDataReader,
+                                    StorageBuiltInRole.StorageQueueDataReader);
+```
+
+:::caution[TypeScript gap]
+`WithRoleAssignments` is available in the C# AppHost only. The TypeScript AppHost does not currently expose an equivalent API for scoped role assignments on Azure Functions resources.
+:::
+</Aside>
+
+## Reference resources in Azure Functions
+
+To connect Azure Functions triggers and bindings to other Azure resources, chain `WithReference` (or `withReference`) on the Azure Functions project resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage").RunAsEmulator();
+var blobs = storage.AddBlobs("blobs");
+
+builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+    .WithHostStorage(storage)
+    .WithReference(blobs);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage("storage");
+await storage.runAsEmulator();
+const blobs = await storage.addBlobs("blobs");
+
+const functions = await builder.addAzureFunctionsProject(
+    "functions",
+    "../MyFunctions/MyFunctions.csproj"
+);
+await functions.withHostStorage(storage);
+await functions.withReference(blobs);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
+
+The connection information required to connect to the `blobs` resource is automatically injected into the Azure Functions project, enabling the project to define a `BlobTrigger` that uses the `blobs` resource. For how your function code reads the injected connection information, see [Azure Functions runtime configuration](../azure-functions-connect/).
+
+## Add external HTTP endpoints
+
+To make HTTP triggers publicly accessible when deployed, call `WithExternalHttpEndpoints` (or `withExternalHttpEndpoints`) on the Azure Functions resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var functions = builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const functions = await builder.addAzureFunctionsProject(
+    "functions",
+    "../MyFunctions/MyFunctions.csproj"
+);
+await functions.withExternalHttpEndpoints();
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
+
+## Durable Task Scheduler integration
+
+:::caution[Experimental APIs]
+The Durable Task scheduler and task hub APIs are experimental in this release. They are marked with the `[Experimental("ASPIREDURABLETASK001")]` attribute and may change before becoming generally available (GA).
+
+To use these APIs without compiler warnings, suppress the `ASPIREDURABLETASK001` diagnostic. For suppression options, see [ASPIREDURABLETASK001](/diagnostics/aspiredurabletask001/).
+:::
+
+The `Aspire.Hosting.Azure.Functions` package includes support for [Azure Durable Task Scheduler](https://learn.microsoft.com/azure/azure-functions/durable/durable-task-scheduler/durable-task-scheduler), which provides a managed backend for Durable Functions orchestrations. Use `AddDurableTaskScheduler` to add a scheduler resource and `AddTaskHub` to associate a task hub with it.
+
+### Add a Durable Task scheduler and task hub
+
+Call `AddDurableTaskScheduler` on the `builder` instance to add a scheduler resource, then call `AddTaskHub` to create a task hub and pass its reference to the Azure Functions project:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREDURABLETASK001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage")
+    .RunAsEmulator();
+
+var scheduler = builder.AddDurableTaskScheduler("scheduler")
+    .RunAsEmulator();
+
+var taskHub = scheduler.AddTaskHub("taskhub");
+
+builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+    .WithHostStorage(storage)
+    .WithReference(taskHub);
+
+builder.Build().Run();
+
+#pragma warning restore ASPIREDURABLETASK001
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage("storage");
+await storage.runAsEmulator();
+
+const scheduler = await builder.addDurableTaskScheduler("scheduler");
+await scheduler.runAsEmulator();
+
+const taskHub = await scheduler.addTaskHub("taskhub");
+
+const functions = await builder.addAzureFunctionsProject(
+    "functions",
+    "../MyFunctions/MyFunctions.csproj"
+);
+await functions.withHostStorage(storage);
+await functions.withReference(taskHub);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
+
+In the preceding example:
+
+- `AddDurableTaskScheduler` (or `addDurableTaskScheduler`) adds a `DurableTaskSchedulerResource` to the app model.
+- `RunAsEmulator` (or `runAsEmulator`) configures the scheduler to use the local Durable Task emulator for development and testing.
+- `AddTaskHub` (or `addTaskHub`) creates a `DurableTaskHubResource` associated with the scheduler.
+- `WithReference(taskHub)` (or `withReference(taskHub)`) injects the task hub connection information into the Azure Functions project.
+
+When using `RunAsEmulator()`, Aspire starts a local container running the DTS emulator and automatically provides:
+
+- A **Scheduler Dashboard** URL on the scheduler resource.
+- A **Task Hub Dashboard** URL on each task hub resource.
+- A `DTS_TASK_HUB_NAMES` environment variable on the emulator container listing the associated task hub names.
+
+### Use an existing scheduler
+
+To connect to an already-deployed Durable Task Scheduler instance instead of provisioning a new one, use `RunAsExisting`. The overload accepts either a plain `string` connection string or an `IResourceBuilder<ParameterResource>` for securely supplying the value at runtime:
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREDURABLETASK001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var connectionString = builder.AddParameter("dts-connection-string", secret: true);
+
+var scheduler = builder.AddDurableTaskScheduler("scheduler")
+    .RunAsExisting(connectionString);
+
+var taskHubNameParam = builder.AddParameter("taskhub-name");
+var taskHub = scheduler.AddTaskHub("taskhub").WithTaskHubName(taskHubNameParam);
+
+builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+    .WithReference(taskHub);
+
+builder.Build().Run();
+
+#pragma warning restore ASPIREDURABLETASK001
+```
+
+<Aside type="note">
+  Durable Task Scheduler deployment support (manifest and deployment) is not yet included. Only local development with the emulator or an existing scheduler instance is currently supported.
+</Aside>
+
+## Deployment
+
+Deployment to Azure Container Apps (ACA) is supported using the SDK container publish function in `Microsoft.Azure.Functions.Worker.Sdk`. When deploying to Azure Container Apps, KEDA-based auto-scaling rules are automatically configured for your functions.
+
+For more information, see [Azure Functions and Aspire integration](https://learn.microsoft.com/azure/azure-functions/dotnet-aspire-integration).
+
+## Connection properties
+
+For the full reference of how consuming apps and Functions code read the Aspire-injected connection information, see [Azure Functions runtime configuration](../azure-functions-connect/).

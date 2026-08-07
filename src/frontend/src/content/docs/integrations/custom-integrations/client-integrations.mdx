@@ -1,6 +1,6 @@
 ---
 title: Create custom client integrations
-description: Learn how to create a custom Aspire client integration for an existing containerized application.
+description: Learn how to create a custom Aspire client integration for an existing containerized application in your Aspire AppHost.
 ---
 
 import { Aside, Badge, Steps } from '@astrojs/starlight/components';
@@ -26,7 +26,7 @@ This article is a continuation of the [Create custom hosting integrations](/inte
 If you're following along, you should have a Newsletter app from the steps in the [Create custom hosting integrations](/integrations/custom-integrations/hosting-integrations/) article.
 
 <Aside type="tip">
-This article is inspired by existing Aspire integrations, and based on the team's official guidance. There are places where said guidance varies, and it's important to understand the reasoning behind the differences. For more information, see [Aspire integration requirements](https://github.com/dotnet/aspire/blob/f38b6cba86942ad1c45fc04fe7170f0fd4ba7c0b/src/Components/Aspire_Components_Progress.md#net-aspire-integration-requirements).
+This article is inspired by existing Aspire integrations, and based on the team's official guidance. There are places where said guidance varies, and it's important to understand the reasoning behind the differences. For more information, see [Aspire integration requirements](https://github.com/microsoft/aspire/blob/f38b6cba86942ad1c45fc04fe7170f0fd4ba7c0b/src/Components/Aspire_Components_Progress.md#net-aspire-integration-requirements).
 </Aside>
 
 ## Create library for integration
@@ -49,7 +49,7 @@ This article is inspired by existing Aspire integrations, and based on the team'
 
 The next step is to add the following NuGet packages that the integration relies on. Add the following package references to your `MailKit.Client.csproj` file:
 
-```diff lang="xml" title="XML — MailKit.Client.csproj"
+```diff lang="xml" title="MailKit.Client.csproj"
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -74,7 +74,7 @@ The next step is to add the following NuGet packages that the integration relies
 
 Whenever you're creating an Aspire integration, it's best to understand the client library that you're mapping to. With MailKit, you need to understand the configuration settings that are required to connect to a Simple Mail Transfer Protocol (SMTP) server. But it's also important to understand if the library has support for _health checks_, _tracing_ and _metrics_. MailKit supports _tracing_ and _metrics_, through its [`Telemetry.SmtpClient` class](https://github.com/jstedfast/MailKit/blob/master/MailKit/Telemetry.cs#L112-L189). When adding _health checks_, you should use any established or existing health checks where possible. Otherwise, you might consider implementing your own in the integration. Replace the `Class1.cs` file with the following code to the `MailKit.Client` project in rename it as `MailKitClientSettings.cs`:
 
-```csharp title="C# — MailKitClientSettings.cs"
+```csharp title="MailKitClientSettings.cs"
 using System.Data.Common;
 
 namespace MailKit.Client;
@@ -184,7 +184,7 @@ If neither of these values are provided, an exception is thrown.
 
 The goal of Aspire integrations is to expose the underlying client library to consumers through dependency injection. With MailKit and for this example, the `SmtpClient` class is what you want to expose. You're not wrapping any functionality, but rather mapping configuration settings to an `SmtpClient` class. It's common to expose both standard and keyed-service registrations for integrations. Standard registrations are used when there's only one instance of a service, and keyed-service registrations are used when there are multiple instances of a service. Sometimes, to achieve multiple registrations of the same type you use a factory pattern. Add the following code to the `MailKit.Client` project in a file named `MailKitClientFactory.cs`:
 
-```csharp title="C# — MailKitClientFactory.cs"
+```csharp title="MailKitClientFactory.cs"
 using MailKit.Net.Smtp;
 
 namespace MailKit.Client;
@@ -235,7 +235,7 @@ public sealed class MailKitClientFactory(MailKitClientSettings settings)
 
 The `MailKitClientFactory` class is a factory that creates an `ISmtpClient` instance based on the configuration settings. It's responsible for returning an `ISmtpClient` implementation that has an active connection to a configured SMTP server. Next, you need to expose the functionality for the consumers to register this factory with the dependency injection container. Add the following code to the `MailKit.Client` project in a file named `MailKitExtensions.cs`:
 
-```csharp title="C# — MailKitExtensions.cs"
+```csharp title="MailKitExtensions.cs"
 using MailKit;
 using MailKit.Client;
 using MailKit.Net.Smtp;
@@ -394,7 +394,7 @@ The registration of health checks, and telemetry are described in a bit more det
 
 [Health checks](/fundamentals/health-checks/) are a way to monitor the health of an integration. With MailKit, you can check if the connection to the SMTP server is healthy. Add the following code to the `MailKit.Client` project in a file named `MailKitHealthCheck.cs`:
 
-```csharp title="C# — MailKitHealthCheck.cs"
+```csharp title="MailKitHealthCheck.cs"
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace MailKit.Client;
@@ -443,7 +443,7 @@ if (settings.DisableHealthChecks is false)
 }
 ```
 
-The consumer could choose to omit health checks by setting the `DisableHealthChecks` property to `true` in the configuration. A common pattern for integrations is to have optional features and Aspire integrations strongly encourages these types of configurations. For more information on health checks and a working sample that includes a user interface, see [Aspire ASP.NET Core HealthChecksUI sample](https://github.com/dotnet/aspire-samples/tree/main/samples/health-checks-ui).
+The consumer could choose to omit health checks by setting the `DisableHealthChecks` property to `true` in the configuration. A common pattern for integrations is to have optional features and Aspire integrations strongly encourages these types of configurations. For more information on health checks and a working sample that includes a user interface, see [Aspire ASP.NET Core HealthChecksUI sample](https://github.com/microsoft/aspire-samples/tree/main/samples/health-checks-ui).
 
 ### Wire up telemetry
 
@@ -492,7 +492,7 @@ dotnet add package Scalar.AspNetCore --project ./MailDevResource.NewsletterServi
 
 The final step is to replace the existing `Program.cs` file in the `MailDevResource.NewsletterService` project with the following C# code:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using System.Net.Mail;
 using MailKit.Client;
 using MailKit.Net.Smtp;
@@ -562,7 +562,7 @@ The most notable changes in the preceding code are:
 
 Back in the `AppHost.cs` file, update it to configure the scalar API reference endpoint:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var maildev = builder.AddMailDev("maildev");
@@ -580,7 +580,7 @@ builder.Build().Run();
 
 ## Run the sample
 
-Now that you've created the MailKit client integration and updated the Newsletter service to use it, you can run the sample. From your IDE, select <Kbd mac="F5" windows="F5" /> or run `aspire run` from the root directory of the solution to start the application—you should see the [Aspire dashboard](/dashboard/overview/):
+Now that you've created the MailKit client integration and updated the Newsletter service to use it, you can run the sample. From your IDE, select <Kbd mac="F5" windows="F5" /> or run [`aspire run`](/reference/cli/commands/aspire-run/) from the root directory of the solution to start the application—you should see the [Aspire dashboard](/dashboard/overview/):
 
 <ThemeImage dark={maildevWithNewsletterDashboard} light={maildevWithNewsletterDashboardLight} alt="Aspire dashboard: MailDev and Newsletter resources running." />
 
@@ -596,7 +596,7 @@ Repeat this several times, to add multiple email addresses. You should see the e
 
 <ThemeImage dark={maildevEmails} light={maildevEmailsLight} alt="MailDev inbox with multiple emails." />
 
-Stop the application by selecting <Kbd mac="Command+C" windows="Control+C" /> in the terminal window where the application is running, or by selecting the stop button in your IDE.
+Stop the application by selecting <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> in the terminal window where the application is running, or by selecting the stop button in your IDE.
 
 ### View MailKit telemetry
 
@@ -611,7 +611,7 @@ Open up the Scalar UI again, and make some requests to the `/subscribe` and `/un
 
 In this article, you learned how to create an Aspire integration that uses MailKit to send emails. You also learned how to integrate this integration into the Newsletter app you previously built. You learned about the core principles of Aspire integrations, such as exposing the underlying client library to consumers through dependency injection, and how to add health checks and telemetry to the integration. You also learned how to update the Newsletter service to use the MailKit client.
 
-Go forth and build your own Aspire integrations. If you believe that there's enough community value in the integration you're building, consider publishing it as a [NuGet package](https://learn.microsoft.com/dotnet/standard/library-guidance/nuget) for others to use. Furthermore, consider submitting a pull request to the [Aspire GitHub repository](https://github.com/dotnet/aspire) for consideration to be included in the official Aspire integrations.
+Go forth and build your own Aspire integrations. If you believe that there's enough community value in the integration you're building, consider publishing it as a [NuGet package](https://learn.microsoft.com/dotnet/standard/library-guidance/nuget) for others to use. Furthermore, consider submitting a pull request to the [Aspire GitHub repository](https://github.com/microsoft/aspire) for consideration to be included in the official Aspire integrations.
 
 ## Next steps
 

@@ -9,10 +9,7 @@ export const TitleParagraph = () => html`
   </p>
   <p>
     Before starting a new translation, please read our
-    <a
-      href="https://github.com/microsoft/aspire.dev/blob/main/CONTRIBUTING.md#translating-starlights-docs"
-      >translation guide</a
-    >
+    <a href="/community/translation-guide/">translation guide</a>
     to learn about our translation process and how you can get involved.
   </p>
 `;

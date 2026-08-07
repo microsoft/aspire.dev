@@ -1,0 +1,75 @@
+---
+/**
+ * MemberSignatureName — shared component for rendering a member's
+ * name + parameter types with consistent formatting.
+ *
+ * - 0 or 1 param: rendered inline as `Name()` or `Name(Type)`
+ * - 2+ params: name with `(` on the first line, each param indented
+ *   on its own line, closing `)` at the end of the last param
+ *
+ * Uses the `splitMemberSignature` utility so callers don't need
+ * to duplicate any parsing logic.
+ */
+import type { MemberSignatureParts } from '@utils/packages';
+
+interface Props {
+  sig: MemberSignatureParts;
+  class?: string;
+}
+
+const { sig, class: className } = Astro.props;
+
+const hasMultipleParams = sig.params !== null && sig.params.length > 1;
+---
+
+{hasMultipleParams ? (
+  <code class:list={['msn', className]}>
+    <span class="msn-name">{sig.name}(</span>
+    <span class="msn-param-list">
+      {sig.params!.map((p, i) => (
+        <span class="msn-param">{p}{i < sig.params!.length - 1 ? ',' : ')'}</span>
+      ))}
+    </span>
+  </code>
+) : (
+  <code class:list={['msn msn-inline', className]}>{sig.flat}</code>
+)}
+
+<style>
+  .msn {
+    display: block;
+    background: none;
+    padding: 0;
+    min-width: 0;
+  }
+  .msn-name {
+    font-weight: inherit;
+    white-space: nowrap;
+  }
+  .msn-param-list {
+    display: block;
+    padding-left: 4ch;
+  }
+  .msn-param {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 400;
+    color: var(--sl-color-gray-2);
+  }
+  .msn-inline {
+    background: none;
+    padding: 0;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 480px) {
+    .msn-param-list {
+      padding-left: 2ch;
+    }
+    .msn-param {
+      font-size: 0.9em;
+    }
+  }
+</style>

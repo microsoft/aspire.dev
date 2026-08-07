@@ -1,0 +1,236 @@
+---
+title: How Aspire deployment works
+description: Learn how Aspire deployment works — targets add pipeline steps, commands enter the pipeline, and components compose into a publishable artifact for any environment.
+---
+
+import {
+  CardGrid,
+  LinkCard,
+  TabItem,
+  Tabs,
+} from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Aspire deployment is pipeline-based. Add a deployment target to your AppHost, and Aspire gains the steps needed for that target. `aspire publish`, `aspire deploy`, and `aspire do <step>` are different ways of entering that pipeline.
+
+## The Aspire deployment model
+
+Deployment behavior doesn't live outside the AppHost. It comes from resources in the application model. Any resource can contribute pipeline steps, but target resources such as Docker Compose, Kubernetes, and Azure environments are the most common way to add deployment behavior. You usually make a target available by adding the corresponding hosting integration package, then adding its target resource to the AppHost.
+
+### Resources add pipeline steps
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("env");
+
+builder.AddProject<Projects.Api>("api");
+
+builder.Build().Run();
+
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addDockerComposeEnvironment('env');
+
+await builder.addProject('api', '../Api/Api.csproj');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+In this example, the Docker Compose environment resource contributes the steps needed to publish or deploy compatible compute resources for Docker Compose. Other resources can contribute different steps, but they all plug into the same pipeline model.
+
+<LearnMore>
+  For a step-by-step walkthrough of adding a target and deploying an app, see
+  [Deploy your first Aspire app](/get-started/deploy-first-app/).
+</LearnMore>
+
+## Pipeline entry points
+
+A pipeline step is a named unit of work in the Aspire pipeline. Any resource can contribute steps and declare dependencies so Aspire can run work in the correct order.
+
+| Command                                                     | What it enters                    | What it is for                                                                             |
+| ----------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------ |
+| [`aspire publish`](/reference/cli/commands/aspire-publish/) | The publish entry point           | Emit target-specific artifacts as a one-way handoff, preserving unresolved parameters      |
+| [`aspire deploy`](/reference/cli/commands/aspire-deploy/)   | The deploy entry point            | Generate target-specific output, resolve parameters, and apply deployment changes directly |
+| [`aspire do <step>`](/reference/cli/commands/aspire-do/)    | A named step and its dependencies | Run a specific step directly                                                               |
+
+If no resource contributes work for `publish` or `deploy`, Aspire has nothing to execute for that entry point. In current Aspire CLI builds, that entry point completes as a no-op. That usually means your AppHost hasn't added a target or other resource that contributes steps for that path yet.
+
+These are separate entry points. Use `aspire publish` when you want a one-way handoff out of Aspire: it emits artifacts that another tool or a manual step will apply later. Use `aspire deploy` when you want Aspire to stay in control, generate the target-specific output behind the scenes, resolve parameter values, and apply the deployment in one operation. `aspire deploy` does not consume previously published assets.
+
+<LearnMore>
+  For more information on pipeline concepts and `aspire do`, see
+  [Pipelines](/deployment/pipelines/) and the [aspire do
+  command](/reference/cli/commands/aspire-do/).
+</LearnMore>
+
+## Compute environments
+
+A **compute environment** is a resource that represents a deployment target and contributes steps for compatible compute resources such as projects, containers, and executables.
+
+Compute environments answer **where does this resource go?** Compatible compute resources attach to a matching compute environment by default. When you add more than one matching compute environment, you explicitly bind resources to the target environment that should own them.
+
+This makes hybrid deployments possible: different compute resources in the same AppHost can go to different targets while still participating in the same overall pipeline. One resource graph can produce different target-specific deployment output without duplicating topology in each deployment workflow.
+
+<LearnMore>
+  For concrete examples of compute environments, see [Docker
+  Compose](/deployment/docker-compose/), [Kubernetes](/deployment/kubernetes/),
+  and [Azure](/deployment/azure/).
+</LearnMore>
+
+## Parameters
+
+Parameters are the external values the pipeline needs from outside the AppHost, such as secrets, connection information, image names, or registry settings.
+
+Parameters connect AppHost code to pipeline behavior. In the publish path, the target preserves that requirement in emitted artifacts so another tool or manual step can provide the value later. In the deploy path, Aspire resolves the value internally while it generates and applies the deployment.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apiKey = builder.AddParameter("apiKey", secret: true);
+builder.AddDockerComposeEnvironment("env");
+
+builder.AddProject<Projects.Api>("api")
+    .WithEnvironment("API_KEY", apiKey);
+
+builder.Build().Run();
+
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const apiKey = await builder.addParameter('apiKey', { secret: true });
+await builder.addDockerComposeEnvironment('env');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withEnvironment('API_KEY', apiKey);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+In this example:
+
+- `apiKey` is the Aspire parameter name in the AppHost.
+- `API_KEY` is the environment variable the deployed app receives.
+- `Parameters__apiKey` is an environment variable you can use to supply the value to the AppHost when the pipeline runs.
+- `APIKEY` is the publish-time placeholder name Docker Compose emits in generated `.env` and `${...}` references.
+
+When the Docker Compose target publishes artifacts, the publish path preserves that relationship in target-specific output:
+
+```yaml title="docker-compose.yaml"
+services:
+  api:
+    image: '${API_IMAGE}'
+    environment:
+      API_KEY: '${APIKEY}'
+```
+
+```dotenv title=".env"
+# Parameter apiKey
+APIKEY=
+```
+
+In this Docker Compose output, the placeholder name is `APIKEY` rather than `API_KEY`. The app still receives `API_KEY`; `APIKEY` is only the generated publish-time placeholder that the emitted artifacts use later.
+
+The placeholder name in published output is target-specific, but the mapping stays the same:
+
+| Stage              | Example                | Meaning                                                                 |
+| ------------------ | ---------------------- | ----------------------------------------------------------------------- |
+| AppHost input      | `Parameters__apiKey`   | Supplies the `apiKey` parameter to the AppHost when the pipeline runs   |
+| Publish artifact   | `API_KEY: '${APIKEY}'` | Tells the target to inject the resolved value into the app as `API_KEY` |
+| Publish-time input | `APIKEY=...` in `.env` | Supplies the published artifact placeholder for Docker Compose          |
+
+This `.env` example is specific to Docker Compose publish output. It illustrates the **publish artifact handoff** path. `aspire deploy` does not consume this `.env` file; Aspire resolves the parameter before applying changes directly.
+
+Because this example has only one matching compute environment, the project resource attaches to it automatically. Use `WithComputeEnvironment` only when you need to disambiguate between multiple matching targets.
+
+Parameters answer **what values does this pipeline need?**
+
+<LearnMore>
+  For more information on parameter resolution and sources, see [External
+  parameters](/fundamentals/external-parameters/).
+</LearnMore>
+
+## Environments
+
+An Aspire environment identifies the context for a pipeline run, such as `Development`, `Staging`, or `Production`. It answers **which context is this pipeline running in?**
+
+Environments are distinct from compute environments:
+
+- **environment** = the context for this run
+- **compute environment** = the target resource that receives compatible compute resources
+
+Pass `--environment` when pipeline behavior or AppHost behavior should vary by context.
+
+```bash title="Aspire CLI"
+aspire publish --environment staging
+aspire deploy --environment production
+aspire do publish --environment staging
+```
+
+<LearnMore>
+  For more information, see [Environments](/deployment/environments/) and [CI/CD
+  overview](/deployment/ci-cd/).
+</LearnMore>
+
+## Built-in target capabilities
+
+| Integration                                                                                                      | Target                  | Publish | Deploy | Notes                                                   |
+| ---------------------------------------------------------------------------------------------------------------- | ----------------------- | ------- | ------ | ------------------------------------------------------- |
+| [📦 Aspire.Hosting.Docker](/integrations/compute/docker/)                                                        | Docker / Docker Compose | ✅ Yes  | ✅ Yes | Use generated Compose with your own scripts or tooling. |
+| [📦 Aspire.Hosting.Kubernetes](/integrations/compute/kubernetes/)                                                | Kubernetes              | ✅ Yes  | ✅ Yes | Deploy to any cluster via current `kubectl` context.    |
+| [📦 Aspire.Hosting.Azure.Kubernetes](/integrations/cloud/azure/aks/)                                            | Azure Kubernetes (AKS)  | ✅ Yes  | ✅ Yes | Full AKS provisioning and deploy via `aspire deploy`.   |
+| [📦 Aspire.Hosting.Azure.AppContainers](/integrations/cloud/azure/configure-container-apps/)                     | Azure Container Apps    | ✅ Yes  | ✅ Yes | Full publish and deploy support via `aspire deploy`.    |
+| [📦 Aspire.Hosting.Azure.AppService](/integrations/cloud/azure/azure-app-service/azure-app-service-get-started/) | Azure App Service       | ✅ Yes  | ✅ Yes | Full publish and deploy support via `aspire deploy`.    |
+
+Deploy support is target-specific. When a target doesn't support deploy, publish its artifacts and apply them with external tooling.
+
+<LearnMore>
+  Learn more about hosting integrations in the [Integrations
+  overview](/integrations/overview/).
+</LearnMore>
+
+## Continue learning
+
+<CardGrid>
+  <LinkCard
+    title="CI/CD overview"
+    description="See how the same Aspire pipeline fits into local validation and CI/CD workflows."
+    href="/deployment/ci-cd/"
+  />
+  <LinkCard
+    title="Pipelines"
+    description="Understand the underlying pipeline model and how named steps work."
+    href="/deployment/pipelines/"
+  />
+  <LinkCard
+    title="Custom deployment pipelines"
+    description="Extend the pipeline with custom steps, callbacks, and reporting APIs."
+    href="/deployment/custom-deployments/"
+  />
+  <LinkCard
+    title="JavaScript apps"
+    description="Choose the right production hosting model for JavaScript frontends."
+    href="/deployment/javascript-apps/"
+  />
+</CardGrid>

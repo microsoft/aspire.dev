@@ -49,6 +49,17 @@ export default [
     files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
   },
+  {
+    files: ['tests/e2e/**/*.ts'],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: ['tests/unit/**/*.ts', 'tests/typecheck/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+    },
+  },
 
   // Disable all formatting rules.
   prettierConfig,
@@ -83,6 +94,12 @@ export default [
       // fallbacks for some types that may not be accessible in some user environments, e.g. i18n
       // keys for plugins.
       '@typescript-eslint/no-redundant-type-constituents': 'off',
+    },
+  },
+  {
+    files: ['tests/typecheck/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 ];

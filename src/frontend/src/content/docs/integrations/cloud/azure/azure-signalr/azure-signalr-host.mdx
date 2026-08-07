@@ -1,0 +1,428 @@
+---
+title: Set up Azure SignalR Service in the AppHost
+description: Learn how to use the Aspire Azure SignalR Service hosting integration to orchestrate and configure an Azure SignalR Service resource in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import signalrIcon from '@assets/icons/azure-signalr-icon.png';
+
+<Image
+  src={signalrIcon}
+  alt="Azure SignalR Service icon"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the reference for the Aspire Azure SignalR Service hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure SignalR Service resource in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Azure SignalR Service integration, start with the [Get started with the Azure SignalR Service integration](/integrations/cloud/azure/azure-signalr/azure-signalr-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure SignalR Service](../azure-signalr-connect/).
+
+## Installation
+
+To start building an Aspire app that uses Azure SignalR Service, install the [📦 Aspire.Hosting.Azure.SignalR](https://www.nuget.org/packages/Aspire.Hosting.Azure.SignalR) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add azure-signalr
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Azure.SignalR@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.SignalR" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-signalr
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure SignalR Service hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.SignalR": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add Azure SignalR Service resource
+
+Once you've installed the hosting integration in your AppHost project, you can add an Azure SignalR Service resource as shown in the following examples:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var signalR = builder.AddAzureSignalR("signalr");
+
+var api = builder.AddProject<Projects.ApiService>("api")
+    .WithReference(signalR)
+    .WaitFor(signalR);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const signalR = await builder.addAzureSignalR("signalr");
+
+await builder.addProject("api", "../ApiService/ApiService.csproj")
+    .withReference(signalR)
+    .waitFor(signalR);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  When you call `AddAzureSignalR` (or `addAzureSignalR`), it implicitly calls
+  `AddAzureProvisioning` — which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+<Aside type="note">
+  When you reference an Azure SignalR Service resource from the AppHost, Aspire
+  makes the service endpoint available to the consuming project as environment
+  variables. For a complete list of these properties and per-language connection
+  examples, see [Connect to Azure SignalR Service](../azure-signalr-connect/).
+</Aside>
+
+## Azure SignalR Service modes
+
+Azure SignalR Service supports different service modes that affect how clients and servers communicate:
+
+- **Default mode** — client connections are proxied through the hub server. Traditional ASP.NET Core SignalR hubs work in this mode.
+- **Serverless mode** — there is no hub server; clients negotiate directly with the service and servers communicate via the REST API or Management SDK.
+
+For more information, see [Azure SignalR Service modes](https://learn.microsoft.com/azure/azure-signalr/concept-service-mode).
+
+### Set service mode
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+Pass the `AzureSignalRServiceMode` enum value when adding the resource:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var signalR = builder.AddAzureSignalR(
+    "signalr",
+    AzureSignalRServiceMode.Serverless);
+
+builder.AddProject<Projects.ApiService>("api")
+    .WithReference(signalR)
+    .WaitFor(signalR);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+The available modes are:
+
+- `AzureSignalRServiceMode.Default` — the default hub-server proxy mode.
+- `AzureSignalRServiceMode.Serverless` — no hub server; clients negotiate directly with the service.
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+The TypeScript `addAzureSignalR` API doesn't expose a service mode parameter. To configure Serverless mode in a TypeScript AppHost, use `configureInfrastructure` to modify the generated Bicep:
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const signalR = await builder.addAzureSignalR("signalr");
+await signalR.configureInfrastructure(async (infra) => {
+    // Use infra.getProvisionableResources() to access the SignalRService object
+    // and set features[ServiceMode] = 'Serverless' on the Bicep resource.
+});
+
+await builder.build().run();
+```
+
+<Aside type="note">
+  `AzureSignalRServiceMode` is not available as a TypeScript parameter. Full
+  service mode configuration requires modifying the Bicep object model through
+  `configureInfrastructure`. See [Customize provisioning
+  infrastructure](#customize-provisioning-infrastructure) for an example.
+</Aside>
+
+</TabItem>
+</Tabs>
+
+:::important
+The Azure SignalR Service emulator only works in _Serverless_ mode. The `AddNamedAzureSignalR` method (used for Default mode hub servers) does not support the emulator.
+:::
+
+## Add Azure SignalR Service emulator resource
+
+The Azure SignalR Service emulator allows local development and testing without requiring an Azure subscription. The emulator only supports [_Serverless_ mode](https://learn.microsoft.com/azure/azure-signalr/concept-service-mode#serverless-mode).
+
+To use the emulator, chain a call to `RunAsEmulator` (or `runAsEmulator`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var signalR = builder.AddAzureSignalR("signalr", AzureSignalRServiceMode.Serverless)
+    .RunAsEmulator();
+
+builder.AddProject<Projects.ApiService>("api")
+    .WithReference(signalR)
+    .WaitFor(signalR);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const signalR = await builder.addAzureSignalR("signalr")
+    .runAsEmulator();
+
+await builder.addProject("api", "../ApiService/ApiService.csproj")
+    .withReference(signalR)
+    .waitFor(signalR);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The `RunAsEmulator` call configures the Azure SignalR Service resource to use the `mcr.microsoft.com/signalr/signalr-emulator:latest` container image for local development. The emulator is started when the AppHost runs and stopped when it stops.
+
+## Connect to an existing Azure SignalR instance
+
+You might have an existing Azure SignalR Service that you want to connect to. Use `AsExisting` (or `asExisting`) to annotate that your `AzureSignalRResource` is an existing resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingSignalRName = builder.AddParameter("existingSignalRName");
+var existingSignalRResourceGroup = builder.AddParameter("existingSignalRResourceGroup");
+
+var signalR = builder.AddAzureSignalR("signalr")
+    .AsExisting(existingSignalRName, existingSignalRResourceGroup);
+
+builder.AddProject<Projects.ApiService>("api")
+    .WithReference(signalR);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const existingName = await builder.addParameter("existingSignalRName");
+const existingRG = await builder.addParameter("existingSignalRResourceGroup");
+
+const signalR = await builder.addAzureSignalR("signalr")
+    .asExisting(existingName, { resourceGroup: existingRG });
+
+await builder.addProject("api", "../ApiService/ApiService.csproj")
+    .withReference(signalR);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+For more information on treating Azure SignalR resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+<Aside type="note">
+  Alternatively, instead of representing an Azure SignalR resource, you can add
+  a connection string to the AppHost. This approach is weakly-typed and doesn't
+  work with role assignments or infrastructure customizations.
+</Aside>
+
+## Provisioning-generated Bicep
+
+When you add an Azure SignalR Service resource, Aspire generates provisioning infrastructure using [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview). The generated Bicep includes defaults for location, SKU, and role assignments:
+
+```bicep title="signalr.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+resource signalr 'Microsoft.SignalRService/signalR@2024-03-01' = {
+  name: take('signalr-${uniqueString(resourceGroup().id)}', 63)
+  location: location
+  properties: {
+    cors: {
+      allowedOrigins: [
+        '*'
+      ]
+    }
+    disableLocalAuth: true
+    features: [
+      {
+        flag: 'ServiceMode'
+        value: 'Default'
+      }
+    ]
+  }
+  kind: 'SignalR'
+  sku: {
+    name: 'Free_F1'
+    capacity: 1
+  }
+  tags: {
+    'aspire-resource-name': 'signalr'
+  }
+}
+
+output hostName string = signalr.properties.hostName
+
+output name string = signalr.name
+```
+
+The preceding Bicep provisions an Azure SignalR Service resource. Additionally, role assignments are created in a separate module:
+
+```bicep title="signalr-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param signalr_outputs_name string
+
+param principalType string
+
+param principalId string
+
+resource signalr 'Microsoft.SignalRService/signalR@2024-03-01' existing = {
+  name: signalr_outputs_name
+}
+
+resource signalr_SignalRAppServer 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(signalr.id, principalId, subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '420fcaa2-552c-430f-98ca-3264be4806c7'))
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '420fcaa2-552c-430f-98ca-3264be4806c7')
+    principalType: principalType
+  }
+  scope: signalr
+}
+```
+
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Direct edits to the Bicep file will be overwritten, so make changes through the C# provisioning APIs.
+
+### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables customization of the generated Bicep through the `ConfigureInfrastructure` API:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureSignalR("signalr")
+    .ConfigureInfrastructure(infra =>
+    {
+        var signalRService = infra.GetProvisionableResources()
+                                  .OfType<SignalRService>()
+                                  .Single();
+
+        signalRService.Sku.Name = "Premium_P1";
+        signalRService.Sku.Capacity = 10;
+        signalRService.PublicNetworkAccess = "Enabled";
+        signalRService.Tags.Add("ExampleKey", "Example value");
+    });
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addAzureSignalR("signalr")
+    .configureInfrastructure(async (infra) => {
+        // Use infra to customize the generated Bicep
+    });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The preceding C# code:
+
+- Retrieves the single `SignalRService` resource from the provisionable resources.
+- Sets the SKU name to `Premium_P1` and capacity to `10`.
+- Enables public network access.
+- Adds a tag with a key of `ExampleKey` and a value of `Example value`.
+
+For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+
+## Connection properties
+
+When you reference an Azure SignalR Service resource using `WithReference` (or `withReference`), the following connection property is made available to the consuming project:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Uri`         | The endpoint URI for the SignalR service, with the format `https://{host}` in Azure (typically `https://<resource-name>.service.signalr.net`) or the emulator-provided endpoint when running locally |
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `signalr` becomes `SIGNALR_URI`.
+
+Additionally, Aspire sets `ConnectionStrings__signalr` (which maps to `ConnectionStrings:signalr` in .NET configuration), used by `AddNamedAzureSignalR` in Default mode hub server projects.
+
+For the full reference of connection properties and per-language connection examples, see [Connect to Azure SignalR Service](../azure-signalr-connect/).
+
+## Hosting integration health checks
+
+The Azure SignalR Service hosting integration doesn't register a container-based health check when connecting to the cloud service. When running the emulator locally, Aspire monitors the container lifecycle to determine readiness.
+
