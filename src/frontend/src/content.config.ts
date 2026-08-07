@@ -10,6 +10,36 @@ export const collections = {
     schema: docsSchema({
       extend: () =>
         z.object({
+          /**
+           * Announcement banner shown above the page via
+           * `src/components/starlight/Banner.astro`. Extends Starlight's
+           * built-in `banner` with declarative auto-expiry so version-update
+           * banners stop lingering forever once a reader has seen them.
+           *
+           * Starlight merges this via a Zod intersection, so `content`
+           * remains required and the extra keys below travel alongside it.
+           */
+          banner: z
+            .object({
+              /** Banner HTML content (as in Starlight's built-in schema). */
+              content: z.string(),
+              /**
+               * Absolute sunset date. Once it passes, the banner is hidden
+               * for **everyone**, regardless of whether they dismissed it.
+               * Use `YYYY-MM-DD` in frontmatter (e.g. `2026-09-01`). If the
+               * date is already past at build time the banner isn't rendered
+               * at all.
+               */
+              expiresOn: z.coerce.date().optional(),
+              /**
+               * Auto-hide the banner this many days after a reader first
+               * sees it — even if they never explicitly dismiss it. Tracked
+               * per-reader in `localStorage`, so it's independent of the
+               * absolute `expiresOn` sunset (either one hides the banner).
+               */
+              autoDismissAfterDays: z.number().int().positive().optional(),
+            })
+            .optional(),
           renderBlocking: z.string().optional(),
           giscus: z.boolean().optional().default(false),
           crumbs: z.boolean().optional().default(true),

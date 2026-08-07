@@ -2,20 +2,41 @@
 import { createHash } from 'node:crypto';
 import { Icon } from '@astrojs/starlight/components';
 
-const { banner } = Astro.locals.starlightRoute.entry.data;
+const bannerData = Astro.locals.starlightRoute.entry.data.banner as
+  | { content?: string; expiresOn?: Date; autoDismissAfterDays?: number }
+  | undefined;
 
-const bannerContent = banner?.content;
-const bannerHash = bannerContent
-  ? createHash('sha256').update(bannerContent).digest('hex').slice(0, 12)
-  : undefined;
+const bannerContent = bannerData?.content;
+
+// Absolute sunset date, if configured. When it's already past at build time we
+// skip rendering the banner entirely; the client check below covers the gap
+// between the sunset moment and the next rebuild.
+const expiresOnMs =
+  bannerData?.expiresOn instanceof Date && !Number.isNaN(bannerData.expiresOn.getTime())
+    ? bannerData.expiresOn.getTime()
+    : null;
+const expiredAtBuild = expiresOnMs !== null && Date.now() >= expiresOnMs;
+
+const autoDismissAfterDays =
+  typeof bannerData?.autoDismissAfterDays === 'number' && bannerData.autoDismissAfterDays > 0
+    ? bannerData.autoDismissAfterDays
+    : null;
+
+const bannerHash =
+  bannerContent && !expiredAtBuild
+    ? createHash('sha256').update(bannerContent).digest('hex').slice(0, 12)
+    : undefined;
 const bannerId = bannerHash ? `sl-banner-${bannerHash}` : undefined;
 const dismissKey = bannerHash
   ? `aspire.dev.banner.dismissed.${bannerHash}`
   : undefined;
+const firstSeenKey = bannerHash
+  ? `aspire.dev.banner.firstSeen.${bannerHash}`
+  : undefined;
 ---
 
 {
-  bannerContent && bannerId && dismissKey && (
+  bannerContent && bannerId && dismissKey && firstSeenKey && (
     <>
       <div
         id={bannerId}
@@ -37,7 +58,16 @@ const dismissKey = bannerHash
         </button>
       </div>
 
-      <script is:inline define:vars={{ bannerId, dismissKey }}>
+      <script
+        is:inline
+        define:vars={{ bannerId, dismissKey, firstSeenKey, expiresOnMs, autoDismissAfterDays }}
+      >
+        // Mirror of resolveBannerVisibility() in src/utils/banner-expiry.ts —
+        // kept inline because is:inline scripts can't import. The unit test in
+        // tests/unit/banner-expiry.vitest.test.ts locks down this logic; keep
+        // the two in sync when editing.
+        const MS_PER_DAY = 86400000;
+
         const initializeBanner = () => {
           const banner = document.getElementById(bannerId);
           if (!(banner instanceof HTMLElement)) return;
@@ -92,10 +122,47 @@ const dismissKey = bannerHash
             dismissed = false;
           }
 
+          let firstSeenMs = null;
+
+          try {
+            const stored = window.localStorage.getItem(firstSeenKey);
+            const parsed = stored === null ? NaN : Number.parseInt(stored, 10);
+            if (Number.isFinite(parsed)) firstSeenMs = parsed;
+          } catch {
+            firstSeenMs = null;
+          }
+
+          const now = Date.now();
+          const usesAutoDismiss =
+            typeof autoDismissAfterDays === 'number' && autoDismissAfterDays > 0;
+
+          let visible = true;
+          let persistFirstSeenMs = null;
+
           if (dismissed) {
-            setCollapsed(false);
-          } else {
+            visible = false;
+          } else if (typeof expiresOnMs === 'number' && now >= expiresOnMs) {
+            visible = false;
+          } else if (usesAutoDismiss) {
+            if (firstSeenMs === null) {
+              // First view: show it and start the reader's timer.
+              persistFirstSeenMs = now;
+            } else if (now >= firstSeenMs + autoDismissAfterDays * MS_PER_DAY) {
+              visible = false;
+            }
+          }
+
+          if (persistFirstSeenMs !== null) {
+            try {
+              window.localStorage.setItem(firstSeenKey, String(persistFirstSeenMs));
+            } catch {
+            }
+          }
+
+          if (visible) {
             showBanner();
+          } else {
+            setCollapsed(false);
           }
 
           if (banner.dataset.dismissInitialized === 'true') return;
