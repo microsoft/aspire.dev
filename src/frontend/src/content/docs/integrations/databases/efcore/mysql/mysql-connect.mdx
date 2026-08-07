@@ -41,7 +41,7 @@ For an introduction to the MySQL EF Core integration, see [Get started with the 
 
 In the `Program.cs` file of your client-consuming project, call the `AddMySqlDbContext` extension method on any `IHostApplicationBuilder` to register a `DbContext` for use via the dependency injection container. The method takes a connection name parameter.
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMySqlDbContext<MyDbContext>(connectionName: "mysqldb");
 ```
 
@@ -51,7 +51,7 @@ The `connectionName` parameter must match the name used when adding the MySQL da
 
 You can then retrieve the `MyDbContext` instance using dependency injection. For example, to retrieve the data source from an example service:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(MyDbContext context)
 {
     // Use the MySQL database context...
@@ -64,7 +64,7 @@ For more information on dependency injection, see [.NET dependency injection](ht
 
 You may prefer to use the standard Entity Framework method to obtain a database context and add it to the dependency injection container:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddDbContext<ExampleDbContext>(options =>
     options.UseMySql(builder.Configuration.GetConnectionString("mysqldb")
         ?? throw new InvalidOperationException("Connection string 'mysqldb' not found."), ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("mysqldb"))));
@@ -82,7 +82,7 @@ You have more flexibility when you create the database context in this way, for 
 
 If you use this method, you can enhance the database context with Aspire-style retries, health checks, logging, and telemetry features by calling the `EnrichMySqlDbContext` method:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.EnrichMySqlDbContext<ExampleDbContext>(
     configureSettings: settings =>
     {
@@ -140,13 +140,13 @@ The Aspire MySQL Pomelo EF Core integration provides multiple configuration appr
 
 When using a connection string from the `ConnectionStrings` configuration section, you provide the name of the connection string when calling `builder.AddMySqlDbContext()`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMySqlDbContext<ExampleDbContext>(connectionName: "mysqldb");
 ```
 
 The connection string is retrieved from the `ConnectionStrings` configuration section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "mysql": "Server=mysql;Database=mysqldb"
@@ -160,7 +160,7 @@ For more information on how to format this connection string, see [MySqlConnecto
 
 The Aspire MySQL EF Core integration supports `Microsoft.Extensions.Configuration` from configuration files such as `appsettings.json` by using the `Aspire:Pomelo:EntityFrameworkCore:MySql` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Pomelo": {
@@ -180,7 +180,7 @@ The Aspire MySQL EF Core integration supports `Microsoft.Extensions.Configuratio
 
 You can also pass the `Action<MySqlEntityFrameworkCoreSettings>` delegate to set up some or all the options inline, for example to disable health checks from code:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMySqlDbContext<ExampleDbContext>(
     "mysqldb",
     static settings => settings.DisableHealthChecks = true);

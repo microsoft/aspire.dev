@@ -62,7 +62,7 @@ Install the [📦 Aspire.Azure.Data.Tables](https://www.nuget.org/packages/Aspir
 
 In _Program.cs_, call `AddAzureTableServiceClient` on your `IHostApplicationBuilder` to register a `TableServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureTableServiceClient(connectionName: "tables");
 ```
 
@@ -72,7 +72,7 @@ The `connectionName` must match the Azure Table Storage resource name from the A
 
 Resolve the service client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(TableServiceClient client)
 {
     // Use client...
@@ -83,14 +83,14 @@ public class ExampleService(TableServiceClient client)
 
 To register multiple `TableServiceClient` instances with different connection names, use `AddKeyedAzureTableServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedAzureTableServiceClient(name: "tables1");
 builder.AddKeyedAzureTableServiceClient(name: "tables2");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("tables1")] TableServiceClient tablesClient1,
     [FromKeyedServices("tables2")] TableServiceClient tablesClient2)
@@ -107,13 +107,13 @@ The Aspire Azure Data Tables client integration offers multiple ways to provide 
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureTableServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureTableServiceClient("tables");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "tables": "DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=...;EndpointSuffix=core.windows.net"
@@ -123,7 +123,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureDataTablesSettings` from _appsettings.json_ (or any other configuration source) using the `Aspire:Azure:Data:Tables` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Azure": {
@@ -144,7 +144,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Inline delegates.** Pass an `Action<AzureDataTablesSettings>` to configure settings inline:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureTableServiceClient(
     "tables",
     settings => settings.DisableHealthChecks = true);
@@ -152,7 +152,7 @@ builder.AddAzureTableServiceClient(
 
 You can also configure the `TableClientOptions`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureTableServiceClient(
     "tables",
     configureClientBuilder: clientBuilder =>
@@ -188,7 +188,7 @@ The Aspire Azure Data Tables client integration automatically configures logging
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection string from the environment and construct a `TableServiceClient` directly using the [📦 Azure.Data.Tables](https://www.nuget.org/packages/Azure.Data.Tables/) NuGet package:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Azure.Data.Tables;
 
 var connectionString = Environment.GetEnvironmentVariable("TABLES_CONNECTIONSTRING");
@@ -215,7 +215,7 @@ go get github.com/Azure/azure-sdk-for-go/sdk/data/aztables
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -268,7 +268,7 @@ pip install azure-data-tables
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from azure.data.tables import TableServiceClient
 
@@ -299,7 +299,7 @@ npm install @azure/data-tables
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { TableServiceClient } from '@azure/data-tables';
 
 const connectionString = process.env.TABLES_CONNECTIONSTRING;

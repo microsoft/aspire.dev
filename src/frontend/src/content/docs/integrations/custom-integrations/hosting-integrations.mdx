@@ -24,7 +24,7 @@ Aspire improves the development experience by providing reusable building blocks
 
 Consider the code below:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddRedis("cache");
@@ -124,7 +124,7 @@ Select the dashboard link in the browser to see the Aspire dashboard:
 
 <ThemeImage dark={maildevEmptyDashboard} light={maildevEmptyDashboardLight} alt="A screenshot of the empty Aspire dashboard for test project." />
 
-Press <Kbd mac="Command+C" windows="Control+C" /> to shut down the app (you can close the browser tab).
+Press <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> to shut down the app (you can close the browser tab).
 
 ## Create library for resource extension
 
@@ -162,7 +162,7 @@ Aspire resources are just classes and methods contained within a class library t
 
 Once the following steps are performed, update the project reference in the `MailDevResource.AppHost.csproj` file to include an additional attribute to suppress a warning that appears when launching the AppHost. To tell Aspire that the project reference should be treated as a nonservice project modify the `MailDevResource.AppHost.csproj` file's reference to the `MailDev.Hosting` project to be the following:
 
-```xml title="XML — MailDevResource.AppHost.csproj" 'IsAspireProjectResource="false"'
+```xml title="MailDevResource.AppHost.csproj" 'IsAspireProjectResource="false"'
 <ItemGroup>
   <!-- The IsAspireProjectResource attribute tells Aspire to treat this
        reference as a standard project reference and not attempt to generate
@@ -178,7 +178,7 @@ This is because Aspire treats project references in the AppHost as if they're se
 
 The `MailDev.Hosting` class library contains the resource type and extension methods for adding the resource to the AppHost. You should first think about the experience that you want to give developers when using your custom resource. In the case of this custom resource, you would want developers to be able to write code like the following:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var maildev = builder.AddMailDev("maildev");
@@ -193,7 +193,7 @@ MailDev is available as a container resource, so you'll also want to derive from
 
 Replace the contents of the `Class1.cs` file in the `MailDev.Hosting` project, and rename the file to `MailDevResource.cs` with the following code:
 
-```csharp title="C# — MailDevResource.cs"
+```csharp title="MailDevResource.cs"
 // For ease of discovery, resource types should be placed in
 // the Aspire.Hosting.ApplicationModel namespace. If there is
 // likelihood of a conflict on the resource name consider using
@@ -235,7 +235,7 @@ To make it easy for developers to use the custom resource an extension method na
 
 Add the following code to a new file named `MailDevResourceBuilderExtensions.cs` in the `MailDev.Hosting` project:
 
-```csharp title="C# — MailDevResourceBuilderExtensions.cs"
+```csharp title="MailDevResourceBuilderExtensions.cs"
 using Aspire.Hosting.ApplicationModel;
 
 // Put extensions in the Aspire.Hosting namespace to ease discovery as referencing
@@ -303,7 +303,7 @@ This example uses MailDev version 2.2.1. Be sure to check the [MailDev Docker Hu
 
 Now that the basic structure for the custom resource is complete it's time to test it in a real AppHost project. Open the `AppHost.cs` file in the `MailDevResource.AppHost` project and update it with the following code:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var maildev = builder.AddMailDev("maildev");
@@ -371,7 +371,7 @@ In order to test the end-to-end scenario, you need a .NET project which we can i
 
 After the project has been added and references have been updated, open the `AppHost.cs` of the `MailDevResource.AppHost.csproj` project, and update the source file to look like the following:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var maildev = builder.AddMailDev("maildev");
@@ -392,7 +392,7 @@ The preceding screenshot shows the environment variables for the `newsletterserv
 
 To use the SMTP connection details that were injected into the newsletter service project, you inject an instance of `SmtpClient` into the dependency injection container as a singleton. Add the following code to the `Program.cs` file in the `MailDevResource.NewsletterService` project to set up the singleton service. In the `Program` class, immediately following the `// Add services to the container` comment, add the following code:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddSingleton<SmtpClient>(serviceProvider =>
 {
     var connectionString = builder.Configuration.GetConnectionString("maildev");
@@ -408,7 +408,7 @@ This code snippet relies on the official `SmtpClient`, however; this type is obs
 
 To test the client, add two simple `subscribe` and `unsubscribe` POST methods to the newsletter service. Add the following code replacing the "weatherforecast" `MapGet` call in the `Program.cs` file of the `MailDevResource.NewsletterService` project to set up the ASP.NET Core routes:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 app.MapPost("/subscribe", async (string email, SmtpClient client) =>
 {
     var message = new MailMessage("noreply@newsletter.local", email)
@@ -590,7 +590,7 @@ Steps Summary:
 
 Navigate to the output file specified in the command to inspect the manifest file. This command produces a manifest file like the following:
 
-```json title="JSON — aspire-manifest.json"
+```json title="aspire-manifest.json"
 {
   "resources": {
     "maildev": {
@@ -653,7 +653,7 @@ Aspire knows how to form this string because it looks at `IResourceWithConnectio
 
 The `MailDevResource` automatically gets included in the manifest because it's derived from `ContainerResource`. Resource authors can choose to suppress outputting content to the manifest by using the `ExcludeFromManifest` extension method on the resource builder.
 
-```diff lang="csharp" title="C# — MailDevResourceBuilderExtensions.cs"
+```diff lang="csharp" title="MailDevResourceBuilderExtensions.cs"
 public static IResourceBuilder<MailDevResource> AddMailDev(
     this IDistributedApplicationBuilder builder,
     string name,

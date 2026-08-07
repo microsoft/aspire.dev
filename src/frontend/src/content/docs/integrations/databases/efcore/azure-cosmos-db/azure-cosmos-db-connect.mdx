@@ -40,13 +40,13 @@ Install the [📦 Aspire.Microsoft.EntityFrameworkCore.Cosmos](https://www.nuget
 
 In _Program.cs_, call `AddCosmosDbContext` on your `IHostApplicationBuilder` to register a `DbContext` for use via the dependency injection container:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddCosmosDbContext<MyDbContext>("cosmosdb", "databaseName");
 ```
 
 Alternatively, the database name can be inferred from the connection when there is a single database in the connection string:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddCosmosDbContext<MyDbContext>("cosmosdb");
 ```
 
@@ -56,7 +56,7 @@ builder.AddCosmosDbContext<MyDbContext>("cosmosdb");
 
 Resolve the `DbContext` through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(MyDbContext context)
 {
     // Use context to interact with Cosmos DB...
@@ -69,14 +69,14 @@ For more information on using Entity Framework Core with Azure Cosmos DB, see th
 
 To register multiple `DbContext` instances with different connection names, use `AddKeyedCosmosDbContext`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedCosmosDbContext<CatalogDbContext>(name: "catalog", databaseName: "catalogdb");
 builder.AddKeyedCosmosDbContext<OrdersDbContext>(name: "orders", databaseName: "ordersdb");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("catalog")] CatalogDbContext catalogContext,
     [FromKeyedServices("orders")] OrdersDbContext ordersContext)
@@ -120,13 +120,13 @@ The Aspire EF Core Azure Cosmos DB integration offers multiple ways to provide c
 
 When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddCosmosDbContext`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddCosmosDbContext<MyDbContext>("CosmosConnection");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "CosmosConnection": "AccountEndpoint=https://{account_name}.documents.azure.com:443/;AccountKey={account_key};"
@@ -140,7 +140,7 @@ For more information, see the [ConnectionString documentation](https://learn.mic
 
 The integration supports `Microsoft.Extensions.Configuration`. It loads `EntityFrameworkCoreCosmosSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Microsoft:EntityFrameworkCore:Cosmos` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Microsoft": {
@@ -160,7 +160,7 @@ For the complete JSON schema, see [Aspire.Microsoft.EntityFrameworkCore.Cosmos/C
 
 Pass an `Action<EntityFrameworkCoreCosmosSettings>` to configure settings inline, for example to disable tracing:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddCosmosDbContext<MyDbContext>(
     "cosmosdb",
     settings => settings.DisableTracing = true);

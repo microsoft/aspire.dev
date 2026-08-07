@@ -22,6 +22,32 @@ export function isHomepage(Astro: AstroLike): boolean {
 }
 
 /**
+ * Build a locale-aware internal href for Starlight doc routes.
+ *
+ * `locale` is the Starlight route locale (`Astro.locals.starlightRoute.locale`),
+ * which is `undefined` for the default/English root and a locale segment such as
+ * `de` or `zh-cn` otherwise. External URLs, anchors, and hrefs that already start
+ * with the active locale segment are returned unchanged.
+ */
+export function localizedHref(path: string, locale?: string): string {
+  if (/^(https?:)?\/\//.test(path) || path.startsWith('#') || path.startsWith('mailto:')) {
+    return path;
+  }
+
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  if (!locale) {
+    return normalized;
+  }
+
+  const prefix = `/${locale}`;
+  if (normalized === prefix || normalized.startsWith(`${prefix}/`)) {
+    return normalized;
+  }
+
+  return `${prefix}${normalized}`;
+}
+
+/**
  * Shuffle an array using the Fisher-Yates algorithm.
  */
 export function shuffle<T>(array: T[]): T[] {

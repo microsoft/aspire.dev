@@ -338,11 +338,11 @@ Sidebar topics are defined in `config/sidebar/` as separate modules and aggregat
 
 ## Cookie Consent
 
-The site uses `@jop-software/astro-cookieconsent` with a box modal at bottom-right. The consent modal has three buttons: **"Accept all"**, **"Reject all"**, and **"Manage preferences"**. This is relevant when automating browser interactions — always dismiss the cookie modal first.
+The site uses Microsoft's **WCP** consent runtime (`wcp-consent.js`, loaded live from `wcpstatic.microsoft.com`), wired up in `src/components/starlight/Head.astro` and fully restyled by `src/styles/wcp-consent.css`. The banner is **geo-gated**: the CDN decides per region whether it appears, so where consent is not required (e.g. the US) **no banner shows** and the "Manage cookies" buttons are hidden (`html[data-consent-not-required]`). When it does appear (e.g. the EU) it is a **fixed strip at the top of the viewport** — not a bottom-right box — with **"Accept"**, **"Reject"**, and **"More info"** actions; "More info" opens a preferences dialog with per-category toggles and "Save changes" / "Reset all". Consent is persisted in the `MSCC` cookie. Because it is geo-gated, you usually will not see it in local/US automation — if it does appear, dismiss it first.
 
 ## Screenshots and Visual Verification with playwright-cli
 
-When making visual changes or preparing PR screenshots, use the `playwright-cli` skill to automate browser interaction. This site has a cookie consent modal that appears on first visit and **must be dismissed before taking screenshots**.
+When making visual changes or preparing PR screenshots, use the `playwright-cli` skill to automate browser interaction. This site _may_ show a WCP cookie banner on first visit, but it is **geo-gated** and usually absent in local/US runs — when it does appear (a fixed strip at the top of the viewport) **dismiss it before taking screenshots**.
 
 ### Workflow for Taking Screenshots
 
@@ -352,10 +352,11 @@ When making visual changes or preparing PR screenshots, use the `playwright-cli`
    playwright-cli open http://localhost:4321
    playwright-cli goto http://localhost:4321/path/to/page/
    ```
-3. **Dismiss the cookie consent modal first** — click the "Reject all" button:
+3. **Dismiss the cookie banner if one appears** — click the "Reject" button (often a
+   no-op locally, since the banner is geo-gated and typically does not render):
    ```bash
    playwright-cli snapshot
-   # Find the ref for the "Reject all" button in the snapshot
+   # If a banner is present, find the "Reject" ref in the snapshot and click it
    playwright-cli click <ref>
    ```
 4. Take the screenshot:
@@ -370,7 +371,7 @@ When making visual changes or preparing PR screenshots, use the `playwright-cli`
    playwright-cli screenshot --filename=mobile.png
    ```
 
-Always dismiss the cookie modal before any screenshot or visual verification. The "Reject all" button avoids setting unnecessary cookies during development.
+If a banner is present, dismiss it before any screenshot or visual verification. The "Reject" button avoids setting unnecessary cookies during development; in local/US runs no banner appears, so this step is usually unnecessary.
 
 ## Accessibility and Inclusive Writing
 
