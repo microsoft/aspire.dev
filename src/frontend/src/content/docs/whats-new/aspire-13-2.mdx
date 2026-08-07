@@ -1235,14 +1235,14 @@ A subset of these renames first shipped in [13.1](/whats-new/aspire-13-1/#connec
 | `Model`           | `ModelName`       | `OpenAIModel`, `AzureOpenAIDeployment`, `FoundryDeployment`, `GitHubModel` |
 | `ConsumerGroup`   | `ConsumerGroupName` | `AzureEventHubConsumerGroup` |
 
-Aspire serializes property names directly into environment variable names with the `[RESOURCE]_[PROPERTY]` pattern — the resource name is uppercased and any hyphens or dots in it are replaced with underscores — so any consuming app that reads the renamed properties from the environment must use the new names. For example, a SQL Server database resource named `sqldb`:
+When Aspire injects a connection property with the `[RESOURCE]_[PROPERTY]` pattern, it transforms the two parts differently. For the resource-name prefix, Aspire replaces each character that isn't an ASCII letter or digit with an underscore, prefixes an underscore when the name starts with a digit, and uppercases the result. For the property suffix, Aspire only uppercases the property key. Any consuming app that reads the renamed properties from the environment must use the new names. For example, a SQL Server database resource named `sqldb`:
 
 ```diff title="Environment variable"
 - SQLDB_DATABASE=catalog
 + SQLDB_DATABASENAME=catalog
 ```
 
-The renamed suffix flows through that same transformation, so an Event Hubs consumer group resource named `orders-cg` surfaces its `ConsumerGroupName` property as the `ORDERS_CG_CONSUMERGROUPNAME` environment variable.
+For an Event Hubs consumer group resource named `orders-cg`, the resource-name encoder produces `ORDERS_CG`; separately, uppercasing the `ConsumerGroupName` property key produces `CONSUMERGROUPNAME`. Aspire joins them as `ORDERS_CG_CONSUMERGROUPNAME`.
 
 Update consuming app code that reads the variable directly:
 
