@@ -34,6 +34,18 @@ This command is useful for troubleshooting when you encounter issues with Aspire
 - **SDK checks**: Verifies .NET SDK installation and version requirements
 - **Container checks**: Validates container runtime (Docker and/or Podman) availability, running status, and version. Reports which runtime is active and why (explicit configuration, auto-detected default, or auto-detected only runtime running)
 - **Environment checks**: Reports operating system information (type, version, and Linux distro details when available) and validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun)
+- **Development tools checks**: When VS Code is detected, reports whether the [Aspire VS Code extension](https://aka.ms/aspire/vscode-extension) is installed
+
+<Aside type="note">
+  The development tools check only runs when VS Code is detected, using the
+  same signals the CLI already relies on: the `TERM_PROGRAM=vscode`
+  environment variable (VS Code's integrated terminal) or `code`/`code-insiders`
+  on `PATH`. If VS Code isn't detected, the check is skipped and adds no
+  output. When VS Code is detected but the Aspire extension
+  (`microsoft-aspire.aspire-vscode`) isn't installed, `aspire doctor` reports a
+  warning with a link to install it from the Marketplace. When the extension is
+  already installed, the check passes.
+</Aside>
 
 <Aside type="note">
   On Linux, `aspire doctor` reports a warning when `certutil` is unavailable.
@@ -165,6 +177,14 @@ Container Runtime
 The active runtime is annotated with `← active`. Other detected runtimes are
 shown with `(available)`.
 
+When VS Code is detected but the Aspire extension isn't installed, the Development tools section reports a warning:
+
+```bash title="Aspire CLI"
+Development tools
+  ⚠️ VS Code is installed, but the Aspire extension is not installed
+       Install the Aspire extension from the VS Code Marketplace for an integrated Aspire experience.
+```
+
 ## Exit codes
 
 The command returns the following exit codes:
@@ -226,6 +246,26 @@ When using the `--format Json` option, the output includes a structured response
   }
 }
 ```
+
+When VS Code is detected, the checks include a `devtools` category entry named `vscode-extension`. It reports `"status": "warning"` when the [Aspire VS Code extension](https://aka.ms/aspire/vscode-extension) isn't installed, and `"status": "pass"` when it is. Its `metadata` includes `vsCodeInstalled`, `extensionInstalled`, and `extensionId`:
+
+```json title="JSON output"
+{
+  "category": "devtools",
+  "name": "vscode-extension",
+  "status": "warning",
+  "message": "VS Code is installed, but the Aspire extension is not installed",
+  "fix": "Install the Aspire extension from the VS Code Marketplace for an integrated Aspire experience.",
+  "link": "https://aka.ms/aspire/vscode-extension",
+  "metadata": {
+    "vsCodeInstalled": true,
+    "extensionInstalled": false,
+    "extensionId": "microsoft-aspire.aspire-vscode"
+  }
+}
+```
+
+This check is omitted entirely when VS Code isn't detected on the machine.
 
 When the CLI is out of date, the `cli-version` check has `"status": "warning"` and the `metadata` includes the latest available version:
 
