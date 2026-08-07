@@ -281,6 +281,27 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'get-started/install-cli',
             },
             {
+              label: 'Development certificates',
+              translations: {
+                da: 'Udviklingscertifikater',
+                de: 'Entwicklungszertifikate',
+                en: 'Development certificates',
+                es: 'Certificados de desarrollo',
+                fr: 'Certificats de développement',
+                hi: 'विकास प्रमाणपत्र',
+                id: 'Sertifikat pengembangan',
+                it: 'Certificati di sviluppo',
+                ja: '開発証明書',
+                ko: '개발 인증서',
+                'pt-BR': 'Certificados de desenvolvimento',
+                ru: 'Сертификаты разработки',
+                tr: 'Geliştirme sertifikaları',
+                uk: 'Сертифікати розробки',
+                'zh-CN': '开发证书',
+              },
+              slug: 'get-started/developer-certificates',
+            },
+            {
               label: 'VS Code extension',
               translations: {
                 da: 'VS Code-udvidelse',
