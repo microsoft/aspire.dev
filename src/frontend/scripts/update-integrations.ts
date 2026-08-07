@@ -8,12 +8,14 @@ import {
   isOfficialAspirePackage,
   resolveOfficialAspirePackageSource,
 } from './aspire-package-source';
+import { normalizeAspireTerminology } from './aspire-terminology';
 
 const OFFICIAL_NUGET_ORG_QUERIES = ['owner:aspire', 'Aspire.Hosting.'];
 const OFFICIAL_RELEASE_FEED_QUERIES = ['Aspire.'];
 const COMMUNITY_TOOLKIT_QUERIES = ['CommunityToolkit.Aspire'];
 const EXCLUDED_PACKAGES = [
   'Aspire.Cli',
+  'Aspire.Hosting.Azure.AIFoundry',
   'Aspire.Hosting.IncrementalMigration',
   'Aspire.Hosting.NodeJs',
   'Aspire.Hosting.Testing',
@@ -254,9 +256,9 @@ export function resolveIconUrl(pkg: PackageRecord): string {
   }
 
   return (
-    pkg.iconUrl ||
     buildNuGetFlatContainerIconUrl(pkg.id, iconVersion) ||
     buildNuGetIconUrl(pkg.id, iconVersion) ||
+    pkg.iconUrl ||
     DEFAULT_NUGET_ICON_URL
   );
 }
@@ -284,9 +286,8 @@ function filterAndTransform(pkgs: PackageRecord[]): IntegrationOutput[] {
     })
     .map((pkg) => ({
       title: pkg.id,
-      description: pkg.description
-        ?.replace(/\bA \.NET Aspire\b/gi, 'An Aspire')
-        .replace(/\.NET Aspire/gi, 'Aspire'),
+      description:
+        pkg.description === undefined ? undefined : normalizeAspireTerminology(pkg.description),
       icon: resolveIconUrl(pkg),
       href: `https://www.nuget.org/packages/${pkg.id}`,
       tags: pkg.tags?.map((tag) => tag.toLowerCase()) ?? [],

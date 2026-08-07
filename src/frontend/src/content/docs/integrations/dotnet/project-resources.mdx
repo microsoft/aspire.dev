@@ -42,7 +42,7 @@ For single-file apps or quick experiments that don't need a `ProjectReference`, 
 
 Start by adding a `ProjectReference` from the AppHost to the target project:
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <ItemGroup>
   <ProjectReference Include="..\ApiService\ApiService.csproj" />
 </ItemGroup>
@@ -50,7 +50,7 @@ Start by adding a `ProjectReference` from the AppHost to the target project:
 
 When the AppHost builds, Aspire generates a metadata type in the `Projects` namespace for that reference. Use the generated type with `AddProject`:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.ApiService>("api");
@@ -65,7 +65,7 @@ The path to the project comes from the `ProjectReference`, so `AddProject` doesn
 
 In a TypeScript AppHost, pass the path to the `.csproj` file directly — no `ProjectReference` in the AppHost project file is needed:
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -84,7 +84,7 @@ Project resources participate fully in the Aspire application model. You can ref
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache");
@@ -100,7 +100,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -125,7 +125,7 @@ The referenced project receives connection strings and service discovery informa
 
 Project resources read launch profiles from the target project's _launchSettings.json_ file:
 
-```json title="JSON — launchSettings.json"
+```json title="launchSettings.json"
 {
   "$schema": "http://json.schemastore.org/launchsettings.json",
   "profiles": {
@@ -151,7 +151,7 @@ Use the `launchProfileName` option when you want a specific profile:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.InventoryService>(
@@ -162,7 +162,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -187,7 +187,7 @@ To force a project resource to run without a launch profile, pass `launchProfile
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.InventoryService>(
@@ -208,14 +208,14 @@ The `applicationUrl` values in a project's _launchSettings.json_ are the project
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 builder.AddProject<Projects.Networking_Frontend>("frontend")
     .WithHttpEndpoint(port: 5066)
     .WithHttpsEndpoint(port: 7239);
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
     .withHttpEndpoint({ port: 5066 })
     .withHttpsEndpoint({ port: 7239 });
@@ -227,7 +227,7 @@ If there's no _launchSettings.json_ file or selected launch profile, project res
 
 When you want to ignore launch profile endpoints or prefer Kestrel endpoint configuration, use the `configure` callback. For ASP.NET Core projects, Aspire can also read endpoint information from Kestrel configuration:
 
-```json title="JSON — appsettings.Development.json"
+```json title="appsettings.Development.json"
 {
   "Kestrel": {
     "Endpoints": {
@@ -248,7 +248,7 @@ With a Kestrel endpoint configured, remove any `applicationUrl` from _launchSett
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.InventoryService>(
@@ -264,7 +264,7 @@ builder.AddProject<Projects.InventoryService>(
 <TabItem id="typescript" label="TypeScript">
 The TypeScript AppHost doesn't currently expose a `configure` callback for `addProject`. To use Kestrel endpoints, call `withHttpsEndpoint()` directly and omit `launchProfileOrOptions` to prevent launch-profile endpoints from conflicting:
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -281,7 +281,7 @@ For ASP.NET Core projects, Aspire reads the selected launch profile and can crea
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.InventoryService>("inventoryservice")
@@ -289,7 +289,7 @@ builder.AddProject<Projects.InventoryService>("inventoryservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -314,14 +314,14 @@ When you define a host port for a project resource, Aspire assigns that host por
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 builder.AddProject<Projects.Networking_Frontend>("frontend")
     .WithHttpEndpoint(port: 5066)
     .WithReplicas(2);
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
     .withHttpEndpoint({ port: 5066 })
     .withReplicas(2);
@@ -347,13 +347,13 @@ Without `WithReplicas`, the proxy still fronts the project resource. The host po
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 builder.AddProject<Projects.Networking_Frontend>("frontend")
     .WithHttpEndpoint(port: 5066);
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
     .withHttpEndpoint({ port: 5066 });
 ```
@@ -375,13 +375,13 @@ If you omit the host port entirely, Aspire chooses random host and service ports
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 builder.AddProject<Projects.Networking_Frontend>("frontend")
     .WithHttpEndpoint();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
     .withHttpEndpoint();
 ```
@@ -401,7 +401,7 @@ Project resource endpoints follow default heuristics. Some endpoints are include
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 builder.AddProject<Projects.Networking_ApiService>("apiservice")
     .WithHttpsEndpoint()
     .WithHttpsEndpoint(port: 19227, name: "admin")
@@ -435,7 +435,7 @@ The C# and TypeScript AppHosts differ in how they reference .NET projects:
 
 In a C# AppHost, if you need a regular project reference that shouldn't become an Aspire resource, set `IsAspireProjectResource="false"` on the `ProjectReference`:
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <ProjectReference Include="..\MyProject\MyProject.csproj" IsAspireProjectResource="false" />
 ```
 
@@ -445,7 +445,7 @@ In a TypeScript AppHost, this concept doesn't apply — you only add resources y
 
 In a C# AppHost, if multiple projects would generate the same `Projects.*` type name, set `AspireProjectMetadataTypeName` on the `ProjectReference`:
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <ItemGroup>
   <ProjectReference Include="..\Microservice1\Presentation.Api\Presentation.Api.csproj"
                     AspireProjectMetadataTypeName="MicroService1" />
@@ -458,7 +458,7 @@ Then reference those generated types explicitly:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var microservice1 = builder.AddProject<Projects.MicroService1>("micro1");
@@ -470,7 +470,7 @@ builder.Build().Run();
 <TabItem id="typescript" label="TypeScript">
 The TypeScript AppHost doesn't use generated project types. Use the `.csproj` path directly for each project — name collisions don't apply:
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();

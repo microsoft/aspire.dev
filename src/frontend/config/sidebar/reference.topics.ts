@@ -1,6 +1,7 @@
 import type { StarlightSidebarTopicsUserConfig } from 'starlight-sidebar-topics';
 
 export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
+  id: 'reference',
   label: {
     en: 'Reference',
     es: 'Referencia',
@@ -492,6 +493,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'aspire resource',
               slug: 'reference/cli/commands/aspire-resource',
+            },
+            {
+              label: 'aspire resources',
+              slug: 'reference/cli/commands/aspire-resources',
             },
             {
               label: 'aspire restore',

@@ -22,6 +22,8 @@ This page describes how consuming apps connect to a Redis resource that's alread
 
 When you reference a Redis resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Redis client integration for automatic dependency injection, health checks, and telemetry.
 
+These connection properties are available when the AppHost models a typed Redis resource (for example, `AddRedis("cache")`) and references it from a consuming app. If the AppHost uses `AddConnectionString("cache")` or `addConnectionString("cache")`, consuming apps receive a single `ConnectionStrings` value (`ConnectionStrings:cache` / `ConnectionStrings__cache`) instead of deconstructed resource variables such as `CACHE_URI`, `CACHE_HOST`, and `CACHE_PORT`.
+
 ## Connection properties
 
 Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `cache` becomes `CACHE_URI`.
@@ -40,6 +42,29 @@ The Redis resource exposes the following connection properties:
 ```
 Uri: redis://:p%40ssw0rd1@localhost:6379
 ```
+
+## Environment variables and connection string formats
+
+The way Aspire exposes connection information depends on how the Redis resource is modeled in your AppHost:
+
+### Using `WithReference` (typed Redis resource)
+
+When your AppHost adds a typed Redis resource with `builder.AddRedis("cache")` and references it with `.WithReference(cache)`, Aspire injects **individual connection properties** as environment variables using the `[RESOURCE]_[PROPERTY]` format:
+
+- `CACHE_HOST` = hostname
+- `CACHE_PORT` = port number
+- `CACHE_PASSWORD` = password (if set)
+- `CACHE_URI` = full connection URI
+
+This is the **recommended approach** because Aspire manages the resource lifecycle, configuration, and provides typed client integrations.
+
+### Using `AddConnectionString` (external connection string)
+
+When your AppHost uses `builder.AddConnectionString("cache")` to reference an existing, pre-configured Redis instance outside Aspire's control, only a **single connection string** environment variable is injected:
+
+- `ConnectionStrings__cache` = the full connection string provided to `AddConnectionString`
+
+With this approach, there are **no individual property variables** (`CACHE_HOST`, `CACHE_PORT`, etc.). Consuming apps must parse the connection string themselves or use client libraries that accept a connection string directly.
 
 ## Connect from your app
 
@@ -60,7 +85,7 @@ Install the [📦 Aspire.StackExchange.Redis](https://www.nuget.org/packages/Asp
 
 In _Program.cs_, call `AddRedisClient` on your `IHostApplicationBuilder` to register an `IConnectionMultiplexer`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisClient(connectionName: "cache");
 ```
 
@@ -70,7 +95,7 @@ The `connectionName` must match the Redis resource name from the AppHost. For mo
 
 Resolve the connection multiplexer through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IConnectionMultiplexer connectionMux)
 {
     // Use connection multiplexer...
@@ -81,14 +106,14 @@ public class ExampleService(IConnectionMultiplexer connectionMux)
 
 To register multiple `IConnectionMultiplexer` instances with different connection names, use `AddKeyedRedisClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedRedisClient(name: "chat");
 builder.AddKeyedRedisClient(name: "queue");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("chat")] IConnectionMultiplexer chatMux,
     [FromKeyedServices("queue")] IConnectionMultiplexer queueMux)
@@ -105,13 +130,13 @@ The Aspire Redis client integration offers multiple ways to provide configuratio
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddRedisClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisClient("cache");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "cache": "localhost:6379"
@@ -123,7 +148,7 @@ For more information, see [Stack Exchange Redis configuration](https://stackexch
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `StackExchangeRedisSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:StackExchange:Redis` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "StackExchange": {
@@ -139,7 +164,7 @@ For more information, see [Stack Exchange Redis configuration](https://stackexch
 
 **Inline delegates.** Pass an `Action<StackExchangeRedisSettings>` to configure settings inline, for example to disable tracing:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisClient(
     "cache",
     static settings => settings.DisableTracing = true);
@@ -149,7 +174,7 @@ builder.AddRedisClient(
 
 Use `AddRedisClientBuilder` to configure Redis clients with a fluent API, which is especially useful when combining Redis with distributed caching or Azure authentication:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisClientBuilder("cache")
     .WithDistributedCache(options =>
     {
@@ -159,7 +184,7 @@ builder.AddRedisClientBuilder("cache")
 
 To enable Azure Entra ID authentication for Azure Cache for Redis, add the [📦 Aspire.Microsoft.Azure.StackExchangeRedis](https://www.nuget.org/packages/Aspire.Microsoft.Azure.StackExchangeRedis) NuGet package and chain a call to `WithAzureAuthentication()`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisClientBuilder("cache")
     .WithAzureAuthentication()
     .WithDistributedCache(options =>
@@ -172,7 +197,7 @@ builder.AddRedisClientBuilder("cache")
 
 Redis client connections support auto activation to prevent startup deadlocks and improve application reliability. Auto activation is disabled by default but can be enabled using the `DisableAutoActivation` option:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisClient("cache", c => c.DisableAutoActivation = false);
 ```
 
@@ -209,7 +234,7 @@ Redis also works with the Aspire distributed-caching and output-caching client i
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to [📦 StackExchange.Redis](https://www.nuget.org/packages/StackExchange.Redis/) directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using StackExchange.Redis;
 
 var connectionString = Environment.GetEnvironmentVariable("CACHE_URI");
@@ -230,7 +255,7 @@ go get github.com/redis/go-redis/v9
 
 Read the injected environment variable and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -264,7 +289,7 @@ pip install redis
 
 Read the injected environment variable and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import redis
 
@@ -286,7 +311,7 @@ npm install ioredis
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import Redis from 'ioredis';
 
 // Read Aspire-injected connection properties
@@ -301,7 +326,7 @@ await client.ping();
 
 Or use the connection URI directly:
 
-```typescript title="TypeScript — Connect with URI"
+```typescript title="Connect with URI"
 import Redis from 'ioredis';
 
 const client = new Redis(process.env.CACHE_URI!);

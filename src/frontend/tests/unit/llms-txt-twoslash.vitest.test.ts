@@ -1,12 +1,13 @@
 /**
- * Regression test for the patched starlight-llms-txt `customSelectors` option
- * (see `src/frontend/patches/starlight-llms-txt@0.8.1.patch`) and our wiring of
- * it in `astro.config.mjs`.
+ * Regression test for the starlight-llms-txt `customSelectors` option (a native
+ * plugin feature since v0.10.0, upstreamed from a local patch we used to carry)
+ * and our wiring of it in `astro.config.mjs`.
  *
  * Background: `expressive-code-twoslash` (configured in `ec.config.mjs`) wraps
  * tokens in TypeScript code blocks with hover popovers and other annotations.
- * Those annotations are valuable on the rendered site but, without the patch,
- * leak into the Markdown output that `starlight-llms-txt` produces for
+ * Those annotations are valuable on the rendered site but, without
+ * `customSelectors`, leak into the Markdown output that `starlight-llms-txt`
+ * produces for
  * `llms.txt` / `llms-full.txt` / `llms-small.txt`, corrupting the source code
  * we hand to LLM tooling.
  *
@@ -55,65 +56,65 @@ const ecConfigPath = path.join(frontendRoot, 'ec.config.mjs');
 const twoslashConfigPath = path.join(frontendRoot, 'config', 'twoslash.config.mjs');
 const auditHelperPath = path.join(frontendRoot, 'tests', 'unit', 'twoslash-blocks-audit.ts');
 
-// The behavior tests further down inline a copy of the patched plugin's
-// HTML → Markdown pipeline so they can run without Astro/Starlight's full
-// runtime. That's only meaningful if the patched plugin actually ships the
-// same mechanism we're modelling, and only meaningful if `astro.config.mjs`
-// actually passes our selector list to `starlightLlmsTxt({...})`. The two
-// sentinel suites below pin those two contracts so a dropped patch or a
-// removed call site fails CI rather than silently regressing the generated
-// `dist/llms*.txt` outputs. This mirrors the sentinel pattern established
-// in `llms-small-whitespace.vitest.test.ts`.
+// The behavior tests further down inline a copy of the plugin's HTML → Markdown
+// pipeline so they can run without Astro/Starlight's full runtime. That's only
+// meaningful if the plugin actually ships the same mechanism we're modelling,
+// and only meaningful if `astro.config.mjs` actually passes our selector list
+// to `starlightLlmsTxt({...})`. The two sentinel suites below pin those two
+// contracts so an upstream regression (e.g. the native `customSelectors`
+// feature being removed) or a removed call site fails CI rather than silently
+// regressing the generated `dist/llms*.txt` outputs. This mirrors the sentinel
+// pattern established in `llms-small-whitespace.vitest.test.ts`.
 
-describe('starlight-llms-txt customSelectors patch sentinel', () => {
-  test('patched entryToSimpleMarkdown.ts wires the customSelectorsLlmsTxt unified step', () => {
+describe('starlight-llms-txt customSelectors sentinel', () => {
+  test('entryToSimpleMarkdown.ts wires the customSelectorsLlmsTxt unified step', () => {
     const source = readFileSync(patchedEntryToSimpleMarkdownPath, 'utf8');
 
     expect(
       source,
-      'patched plugin should read customSelectors from the virtual project context',
+      'plugin should read customSelectors from the virtual project context',
     ).toContain('starlightLllmsTxtContext.customSelectors');
     expect(
       source,
-      'patched plugin should register a customSelectorsLlmsTxt unified step',
+      'plugin should register a customSelectorsLlmsTxt unified step',
     ).toMatch(/\.use\(function customSelectorsLlmsTxt\(/);
     expect(
       source,
-      'patched plugin should resolve full-output selectors into a fullSelectors bucket',
+      'plugin should resolve full-output selectors into a fullSelectors bucket',
     ).toMatch(/const fullSelectors\s*=/);
     expect(
       source,
-      'patched plugin should resolve small-output selectors into a smallSelectors bucket',
+      'plugin should resolve small-output selectors into a smallSelectors bucket',
     ).toMatch(/const smallSelectors\s*=/);
     expect(
       source,
-      'patched plugin should match nodes against the configured selectors',
+      'plugin should match nodes against the configured selectors',
     ).toMatch(/matches\(selector,\s*node\)/);
     expect(
       source,
-      'patched plugin should pick the active bucket from file.data.starlightLlmsTxt.minify',
+      'plugin should pick the active bucket from file.data.starlightLlmsTxt.minify',
     ).toMatch(/file\.data\.starlightLlmsTxt\.minify\s*\?\s*smallSelectors\s*:\s*fullSelectors/);
   });
 
-  test('patched types.ts declares the customSelectors option and the ProjectContext field', () => {
+  test('types.ts declares the customSelectors option and the ProjectContext field', () => {
     const source = readFileSync(patchedTypesPath, 'utf8');
 
     expect(
       source,
-      'patched types should expose the public option as a union of array and per-output object',
+      'types should expose the public option as a union of array and per-output object',
     ).toMatch(/customSelectors\?:\s*\n?\s*\|?\s*string\[\]\s*\n?\s*\|/);
     expect(
       source,
-      'patched types should non-optionally surface the option on ProjectContext',
+      'types should non-optionally surface the option on ProjectContext',
     ).toMatch(/customSelectors:\s*NonNullable<StarlightLllmsTextOptions\['customSelectors'\]>/);
   });
 
-  test('patched index.ts forwards opts.customSelectors into the project context', () => {
+  test('index.ts forwards opts.customSelectors into the project context', () => {
     const source = readFileSync(patchedIndexPath, 'utf8');
 
     expect(
       source,
-      'patched index should default opts.customSelectors to an empty array',
+      'index should default opts.customSelectors to an empty array',
     ).toContain('customSelectors: opts.customSelectors ?? []');
   });
 });
