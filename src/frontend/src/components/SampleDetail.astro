@@ -1,0 +1,925 @@
+---
+import { Badge, Icon } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import { Code } from 'astro-expressive-code/components';
+import type { Paragraph, PhrasingContent, Root, RootContent } from 'mdast';
+import { markdownToMdast } from 'satteri';
+
+import SampleReadmeBlocks from '@components/SampleReadmeBlocks.astro';
+import ThemeAwareImage from '@components/ThemeImage.astro';
+import { getStandaloneImageNodes, getThemeImageNodePair } from '@utils/sample-readme-images';
+import { tagLabel } from '@utils/sample-tags';
+import { stripReadmeTitle } from '@utils/sample-readme-headings';
+import {
+  appHostCodeLang,
+  appHostCodeTitle,
+  appHostIconName,
+  appHostLabel,
+  normalizeThemeImageAlt,
+  sampleDescriptionText,
+  stripSampleImageUrlSuffix,
+  type Sample,
+} from '@utils/samples';
+
+interface Props {
+  sample: Sample;
+  samplesHref: string;
+}
+
+const { sample, samplesHref } = Astro.props;
+
+const allImages = import.meta.glob<{ default: ImageMetadata }>(
+  '/src/assets/samples/**/*.{png,jpg,jpeg,gif,svg,webp}',
+  { eager: true }
+);
+
+type SampleImage =
+  | {
+      kind: 'single';
+      src: ImageMetadata;
+      alt: string;
+    }
+  | {
+      kind: 'theme';
+      light: ImageMetadata;
+      dark: ImageMetadata;
+      alt: string;
+    };
+
+function resolveReadmeImage(href: string): ImageMetadata | null {
+  if (!href.startsWith('~/assets/')) {
+    return null;
+  }
+
+  const importPath = stripSampleImageUrlSuffix(href).replace('~/assets/', '/src/assets/');
+  return allImages[importPath]?.default ?? null;
+}
+
+function getStandaloneImage(node: RootContent): SampleImage | null {
+  const imageNodes = getStandaloneImageNodes(node);
+  if (!imageNodes) {
+    return null;
+  }
+
+  const themePair = getThemeImageNodePair(imageNodes);
+  if (themePair) {
+    const light = resolveReadmeImage(themePair.light.url);
+    const dark = resolveReadmeImage(themePair.dark.url);
+    const alt = normalizeThemeImageAlt(
+      themePair.light.alt || themePair.dark.alt || `Screenshot of the ${sample.title} sample`
+    );
+
+    if (!light || !dark) {
+      const fallback = light ?? dark;
+      return fallback
+        ? {
+            kind: 'single',
+            src: fallback,
+            alt,
+          }
+        : null;
+    }
+
+    return {
+      kind: 'theme',
+      light,
+      dark,
+      alt,
+    };
+  }
+
+  if (imageNodes.length !== 1) {
+    return null;
+  }
+
+  const imageNode = imageNodes[0];
+  const image = resolveReadmeImage(imageNode.url);
+  if (!image) {
+    return null;
+  }
+
+  return {
+    kind: 'single',
+    src: image,
+    alt: imageNode.alt || `Screenshot of the ${sample.title} sample`,
+  };
+}
+
+function collectStandaloneImages(nodes: RootContent[]): SampleImage[] {
+  const images: SampleImage[] = [];
+
+  for (const node of nodes) {
+    const image = getStandaloneImage(node);
+    if (image) {
+      images.push(image);
+      continue;
+    }
+
+    if (node.type === 'list') {
+      for (const item of node.children) {
+        images.push(...collectStandaloneImages(item.children));
+      }
+    } else if (node.type === 'blockquote') {
+      images.push(...collectStandaloneImages(node.children));
+    }
+  }
+
+  return images;
+}
+
+function normalizeForCompare(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function paragraphPlainText(node: Paragraph): string {
+  const parts: string[] = [];
+  // Leaf phrasing nodes (`text`, `inlineCode`) carry their characters on
+  // `value`, so push it directly. Wrapping nodes (`emphasis`, `strong`,
+  // `delete`, `link`) hold their content only in `children`, so recurse to
+  // collect the inner text exactly once. A soft/hard break contributes a
+  // single space, matching the rendered output.
+  const walk = (nodes: PhrasingContent[] | undefined): void => {
+    if (!nodes) return;
+    for (const child of nodes) {
+      switch (child.type) {
+        case 'text':
+        case 'inlineCode':
+          parts.push(child.value);
+          break;
+        case 'emphasis':
+        case 'strong':
+        case 'delete':
+        case 'link':
+          walk(child.children);
+          break;
+        case 'break':
+          parts.push(' ');
+          break;
+        default:
+          if ('children' in child && Array.isArray(child.children)) {
+            walk(child.children as PhrasingContent[]);
+          }
+      }
+    }
+  };
+  walk(node.children);
+  return parts.join('');
+}
+
+function dropLeadingSummaryParagraph(
+  blocks: RootContent[],
+  summary: string | undefined
+): RootContent[] {
+  if (!summary) return blocks;
+  const summaryHead = normalizeForCompare(summary).slice(0, 80);
+  if (summaryHead.length < 20) return blocks;
+  const firstContent = blocks[0];
+  if (!firstContent || firstContent.type !== 'paragraph') return blocks;
+  const paragraphText = normalizeForCompare(paragraphPlainText(firstContent));
+  if (!paragraphText.startsWith(summaryHead)) return blocks;
+  return blocks.slice(1);
+}
+
+function paragraphIsShortLabel(node: RootContent): boolean {
+  if (node.type !== 'paragraph') return false;
+  const children = node.children;
+  // Only allow short inline content — no images, no links, no breaks.
+  for (const child of children) {
+    if (
+      child.type !== 'text' &&
+      child.type !== 'strong' &&
+      child.type !== 'emphasis' &&
+      child.type !== 'inlineCode' &&
+      child.type !== 'delete'
+    ) {
+      return false;
+    }
+  }
+  const text = paragraphPlainText(node).trim();
+  if (text.length === 0 || text.length > 60) return false;
+  // Treat a paragraph as a label when it has emphasis (most labels do) OR
+  // when it lacks trailing sentence punctuation. This avoids stripping a
+  // full sentence that happens to precede an extracted screenshot.
+  const hasEmphasis = children.some(
+    (child) => child.type === 'strong' || child.type === 'emphasis' || child.type === 'inlineCode'
+  );
+  if (hasEmphasis) return true;
+  return !/[.!?:]$/.test(text);
+}
+
+// Drop short label-style paragraphs that immediately precede a standalone
+// image. After `getStandaloneImage` extracts the image into the gallery, the
+// orphaned label paragraph is left behind in the README body as dangling
+// text with no associated image, which looks broken.
+function filterDanglingLabels(nodes: RootContent[]): RootContent[] {
+  const out: RootContent[] = [];
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+
+    if (paragraphIsShortLabel(node)) {
+      const next = i + 1;
+      if (next < nodes.length && getStandaloneImage(nodes[next])) {
+        continue;
+      }
+    }
+
+    if (node.type === 'list') {
+      const filteredItems = node.children.map((item) => ({
+        ...item,
+        children: filterDanglingLabels(item.children),
+      }));
+      out.push({ ...node, children: filteredItems });
+      continue;
+    }
+
+    if (node.type === 'blockquote') {
+      out.push({ ...node, children: filterDanglingLabels(node.children) });
+      continue;
+    }
+
+    out.push(node);
+  }
+  return out;
+}
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index++) {
+    hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+const sampleSummary = sampleDescriptionText(sample.description)
+  ?.split('\n')
+  .find((line) => line.trim().length > 0)
+  ?.trim();
+
+const rawReadmeBlocks = (
+  markdownToMdast(stripReadmeTitle(sample.readme), {
+    features: { gfm: true, frontmatter: false },
+  }) as Root
+).children;
+const readmeBlocks = filterDanglingLabels(
+  dropLeadingSummaryParagraph(rawReadmeBlocks, sampleSummary)
+);
+const readmeImages = collectStandaloneImages(readmeBlocks);
+const visibleTags = sample.tags;
+
+const appHostKind = sample.appHost ?? null;
+const appHostIcon = appHostIconName(appHostKind);
+const appHostCode = sample.appHostCode ?? null;
+const appHostCodeFilename = appHostCodeTitle(sample.appHostPath);
+const appHostCodeLanguage = appHostCodeLang(sample.appHostPath);
+const appHostSourceUrl =
+  appHostCode && sample.appHostPath
+    ? `${sample.href.replace('/tree/', '/blob/')}/${sample.appHostPath}`
+    : null;
+// 5 nodes in the resource-graph backdrop; pick which one pulses based on the
+// sample slug so every sample's hero feels subtly different.
+const nodeCount = 5;
+const primaryNodeIndex = hashString(sample.name) % nodeCount;
+---
+
+<article class="sample-detail">
+  <div class="sample-hero not-content">
+    <div class="sample-hero-glow" aria-hidden="true"></div>
+    <svg
+      class="sample-hero-mesh"
+      aria-hidden="true"
+      viewBox="0 0 480 260"
+      preserveAspectRatio="xMaxYMid slice"
+    >
+      <path class="mesh-edge" d="M 60 80 Q 150 60 230 110"></path>
+      <path class="mesh-edge mesh-edge-strong" d="M 230 110 Q 320 70 410 130"></path>
+      <path class="mesh-edge" d="M 60 80 Q 110 160 200 200"></path>
+      <path class="mesh-edge" d="M 200 200 Q 290 180 410 130"></path>
+      <path class="mesh-edge mesh-edge-soft" d="M 230 110 Q 220 160 200 200"></path>
+      <path class="mesh-edge mesh-edge-soft" d="M 410 130 Q 440 200 380 230"></path>
+
+      <circle
+        class={`mesh-node ${primaryNodeIndex === 0 ? 'is-primary' : ''}`}
+        cx="60"
+        cy="80"
+        r="9"></circle>
+      <circle
+        class={`mesh-node ${primaryNodeIndex === 1 ? 'is-primary' : ''}`}
+        cx="230"
+        cy="110"
+        r="13"></circle>
+      <circle
+        class={`mesh-node ${primaryNodeIndex === 2 ? 'is-primary' : ''}`}
+        cx="410"
+        cy="130"
+        r="10"></circle>
+      <circle
+        class={`mesh-node ${primaryNodeIndex === 3 ? 'is-primary' : ''}`}
+        cx="200"
+        cy="200"
+        r="11"></circle>
+      <circle
+        class={`mesh-node mesh-node-small ${primaryNodeIndex === 4 ? 'is-primary' : ''}`}
+        cx="380"
+        cy="230"
+        r="6"></circle>
+    </svg>
+
+    <div class="sample-hero-copy">
+      <div class="sample-hero-tags">
+        <div class="sample-hero-tag">
+          <Icon name="rocket" size="0.95rem" />
+          <span>Aspire sample</span>
+        </div>
+        {
+          appHostKind && (
+            <div class="sample-hero-tag sample-hero-apphost" data-apphost={appHostKind}>
+              {appHostIcon ? (
+                <Icon name={appHostIcon} size="0.95rem" />
+              ) : (
+                <svg
+                  class="apphost-glyph"
+                  aria-hidden="true"
+                  viewBox="0 0 16 16"
+                  width="14"
+                  height="14"
+                >
+                  <path
+                    d="M5.6 4.2 2.2 7.6c-.22.22-.22.58 0 .8L5.6 11.8c.22.22.58.22.8 0a.566.566 0 0 0 0-.8L3.42 8l3-3a.566.566 0 0 0 0-.8.566.566 0 0 0-.82 0Zm4.8 0a.566.566 0 0 0-.8.8l3 3-3 3a.566.566 0 0 0 0 .8c.22.22.58.22.8 0l3.4-3.4a.566.566 0 0 0 0-.8l-3.4-3.4Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              )}
+              <span>{appHostLabel(appHostKind)}</span>
+            </div>
+          )
+        }
+      </div>
+      <h2 class="sample-hero-title">Clone, run, and explore this sample</h2>
+      {sampleSummary && <p class="sample-summary">{sampleSummary}</p>}
+      {
+        visibleTags.length > 0 && (
+          <div class="sample-tags" aria-label="Sample tags">
+            {visibleTags.map((tag) => (
+              <Badge text={tagLabel(tag)} size="small" />
+            ))}
+          </div>
+        )
+      }
+      <div class="sample-actions">
+        <a
+          class="sample-action primary"
+          href={sample.href}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon name="github" size="1rem" />
+          View on GitHub
+        </a>
+        <a class="sample-action secondary" href={samplesHref}>Browse all samples</a>
+      </div>
+    </div>
+  </div>
+
+  {
+    appHostCode && appHostCodeFilename && (
+      <section class="sample-apphost not-content" aria-labelledby="sample-apphost-kicker">
+        <header class="sample-apphost-header">
+          <div class="sample-apphost-heading">
+            <div id="sample-apphost-kicker" class="sample-kicker">
+              AppHost
+            </div>
+            <p class="sample-apphost-blurb">
+              The entry point that composes every resource and dependency in this sample's
+              distributed application.
+            </p>
+          </div>
+          {appHostSourceUrl && (
+            <a
+              class="sample-apphost-source"
+              href={appHostSourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`View ${appHostCodeFilename} on GitHub`}
+            >
+              <Icon name="github" size="0.9rem" />
+              View on GitHub
+            </a>
+          )}
+        </header>
+        <Code
+          code={appHostCode}
+          lang={appHostCodeLanguage}
+          meta={`title="${appHostCodeFilename}"`}
+        />
+      </section>
+    )
+  }
+
+  <section class="sample-readme" aria-label={`${sample.title} README`}>
+    <SampleReadmeBlocks blocks={readmeBlocks} sampleHref={sample.href} />
+  </section>
+
+  {
+    readmeImages.length > 0 && (
+      <section class="sample-media not-content" aria-labelledby="sample-media-heading">
+        <div class="sample-media-header">
+          <div>
+            <div class="sample-kicker">Preview</div>
+            <h2 id="sample-media-heading">Sample screenshots</h2>
+          </div>
+          <p>
+            {readmeImages.length === 1
+              ? 'Select the image to zoom in.'
+              : 'Select an image to zoom in.'}
+          </p>
+        </div>
+        <div class="sample-media-grid">
+          {readmeImages.map((image) => (
+            <figure class="sample-readme-image">
+              {image.kind === 'theme' ? (
+                <ThemeAwareImage
+                  light={image.light}
+                  dark={image.dark}
+                  alt={image.alt}
+                  label={image.alt}
+                  width={image.light.width}
+                  height={image.light.height}
+                />
+              ) : (
+                <starlight-image-zoom-zoomable>
+                  <Image
+                    src={image.src}
+                    alt={image.alt}
+                    loading="lazy"
+                    widths={[480, 800, 1200]}
+                    sizes="(min-width: 72rem) 52rem, 100vw"
+                  />
+                  <button
+                    aria-label={`Zoom image${image.alt ? `: ${image.alt}` : ''}`}
+                    class="starlight-image-zoom-control"
+                    type="button"
+                  >
+                    <svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+                      <use href="#starlight-image-zoom-icon-zoom" />
+                    </svg>
+                  </button>
+                </starlight-image-zoom-zoomable>
+              )}
+              {image.alt && <figcaption>{image.alt}</figcaption>}
+            </figure>
+          ))}
+        </div>
+      </section>
+    )
+  }
+</article>
+
+<style>
+  .sample-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .sample-hero {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    gap: clamp(1rem, 3vw, 2rem);
+    padding: clamp(1.5rem, 3vw, 2.5rem);
+    border-radius: 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--aspire-color-primary) 25%, transparent);
+    background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--aspire-color-primary) 10%, transparent),
+      color-mix(in srgb, var(--aspire-color-secondary) 5%, transparent),
+      transparent 70%
+    );
+    box-shadow: var(--sl-shadow-md);
+    isolation: isolate;
+  }
+
+  .sample-hero-glow {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(
+        ellipse 60% 80% at 100% 50%,
+        color-mix(in srgb, var(--aspire-color-primary) 18%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse 50% 70% at 0% 100%,
+        color-mix(in srgb, var(--aspire-color-secondary) 12%, transparent),
+        transparent 65%
+      );
+    pointer-events: none;
+  }
+
+  .sample-hero-mesh {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: min(72%, 38rem);
+    height: 100%;
+    pointer-events: none;
+    mask-image: linear-gradient(to left, black 35%, transparent 95%);
+    -webkit-mask-image: linear-gradient(to left, black 35%, transparent 95%);
+  }
+
+  .mesh-edge {
+    fill: none;
+    stroke: color-mix(in srgb, var(--aspire-color-primary) 42%, transparent);
+    stroke-width: 1.25;
+    stroke-linecap: round;
+    stroke-dasharray: 3 7;
+    animation: mesh-flow 14s linear infinite;
+  }
+
+  .mesh-edge-strong {
+    stroke: color-mix(in srgb, var(--aspire-color-secondary) 60%, transparent);
+    stroke-width: 1.5;
+    animation-duration: 9s;
+  }
+
+  .mesh-edge-soft {
+    stroke: color-mix(in srgb, var(--aspire-color-primary) 22%, transparent);
+    stroke-dasharray: 2 9;
+    animation-duration: 18s;
+  }
+
+  @keyframes mesh-flow {
+    to {
+      stroke-dashoffset: -120;
+    }
+  }
+
+  .mesh-node {
+    fill: color-mix(in srgb, var(--aspire-color-primary) 22%, var(--sl-color-bg));
+    stroke: color-mix(in srgb, var(--aspire-color-primary) 65%, transparent);
+    stroke-width: 1.5;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .mesh-node-small {
+    fill: color-mix(in srgb, var(--aspire-color-secondary) 18%, var(--sl-color-bg));
+    stroke: color-mix(in srgb, var(--aspire-color-secondary) 50%, transparent);
+    opacity: 0.75;
+  }
+
+  .mesh-node.is-primary {
+    fill: color-mix(in srgb, var(--aspire-color-primary) 38%, var(--sl-color-bg));
+    stroke: var(--aspire-color-secondary);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--aspire-color-primary) 60%, transparent));
+    animation: mesh-pulse 3.6s ease-in-out infinite;
+  }
+
+  @keyframes mesh-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.18);
+      opacity: 0.82;
+    }
+  }
+
+  .sample-hero-copy {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 52rem;
+  }
+
+  .sample-hero-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-self: flex-start;
+  }
+
+  .sample-hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.3rem 0.7rem 0.3rem 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--aspire-color-primary) 18%, var(--sl-color-bg));
+    border: 1px solid color-mix(in srgb, var(--aspire-color-primary) 40%, transparent);
+    color: color-mix(in srgb, var(--aspire-color-secondary) 80%, var(--sl-color-white));
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .sample-hero-tag :global(svg),
+  .sample-hero-tag .apphost-glyph {
+    color: var(--aspire-color-secondary);
+  }
+
+  .apphost-glyph {
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  :global([data-theme='light']) .sample-hero-tag {
+    color: color-mix(in srgb, var(--aspire-color-primary) 75%, var(--sl-color-black));
+    background: color-mix(in srgb, var(--aspire-color-primary) 14%, white);
+    border-color: color-mix(in srgb, var(--aspire-color-primary) 45%, transparent);
+  }
+
+  :global([data-theme='light']) .sample-hero-tag :global(svg),
+  :global([data-theme='light']) .sample-hero-tag .apphost-glyph {
+    color: var(--aspire-color-primary);
+  }
+
+  /* AppHost flavour pills follow the canonical C# and TypeScript brand colors so
+     the language signal reads clearly without leaning on the page accent. */
+  .sample-hero-apphost {
+    --apphost-color: var(--aspire-color-primary);
+  }
+
+  .sample-hero-apphost[data-apphost='typescript'] {
+    --apphost-color: #3178c6;
+  }
+
+  .sample-hero-apphost[data-apphost='csproj'],
+  .sample-hero-apphost[data-apphost='file-based'] {
+    --apphost-color: #512bd4;
+  }
+
+  .sample-hero-apphost {
+    background: color-mix(in srgb, var(--apphost-color) 18%, var(--sl-color-bg));
+    border-color: color-mix(in srgb, var(--apphost-color) 55%, transparent);
+    color: color-mix(in srgb, var(--apphost-color) 35%, var(--sl-color-white));
+  }
+
+  .sample-hero-apphost :global(svg),
+  .sample-hero-apphost .apphost-glyph {
+    color: color-mix(in srgb, var(--apphost-color) 80%, var(--sl-color-white));
+  }
+
+  :global([data-theme='light']) .sample-hero-apphost {
+    color: color-mix(in srgb, var(--apphost-color) 80%, var(--sl-color-black));
+    background: color-mix(in srgb, var(--apphost-color) 14%, white);
+    border-color: color-mix(in srgb, var(--apphost-color) 55%, transparent);
+  }
+
+  :global([data-theme='light']) .sample-hero-apphost :global(svg),
+  :global([data-theme='light']) .sample-hero-apphost .apphost-glyph {
+    color: var(--apphost-color);
+  }
+
+  .sample-hero-title {
+    max-width: 42rem;
+    margin: 0;
+    color: var(--sl-color-white);
+    font-size: clamp(1.35rem, 4vw, 2.15rem);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+
+  .sample-summary {
+    max-width: 48rem;
+    margin: 0;
+    color: var(--sl-color-gray-2);
+    font-size: clamp(0.98rem, 2vw, 1.1rem);
+    line-height: 1.65;
+  }
+
+  .sample-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .sample-kicker {
+    color: var(--sl-color-accent-high);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .sample-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .sample-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition:
+      filter 0.2s ease,
+      transform 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .sample-action.primary {
+    background: var(--sl-color-accent-high);
+    color: var(--sl-color-black);
+  }
+
+  .sample-action.secondary {
+    border: 1px solid var(--sl-color-gray-4);
+    color: var(--sl-color-white);
+  }
+
+  .sample-action:hover {
+    text-decoration: none;
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+
+  .sample-readme {
+    min-width: 0;
+  }
+
+  .sample-readme :global(.expressive-code) {
+    margin: 1.25rem 0;
+  }
+
+  /* AppHost source block — shown above the README so the first thing visitors
+     see after the hero is the entry-point code for the sample. */
+  .sample-apphost {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: clamp(1rem, 3vw, 1.5rem);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--sl-color-gray-6) 85%, var(--sl-color-black));
+  }
+
+  .sample-apphost-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: end;
+    gap: 0.5rem 1rem;
+  }
+
+  .sample-apphost-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    max-width: 48rem;
+  }
+
+  .sample-apphost-blurb {
+    margin: 0;
+    color: var(--sl-color-gray-2);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .sample-apphost-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--sl-color-gray-4);
+    color: var(--sl-color-white);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      border-color 0.2s ease,
+      transform 0.2s ease,
+      background-color 0.2s ease;
+  }
+
+  .sample-apphost-source:hover {
+    text-decoration: none;
+    border-color: var(--sl-color-accent);
+    background: color-mix(in srgb, var(--sl-color-accent) 14%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .sample-apphost :global(.expressive-code) {
+    margin: 0;
+  }
+
+  .sample-media {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: clamp(1rem, 3vw, 1.5rem);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--sl-color-gray-6) 90%, var(--sl-color-black));
+  }
+
+  .sample-media-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    align-items: end;
+  }
+
+  .sample-media-header h2 {
+    margin: 0.25rem 0 0;
+    color: var(--sl-color-white);
+    font-size: clamp(1.2rem, 3vw, 1.55rem);
+  }
+
+  .sample-media-header p {
+    max-width: 18rem;
+    margin: 0;
+    color: var(--sl-color-gray-2);
+    font-size: 0.9rem;
+  }
+
+  .sample-media-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .sample-readme-image {
+    display: block;
+    margin: 0;
+  }
+
+  .sample-readme-image :global(img) {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    box-shadow: var(--sl-shadow-sm);
+  }
+
+  .sample-readme-image :global(starlight-image-zoom-zoomable) {
+    display: block;
+  }
+
+  .sample-readme-image figcaption {
+    margin-top: 0.45rem;
+    color: var(--sl-color-gray-3);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+
+  .sample-readme :global(h2:first-child) {
+    margin-top: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mesh-edge {
+      animation: none;
+    }
+
+    .mesh-node.is-primary {
+      animation: none;
+    }
+
+    .sample-action {
+      transition: none;
+    }
+
+    .sample-action:hover {
+      transform: none;
+    }
+  }
+
+  @media (max-width: 48rem) {
+    .sample-hero-mesh {
+      width: 60%;
+      opacity: 0.85;
+    }
+  }
+
+  @media (max-width: 36rem) {
+    .sample-actions,
+    .sample-action {
+      width: 100%;
+    }
+
+    .sample-hero {
+      padding: clamp(1.25rem, 5vw, 1.75rem);
+    }
+
+    .sample-hero-mesh {
+      width: 72%;
+      opacity: 0.5;
+    }
+  }
+</style>

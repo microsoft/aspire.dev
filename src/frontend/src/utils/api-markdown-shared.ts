@@ -113,6 +113,12 @@ export function inlineCode(value: string): string {
 }
 
 export function markdownResponse(content: string): Response {
+  // NOTE: production preview/deployment serves these prerendered `.md` files
+  // via a static file server, which infers Content-Type from the file
+  // extension (`text/markdown`). This explicit header only takes effect
+  // under SSR/dev — we keep it as the canonical signal of what we intend
+  // to serve, but consumers like the page-actions "Copy Markdown" button
+  // do not depend on the response Content-Type.
   return new Response(content, {
     headers: {
       'Content-Type': 'text/markdown; charset=utf-8',

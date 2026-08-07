@@ -71,7 +71,7 @@ Add the Aspire EF Core SQL Server client integration to your C# consuming app to
 
 In the `Program.cs` file of your client-consuming project, call the `AddSqlServerDbContext` extension method on any `IHostApplicationBuilder` to register a `Microsoft.EntityFrameworkCore.DbContext` for use via the dependency injection container. The method takes a connection name parameter.
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSqlServerDbContext<ExampleDbContext>(connectionName: "database");
 ```
 
@@ -81,7 +81,7 @@ The `connectionName` parameter must match the name used when adding the SQL Serv
 
 To retrieve `ExampleDbContext` object from a service:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(ExampleDbContext context)
 {
     // Use context...
@@ -94,7 +94,7 @@ For more information on dependency injection, see [.NET dependency injection](ht
 
 You may prefer to use the standard EF Core method to obtain a database context and add it to the dependency injection container:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddDbContext<ExampleDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("database")
         ?? throw new InvalidOperationException("Connection string 'database' not found.")));
@@ -112,7 +112,7 @@ You have more flexibility when you create the database context in this way, for 
 
 If you use this method, you can enhance the database context with Aspire-style retries, health checks, logging, and telemetry features by calling the `EnrichSqlServerDbContext` method:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.EnrichSqlServerDbContext<ExampleDbContext>(
     configureSettings: settings =>
     {
@@ -131,13 +131,13 @@ The Aspire SQL Server Entity Framework Core integration provides multiple config
 
 When using a connection string from the `ConnectionStrings` configuration section, you provide the name of the connection string when calling `builder.AddSqlServerDbContext<TContext>()`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSqlServerDbContext<ExampleDbContext>("sql");
 ```
 
 The connection string is retrieved from the `ConnectionStrings` configuration section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "sql": "Data Source=myserver;Initial Catalog=master"
@@ -155,7 +155,7 @@ The Aspire SQL Server EF Core integration supports [Microsoft.Extensions.Configu
 
 The following is an example of an `appsettings.json` file that configures some of the available options:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Microsoft": {
@@ -177,7 +177,7 @@ The following is an example of an `appsettings.json` file that configures some o
 
 You can also pass the `Action<MicrosoftEntityFrameworkCoreSqlServerSettings>` delegate to set up some or all the options inline, for example to turn off the metrics:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSqlServerDbContext<YourDbContext>(
     "sql",
     static settings =>
@@ -188,7 +188,7 @@ builder.AddSqlServerDbContext<YourDbContext>(
 
 If you want to register more than one `DbContext` with different configuration, you can use `$"Aspire.Microsoft.EntityFrameworkCore.SqlServer:{typeof(TContext).Name}"` configuration section name. The json configuration would look like:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Microsoft": {
@@ -212,7 +212,7 @@ If you want to register more than one `DbContext` with different configuration, 
 
 Then calling the `AddSqlServerDbContext` method with `AnotherDbContext` type parameter would load the settings from `Aspire:Microsoft:EntityFrameworkCore:SqlServer:AnotherDbContext` section.
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSqlServerDbContext<AnotherDbContext>("another-sql");
 ```
 

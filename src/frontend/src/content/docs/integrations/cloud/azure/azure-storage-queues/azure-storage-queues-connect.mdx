@@ -74,7 +74,7 @@ Install the [📦 Aspire.Azure.Storage.Queues](https://www.nuget.org/packages/As
 
 In _Program.cs_, call `AddAzureQueueServiceClient` on your `IHostApplicationBuilder` to register a `QueueServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureQueueServiceClient(connectionName: "queues");
 ```
 
@@ -84,7 +84,7 @@ The `connectionName` must match the queue resource name from the AppHost. For mo
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(QueueServiceClient client)
 {
     // Use client...
@@ -95,14 +95,14 @@ public class ExampleService(QueueServiceClient client)
 
 To register multiple `QueueServiceClient` instances with different connection names, use `AddKeyedAzureQueueServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedAzureQueueServiceClient(name: "orders");
 builder.AddKeyedAzureQueueServiceClient(name: "notifications");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("orders")] QueueServiceClient ordersClient,
     [FromKeyedServices("notifications")] QueueServiceClient notificationsClient)
@@ -119,13 +119,13 @@ The Aspire Azure Queue Storage client integration offers multiple ways to provid
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureQueueServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureQueueServiceClient("queues");
 ```
 
 Two formats are supported in the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json (service URI)"
+```json title="appsettings.json (service URI)"
 {
   "ConnectionStrings": {
     "queues": "https://{account_name}.queue.core.windows.net/"
@@ -133,7 +133,7 @@ Two formats are supported in the `ConnectionStrings` section:
 }
 ```
 
-```json title="JSON — appsettings.json (connection string)"
+```json title="appsettings.json (connection string)"
 {
   "ConnectionStrings": {
     "queues": "AccountName=myaccount;AccountKey=myaccountkey"
@@ -145,7 +145,7 @@ The service URI approach is recommended for production because it works with [de
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureStorageQueuesSettings` and `QueueClientOptions` from configuration using the `Aspire:Azure:Storage:Queues` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Azure": {
@@ -167,7 +167,7 @@ The service URI approach is recommended for production because it works with [de
 
 **Inline delegates.** Pass an `Action<AzureStorageQueuesSettings>` to configure settings inline:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureQueueServiceClient(
     "queues",
     settings => settings.DisableHealthChecks = true);
@@ -175,7 +175,7 @@ builder.AddAzureQueueServiceClient(
 
 You can also configure `QueueClientOptions`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureQueueServiceClient(
     "queues",
     configureClientBuilder: clientBuilder =>
@@ -209,7 +209,7 @@ The Aspire Azure Queue Storage client integration automatically configures loggi
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected service URI from the environment and create a `QueueServiceClient` directly using [📦 Azure.Storage.Queues](https://www.nuget.org/packages/Azure.Storage.Queues/):
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Azure.Identity;
 using Azure.Storage.Queues;
 
@@ -242,7 +242,7 @@ go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -287,7 +287,7 @@ pip install azure-storage-queue azure-identity
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from azure.storage.queue import QueueServiceClient
 from azure.identity import DefaultAzureCredential
@@ -315,7 +315,7 @@ npm install @azure/storage-queue @azure/identity
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { QueueServiceClient } from '@azure/storage-queue';
 import { DefaultAzureCredential } from '@azure/identity';
 

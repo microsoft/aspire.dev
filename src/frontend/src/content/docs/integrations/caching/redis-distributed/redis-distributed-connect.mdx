@@ -57,7 +57,7 @@ Install the [📦 Aspire.StackExchange.Redis.DistributedCaching](https://www.nug
 
 In _Program.cs_, call `AddRedisDistributedCache` on your `IHostApplicationBuilder` to register an `IDistributedCache` backed by Redis:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisDistributedCache(connectionName: "cache");
 ```
 
@@ -67,7 +67,7 @@ builder.AddRedisDistributedCache(connectionName: "cache");
 
 Resolve `IDistributedCache` through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IDistributedCache cache)
 {
     // Use cache...
@@ -78,14 +78,14 @@ public class ExampleService(IDistributedCache cache)
 
 `IDistributedCache` is registered as a singleton, so only one instance can be registered in the normal DI container. If you need multiple Redis-backed `IDistributedCache` instances alongside an `IConnectionMultiplexer`, use `AddKeyedRedisDistributedCache`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedRedisClient(name: "chat");
 builder.AddKeyedRedisDistributedCache(name: "product");
 ```
 
 Resolve the instances separately:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("chat")] IConnectionMultiplexer chatConnectionMux,
     IDistributedCache productCache)
@@ -101,13 +101,13 @@ The client integration supports three configuration approaches that can be combi
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddRedisDistributedCache`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisDistributedCache("cache");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "cache": "localhost:6379"
@@ -119,7 +119,7 @@ For more information, see [Stack Exchange Redis configuration](https://stackexch
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `StackExchangeRedisSettings` from _appsettings.json_ (or any other configuration source) using the `Aspire:StackExchange:Redis:DistributedCaching` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "StackExchange": {
@@ -137,7 +137,7 @@ For more information, see [Stack Exchange Redis configuration](https://stackexch
 
 **Inline delegates.** Pass an `Action<StackExchangeRedisSettings>` to configure settings inline, for example to disable tracing:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisDistributedCache(
     "cache",
     static settings => settings.DisableTracing = true);
@@ -145,7 +145,7 @@ builder.AddRedisDistributedCache(
 
 To configure the underlying [ConfigurationOptions](https://stackexchange.github.io/StackExchange.Redis/Configuration.html#configuration-options), pass a second delegate:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisDistributedCache(
     "cache",
     null,
@@ -158,7 +158,7 @@ Aspire client integrations enable health checks by default. The Redis distribute
 
 Disable health checks via configuration:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "StackExchange": {
@@ -190,7 +190,7 @@ The client integration automatically configures logging, tracing, and metrics th
 
 Inject `IDistributedCache` wherever you need it and use the standard ASP.NET Core caching API:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text;
 

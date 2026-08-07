@@ -79,7 +79,7 @@ Install the [📦 Aspire.Azure.Messaging.WebPubSub](https://www.nuget.org/packag
 
 In _Program.cs_, call `AddAzureWebPubSubServiceClient` on your `IHostApplicationBuilder` to register a `WebPubSubServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureWebPubSubServiceClient(
     connectionName: "web-pubsub",
     settings => settings.HubName = "messages");
@@ -91,7 +91,7 @@ The `connectionName` must match the Azure Web PubSub resource name from the AppH
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(WebPubSubServiceClient client)
 {
     // Use client...
@@ -102,7 +102,7 @@ public class ExampleService(WebPubSubServiceClient client)
 
 To register multiple `WebPubSubServiceClient` instances for different hubs, use `AddKeyedAzureWebPubSubServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedAzureWebPubSubServiceClient(name: "messages");
 builder.AddKeyedAzureWebPubSubServiceClient(name: "commands");
 ```
@@ -114,7 +114,7 @@ builder.AddKeyedAzureWebPubSubServiceClient(name: "commands");
 
 Then resolve each client by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("messages")] WebPubSubServiceClient messagesClient,
     [FromKeyedServices("commands")] WebPubSubServiceClient commandsClient)
@@ -131,7 +131,7 @@ The Aspire Azure Web PubSub client integration offers multiple ways to provide c
 
 - **Service endpoint (recommended):**
 
-  ```json title="JSON — appsettings.json"
+  ```json title="appsettings.json"
   {
     "ConnectionStrings": {
       "web-pubsub": "https://{account_name}.webpubsub.azure.com"
@@ -141,7 +141,7 @@ The Aspire Azure Web PubSub client integration offers multiple ways to provide c
 
 - **Full connection string with access key:**
 
-  ```json title="JSON — appsettings.json"
+  ```json title="appsettings.json"
   {
     "ConnectionStrings": {
       "web-pubsub": "Endpoint=https://{account_name}.webpubsub.azure.com;AccessKey={account_key}"
@@ -151,7 +151,7 @@ The Aspire Azure Web PubSub client integration offers multiple ways to provide c
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureMessagingWebPubSubSettings` from _appsettings.json_ using the `Aspire:Azure:Messaging:WebPubSub` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Azure": {
@@ -168,7 +168,7 @@ The Aspire Azure Web PubSub client integration offers multiple ways to provide c
 
 **Inline delegates.** Pass an `Action<AzureMessagingWebPubSubSettings>` to configure settings inline:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureWebPubSubServiceClient(
     "web-pubsub",
     settings => settings.DisableHealthChecks = true);
@@ -199,7 +199,7 @@ The Aspire Azure Web PubSub client integration automatically configures logging,
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected endpoint URI from the environment and create a `WebPubSubServiceClient` directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Azure.Messaging.WebPubSub;
 using Azure.Identity;
 
@@ -221,7 +221,7 @@ go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
 
 Read the injected environment variable and connect using managed identity:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -265,7 +265,7 @@ pip install azure-messaging-webpubsubservice azure-identity
 
 Read the injected environment variable and connect using managed identity:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from azure.identity import DefaultAzureCredential
 from azure.messaging.webpubsubservice import WebPubSubServiceClient
@@ -280,7 +280,7 @@ client = WebPubSubServiceClient(endpoint=endpoint, hub="messages", credential=De
 
 Or use a full connection string with access key:
 
-```python title="Python — app.py (connection string)"
+```python title="app.py (connection string)"
 import os
 from azure.messaging.webpubsubservice import WebPubSubServiceClient
 
@@ -301,7 +301,7 @@ npm install @azure/web-pubsub @azure/identity
 
 Read the injected environment variable and connect using managed identity:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { WebPubSubServiceClient } from '@azure/web-pubsub';
 import { DefaultAzureCredential } from '@azure/identity';
 
@@ -319,7 +319,7 @@ const client = new WebPubSubServiceClient(
 
 Or use a full connection string with access key:
 
-```typescript title="TypeScript — Connect with connection string"
+```typescript title="Connect with connection string"
 import { WebPubSubServiceClient } from '@azure/web-pubsub';
 
 const connectionString = process.env.AZURE_WEB_PUBSUB_CONNECTION_STRING!;

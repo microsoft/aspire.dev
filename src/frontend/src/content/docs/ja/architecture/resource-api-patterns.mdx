@@ -1,0 +1,205 @@
+---
+title: リソース API パターン
+description: リソースの追加と構成、注釈の使用、カスタム値オブジェクトの実装など、Aspire における一般的な API リソースパターンを確認します。
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Aspire のリソースモデルでは、構造化された方法でリソースを定義および構成でき、アプリケーションコンポーネントのシームレスな統合と管理を実現できます。このガイドでは、Aspire でリソースを追加および構成するための一般的なパターンについて詳しく説明します。
+
+## API パターン
+
+Aspire は、**流暢な拡張メソッド**を使って **リソースデータモデル** と **動作** を分離します。  
+- **リソースクラス**は、コンストラクターとプロパティのみを定義します。  
+- **拡張メソッド**は、リソースの作成、構成、実行時の配線を実装します。  
+
+このガイドでは各パターンを説明し、最後に **Redis の逐語的な例** を示します。さらに、カスタムリソースを介してマニフェストを発行する方法も扱います。
+
+## `AddX(...)` によるリソースの追加
+
+`AddX(...)` メソッドは次を実行します:
+
+<Steps>
+
+1. **入力を検証**します（`builder`、`name`、必須引数）。  
+1. データのみのリソースを **インスタンス化** します（`new TResource(...)`）。  
+1. `builder.AddResource(resource)` で **登録** します。  
+1. エンドポイント、正常性チェック、コンテナー設定、環境変数、コマンドライン引数、イベント購読の **任意の配線** を行います。
+
+</Steps>
+
+### シグネチャパターン
+
+```csharp
+public static IResourceBuilder<TResource> AddX(
+    this IDistributedApplicationBuilder builder,
+    [ResourceName] string name,
+    /* optional parameters */)
+{
+    // 1. 入力を検証
+    // 2. リソースをインスタンス化
+    // 3. builder.AddResource(resource)
+    // 4. 任意の配線:
+    //    .WithEndpoint(...)
+    //    .WithHealthCheck(...)
+    //    .WithImage(...)
+    //    .WithEnvironment(...)
+    //    .WithArgs(...)
+    //    Eventing.Subscribe<...>(...)
+}
+```
+
+### 任意の配線の例
+
+**エンドポイント**:
+
+```csharp
+.WithEndpoint(port: hostPort, targetPort: containerPort, name: endpointName)
+```
+
+**正常性チェック**:
+
+```csharp
+.WithHealthCheck(healthCheckKey)
+```
+
+**コンテナーイメージ / レジストリ**:
+
+```csharp
+.WithImage(imageName, imageTag)
+.WithImageRegistry(registryUrl)
+```
+
+**エントリポイントと引数**:
+
+```csharp
+.WithEntrypoint("/bin/sh")
+.WithArgs(context => { /* build args */ return Task.CompletedTask; })
+```
+
+**環境変数**:
+
+```csharp
+.WithEnvironment(context => new("ENV_VAR", valueProvider))
+```
+
+**イベント購読**:
+
+```csharp
+builder.Eventing.Subscribe<EventType>(resource, handler);
+```
+
+### サマリーテーブル
+
+| ステップ | 呼び出し/メソッド | 目的 |
+|--|--|--|
+| 検証 | `ArgumentNullException.ThrowIfNull(...)` | builder、name、args が非 null であることを保証する |
+| インスタンス化 | `new TResource(name, …)` | データのみのインスタンスを作成する |
+| 登録 | `builder.AddResource(resource)` | リソースをアプリケーションモデルに追加する |
+| 任意の配線 | `.WithEndpoint(…)`, `.WithHealthCheck(…)`, `.WithImage(…)`, `.WithEnvironment(…)`, `.WithArgs(…)`, `Eventing.Subscribe(…)` | コンテナー詳細、配線、実行時フックを構成する |
+
+## `WithX(...)` によるリソースの構成
+
+`WithX(...)` メソッドは、リソースビルダーに **注釈を付与** します。
+
+### シグネチャパターン
+
+```csharp
+public static IResourceBuilder<TResource> WithX(
+    this IResourceBuilder<TResource> builder,
+    FooOptions options) =>
+    builder.WithAnnotation(new FooAnnotation(options));
+```
+
+- **対象**: `IResourceBuilder<TResource>`。
+- **アクション**: `WithAnnotation(...)`。
+- **戻り値**: `IResourceBuilder<TResource>`。
+
+### サマリーテーブル
+
+| メソッド | 対象 | アクション |
+|--|--|--|
+| `WithX(...)` | `IResourceBuilder<TResource>` | `WithAnnotation` API を使用して `XAnnotation` を付与します。 |
+| 戻り値 | `IResourceBuilder<TResource>` | 流れるようなチェーンを有効にします。 |
+
+## 注釈
+
+注釈は、`IResourceAnnotation` を実装する **public** なメタデータ型です。実行時にはフックやイベントを通じて動的に追加または削除できます。必要に応じて、コンシューマーは `TryGetLastAnnotation<T>()` を使って注釈を照会できます。
+
+### 定義と付与
+
+```csharp
+public sealed record PersistenceAnnotation(
+    TimeSpan? Interval,
+    int KeysChangedThreshold) : IResourceAnnotation;
+
+builder.WithAnnotation(new PersistenceAnnotation(
+    TimeSpan.FromSeconds(60),
+    100));
+```
+
+### サマリーテーブル
+
+| 概念 | パターン | メモ |
+|--|--|--|
+| 注釈型 | `public record XAnnotation(...) : IResourceAnnotation` | 動的な実行時利用をサポートするため public とする。 |
+| 付与 | `builder.WithAnnotation(new XAnnotation(...))` | リソースビルダーにメタデータを追加する。 |
+| 照会 | `resource.TryGetLastAnnotation<XAnnotation>(out var a)` | コンシューマーは必要に応じて注釈を検査する。 |
+
+## カスタム値オブジェクト
+
+カスタム値オブジェクトは評価を遅延し、フレームワークがリソース間の依存関係を検出できるようにします。
+
+### コアインターフェイス
+
+| インターフェイス | メンバー | モード | 目的 |
+|--|--|--|--|
+| `IValueProvider` | `ValueTask<string?> GetValueAsync(CancellationToken)` | 実行 | 実行時にライブ値を解決する |
+| `IManifestExpressionProvider` | `string ValueExpression { get; }` | 発行 | マニフェストで構造化式を出力する |
+| `IExpressionValue` | `IValueProvider` と `IManifestExpressionProvider` を継承 | 実行と発行 | 式ベースの値が受け入れられる場所で使える値オブジェクトとしてマークする |
+| `IValueWithReferences` _(opt.)_ | `IEnumerable<object> References { get; }` | 両方（必要な場合） | 他リソースへの依存関係を宣言する |
+
+- すべての構造化値型で `IValueProvider` と `IManifestExpressionProvider` を **実装** します。  
+- `WithEnvironment(...)` などの API で構造化値型を受け入れさせたい場合は、`IExpressionValue` を **実装** します。
+- 型がリソース参照を保持する場合にのみ、`IValueWithReferences` を **実装** します。
+
+### リソースへの付与
+
+```csharp
+builder.WithEnvironment(context =>
+    new("REDIS_CONNECTION_STRING", redis.GetConnectionStringAsync));
+```
+
+```csharp title="例: BicepOutputReference"
+public sealed partial class BicepOutputReference : 
+    IManifestExpressionProvider, 
+    IValueProvider, 
+    IValueWithReferences
+{
+    public string ValueExpression { get; }
+    public ValueTask<string?> GetValueAsync(CancellationToken cancellationToken = default);
+    IEnumerable<object> IValueWithReferences.References { get; }
+}
+```
+
+```csharp
+public static IResourceBuilder<T> WithEnvironment<T>(
+    this IResourceBuilder<T> builder,
+    string name,
+    BicepOutputReference bicepOutputReference)
+    where T : IResourceWithEnvironment
+{
+    return builder.WithAnnotation(
+      new EnvironmentVariableAnnotation(name, bicepOutputReference));
+}
+```
+
+### サマリーテーブル
+
+| 概念 | パターン | 目的 |
+|--|--|--|
+| `IValueProvider` | `GetValueAsync(...)` | 遅延された実行時解決 |
+| `IManifestExpressionProvider` | `ValueExpression` | 構造化された発行時式 |
+| `IExpressionValue` | `IValueProvider` + `IManifestExpressionProvider` | 再利用可能な式ベースの値 |
+| `IValueWithReferences` _(opt.)_ | `References` | リソース依存関係を宣言する |
+| `WithEnvironment(...)` | `new("NAME", valueProvider)` | 構造化値をフラット化せずに付与する |

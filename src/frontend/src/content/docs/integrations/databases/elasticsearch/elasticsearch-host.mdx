@@ -38,11 +38,11 @@ aspire add elasticsearch
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.Elasticsearch@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.Elasticsearch" Version="*" />
 ```
 
@@ -80,7 +80,7 @@ Once you've installed the hosting integration in your AppHost project, you can a
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var elasticsearch = builder.AddElasticsearch("elasticsearch");
@@ -116,7 +116,7 @@ Add a data volume to the Elasticsearch resource as shown in the following exampl
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var elasticsearch = builder.AddElasticsearch("elasticsearch")
@@ -141,7 +141,7 @@ Add a data bind mount to the Elasticsearch resource as shown in the following ex
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var elasticsearch = builder.AddElasticsearch("elasticsearch")
@@ -172,7 +172,7 @@ When you want to explicitly provide the password used by the container image, yo
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var password = builder.AddParameter("password", secret: true);
@@ -194,15 +194,14 @@ When no `password` parameter is provided, Aspire generates a strong password aut
 
 ## Connect to an existing Elasticsearch instance
 
-In C#, call `AsExisting` instead of `AddElasticsearch` to reference an externally managed Elasticsearch instance:
+To reference an externally managed Elasticsearch instance instead of running one as a container, use `AddConnectionString`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var elasticsearch = builder.AddElasticsearch("elasticsearch")
-    .AsExisting(connectionStringParameter: builder.AddParameter("elasticsearch-cs", secret: true));
+var elasticsearch = builder.AddConnectionString("elasticsearch");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(elasticsearch);
@@ -211,13 +210,27 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-The TypeScript AppHost doesn't currently expose an `addElasticsearch(...)` API. To connect to an existing Elasticsearch instance from a TypeScript AppHost, use [`builder.addConnectionString(...)`](/get-started/app-host/) with a parameter and reference that connection string from your consuming apps instead.
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const elasticsearch = await builder.addConnectionString("elasticsearch");
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(elasticsearch);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
 </TabItem>
 </Tabs>
 
+With `AddConnectionString` and `addConnectionString`, Aspire resolves `elasticsearch` from `ConnectionStrings:elasticsearch` (or environment variable `ConnectionStrings__elasticsearch`) in the AppHost configuration. Consuming apps receive that value as a single connection string, not deconstructed Elasticsearch resource-specific connection-property variables such as `ELASTICSEARCH_URI`.
+
 ## Connection properties
 
-For the full reference of Elasticsearch connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Elasticsearch](../elasticsearch-connect/).
+For the full reference of Elasticsearch resource connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Elasticsearch](../elasticsearch-connect/).
 
 ## Hosting integration health checks
 

@@ -286,6 +286,48 @@ public sealed class PackageJsonGeneratorTests
         Assert.False(widget.TryGetProperty("nestedTypes", out _));
     }
 
+    [Fact]
+    public void GeneratePackageJson_RedactsConnectionStringPasswordsInEnumMemberDescriptions()
+    {
+        using var assembly = TestAssembly.Create(
+            """
+            namespace Sample.Library;
+
+            public enum ConnectionMode
+            {
+                /// <summary>
+                /// Connects using <c>Server=host,port;User ID=sa;Password=hunter2</c>.
+                /// </summary>
+                Direct = 0,
+            }
+            """);
+
+        var outputPath = Path.Combine(assembly.DirectoryPath, "Package.json");
+
+        PackageJsonGenerator.GeneratePackageJson(
+            assembly.AssemblyPath,
+            assembly.References,
+            outputPath,
+            versionOverride: "1.2.3",
+            packageNameOverride: "Sample.Package",
+            targetFrameworkOverride: "net8.0");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(outputPath));
+        var member = document.RootElement
+            .GetProperty("types")
+            .EnumerateArray()
+            .Single(t => t.GetProperty("name").GetString() == "ConnectionMode")
+            .GetProperty("enumMembers")
+            .EnumerateArray()
+            .Single(m => m.GetProperty("name").GetString() == "Direct");
+
+        var description = member.GetProperty("description").GetString();
+
+        Assert.NotNull(description);
+        Assert.DoesNotContain("hunter2", description);
+        Assert.Contains("Placeholder", description!);
+    }
+
     private sealed class TestAssembly : IDisposable
     {
         private TestAssembly(string directoryPath, string assemblyPath, string[] references)
