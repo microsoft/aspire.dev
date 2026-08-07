@@ -248,6 +248,24 @@ if ($versionsChanged -and -not $SkipRegen) {
     $pkgSummary = if ($pkgDone) { ($pkgDone -replace '.*Done!\s+', '').Trim() } else { 'summary unavailable' }
     Write-Host "  C# API: $pkgSummary"
 
+    # 3a-normalize. Enforce Aspire terminology in the freshly generated C# API
+    # JSON so regenerated pkgs/ prose never trips the Forbidden Words check. The
+    # ts-modules JSON is normalized inside update:ts-api below (before its
+    # twoslash bundle), so only pkgs/ is handled here.
+    Write-Host "→ pnpm normalize:api-data --pkgs (Aspire terminology → pkgs/)" -ForegroundColor Cyan
+    Push-Location $FrontendDir
+    try {
+        $pkgNormLog = & pnpm run normalize:api-data -- --pkgs 2>&1 | Tee-Object -Variable pkgNormTeed | Out-String
+        $pkgNormExit = $LASTEXITCODE
+    }
+    finally {
+        Pop-Location
+    }
+    if ($pkgNormExit -ne 0) {
+        Write-Error "normalize:api-data (pkgs) failed (exit $pkgNormExit).`n$pkgNormLog`nAborting; no PR will be opened."
+        exit 1
+    }
+
     # 3b. TS API JSON (+ chained twoslash bundle). Requires the Aspire CLI; the
     # script honours ASPIRE_CLI_PATH. A non-zero exit here IS fatal — we must not
     # ship a PR with C#-only pkgs updates.

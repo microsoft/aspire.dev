@@ -3,6 +3,9 @@ import { Icon } from '@astrojs/starlight/components';
 import ThemeImage from '@components/ThemeImage.astro';
 import type { ImageMetadata } from 'astro';
 
+import PauseIcon from '@assets/icons/pause.svg';
+import PlayIcon from '@assets/icons/play.svg';
+
 import resourcesGraphLight from '@assets/dashboard/landing/resources-graph-light.png';
 import resourcesGraphDark from '@assets/dashboard/landing/resources-graph-dark.png';
 import resourcesTableLight from '@assets/dashboard/landing/resources-table-light.png';
@@ -25,6 +28,13 @@ interface Slide {
   light: ImageMetadata;
   dark: ImageMetadata;
 }
+
+interface Props {
+  autoplay?: boolean;
+  presentation?: 'coverflow' | 'stage';
+}
+
+const { autoplay = true, presentation = 'coverflow' } = Astro.props as Props;
 
 const slides: Slide[] = [
   {
@@ -93,6 +103,8 @@ const carouselLabel = tt('landing.dashboardCarousel.label', 'Aspire dashboard vi
 const chooseViewLabel = tt('landing.dashboardCarousel.chooseView', 'Choose a dashboard view');
 const previousLabel = tt('landing.dashboardCarousel.previous', 'Previous view');
 const nextLabel = tt('landing.dashboardCarousel.next', 'Next view');
+const playLabel = tt('landing.dashboardCarousel.play', 'Play dashboard tour');
+const pauseLabel = tt('landing.dashboardCarousel.pause', 'Pause dashboard tour');
 const formatSlideLabel = (index: number, count: number, label: string) =>
   tt('landing.dashboardCarousel.slideLabel', '{{index}} of {{count}}: {{label}}', {
     index,
@@ -107,6 +119,8 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
   role="group"
   aria-roledescription="carousel"
   aria-label={carouselLabel}
+  data-autoplay={autoplay ? 'true' : 'false'}
+  data-presentation={presentation}
 >
   <div class="stage" data-stage>
     {
@@ -132,8 +146,24 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
     }
   </div>
 
+  <div class="carousel-progress" data-progress aria-hidden="true">
+    <span class="carousel-progress-fill" data-progress-fill></span>
+  </div>
+
   <div class="carousel-footer">
-    <p class="active-label" data-active-label>{localizedSlides[0].label}</p>
+    <button
+      type="button"
+      class="carousel-playback-btn"
+      data-playback-toggle
+      data-playing="false"
+      data-label-play={playLabel}
+      data-label-pause={pauseLabel}
+      aria-label={pauseLabel}
+      aria-pressed="false"
+    >
+      <span class="carousel-pause-icon" aria-hidden="true"><PauseIcon /></span>
+      <span class="carousel-play-icon" aria-hidden="true"><PlayIcon /></span>
+    </button>
     <div class="controls">
       <button type="button" class="nav-btn prev-btn" data-prev aria-label={previousLabel}>
         <Icon name="left-arrow" size="1.5rem" />
@@ -169,7 +199,6 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       const stage = root.querySelector('[data-stage]');
       const slides = Array.from(root.querySelectorAll('[data-slide]'));
       const dots = Array.from(root.querySelectorAll('[data-dot]'));
-      const label = root.querySelector('[data-active-label]');
       const prevBtn = root.querySelector('[data-prev]');
       const nextBtn = root.querySelector('[data-next]');
       const n = slides.length;
@@ -180,16 +209,18 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
 
       const reduce =
         window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const autoplay = root.dataset.autoplay !== 'false';
+      const stagePresentation = root.dataset.presentation === 'stage';
       if (reduce) root.classList.add('reduced-motion');
 
       const MAX_VISIBLE = 2;
       let active = 0;
       let zoomOpen = false;
+      let zoomIndex = 0;
       let zoomObserver = null;
       let cleaned = false;
       const cleanupTasks = [];
 
-      const labels = slides.map((s) => s.dataset.slideLabel || '');
       const focusableSelector = [
         'a[href]',
         'button',
@@ -232,9 +263,13 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       function cleanup() {
         if (cleaned) return;
         cleaned = true;
-        stopAuto();
+        stopPlayback();
+        if (viewportRafId !== null) cancelAnimationFrame(viewportRafId);
+        viewportRafId = null;
+        clearViewportFailSafe();
         if (zoomObserver) zoomObserver.disconnect();
         cleanupTasks.splice(0).forEach((dispose) => dispose());
+        root.removeAttribute('data-viewport-active');
         delete root.dataset.initialized;
       }
 
@@ -271,6 +306,27 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         for (let i = 0; i < n; i++) {
           const slide = slides[i];
           const o = ringOffset(i);
+          const isActive = o === 0;
+
+          if (stagePresentation) {
+            const stageOffset = Math.max(-1, Math.min(1, o));
+            slide.style.transform = `translate3d(${stageOffset * 3.5}%, 0, 0) scale(${
+              isActive ? 1 : 0.985
+            })`;
+            slide.style.opacity = isActive ? '1' : '0';
+            slide.style.zIndex = isActive ? '2' : '1';
+            slide.style.filter = 'none';
+            slide.style.pointerEvents = isActive ? 'auto' : 'none';
+            slide.classList.toggle('is-active', isActive);
+            setSlideTabbable(slide, isActive);
+            if (isActive) {
+              slide.setAttribute('aria-current', 'true');
+            } else {
+              slide.removeAttribute('aria-current');
+            }
+            continue;
+          }
+
           const abs = Math.abs(o);
           const sign = Math.sign(o);
           const hidden = abs > MAX_VISIBLE;
@@ -295,7 +351,6 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
           }
         }
         dots.forEach((d, i) => d.setAttribute('aria-pressed', i === active ? 'true' : 'false'));
-        if (label) label.textContent = labels[active] || '';
       }
 
       function setActive(i) {
@@ -311,21 +366,24 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       }
 
       function measure() {
-        // Keep the stage exactly as tall as the centered (unscaled) slide.
+        // Round up so fractional responsive heights never clip the screenshot.
         const centered = slides[active];
         const h = centered.getBoundingClientRect().height;
-        if (h) stage.style.height = `${Math.round(h)}px`;
+        if (h) stage.style.height = `${Math.ceil(h)}px`;
       }
 
       // --- Controls ---
-      nextBtn && addListener(nextBtn, 'click', next);
-      prevBtn && addListener(prevBtn, 'click', prev);
-      dots.forEach((d) => addListener(d, 'click', () => setActive(Number(d.dataset.index) || 0)));
+      nextBtn && addListener(nextBtn, 'click', () => manualNav(next));
+      prevBtn && addListener(prevBtn, 'click', () => manualNav(prev));
+      dots.forEach((d) =>
+        addListener(d, 'click', () => manualNav(() => setActive(Number(d.dataset.index) || 0)))
+      );
 
       // Click a side slide to bring it to the center.
       slides.forEach((s) =>
         addListener(s, 'click', () => {
-          if (!s.classList.contains('is-active')) setActive(Number(s.dataset.index) || 0);
+          if (!s.classList.contains('is-active'))
+            manualNav(() => setActive(Number(s.dataset.index) || 0));
         })
       );
 
@@ -334,10 +392,10 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       addListener(root, 'keydown', (e) => {
         if (e.key === 'ArrowRight') {
           e.preventDefault();
-          next();
+          manualNav(next);
         } else if (e.key === 'ArrowLeft') {
           e.preventDefault();
-          prev();
+          manualNav(prev);
         }
       });
 
@@ -397,7 +455,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         startY = null;
         swiping = false;
         if (wasSwiping && Math.abs(dx) > SWIPE_THRESHOLD) {
-          dx < 0 ? next() : prev();
+          manualNav(dx < 0 ? next : prev);
         }
       }
       addListener(root, 'pointerup', endSwipe);
@@ -423,43 +481,336 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         true
       );
 
-      // --- Gentle autoplay (skipped for reduced-motion) ---
-      let timer = null;
-      const DELAY = 5500;
-      function startAuto() {
-        if (reduce || timer || zoomOpen || document.hidden) return;
-        timer = window.setInterval(next, DELAY);
+      // --- Playback engine (rAF progress + optional visible controls) ---
+      // A steady progress bar drives auto-advance. Visible playback UI (the
+      // bottom-left play/pause button and the progress bar) is only shown for
+      // the stage presentation; the coverflow presentation keeps the classic
+      // silent hover-to-pause autoplay with no chrome.
+      const DURATION = 7000; // ms spent on each slide while playing
+      const toggleBtn = root.querySelector('[data-playback-toggle]');
+      const progressFill = root.querySelector('[data-progress-fill]');
+      const PLAY_LABEL = (toggleBtn && toggleBtn.dataset.labelPlay) || 'Play';
+      const PAUSE_LABEL = (toggleBtn && toggleBtn.dataset.labelPause) || 'Pause';
+      const controlsEnabled = stagePresentation && !reduce;
+      root.dataset.playback = controlsEnabled ? 'on' : 'off';
+
+      let isPlaying = autoplay && !reduce;
+      let progress = 0; // 0..1 through the current slide
+      let rafId = null;
+      let lastTs = 0;
+      let hovered = false;
+      let focusWithin = false;
+      let viewportActivated = !stagePresentation;
+      let viewportActive = !stagePresentation;
+      let viewportRafId = null;
+      let viewportFailSafeTimer = null;
+      let viewportFailSafeReady = false;
+
+      function clearViewportFailSafe() {
+        if (viewportFailSafeTimer !== null) clearTimeout(viewportFailSafeTimer);
+        viewportFailSafeTimer = null;
+        viewportFailSafeReady = false;
       }
-      function stopAuto() {
-        if (timer) {
-          clearInterval(timer);
-          timer = null;
+
+      function revealHasSettled() {
+        const reveal = root.closest('[data-home-reveal]');
+        if (!reveal) return true;
+        if (!reveal.classList.contains('home-visible')) return false;
+
+        const styles = getComputedStyle(reveal);
+        if (Number.parseFloat(styles.opacity) < 0.995) return false;
+        if (styles.transform === 'none') return true;
+
+        try {
+          const transform = new DOMMatrixReadOnly(styles.transform);
+          return Math.abs(transform.m41) <= 2 && Math.abs(transform.m42) <= 2;
+        } catch {
+          return true;
         }
       }
-      function handleFocusOut(e) {
-        if (!root.contains(e.relatedTarget)) startAuto();
+
+      function evaluateViewport() {
+        viewportRafId = null;
+        if (!stagePresentation) return;
+
+        const header = document.querySelector('header.header');
+        const headerBounds = header && header.getBoundingClientRect();
+        const viewportTop =
+          headerBounds && headerBounds.top <= 0 && headerBounds.bottom > 0
+            ? Math.min(headerBounds.bottom, window.innerHeight)
+            : 0;
+        const viewportBottom = window.innerHeight;
+        const availableHeight = Math.max(0, viewportBottom - viewportTop);
+        const bounds = stage.getBoundingClientRect();
+        const visibleTop = Math.max(bounds.top, viewportTop);
+        const visibleBottom = Math.min(bounds.bottom, viewportBottom);
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+        const maximumVisibleHeight = Math.min(bounds.height, availableHeight);
+        const intersects = visibleHeight > 2;
+        const fullyPresented =
+          maximumVisibleHeight > 0 && visibleHeight >= maximumVisibleHeight - 2;
+        const failSafeEligible =
+          maximumVisibleHeight > 0 && visibleHeight / maximumVisibleHeight >= 0.9;
+
+        if (!viewportActivated) {
+          if (
+            revealHasSettled() &&
+            (fullyPresented || (viewportFailSafeReady && failSafeEligible))
+          ) {
+            viewportActivated = true;
+            clearViewportFailSafe();
+            progress = 0;
+            setActive(0);
+            updateProgressUI();
+          } else if (failSafeEligible && viewportFailSafeTimer === null && !viewportFailSafeReady) {
+            viewportFailSafeTimer = window.setTimeout(() => {
+              viewportFailSafeTimer = null;
+              viewportFailSafeReady = true;
+              scheduleViewportEvaluation();
+            }, 1000);
+          } else if (!failSafeEligible) {
+            clearViewportFailSafe();
+          }
+        }
+
+        const nextActive = viewportActivated && intersects;
+        if (nextActive === viewportActive) return;
+        viewportActive = nextActive;
+        root.toggleAttribute('data-viewport-active', viewportActive);
+        refreshPlayback();
       }
-      function handleVisibilityChange() {
-        document.hidden ? stopAuto() : startAuto();
+
+      function scheduleViewportEvaluation() {
+        if (viewportRafId !== null) return;
+        viewportRafId = requestAnimationFrame(evaluateViewport);
       }
-      addListener(root, 'pointerenter', stopAuto);
-      addListener(root, 'pointerleave', startAuto);
-      addListener(root, 'focusin', stopAuto);
-      addListener(root, 'focusout', handleFocusOut);
-      addListener(document, 'visibilitychange', handleVisibilityChange);
+
+      function handleViewportChange() {
+        if (!viewportActivated) clearViewportFailSafe();
+        scheduleViewportEvaluation();
+      }
+
+      function suspended() {
+        if (!viewportActive || zoomOpen || document.hidden) return true;
+        // In coverflow mode the pointer/focus pause keeps the marquee polite.
+        // In stage mode the explicit button owns the play state, so hovering
+        // must not fight the user's choice.
+        if (!controlsEnabled && (hovered || focusWithin)) return true;
+        return false;
+      }
+
+      function updateProgressUI() {
+        if (!progressFill) return;
+        const p = Math.max(0, Math.min(1, progress));
+        progressFill.style.transform = `scaleX(${p})`;
+      }
+
+      function updateToggleUI() {
+        if (!toggleBtn) return;
+        toggleBtn.dataset.playing = isPlaying ? 'true' : 'false';
+        toggleBtn.setAttribute('aria-pressed', isPlaying ? 'true' : 'false');
+        toggleBtn.setAttribute('aria-label', isPlaying ? PAUSE_LABEL : PLAY_LABEL);
+      }
+
+      function stopRaf() {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        lastTs = 0;
+      }
+
+      function tick(ts) {
+        rafId = null;
+        if (!isPlaying || suspended()) return; // resume() restarts the loop
+        if (lastTs === 0) lastTs = ts;
+        const dt = ts - lastTs;
+        lastTs = ts;
+        progress += dt / DURATION;
+        if (progress >= 1) {
+          progress = 0;
+          setActive(active + 1);
+        }
+        updateProgressUI();
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function resume() {
+        if (!isPlaying || suspended() || rafId !== null) return;
+        lastTs = 0;
+        rafId = requestAnimationFrame(tick);
+      }
+
+      // Re-evaluate suspension after a hover/focus/visibility/zoom change.
+      function refreshPlayback() {
+        if (!isPlaying) return;
+        if (suspended()) {
+          stopRaf();
+        } else {
+          resume();
+        }
+      }
+
+      function setPlaying(next) {
+        if (isPlaying === next) return;
+        isPlaying = next;
+        updateToggleUI();
+        if (isPlaying) {
+          resume();
+        } else {
+          stopRaf();
+        }
+        updateProgressUI();
+      }
+
+      // Manual navigation resets the current slide's progress. In stage mode it
+      // also drops into manual mode (paused); pressing play then resumes from
+      // the start of whatever slide is now centered. Coverflow keeps playing.
+      function manualNav(navFn) {
+        navFn();
+        progress = 0;
+        if (controlsEnabled) {
+          setPlaying(false);
+        } else {
+          lastTs = 0;
+        }
+        updateProgressUI();
+      }
+
+      toggleBtn && addListener(toggleBtn, 'click', () => setPlaying(!isPlaying));
+
+      addListener(root, 'pointerenter', () => {
+        hovered = true;
+        refreshPlayback();
+      });
+      addListener(root, 'pointerleave', () => {
+        hovered = false;
+        refreshPlayback();
+      });
+      addListener(root, 'focusin', () => {
+        focusWithin = true;
+        refreshPlayback();
+      });
+      addListener(root, 'focusout', (e) => {
+        if (root.contains(e.relatedTarget)) return;
+        focusWithin = false;
+        refreshPlayback();
+      });
+      addListener(document, 'visibilitychange', refreshPlayback);
+      if (stagePresentation) {
+        addListener(window, 'scroll', handleViewportChange, { passive: true });
+        addListener(window, 'resize', handleViewportChange, { passive: true });
+        addListener(document, 'transitionend', scheduleViewportEvaluation, true);
+      }
+
+      function stopPlayback() {
+        stopRaf();
+      }
 
       // Pause autoplay while an image is zoomed open. starlight-image-zoom adds
       // the `starlight-image-zoom-opened` class to <body> for the duration.
       const body = document.body;
+
+      // --- Zoom lightbox prev/next navigation ---------------------------------
+      // starlight-image-zoom portals a `<dialog class="starlight-image-zoom-dialog">`
+      // to <body> and clones the active slide's image into its <figure>. We add
+      // prev/next arrows to that dialog so viewers can flip through every view
+      // without unzooming. Clicks are kept from bubbling to the plugin's
+      // document-level "click anywhere to close" handler.
+      const zoomPrevLabel = (prevBtn && prevBtn.getAttribute('aria-label')) || 'Previous';
+      const zoomNextLabel = (nextBtn && nextBtn.getAttribute('aria-label')) || 'Next';
+
+      function fitZoomClone(clone, natW, natH) {
+        if (!natW || !natH) return;
+        const maxW = Math.min(window.innerWidth, natW);
+        const maxH = Math.min(window.innerHeight, natH);
+        const scale = Math.min(maxW / natW, maxH / natH);
+        const w = natW * scale;
+        const h = natH * scale;
+        clone.style.width = `${w}px`;
+        clone.style.height = `${h}px`;
+        clone.style.top = `${(window.innerHeight - h) / 2}px`;
+        clone.style.left = `${(window.innerWidth - w) / 2}px`;
+        clone.style.transform = '';
+      }
+
+      function zoomStep(dir) {
+        if (n < 2) return;
+        const dialog = document.querySelector('.starlight-image-zoom-dialog');
+        if (!dialog) return;
+        const clone = dialog.querySelector('figure img');
+        if (!clone) return;
+        zoomIndex = (((zoomIndex + dir) % n) + n) % n;
+        const srcImg =
+          slides[zoomIndex].querySelector('img.dashboard-shot') ||
+          slides[zoomIndex].querySelector('img');
+        if (!srcImg) return;
+        const settle = () => {
+          fitZoomClone(clone, srcImg.naturalWidth, srcImg.naturalHeight);
+          requestAnimationFrame(() => clone.classList.remove('is-swapping'));
+        };
+        clone.classList.add('is-swapping');
+        clone.srcset = srcImg.srcset || '';
+        clone.sizes = srcImg.sizes || '';
+        clone.src = srcImg.currentSrc || srcImg.src;
+        clone.alt = srcImg.getAttribute('alt') || '';
+        if (clone.complete && clone.naturalWidth) settle();
+        else clone.addEventListener('load', settle, { once: true });
+        const caption = dialog.querySelector('figcaption');
+        if (caption) caption.textContent = clone.alt || slides[zoomIndex].dataset.slideLabel || '';
+      }
+
+      function injectZoomNav() {
+        if (n < 2) return;
+        const dialog = document.querySelector('.starlight-image-zoom-dialog');
+        if (!dialog || dialog.querySelector('.carousel-zoom-nav')) return;
+        const make = (dir, aria, path) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = `carousel-zoom-nav ${dir < 0 ? 'is-prev' : 'is-next'}`;
+          b.setAttribute('aria-label', aria);
+          b.innerHTML =
+            '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"' +
+            ` stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+          b.addEventListener('pointerdown', (e) => e.stopPropagation());
+          b.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            zoomStep(dir);
+          });
+          return b;
+        };
+        dialog.append(
+          make(-1, zoomPrevLabel, '<polyline points="15 18 9 12 15 6"></polyline>'),
+          make(1, zoomNextLabel, '<polyline points="9 18 15 12 9 6"></polyline>')
+        );
+      }
+
+      addListener(document, 'keydown', (e) => {
+        if (!zoomOpen) return;
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          e.stopPropagation();
+          zoomStep(1);
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          e.stopPropagation();
+          zoomStep(-1);
+        }
+      });
+
       zoomObserver = new MutationObserver(() => {
         const open = body.classList.contains('starlight-image-zoom-opened');
         if (open === zoomOpen) return;
         zoomOpen = open;
         if (open) {
-          stopAuto();
-        } else {
-          startAuto();
+          zoomIndex = active;
+          injectZoomNav();
+        } else if (zoomIndex !== active) {
+          // Leave the carousel resting on the last view browsed in the lightbox.
+          manualNav(() => setActive(zoomIndex));
         }
+        refreshPlayback();
       });
       zoomObserver.observe(body, { attributes: true, attributeFilter: ['class'] });
 
@@ -470,7 +821,10 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       requestAnimationFrame(() => {
         measure();
         render();
-        startAuto();
+        updateToggleUI();
+        updateProgressUI();
+        scheduleViewportEvaluation();
+        resume();
       });
     }
 
@@ -507,6 +861,241 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
   .dashboard-carousel:focus-visible {
     outline: 0.1875rem solid var(--carousel-primary);
     outline-offset: 0.25rem;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] {
+    max-width: none;
+    margin: 0;
+    padding: clamp(1rem, 2.5vw, 2rem);
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .stage {
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--home-border, var(--sl-color-gray-5, #d9d6e5));
+    border-radius: 0.7rem;
+    perspective: none;
+    transform-style: flat;
+    background: var(--home-surface-strong, var(--sl-color-bg, #fff));
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .slide {
+    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    transform: translate3d(0, 0, 0) scale(1);
+    border: 0;
+    border-radius: 0.65rem;
+    cursor: default;
+    box-shadow: none;
+    transition:
+      transform 560ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 420ms ease;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .slide.is-active {
+    box-shadow: none;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .carousel-footer {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .dot {
+    position: relative;
+    width: 1.7rem;
+    height: 1.7rem;
+    border: 1px solid transparent;
+    background: transparent;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .dot::after {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: 0.48rem;
+    height: 0.48rem;
+    border-radius: 50%;
+    background: var(--home-muted, var(--sl-color-gray-3, #6b687a));
+    content: '';
+    transform: translate(-50%, -50%);
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .dot[aria-pressed='true'] {
+    border-color: color-mix(in srgb, var(--home-purple, var(--carousel-primary)) 42%, transparent);
+    background: color-mix(in srgb, var(--home-purple, var(--carousel-primary)) 10%, transparent);
+    transform: none;
+  }
+
+  .dashboard-carousel[data-presentation='stage'] .dot[aria-pressed='true']::after {
+    background: var(--home-purple, var(--carousel-primary));
+  }
+
+  /* --- Playback controls (only rendered for the stage presentation) --- */
+  .carousel-playback-btn,
+  .carousel-progress {
+    display: none;
+  }
+
+  .dashboard-carousel[data-playback='on'] .carousel-playback-btn {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2.625rem;
+    height: 2.625rem;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--home-border, var(--sl-color-gray-5, #d9d6e5));
+    border-radius: 0.625rem;
+    color: var(--home-text, var(--sl-color-text, #1f1e33));
+    background: var(--home-surface, var(--sl-color-bg, #fff));
+    cursor: pointer;
+    transition:
+      border-color 160ms ease,
+      background 160ms ease,
+      transform 120ms ease;
+  }
+
+  .dashboard-carousel[data-playback='on'] .carousel-playback-btn:hover {
+    border-color: color-mix(in srgb, var(--home-purple, var(--carousel-primary)) 60%, transparent);
+    background: color-mix(
+      in srgb,
+      var(--home-purple, var(--carousel-primary)) 12%,
+      var(--home-surface, var(--sl-color-bg, #fff))
+    );
+  }
+
+  .dashboard-carousel[data-playback='on'] .carousel-playback-btn:active {
+    transform: translateY(1px);
+  }
+
+  .dashboard-carousel[data-playback='on'] .carousel-playback-btn:focus-visible {
+    outline: 0.1875rem solid var(--home-purple, var(--carousel-primary));
+    outline-offset: 0.2rem;
+  }
+
+  .carousel-playback-btn span {
+    grid-area: 1 / 1;
+    width: 1rem;
+    height: 1rem;
+    display: grid;
+    place-items: center;
+    transition:
+      opacity 160ms ease,
+      transform 160ms ease,
+      visibility 160ms ease;
+  }
+
+  .carousel-playback-btn :global(svg) {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+  }
+
+  /* Show pause while playing, play while paused. */
+  .carousel-play-icon {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.7);
+  }
+
+  .carousel-playback-btn[data-playing='false'] .carousel-pause-icon {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.7);
+  }
+
+  .carousel-playback-btn[data-playing='false'] .carousel-play-icon {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+  }
+
+  /* Progress bar that fills across the current slide, sitting under the image. */
+  .dashboard-carousel[data-playback='on'] .carousel-progress {
+    display: block;
+    position: relative;
+    height: 0.25rem;
+    margin-top: 0.6rem;
+    border-radius: 999px;
+    background: var(--home-border, var(--sl-color-gray-5, #d9d6e5));
+    overflow: hidden;
+  }
+
+  .carousel-progress-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(
+      90deg,
+      var(--home-purple, var(--carousel-primary)),
+      var(--home-purple-bright, #8b6dff)
+    );
+    transform: scaleX(0);
+    transform-origin: left center;
+    will-change: transform;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .carousel-playback-btn span,
+    .carousel-progress-fill {
+      transition: none;
+    }
+  }
+
+  :global(html[data-theme='dark']) .dashboard-carousel[data-presentation='stage'] .stage {
+    border-color: rgba(229, 226, 244, 0.14);
+    background: #151423;
+  }
+
+  :global(html[data-theme='dark']) .dashboard-carousel[data-presentation='stage'] .dot::after {
+    background: #8d879d;
+  }
+
+  :global(html[data-theme='dark'])
+    .dashboard-carousel[data-presentation='stage']
+    .dot[aria-pressed='true'] {
+    border-color: rgba(195, 173, 255, 0.38);
+    background: rgba(195, 173, 255, 0.09);
+  }
+
+  :global(html[data-theme='dark'])
+    .dashboard-carousel[data-presentation='stage']
+    .dot[aria-pressed='true']::after {
+    background: #c3adff;
+  }
+
+  :global(html[data-theme='dark']) .dashboard-carousel[data-playback='on'] .carousel-playback-btn {
+    border-color: rgba(229, 226, 244, 0.22);
+    color: #ded9eb;
+    background: rgba(229, 226, 244, 0.08);
+  }
+
+  :global(html[data-theme='dark'])
+    .dashboard-carousel[data-playback='on']
+    .carousel-playback-btn:hover {
+    border-color: rgba(195, 173, 255, 0.6);
+    background: rgba(195, 173, 255, 0.14);
+  }
+
+  :global(html[data-theme='dark'])
+    .dashboard-carousel[data-playback='on']
+    .carousel-playback-btn:focus-visible {
+    outline-color: #c3adff;
+  }
+
+  :global(html[data-theme='dark']) .dashboard-carousel[data-playback='on'] .carousel-progress {
+    background: rgba(229, 226, 244, 0.14);
+  }
+
+  :global(html[data-theme='dark']) .carousel-progress-fill {
+    background: linear-gradient(90deg, #8b6dff, #c3adff);
   }
 
   .stage {
@@ -615,20 +1204,6 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
     margin-top: 1.25rem;
   }
 
-  .active-label {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    /* Light-purple accent reads well on the dark page background (~7.8:1). */
-    color: var(--aspire-color-secondary);
-  }
-
-  /* On the light theme's white background the light-purple accent fails WCAG AA
-     (~1.9:1), so switch to the deeper brand purple (~5.1:1 on white). */
-  html[data-theme='light'] .active-label {
-    color: var(--aspire-color-primary);
-  }
-
   .dots {
     display: flex;
     gap: 0.55rem;
@@ -665,21 +1240,116 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       width: 2.25rem;
       height: 2.25rem;
     }
+
+    .dashboard-carousel[data-presentation='stage'] {
+      padding: 0.75rem;
+    }
+
+    .dashboard-carousel[data-presentation='stage'] .carousel-footer {
+      align-items: center;
+    }
+
+    .dashboard-carousel[data-presentation='stage'] .dots {
+      display: none;
+    }
   }
 
   /* Respect users who prefer reduced motion: no 3D animation, no autoplay. */
   .dashboard-carousel.reduced-motion .slide {
-    transition: opacity 0.2s ease;
+    transition: none;
     filter: none !important;
   }
   @media (prefers-reduced-motion: reduce) {
     .slide {
-      transition: opacity 0.2s ease;
+      transition: none;
     }
   }
 
   html[data-theme='dark'] .slide {
     background: var(--sl-color-black, #1a1a1a);
     border-color: var(--sl-color-gray-4);
+  }
+</style>
+
+<style is:global>
+  /* Prev/next arrows injected into the starlight-image-zoom lightbox dialog.
+     The dialog is portaled to <body>, so these must be global (unscoped). */
+  .carousel-zoom-nav {
+    position: fixed;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    padding: 0;
+    margin: 0;
+    border: 2px solid var(--sl-color-gray-2);
+    border-radius: 50%;
+    background-color: var(--sl-color-bg-nav);
+    color: var(--sl-color-text, var(--sl-color-white));
+    cursor: pointer;
+    z-index: 2;
+    opacity: 0;
+    transform: translateY(-50%);
+    animation: carousel-zoom-nav-in var(--starlight-image-zoom-animation-duration, 300ms) ease
+      forwards;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      transform 0.2s ease;
+  }
+  .carousel-zoom-nav.is-prev {
+    left: 20px;
+  }
+  .carousel-zoom-nav.is-next {
+    right: 20px;
+  }
+  .carousel-zoom-nav:hover {
+    background-color: color-mix(in srgb, var(--sl-color-bg-nav), var(--sl-color-text) 12%);
+    border-color: var(--sl-color-gray-1);
+    transform: translateY(-50%) scale(1.08);
+  }
+  .carousel-zoom-nav:focus-visible {
+    outline: 3px solid var(--sl-color-accent, #8b5cf6);
+    outline-offset: 2px;
+  }
+  .carousel-zoom-nav svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  @keyframes carousel-zoom-nav-in {
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Soft crossfade as the lightbox image is swapped between views. */
+  .starlight-image-zoom-image.is-swapping {
+    opacity: 0;
+    transition: opacity 140ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .carousel-zoom-nav {
+      animation: none;
+      opacity: 1;
+    }
+    .starlight-image-zoom-image.is-swapping {
+      transition: none;
+    }
+  }
+
+  @media (max-width: 30rem) {
+    .carousel-zoom-nav {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+    .carousel-zoom-nav.is-prev {
+      left: 10px;
+    }
+    .carousel-zoom-nav.is-next {
+      right: 10px;
+    }
   }
 </style>

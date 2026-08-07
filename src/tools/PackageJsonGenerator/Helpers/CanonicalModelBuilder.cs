@@ -81,7 +81,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                 {
                     Name = f.Name,
                     Value = Convert.ToInt64(f.ConstantValue),
-                    Description = ExtractSummary(f),
+                    Description = DocumentationSanitizer.RedactConnectionStringPasswords(ExtractSummary(f)),
                 })];
         }
 
@@ -705,6 +705,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                     // Normalize whitespace within text runs (newlines → spaces, collapse runs)
                     text = text.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ");
                     while (text.Contains("  ")) text = text.Replace("  ", " ");
+                    text = DocumentationSanitizer.RedactConnectionStringPasswords(text);
                     if (!string.IsNullOrEmpty(text))
                     {
                         nodes.Add(new DocNode { Kind = "text", Text = text });
@@ -737,7 +738,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                                         {
                                             Kind = "href",
                                             Value = href,
-                                            Text = child.Value.Trim() is { Length: > 0 } t ? t : null,
+                                            Text = child.Value.Trim() is { Length: > 0 } t ? DocumentationSanitizer.RedactConnectionStringPasswords(t) : null,
                                         });
                                     }
                                 }
@@ -766,7 +767,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                         }
 
                         case "c":
-                            nodes.Add(new DocNode { Kind = "code", Text = child.Value });
+                            nodes.Add(new DocNode { Kind = "code", Text = DocumentationSanitizer.RedactConnectionStringPasswords(child.Value) });
                             break;
 
                         case "code":
@@ -779,7 +780,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                             nodes.Add(new DocNode
                             {
                                 Kind = "codeblock",
-                                Text = child.Value,
+                                Text = DocumentationSanitizer.RedactConnectionStringPasswords(child.Value),
                                 Language = lang,
                                 Value = region, // reuse value for region
                             });
@@ -839,7 +840,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                                 {
                                     Kind = "href",
                                     Value = href,
-                                    Text = child.Value.Trim() is { Length: > 0 } t ? t : null,
+                                    Text = child.Value.Trim() is { Length: > 0 } t ? DocumentationSanitizer.RedactConnectionStringPasswords(t) : null,
                                 });
                             }
                             break;
@@ -898,7 +899,9 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
         {
             // No code block — try to use the whole content as code
             var plainText = ExtractPlainText(exampleElement);
-            return plainText is not null ? new DocExample { Code = plainText } : null;
+            return plainText is not null
+                ? new DocExample { Code = DocumentationSanitizer.RedactConnectionStringPasswords(plainText)! }
+                : null;
         }
 
         var lang = NormalizeLanguage(
@@ -920,7 +923,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                     while (text.Contains("  ")) text = text.Replace("  ", " ");
                     if (!string.IsNullOrWhiteSpace(text))
                     {
-                        descNodes.Add(new DocNode { Kind = "text", Text = text.Trim() });
+                        descNodes.Add(new DocNode { Kind = "text", Text = DocumentationSanitizer.RedactConnectionStringPasswords(text.Trim()) });
                     }
                     break;
 
@@ -941,7 +944,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
 
         return new DocExample
         {
-            Code = codeElement.Value,
+            Code = DocumentationSanitizer.RedactConnectionStringPasswords(codeElement.Value)!,
             Language = lang,
             Description = descNodes.Count > 0 ? descNodes : null,
             Region = region,

@@ -188,9 +188,9 @@ interface BuildSampleMarkdownOptions {
  * page-actions plugin's "Copy Markdown" and "View Markdown" actions return a
  * portable, LLM-friendly document.
  *
- * The base content is the original upstream README (readmeRaw); relative image
- * paths are rewritten to absolute GitHub raw URLs so they resolve when the
- * markdown is opened in a browser or pasted into another tool.
+ * The base content is the terminology-normalized upstream README (readmeRaw);
+ * relative image paths are rewritten to absolute GitHub raw URLs so they
+ * resolve when the markdown is opened in a browser or pasted into another tool.
  */
 export function buildSampleMarkdown(sample: Sample, options: BuildSampleMarkdownOptions): string {
   const body = rewriteSampleImageUrls(sample.readmeRaw ?? sample.readme, sample.name);
