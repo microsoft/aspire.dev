@@ -393,6 +393,38 @@ await acaEnv.withAzdResourceNaming();
 
 Calling this API ensures your existing Azure resources remain consistent and prevents duplication.
 
+## Avoid managed environment name collisions
+
+By default, the generated managed environment `name` keeps only lowercase letters from the resource name, so `AddAzureContainerAppEnvironment("cae1")` and `AddAzureContainerAppEnvironment("cae2")` both produce the same Bicep expression once digits are stripped. If you deploy both environments to the *same resource group*, they collapse onto a single physical Azure Container Apps environment and concurrent deployments can fail with `ManagedEnvironmentOperationInProgress`.
+
+Publish and deploy detect this collision up front and fail with guidance to call `WithUniqueResourceNaming` on the colliding environments:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var env1 = builder.AddAzureContainerAppEnvironment("cae1")
+    .WithUniqueResourceNaming();
+
+var env2 = builder.AddAzureContainerAppEnvironment("cae2")
+    .WithUniqueResourceNaming();
+
+// Omitted for brevity...
+
+builder.Build().Run();
+```
+</TabItem>
+</Tabs>
+
+`WithUniqueResourceNaming` preserves digits in the resource name when computing the managed environment `name`, so `cae1` and `cae2` produce distinct names and can coexist in the same resource group.
+
+<Aside type="caution">
+  This method is marked with `[Experimental("ASPIREACANAMING002")]` and changes the managed environment `name` for the environment it's applied to. Applying it to an *already-deployed* single environment changes its name, which causes Azure to recreate the resource. Apply it only when deploying more than one environment to a single resource group, or to new deployments. For more information, see [ASPIREACANAMING002](/diagnostics/aspireacanaming002).
+</Aside>
+
+`WithUniqueResourceNaming` acts as a fallback after any name resolver you configure explicitly through `AzureProvisioningOptions.ProvisioningBuildOptions`, and it has no effect when `WithAzdResourceNaming` is used, since `azd` naming sets the environment name explicitly.
+
 ## Customize provisioning infrastructure
 
 All Azure resources are subclasses of the `AzureProvisioningResource` type. This enables customization of the generated Bicep by providing a fluent API to configure the Azure resources — using the `ConfigureInfrastructure` API:
