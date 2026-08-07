@@ -496,16 +496,17 @@ await builder.build().run();
 <Aside type="note" title="Linux system trust preservation">
   On Linux, executable resources configured with Append mode preserve access
   to the system's OpenSSL certificate roots in addition to Aspire's generated
-  development certificate. If `SSL_CERT_DIR` is already set in the resource's
-  environment, Aspire appends its certificate directory to the existing value
-  instead of replacing it. If `SSL_CERT_DIR` is unset, Aspire appends any
-  well-known system certificate directories that exist on the machine (for
-  example `/etc/ssl/certs`) alongside its own. An explicit `SSL_CERT_DIR`
-  value, including an empty string, is always preserved as user configuration.
-  This avoids a scenario where Linux workloads launched with `dotnet run` or
-  an IDE lose OpenSSL's implicit system certificate roots and fail outbound
-  HTTPS requests once Aspire configures the resource with only its generated
-  certificate directory.
+  development certificate. If `SSL_CERT_DIR` is set in the AppHost process
+  environment, Aspire adds those directories after its generated certificate
+  directory. An explicitly empty value is preserved by not inferring system
+  directories. If `SSL_CERT_DIR` is unset, Aspire adds any well-known system
+  certificate directories that exist on the machine (for example,
+  `/etc/ssl/certs`) after its own. Aspire reads this value from the AppHost
+  process environment, not from an individual resource's configured
+  environment. This avoids a scenario where Linux workloads launched with
+  `dotnet run` or an IDE lose OpenSSL's implicit system certificate roots and
+  fail outbound HTTPS requests once Aspire configures the resource with only
+  its generated certificate directory.
 </Aside>
 
 #### Override mode
