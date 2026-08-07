@@ -86,7 +86,7 @@ Install the [📦 Aspire.MySqlConnector](https://www.nuget.org/packages/Aspire.M
 
 In _Program.cs_, call `AddMySqlDataSource` on your `IHostApplicationBuilder` to register a `MySqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMySqlDataSource(connectionName: "mysqldb");
 ```
 
@@ -96,7 +96,7 @@ The `connectionName` must match the MySQL database resource name from the AppHos
 
 Resolve the data source through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(MySqlDataSource dataSource)
 {
     // Use dataSource...
@@ -107,14 +107,14 @@ public class ExampleService(MySqlDataSource dataSource)
 
 To register multiple `MySqlDataSource` instances with different connection names, use `AddKeyedMySqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedMySqlDataSource(name: "mainDb");
 builder.AddKeyedMySqlDataSource(name: "loggingDb");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("mainDb")] MySqlDataSource mainDataSource,
     [FromKeyedServices("loggingDb")] MySqlDataSource loggingDataSource)
@@ -131,13 +131,13 @@ The Aspire MySQL client integration offers multiple ways to provide configuratio
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddMySqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMySqlDataSource("mysqldb");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "mysqldb": "Server=mysql;Database=mysqldb"
@@ -149,7 +149,7 @@ For more information, see [MySqlConnector: ConnectionString documentation](https
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `MySqlConnectorSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:MySqlConnector` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "MySqlConnector": {
@@ -166,7 +166,7 @@ For the complete MySQL client integration JSON schema, see [Aspire.MySqlConnecto
 
 **Inline delegates.** Pass an `Action<MySqlConnectorSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMySqlDataSource(
     "mysqldb",
     static settings => settings.DisableHealthChecks = true);
@@ -213,7 +213,7 @@ Any of these telemetry features can be disabled through the configuration option
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and connect using the [📦 MySqlConnector](https://www.nuget.org/packages/MySqlConnector/) NuGet package directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using MySqlConnector;
 
 var connectionString = Environment.GetEnvironmentVariable("MYSQLDB_URI");
@@ -235,7 +235,7 @@ go get github.com/go-sql-driver/mysql
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -252,7 +252,7 @@ func main() {
     port := os.Getenv("MYSQLDB_PORT")
     user := os.Getenv("MYSQLDB_USERNAME")
     password := os.Getenv("MYSQLDB_PASSWORD")
-    dbName := os.Getenv("MYSQLDB_DATABASE")
+    dbName := os.Getenv("MYSQLDB_DATABASENAME")
 
     dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, host, port, dbName)
 
@@ -283,7 +283,7 @@ pip install mysql-connector-python
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import mysql.connector
 
@@ -293,7 +293,7 @@ conn = mysql.connector.connect(
     port=int(os.getenv("MYSQLDB_PORT", "3306")),
     user=os.getenv("MYSQLDB_USERNAME"),
     password=os.getenv("MYSQLDB_PASSWORD"),
-    database=os.getenv("MYSQLDB_DATABASE"),
+    database=os.getenv("MYSQLDB_DATABASENAME"),
 )
 
 cursor = conn.cursor()
@@ -313,7 +313,7 @@ npm install mysql2
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import mysql from 'mysql2/promise';
 
 // Read Aspire-injected connection properties
@@ -322,7 +322,7 @@ const connection = await mysql.createConnection({
     port: Number(process.env.MYSQLDB_PORT),
     user: process.env.MYSQLDB_USERNAME,
     password: process.env.MYSQLDB_PASSWORD,
-    database: process.env.MYSQLDB_DATABASE,
+    database: process.env.MYSQLDB_DATABASENAME,
 });
 
 // Use connection to query the database...
@@ -331,7 +331,7 @@ await connection.end();
 
 Or use the connection URI directly:
 
-```typescript title="TypeScript — Connect with URI"
+```typescript title="Connect with URI"
 import mysql from 'mysql2/promise';
 
 const connection = await mysql.createConnection(process.env.MYSQLDB_URI!);
@@ -342,7 +342,7 @@ await connection.end();
 
 For connection pooling (recommended in production), use `createPool` instead:
 
-```typescript title="TypeScript — Connection pool"
+```typescript title="Connection pool"
 import mysql from 'mysql2/promise';
 
 const pool = mysql.createPool({
@@ -350,7 +350,7 @@ const pool = mysql.createPool({
     port: Number(process.env.MYSQLDB_PORT),
     user: process.env.MYSQLDB_USERNAME,
     password: process.env.MYSQLDB_PASSWORD,
-    database: process.env.MYSQLDB_DATABASE,
+    database: process.env.MYSQLDB_DATABASENAME,
     waitForConnections: true,
     connectionLimit: 10,
 });

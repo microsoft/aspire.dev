@@ -55,7 +55,7 @@ Install the [📦 Aspire.StackExchange.Redis.OutputCaching](https://www.nuget.or
 
 In _Program.cs_, call `AddRedisOutputCache` to register `IOutputCacheStore` and add the output caching middleware:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisOutputCache(connectionName: "cache");
 ```
 
@@ -65,7 +65,7 @@ builder.AddRedisOutputCache(connectionName: "cache");
 
 Then add the middleware to the request pipeline:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 var app = builder.Build();
 
 app.UseOutputCache();
@@ -75,7 +75,7 @@ app.UseOutputCache();
 
 For minimal API endpoints, use the `CacheOutput()` extension method or the `[OutputCache]` attribute:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 app.MapGet("/cached", () => "Hello world!")
    .CacheOutput();
 
@@ -86,7 +86,7 @@ app.MapGet(
 
 For MVC controllers, apply `[OutputCache]` directly to the action method:
 
-```csharp title="C# — WeatherController.cs"
+```csharp title="WeatherController.cs"
 [ApiController]
 [Route("[controller]")]
 public class WeatherController : ControllerBase
@@ -107,11 +107,11 @@ The client integration offers three ways to supply configuration.
 
 **Connection strings.** Pass the connection name to `AddRedisOutputCache` and add a matching entry in `ConnectionStrings`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisOutputCache("cache");
 ```
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "cache": "localhost:6379"
@@ -123,7 +123,7 @@ For more information, see [Stack Exchange Redis configuration](https://stackexch
 
 **Configuration providers.** The integration reads `StackExchangeRedisSettings` from any `Microsoft.Extensions.Configuration` source using the `Aspire:StackExchange:Redis:OutputCaching` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "StackExchange": {
@@ -141,7 +141,7 @@ For more information, see [Stack Exchange Redis configuration](https://stackexch
 
 **Inline delegates.** Pass an `Action<StackExchangeRedisSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisOutputCache(
     "cache",
     static settings => settings.DisableHealthChecks = true);
@@ -149,7 +149,7 @@ builder.AddRedisOutputCache(
 
 To configure the underlying `ConfigurationOptions`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisOutputCache(
     "cache",
     configureOptions: options => options.ConnectTimeout = 3000);

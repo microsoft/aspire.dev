@@ -1,0 +1,266 @@
+---
+title: Set up LavinMQ in the Aspire AppHost
+description: Install the Community Toolkit LavinMQ hosting integration, configure broker ports, persist data, and open the management endpoint.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import lavinmqIcon from '@assets/icons/lavinmq-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={lavinmqIcon}
+  alt="LavinMQ logo"
+  width={100}
+  height={100}
+  fit="contain"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article is the AppHost API reference for the [📦 CommunityToolkit.Aspire.Hosting.LavinMQ](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.LavinMQ) package. Start with [Get started with LavinMQ and Aspire](../lavinmq-get-started/) for the integration workflow, or see [Connect Aspire apps to LavinMQ](../lavinmq-connect/) for client examples.
+
+## Installation
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.LavinMQ
+```
+
+Or add the package manually:
+
+```csharp title="AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.LavinMQ@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.LavinMQ" Version="*" />
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.LavinMQ
+```
+
+This adds the package to `aspire.config.json`. After `aspire restore`, `.aspire/modules/aspire.mjs` includes `addLavinMQ`, the persistence APIs, and the exported endpoint properties.
+
+</TabItem>
+</Tabs>
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) and
+  [`aspire restore`](/reference/cli/commands/aspire-restore/).
+</LearnMore>
+
+## Add a LavinMQ resource
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var lavinmq = builder.AddLavinMQ("lavinmq");
+
+builder.AddProject<Projects.Worker>("worker")
+    .WithReference(lavinmq);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const lavinmq = await builder.addLavinMQ('lavinmq');
+
+await builder
+  .addNodeApp('worker', './worker', 'index.js')
+  .withReference(lavinmq);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The integration runs `docker.io/cloudamqp/lavinmq:2.1.0`. The AMQP endpoint uses container port `5672`, and the management endpoint uses `15672`. The default username and password are both `guest`.
+
+<Aside type="caution">
+  The default `guest` credentials are intended for local development. Don't
+  expose the broker to untrusted networks with these credentials.
+</Aside>
+
+## Configure host ports
+
+Pass fixed host ports when another process needs stable endpoints:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var lavinmq = builder.AddLavinMQ(
+    "lavinmq",
+    amqpPort: 5672,
+    managementPort: 15672);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const lavinmq = await builder.addLavinMQ('lavinmq', {
+  amqpPort: 5672,
+  managementPort: 15672,
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+When you omit these parameters, the integration binds host ports `5672` and
+`15672`. Pass alternative values when either port is already occupied.
+
+## Persist data in a volume
+
+`WithDataVolume` and `withDataVolume` require a volume name and mount it at `/var/lib/lavinmq`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var lavinmq = builder.AddLavinMQ("lavinmq")
+    .WithDataVolume("lavinmq-data");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const lavinmq = await builder.addLavinMQ('lavinmq');
+await lavinmq.withDataVolume('lavinmq-data');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Persist data in a bind mount
+
+Use a bind mount when you need direct access to broker files on the host:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var lavinmq = builder.AddLavinMQ("lavinmq")
+    .WithDataBindMount(@"C:\LavinMQ\Data");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const lavinmq = await builder.addLavinMQ('lavinmq');
+await lavinmq.withDataBindMount('./lavinmq-data');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Both persistence methods accept an optional `isReadOnly` value. A read-only mount isn't suitable for a broker that needs to write data.
+
+## Use endpoint properties
+
+The resource exports its AMQP endpoint and connection expressions for use in custom AppHost expressions:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var lavinmq = builder.AddLavinMQ("lavinmq");
+var primaryEndpoint = lavinmq.Resource.PrimaryEndpoint;
+var host = lavinmq.Resource.Host;
+var port = lavinmq.Resource.Port;
+var uri = lavinmq.Resource.UriExpression;
+var connectionString = lavinmq.Resource.ConnectionStringExpression;
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const lavinmq = await builder.addLavinMQ('lavinmq');
+const primaryEndpoint = await lavinmq.primaryEndpoint();
+const host = await lavinmq.host();
+const port = await lavinmq.port();
+const uri = await lavinmq.uriExpression();
+const connectionString = await lavinmq.connectionStringExpression();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Management UI
+
+The management endpoint is added automatically. Open the `management` HTTP endpoint from the Aspire dashboard, then sign in with the broker credentials.
+
+## Hosting integration health checks
+
+The hosting integration registers a RabbitMQ-compatible health check against the AMQP endpoint. The dashboard reports the resource healthy after a client connection succeeds.
+
+## See also
+
+- [Connect Aspire apps to LavinMQ](../lavinmq-connect/)
+- [LavinMQ documentation](https://lavinmq.com/documentation)
+- [Persist data using volumes](/fundamentals/persist-data-volumes/)
+- [📦 CommunityToolkit.Aspire.Hosting.LavinMQ](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.LavinMQ)

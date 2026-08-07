@@ -280,7 +280,22 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-TypeScript AppHost support for Dockerfile factory APIs isn't available because `DockerfileFactoryContext` exposes .NET runtime types that aren't part of the polyglot SDK surface. Use the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically) for TypeScript AppHosts.
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const container = await builder.addDockerfileFactory("myapp", "../myapp", async () => `
+FROM node:22-alpine
+WORKDIR /app
+COPY . .
+RUN npm ci
+EXPOSE 3000
+CMD ["node", "server.js"]
+`);
+
+await builder.build().run();
+```
 
 </TabItem>
 </Tabs>
@@ -309,7 +324,20 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-TypeScript AppHost support for Dockerfile factory APIs isn't available because `DockerfileFactoryContext` exposes .NET runtime types that aren't part of the polyglot SDK surface. Use the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically) for TypeScript AppHosts.
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addContainer("myapp", { image: "placeholder", tag: "latest" })
+  .withDockerfileFactory("../myapp", async () => `
+FROM nginx:alpine
+COPY dist/ /usr/share/nginx/html
+EXPOSE 80
+`);
+
+await builder.build().run();
+```
 
 </TabItem>
 </Tabs>

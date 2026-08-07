@@ -10,6 +10,7 @@ import {
   resolveCanonicalUrl,
   resolveOgDescription,
   resolveOgImage,
+  resolveOgImageType,
   resolveOgTitle,
   resolveOgType,
   resolveSiteUrl,
@@ -20,6 +21,7 @@ type Route = Parameters<typeof getOgMetadata>[0];
 
 interface RouteOverrides {
   entryId?: string;
+  filePath?: string;
   title?: string;
   description?: string;
   locale?: string;
@@ -35,6 +37,7 @@ interface RouteOverrides {
 function createRoute(overrides: RouteOverrides = {}): Route {
   const {
     entryId = 'dashboard/enable-browser-telemetry.mdx',
+    filePath = `src/content/docs/${entryId}`,
     title = 'Enable browser telemetry',
     locale,
     lang = 'en',
@@ -55,7 +58,7 @@ function createRoute(overrides: RouteOverrides = {}): Route {
     entry: {
       id: entryId,
       slug: entryId.replace(/\.mdx?$/i, ''),
-      filePath: `src/content/docs/${entryId}`,
+      filePath,
       body: '',
       data: {
         title,
@@ -82,9 +85,9 @@ describe('getContentBasePath', () => {
   });
 
   it('strips a locale prefix when locale is set', () => {
-    expect(
-      getContentBasePath(createRoute({ entryId: 'de/foo/bar.mdx', locale: 'de' }))
-    ).toBe('foo/bar');
+    expect(getContentBasePath(createRoute({ entryId: 'de/foo/bar.mdx', locale: 'de' }))).toBe(
+      'foo/bar'
+    );
   });
 
   it('returns the index path for the home page', () => {
@@ -268,9 +271,7 @@ describe('resolveOgImage', () => {
 
   it('falls back to the global image when og is false', () => {
     const route = createRoute({ og: false });
-    expect(resolveOgImage(route, 'foo/bar', siteUrl, true)).toBe(
-      'https://aspire.dev/og-image.png'
-    );
+    expect(resolveOgImage(route, 'foo/bar', siteUrl, true)).toBe('https://aspire.dev/og-image.png');
   });
 
   it('falls back to the global image for non-default locales', () => {
@@ -297,11 +298,85 @@ describe('resolveOgImage', () => {
     expect(resolveOgImage(route, '404', siteUrl, true)).toBe('https://aspire.dev/og-image.png');
   });
 
+  it('falls back to the global image for generated pages routes', () => {
+    const route = createRoute({
+      entryId: 'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+      filePath: 'src/pages/reference/api/typescript/[module]/[item]/index.astro',
+      title: 'addOllamaLocal',
+    });
+
+    expect(
+      resolveOgImage(
+        route,
+        'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+        siteUrl,
+        true
+      )
+    ).toBe('https://aspire.dev/og-image.png');
+  });
+
+  it('falls back to the global image for virtual API reference routes without file paths', () => {
+    const route = createRoute({
+      entryId: 'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+      filePath: '',
+      title: 'addOllamaLocal',
+    });
+
+    expect(
+      resolveOgImage(
+        route,
+        'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+        siteUrl,
+        true
+      )
+    ).toBe('https://aspire.dev/og-image.png');
+  });
+
   it('emits a per-page URL for normal default-locale pages', () => {
     const route = createRoute();
     expect(resolveOgImage(route, 'dashboard/enable-browser-telemetry', siteUrl, true)).toBe(
       'https://aspire.dev/og/dashboard/enable-browser-telemetry.png'
     );
+  });
+
+  it('emits a per-page URL for docs routes with extensionless entry ids', () => {
+    const route = createRoute({
+      entryId: 'dashboard/enable-browser-telemetry',
+      filePath: 'src/content/docs/dashboard/enable-browser-telemetry.mdx',
+    });
+
+    expect(resolveOgImage(route, 'dashboard/enable-browser-telemetry', siteUrl, true)).toBe(
+      'https://aspire.dev/og/dashboard/enable-browser-telemetry.png'
+    );
+  });
+});
+
+describe('resolveOgImageType', () => {
+  it('defaults to image/png for the dynamic and fallback cards', () => {
+    expect(resolveOgImageType('https://aspire.dev/og/dashboard/enable-browser-telemetry.png')).toBe(
+      'image/png'
+    );
+    expect(resolveOgImageType('https://aspire.dev/og-image.png')).toBe('image/png');
+  });
+
+  it('maps common raster extensions to their MIME types', () => {
+    expect(resolveOgImageType('https://aspire.dev/card.jpg')).toBe('image/jpeg');
+    expect(resolveOgImageType('https://aspire.dev/card.jpeg')).toBe('image/jpeg');
+    expect(resolveOgImageType('https://aspire.dev/card.webp')).toBe('image/webp');
+    expect(resolveOgImageType('https://aspire.dev/card.gif')).toBe('image/gif');
+    expect(resolveOgImageType('https://aspire.dev/card.avif')).toBe('image/avif');
+    expect(resolveOgImageType('https://aspire.dev/card.svg')).toBe('image/svg+xml');
+  });
+
+  it('is case-insensitive and ignores query strings and fragments', () => {
+    expect(resolveOgImageType('https://aspire.dev/card.PNG')).toBe('image/png');
+    expect(resolveOgImageType('https://aspire.dev/card.JPG?v=2')).toBe('image/jpeg');
+    expect(resolveOgImageType('https://aspire.dev/card.webp#hero')).toBe('image/webp');
+  });
+
+  it('falls back to image/png for unknown or missing extensions', () => {
+    expect(resolveOgImageType('https://aspire.dev/card.bin')).toBe('image/png');
+    expect(resolveOgImageType('https://aspire.dev/og/no-extension')).toBe('image/png');
   });
 });
 
@@ -324,6 +399,34 @@ describe('shouldSkipDynamicOgImage', () => {
   it('skips entries with og: false', () => {
     const route = createRoute({ og: false });
     expect(shouldSkipDynamicOgImage(route, 'whatever')).toBe(true);
+  });
+
+  it('skips generated pages routes', () => {
+    const route = createRoute({
+      entryId: 'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+      filePath: 'src/pages/reference/api/typescript/[module]/[item]/index.astro',
+    });
+
+    expect(
+      shouldSkipDynamicOgImage(
+        route,
+        'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal'
+      )
+    ).toBe(true);
+  });
+
+  it('skips virtual API reference routes without file paths', () => {
+    const route = createRoute({
+      entryId: 'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+      filePath: '',
+    });
+
+    expect(
+      shouldSkipDynamicOgImage(
+        route,
+        'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal'
+      )
+    ).toBe(true);
   });
 
   it('keeps normal pages', () => {
@@ -383,6 +486,7 @@ describe('getOgMetadata', () => {
     expect(meta.url).toBe('https://aspire.dev/dashboard/enable-browser-telemetry/');
     expect(meta.type).toBe('article');
     expect(meta.image).toBe('https://aspire.dev/og/dashboard/enable-browser-telemetry.png');
+    expect(meta.imageType).toBe('image/png');
     expect(meta.imageAlt).toBe('Enable browser telemetry');
     expect(meta.imageWidth).toBe(DEFAULT_OG_IMAGE_WIDTH);
     expect(meta.imageHeight).toBe(DEFAULT_OG_IMAGE_HEIGHT);
@@ -431,6 +535,39 @@ describe('getOgMetadata', () => {
     );
 
     expect(meta.image).toBe('https://aspire.dev/custom-image.png');
+    expect(meta.imageType).toBe('image/png');
+  });
+
+  it('infers the image MIME type from a non-PNG ogImage override', () => {
+    const route = createRoute({ ogImage: '/custom-image.jpg' });
+    const meta = getOgMetadata(
+      route,
+      new URL('https://aspire.dev/dashboard/enable-browser-telemetry/'),
+      site
+    );
+
+    expect(meta.image).toBe('https://aspire.dev/custom-image.jpg');
+    expect(meta.imageType).toBe('image/jpeg');
+  });
+
+  it('falls back to the static image for generated pages routes', () => {
+    const route = createRoute({
+      entryId: 'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+      filePath: 'src/pages/reference/api/typescript/[module]/[item]/index.astro',
+      title: 'addOllamaLocal',
+      description:
+        'Method — TypeScript API reference for addOllamaLocal in CommunityToolkit.Aspire.Hosting.Ollama',
+    });
+    const meta = getOgMetadata(
+      route,
+      new URL(
+        'https://aspire.dev/reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal/'
+      ),
+      site
+    );
+
+    expect(meta.image).toBe('https://aspire.dev/og-image.png');
+    expect(meta.ogTitle).toBe('addOllamaLocal · Aspire');
   });
 
   it('returns website type for the splash home page', () => {

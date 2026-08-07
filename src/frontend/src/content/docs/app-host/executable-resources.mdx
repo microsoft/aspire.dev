@@ -274,40 +274,11 @@ const app = await builder.addExecutable("api", "uvicorn", ".", ["main:app", "--r
 </TabItem>
 </Tabs>
 
-### `WithEnvironment` API unification in Aspire 13.3
+### `withEnvironment` API unification in Aspire 13.3
 
-Aspire 13.3 unified polyglot AppHost environment assignment behind a single `withEnvironment(name, value)` pattern. The `value` argument accepts the same kinds used by the underlying `WithEnvironment` overloads, including:
+Aspire 13.3 unified polyglot AppHost environment assignment behind a single `withEnvironment(name, value)` pattern. The public TypeScript API accepts plain strings, reference expressions, endpoint references, parameter resources, supported resources that expose connection strings, expression values, and awaitable forms of supported values.
 
-- `string`
-- `ReferenceExpression`
-- `EndpointReference`
-- `IResourceBuilder<ParameterResource>`
-- `IResourceBuilder<IResourceWithConnectionString>`
-- `IExpressionValue`
-
-Before 13.3, generated SDKs exposed separate helpers per value kind:
-
-```typescript title="TypeScript — before (older call sites)"
-await app.withEnvironmentEndpoint("API_URL", api.getEndpoint("http"));
-await app.withEnvironmentParameter("API_KEY", apiKey);
-await app.withEnvironmentConnectionString("DB", database);
-```
-
-In 13.3 and later, use the unified method:
-
-```typescript title="TypeScript — after (unified API)"
-await app.withEnvironment("API_URL", api.getEndpoint("http"));
-await app.withEnvironment("API_KEY", apiKey);
-await app.withEnvironment("DB", database);
-```
-
-Compatibility shims keep older call sites working and map directly to the new pattern:
-
-- `withEnvironmentEndpoint(name, endpoint)` → `withEnvironment(name, endpoint)`
-- `withEnvironmentParameter(name, parameter)` → `withEnvironment(name, parameter)`
-- `withEnvironmentConnectionString(name, resource)` → `withEnvironment(name, resource)`
-
-For migration, replace shimmed helpers with `withEnvironment(name, value)` as you touch existing code.
+When upgrading to Aspire 13.3, replace every earlier per-kind environment helper call with `withEnvironment(name, value)`. The 13.3 TypeScript SDK doesn't generate compatibility aliases for those helpers.
 
 ## Publishing with PublishAsDockerFile
 

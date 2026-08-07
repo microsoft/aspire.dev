@@ -74,7 +74,6 @@ export default defineConfig({
     env: {
       ...process.env,
       ASTRO_TELEMETRY_DISABLED: '1',
-      E2E_TESTS: '1',
     },
     url: e2eBaseUrl,
     reuseExistingServer: false,

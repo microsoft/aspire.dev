@@ -92,7 +92,7 @@ Install the [📦 Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspi
 
 In _Program.cs_, call `AddAzureAIInferenceChatClient` on your `IHostApplicationBuilder` to register a `ChatCompletionsClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureAIInferenceChatClient(connectionName: "chat");
 ```
 
@@ -102,7 +102,7 @@ The `connectionName` must match the Foundry deployment resource name from the Ap
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(ChatCompletionsClient client)
 {
     // Use client for chat completions...
@@ -113,14 +113,14 @@ public class ExampleService(ChatCompletionsClient client)
 
 To also register an `IChatClient` from `Microsoft.Extensions.AI`, chain `AsIChatClient()`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureAIInferenceChatClient("chat")
        .AsIChatClient();
 ```
 
 Resolve the abstraction through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IChatClient chatClient)
 {
     public async Task<string> CompleteAsync(string prompt)
@@ -135,14 +135,14 @@ public class ExampleService(IChatClient chatClient)
 
 To register multiple `ChatCompletionsClient` instances with different connection names, use `AddKeyedAzureAIInferenceChatClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedAzureAIInferenceChatClient(name: "chat");
 builder.AddKeyedAzureAIInferenceChatClient(name: "embeddings");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("chat")] ChatCompletionsClient chatClient,
     [FromKeyedServices("embeddings")] ChatCompletionsClient embeddingsClient)
@@ -157,13 +157,13 @@ The Aspire Azure AI Inference client integration supports multiple configuration
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureAIInferenceChatClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureAIInferenceChatClient("chat");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "chat": "Endpoint=https://my-foundry.services.ai.azure.com/;Deployment=chat;Model=gpt-5-mini"
@@ -173,7 +173,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The integration supports `Microsoft.Extensions.Configuration` using the `Aspire:Azure:AI:Inference` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Azure": {
@@ -212,7 +212,7 @@ The Aspire Azure AI Inference client integration automatically configures loggin
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection properties from the environment and construct an `AzureAIInferenceClient` directly using the [📦 Azure.AI.Inference](https://www.nuget.org/packages/Azure.AI.Inference/) NuGet package:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Azure;
 using Azure.AI.Inference;
 
@@ -252,7 +252,7 @@ go get github.com/Azure/azure-sdk-for-go/sdk/azcore
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -310,7 +310,7 @@ pip install azure-ai-inference azure-ai-projects
 
 **Using `azure-ai-inference` for direct model calls:**
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from azure.ai.inference import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
@@ -335,7 +335,7 @@ print(response.choices[0].message.content)
 
 **Using `azure-ai-projects` for Foundry project-scoped access:**
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from azure.ai.projects import AIProjectClient
 from azure.core.credentials import AzureKeyCredential
@@ -370,7 +370,7 @@ npm install @azure/ai-inference @azure/ai-projects @azure/core-auth
 
 **Using `@azure/ai-inference` for direct model calls:**
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import ModelClient from '@azure/ai-inference';
 import { AzureKeyCredential } from '@azure/core-auth';
 
@@ -397,7 +397,7 @@ console.log(response.body.choices[0].message.content);
 
 **Using `@azure/ai-projects` for Foundry project-scoped access:**
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { AIProjectClient } from '@azure/ai-projects';
 import { AzureKeyCredential } from '@azure/core-auth';
 
