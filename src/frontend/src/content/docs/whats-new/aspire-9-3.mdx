@@ -98,12 +98,13 @@ For example, this minimal custom resource publishes a running state when initial
 ```csharp
 var myCustom = new MyCustomResource("my-resource");
 
-builder.AddResource(myCustom);
-builder.Eventing.Subscribe<InitializeResourceEvent>(myCustom, async (e, ct) =>
-{
-    await e.Notifications.PublishUpdateAsync(e.Resource,
-        s => s with { State = KnownResourceStates.Running });
-});
+builder.AddResource(myCustom)
+    .OnInitializeResource(async (resource, e, ct) =>
+    {
+        await e.Notifications.PublishUpdateAsync(
+            resource,
+            s => s with { State = KnownResourceStates.Running });
+    });
 ```
 
 This replaces awkward patterns like `Task.Run` inside constructors or `Configure()` methods. You can see a more complex version in the [TalkingClock sample](https://github.com/microsoft/aspire-samples/tree/3dee8cd7c7880fe421ea61ba167301eb1369000a/samples/CustomResources/CustomResources.AppHost) in the official Aspire samples repo.

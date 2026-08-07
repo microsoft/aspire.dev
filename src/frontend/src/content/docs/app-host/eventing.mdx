@@ -73,7 +73,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-The following builder-level extension methods are available for AppHost events:
+The following builder-level helper methods are available for AppHost events:
 
 | Method                    | Event                                                             |
 | ------------------------- | ----------------------------------------------------------------- |
@@ -81,6 +81,11 @@ The following builder-level extension methods are available for AppHost events:
 | `OnAfterResourcesCreated` | `AfterResourcesCreatedEvent` — raised after resources are created |
 | `OnBeforePublish`         | `BeforePublishEvent` — raised before manifest publishing begins   |
 | `OnAfterPublish`          | `AfterPublishEvent` — raised after manifest publishing completes  |
+
+For the full API surface, see the [.NET
+`DistributedApplicationEventingExtensions`](https://learn.microsoft.com/dotnet/api/aspire.hosting.distributedapplicationeventingextensions)
+API reference and the [TypeScript `Aspire.Hosting` API
+reference](/reference/api/typescript/aspire.hosting/).
 
 If you need to subscribe via `IDistributedApplicationEventing` directly (for example, inside an `IDistributedApplicationEventingSubscriber`), you can use the lower-level `Eventing.Subscribe<T>()` API:
 
@@ -271,6 +276,7 @@ The preceding code subscribes to the `InitializeResourceEvent`, `ResourceReadyEv
 - `OnConnectionStringAvailable` / `onConnectionStringAvailable`: Subscribes to the `ConnectionStringAvailableEvent` event.
 - `OnBeforeResourceStarted` / `onBeforeResourceStarted`: Subscribes to the `BeforeResourceStartedEvent` event.
 - `OnResourceReady` / `onResourceReady`: Subscribes to the `ResourceReadyEvent` event.
+- `OnResourceStopped` / `onResourceStopped`: Subscribes to the `ResourceStoppedEvent` event.
 
 When the AppHost is run, by the time the Aspire dashboard is displayed, you should see the following log output in the console:
 
@@ -530,11 +536,11 @@ The `ResourceStoppedEvent` is raised when a resource stops execution:
 <TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
-builder.Eventing.Subscribe<ResourceStoppedEvent>(
-    cache,
-    (@event, ct) =>
+cache.OnResourceStopped(
+    static (resource, @event, ct) =>
     {
-        logger.LogInformation("Resource {Name} stopped", @event.Resource.Name);
+        var logger = @event.Services.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Resource {Name} stopped", resource.Name);
         return Task.CompletedTask;
     });
 ```
