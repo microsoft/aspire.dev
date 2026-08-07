@@ -117,13 +117,13 @@ aspire exec --start-resource my-worker -- npm run build
 
 #### `aspire deploy`
 
-The `aspire deploy` command supports extensible deployment workflows through the new [`DeployingCallbackAnnotation`](https://aspire.dev/fundamentals/annotations-overview/), enabling custom pre/post-deploy logic and richer integration with external systems during deployment operations.
+The `aspire deploy` command introduced extensible deployment workflows through the new [`DeployingCallbackAnnotation`](https://aspire.dev/fundamentals/annotations-overview/), enabling custom pre/post-deploy logic and richer integration with external systems during deployment operations.
 
 **Key capabilities:**
 
 - **Custom deployment hooks** using `Aspire.Hosting.ApplicationModel.DeployingCallbackAnnotation` to execute custom logic during the `aspire deploy` command
-- **Workflow activity reporting** via the `Aspire.Hosting.Publishing.IPublishingActivityReporter` to support progress notifications and prompting in commmands
-- **Integration with publish** - `aspire deploy` runs `Aspire.Hosting.Publishing.PublishingCallbackAnnotations` to support deploying artifacts emitted by publish steps, if applicable
+- **Workflow activity reporting** via the `Aspire.Hosting.Publishing.IPublishingActivityReporter` to support progress notifications and prompting in commands
+- **Integration with publish** - `aspire deploy` can run publish-related callbacks to support deploying artifacts emitted by publish steps, if applicable
 
 The example below demonstrates using the `DeployingCallbackAnnotation` to register custom deployment behavior and showcases [CLI-based prompting](#-enhanced-publish-and-deploy-output) and progress notifications.
 
@@ -177,7 +177,6 @@ internal static class DataSeedJobBuilderExtensions
                 },
                 cancellationToken: ct);
 
-
             // Use the ActivityReporter to report progress on the seeding process
             var reporter = ctx.ActivityReporter;
 
@@ -187,7 +186,7 @@ internal static class DataSeedJobBuilderExtensions
             try
             {
                 // Do some work here
-                await Task.Delay(3000);
+                await Task.Delay(3000, ct);
 
                 await task.SucceedAsync("Seed data loaded", ct);
                 await step.SucceedAsync("Data seeding completed", ct);
@@ -212,7 +211,9 @@ This custom deployment logic executes as follows from the `aspire deploy` comman
 Now, integration owners can create sophisticated `aspire deploy` workflows. This work also provides a foundation for advanced deployment automation scenarios.
 
 <Aside type="note">
-While the `Aspire.Hosting.ApplicationModel.DeployingCallbackAnnotation` API is available in Aspire 9.4, there are currently no built-in resources that natively support deployment callbacks. Built-in resource support for deployment callbacks will be added in the next version of Aspire.
+  In Aspire 9.4 this feature was preview-only and built-in resources did not yet
+  natively support deployment callbacks. For current releases, see [Deployment
+  pipelines](/deployment/pipelines/).
 </Aside>
 
 <Aside type="caution">
