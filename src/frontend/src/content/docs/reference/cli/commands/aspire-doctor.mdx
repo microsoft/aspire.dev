@@ -55,6 +55,19 @@ This command is useful for troubleshooting when you encounter issues with Aspire
   for example `libnss3-tools`, to resolve the warning.
 </Aside>
 
+<Aside type="note">
+  On Linux, `aspire doctor` also checks the OpenSSL development certificate
+  cache under the dev-certs trust directory. It reports a warning when the
+  cache is missing the current HTTPS development certificate, is missing the
+  subject-hash link OpenSSL uses to look up certificates by directory, or
+  contains certificate files that can't be read (for example, because they're
+  corrupt). In each case, `aspire doctor` recommends running `aspire certs
+  clean` followed by `aspire certs trust` to remove stale or corrupt
+  certificates and regenerate trusted development certificates. If the
+  `openssl` command isn't installed, the fix suggestion also tells you to
+  install it first.
+</Aside>
+
 The command displays results with clear status indicators:
 
 - ✅ (green) - Check passed
@@ -155,6 +168,18 @@ Environment
   ✅ Operating system: Linux Ubuntu 24.04
   ⚠️ certutil is not available; browser certificate trust may be incomplete
        Install certutil from your distribution's NSS tools package (for example, libnss3-tools).
+```
+
+On Linux, when the OpenSSL development certificate cache is stale, missing the
+current certificate, or contains unreadable certificate files, the Environment
+section reports a warning with a suggestion to clean and re-trust the
+certificate:
+
+```bash title="Aspire CLI"
+Environment
+  ✅ Operating system: Linux Ubuntu 24.04
+  ⚠️ OpenSSL HTTPS development certificate cache is missing the current certificate
+       Run 'aspire certs clean' and then 'aspire certs trust' to remove stale or corrupt certificates and regenerate trusted development certificates.
 ```
 
 When only Podman is running:
