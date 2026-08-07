@@ -23,6 +23,8 @@ import { existsSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
+import { normalizeApiDir, TS_MODULES_DIR } from './normalize-generated-api-data';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCRIPT_PATH = resolve(
   __dirname,
@@ -82,6 +84,15 @@ function main(): void {
     console.error('❌ Generation failed:', getErrorMessage(error));
     process.exit(1);
   }
+
+  // Enforce Aspire terminology in the freshly generated ts-modules JSON before
+  // the twoslash bundle is derived from it, so both the JSON and the .d.ts hover
+  // tooltips stay free of the deprecated Aspire terminology that upstream
+  // JSDoc/XML docs may carry. Reuses the single source of truth in
+  // aspire-terminology.ts.
+  console.log('🔄 Normalizing Aspire terminology in ts-modules JSON...');
+  const { changes: tsModuleChanges } = normalizeApiDir(TS_MODULES_DIR);
+  console.log(`✅ Normalized ${tsModuleChanges} occurrence(s) in ts-modules JSON.`);
 
   // Refresh the twoslash .d.ts bundle so docs hover tooltips stay in sync
   // with the regenerated ts-modules JSON. The bundle is source-controlled

@@ -10,13 +10,12 @@ import CTABanner from '@components/CTABanner.astro';
 import CapabilityGrid from '@components/CapabilityGrid.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
 import ContainerRuntimeChoices from '@components/ContainerRuntimeChoices.astro';
+import CustomSelect from '@components/CustomSelect.astro';
 import Expand from '@components/Expand.astro';
-import FooterLinks from '@components/FooterLinks.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
 import FooterPreferences from '@components/FooterPreferences.astro';
-import FreeAndOpenSourceAside from '@components/FreeAndOpenSourceAside.astro';
-import { aspireQuotes } from '@components/FreeAndOpenSourceAside.quotes';
+import FooterSocials from '@components/FooterSocials.astro';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
 import HeroSection from '@components/HeroSection.astro';
 import IconAside from '@components/IconAside.astro';
@@ -28,10 +27,8 @@ import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import Integrations from '@components/Integrations.astro';
 import IntegrationTotals from '@components/IntegrationTotals.astro';
-import LanguagesSupported from '@components/LanguagesSupported.astro';
 import LearnMore from '@components/LearnMore.astro';
 import LicenseBadge from '@components/LicenseBadge.astro';
-import LocalVsProdEnvironments from '@components/LocalVsProdEnvironments.astro';
 import LoopingVideo from '@components/LoopingVideo.astro';
 import MediaCard from '@components/MediaCard.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
@@ -45,10 +42,8 @@ import SampleGrid from '@components/SampleGrid.astro';
 import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
-import SimpleCard from '@components/SimpleCard.astro';
 import SiteTour from '@components/SiteTour.astro';
 import StarlightHero from '@components/starlight/Hero.astro';
-import TestimonialCarousel from '@components/TestimonialCarousel.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import ThreeTierAspire from '@components/ThreeTierAspire.astro';
 import TopicHero from '@components/TopicHero.astro';
@@ -101,6 +96,24 @@ const statementPlayerTranslations = {
   tr: trTranslations.landing.statementPlayer,
   uk: ukTranslations.landing.statementPlayer,
   'zh-CN': zhCnTranslations.landing.statementPlayer,
+};
+
+const headerActionTranslations = {
+  da: { header: daTranslations.header, tryAspire: daTranslations.home.hero.tryAspire },
+  de: { header: deTranslations.header, tryAspire: deTranslations.home.hero.tryAspire },
+  en: { header: enTranslations.header, tryAspire: enTranslations.home.hero.tryAspire },
+  es: { header: esTranslations.header, tryAspire: esTranslations.home.hero.tryAspire },
+  fr: { header: frTranslations.header, tryAspire: frTranslations.home.hero.tryAspire },
+  hi: { header: hiTranslations.header, tryAspire: hiTranslations.home.hero.tryAspire },
+  id: { header: idTranslations.header, tryAspire: idTranslations.home.hero.tryAspire },
+  it: { header: itTranslations.header, tryAspire: itTranslations.home.hero.tryAspire },
+  ja: { header: jaTranslations.header, tryAspire: jaTranslations.home.hero.tryAspire },
+  ko: { header: koTranslations.header, tryAspire: koTranslations.home.hero.tryAspire },
+  'pt-BR': { header: ptBrTranslations.header, tryAspire: ptBrTranslations.home.hero.tryAspire },
+  ru: { header: ruTranslations.header, tryAspire: ruTranslations.home.hero.tryAspire },
+  tr: { header: trTranslations.header, tryAspire: trTranslations.home.hero.tryAspire },
+  uk: { header: ukTranslations.header, tryAspire: ukTranslations.home.hero.tryAspire },
+  'zh-CN': { header: zhCnTranslations.header, tryAspire: zhCnTranslations.home.hero.tryAspire },
 };
 
 type TestTranslator = ((key: string, values?: Record<string, string | number>) => string) & {
@@ -326,13 +339,6 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['player.twitch.tv/?channel=aspiredotdev', 'parent=aspire.dev', 'Twitch stream'],
   },
   {
-    name: 'SimpleCard renders title, icon and slot content',
-    Component: SimpleCard,
-    props: { icon: 'open-book', title: 'Docs card', link: '/docs/' },
-    slots: { default: 'Short card description.' },
-    includes: ['Docs card', '/docs/', 'Short card description.'],
-  },
-  {
     name: 'IconLinkCard renders title, description and href',
     Component: IconLinkCard,
     props: {
@@ -478,24 +484,6 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['data-sources=', 'looping-video-toggle', 'Pause video'],
   },
   {
-    name: 'LanguagesSupported renders all language cards',
-    Component: LanguagesSupported,
-    includes: ['data-lang-name="TypeScript"', 'data-lang-name="C#"', 'And more...'],
-  },
-  {
-    name: 'FreeAndOpenSourceAside renders quote controls and status',
-    Component: FreeAndOpenSourceAside,
-    requestUrl: 'https://aspire.dev/llms-full.txt',
-    includes: [
-      'data-aspire-quote-player',
-      'data-quote-heading',
-      'data-quote-progress',
-      'data-quote-index',
-      'Pause statement rotation',
-      'Show a random Aspire statement',
-    ],
-  },
-  {
     name: 'OsAwareTabs renders shell tabs and sync key script',
     Component: OsAwareTabs,
     props: { syncKey: 'terminal' },
@@ -536,6 +524,26 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['C# AppHost', 'TypeScript AppHost', 'builder.Build().Run'],
   },
   {
+    name: 'CustomSelect renders a themed combobox and listbox',
+    Component: CustomSelect,
+    props: {
+      id: 'sample-select',
+      label: 'Select sample',
+      menuWidth: 'content',
+      options: [
+        { value: 'stable', label: 'Stable', selected: true },
+        { value: 'preview', label: 'Preview', description: 'Prerelease builds' },
+      ],
+    },
+    includes: [
+      'id="sample-select"',
+      'role="combobox"',
+      'role="listbox"',
+      'data-custom-select-option',
+      'Prerelease builds',
+    ],
+  },
+  {
     name: 'InstallCliModal renders the modal controls and variants',
     Component: InstallCliModal,
     includes: [
@@ -553,6 +561,7 @@ const basicRenderCases: BasicRenderCase[] = [
       'role="radiogroup"',
       'id="footer-language-select"',
       'id="footer-kbd-select"',
+      'data-detector="apple"',
       'Select theme',
       'Select keyboard shortcuts style',
     ],
@@ -568,14 +577,13 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: [
       'data-code-lang="csharp"',
       'data-code-lang="typescript"',
+      'data-apphost-builder',
+      'data-code-stage',
+      'data-editor-caret',
+      'data-editor-motion-toggle',
       'data-disable-copy',
       'data-toggle="database"',
     ],
-  },
-  {
-    name: 'LocalVsProdEnvironments renders environment commands and disabled-copy regions',
-    Component: LocalVsProdEnvironments,
-    includes: ['aspire run', 'aspire deploy -e test', 'aspire deploy', 'data-disable-copy'],
   },
   {
     name: 'YouTubeCard renders metadata and embed shell',
@@ -635,11 +643,6 @@ const basicRenderCases: BasicRenderCase[] = [
       'docker-compose.yml',
       'aria-label="Slide to compare Docker Compose and C# AppHost"',
     ],
-  },
-  {
-    name: 'TestimonialCarousel renders navigation controls',
-    Component: TestimonialCarousel,
-    includes: ['testimonial-carousel', 'prev-btn', 'next-btn'],
   },
 ];
 
@@ -827,6 +830,12 @@ describe('custom Astro component render coverage', () => {
     });
   }
 
+  it('AppHostBuilder omits invalid npm package installation APIs from every code variant', async () => {
+    const html = normalizeHtml(await renderComponent(AppHostBuilder));
+
+    expect(html).not.toMatch(/withNpmPackageInstallation/i);
+  });
+
   it('ThemeImage contains non-square artwork via the optimizer, not rendered markup', async () => {
     // The no-crop behavior for non-square theme images must come from the
     // `getImage({ fit: 'contain' })` optimizer options (baked into the
@@ -854,40 +863,6 @@ describe('custom Astro component render coverage', () => {
 
     // Regression: `fit` must not leak onto the rendered <img> as an attribute.
     expect(html).not.toContain('fit="contain"');
-  });
-
-  it('renders the accessible quote player and complete quote pool', async () => {
-    const html = normalizeHtml(
-      await renderComponent(FreeAndOpenSourceAside, {
-        locals: { t: createTestTranslator(enTranslations) },
-      })
-    );
-
-    expect(html).toContain('aria-label="Aspire statements"');
-    expect(html).toContain('aria-live="polite"');
-    expect(html).toContain('aria-atomic="true"');
-    expect(html).toContain('data-playback-toggle');
-    expect(html).toContain('data-random-quote');
-    expect(html).toContain('quote-progress-fill');
-    expect(html).toContain('typing-cursor');
-    expect(html).toContain('Aspire is an agent-ready, code-first tool');
-    expect(html).toContain('built directly into your everyday development workflow.');
-    expect(html).toContain('data-quote-link');
-    expect(html).toContain('href="/get-started/ai-coding-agents/"');
-    expect(html).toContain('Learn more');
-  });
-
-  it('keeps all quote statements similarly sized and consistently prefixed', () => {
-    const lengths = aspireQuotes.map(({ text }) => text.length);
-    const shortest = Math.min(...lengths);
-    const longest = Math.max(...lengths);
-
-    expect(aspireQuotes).toHaveLength(29);
-    expect(new Set(aspireQuotes.map(({ heading }) => heading)).size).toBe(aspireQuotes.length);
-    expect(new Set(aspireQuotes.map(({ text }) => text)).size).toBe(aspireQuotes.length);
-    expect(aspireQuotes.every(({ text }) => text.startsWith('Aspire is '))).toBe(true);
-    expect(aspireQuotes.every(({ href }) => href.startsWith('/'))).toBe(true);
-    expect(longest - shortest).toBeLessThanOrEqual(10);
   });
 
   it('keeps every statement-player locale complete and preserves technology names', () => {
@@ -939,36 +914,12 @@ describe('custom Astro component render coverage', () => {
     }
   });
 
-  it('renders translated playback, controls, and links on localized pages', async () => {
-    const t = createTestTranslator(deTranslations);
-
-    const starlightRoute: StarlightRoute & { locale: string } = {
-      locale: 'de',
-      editUrl:
-        'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/de/index.mdx',
-      entry: {
-        id: 'de/index',
-        slug: 'de',
-        filePath: 'src/content/docs/de/index.mdx',
-        data: {},
-      },
-    };
-
-    const html = normalizeHtml(
-      await renderComponent(FreeAndOpenSourceAside, {
-        requestUrl: 'https://aspire.dev/de/',
-        locals: { t, starlightRoute },
-      })
-    );
-
-    expect(html).toContain('aria-label="Aspire-Aussagen"');
-    expect(html).toContain('Agentenbereit');
-    expect(html).toContain('Aspire ist ein agentenbereites');
-    expect(html).toContain('Eine zufällige Aspire-Aussage anzeigen');
-    expect(html).toContain('Mehr erfahren');
-    expect(html).toContain('href="/de/get-started/ai-coding-agents/"');
-    expect(html).toContain('data-aspire-quote-player');
-    expect(html).not.toContain('Aspire is an agent-ready');
+  it('keeps every header action localized with the shared Try Aspire copy', () => {
+    for (const [locale, labels] of Object.entries(headerActionTranslations)) {
+      expect(labels.header.docs.trim(), `${locale} Docs label`).not.toBe('');
+      expect(labels.header.try.trim(), `${locale} compact Try label`).not.toBe('');
+      expect(labels.tryAspire.trim(), `${locale} Try Aspire label`).not.toBe('');
+    }
   });
 
   it('filters GitHubRepoStats by repository name when multiple stats are provided', async () => {
@@ -1354,7 +1305,7 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('View on GitHub');
   });
 
-  it('preserves the homepage hero image aspect ratio for non-square assets', async () => {
+  it('preserves localized homepage hero image aspect ratios', async () => {
     const starlightRoute: StarlightRoute = {
       editUrl:
         'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/index.mdx',
@@ -1365,8 +1316,9 @@ describe('custom Astro component render coverage', () => {
         data: {
           title: 'Aspire',
           hero: {
-            title: 'Aspire',
-            tagline: 'Your stack, streamlined.',
+            title: 'Model distributed apps in code.',
+            tagline:
+              'Model, run, observe, and deploy distributed applications from one code-first control plane.',
             image: {
               alt: 'Aspire logo',
               file: heroImage,
@@ -1381,6 +1333,7 @@ describe('custom Astro component render coverage', () => {
         locals: {
           starlightRoute,
         },
+        requestUrl: 'https://aspire.dev/fr/',
       })
     );
 
@@ -1393,13 +1346,50 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('h=1000');
   });
 
-  it('renders footer community links with platform names', async () => {
+  it('renders the English homepage hero as a product story', async () => {
+    const starlightRoute: StarlightRoute = {
+      editUrl:
+        'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/index.mdx',
+      entry: {
+        id: 'index',
+        slug: '',
+        filePath: 'src/content/docs/index.mdx',
+        data: {
+          title: 'Aspire',
+          hero: {
+            title: 'Aspire',
+            tagline: 'Model distributed apps in code.',
+            image: {
+              alt: 'Aspire logo',
+              file: heroImage,
+            },
+          },
+        },
+      },
+    };
+
+    const html = normalizeHtml(
+      await renderComponent(StarlightHero, {
+        locals: {
+          starlightRoute,
+          t: createTestTranslator(enTranslations),
+        },
+        requestUrl: 'https://aspire.dev/',
+      })
+    );
+
+    expect(html).toContain('home-hero-story');
+    expect(html).toContain('Model distributed apps in');
+    expect(html).toContain('code.');
+    expect(html).toContain('home-hero-product');
+    expect(html).toContain('The AppHost defines how your resources connect.');
+    expect(html).not.toContain('home-apphost-intro');
+  });
+
+  it('renders the footer community links used by the shared footer', async () => {
     const translations: Record<string, string> = {
       'footer.community': 'Community',
-      'footer.blog': 'Blog',
-      'footer.collab': 'Collaborate',
-      'footer.discuss': 'Discuss',
-      'footer.watch': 'Watch',
+      'footer.opensInNewTab': 'opens in new tab',
     };
     const t = ((key: string) => translations[key] ?? key) as ((key: string) => string) & {
       dir: () => 'ltr';
@@ -1407,13 +1397,12 @@ describe('custom Astro component render coverage', () => {
     t.dir = () => 'ltr';
 
     const html = normalizeHtml(
-      await renderComponent(FooterLinks, {
+      await renderComponent(FooterSocials, {
         locals: { t },
       })
     );
 
     for (const label of [
-      'X (Twitter)',
       'BlueSky',
       'GitHub',
       'Discord',
@@ -1421,64 +1410,17 @@ describe('custom Astro component render coverage', () => {
       'YouTube',
       'Twitch',
       'Blog',
+      'RSS',
     ]) {
       expect(html).toContain(label);
     }
 
-    expect(html).not.toContain('Follow');
-    expect(html).not.toContain('Collaborate');
-    expect(html).not.toContain('Discuss');
-    expect(html).not.toContain('Watch');
-  });
-
-  it('hides footer community links on localized 404 pages', async () => {
-    const html = normalizeHtml(
-      await renderComponent(FooterLinks, {
-        requestUrl: 'https://aspire.dev/ja/404/',
-        locals: {
-          starlightRoute: {
-            editUrl:
-              'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/404.mdx',
-            entry: {
-              id: '404',
-              slug: '404',
-              filePath: 'src/content/docs/404.mdx',
-              data: {},
-            },
-          },
-        },
-      })
-    );
-
-    expect(html).not.toContain('footer.community');
-    expect(html).not.toContain('https://x.com/aspiredotdev');
-  });
-
-  it('hides footer community links when the pathname fallback matches 404 routes', async () => {
-    const fallbackRoute: StarlightRoute = {
-      editUrl:
-        'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/test.mdx',
-      entry: {
-        id: 'docs/test',
-        slug: '',
-        filePath: 'src/content/docs/test.mdx',
-        data: {},
-      },
-    };
-
-    for (const requestUrl of ['https://aspire.dev/404/', 'https://aspire.dev/ja/404/']) {
-      const html = normalizeHtml(
-        await renderComponent(FooterLinks, {
-          requestUrl,
-          locals: {
-            starlightRoute: fallbackRoute,
-          },
-        })
-      );
-
-      expect(html).not.toContain('footer.community');
-      expect(html).not.toContain('https://x.com/aspiredotdev');
-    }
+    expect(html).toContain('aria-labelledby="footer-community-heading"');
+    expect(html).toContain('aria-label="X (opens in new tab)"');
+    expect(html).toContain('aria-label="GitHub (opens in new tab)"');
+    expect(html).toContain('role="group" aria-label="Site tools"');
+    expect(html).toContain('data-cookie-manage-consent');
+    expect(html).not.toContain('data-open-install-modal');
   });
 
   it('renders OsAwareTabs activation logic without anchor-only tab assumptions', async () => {

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 import fetch from 'node-fetch';
 
-import { normalizeAspireTerminology } from './aspire-terminology';
+import { normalizeAspireTerminology, normalizeAspireTerminologyInCode } from './aspire-terminology';
 
 const REPO = 'microsoft/aspire-samples';
 const DEFAULT_BRANCH = 'main';
@@ -114,9 +114,10 @@ export interface SampleResult {
   appHostCode: string | null;
 }
 
-// `appHostCode` is intentionally excluded: it is rendered as C# (not prose), so
-// rewriting terminology inside identifiers, string literals, or comments would
-// risk corrupting compilable code without fixing any user-facing prose.
+// `appHostCode` is rendered as C# (not prose), so only its **comments** are
+// normalized — identifiers, string literals, and CLI commands stay byte-for-byte
+// identical, keeping the code compilable while still fixing deprecated terms that
+// would otherwise render in the sample's code block and trip forbidden-words CI.
 export function normalizeSampleTerminology(sample: SampleResult): SampleResult {
   return {
     ...sample,
@@ -125,6 +126,8 @@ export function normalizeSampleTerminology(sample: SampleResult): SampleResult {
       sample.description === null ? null : normalizeAspireTerminology(sample.description),
     readme: normalizeAspireTerminology(sample.readme),
     readmeRaw: normalizeAspireTerminology(sample.readmeRaw),
+    appHostCode:
+      sample.appHostCode === null ? null : normalizeAspireTerminologyInCode(sample.appHostCode),
   };
 }
 

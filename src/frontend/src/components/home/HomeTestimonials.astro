@@ -1,0 +1,377 @@
+---
+import { Image } from 'astro:assets';
+
+import testimonialsData from '@data/testimonials.json';
+import { processAvatars } from '@utils/imageImporter';
+import { localizedHref } from '@utils/helpers';
+import { getLocaleFromPath } from '@utils/locale-routes';
+
+import type { ImageMetadata } from 'astro';
+
+interface HomeTestimonial {
+  name: string;
+  company?: string | null;
+  role?: string | null;
+  text: string;
+  avatar: ImageMetadata;
+  link?: string | null;
+}
+
+const testimonials = processAvatars(testimonialsData) as unknown as HomeTestimonial[];
+
+const t = Astro.locals.t;
+const locale = getLocaleFromPath(Astro.url.pathname);
+---
+
+<section class="home-section home-testimonials" aria-labelledby="home-testimonials-title">
+  <div class="home-shell">
+    <header class="testimonial-heading" data-home-reveal>
+      <p class="section-index"><span>07</span> {t('home.testimonials.index')}</p>
+      <div>
+        <h2 id="home-testimonials-title">{t('home.testimonials.title')}</h2>
+        <p>{t('home.testimonials.body')}</p>
+      </div>
+    </header>
+
+    <div class="testimonial-ledger" data-home-reveal data-home-reveal-distance="major">
+      {
+        testimonials.map((testimonial, index) => {
+          const attribution = [testimonial.role, testimonial.company].filter(Boolean).join(', ');
+
+          return (
+            <figure
+              class:list={[
+                'testimonial',
+                {
+                  featured: index === 0,
+                  'testimonial-closing': index === testimonials.length - 1,
+                },
+              ]}
+              data-testimonial-name={testimonial.name}
+            >
+              <span class="quote-mark" aria-hidden="true">
+                “
+              </span>
+              <blockquote>
+                <p>{testimonial.text}</p>
+              </blockquote>
+              <figcaption>
+                <Image src={testimonial.avatar} alt="" width={56} height={56} />
+                <span>
+                  <strong>
+                    {testimonial.link ? (
+                      <a
+                        href={testimonial.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        data-home-link
+                      >
+                        {testimonial.name}
+                      </a>
+                    ) : (
+                      testimonial.name
+                    )}
+                  </strong>
+                  {attribution && <small>{attribution}</small>}
+                </span>
+              </figcaption>
+            </figure>
+          );
+        })
+      }
+    </div>
+
+    <a
+      class="community-link"
+      href={localizedHref('/community/', locale)}
+      data-home-link
+      data-home-link-icon
+      data-home-reveal
+    >
+      {t('home.testimonials.communityLink')}
+      <span aria-hidden="true">→</span>
+    </a>
+  </div>
+</section>
+
+<style>
+  .home-testimonials {
+    position: relative;
+    padding: clamp(5rem, 6.5vw, 6.5rem) 1.5rem;
+    border-top: 1px solid var(--home-border);
+    color: var(--home-text);
+    background: var(--home-surface);
+  }
+
+  .home-shell {
+    width: min(100%, 84rem);
+    margin-inline: auto;
+  }
+
+  .testimonial-heading {
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.55fr) minmax(0, 1.45fr);
+    gap: clamp(2rem, 7vw, 7rem);
+    margin-bottom: clamp(2.5rem, 4vw, 3.5rem);
+  }
+
+  .section-index {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin: 0;
+    color: var(--home-muted);
+    font: 650 0.76rem/1.2 var(--__sl-font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .section-index span {
+    color: var(--home-purple);
+  }
+
+  .testimonial-heading h2 {
+    margin: 0;
+    color: var(--home-text);
+    font-size: clamp(2.7rem, 5vw, 4.75rem);
+    font-weight: 620;
+    line-height: 1.02;
+    letter-spacing: -0.055em;
+    text-wrap: balance;
+  }
+
+  .testimonial-heading > div > p {
+    max-width: 49rem;
+    margin: 1.4rem 0 0;
+    color: var(--home-muted);
+    font-size: clamp(1.02rem, 1.45vw, 1.22rem);
+    line-height: 1.7;
+  }
+
+  .testimonial-ledger {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid var(--home-border);
+    border-inline-start: 1px solid var(--home-border);
+    outline: none;
+  }
+
+  .testimonial {
+    min-width: 0;
+    min-height: 14.5rem;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 1.25rem;
+    margin: 0;
+    padding: clamp(1.5rem, 2vw, 1.9rem);
+    border-bottom: 1px solid var(--home-border);
+    border-inline-end: 1px solid var(--home-border);
+  }
+
+  .testimonial.featured {
+    grid-column: span 2;
+  }
+
+  .testimonial.testimonial-closing {
+    grid-column: span 2;
+  }
+
+  .quote-mark {
+    color: var(--home-purple);
+    font:
+      600 clamp(3rem, 5vw, 5rem)/0.7 Georgia,
+      serif;
+  }
+
+  blockquote {
+    margin: 0;
+  }
+
+  blockquote p {
+    margin: 0;
+    color: var(--home-text);
+    font-size: clamp(1.25rem, 1.8vw, 1.55rem);
+    font-weight: 590;
+    line-height: 1.35;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+
+  .featured blockquote p {
+    max-width: 42ch;
+    font-size: clamp(1.4rem, 1.9vw, 1.75rem);
+  }
+
+  figcaption {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  figcaption :global(img) {
+    width: 3.25rem;
+    height: 3.25rem;
+    margin: 0;
+    border: 2px solid color-mix(in srgb, var(--home-purple) 55%, transparent);
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  figcaption > span {
+    min-width: 0;
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  figcaption strong {
+    color: var(--home-text);
+    font-size: 0.9rem;
+  }
+
+  figcaption strong a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  figcaption strong a:hover {
+    color: var(--home-purple);
+  }
+
+  figcaption strong a:focus-visible {
+    outline: 0.15rem solid var(--home-purple);
+    outline-offset: 0.2rem;
+    border-radius: 0.2rem;
+  }
+
+  figcaption small {
+    color: var(--home-muted);
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+
+  .community-link {
+    width: max-content;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.75rem;
+    color: var(--home-purple);
+    font-size: 0.94rem;
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .community-link:focus-visible {
+    outline: 0.1875rem solid var(--home-purple);
+    outline-offset: 0.25rem;
+    border-radius: 0.25rem;
+  }
+
+  @media (max-width: 71.99rem) {
+    .testimonial-heading {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .testimonial-ledger {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .testimonial.featured {
+      grid-column: 1 / -1;
+    }
+
+    .testimonial.testimonial-closing {
+      grid-column: auto;
+    }
+  }
+
+  @media (max-width: 49.99rem) {
+    .home-testimonials {
+      padding: 4.5rem 1rem;
+    }
+
+    .testimonial-heading h2 {
+      font-size: clamp(2.5rem, 11vw, 3.65rem);
+    }
+
+    .testimonial-ledger {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+      overflow: visible;
+    }
+
+    .testimonial,
+    .testimonial.featured,
+    .testimonial.testimonial-closing {
+      min-height: 0;
+      grid-column: auto;
+      gap: 1rem;
+      padding: 1.35rem;
+      border-inline-end: 1px solid var(--home-border);
+      border-bottom: 1px solid var(--home-border);
+    }
+
+    .featured blockquote p {
+      font-size: clamp(1.3rem, 5.5vw, 1.65rem);
+    }
+  }
+
+  @media (min-width: 23rem) and (max-width: 49.99rem) {
+    .testimonial-ledger {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .testimonial.featured {
+      grid-column: 1 / -1;
+    }
+
+    .testimonial:not(.featured) {
+      position: relative;
+      grid-template-rows: 1fr auto;
+      gap: 0.9rem;
+      padding: 1.15rem 1rem;
+    }
+
+    .testimonial:not(.featured) .quote-mark {
+      position: absolute;
+      top: 0.8rem;
+      right: 0.85rem;
+      font-size: 2.25rem;
+      opacity: 0.55;
+    }
+
+    .testimonial:not(.featured) blockquote p {
+      font-size: 1.05rem;
+      line-height: 1.38;
+      text-wrap: pretty;
+    }
+
+    .testimonial:not(.featured) figcaption {
+      gap: 0.65rem;
+    }
+
+    .testimonial:not(.featured) figcaption :global(img) {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+
+    .testimonial:not(.featured) figcaption strong {
+      font-size: 0.8rem;
+    }
+
+    .testimonial:not(.featured) figcaption small {
+      font-size: 0.68rem;
+      line-height: 1.35;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .home-testimonials,
+    .testimonial-ledger,
+    .testimonial,
+    figcaption :global(img) {
+      border-color: CanvasText;
+    }
+  }
+</style>
