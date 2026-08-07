@@ -326,7 +326,62 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-The Java application is responsible for reading `SERVER_PORT` and listening on the endpoint target port. `WithHttpHealthCheck` / `withHttpHealthCheck` makes Aspire poll the configured path. Executable resources run `java` unless a Maven or Gradle task changes the command in run mode; build resources and application resources expose normal dashboard lifecycle controls.
+The Java application is responsible for reading `SERVER_PORT` and listening on the endpoint target port. `WithHttpHealthCheck` / `withHttpHealthCheck` makes Aspire poll the configured path. The application must expose that path; Spring Boot Actuator exposes `/actuator/health` when `spring-boot-starter-actuator` is on the classpath. Executable resources run `java` unless a Maven or Gradle task changes the command in run mode; build resources and application resources expose normal dashboard lifecycle controls.
+
+### Pass PostgreSQL connection information
+
+After you add a [PostgreSQL database resource](/integrations/databases/postgres/postgres-host/), pass its connection expressions to Spring Boot. The JDBC connection string contains the host, port, and database name; the username and password are separate expressions.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var database = postgres.AddDatabase("appdb");
+
+var app = builder.AddJavaApp("java-api", "../java-api")
+    .WithMavenGoal("spring-boot:run")
+    .WithEnvironment("SPRING_DATASOURCE_URL", database.Resource.JdbcConnectionString)
+    .WithEnvironment("SPRING_DATASOURCE_USERNAME", postgres.Resource.UserNameReference)
+    .WithEnvironment("SPRING_DATASOURCE_PASSWORD", postgres.Resource.PasswordParameter);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const database = await postgres.addDatabase('appdb');
+
+const app = await builder
+  .addJavaApp('java-api', '../java-api')
+  .withMavenGoal('spring-boot:run', [])
+  .withEnvironment(
+    'SPRING_DATASOURCE_URL',
+    await database.jdbcConnectionString()
+  )
+  .withEnvironment(
+    'SPRING_DATASOURCE_USERNAME',
+    await postgres.userNameReference()
+  )
+  .withEnvironment(
+    'SPRING_DATASOURCE_PASSWORD',
+    await postgres.passwordParameter()
+  );
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ## Publishing behavior
 
