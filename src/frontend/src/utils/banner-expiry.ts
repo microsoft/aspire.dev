@@ -1,10 +1,12 @@
 /**
  * Framework-free decision logic for announcement-banner auto-expiry.
  *
- * Kept DOM- and storage-free so it can be unit-tested in isolation and so the
- * inline controller in `src/components/starlight/Banner.astro` can mirror it
- * exactly. Two independent conditions can hide a banner on top of an explicit
- * dismiss:
+ * Kept DOM- and storage-free so it can be unit-tested in isolation **and so it
+ * is the single source of truth**: the client controller in
+ * `src/components/starlight/Banner.astro` imports these functions directly
+ * (rather than re-implementing them), so the shipped behavior can't silently
+ * diverge from the tests. Two independent conditions can hide a banner on top
+ * of an explicit dismiss:
  *
  * - `expiresOn` — an absolute sunset date that hides the banner for everyone.
  * - `autoDismissAfterDays` — hides the banner a number of days after the
@@ -36,6 +38,30 @@ export interface BannerVisibilityResult {
    * `autoDismissAfterDays`.
    */
   persistFirstSeenMs?: number;
+}
+
+/**
+ * Parse a stored first-seen value (as read from `localStorage`) into a
+ * trustworthy epoch-ms timestamp.
+ *
+ * `Number.parseInt` is intentionally *not* used here: it accepts junk like
+ * `'12abc'` (→ 12) and negative values (→ a 1970-era time), both of which would
+ * make {@link resolveBannerVisibility} treat the banner as long-expired and hide
+ * it permanently with no way to recover. This requires a positive integer no
+ * later than `nowMs` and returns `null` for anything else, so the caller falls
+ * back to a fresh first view and overwrites the bad value.
+ */
+export function parseFirstSeen(raw: string | null | undefined, nowMs: number): number | null {
+  if (raw == null) return null;
+  const trimmed = raw.trim();
+  // Digits only — rejects '', '-5', '1.5', '12abc', '0x10', '1e3', etc.
+  if (!/^\d+$/.test(trimmed)) return null;
+  const value = Number(trimmed);
+  if (!Number.isSafeInteger(value) || value <= 0) return null;
+  // A first-seen time in the future is impossible (clock skew / tampering);
+  // reject it so it self-heals rather than hiding the banner until it passes.
+  if (value > nowMs) return null;
+  return value;
 }
 
 /** Whether an absolute `expiresOn` sunset has been reached. */

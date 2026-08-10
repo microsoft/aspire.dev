@@ -11,35 +11,29 @@ export const collections = {
       extend: () =>
         z.object({
           /**
-           * Announcement banner shown above the page via
-           * `src/components/starlight/Banner.astro`. Extends Starlight's
-           * built-in `banner` with declarative auto-expiry so version-update
-           * banners stop lingering forever once a reader has seen them.
+           * Absolute sunset date for this page's announcement `banner` (shown
+           * via `src/components/starlight/Banner.astro`). Once it passes, the
+           * banner is hidden for **everyone**, regardless of whether they
+           * dismissed it; if the date is already past at build time the banner
+           * isn't rendered at all. Use `YYYY-MM-DD` in frontmatter
+           * (e.g. `2026-09-01`).
            *
-           * Starlight merges this via a Zod intersection, so `content`
-           * remains required and the extra keys below travel alongside it.
+           * This is a **top-level** field rather than nested under `banner`
+           * on purpose: Starlight's built-in `banner` schema is a plain
+           * `z.object({ content })`, and extra keys nested inside it are
+           * dropped before they reach the component. Top-level keys (like the
+           * built-in `lastUpdated`/`publishDate`) survive the schema
+           * intersection intact.
            */
-          banner: z
-            .object({
-              /** Banner HTML content (as in Starlight's built-in schema). */
-              content: z.string(),
-              /**
-               * Absolute sunset date. Once it passes, the banner is hidden
-               * for **everyone**, regardless of whether they dismissed it.
-               * Use `YYYY-MM-DD` in frontmatter (e.g. `2026-09-01`). If the
-               * date is already past at build time the banner isn't rendered
-               * at all.
-               */
-              expiresOn: z.coerce.date().optional(),
-              /**
-               * Auto-hide the banner this many days after a reader first
-               * sees it — even if they never explicitly dismiss it. Tracked
-               * per-reader in `localStorage`, so it's independent of the
-               * absolute `expiresOn` sunset (either one hides the banner).
-               */
-              autoDismissAfterDays: z.number().int().positive().optional(),
-            })
-            .optional(),
+          bannerExpiresOn: z.coerce.date().optional(),
+          /**
+           * Auto-hide this page's announcement `banner` this many days after a
+           * reader first sees it — even if they never explicitly dismiss it.
+           * Tracked per-reader in `localStorage`, so it's independent of the
+           * absolute `bannerExpiresOn` sunset (either one hides the banner).
+           * Kept top-level for the same reason as `bannerExpiresOn`.
+           */
+          bannerAutoDismissAfterDays: z.number().int().positive().optional(),
           renderBlocking: z.string().optional(),
           giscus: z.boolean().optional().default(false),
           crumbs: z.boolean().optional().default(true),

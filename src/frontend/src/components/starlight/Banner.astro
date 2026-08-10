@@ -2,24 +2,27 @@
 import { createHash } from 'node:crypto';
 import { Icon } from '@astrojs/starlight/components';
 
-const bannerData = Astro.locals.starlightRoute.entry.data.banner as
-  | { content?: string; expiresOn?: Date; autoDismissAfterDays?: number }
-  | undefined;
+const routeData = Astro.locals.starlightRoute.entry.data as {
+  banner?: { content?: string };
+  bannerExpiresOn?: Date;
+  bannerAutoDismissAfterDays?: number;
+};
 
-const bannerContent = bannerData?.content;
+const bannerContent = routeData.banner?.content;
 
 // Absolute sunset date, if configured. When it's already past at build time we
 // skip rendering the banner entirely; the client check below covers the gap
 // between the sunset moment and the next rebuild.
 const expiresOnMs =
-  bannerData?.expiresOn instanceof Date && !Number.isNaN(bannerData.expiresOn.getTime())
-    ? bannerData.expiresOn.getTime()
+  routeData.bannerExpiresOn instanceof Date && !Number.isNaN(routeData.bannerExpiresOn.getTime())
+    ? routeData.bannerExpiresOn.getTime()
     : null;
 const expiredAtBuild = expiresOnMs !== null && Date.now() >= expiresOnMs;
 
 const autoDismissAfterDays =
-  typeof bannerData?.autoDismissAfterDays === 'number' && bannerData.autoDismissAfterDays > 0
-    ? bannerData.autoDismissAfterDays
+  typeof routeData.bannerAutoDismissAfterDays === 'number' &&
+  routeData.bannerAutoDismissAfterDays > 0
+    ? routeData.bannerAutoDismissAfterDays
     : null;
 
 const bannerHash =
@@ -41,6 +44,11 @@ const firstSeenKey = bannerHash
       <div
         id={bannerId}
         class="sl-banner sl-banner--dismissable"
+        data-aspire-banner
+        data-dismiss-key={dismissKey}
+        data-first-seen-key={firstSeenKey}
+        data-expires-on={expiresOnMs ?? ''}
+        data-auto-dismiss-days={autoDismissAfterDays ?? ''}
         data-banner-state="open"
         data-pagefind-ignore
         hidden
@@ -58,156 +66,150 @@ const firstSeenKey = bannerHash
         </button>
       </div>
 
-      <script
-        is:inline
-        define:vars={{ bannerId, dismissKey, firstSeenKey, expiresOnMs, autoDismissAfterDays }}
-      >
-        // Mirror of resolveBannerVisibility() in src/utils/banner-expiry.ts —
-        // kept inline because is:inline scripts can't import. The unit test in
-        // tests/unit/banner-expiry.vitest.test.ts locks down this logic; keep
-        // the two in sync when editing.
-        const MS_PER_DAY = 86400000;
-
-        const initializeBanner = () => {
-          const banner = document.getElementById(bannerId);
-          if (!(banner instanceof HTMLElement)) return;
-
-          let collapseTimeoutId = null;
-
-          const clearPendingCollapse = () => {
-            if (collapseTimeoutId !== null) {
-              window.clearTimeout(collapseTimeoutId);
-              collapseTimeoutId = null;
-            }
-          };
-
-          const showBanner = () => {
-            clearPendingCollapse();
-            banner.hidden = false;
-            banner.dataset.bannerState = 'open';
-          };
-
-          const setCollapsed = (animate) => {
-            clearPendingCollapse();
-
-            if (!animate) {
-              banner.dataset.bannerState = 'closed';
-              banner.hidden = true;
-              return;
-            }
-
-            banner.dataset.bannerState = 'closing';
-
-            const finishCollapse = () => {
-              banner.hidden = true;
-              banner.dataset.bannerState = 'closed';
-              banner.removeEventListener('transitionend', handleTransitionEnd);
-              clearPendingCollapse();
-            };
-
-            const handleTransitionEnd = (event) => {
-              if (event.target !== banner) return;
-              finishCollapse();
-            };
-
-            banner.addEventListener('transitionend', handleTransitionEnd);
-            collapseTimeoutId = window.setTimeout(finishCollapse, 320);
-          };
-
-          let dismissed = false;
-
-          try {
-            dismissed = window.localStorage.getItem(dismissKey) === 'true';
-          } catch {
-            dismissed = false;
-          }
-
-          let firstSeenMs = null;
-
-          try {
-            const stored = window.localStorage.getItem(firstSeenKey);
-            const parsed = stored === null ? NaN : Number.parseInt(stored, 10);
-            if (Number.isFinite(parsed)) firstSeenMs = parsed;
-          } catch {
-            firstSeenMs = null;
-          }
-
-          const now = Date.now();
-          const usesAutoDismiss =
-            typeof autoDismissAfterDays === 'number' && autoDismissAfterDays > 0;
-
-          let visible = true;
-          let persistFirstSeenMs = null;
-
-          if (dismissed) {
-            visible = false;
-          } else if (typeof expiresOnMs === 'number' && now >= expiresOnMs) {
-            visible = false;
-          } else if (usesAutoDismiss) {
-            if (firstSeenMs === null) {
-              // First view: show it and start the reader's timer.
-              persistFirstSeenMs = now;
-            } else if (now >= firstSeenMs + autoDismissAfterDays * MS_PER_DAY) {
-              visible = false;
-            }
-          }
-
-          if (persistFirstSeenMs !== null) {
-            try {
-              window.localStorage.setItem(firstSeenKey, String(persistFirstSeenMs));
-            } catch {
-            }
-          }
-
-          if (visible) {
-            showBanner();
-          } else {
-            setCollapsed(false);
-          }
-
-          if (banner.dataset.dismissInitialized === 'true') return;
-
-          const dismissButton = banner.querySelector('[data-dismiss-banner]');
-          if (!(dismissButton instanceof HTMLButtonElement)) return;
-
-          dismissButton.addEventListener('click', () => {
-            if (document.activeElement === dismissButton) {
-              const main = document.querySelector('main');
-
-              if (main instanceof HTMLElement) {
-                main.setAttribute('tabindex', '-1');
-                main.focus();
-                main.addEventListener(
-                  'blur',
-                  () => {
-                    main.removeAttribute('tabindex');
-                  },
-                  { once: true }
-                );
-              }
-            }
-
-            setCollapsed(true);
-
-            try {
-              window.localStorage.setItem(dismissKey, 'true');
-            } catch {
-            }
-          });
-
-          banner.dataset.dismissInitialized = 'true';
-        };
-
-        initializeBanner();
-        document.addEventListener('astro:page-load', initializeBanner);
-      </script>
-
       <noscript>
         <style>{`#${bannerId}[hidden] { display: block !important; }`}</style>
       </noscript>
     </>
   )
 }
+
+<script>
+  // Client controller for the announcement banner. The visibility *decision*
+  // lives entirely in the imported helper (the same code the unit tests cover),
+  // so shipped behavior can't diverge from the tests. This bundled module reads
+  // its per-banner config from `data-*` attributes on the element (a bundled
+  // script can't use `define:vars`), leaving only DOM/localStorage plumbing here.
+  import { parseFirstSeen, resolveBannerVisibility } from '@utils/banner-expiry';
+
+  const initializeBanner = () => {
+    const banner = document.querySelector('[data-aspire-banner]');
+    if (!(banner instanceof HTMLElement)) return;
+
+    const { dismissKey, firstSeenKey } = banner.dataset;
+    if (!dismissKey || !firstSeenKey) return;
+
+    const expiresOnRaw = banner.dataset.expiresOn;
+    const expiresOnMs = expiresOnRaw ? Number(expiresOnRaw) : null;
+    const autoDismissRaw = banner.dataset.autoDismissDays;
+    const autoDismissAfterDays = autoDismissRaw ? Number(autoDismissRaw) : null;
+
+    let collapseTimeoutId = null;
+
+    const clearPendingCollapse = () => {
+      if (collapseTimeoutId !== null) {
+        window.clearTimeout(collapseTimeoutId);
+        collapseTimeoutId = null;
+      }
+    };
+
+    const showBanner = () => {
+      clearPendingCollapse();
+      banner.hidden = false;
+      banner.dataset.bannerState = 'open';
+    };
+
+    const setCollapsed = (animate) => {
+      clearPendingCollapse();
+
+      if (!animate) {
+        banner.dataset.bannerState = 'closed';
+        banner.hidden = true;
+        return;
+      }
+
+      banner.dataset.bannerState = 'closing';
+
+      const finishCollapse = () => {
+        banner.hidden = true;
+        banner.dataset.bannerState = 'closed';
+        banner.removeEventListener('transitionend', handleTransitionEnd);
+        clearPendingCollapse();
+      };
+
+      const handleTransitionEnd = (event) => {
+        if (event.target !== banner) return;
+        finishCollapse();
+      };
+
+      banner.addEventListener('transitionend', handleTransitionEnd);
+      collapseTimeoutId = window.setTimeout(finishCollapse, 320);
+    };
+
+    let dismissed = false;
+
+    try {
+      dismissed = window.localStorage.getItem(dismissKey) === 'true';
+    } catch {
+      dismissed = false;
+    }
+
+    let firstSeenMs = null;
+
+    try {
+      firstSeenMs = parseFirstSeen(window.localStorage.getItem(firstSeenKey), Date.now());
+    } catch {
+      firstSeenMs = null;
+    }
+
+    const { visible, persistFirstSeenMs } = resolveBannerVisibility({
+      nowMs: Date.now(),
+      expiresOnMs: Number.isFinite(expiresOnMs) ? expiresOnMs : null,
+      autoDismissAfterDays: Number.isFinite(autoDismissAfterDays) ? autoDismissAfterDays : null,
+      firstSeenMs,
+      dismissed,
+    });
+
+    if (typeof persistFirstSeenMs === 'number') {
+      try {
+        window.localStorage.setItem(firstSeenKey, String(persistFirstSeenMs));
+      } catch {
+        // Ignore storage failures (private mode, quota, etc.).
+      }
+    }
+
+    if (visible) {
+      showBanner();
+    } else {
+      setCollapsed(false);
+    }
+
+    if (banner.dataset.dismissInitialized === 'true') return;
+
+    const dismissButton = banner.querySelector('[data-dismiss-banner]');
+    if (!(dismissButton instanceof HTMLButtonElement)) return;
+
+    dismissButton.addEventListener('click', () => {
+      if (document.activeElement === dismissButton) {
+        const main = document.querySelector('main');
+
+        if (main instanceof HTMLElement) {
+          main.setAttribute('tabindex', '-1');
+          main.focus();
+          main.addEventListener(
+            'blur',
+            () => {
+              main.removeAttribute('tabindex');
+            },
+            { once: true }
+          );
+        }
+      }
+
+      setCollapsed(true);
+
+      try {
+        window.localStorage.setItem(dismissKey, 'true');
+      } catch {
+        // Ignore storage failures (private mode, quota, etc.).
+      }
+    });
+
+    banner.dataset.dismissInitialized = 'true';
+  };
+
+  initializeBanner();
+  document.addEventListener('astro:page-load', initializeBanner);
+</script>
 
 <style>
   @layer starlight.core {

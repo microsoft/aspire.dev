@@ -93,7 +93,7 @@ The site uses these Starlight plugins (configured in `astro.config.mjs`):
 
 Custom overrides live in `src/components/starlight/` and are registered in `astro.config.mjs` under `components:`:
 
-- `Banner.astro` — dismissible announcement banner (content hashed for a stable dismiss key). Supports declarative auto-expiry via two optional frontmatter fields nested under `banner`: `expiresOn` (a `YYYY-MM-DD` sunset date that hides it for everyone; a past date drops it at build time) and `autoDismissAfterDays` (a per-reader window that auto-hides it N days after they first see it, tracked in `localStorage`). Pure decision logic lives in `src/utils/banner-expiry.ts` and is mirrored inline in the client script.
+- `Banner.astro` — dismissible announcement banner (content hashed for a stable dismiss key). Supports declarative auto-expiry via two optional **top-level** frontmatter fields: `bannerExpiresOn` (a `YYYY-MM-DD` sunset date that hides it for everyone; a past date drops it at build time) and `bannerAutoDismissAfterDays` (a per-reader window that auto-hides it N days after they first see it, tracked in `localStorage`). These are top-level (not nested under `banner`) because extra keys nested inside Starlight's built-in `banner` object are stripped before reaching the component. Pure decision logic lives in `src/utils/banner-expiry.ts` and is **imported directly** by the client script (single source of truth — the shipped behavior can't diverge from the unit tests).
 - `EditLink.astro` — adds translation link
 - `Footer.astro` — custom 4-column footer layout
 - `Head.astro` — git metadata, auto-language detection, accessibility
@@ -123,7 +123,7 @@ Always follow existing component patterns: `.astro` files with frontmatter props
 
 Defined in `src/content.config.ts`:
 
-- **docs** — uses Starlight's docs loader with extended schema fields: `renderBlocking`, `giscus`, `category`, `pageActions`, and an extended `banner` object (`banner.expiresOn`, `banner.autoDismissAfterDays`) for auto-expiry
+- **docs** — uses Starlight's docs loader with extended schema fields: `renderBlocking`, `giscus`, `category`, `pageActions`, and top-level banner auto-expiry fields (`bannerExpiresOn`, `bannerAutoDismissAfterDays`)
 - **i18n** — Starlight i18n loader for 15 locales
 - **packages** — auto-generated API reference JSON from `src/data/pkgs/`
 
