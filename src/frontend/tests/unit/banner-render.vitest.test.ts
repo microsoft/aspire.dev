@@ -46,8 +46,11 @@ describe('Banner.astro rendered output', () => {
     const html = await render({ banner: { content: CONTENT } });
 
     expect(html).toContain('data-aspire-banner');
-    expect(html).toContain('data-expires-on=""');
-    expect(html).toContain('data-auto-dismiss-days=""');
+    // Astro serializes an empty-string attribute value as a bare attribute
+    // (`data-expires-on`), not `data-expires-on=""`. The client reads it back as
+    // `dataset.expiresOn === ''` and treats it as "no expiry configured".
+    expect(html).toMatch(/\sdata-expires-on(?=[\s>])/);
+    expect(html).toMatch(/\sdata-auto-dismiss-days(?=[\s>])/);
   });
 
   test('is not rendered once the absolute sunset has already passed at build time', async () => {
