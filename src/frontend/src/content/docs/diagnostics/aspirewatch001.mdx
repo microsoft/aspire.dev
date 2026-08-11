@@ -1,0 +1,65 @@
+---
+title: Compiler Error ASPIREWATCH001
+seoTitle: "ASPIREWATCH001: Members are for evaluation purposes"
+description: Learn what causes the Aspire compiler error ASPIREWATCH001 and how to fix it so your AppHost builds cleanly.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> `RunConfiguration` is for evaluation purposes only and is subject to change or removal in future updates.
+
+-or-
+
+> `DistributedApplicationExecutionContext.RunConfiguration` is for evaluation purposes only and is subject to change or removal in future updates.
+
+-or-
+
+> `DistributedApplicationExecutionContextOptions.RunConfiguration` is for evaluation purposes only and is subject to change or removal in future updates.
+
+`RunConfiguration` and the `RunConfiguration` properties on `DistributedApplicationExecutionContext` and `DistributedApplicationExecutionContextOptions` are considered experimental APIs.
+
+`RunConfiguration` holds settings that apply to the AppHost run mode (when `DistributedApplicationExecutionContext.Operation` is `DistributedApplicationOperation.Run`). Integrations use it to vary how their resources are launched — for example, whether resources should start in watch mode — without changing the core hosting behavior. In publish mode, every property holds its default value.
+
+## Example
+
+The following code generates `ASPIREWATCH001`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var runConfiguration = builder.ExecutionContext.RunConfiguration;
+if (runConfiguration.WatchEnabled)
+{
+    // Vary how a resource is launched when watch mode is preferred.
+}
+```
+
+## To correct this error
+
+Suppress the error with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREWATCH001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREWATCH001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREWATCH001` directive.
