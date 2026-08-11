@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  type GitCommandResult,
   type ValidationInput,
+  loadJsonFromHead,
   validateGeneratedApiData,
 } from '../../scripts/validate-generated-api-data';
 
@@ -73,7 +75,7 @@ function createValidInput(): ValidationInput {
                 'Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.ApplicationModel.ExecutableResource]]',
               ],
               baseTypeHierarchy: [
-                'Aspire.Hosting/Aspire.Hosting.ApplicationModel.ExecutableResource]]',
+                'Aspire.Hosting/Aspire.Hosting.ApplicationModel.ExecutableResource',
               ],
             },
           ],
@@ -119,6 +121,16 @@ describe('validateGeneratedApiData', () => {
     );
   });
 
+  test('rejects DTO field types that differ from declarations', () => {
+    const input = createValidInput();
+    input.modules[0].data.dtoTypes![0].fields![0].type = 'String]][]';
+    input.declarations = input.declarations.replace('port?: number', 'port?: string[]');
+
+    expect(validateGeneratedApiData(input).errors).toContain(
+      'Twoslash DTO FooOptions.port type string[] does not match ts-modules metadata String]][].'
+    );
+  });
+
   test('rejects required DTO metadata', () => {
     const input = createValidInput();
     input.modules[0].data.dtoTypes![0].fields![1].isOptional = false;
@@ -155,6 +167,28 @@ describe('validateGeneratedApiData', () => {
 
     expect(validateGeneratedApiData(input).errors).toContain(
       'Twoslash handle MissingResource is missing its declaration.'
+    );
+  });
+
+  test('rejects malformed generated generic base types', () => {
+    const input = createValidInput();
+    input.packages[0].data.types![0].baseType =
+      'Aspire.Hosting.ApplicationModel.PairResource<System.String, System.Int32>';
+    input.modules[0].data.handleTypes![1].baseTypeHierarchy = [
+      'Aspire.Hosting.ApplicationModel.PairResource`2[[System.String]]',
+    ];
+
+    expect(validateGeneratedApiData(input).errors).toContain(
+      'TypeScript handle FooResource base type Aspire.Hosting.ApplicationModel.PairResource`2[[System.String]] does not match C# metadata Aspire.Hosting.ApplicationModel.PairResource<System.String, System.Int32>.'
+    );
+  });
+
+  test('rejects missing generated base hierarchy metadata', () => {
+    const input = createValidInput();
+    input.modules[0].data.handleTypes![1].baseTypeHierarchy = [];
+
+    expect(validateGeneratedApiData(input).errors).toContain(
+      'TypeScript handle FooResource is missing base hierarchy metadata for C# base type Aspire.Hosting.ApplicationModel.ExecutableResource.'
     );
   });
 
@@ -231,5 +265,45 @@ describe('validateGeneratedApiData', () => {
       'Stale C# API output Aspire.Hosting.Foo@1.0.0; catalog version is 2.0.0.'
     );
     expect(errors).toContain('Missing C# API output for catalog package Aspire.Hosting.Foo@2.0.0.');
+  });
+});
+
+describe('loadJsonFromHead', () => {
+  test('returns undefined only when the path is absent from HEAD', () => {
+    const calls: string[][] = [];
+    const git = (arguments_: string[]): GitCommandResult => {
+      calls.push(arguments_);
+      return { status: 0, stdout: '', stderr: '' };
+    };
+
+    expect(loadJsonFromHead('repo', 'missing.json', git)).toBeUndefined();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain('ls-tree');
+  });
+
+  test('propagates failures while checking HEAD', () => {
+    const git = (): GitCommandResult => ({
+      status: 128,
+      stdout: '',
+      stderr: 'fatal: invalid object name HEAD',
+    });
+
+    expect(() => loadJsonFromHead('repo', 'data.json', git)).toThrow(
+      'git ls-tree failed: fatal: invalid object name HEAD'
+    );
+  });
+
+  test('propagates failures while reading a confirmed baseline', () => {
+    let call = 0;
+    const git = (): GitCommandResult => {
+      call++;
+      return call === 1
+        ? { status: 0, stdout: 'data.json\n', stderr: '' }
+        : { status: 128, stdout: '', stderr: 'fatal: permission denied' };
+    };
+
+    expect(() => loadJsonFromHead('repo', 'data.json', git)).toThrow(
+      'git show failed: fatal: permission denied'
+    );
   });
 });

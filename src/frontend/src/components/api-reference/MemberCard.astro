@@ -31,7 +31,7 @@ interface Props {
   parentType?: ParentTypeInfo;
   sourceBaseUrl?: string;
   diagnosticSlugs?: Set<string>;
-  anchorAlias?: string;
+  anchorAliases?: string[];
   exactAnchor?: string;
 }
 
@@ -42,7 +42,7 @@ const {
   parentType,
   sourceBaseUrl,
   diagnosticSlugs,
-  anchorAlias,
+  anchorAliases = [],
   exactAnchor,
 } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -100,7 +100,11 @@ const rawDisplayName = memberDisplayName(member);
 const displayName =
   member.name === '.ctor' ? rawDisplayName.replace('.ctor', 'Constructor') : rawDisplayName;
 const anchorSlug = exactAnchor ?? memberSlug(member);
-const primaryAnchorSlug = anchorAlias ?? anchorSlug;
+const aliases = anchorAliases.filter((alias) => alias !== anchorSlug);
+const primaryAnchorSlug = aliases[0] ?? anchorSlug;
+const hiddenAnchorSlugs = primaryAnchorSlug === anchorSlug
+  ? []
+  : [anchorSlug, ...aliases.slice(1)];
 const isCtor = member.name === '.ctor';
 const returnShort = member.returnType ? shortTypeName(member.returnType) : member.returnType;
 const returnColorClass = returnShort ? `mc-param-type-${typeColorIndex(returnShort)}` : '';
@@ -158,7 +162,9 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
 ---
 
 <div class={`mc not-content${isObsolete ? ' mc-obsolete' : ''}`} id={primaryAnchorSlug}>
-  {anchorAlias && <span id={anchorSlug} class="mc-exact-anchor" aria-hidden="true" />}
+  {hiddenAnchorSlugs.map((slug) => (
+    <span id={slug} class="mc-exact-anchor" aria-hidden="true" />
+  ))}
   {/* Obsolete aside */}
   {
     isObsolete && (

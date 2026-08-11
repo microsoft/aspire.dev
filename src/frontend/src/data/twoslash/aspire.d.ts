@@ -789,7 +789,7 @@ export interface InteractionInput {
   enableDescriptionMarkdown?: boolean;
   inputType?: InputType;
   required?: boolean;
-  options?: String[];
+  options?: KeyValuePair<string,string>[];
   dynamicLoading?: InputLoadOptions;
   value?: string;
   placeholder?: string;
@@ -20947,6 +20947,7 @@ export interface ISpanFormattable {}
 export interface IValueProvider {}
 export interface IValueWithReferences {}
 export interface InputLoadOptions {}
+export interface KeyValuePair<T = unknown, T1 = unknown> {}
 export interface List<T = unknown> {}
 export interface NetworkSecurityPerimeterAccessRuleDirection {}
 export interface NetworkSecurityPerimeterAssociationAccessMode {}
@@ -20958,7 +20959,6 @@ export interface SameSiteMode {}
 export interface SecurityRuleAccess {}
 export interface SecurityRuleDirection {}
 export interface SecurityRuleProtocol {}
-export interface String {}
 export interface UnixFileMode {}
 export interface arg {}
 export interface arg1 {}

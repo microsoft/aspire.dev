@@ -73,6 +73,9 @@ test('colliding overload slugs receive distinct signature discriminators', () =>
   ]);
   const anchors = resolveMemberAnchors(members);
   expect(anchors[0].exact).not.toBe(anchors[1].exact);
-  expect(anchors[0].alias).toBe('withhiddenoncompletion');
-  expect(anchors[1].alias).toBeUndefined();
+  expect(anchors[0].aliases).toEqual([
+    'withhiddenoncompletion',
+    'withhiddenoncompletion-int32',
+  ]);
+  expect(anchors[1].aliases).toEqual([]);
 });

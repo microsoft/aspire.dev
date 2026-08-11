@@ -944,11 +944,34 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
         }
     }
 
+    if ($batchExitCode -ne 0) {
+        Write-Warning "Batch tool exited with code $batchExitCode; no reported result will be published."
+    }
+
     foreach ($entry in $manifestEntries) {
-        if ($succeededPackages.Contains($entry.packageName)) {
-            $successCount++
-            if (Test-Path $entry.output) {
+        $reportedStatusCount =
+            [int]($succeededPackages.Contains($entry.packageName)) +
+            [int]($skippedPackages.Contains($entry.packageName)) +
+            [int]($failedPackages.Contains($entry.packageName))
+
+        if ($batchExitCode -ne 0) {
+            $failCount++
+            [void]$failedPackageNames.Add($entry.packageName)
+        }
+        elseif ($reportedStatusCount -ne 1) {
+            Write-Warning "Batch tool reported $reportedStatusCount terminal statuses for $($entry.packageName); expected exactly one."
+            $failCount++
+            [void]$failedPackageNames.Add($entry.packageName)
+        }
+        elseif ($succeededPackages.Contains($entry.packageName)) {
+            if (Test-Path -LiteralPath $entry.output -PathType Leaf) {
+                $successCount++
                 Remove-StalePackageJsonFiles -PackageName $entry.packageName -CurrentOutputFile $entry.output -OutputDirectory $OutputDir
+            }
+            else {
+                Write-Warning "Batch tool reported success for $($entry.packageName) without creating $($entry.output)."
+                $failCount++
+                [void]$failedPackageNames.Add($entry.packageName)
             }
         }
         elseif ($skippedPackages.Contains($entry.packageName)) {
@@ -956,14 +979,9 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
             [void]$skippedPackageNames.Add($entry.packageName)
         }
         else {
-            # Includes explicit failures and packages omitted by a crashed batch.
             $failCount++
             [void]$failedPackageNames.Add($entry.packageName)
         }
-    }
-
-    if ($batchExitCode -ne 0 -and $failedPackages.Count -eq 0) {
-        Write-Warning "Batch tool exited with code $batchExitCode without reporting individual failures."
     }
 
     # Clean up manifest

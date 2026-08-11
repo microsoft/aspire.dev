@@ -54,7 +54,7 @@ const terminologyRules: readonly TerminologyRule[] = [
     article: 'an',
   },
   {
-    term: String.raw`app${horizontalWhitespace}hosts`,
+    term: String.raw`(?<=polyglot${horizontalWhitespace})app${horizontalWhitespace}hosts`,
     replacement: 'AppHosts',
   },
   {

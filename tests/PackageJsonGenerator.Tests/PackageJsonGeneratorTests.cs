@@ -139,6 +139,63 @@ public sealed class PackageJsonGeneratorTests
     }
 
     [Fact]
+    public void GeneratePackageJson_SubstitutesClosedGenericTypesInInheritedDocumentation()
+    {
+        using var assembly = TestAssembly.Create(
+            """
+            namespace Sample.Library;
+
+            public abstract class ResourceWithParent<T>
+                where T : class
+            {
+                /// <summary>Gets the parent resource of type <typeparamref name="T"/>.</summary>
+                public abstract T Parent { get; }
+            }
+
+            public sealed class EnvironmentResource
+            {
+            }
+
+            public sealed class ChildResource : ResourceWithParent<EnvironmentResource>
+            {
+                /// <inheritdoc/>
+                public override EnvironmentResource Parent => new();
+            }
+            """);
+
+        var outputPath = Path.Combine(assembly.DirectoryPath, "Package.json");
+
+        PackageJsonGenerator.GeneratePackageJson(
+            assembly.AssemblyPath,
+            assembly.References,
+            outputPath,
+            versionOverride: "1.2.3",
+            packageNameOverride: "Sample.Package",
+            targetFrameworkOverride: "net8.0");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(outputPath));
+        var summary = document.RootElement
+            .GetProperty("types")
+            .EnumerateArray()
+            .Single(t => t.GetProperty("name").GetString() == "ChildResource")
+            .GetProperty("members")
+            .EnumerateArray()
+            .Single(m => m.GetProperty("name").GetString() == "Parent")
+            .GetProperty("docs")
+            .GetProperty("summary")
+            .EnumerateArray()
+            .ToArray();
+
+        Assert.DoesNotContain(summary, node => node.GetProperty("kind").GetString() == "typeparamref");
+        var inheritedType = Assert.Single(
+            summary,
+            node => node.GetProperty("kind").GetString() == "cref");
+        Assert.Equal(
+            "T:Sample.Library.EnvironmentResource",
+            inheritedType.GetProperty("value").GetString());
+    }
+
+    [Fact]
     public void GeneratePackageJson_NormalizesToLfAndSkipsRewritingUnchangedOutput()
     {
         using var assembly = TestAssembly.Create(

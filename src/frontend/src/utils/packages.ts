@@ -10,6 +10,7 @@ export {
   memberAnchorAliases,
   memberNameSlug,
   memberSlug,
+  resolveMemberAnchorMap,
   resolveMemberAnchors,
   shortTypeName,
 } from './api-member-anchors';

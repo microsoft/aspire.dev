@@ -97,7 +97,7 @@ export interface ValidationResult {
 
 interface ParsedInterface {
   parents: string[];
-  properties: Map<string, boolean>;
+  properties: Map<string, { optional: boolean; type: string }>;
 }
 
 interface AttributePayloadShape {
@@ -138,6 +138,28 @@ function shortTypeName(typeId: string): string {
 
 function camelCase(name: string): string {
   return name.length === 0 ? name : name[0].toLowerCase() + name.slice(1);
+}
+
+function normalizeTypeScriptType(typeName: string): string {
+  return typeName
+    .trim()
+    .replace(/[A-Za-z_][A-Za-z0-9_]*(?:[./][A-Za-z_][A-Za-z0-9_]*)+/g, (value) => {
+      const withoutAssembly = value.includes('/')
+        ? value.slice(value.lastIndexOf('/') + 1)
+        : value;
+      const parts = withoutAssembly.split('.');
+      return parts[parts.length - 1];
+    })
+    .replace(/\s+/g, '');
+}
+
+function normalizeClrType(typeName: string): string {
+  const slashIndex = typeName.indexOf('/');
+  return (slashIndex >= 0 ? typeName.slice(slashIndex + 1) : typeName)
+    .replace(/\s+/g, '')
+    .replace(/`\d+\[\[/g, '<')
+    .replace(/\],\[/g, ',')
+    .replace(/\]\]/g, '>');
 }
 
 function addUnique<T>(
@@ -289,8 +311,13 @@ function parseInterfaces(declarations: string): Map<string, ParsedInterface> {
     }
     const properties = new Map(previous?.properties ?? []);
     const body = declarations.slice(bodyStart, bodyEnd);
-    for (const property of body.matchAll(/^\s{2}([A-Za-z_][A-Za-z0-9_]*)(\?)?:/gm)) {
-      properties.set(property[1], property[2] === '?');
+    for (const property of body.matchAll(
+      /^\s{2}([A-Za-z_][A-Za-z0-9_]*)(\?)?:\s*(.+);$/gm
+    )) {
+      properties.set(property[1], {
+        optional: property[2] === '?',
+        type: property[3].trim(),
+      });
     }
 
     result.set(match[1], {
@@ -450,16 +477,24 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
     }
     for (const field of dto.fields ?? []) {
       const propertyName = camelCase(field.name);
-      const actualOptionality = declaration.properties.get(propertyName);
+      const property = declaration.properties.get(propertyName);
       if (!field.isOptional) {
         errors.push(
           `TypeScript DTO ${dto.name}.${propertyName} is required, but the SDK emits every DTO field as optional.`
         );
-      } else if (actualOptionality === undefined) {
+      } else if (!property) {
         errors.push(`Twoslash DTO ${dto.name} is missing property ${propertyName}.`);
-      } else if (!actualOptionality) {
+      } else if (!property.optional) {
         errors.push(
           `Twoslash DTO ${dto.name}.${propertyName} optionality does not match ts-modules metadata.`
+        );
+      }
+      if (
+        property &&
+        normalizeTypeScriptType(property.type) !== normalizeTypeScriptType(field.type)
+      ) {
+        errors.push(
+          `Twoslash DTO ${dto.name}.${propertyName} type ${property.type} does not match ts-modules metadata ${field.type}.`
         );
       }
     }
@@ -471,6 +506,24 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
     if (!declaration) {
       errors.push(`Twoslash handle ${handle.name} is missing its declaration.`);
       continue;
+    }
+    const matchingPackage = packageByIdentity.get(identity(module.package))?.data;
+    const packageType = (matchingPackage?.types ?? []).find(
+      (type) => type.fullName === handle.fullName
+    );
+    const generatedDirectBase = handle.baseTypeHierarchy?.[0];
+    if (packageType?.baseType) {
+      if (!generatedDirectBase) {
+        errors.push(
+          `TypeScript handle ${handle.name} is missing base hierarchy metadata for C# base type ${packageType.baseType}.`
+        );
+      } else if (
+        normalizeClrType(generatedDirectBase) !== normalizeClrType(packageType.baseType)
+      ) {
+        errors.push(
+          `TypeScript handle ${handle.name} base type ${generatedDirectBase} does not match C# metadata ${packageType.baseType}.`
+        );
+      }
     }
     const expectedParents = new Set(
       (handle.implementedInterfaces ?? [])
@@ -517,6 +570,58 @@ const repoRoot = path.resolve(frontendDir, '..', '..');
 const dataDir = path.join(frontendDir, 'src', 'data');
 const canonicalPackageDir = path.join(dataDir, 'pkgs');
 
+export interface GitCommandResult {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+  error?: Error;
+}
+
+export type GitCommandRunner = (arguments_: string[]) => GitCommandResult;
+
+function runGit(arguments_: string[]): GitCommandResult {
+  const result = spawnSync('git', arguments_, {
+    encoding: 'utf8',
+    maxBuffer: 128 * 1024 * 1024,
+  });
+  return {
+    status: result.status,
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    error: result.error,
+  };
+}
+
+function assertGitSucceeded(
+  command: string,
+  relativePath: string,
+  result: GitCommandResult
+): void {
+  if (result.status === 0) return;
+
+  const detail = result.error?.message ?? result.stderr.trim() ?? '';
+  throw new Error(
+    `Unable to read HEAD baseline for ${relativePath}: git ${command} failed${detail ? `: ${detail}` : '.'}`
+  );
+}
+
+export function loadJsonFromHead<T>(
+  root: string,
+  relativePath: string,
+  git: GitCommandRunner = runGit
+): T | undefined {
+  const treeArguments = ['-C', root, 'ls-tree', '--name-only', 'HEAD', '--', relativePath];
+  const treeResult = git(treeArguments);
+  assertGitSucceeded('ls-tree', relativePath, treeResult);
+  if (treeResult.stdout.trim().length === 0) {
+    return undefined;
+  }
+
+  const showResult = git(['-C', root, 'show', `HEAD:${relativePath}`]);
+  assertGitSucceeded('show', relativePath, showResult);
+  return JSON.parse(showResult.stdout) as T;
+}
+
 function loadJsonFiles<T>(directory: string, baselineDirectory?: string): GeneratedFile<T>[] {
   return fs
     .readdirSync(directory)
@@ -529,12 +634,7 @@ function loadJsonFiles<T>(directory: string, baselineDirectory?: string): Genera
         const relativePath = path
           .relative(repoRoot, path.join(baselineDirectory, fileName))
           .replaceAll(path.sep, '/');
-        const result = spawnSync('git', ['-C', repoRoot, 'show', `HEAD:${relativePath}`], {
-          encoding: 'utf8',
-        });
-        if (result.status === 0) {
-          baseline = JSON.parse(result.stdout) as T;
-        }
+        baseline = loadJsonFromHead<T>(repoRoot, relativePath);
       }
       return { fileName, data, baseline };
     });

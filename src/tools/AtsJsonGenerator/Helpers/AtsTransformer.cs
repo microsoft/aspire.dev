@@ -307,7 +307,101 @@ internal static class AtsTransformer
     internal static string SimplifyTypeId(string typeId)
     {
         var stripped = StripAssemblyPrefix(typeId);
-        return SimpleName(stripped);
+        return FormatReflectionType(stripped);
+    }
+
+    private static string FormatReflectionType(string typeName)
+    {
+        var arraySuffix = "";
+        while (typeName.EndsWith("[]", StringComparison.Ordinal))
+        {
+            arraySuffix += "[]";
+            typeName = typeName[..^2];
+        }
+
+        var arityIndex = typeName.IndexOf('`');
+        var argumentsIndex = arityIndex >= 0
+            ? typeName.IndexOf("[[", arityIndex, StringComparison.Ordinal)
+            : -1;
+        if (arityIndex >= 0 &&
+            argumentsIndex >= 0 &&
+            TrySplitReflectionGenericArguments(typeName, argumentsIndex, out var arguments))
+        {
+            var genericName = SimpleName(typeName[..arityIndex]);
+            var formattedArguments = arguments.Select(FormatReflectionType);
+            return $"{genericName}<{string.Join(",", formattedArguments)}>{arraySuffix}";
+        }
+
+        return $"{FormatPrimitiveType(SimpleName(typeName))}{arraySuffix}";
+    }
+
+    private static bool TrySplitReflectionGenericArguments(
+        string typeName,
+        int startIndex,
+        out List<string> arguments)
+    {
+        arguments = [];
+        var argumentStart = startIndex + 2;
+        var depth = 1;
+        var i = argumentStart;
+
+        while (i < typeName.Length)
+        {
+            if (i + 1 < typeName.Length && typeName[i] == '[' && typeName[i + 1] == ']')
+            {
+                i += 2;
+                continue;
+            }
+
+            if (i + 1 < typeName.Length && typeName[i] == '[' && typeName[i + 1] == '[')
+            {
+                depth++;
+                i += 2;
+                continue;
+            }
+
+            if (i + 1 < typeName.Length && typeName[i] == ']' && typeName[i + 1] == ']')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    arguments.Add(typeName[argumentStart..i]);
+                    return i + 2 == typeName.Length;
+                }
+                i += 2;
+                continue;
+            }
+
+            if (depth == 1 &&
+                i + 2 < typeName.Length &&
+                typeName[i] == ']' &&
+                typeName[i + 1] == ',' &&
+                typeName[i + 2] == '[')
+            {
+                arguments.Add(typeName[argumentStart..i]);
+                argumentStart = i + 3;
+                i += 3;
+                continue;
+            }
+
+            i++;
+        }
+
+        arguments = [];
+        return false;
+    }
+
+    private static string FormatPrimitiveType(string typeName)
+    {
+        return typeName switch
+        {
+            "String" => "string",
+            "Boolean" => "boolean",
+            "Byte" or "SByte" or "Int16" or "UInt16" or "Int32" or "UInt32" or
+                "Int64" or "UInt64" or "Single" or "Double" or "Decimal" => "number",
+            "Object" => "unknown",
+            _ => typeName,
+        };
     }
 
     /// <summary>
@@ -342,41 +436,109 @@ internal static class AtsTransformer
         {
             if (i + 1 < typeId.Length && typeId[i] == '[' && typeId[i + 1] == '[')
             {
-                result.Append("[[");
-                i += 2;
-
-                // Read the type name (up to the first comma or closing bracket)
-                while (i < typeId.Length && typeId[i] != ',' && typeId[i] != ']')
+                if (TryCleanGenericArgumentList(typeId, i, out var cleaned, out var nextIndex))
                 {
-                    result.Append(typeId[i]);
-                    i++;
-                }
-
-                // Skip assembly metadata: everything between the comma and "]]"
-                var depth = 1;
-                while (i < typeId.Length && depth > 0)
-                {
-                    if (i + 1 < typeId.Length && typeId[i] == ']' && typeId[i + 1] == ']')
-                    {
-                        depth--;
-                        if (depth == 0)
-                        {
-                            result.Append("]]");
-                            i += 2;
-                            break;
-                        }
-                    }
-                    i++;
+                    result.Append(cleaned);
+                    i = nextIndex;
+                    continue;
                 }
             }
-            else
-            {
-                result.Append(typeId[i]);
-                i++;
-            }
+
+            result.Append(typeId[i]);
+            i++;
         }
 
         return result.ToString();
+    }
+
+    private static bool TryCleanGenericArgumentList(
+        string typeId,
+        int startIndex,
+        out string cleaned,
+        out int nextIndex)
+    {
+        var result = new System.Text.StringBuilder();
+        result.Append("[[");
+        var i = startIndex + 2;
+
+        while (i < typeId.Length)
+        {
+            var argumentStart = i;
+            var bracketDepth = 0;
+            while (i < typeId.Length)
+            {
+                if (typeId[i] == '[')
+                {
+                    bracketDepth++;
+                }
+                else if (typeId[i] == ']')
+                {
+                    if (bracketDepth == 0)
+                    {
+                        break;
+                    }
+                    bracketDepth--;
+                }
+                i++;
+            }
+
+            if (i >= typeId.Length)
+            {
+                cleaned = "";
+                nextIndex = startIndex;
+                return false;
+            }
+
+            var argument = typeId[argumentStart..i];
+            var assemblySeparator = FindTopLevelComma(argument);
+            var typeName = assemblySeparator >= 0 ? argument[..assemblySeparator] : argument;
+            result.Append(CleanAssemblyQualifiedGenerics(typeName.Trim()));
+
+            if (i + 1 < typeId.Length && typeId[i + 1] == ']')
+            {
+                result.Append("]]");
+                cleaned = result.ToString();
+                nextIndex = i + 2;
+                return true;
+            }
+
+            if (i + 2 < typeId.Length && typeId[i + 1] == ',' && typeId[i + 2] == '[')
+            {
+                result.Append("],[");
+                i += 3;
+                continue;
+            }
+
+            cleaned = "";
+            nextIndex = startIndex;
+            return false;
+        }
+
+        cleaned = "";
+        nextIndex = startIndex;
+        return false;
+    }
+
+    private static int FindTopLevelComma(string value)
+    {
+        var bracketDepth = 0;
+        for (var i = 0; i < value.Length; i++)
+        {
+            if (value[i] == '[')
+            {
+                bracketDepth++;
+            }
+            else if (value[i] == ']')
+            {
+                bracketDepth--;
+            }
+            else if (value[i] == ',' && bracketDepth == 0)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>

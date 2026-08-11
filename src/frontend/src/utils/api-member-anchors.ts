@@ -8,7 +8,7 @@ export interface ApiMemberAnchor {
 
 export interface ResolvedMemberAnchor {
   exact: string;
-  alias?: string;
+  aliases: string[];
 }
 
 export function memberNameSlug(member: Pick<ApiMemberAnchor, 'name'>): string {
@@ -83,24 +83,44 @@ export function resolveMemberAnchors(
 
   return members.map((member, index) => {
     const nameAnchor = memberNameSlug(member);
+    const baseAnchor = baseAnchors[index];
     const exactAnchor = exactAnchors[index];
-    if (
-      nameAnchor === exactAnchor ||
-      reservedExactAnchors.has(nameAnchor) ||
-      claimedAliases.has(nameAnchor)
-    ) {
-      return { exact: exactAnchor };
+    const aliases: string[] = [];
+    const candidates = [
+      nameAnchor,
+      (baseCounts.get(baseAnchor) ?? 0) > 1 ? baseAnchor : undefined,
+    ];
+
+    for (const candidate of candidates) {
+      if (
+        !candidate ||
+        candidate === exactAnchor ||
+        aliases.includes(candidate) ||
+        reservedExactAnchors.has(candidate) ||
+        claimedAliases.has(candidate)
+      ) {
+        continue;
+      }
+
+      claimedAliases.add(candidate);
+      aliases.push(candidate);
     }
 
-    claimedAliases.add(nameAnchor);
-    return { exact: exactAnchor, alias: nameAnchor };
+    return { exact: exactAnchor, aliases };
   });
+}
+
+export function resolveMemberAnchorMap<T extends ApiMemberAnchor>(
+  members: T[]
+): Map<T, ResolvedMemberAnchor> {
+  const resolved = resolveMemberAnchors(members);
+  return new Map(members.map((member, index) => [member, resolved[index]] as const));
 }
 
 export function memberAnchorAliases(
   members: ApiMemberAnchor[]
 ): Array<string | undefined> {
-  return resolveMemberAnchors(members).map(({ alias }) => alias);
+  return resolveMemberAnchors(members).map(({ aliases }) => aliases[0]);
 }
 
 export function shortTypeName(fullName: string): string {
