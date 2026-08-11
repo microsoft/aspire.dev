@@ -211,6 +211,15 @@ const PARAM_TYPE_OVERRIDES: Record<string, Record<string, string>> = {
   withEnvironment: {
     value: 'string | IResourceWithConnectionString | IValueProvider',
   },
+  // The polyglot `withParameter` dispatcher accepts the full Bicep parameter
+  // value union (string / string[] / parameter / connection-string resource /
+  // bicep output / reference expression / endpoint), but the dumped JSON only
+  // encodes the trailing `EndpointReference` overload. Mirror the real
+  // `[AspireUnion]` surface so docs can pass strings and parameter references.
+  withParameter: {
+    value:
+      'string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference',
+  },
   // Accept parameter-resource references in addition to literal strings, matching
   // the real SDK's overload for "publish as an existing Azure resource".
   publishAsExisting: {
