@@ -702,6 +702,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               label: 'ASPIREUSERSECRETS001',
               link: '/diagnostics/aspireusersecrets001',
             },
+            {
+              label: 'ASPIREWATCH001',
+              link: '/diagnostics/aspirewatch001',
+            },
           ],
         },
         {

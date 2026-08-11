@@ -1,0 +1,84 @@
+---
+title: Compiler Warning ASPIREWATCH001
+seoTitle: "ASPIREWATCH001: Run mode configuration types and members are for"
+description: Learn what causes the Aspire compiler warning ASPIREWATCH001 and how to fix it so your AppHost builds cleanly.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Run mode configuration types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using experimental run mode configuration APIs in Aspire, including:
+
+- `RunConfiguration` class
+- `DistributedApplicationExecutionContextOptions.RunConfiguration` property
+
+These APIs let integrations vary how their resources are launched based on the kind of run being performed, without changing the core hosting behavior. In publish mode, every property on `RunConfiguration` holds its default value.
+
+## Example
+
+The following code generates `ASPIREWATCH001`:
+
+```csharp title="Reading run mode configuration"
+var builder = DistributedApplication.CreateBuilder(args);
+
+if (builder.ExecutionContext.IsRunMode)
+{
+    var runConfiguration = builder.ExecutionContext.RunConfiguration;
+
+    if (runConfiguration.WatchEnabled)
+    {
+        // Launch resources so source changes are hot-reloaded.
+    }
+}
+
+builder.Build().Run();
+```
+
+## Understanding run mode configuration
+
+`RunConfiguration` holds settings that only apply when the AppHost is running in [run mode](/app-host/resource-lifetimes/) (as opposed to publish mode). Integrations use it to vary how their resources are launched without changing the core hosting behavior.
+
+### `WatchEnabled`
+
+Indicates that resources should start in watch mode if able. Integrations that support watch can launch their resources so that source changes are hot-reloaded. This is a hint: integrations that cannot watch their resources should start them in the normal fashion.
+
+## To suppress this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREWATCH001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREWATCH001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREWATCH001` directive:
+
+  ```csharp title="Suppressing the warning"
+  var builder = DistributedApplication.CreateBuilder(args);
+
+  #pragma warning disable ASPIREWATCH001
+  var runConfiguration = builder.ExecutionContext.RunConfiguration;
+  #pragma warning restore ASPIREWATCH001
+
+  builder.Build().Run();
+  ```
