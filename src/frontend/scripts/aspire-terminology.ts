@@ -54,6 +54,10 @@ const terminologyRules: readonly TerminologyRule[] = [
     article: 'an',
   },
   {
+    term: String.raw`app${horizontalWhitespace}hosts`,
+    replacement: 'AppHosts',
+  },
+  {
     term: String.raw`app${horizontalWhitespace}host`,
     replacement: 'AppHost',
   },

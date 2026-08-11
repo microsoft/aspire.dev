@@ -161,9 +161,9 @@ describe('Aspire terminology normalization in code', () => {
     );
   });
 
-  test('leaves plural "app hosts" untouched to match the forbidden-words boundary', () => {
+  test('normalizes the plural form in code comments', () => {
     const input = `// Works across polyglot ${legacyAppHostName}s.`;
-    expect(normalizeAspireTerminologyInCode(input)).toBe(input);
+    expect(normalizeAspireTerminologyInCode(input)).toBe('// Works across polyglot AppHosts.');
   });
 
   test('preserves inline code and is idempotent', () => {
