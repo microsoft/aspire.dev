@@ -413,7 +413,20 @@ builder.AddProject<Projects.Networking_ApiService>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-The TypeScript AppHost doesn't currently expose `WithEndpointsInEnvironment`. To exclude an endpoint from environment variable injection, define only the endpoints you need and omit the `admin` endpoint from the project resource.
+The TypeScript AppHost exposes `withEndpointsInEnvironment`, but it takes an **allow-list of endpoint names to include** (`string[]`)—the inverse of the C# predicate above, which _excludes_ endpoints. List the endpoints you want to keep in environment variables:
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addProject("apiservice", "../Networking.ApiService/Networking.ApiService.csproj")
+    .withHttpsEndpoint()
+    .withHttpsEndpoint({ port: 19227, name: "admin" })
+    .withEndpointsInEnvironment(["https"]); // include only "https"; "admin" is excluded
+
+await builder.build().run();
+```
 </TabItem>
 </Tabs>
 
