@@ -1139,7 +1139,7 @@ The `InputType` enum controls how the dashboard renders the field and how built-
 |-------|-----------------|--------------|---------------------|
 | `Text` | Single-line text box | `--<name> <value>` string option | `Required`, `MaxLength` |
 | `Number` | Number input | `--<name> <value>` parsed as number | Must be a valid number |
-| `Boolean` | Checkbox | `--<name>` flag (`true` when present) | Must be `true` or `false` |
+| `Boolean` | Checkbox | `--<name>` (sets `true`) or `--<name> <value>` | Must be `true` or `false` |
 | `Choice` | Drop-down list | `--<name> <value>` matching one of `Options` | Must be a member of `Options` |
 | `SecretText` | Masked text box | `--<name> <value>` string option | `Required`, `MaxLength` |
 
@@ -1190,8 +1190,16 @@ aspire resource myservice send-message --text "Hello world" --repeat 3 --apphost
 
 In the example above, `--text` sets the `text` argument and `--repeat` sets the `repeat` argument. Each option name matches the input's `Name`, and a kebab-case alias is also accepted for multi-word names. For example, an input named `LogLevel` accepts both `--LogLevel` and `--log-level`.
 
+If an argument's option name matches one of the Aspire CLI's own options (for example the global `--log-level` / `-l` option, or `--apphost`), the CLI binds it during its own parsing pass and it never reaches the command. Separate the command's options from the CLI's options with a `--` delimiter to force them through:
+
+```bash title="Terminal"
+aspire resource myservice configure -- --log-level Debug
+```
+
+The command's `--help` output flags any names that collide with a CLI option and shows the `--` form to use.
+
 <Aside type="note">
-The CLI passes all option values as strings; the AppHost performs type coercion and built-in validation before invoking the command callback. If a required argument is missing, the CLI reports `Required option '--<name>' was not provided.` and doesn't invoke the callback. Any value that fails validation returns a structured error the same way.
+The CLI parses and validates values before forwarding them to the AppHost as strings: it parses `Number` and `Boolean` inputs and enforces the built-in rules (such as `Required` and `Choice` membership). If a required argument is missing, the CLI reports `Required option '--<name>' was not provided.` and doesn't invoke the callback. Any value that fails validation returns a structured error the same way.
 </Aside>
 
 ## Argument validation
