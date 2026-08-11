@@ -1041,7 +1041,7 @@ fi
 
 ## Command arguments
 
-Commands can declare input arguments that the dashboard renders as a prompt dialog before execution and that the CLI accepts as ordered positional values. Arguments are defined by setting `CommandOptions.Arguments` to an array of `InteractionInput` objects.
+Commands can declare input arguments that the dashboard renders as a prompt dialog before execution and that the CLI accepts as named `--<name>` options. Arguments are defined by setting `CommandOptions.Arguments` to an array of `InteractionInput` objects.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -1121,7 +1121,7 @@ await builder.build().run();
 
 ### InteractionInput properties
 
-Each `InteractionInput` object in the `Arguments` array configures one input field in the dashboard prompt and one positional argument for the CLI:
+Each `InteractionInput` object in the `Arguments` array configures one input field in the dashboard prompt and one named `--<name>` option for the CLI:
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -1137,11 +1137,11 @@ The `InputType` enum controls how the dashboard renders the field and how built-
 
 | Value | Dashboard widget | CLI behavior | Built-in validation |
 |-------|-----------------|--------------|---------------------|
-| `Text` | Single-line text box | Positional string value | `Required`, `MaxLength` |
-| `Number` | Number input | Positional string parsed as number | Must be a valid number |
-| `Boolean` | Checkbox | `true` or `false` string | Must be `true` or `false` |
-| `Choice` | Drop-down list | String must match one of `Options` | Must be a member of `Options` |
-| `SecretText` | Masked text box | Positional string value | `Required`, `MaxLength` |
+| `Text` | Single-line text box | `--<name> <value>` string option | `Required`, `MaxLength` |
+| `Number` | Number input | `--<name> <value>` parsed as number | Must be a valid number |
+| `Boolean` | Checkbox | `--<name>` flag (`true` when present) | Must be `true` or `false` |
+| `Choice` | Drop-down list | `--<name> <value>` matching one of `Options` | Must be a member of `Options` |
+| `SecretText` | Masked text box | `--<name> <value>` string option | `Required`, `MaxLength` |
 
 ### Read argument values at runtime
 
@@ -1182,16 +1182,16 @@ Use `requiredValue` for arguments declared with `required: true` to get a non-nu
 
 ### Pass arguments from the CLI
 
-When invoking a command from the CLI, supply argument values as ordered positional tokens after the command name. The CLI maps them onto the declared `Arguments` array by position:
+When invoking a command from the CLI, supply argument values as named `--<name>` options after the command name. Each declared argument is exposed as its own option, so the order you pass them in doesn't matter:
 
 ```bash title="Terminal"
-aspire resource myservice send-message "Hello world" 3 --apphost MyApp.AppHost.csproj
+aspire resource myservice send-message --text "Hello world" --repeat 3 --apphost MyApp.AppHost.csproj
 ```
 
-In the example above, `"Hello world"` maps to the first argument (`text`) and `3` maps to the second (`repeat`).
+In the example above, `--text` sets the `text` argument and `--repeat` sets the `repeat` argument. Each option name matches the input's `Name`, and a kebab-case alias is also accepted for multi-word names. For example, an input named `LogLevel` accepts both `--LogLevel` and `--log-level`.
 
 <Aside type="note">
-The CLI passes all positional values as strings; the AppHost performs type coercion and built-in validation before invoking the command callback. If a required argument is missing or a value fails validation, the CLI receives a structured error instead of invoking the callback.
+The CLI passes all option values as strings; the AppHost performs type coercion and built-in validation before invoking the command callback. If a required argument is missing, the CLI reports `Required option '--<name>' was not provided.` and doesn't invoke the callback. Any value that fails validation returns a structured error the same way.
 </Aside>
 
 ## Argument validation
