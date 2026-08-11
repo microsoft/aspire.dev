@@ -7,7 +7,7 @@
  * The search index is built at build time from all package JSON data.
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import { packageSlug, slugify, genericArity, getPackages } from '@utils/packages';
+import { packageSlug, slugify, genericArity, getPackages, memberNameSlug, resolveMemberAnchors } from '@utils/packages';
 import { getApiReferenceSidebar } from '@utils/api-sidebar';
 import ApiSearchBar from '@components/api-reference/ApiSearchBar.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
@@ -42,6 +42,8 @@ interface IndexEntry {
   t?: string;
   /** Package version */
   v?: string;
+  /** Exact overload/member anchor */
+  a?: string;
 }
 
 /** Extract plain-text summary from doc nodes. */
@@ -84,10 +86,13 @@ for (const pkg of sorted) {
 
     // Index members (methods, properties, constructors, fields, events, indexers)
     const members: any[] = type.members ?? [];
-    for (const member of members) {
+    const resolvedAnchors = resolveMemberAnchors(members);
+    for (const [memberIndex, member] of members.entries()) {
       memberCount++;
       const memberName = member.name === '.ctor' ? `${type.name} (constructor)` : member.name;
       const memberFull = `${type.fullName ?? type.name}.${member.name === '.ctor' ? '.ctor' : member.name}`;
+      const anchor = resolvedAnchors[memberIndex].exact;
+      const nameAnchor = memberNameSlug(member);
       index.push({
         n: memberName,
         f: memberFull,
@@ -96,6 +101,7 @@ for (const pkg of sorted) {
         p: pkgName,
         s: extractSummary(member.docs?.summary),
         t: type.name,
+        ...(anchor !== nameAnchor ? { a: anchor } : {}),
         ...(typeSlug !== type.name.toLowerCase() ? { ts: typeSlug } : {}),
         ...(pkgVersion ? { v: pkgVersion } : {}),
       });
@@ -185,6 +191,8 @@ const indexJson = JSON.stringify(index);
     ts?: string;
     /** Package version */
     v?: string;
+    /** Exact overload/member anchor */
+    a?: string;
   }
 
   const PAGE_SIZE = 10;
@@ -611,7 +619,7 @@ const indexJson = JSON.stringify(index);
       let href: string;
       if (isMember) {
         const kindSlug = MEMBER_KIND_SLUGS[entry.k] ?? entry.k;
-        const anchorName = entry.n.includes('(constructor)') ? 'constructor' : entry.n.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const anchorName = entry.a ?? (entry.n.includes('(constructor)') ? 'constructor' : entry.n.toLowerCase().replace(/[^a-z0-9]/g, '-'));
         href = `${this.base}/reference/api/csharp/${entry.p.toLowerCase()}/${entry.ts ?? entry.t!.toLowerCase()}/${kindSlug}/#${anchorName}`;
       } else {
         href = `${this.base}/reference/api/csharp/${entry.p.toLowerCase()}/${entry.g ?? entry.n.toLowerCase()}/`;

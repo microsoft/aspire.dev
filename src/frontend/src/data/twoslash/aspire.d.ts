@@ -24,34 +24,6 @@ export type PropertyAccessor<T> = (T extends object ? T : unknown) & (() => Prom
 
 // ---- enums ----
 /**
- * Enum Aspire.Hosting.ApplicationModel.InputType
- */
-export type InputType = "Text" | "Number" | "Choice" | "SecretText";
-export declare const InputType: {
-  readonly Text: "Text";
-  readonly Number: "Number";
-  readonly Choice: "Choice";
-  readonly SecretText: "SecretText";
-};
-
-export interface ParameterCustomInputOptions {
-  inputType?: InputType;
-  label?: string;
-  placeholder?: string;
-  options?: Record<string, string>;
-}
-
-export interface BeforePublishEvent extends IDistributedApplicationEvent {
-  model: PropertyAccessor<DistributedApplicationModel>;
-  services: PropertyAccessor<IServiceProvider>;
-}
-
-export interface AfterPublishEvent extends IDistributedApplicationEvent {
-  model: PropertyAccessor<DistributedApplicationModel>;
-  services: PropertyAccessor<IServiceProvider>;
-}
-
-/**
  * Enum Aspire.Hosting.ApplicationModel.CertificateTrustScope
  */
 
@@ -205,6 +177,19 @@ export type DistributedApplicationOperation = "Run" | "Publish";
 export declare const DistributedApplicationOperation: {
   readonly Run: "Run";
   readonly Publish: "Publish";
+};
+
+/**
+ * Enum Aspire.Hosting.InputType
+ */
+
+export type InputType = "Text" | "SecretText" | "Choice" | "Boolean" | "Number";
+export declare const InputType: {
+  readonly Text: "Text";
+  readonly SecretText: "SecretText";
+  readonly Choice: "Choice";
+  readonly Boolean: "Boolean";
+  readonly Number: "Number";
 };
 
 /**
@@ -541,10 +526,10 @@ export declare const KeyType: {
  */
 
 export interface CertificateTrustExecutionConfigurationContext {
-  certificateBundlePath: ReferenceExpression;
-  certificateDirectoriesPath: ReferenceExpression;
-  rootCertificatesPath: string;
-  isContainer: boolean;
+  certificateBundlePath?: ReferenceExpression;
+  certificateDirectoriesPath?: ReferenceExpression;
+  rootCertificatesPath?: string;
+  isContainer?: boolean;
 }
 
 /**
@@ -552,16 +537,16 @@ export interface CertificateTrustExecutionConfigurationContext {
  */
 
 export interface CommandOptions {
-  description: string;
-  parameter: any;
-  arguments: InteractionInput[];
-  validateArguments: callback;
-  visibility: ResourceCommandVisibility;
-  confirmationMessage: string;
-  iconName: string;
-  iconVariant: IconVariant;
-  isHighlighted: boolean;
-  updateState: callback;
+  description?: string;
+  parameter?: any;
+  arguments?: InteractionInput[];
+  validateArguments?: callback;
+  visibility?: ResourceCommandVisibility;
+  confirmationMessage?: string;
+  iconName?: string;
+  iconVariant?: IconVariant;
+  isHighlighted?: boolean;
+  updateState?: callback;
 }
 
 /**
@@ -569,9 +554,9 @@ export interface CommandOptions {
  */
 
 export interface CommandResultData {
-  value: string;
-  format: CommandResultFormat;
-  displayImmediately: boolean;
+  value?: string;
+  format?: CommandResultFormat;
+  displayImmediately?: boolean;
 }
 
 /**
@@ -579,11 +564,11 @@ export interface CommandResultData {
  */
 
 export interface ExecuteCommandResult {
-  success: boolean;
-  canceled: boolean;
-  errorMessage: string;
-  message: string;
-  data: CommandResultData;
+  success?: boolean;
+  canceled?: boolean;
+  errorMessage?: string;
+  message?: string;
+  data?: CommandResultData;
 }
 
 /**
@@ -591,15 +576,15 @@ export interface ExecuteCommandResult {
  */
 
 export interface GenerateParameterDefault {
-  minLength: number;
-  lower: boolean;
-  upper: boolean;
-  numeric: boolean;
-  special: boolean;
-  minLower: number;
-  minUpper: number;
-  minNumeric: number;
-  minSpecial: number;
+  minLength?: number;
+  lower?: boolean;
+  upper?: boolean;
+  numeric?: boolean;
+  special?: boolean;
+  minLower?: number;
+  minUpper?: number;
+  minNumeric?: number;
+  minSpecial?: number;
 }
 
 /**
@@ -607,15 +592,15 @@ export interface GenerateParameterDefault {
  */
 
 export interface HttpCommandExportOptions {
-  description: string;
-  confirmationMessage: string;
-  iconName: string;
-  iconVariant: IconVariant;
-  isHighlighted: boolean;
-  commandName: string;
-  endpointName: string;
-  methodName: string;
-  resultMode: HttpCommandResultMode;
+  description?: string;
+  confirmationMessage?: string;
+  iconName?: string;
+  iconVariant?: IconVariant;
+  isHighlighted?: boolean;
+  commandName?: string;
+  endpointName?: string;
+  methodName?: string;
+  resultMode?: HttpCommandResultMode;
 }
 
 /**
@@ -623,9 +608,9 @@ export interface HttpCommandExportOptions {
  */
 
 export interface HttpsCertificateExecutionConfigurationContext {
-  certificatePath: ReferenceExpression;
-  keyPath: ReferenceExpression;
-  pfxPath: ReferenceExpression;
+  certificatePath?: ReferenceExpression;
+  keyPath?: ReferenceExpression;
+  pfxPath?: ReferenceExpression;
 }
 
 /**
@@ -633,17 +618,17 @@ export interface HttpsCertificateExecutionConfigurationContext {
  */
 
 export interface ProcessCommandExportOptions {
-  executablePath: string;
-  arguments: string[];
-  workingDirectory: string;
-  environmentVariables: Dict<string,string>;
-  inheritEnvironmentVariables: boolean;
-  standardInputContent: string;
-  killEntireProcessTree: boolean;
-  commandOptions: CommandOptions;
-  maxOutputLineCount: number;
-  displayImmediately: boolean;
-  successExitCodes: number[];
+  executablePath?: string;
+  arguments?: string[];
+  workingDirectory?: string;
+  environmentVariables?: Dict<string,string>;
+  inheritEnvironmentVariables?: boolean;
+  standardInputContent?: string;
+  killEntireProcessTree?: boolean;
+  commandOptions?: CommandOptions;
+  maxOutputLineCount?: number;
+  displayImmediately?: boolean;
+  successExitCodes?: number[];
 }
 
 /**
@@ -651,10 +636,10 @@ export interface ProcessCommandExportOptions {
  */
 
 export interface ProcessCommandResultExportOptions {
-  commandOptions: CommandOptions;
-  maxOutputLineCount: number;
-  displayImmediately: boolean;
-  successExitCodes: number[];
+  commandOptions?: CommandOptions;
+  maxOutputLineCount?: number;
+  displayImmediately?: boolean;
+  successExitCodes?: number[];
 }
 
 /**
@@ -662,13 +647,13 @@ export interface ProcessCommandResultExportOptions {
  */
 
 export interface ProcessCommandSpecExportData {
-  executablePath: string;
-  arguments: string[];
-  workingDirectory: string;
-  environmentVariables: Dict<string,string>;
-  inheritEnvironmentVariables: boolean;
-  standardInputContent: string;
-  killEntireProcessTree: boolean;
+  executablePath?: string;
+  arguments?: string[];
+  workingDirectory?: string;
+  environmentVariables?: Dict<string,string>;
+  inheritEnvironmentVariables?: boolean;
+  standardInputContent?: string;
+  killEntireProcessTree?: boolean;
 }
 
 /**
@@ -676,10 +661,10 @@ export interface ProcessCommandSpecExportData {
  */
 
 export interface ResourceUrlAnnotation {
-  url: string;
-  displayText: string;
-  endpoint: EndpointReference;
-  displayLocation: UrlDisplayLocation;
+  url?: string;
+  displayText?: string;
+  endpoint?: EndpointReference;
+  displayLocation?: UrlDisplayLocation;
 }
 
 /**
@@ -687,11 +672,11 @@ export interface ResourceUrlAnnotation {
  */
 
 export interface UpdateCommandStateResourceSnapshot {
-  resourceType: string;
-  state: string;
-  stateStyle: string;
-  healthStatus: HealthStatus;
-  exitCode: number;
+  resourceType?: string;
+  state?: string;
+  stateStyle?: string;
+  healthStatus?: HealthStatus;
+  exitCode?: number;
 }
 
 /**
@@ -699,8 +684,8 @@ export interface UpdateCommandStateResourceSnapshot {
  */
 
 export interface AddContainerOptions {
-  image: string;
-  tag: string;
+  image?: string;
+  tag?: string;
 }
 
 /**
@@ -708,9 +693,9 @@ export interface AddContainerOptions {
  */
 
 export interface CertificateTrustExecutionConfigurationExportData {
-  scope: CertificateTrustScope;
-  certificateSubjects: string[];
-  customBundlePaths: string[];
+  scope?: CertificateTrustScope;
+  certificateSubjects?: string[];
+  customBundlePaths?: string[];
 }
 
 /**
@@ -718,14 +703,14 @@ export interface CertificateTrustExecutionConfigurationExportData {
  */
 
 export interface CreateBuilderOptions {
-  args: string[];
-  projectDirectory: string;
-  appHostFilePath: string;
-  containerRegistryOverride: string;
-  disableDashboard: boolean;
-  dashboardApplicationName: string;
-  allowUnsecuredTransport: boolean;
-  enableResourceLogging: boolean;
+  args?: string[];
+  projectDirectory?: string;
+  appHostFilePath?: string;
+  containerRegistryOverride?: string;
+  disableDashboard?: boolean;
+  dashboardApplicationName?: string;
+  allowUnsecuredTransport?: boolean;
+  enableResourceLogging?: boolean;
 }
 
 /**
@@ -733,13 +718,13 @@ export interface CreateBuilderOptions {
  */
 
 export interface HttpsCertificateExecutionConfigurationExportData {
-  subject: string;
-  thumbprint: string;
-  keyPathExpression: string;
-  pfxPathExpression: string;
-  isKeyPathReferenced: boolean;
-  isPfxPathReferenced: boolean;
-  password: string;
+  subject?: string;
+  thumbprint?: string;
+  keyPathExpression?: string;
+  pfxPathExpression?: string;
+  isKeyPathReferenced?: boolean;
+  isPfxPathReferenced?: boolean;
+  password?: string;
 }
 
 /**
@@ -747,9 +732,26 @@ export interface HttpsCertificateExecutionConfigurationExportData {
  */
 
 export interface HttpsCertificateInfo {
-  subject: string;
-  issuer: string;
-  thumbprint: string;
+  subject?: string;
+  issuer?: string;
+  thumbprint?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.ParameterCustomInputOptions
+ */
+
+export interface ParameterCustomInputOptions {
+  inputType?: InputType;
+  label?: string;
+  description?: string;
+  enableDescriptionMarkdown?: boolean;
+  options?: Dict<string,string>;
+  value?: string;
+  placeholder?: string;
+  allowCustomChoice?: boolean;
+  disabled?: boolean;
+  maxLength?: number;
 }
 
 /**
@@ -757,10 +759,10 @@ export interface HttpsCertificateInfo {
  */
 
 export interface ReferenceEnvironmentInjectionOptions {
-  connectionString: boolean;
-  connectionProperties: boolean;
-  serviceDiscovery: boolean;
-  endpoints: boolean;
+  connectionString?: boolean;
+  connectionProperties?: boolean;
+  serviceDiscovery?: boolean;
+  endpoints?: boolean;
 }
 
 /**
@@ -768,12 +770,12 @@ export interface ReferenceEnvironmentInjectionOptions {
  */
 
 export interface ResourceEventDto {
-  resourceName: string;
-  resourceId: string;
-  state: string;
-  stateStyle: string;
-  healthStatus: string;
-  exitCode: number;
+  resourceName?: string;
+  resourceId?: string;
+  state?: string;
+  stateStyle?: string;
+  healthStatus?: string;
+  exitCode?: number;
 }
 
 /**
@@ -781,19 +783,19 @@ export interface ResourceEventDto {
  */
 
 export interface InteractionInput {
-  name: string;
-  label: string;
-  description: string;
-  enableDescriptionMarkdown: boolean;
-  inputType: InputType;
-  required: boolean;
-  options: String[];
-  dynamicLoading: InputLoadOptions;
-  value: string;
-  placeholder: string;
-  allowCustomChoice: boolean;
-  disabled: boolean;
-  maxLength: number;
+  name?: string;
+  label?: string;
+  description?: string;
+  enableDescriptionMarkdown?: boolean;
+  inputType?: InputType;
+  required?: boolean;
+  options?: String[];
+  dynamicLoading?: InputLoadOptions;
+  value?: string;
+  placeholder?: string;
+  allowCustomChoice?: boolean;
+  disabled?: boolean;
+  maxLength?: number;
 }
 
 /**
@@ -801,7 +803,7 @@ export interface InteractionInput {
  */
 
 export interface AzureContainerAppScaleConfig {
-  minReplicas: number;
+  minReplicas?: number;
 }
 
 /**
@@ -809,7 +811,7 @@ export interface AzureContainerAppScaleConfig {
  */
 
 export interface AzureAppServiceSiteConfig {
-  isAlwaysOn: boolean;
+  isAlwaysOn?: boolean;
 }
 
 /**
@@ -817,14 +819,14 @@ export interface AzureAppServiceSiteConfig {
  */
 
 export interface AzureNspAccessRule {
-  name: string;
-  direction: NetworkSecurityPerimeterAccessRuleDirection;
-  addressPrefixes: List<string>;
-  addressPrefixReferences: List<ReferenceExpression>;
-  subscriptions: List<string>;
-  subscriptionReferences: List<ReferenceExpression>;
-  fullyQualifiedDomainNames: List<string>;
-  fullyQualifiedDomainNameReferences: List<ReferenceExpression>;
+  name?: string;
+  direction?: NetworkSecurityPerimeterAccessRuleDirection;
+  addressPrefixes?: List<string>;
+  addressPrefixReferences?: List<ReferenceExpression>;
+  subscriptions?: List<string>;
+  subscriptionReferences?: List<ReferenceExpression>;
+  fullyQualifiedDomainNames?: List<string>;
+  fullyQualifiedDomainNameReferences?: List<ReferenceExpression>;
 }
 
 /**
@@ -832,18 +834,18 @@ export interface AzureNspAccessRule {
  */
 
 export interface AzureSecurityRule {
-  name: string;
-  description: string;
-  priority: number;
-  direction: SecurityRuleDirection;
-  access: SecurityRuleAccess;
-  protocol: SecurityRuleProtocol;
-  sourceAddressPrefix: string;
-  sourceAddressPrefixReference: ReferenceExpression;
-  sourcePortRange: string;
-  destinationAddressPrefix: string;
-  destinationAddressPrefixReference: ReferenceExpression;
-  destinationPortRange: string;
+  name?: string;
+  description?: string;
+  priority?: number;
+  direction?: SecurityRuleDirection;
+  access?: SecurityRuleAccess;
+  protocol?: SecurityRuleProtocol;
+  sourceAddressPrefix?: string;
+  sourceAddressPrefixReference?: ReferenceExpression;
+  sourcePortRange?: string;
+  destinationAddressPrefix?: string;
+  destinationAddressPrefixReference?: ReferenceExpression;
+  destinationPortRange?: string;
 }
 
 /**
@@ -851,16 +853,16 @@ export interface AzureSecurityRule {
  */
 
 export interface AzureServiceBusCorrelationFilter {
-  properties: Dict<string,any>;
-  correlationId: string;
-  messageId: string;
-  sendTo: string;
-  replyTo: string;
-  subject: string;
-  sessionId: string;
-  replyToSessionId: string;
-  contentType: string;
-  requiresPreprocessing: boolean;
+  properties?: Dict<string,any>;
+  correlationId?: string;
+  messageId?: string;
+  sendTo?: string;
+  replyTo?: string;
+  subject?: string;
+  sessionId?: string;
+  replyToSessionId?: string;
+  contentType?: string;
+  requiresPreprocessing?: boolean;
 }
 
 /**
@@ -868,9 +870,9 @@ export interface AzureServiceBusCorrelationFilter {
  */
 
 export interface AzureServiceBusRule {
-  name: string;
-  correlationFilter: AzureServiceBusCorrelationFilter;
-  filterType: AzureServiceBusFilterType;
+  name?: string;
+  correlationFilter?: AzureServiceBusCorrelationFilter;
+  filterType?: AzureServiceBusFilterType;
 }
 
 /**
@@ -878,9 +880,9 @@ export interface AzureServiceBusRule {
  */
 
 export interface FoundryModel {
-  name: string;
-  version: string;
-  format: string;
+  name?: string;
+  version?: string;
+  format?: string;
 }
 
 /**
@@ -888,12 +890,12 @@ export interface FoundryModel {
  */
 
 export interface HostedAgentOptions {
-  description: string;
-  cpu: number;
-  memory: number;
-  metadata: Dict<string,string>;
-  environmentVariables: Dict<string,string>;
-  protocols: List<HostedAgentProtocolVersion>;
+  description?: string;
+  cpu?: number;
+  memory?: number;
+  metadata?: Dict<string,string>;
+  environmentVariables?: Dict<string,string>;
+  protocols?: List<HostedAgentProtocolVersion>;
 }
 
 /**
@@ -901,8 +903,8 @@ export interface HostedAgentOptions {
  */
 
 export interface HostedAgentProtocolVersion {
-  protocol: string;
-  version: string;
+  protocol?: string;
+  version?: string;
 }
 
 /**
@@ -910,12 +912,12 @@ export interface HostedAgentProtocolVersion {
  */
 
 export interface YarpActiveHealthCheckConfig {
-  enabled: boolean;
-  interval: timespan;
-  path: string;
-  policy: string;
-  query: string;
-  timeout: timespan;
+  enabled?: boolean;
+  interval?: timespan;
+  path?: string;
+  policy?: string;
+  query?: string;
+  timeout?: timespan;
 }
 
 /**
@@ -923,10 +925,10 @@ export interface YarpActiveHealthCheckConfig {
  */
 
 export interface YarpForwarderRequestConfig {
-  activityTimeout: timespan;
-  allowResponseBuffering: boolean;
-  version: string;
-  versionPolicy: HttpVersionPolicy;
+  activityTimeout?: timespan;
+  allowResponseBuffering?: boolean;
+  version?: string;
+  versionPolicy?: HttpVersionPolicy;
 }
 
 /**
@@ -934,9 +936,9 @@ export interface YarpForwarderRequestConfig {
  */
 
 export interface YarpHealthCheckConfig {
-  active: YarpActiveHealthCheckConfig;
-  availableDestinationsPolicy: string;
-  passive: YarpPassiveHealthCheckConfig;
+  active?: YarpActiveHealthCheckConfig;
+  availableDestinationsPolicy?: string;
+  passive?: YarpPassiveHealthCheckConfig;
 }
 
 /**
@@ -944,13 +946,13 @@ export interface YarpHealthCheckConfig {
  */
 
 export interface YarpHttpClientConfig {
-  dangerousAcceptAnyServerCertificate: boolean;
-  enableMultipleHttp2Connections: boolean;
-  maxConnectionsPerServer: number;
-  requestHeaderEncoding: string;
-  responseHeaderEncoding: string;
-  sslProtocols: YarpSslProtocol[];
-  webProxy: YarpWebProxyConfig;
+  dangerousAcceptAnyServerCertificate?: boolean;
+  enableMultipleHttp2Connections?: boolean;
+  maxConnectionsPerServer?: number;
+  requestHeaderEncoding?: string;
+  responseHeaderEncoding?: string;
+  sslProtocols?: YarpSslProtocol[];
+  webProxy?: YarpWebProxyConfig;
 }
 
 /**
@@ -958,9 +960,9 @@ export interface YarpHttpClientConfig {
  */
 
 export interface YarpPassiveHealthCheckConfig {
-  enabled: boolean;
-  policy: string;
-  reactivationPeriod: timespan;
+  enabled?: boolean;
+  policy?: string;
+  reactivationPeriod?: timespan;
 }
 
 /**
@@ -968,10 +970,10 @@ export interface YarpPassiveHealthCheckConfig {
  */
 
 export interface YarpRouteHeaderMatch {
-  name: string;
-  values: string[];
-  isCaseSensitive: boolean;
-  mode: HeaderMatchMode;
+  name?: string;
+  values?: string[];
+  isCaseSensitive?: boolean;
+  mode?: HeaderMatchMode;
 }
 
 /**
@@ -979,11 +981,11 @@ export interface YarpRouteHeaderMatch {
  */
 
 export interface YarpRouteMatch {
-  path: string;
-  methods: string[];
-  hosts: string[];
-  headers: YarpRouteHeaderMatch[];
-  queryParameters: YarpRouteQueryParameterMatch[];
+  path?: string;
+  methods?: string[];
+  hosts?: string[];
+  headers?: YarpRouteHeaderMatch[];
+  queryParameters?: YarpRouteQueryParameterMatch[];
 }
 
 /**
@@ -991,10 +993,10 @@ export interface YarpRouteMatch {
  */
 
 export interface YarpRouteQueryParameterMatch {
-  name: string;
-  values: string[];
-  isCaseSensitive: boolean;
-  mode: QueryParameterMatchMode;
+  name?: string;
+  values?: string[];
+  isCaseSensitive?: boolean;
+  mode?: QueryParameterMatchMode;
 }
 
 /**
@@ -1002,11 +1004,11 @@ export interface YarpRouteQueryParameterMatch {
  */
 
 export interface YarpSessionAffinityConfig {
-  affinityKeyName: string;
-  cookie: YarpSessionAffinityCookieConfig;
-  enabled: boolean;
-  failurePolicy: string;
-  policy: string;
+  affinityKeyName?: string;
+  cookie?: YarpSessionAffinityCookieConfig;
+  enabled?: boolean;
+  failurePolicy?: string;
+  policy?: string;
 }
 
 /**
@@ -1014,14 +1016,14 @@ export interface YarpSessionAffinityConfig {
  */
 
 export interface YarpSessionAffinityCookieConfig {
-  domain: string;
-  expiration: timespan;
-  httpOnly: boolean;
-  isEssential: boolean;
-  maxAge: timespan;
-  path: string;
-  sameSite: SameSiteMode;
-  securePolicy: CookieSecurePolicy;
+  domain?: string;
+  expiration?: timespan;
+  httpOnly?: boolean;
+  isEssential?: boolean;
+  maxAge?: timespan;
+  path?: string;
+  sameSite?: SameSiteMode;
+  securePolicy?: CookieSecurePolicy;
 }
 
 /**
@@ -1029,9 +1031,9 @@ export interface YarpSessionAffinityCookieConfig {
  */
 
 export interface YarpWebProxyConfig {
-  address: uri;
-  bypassOnLocal: boolean;
-  useDefaultCredentials: boolean;
+  address?: uri;
+  bypassOnLocal?: boolean;
+  useDefaultCredentials?: boolean;
 }
 
 // ---- handle types ----
@@ -2195,11 +2197,6 @@ export interface IResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a relationship to another resource using its builder.
@@ -2332,11 +2329,6 @@ export interface IResourceWithEndpoints {
    */
 
   withExternalHttpEndpoints(): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
   /**
    * Adds an HTTP resource command
    */
@@ -2964,12 +2956,12 @@ export interface IDistributedApplicationResourceEvent {
 
 export interface ExternalServiceResource extends IResource {
   /**
-   * Adds an HTTP health check to the external service for polyglot AppHosts.
+   * Adds an HTTP health check to the external service for polyglot app hosts.
    */
 
   withHttpHealthCheck(options?: { path?: string; statusCode?: number; endpointName?: string }): this;
   /**
-   * Adds an HTTP health check to the external service for polyglot AppHosts.
+   * Adds an HTTP health check to the external service for polyglot app hosts.
    */
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
@@ -3005,11 +2997,6 @@ export interface IDistributedApplicationBuilder {
    */
 
   addContainerRegistry(name: string, endpoint: string | ParameterResource, repository?: string | ParameterResource): ContainerRegistryResource;
-  /**
-   * Adds a C# application resource
-   */
-
-  addCSharpApp(name: string, path: string, options?: { options?: ProjectResourceOptions }): CSharpAppResource;
   /**
    * Adds a C# application resource
    */
@@ -6930,12 +6917,12 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
 
   withMigrationOutputDirectory(outputDirectory: string): this;
   /**
-   * Configures a separate project containing migrations for polyglot AppHosts.
+   * Configures a separate project containing migrations for polyglot app hosts.
    */
 
   withMigrationsProject(options?: { migrationsProject?: ProjectResource }): this;
   /**
-   * Configures a separate project containing migrations for polyglot AppHosts.
+   * Configures a separate project containing migrations for polyglot app hosts.
    */
 
   withMigrationsProject(migrationsProject?: ProjectResource): this;
@@ -6957,14 +6944,14 @@ export interface AzureAISearchToolResource extends FoundryToolResource, IResourc
  * Handle Aspire.Hosting.Foundry.AzureCognitiveServicesProjectConnectionResource
  */
 
-export interface AzureCognitiveServicesProjectConnectionResource extends IAzureResource, IResource, IResourceWithParameters, IResourceWithParent {
+export interface AzureCognitiveServicesProjectConnectionResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IResource, IResourceWithParameters, IResourceWithParent {
 }
 
 /**
  * Handle Aspire.Hosting.Foundry.AzureCognitiveServicesProjectResource
  */
 
-export interface AzureCognitiveServicesProjectResource extends IAzureResource, IComputeEnvironmentResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParameters, IResourceWithParent, IValueProvider, IValueWithReferences, IAzureComputeEnvironmentResource {
+export interface AzureCognitiveServicesProjectResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParameters, IResourceWithParent, IValueProvider, IValueWithReferences, IAzureComputeEnvironmentResource {
   /**
    * Adds an Azure AI Search tool to a Microsoft Foundry project, enabling agents to ground their responses using data from an Azure AI Search index.
    */
@@ -7180,7 +7167,7 @@ export interface AzurePromptAgentResource extends IExpressionValue, IManifestExp
  * Handle Aspire.Hosting.Foundry.BingGroundingConnectionResource
  */
 
-export interface BingGroundingConnectionResource extends IAzureResource, IResource, IResourceWithParameters, IResourceWithParent {
+export interface BingGroundingConnectionResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IResource, IResourceWithParameters, IResourceWithParent {
 }
 
 /**
@@ -7507,7 +7494,7 @@ export interface GitHubModelResource extends IExpressionValue, IManifestExpressi
  * Handle Aspire.Hosting.Go.GoAppResource
  */
 
-export interface GoAppResource extends ExecutableResource, ContainerResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface GoAppResource extends ExecutableResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
    * Passes extra arguments to the Go program at runtime. In normal run mode they appear after `go run .`; in Delve mode after the `--` separator.
    */
@@ -10368,14 +10355,14 @@ export interface YarpRoute {
  * Handle Aspire.Hosting.ApplicationModel.ActiveMQArtemisServerResource
  */
 
-export interface ActiveMQArtemisServerResource extends ActiveMQServerResourceBase, ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+export interface ActiveMQArtemisServerResource extends ContainerResource, ActiveMQServerResourceBase, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
 }
 
 /**
  * Handle Aspire.Hosting.ApplicationModel.ActiveMQServerResource
  */
 
-export interface ActiveMQServerResource extends ActiveMQServerResourceBase, ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+export interface ActiveMQServerResource extends ContainerResource, ActiveMQServerResourceBase, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
 }
 
 /**
@@ -10668,7 +10655,7 @@ export interface DbxContainerResource extends ContainerResource, IComputeResourc
  * Handle Aspire.Hosting.ApplicationModel.DenoAppResource
  */
 
-export interface DenoAppResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface DenoAppResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
    * Ensures the Deno packages are installed before the application starts using Deno as the package manager.
    */
@@ -10821,7 +10808,7 @@ export interface JavaAppContainerResource extends ContainerResource, IComputeRes
  * Handle Aspire.Hosting.ApplicationModel.JavaAppExecutableResource
  */
 
-export interface JavaAppExecutableResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface JavaAppExecutableResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
    * Gets or sets the path to the JAR file to execute.
    */
@@ -10863,7 +10850,7 @@ export interface JavaAppExecutableResource extends ExecutableResource, Container
  * Handle Aspire.Hosting.ApplicationModel.NxAppResource
  */
 
-export interface NxAppResource extends ExecutableResource, JavaScriptAppResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+export interface NxAppResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
 }
 
 /**
@@ -10907,7 +10894,7 @@ export interface NxResource extends IResource {
  * Handle Aspire.Hosting.ApplicationModel.TurborepoAppResource
  */
 
-export interface TurborepoAppResource extends ExecutableResource, JavaScriptAppResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+export interface TurborepoAppResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
 }
 
 /**
@@ -11587,7 +11574,7 @@ export interface MailPitContainerResource extends ContainerResource, IComputeRes
  * Handle Aspire.Hosting.ApplicationModel.McpInspectorResource
  */
 
-export interface McpInspectorResource extends ExecutableResource, JavaScriptAppResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+export interface McpInspectorResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
   /**
    * Configures the MCP Inspector to use bun as the package manager.
    */
@@ -11812,7 +11799,7 @@ export interface IOllamaResource {
  * Handle Aspire.Hosting.ApplicationModel.OllamaExecutableResource
  */
 
-export interface OllamaExecutableResource extends ExecutableResource, ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IOllamaResource, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+export interface OllamaExecutableResource extends ExecutableResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IOllamaResource, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
   /**
    * Gets the connection string expression for the Ollama server.
    */
@@ -12123,7 +12110,7 @@ export interface PapercutSmtpContainerResource extends ContainerResource, ICompu
  * Handle Aspire.Hosting.ApplicationModel.PerlAppResource
  */
 
-export interface PerlAppResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface PerlAppResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
    * Configures the Perl application to use Carton as its package manager. Carton manages dependencies via `cpanfile` and a lock file (`cpanfile.snapshot`), enabling reproducible builds. Use `WithProjectDependencies``1` to run `carton install` at startup.
    */
@@ -12216,7 +12203,7 @@ export interface PowerShellScriptResource extends IResource, IResourceWithArgs, 
  * Handle Aspire.Hosting.ApplicationModel.StreamlitAppResource
  */
 
-export interface StreamlitAppResource extends ExecutableResource, PythonAppResource, ContainerResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface StreamlitAppResource extends ExecutableResource, PythonAppResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
 }
 
 /**
@@ -12337,7 +12324,7 @@ export interface RavenDBServerResource extends ContainerResource, IComputeResour
  * Handle Aspire.Hosting.ApplicationModel.RustAppExecutableResource
  */
 
-export interface RustAppExecutableResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface RustAppExecutableResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
 }
 
 /**
@@ -15508,11 +15495,6 @@ export interface ContainerRegistryResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a relationship to another resource using its builder.
@@ -15832,11 +15814,6 @@ export interface ContainerResource {
    * Adds an HTTP resource command
    */
 
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
    * Adds an HTTP endpoint
@@ -15988,11 +15965,6 @@ export interface ContainerResource {
    */
 
   withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
   /**
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
@@ -16521,11 +16493,6 @@ export interface CSharpAppResource {
    * Adds an HTTP resource command
    */
 
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
    * Adds an HTTP endpoint
@@ -16677,11 +16644,6 @@ export interface CSharpAppResource {
    */
 
   withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
   /**
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
@@ -16898,12 +16860,12 @@ export interface CSharpAppResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
@@ -17224,11 +17186,6 @@ export interface DotnetToolResource {
    * Adds an HTTP resource command
    */
 
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
    * Adds an HTTP endpoint
@@ -17380,11 +17337,6 @@ export interface DotnetToolResource {
    */
 
   withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
   /**
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
@@ -17901,11 +17853,6 @@ export interface ExecutableResource {
    * Adds an HTTP resource command
    */
 
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
    * Adds an HTTP endpoint
@@ -18057,11 +18004,6 @@ export interface ExecutableResource {
    */
 
   withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
   /**
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
@@ -18511,11 +18453,6 @@ export interface ExternalServiceResource {
    */
 
   withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
   /**
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
@@ -19816,11 +19753,6 @@ export interface ParameterResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a relationship to another resource using its builder.
@@ -20170,11 +20102,6 @@ export interface ProjectResource {
    * Adds an HTTP resource command
    */
 
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
    * Adds an HTTP endpoint
@@ -20326,11 +20253,6 @@ export interface ProjectResource {
    */
 
   withProcessCommand(commandName: string, displayName: string, options: ProcessCommandExportOptions): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
   /**
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
@@ -20542,12 +20464,12 @@ export interface ProjectResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;

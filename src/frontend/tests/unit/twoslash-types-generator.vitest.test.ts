@@ -50,16 +50,41 @@ describe('generate-twoslash-types', () => {
     expect(output).not.toMatch(/^\s*PasswordParameter:/m);
   });
 
+  test('preserves optional DTO fields', () => {
+    expect(output).toMatch(
+      /export interface CertificateTrustExecutionConfigurationContext\s*\{[^}]*\bisContainer\?: boolean;/s
+    );
+  });
+
   test('emits an options-object overload for primitive-only param lists', () => {
     // withDataVolume(options?: { ... }) is the canonical shape produced when all
     // params are primitives — generator pairs it with a positional overload.
     expect(output).toMatch(/withDataVolume\(options\?: \{/);
   });
 
-  test('does not merge post-snapshot declarations with generated DTOs', () => {
+  test('does not wrap an existing options DTO in another options object', () => {
+    expect(output).not.toMatch(/options\?: \{\s*options\?:/);
+  });
+
+  test('does not infer ContainerResource from marker interfaces', () => {
+    expect(output).not.toMatch(
+      /export interface \w+[^{]*extends[^{]*(?:ExecutableResource[^{]*ContainerResource|ContainerResource[^{]*ExecutableResource)/
+    );
+  });
+
+  test('prefers generated DTO metadata over post-snapshot shims', () => {
     const declarations = output.match(/export interface ParameterCustomInputOptions\b/g) ?? [];
 
     expect(declarations).toHaveLength(1);
     expect(output).toMatch(/inputType\?: InputType/);
+    expect(output).toMatch(/label\?: string/);
+    expect(output).toMatch(/description\?: string/);
+    expect(output).toMatch(/enableDescriptionMarkdown\?: boolean/);
+    expect(output).toMatch(/options\?: Dict<string,string>/);
+    expect(output).toMatch(/value\?: string/);
+    expect(output).toMatch(/placeholder\?: string/);
+    expect(output).toMatch(/allowCustomChoice\?: boolean/);
+    expect(output).toMatch(/disabled\?: boolean/);
+    expect(output).toMatch(/maxLength\?: number/);
   });
 });

@@ -1,16 +1,15 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Downloads NuGet packages (if not already cached) and generates Package.Version.json
+    Restores NuGet packages and generates Package.Version.json
     files for each using the PackageJsonGenerator tool.
 
 .DESCRIPTION
     For each package in the list, this script:
     1. Queries the NuGet V3 API for the latest stable version (or latest preview if no stable exists).
-    2. Checks the local NuGet cache for the package.
-    3. Downloads the package via `dotnet restore` if not cached.
-    4. Locates the best-matching TFM lib folder inside the package.
-    5. Runs the PackageJsonGenerator tool in batch mode, passing all packages at once
+    2. Restores each package into an isolated project.
+    3. Reads NuGet's exact direct and transitive assets from project.assets.json.
+    4. Runs the PackageJsonGenerator tool in batch mode, passing all packages at once
        for parallel processing.
 
 .PARAMETER Packages
@@ -22,8 +21,7 @@
     Defaults to <repo-root>/src/frontend/src/data/packages.
 
 .PARAMETER Framework
-    Fallback target framework moniker used when restoring packages or when a
-    lib folder/framework cannot be inferred automatically.
+    Target framework moniker used for each isolated NuGet restore.
     Defaults to "net10.0".
 
 .PARAMETER Parallelism
@@ -65,16 +63,18 @@ $script:NuGetSourceMetadataCache = @{}
 # ── Resolve paths ──────────────────────────────────────────────────────────────
 
 $ScriptDir = $PSScriptRoot
-$RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..\..")).Path
+$RepoRoot = (Resolve-Path ([System.IO.Path]::Combine($ScriptDir, "..", "..", ".."))).Path
 $ToolProject = Join-Path $ScriptDir "PackageJsonGenerator.csproj"
 
-if (-not $OutputDir) {
-    $OutputDir = Join-Path $RepoRoot "src\frontend\src\data\pkgs"
+$FinalOutputDir = if ($OutputDir) {
+    [System.IO.Path]::GetFullPath($OutputDir)
 }
-
-if (-not (Test-Path $OutputDir)) {
-    New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
+else {
+    [System.IO.Path]::Combine($RepoRoot, "src", "frontend", "src", "data", "pkgs")
 }
+$OutputDir = Join-Path ([System.IO.Path]::GetDirectoryName($FinalOutputDir)) (
+    ".$([System.IO.Path]::GetFileName($FinalOutputDir))-staging-$([Guid]::NewGuid().ToString('N'))")
+New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
 function Remove-StalePackageJsonFiles {
     [CmdletBinding()]
@@ -98,30 +98,31 @@ function Remove-StalePackageJsonFiles {
 
 # ── Default package list ───────────────────────────────────────────────────────
 
-if (-not $Packages -or $Packages.Count -eq 0) {
-    # Read from aspire-integrations.json
-    $integrationsFile = Join-Path $RepoRoot "src\frontend\src\data\aspire-integrations.json"
-    if (Test-Path $integrationsFile) {
-        $integrations = Get-Content $integrationsFile -Raw | ConvertFrom-Json
+$integrationsFile = [System.IO.Path]::Combine($RepoRoot, "src", "frontend", "src", "data", "aspire-integrations.json")
+$integrations = if (Test-Path $integrationsFile) {
+    @(Get-Content $integrationsFile -Raw | ConvertFrom-Json)
+}
+else {
+    @()
+}
+$catalogVersions = @{}
+foreach ($integration in $integrations) {
+    if (-not [string]::IsNullOrWhiteSpace($integration.title) -and
+        -not [string]::IsNullOrWhiteSpace($integration.version)) {
+        $catalogVersions[$integration.title] = $integration.version
+    }
+}
+
+$isFullReconciliation = -not $Packages -or $Packages.Count -eq 0
+if ($isFullReconciliation) {
+    if ($integrations.Count -gt 0) {
         $Packages = @($integrations | ForEach-Object { $_.title } | Sort-Object -Unique)
         Write-Host "Loaded $($Packages.Count) packages from aspire-integrations.json"
     }
     else {
         Write-Error "No packages specified and aspire-integrations.json not found at $integrationsFile"
-        return
+        exit 1
     }
-}
-
-# ── NuGet cache location ──────────────────────────────────────────────────────
-
-$NuGetCache = if ($env:NUGET_PACKAGES) {
-    $env:NUGET_PACKAGES
-}
-elseif ($IsWindows -or $env:OS -eq "Windows_NT") {
-    Join-Path $env:USERPROFILE ".nuget\packages"
-}
-else {
-    Join-Path $HOME ".nuget/packages"
 }
 
 # ── NuGet API helpers ─────────────────────────────────────────────────────────
@@ -404,21 +405,55 @@ function Get-LatestNuGetVersion {
     return $null
 }
 
-function Get-CachedPackagePath {
+function ConvertTo-NativeAssetPath {
+    [CmdletBinding()]
+    param([string]$Path)
+
+    return $Path.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+}
+
+function Get-AssetPaths {
     [CmdletBinding()]
     param(
-        [string]$PackageId,
-        [string]$Version
+        [object]$TargetLibrary,
+        [string]$AssetKind,
+        [string]$PackagePath
     )
 
-    $packageDir = Join-Path $NuGetCache "$($PackageId.ToLowerInvariant())\$Version"
-    if (Test-Path $packageDir) {
-        return $packageDir
+    $assetProperty = $TargetLibrary.PSObject.Properties[$AssetKind]
+    if (-not $assetProperty) {
+        return @()
     }
+
+    return @($assetProperty.Value.PSObject.Properties |
+        Where-Object { $_.Name -ne "_._" -and $_.Name.EndsWith(".dll", [System.StringComparison]::OrdinalIgnoreCase) } |
+        ForEach-Object {
+            $path = Join-Path $PackagePath (ConvertTo-NativeAssetPath -Path $_.Name)
+            if (Test-Path $path) {
+                [System.IO.Path]::GetFullPath($path)
+            }
+        })
+}
+
+function Resolve-RestoredPackagePath {
+    [CmdletBinding()]
+    param(
+        [string[]]$PackageFolders,
+        [string]$LibraryPath
+    )
+
+    $nativeLibraryPath = ConvertTo-NativeAssetPath -Path $LibraryPath
+    foreach ($packageFolder in $PackageFolders) {
+        $candidate = Join-Path $packageFolder $nativeLibraryPath
+        if (Test-Path $candidate) {
+            return [System.IO.Path]::GetFullPath($candidate)
+        }
+    }
+
     return $null
 }
 
-function Install-NuGetPackage {
+function Resolve-NuGetPackageRestoreGraph {
     [CmdletBinding()]
     param(
         [string]$PackageId,
@@ -426,24 +461,29 @@ function Install-NuGetPackage {
         [string[]]$RestoreSources
     )
 
-    # Create a temp project to restore the package into the global cache
-    $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "pkgjson-$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
-    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+    # A separate restore project is intentional: it prevents NuGet from unifying
+    # dependency versions across otherwise unrelated packages.
+    $workRoot = Join-Path $ScriptDir ".package-json-generator-work"
+    $restoreDir = Join-Path $workRoot "restore-$([System.Guid]::NewGuid().ToString('N'))"
+    New-Item -ItemType Directory -Path $restoreDir -Force | Out-Null
 
     try {
+        $escapedPackageId = [System.Security.SecurityElement]::Escape($PackageId)
+        $escapedVersion = [System.Security.SecurityElement]::Escape($Version)
+        $escapedFramework = [System.Security.SecurityElement]::Escape($Framework)
         $csproj = @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>$Framework</TargetFramework>
+    <TargetFramework>$escapedFramework</TargetFramework>
     <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="$PackageId" Version="$Version" />
+    <PackageReference Include="$escapedPackageId" Version="[$escapedVersion]" />
   </ItemGroup>
 </Project>
 "@
-        $csprojPath = Join-Path $tempDir "Temp.csproj"
-        $nugetConfigPath = Join-Path $tempDir "NuGet.config"
+        $csprojPath = Join-Path $restoreDir "Restore.csproj"
+        $nugetConfigPath = Join-Path $restoreDir "NuGet.config"
         $csproj | Set-Content $csprojPath -Encoding UTF8
 
         $sourceEntries = @($RestoreSources | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
@@ -469,80 +509,130 @@ function Install-NuGetPackage {
 
         $restoreResult = & dotnet restore $csprojPath --configfile $nugetConfigPath --verbosity quiet 2>&1
         if ($LASTEXITCODE -ne 0) {
-            Write-Warning "dotnet restore failed for $PackageId $Version`n$restoreResult"
-            return $false
+            throw "dotnet restore failed for $PackageId $Version`n$restoreResult"
         }
-        return $true
+
+        $assetsPath = [System.IO.Path]::Combine($restoreDir, "obj", "project.assets.json")
+        if (-not (Test-Path $assetsPath)) {
+            throw "NuGet restore did not produce project.assets.json for $PackageId $Version."
+        }
+
+        $assets = Get-Content $assetsPath -Raw | ConvertFrom-Json
+        $targetProperty = $assets.targets.PSObject.Properties |
+            Where-Object {
+                $_.Name.Equals($Framework, [System.StringComparison]::OrdinalIgnoreCase) -or
+                $_.Name.StartsWith("$Framework/", [System.StringComparison]::OrdinalIgnoreCase)
+            } |
+            Select-Object -First 1
+        if (-not $targetProperty) {
+            $availableTargets = @($assets.targets.PSObject.Properties.Name) -join ", "
+            throw "NuGet restore graph for $PackageId $Version does not contain target '$Framework'. Available targets: $availableTargets."
+        }
+
+        $rootLibraryProperty = $targetProperty.Value.PSObject.Properties |
+            Where-Object {
+                $separatorIndex = $_.Name.LastIndexOf('/')
+                $separatorIndex -gt 0 -and
+                    $_.Name.Substring(0, $separatorIndex).Equals($PackageId, [System.StringComparison]::OrdinalIgnoreCase)
+            } |
+            Select-Object -First 1
+        if (-not $rootLibraryProperty) {
+            throw "NuGet restore graph target '$($targetProperty.Name)' does not contain $PackageId $Version."
+        }
+        $rootVersion = $rootLibraryProperty.Name.Substring($rootLibraryProperty.Name.LastIndexOf('/') + 1)
+        if (-not $rootVersion.Equals($Version, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "NuGet restored $PackageId $rootVersion instead of the requested exact version $Version."
+        }
+
+        $packageFolders = @($assets.packageFolders.PSObject.Properties.Name)
+        if ($packageFolders.Count -eq 0) {
+            throw "NuGet restore graph for $PackageId $Version does not specify a package folder."
+        }
+
+        $compileReferences = @()
+        $runtimeReferences = @()
+        $selectedReferences = @()
+        $rootCompileAssets = @()
+        $rootRuntimeAssets = @()
+        $rootPackagePath = $null
+
+        foreach ($targetLibraryProperty in $targetProperty.Value.PSObject.Properties) {
+            $libraryMetadataProperty = $assets.libraries.PSObject.Properties |
+                Where-Object { $_.Name.Equals($targetLibraryProperty.Name, [System.StringComparison]::OrdinalIgnoreCase) } |
+                Select-Object -First 1
+            if (-not $libraryMetadataProperty -or $libraryMetadataProperty.Value.type -ne "package") {
+                continue
+            }
+
+            $libraryPath = Resolve-RestoredPackagePath `
+                -PackageFolders $packageFolders `
+                -LibraryPath $libraryMetadataProperty.Value.path
+            if (-not $libraryPath) {
+                throw "Package assets for '$($targetLibraryProperty.Name)' were not found in NuGet's package folders."
+            }
+            $compileAssets = @(Get-AssetPaths -TargetLibrary $targetLibraryProperty.Value -AssetKind "compile" -PackagePath $libraryPath)
+            $runtimeAssets = @(Get-AssetPaths -TargetLibrary $targetLibraryProperty.Value -AssetKind "runtime" -PackagePath $libraryPath)
+
+            $compileReferences += $compileAssets
+            $runtimeReferences += $runtimeAssets
+
+            if ($targetLibraryProperty.Name.Equals($rootLibraryProperty.Name, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $rootPackagePath = $libraryPath
+                $rootCompileAssets = $compileAssets
+                $rootRuntimeAssets = $runtimeAssets
+                continue
+            }
+
+            # Compile assets are NuGet's exact choice for metadata consumption.
+            # Runtime assets are used only for packages that expose no compile asset.
+            $selectedAssets = if ($compileAssets.Count -gt 0) { $compileAssets } else { $runtimeAssets }
+            $selectedReferences += $selectedAssets
+        }
+
+        if (-not $rootPackagePath) {
+            throw "Could not locate the restored package path for $PackageId $Version."
+        }
+
+        $rootAssets = @(if ($rootRuntimeAssets.Count -gt 0) { $rootRuntimeAssets } else { $rootCompileAssets })
+        if ($rootAssets.Count -eq 0) {
+            return [PSCustomObject]@{
+                PackagePath       = $rootPackagePath
+                InputAssembly     = $null
+                References        = @()
+                CompileReferences = @($compileReferences | Select-Object -Unique)
+                RuntimeReferences = @($runtimeReferences | Select-Object -Unique)
+                TargetFramework   = $Framework
+            }
+        }
+
+        $inputAssembly = $rootAssets |
+            Where-Object { [System.IO.Path]::GetFileName($_).Equals("$PackageId.dll", [System.StringComparison]::OrdinalIgnoreCase) } |
+            Select-Object -First 1
+        if (-not $inputAssembly) {
+            $inputAssembly = $rootAssets | Select-Object -First 1
+        }
+
+        # Preserve sibling assemblies from the selected root package asset group.
+        $selectedReferences += $rootAssets | Where-Object {
+            -not $_.Equals($inputAssembly, [System.StringComparison]::OrdinalIgnoreCase)
+        }
+
+        # The restore target is authoritative. The selected asset may come from
+        # an older compatible lib/ref folder, but NuGet resolved it for this TFM.
+        $selectedTfm = ($targetProperty.Name -split '/', 2)[0]
+
+        return [PSCustomObject]@{
+            PackagePath       = $rootPackagePath
+            InputAssembly     = $inputAssembly
+            References        = @($selectedReferences | Select-Object -Unique)
+            CompileReferences = @($compileReferences | Select-Object -Unique)
+            RuntimeReferences = @($runtimeReferences | Select-Object -Unique)
+            TargetFramework   = $selectedTfm
+        }
     }
     finally {
-        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item $restoreDir -Recurse -Force -ErrorAction SilentlyContinue
     }
-}
-
-# ── TFM selection ─────────────────────────────────────────────────────────────
-
-function Get-BestLibFolder {
-    [CmdletBinding()]
-    param(
-        [string]$PackagePath
-    )
-
-    $libDir = Join-Path $PackagePath "lib"
-    if (-not (Test-Path $libDir)) {
-        return $null
-    }
-
-    $tfmFolders = @(Get-ChildItem -Directory $libDir | Select-Object -ExpandProperty Name)
-
-    if ($tfmFolders.Count -eq 0) {
-        return $null
-    }
-
-    $bestTfm = $tfmFolders |
-        Sort-Object -Property @(
-            @{ Expression = {
-                $normalized = $_.TrimStart('.').ToLowerInvariant()
-                if ($normalized -match '^net(\d+)(?:\.(\d+))?$') { return 0 }
-                if ($normalized -match '^netcoreapp(\d+)(?:\.(\d+))?$') { return 1 }
-                if ($normalized -match '^netstandard(\d+)(?:\.(\d+))?$') { return 2 }
-                return 9
-            }; Ascending = $true },
-            @{ Expression = {
-                $normalized = $_.TrimStart('.').ToLowerInvariant()
-                if ($normalized -match '^(?:net|netcoreapp|netstandard)(\d+)(?:\.(\d+))?$') { return [int]$Matches[1] }
-                return -1
-            }; Descending = $true },
-            @{ Expression = {
-                $normalized = $_.TrimStart('.').ToLowerInvariant()
-                if ($normalized -match '^(?:net|netcoreapp|netstandard)(\d+)(?:\.(\d+))?$' -and $Matches[2]) { return [int]$Matches[2] }
-                return -1
-            }; Descending = $true },
-            @{ Expression = { $_.ToLowerInvariant() }; Descending = $true }
-        ) |
-        Select-Object -First 1
-
-    return Join-Path $libDir $bestTfm
-}
-
-function Get-PreferredTfm {
-    [CmdletBinding()]
-    param(
-        [string]$Tfm,
-        [string]$FallbackTfm
-    )
-
-    if ([string]::IsNullOrWhiteSpace($Tfm)) {
-        return $FallbackTfm
-    }
-
-    $normalized = $Tfm.TrimStart('.').ToLowerInvariant()
-    if ($normalized -match '^(net\d+(?:\.\d+)?|netcoreapp\d+(?:\.\d+)?|netstandard\d+(?:\.\d+)?)$') {
-        return $normalized
-    }
-
-    return $FallbackTfm
-
-    return $null
 }
 
 # ── Collect runtime reference assemblies ──────────────────────────────────────
@@ -551,119 +641,51 @@ function Get-RuntimeReferenceAssemblies {
     [CmdletBinding()]
     param([string]$Tfm)
 
-    # Find the .NET reference assemblies (packs) for the given TFM
-    $dotnetRoot = Split-Path (Get-Command dotnet).Source
-    $tfmVersion = $Tfm -replace '^net', ''
-
-    $refPackBase = Join-Path $dotnetRoot "packs\Microsoft.NETCore.App.Ref"
-    if (-not (Test-Path $refPackBase)) {
-        Write-Warning "Could not find reference pack at $refPackBase"
-        return @()
-    }
-
-    # Find the best matching version directory
-    $versionDirs = @(Get-ChildItem -Directory $refPackBase |
-        Where-Object { $_.Name.StartsWith($tfmVersion) } |
-        Sort-Object Name -Descending)
-
-    if ($versionDirs.Count -eq 0) {
-        # Fallback: any version directory
-        $versionDirs = @(Get-ChildItem -Directory $refPackBase | Sort-Object Name -Descending)
-    }
-
-    if ($versionDirs.Count -eq 0) {
-        Write-Warning "No reference assembly versions found in $refPackBase"
-        return @()
-    }
-
-    $refDir = Join-Path $versionDirs[0].FullName "ref\$Tfm"
-    if (-not (Test-Path $refDir)) {
-        # Try without exact TFM match
-        $refSubDirs = @(Get-ChildItem -Directory (Join-Path $versionDirs[0].FullName "ref") |
-            Sort-Object Name -Descending)
-        if ($refSubDirs.Count -gt 0) {
-            $refDir = $refSubDirs[0].FullName
+    # Metadata loading needs both the base runtime and ASP.NET Core reference
+    # packs. Some hosting packages expose ASP.NET Core types without declaring
+    # a transitive FrameworkReference in their NuGet metadata.
+    $dotnetRoot = $env:DOTNET_ROOT
+    if ([string]::IsNullOrWhiteSpace($dotnetRoot) -or -not (Test-Path $dotnetRoot)) {
+        $sdkListing = @(& dotnet --list-sdks 2>$null)
+        $sdkRootLine = $sdkListing | Select-Object -Last 1
+        if ($sdkRootLine -match '\[(.+)\]\s*$') {
+            $dotnetRoot = Split-Path $Matches[1] -Parent
         }
         else {
-            Write-Warning "No ref folder found under $($versionDirs[0].FullName)"
-            return @()
+            $dotnetRoot = Split-Path (Get-Command dotnet).Source
         }
     }
+    $tfmVersion = $Tfm -replace '^net', ''
 
-    return @(Get-ChildItem -Path $refDir -Filter "*.dll" | Select-Object -ExpandProperty FullName)
-}
-
-# ── Collect dependency DLLs from NuGet cache ─────────────────────────────────
-
-function Get-PackageDependencyDlls {
-    [CmdletBinding()]
-    param(
-        [string]$PackagePath,
-        [string]$PreferredTfm
-    )
-
-    # Look for .nuspec to find dependencies
-    $nuspecFiles = @(Get-ChildItem -Path $PackagePath -Filter "*.nuspec" -ErrorAction SilentlyContinue)
-    if ($nuspecFiles.Count -eq 0) {
-        return @()
-    }
-
-    $dlls = @()
-    [xml]$nuspec = Get-Content $nuspecFiles[0].FullName -Raw
-    $ns = @{ "nu" = $nuspec.DocumentElement.NamespaceURI }
-
-    $depGroups = $nuspec | Select-Xml -XPath "//nu:dependencies/nu:group" -Namespace $ns
-    if (-not $depGroups) {
-        return @()
-    }
-
-    # Find the best matching dependency group
-    $bestGroup = $null
-    foreach ($group in $depGroups) {
-        $groupTfm = $group.Node.GetAttribute("targetFramework")
-        if ($groupTfm -eq $PreferredTfm -or $groupTfm -eq ".$PreferredTfm" -or $groupTfm -match $PreferredTfm.Replace(".", "\.")) {
-            $bestGroup = $group.Node
-            break
-        }
-    }
-
-    # Fallback to any net8+ group
-    if (-not $bestGroup) {
-        foreach ($group in $depGroups) {
-            $groupTfm = $group.Node.GetAttribute("targetFramework")
-            if ($groupTfm -match "net[89]|net1[0-9]") {
-                $bestGroup = $group.Node
-                break
+    $referenceAssemblies = @()
+    foreach ($packName in @("Microsoft.NETCore.App.Ref", "Microsoft.AspNetCore.App.Ref")) {
+        $refPackBase = [System.IO.Path]::Combine($dotnetRoot, "packs", $packName)
+        if (-not (Test-Path $refPackBase)) {
+            if ($packName -eq "Microsoft.NETCore.App.Ref") {
+                Write-Warning "Could not find required reference pack at $refPackBase"
             }
+            continue
         }
-    }
 
-    if (-not $bestGroup) {
-        return @()
-    }
-
-    $dependencies = $bestGroup | Select-Xml -XPath "nu:dependency" -Namespace $ns
-    foreach ($dep in $dependencies) {
-        $depId = $dep.Node.GetAttribute("id")
-        $depVersion = $dep.Node.GetAttribute("version")
-
-        # Resolve version range to a concrete version from cache
-        $depCacheDir = Join-Path $NuGetCache $depId.ToLowerInvariant()
-        if (Test-Path $depCacheDir) {
-            $versions = @(Get-ChildItem -Directory $depCacheDir | Select-Object -ExpandProperty Name | Sort-Object -Descending)
-            if ($versions.Count -gt 0) {
-                $selectedVersion = $versions[0]
-                $depPkgPath = Join-Path $depCacheDir $selectedVersion
-                $depLibFolder = Get-BestLibFolder -PackagePath $depPkgPath
-                if ($depLibFolder) {
-                    $depDlls = Get-ChildItem -Path $depLibFolder -Filter "*.dll" -ErrorAction SilentlyContinue
-                    $dlls += $depDlls | Select-Object -ExpandProperty FullName
-                }
-            }
+        $versionDirs = @(Get-ChildItem -Directory $refPackBase |
+            Where-Object { $_.Name.StartsWith($tfmVersion) } |
+            Sort-Object { [version]($_.Name -replace '-.*$', '') } -Descending)
+        if ($versionDirs.Count -eq 0) {
+            Write-Warning "No $Tfm reference assembly version found in $refPackBase"
+            continue
         }
+
+        $refDir = [System.IO.Path]::Combine($versionDirs[0].FullName, "ref", $Tfm)
+        if (-not (Test-Path $refDir)) {
+            Write-Warning "No $Tfm ref folder found under $($versionDirs[0].FullName)"
+            continue
+        }
+
+        $referenceAssemblies += Get-ChildItem -Path $refDir -Filter "*.dll" |
+            Select-Object -ExpandProperty FullName
     }
 
-    return $dlls
+    return @($referenceAssemblies | Select-Object -Unique)
 }
 
 function Get-CachedRuntimeReferenceAssemblies {
@@ -701,8 +723,9 @@ if ($officialFeed.IsRelease) {
 Write-Host "Building PackageJsonGenerator..." -ForegroundColor Cyan
 $buildResult = & dotnet build $ToolProject --configuration Release --verbosity quiet 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to build PackageJsonGenerator:`n$buildResult"
-    return
+    Write-Host "Failed to build PackageJsonGenerator:`n$buildResult" -ForegroundColor Red
+    Remove-Item -Path $OutputDir -Recurse -Force -ErrorAction SilentlyContinue
+    exit 1
 }
 Write-Host "Build succeeded." -ForegroundColor Green
 
@@ -712,6 +735,10 @@ $successCount = 0
 $failCount = 0
 $skipCount = 0
 $runtimeRefsByTfm = @{}
+$failedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase)
+$skippedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase)
 
 # Phase 1: Resolve versions and prepare package info
 # Use parallel NuGet resolution when processing many packages
@@ -719,8 +746,19 @@ Write-Host "`nResolving package versions..." -ForegroundColor Cyan
 
 $packageInfos = @()
 $packageSourceMetadata = @{}
+$packagesToResolve = @()
 
 foreach ($packageId in $Packages) {
+    if ($catalogVersions.ContainsKey($packageId)) {
+        $packageInfos += [PSCustomObject]@{
+            PackageId = $packageId
+            Version   = $catalogVersions[$packageId]
+        }
+    }
+    else {
+        $packagesToResolve += $packageId
+    }
+
     if ($officialFeed.IsRelease -and (Test-IsOfficialAspirePackage -PackageId $packageId)) {
         $packageSourceMetadata[$packageId] = [PSCustomObject]@{
             PackageBaseAddress = $officialAspireSource.PackageBaseAddress
@@ -737,9 +775,9 @@ foreach ($packageId in $Packages) {
     }
 }
 
-if ($Packages.Count -gt 3 -and -not $Sequential) {
+if ($packagesToResolve.Count -gt 3 -and -not $Sequential) {
     # Parallel NuGet version resolution
-    $resolvedVersions = $Packages | ForEach-Object -Parallel {
+    $resolvedVersions = $packagesToResolve | ForEach-Object -Parallel {
         $sourceMap = $using:packageSourceMetadata
         $packageId = $_
         $sourceInfo = $sourceMap[$packageId]
@@ -770,29 +808,31 @@ if ($Packages.Count -gt 3 -and -not $Sequential) {
 
     foreach ($resolved in $resolvedVersions) {
         if (-not $resolved.Version) {
-            Write-Warning "Could not resolve version for $($resolved.PackageId) from $($resolved.Source) — skipping."
-            $skipCount++
+            Write-Warning "Could not resolve version for $($resolved.PackageId) from $($resolved.Source)."
+            $failCount++
+            [void]$failedPackageNames.Add($resolved.PackageId)
             continue
         }
         $packageInfos += $resolved
     }
 } else {
     # Sequential resolution (small batch or forced)
-    foreach ($packageId in $Packages) {
+    foreach ($packageId in $packagesToResolve) {
         $sourceInfo = $packageSourceMetadata[$packageId]
         $version = Get-LatestNuGetVersion -PackageId $packageId -PackageBaseAddress $sourceInfo.PackageBaseAddress
         if (-not $version) {
-            Write-Warning "Could not resolve version for $packageId from $($sourceInfo.DisplaySource) — skipping."
-            $skipCount++
+            Write-Warning "Could not resolve version for $packageId from $($sourceInfo.DisplaySource)."
+            $failCount++
+            [void]$failedPackageNames.Add($packageId)
             continue
         }
         $packageInfos += [PSCustomObject]@{ PackageId = $packageId; Version = $version }
     }
 }
 
-Write-Host "Resolved $($packageInfos.Count) package versions ($skipCount skipped)."
+Write-Host "Resolved $($packageInfos.Count) package versions ($failCount failed)."
 
-# Phase 2: Ensure packages are cached and prepare manifest entries
+# Phase 2: Restore exact package graphs and prepare manifest entries
 Write-Host "Preparing packages..." -ForegroundColor Cyan
 
 $manifestEntries = @()
@@ -802,78 +842,46 @@ foreach ($info in $packageInfos) {
     $version = $info.Version
     $sourceInfo = $packageSourceMetadata[$packageId]
 
-    # Check cache / download
-    $cachedPath = Get-CachedPackagePath -PackageId $packageId -Version $version
-    if (-not $cachedPath) {
-        Write-Host "  Downloading: $packageId $version from $($sourceInfo.DisplaySource)" -ForegroundColor Yellow
-        $installed = Install-NuGetPackage -PackageId $packageId -Version $version -RestoreSources $sourceInfo.RestoreSources
-        if (-not $installed) {
-            Write-Warning "Failed to download $packageId $version — skipping."
-            $failCount++
-            continue
-        }
-        $cachedPath = Get-CachedPackagePath -PackageId $packageId -Version $version
-        if (-not $cachedPath) {
-            Write-Warning "Package not found in cache after download — skipping."
-            $failCount++
-            continue
-        }
+    try {
+        Write-Host "  Restoring: $packageId $version from $($sourceInfo.DisplaySource)" -ForegroundColor Yellow
+        $restoreGraph = Resolve-NuGetPackageRestoreGraph `
+            -PackageId $packageId `
+            -Version $version `
+            -RestoreSources $sourceInfo.RestoreSources
     }
-
-    # Find the lib folder with DLLs
-    $libFolder = Get-BestLibFolder -PackagePath $cachedPath
-    if (-not $libFolder) {
-        Write-Warning "No lib folder found for $packageId $version — skipping."
-        $skipCount++
+    catch {
+        Write-Warning "Failed to restore $packageId $version`: $_"
+        $failCount++
+        [void]$failedPackageNames.Add($packageId)
         continue
     }
 
-    $selectedTfm = Split-Path $libFolder -Leaf
-    $preferredTfm = Get-PreferredTfm -Tfm $selectedTfm -FallbackTfm $Framework
-
-    # Find the main assembly
-    $mainDll = Join-Path $libFolder "$packageId.dll"
-    if (-not (Test-Path $mainDll)) {
-        $firstDll = Get-ChildItem -Path $libFolder -Filter "*.dll" | Select-Object -First 1
-        if ($firstDll) {
-            $mainDll = $firstDll.FullName
-        }
-        else {
-            Write-Warning "No DLLs found in $libFolder — skipping."
-            $skipCount++
-            continue
-        }
+    if (-not $restoreGraph.InputAssembly) {
+        Write-Warning "No compile/runtime assemblies selected by NuGet for $packageId $version — skipping."
+        $skipCount++
+        [void]$skippedPackageNames.Add($packageId)
+        continue
     }
 
-    # Collect references: runtime refs + package dependency DLLs + sibling DLLs
-    $references = @()
-    $references += Get-CachedRuntimeReferenceAssemblies -Tfm $preferredTfm -Cache $runtimeRefsByTfm
-
-    $siblingDlls = @(Get-ChildItem -Path $libFolder -Filter "*.dll" |
-        Where-Object { $_.FullName -ne $mainDll } |
-        Select-Object -ExpandProperty FullName)
-    $references += $siblingDlls
-
-    $depDlls = @(Get-PackageDependencyDlls -PackagePath $cachedPath -PreferredTfm $preferredTfm)
-    $references += $depDlls
-
-    # Deduplicate
+    # NuGet's assets file supplies exact direct and transitive package assets.
+    $references = @($restoreGraph.References)
+    $references += Get-CachedRuntimeReferenceAssemblies -Tfm $restoreGraph.TargetFramework -Cache $runtimeRefsByTfm
     $references = @($references | Select-Object -Unique)
 
     # Build output path
     $outputFile = Join-Path $OutputDir "$packageId.$version.json"
 
-    Write-Host "  Prepared: $packageId $version ($(Split-Path $libFolder -Leaf))"
+    Write-Host "  Prepared: $packageId $version ($($restoreGraph.TargetFramework))"
 
     $manifestEntries += [PSCustomObject]@{
-        input          = $mainDll
+        input          = $restoreGraph.InputAssembly
         references     = $references
         output         = $outputFile
         packageVersion = $version
         packageName    = $packageId
         sourceRepo     = $null
         sourceCommit   = $null
-        targetFramework = $selectedTfm
+        targetFramework = $restoreGraph.TargetFramework
     }
 }
 
@@ -881,13 +889,19 @@ Write-Host "Prepared $($manifestEntries.Count) packages for generation."
 
 if ($manifestEntries.Count -eq 0) {
     Write-Host "`nNo packages to process." -ForegroundColor Yellow
-    return
+    if ($failCount -gt 0) {
+        Remove-Item -Path $OutputDir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item (Join-Path $ScriptDir ".package-json-generator-work") -Recurse -Force -ErrorAction SilentlyContinue
+        exit 1
+    }
 }
 
 # Phase 3: Generate JSON files
-if (-not $Sequential -and $manifestEntries.Count -gt 1) {
+if (-not $Sequential -and $manifestEntries.Count -gt 0) {
     # ── Batch mode: write manifest and run tool once ──────────────────────────
-    $manifestFile = Join-Path ([System.IO.Path]::GetTempPath()) "pkgjson-manifest-$([System.Guid]::NewGuid().ToString('N').Substring(0,8)).json"
+    $manifestDirectory = Join-Path $ScriptDir ".package-json-generator-work"
+    New-Item -ItemType Directory -Path $manifestDirectory -Force | Out-Null
+    $manifestFile = Join-Path $manifestDirectory "manifest-$([System.Guid]::NewGuid().ToString('N')).json"
 
     $manifest = @{ packages = $manifestEntries }
     $manifest | ConvertTo-Json -Depth 4 | Set-Content $manifestFile -Encoding UTF8
@@ -897,12 +911,29 @@ if (-not $Sequential -and $manifestEntries.Count -gt 1) {
     $parallelismArg = if ($Parallelism -gt 0) { $Parallelism } else { [Environment]::ProcessorCount }
     Write-Host "  Parallelism: $parallelismArg"
 
-    & dotnet run --project $ToolProject --configuration Release --no-build -- `
-        batch --manifest $manifestFile --parallelism $parallelismArg 2>&1 | ForEach-Object {
+    $batchOutput = @(& dotnet run --project $ToolProject --configuration Release --no-build -- `
+        batch --manifest $manifestFile --parallelism $parallelismArg 2>&1)
+    $batchExitCode = $LASTEXITCODE
+    $succeededPackages = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $failedPackages = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $skippedPackages = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+    $batchOutput | ForEach-Object {
         if ($_ -match "^Generated:") {
             Write-Host "  $_" -ForegroundColor Green
         }
+        elseif ($_ -match "^SUCCEEDED \[(.+)\]:") {
+            [void]$succeededPackages.Add($Matches[1])
+            Write-Host "  $_" -ForegroundColor Green
+        }
+        elseif ($_ -match "^SKIPPED \[(.+)\]:") {
+            [void]$skippedPackages.Add($Matches[1])
+            Write-Host "  $_" -ForegroundColor Yellow
+        }
         elseif ($_ -match "^FAILED") {
+            if ($_ -match "^FAILED \[(.+)\]:") {
+                [void]$failedPackages.Add($Matches[1])
+            }
             Write-Host "  $_" -ForegroundColor Red
         }
         elseif ($_ -match "^Batch complete") {
@@ -913,18 +944,26 @@ if (-not $Sequential -and $manifestEntries.Count -gt 1) {
         }
     }
 
-    if ($LASTEXITCODE -eq 0) {
-        $successCount = $manifestEntries.Count
-
-        foreach ($entry in $manifestEntries) {
+    foreach ($entry in $manifestEntries) {
+        if ($succeededPackages.Contains($entry.packageName)) {
+            $successCount++
             if (Test-Path $entry.output) {
                 Remove-StalePackageJsonFiles -PackageName $entry.packageName -CurrentOutputFile $entry.output -OutputDirectory $OutputDir
             }
         }
+        elseif ($skippedPackages.Contains($entry.packageName)) {
+            $skipCount++
+            [void]$skippedPackageNames.Add($entry.packageName)
+        }
+        else {
+            # Includes explicit failures and packages omitted by a crashed batch.
+            $failCount++
+            [void]$failedPackageNames.Add($entry.packageName)
+        }
     }
-    else {
-        # Parse output for success/fail counts if available
-        $failCount += $manifestEntries.Count
+
+    if ($batchExitCode -ne 0 -and $failedPackages.Count -eq 0) {
+        Write-Warning "Batch tool exited with code $batchExitCode without reporting individual failures."
     }
 
     # Clean up manifest
@@ -936,30 +975,53 @@ else {
 
     foreach ($entry in $manifestEntries) {
         Write-Host "  Generating: $(Split-Path $entry.output -Leaf)"
-        $refArgs = @($entry.references | ForEach-Object { "--reference"; $_ })
-
-        & dotnet run --project $ToolProject --configuration Release --no-build -- `
-            --input $entry.input `
-            @refArgs `
-            --output $entry.output `
-            --package-version $entry.packageVersion `
-            --package-name $entry.packageName `
-            --target-framework $entry.targetFramework 2>&1 | ForEach-Object {
-            if ($_ -match "^Generated:") {
+        # Use the manifest transport even for one package. Passing hundreds of
+        # reference paths directly can exceed Windows' command-line limit.
+        $manifestDirectory = Join-Path $ScriptDir ".package-json-generator-work"
+        New-Item -ItemType Directory -Path $manifestDirectory -Force | Out-Null
+        $manifestFile = Join-Path $manifestDirectory "manifest-$([System.Guid]::NewGuid().ToString('N')).json"
+        @{ packages = @($entry) } | ConvertTo-Json -Depth 4 | Set-Content $manifestFile -Encoding UTF8
+        try {
+            $generationOutput = @(& dotnet run --project $ToolProject --configuration Release --no-build -- `
+                batch --manifest $manifestFile --parallelism 1 2>&1)
+            $generationExitCode = $LASTEXITCODE
+        }
+        finally {
+            Remove-Item $manifestFile -Force -ErrorAction SilentlyContinue
+        }
+        $generationOutput | ForEach-Object {
+            if ($_ -match "^(Generated:|SUCCEEDED )") {
                 Write-Host "  $_" -ForegroundColor Green
+            }
+            elseif ($_ -match "^SKIPPED ") {
+                Write-Host "  $_" -ForegroundColor Yellow
+            }
+            elseif ($_ -match "^FAILED ") {
+                Write-Host "  $_" -ForegroundColor Red
             }
             else {
                 Write-Host "  $_"
             }
         }
 
-        if ($LASTEXITCODE -eq 0 -and (Test-Path $entry.output)) {
+        $succeeded = $generationOutput | Where-Object {
+            $_ -match ("^SUCCEEDED \[{0}\]:" -f [regex]::Escape($entry.packageName))
+        }
+        $skipped = $generationOutput | Where-Object {
+            $_ -match ("^SKIPPED \[{0}\]:" -f [regex]::Escape($entry.packageName))
+        }
+        if ($generationExitCode -eq 0 -and $skipped) {
+            $skipCount++
+            [void]$skippedPackageNames.Add($entry.packageName)
+        }
+        elseif ($generationExitCode -eq 0 -and $succeeded -and (Test-Path $entry.output)) {
             $successCount++
             Remove-StalePackageJsonFiles -PackageName $entry.packageName -CurrentOutputFile $entry.output -OutputDirectory $OutputDir
         }
         else {
-            Write-Warning "Tool exited with code $LASTEXITCODE for $($entry.packageName)"
+            Write-Warning "Tool exited with code $generationExitCode for $($entry.packageName)"
             $failCount++
+            [void]$failedPackageNames.Add($entry.packageName)
         }
     }
 }
@@ -968,4 +1030,50 @@ else {
 
 Write-Host "`n════════════════════════════════════════" -ForegroundColor DarkGray
 Write-Host "Done! Success: $successCount | Failed: $failCount | Skipped: $skipCount" -ForegroundColor Cyan
-Write-Host "Output: $OutputDir"
+if ($failedPackageNames.Count -gt 0) {
+    Write-Host "Failed packages: $(($failedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Red
+}
+if ($skippedPackageNames.Count -gt 0) {
+    Write-Host "Skipped packages: $(($skippedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Yellow
+}
+Write-Host "Output: $FinalOutputDir"
+
+Remove-Item (Join-Path $ScriptDir ".package-json-generator-work") -Recurse -Force -ErrorAction SilentlyContinue
+
+if ($failCount -gt 0) {
+    Remove-Item -Path $OutputDir -Recurse -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+
+New-Item -ItemType Directory -Path $FinalOutputDir -Force | Out-Null
+$stagedFiles = @(Get-ChildItem -Path $OutputDir -Filter "*.json" -File)
+$stagedNames = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase)
+foreach ($file in $stagedFiles) {
+    [void]$stagedNames.Add($file.Name)
+}
+
+if ($isFullReconciliation) {
+    foreach ($existingFile in Get-ChildItem -Path $FinalOutputDir -Filter "*.json" -File) {
+        if (-not $stagedNames.Contains($existingFile.Name)) {
+            Remove-Item -Path $existingFile.FullName -Force
+            Write-Host "Removed stale package data: $($existingFile.Name)" -ForegroundColor DarkYellow
+        }
+    }
+}
+else {
+    foreach ($packageId in $Packages) {
+        $namePattern = "^{0}\.\d.*\.json$" -f [regex]::Escape($packageId)
+        foreach ($existingFile in Get-ChildItem -Path $FinalOutputDir -Filter "*.json" -File) {
+            if ($existingFile.Name -match $namePattern -and -not $stagedNames.Contains($existingFile.Name)) {
+                Remove-Item -Path $existingFile.FullName -Force
+                Write-Host "Removed stale package data: $($existingFile.Name)" -ForegroundColor DarkYellow
+            }
+        }
+    }
+}
+
+foreach ($file in $stagedFiles) {
+    Copy-Item -Path $file.FullName -Destination (Join-Path $FinalOutputDir $file.Name) -Force
+}
+Remove-Item -Path $OutputDir -Recurse -Force

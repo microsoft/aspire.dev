@@ -20,8 +20,8 @@ import {
   shortTypeName,
   typeHref,
   getPackages,
-  memberSlug,
   memberDisplayName,
+  resolveMemberAnchors,
 } from '@utils/packages';
 
 /** Reverse map: slug ΓåÆ kind (e.g. 'properties' ΓåÆ 'property'). */
@@ -69,7 +69,16 @@ const { pkg, type, allTypes, kind } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const apiSidebar = await getApiReferenceSidebar({ packageName: pkg.package.name });
 
-const filteredMembers = (type.members ?? []).filter((m: any) => m.kind === kind);
+const allMembers: any[] = type.members ?? [];
+const resolvedAnchors = resolveMemberAnchors(allMembers);
+const renderedMembers = allMembers
+  .map((member: any, index: number) => ({
+    member,
+    exactAnchor: resolvedAnchors[index].exact,
+    anchorAlias: resolvedAnchors[index].alias,
+  }))
+  .filter(({ member }) => member.kind === kind);
+const filteredMembers = renderedMembers.map(({ member }) => member);
 const kindLabel = memberKindLabels[kind] ?? kind;
 const displayName = type.name + (type.isGeneric && type.genericParameters?.length
   ? `<${type.genericParameters.map((g: any) => g.name).join(', ')}>`
@@ -86,10 +95,10 @@ const kindLabelMap: Record<string, string> = {
 };
 
 /* Build heading list for right-side TOC ΓÇö one entry per member. */
-const headings: { depth: 2 | 3; slug: string; text: string }[] = filteredMembers.map((m: any) => ({
+const headings: { depth: 2 | 3; slug: string; text: string }[] = renderedMembers.map(({ member, exactAnchor }) => ({
   depth: 2 as const,
-  slug: memberSlug(m),
-  text: m.name === '.ctor' ? displayName : memberDisplayName(m),
+  slug: exactAnchor,
+  text: member.name === '.ctor' ? displayName : memberDisplayName(member),
 }));
 ---
 
@@ -132,9 +141,11 @@ const headings: { depth: 2 | 3; slug: string; text: string }[] = filteredMembers
   {/* Member cards */}
   <div class="ml">
     <div class="ml-cards">
-      {filteredMembers.map((m: any) => (
+      {renderedMembers.map(({ member, anchorAlias, exactAnchor }) => (
         <MemberCard
-          member={m}
+          member={member}
+          anchorAlias={anchorAlias}
+          exactAnchor={exactAnchor}
           allTypes={allTypes}
           packageName={pkg.package.name}
           sourceBaseUrl={pkg.package.sourceRepository && pkg.package.sourceCommit

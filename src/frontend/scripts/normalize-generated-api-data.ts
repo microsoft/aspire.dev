@@ -135,10 +135,20 @@ function main(): void {
   const explicit = args.includes('--pkgs') || args.includes('--ts-modules');
   const targets: Array<{ label: string; dir: string }> = [];
   if (!explicit || args.includes('--pkgs')) {
-    targets.push({ label: 'pkgs', dir: PKGS_DIR });
+    targets.push({
+      label: 'pkgs',
+      dir: process.env.ASPIRE_API_PKGS_DIR
+        ? path.resolve(process.env.ASPIRE_API_PKGS_DIR)
+        : PKGS_DIR,
+    });
   }
   if (!explicit || args.includes('--ts-modules')) {
-    targets.push({ label: 'ts-modules', dir: TS_MODULES_DIR });
+    targets.push({
+      label: 'ts-modules',
+      dir: process.env.ASPIRE_API_TS_MODULES_DIR
+        ? path.resolve(process.env.ASPIRE_API_TS_MODULES_DIR)
+        : TS_MODULES_DIR,
+    });
   }
 
   let total = 0;

@@ -75,7 +75,7 @@ internal static class BatchGenerateCommand
         var referenceCache = new ConcurrentDictionary<string, PortableExecutableReference>(
             StringComparer.OrdinalIgnoreCase);
 
-        int success = 0, failed = 0;
+        int success = 0, failed = 0, skipped = 0;
 
         Parallel.ForEach(
             manifest.Packages,
@@ -84,7 +84,7 @@ internal static class BatchGenerateCommand
             {
                 try
                 {
-                    PackageJsonGenerator.GeneratePackageJson(
+                    var generated = PackageJsonGenerator.GeneratePackageJson(
                         pkg.Input,
                         pkg.References,
                         pkg.Output,
@@ -95,7 +95,16 @@ internal static class BatchGenerateCommand
                         pkg.TargetFramework,
                         referenceCache);
 
-                    Interlocked.Increment(ref success);
+                    if (generated)
+                    {
+                        Console.WriteLine($"SUCCEEDED [{pkg.PackageName}]: {pkg.Output}");
+                        Interlocked.Increment(ref success);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"SKIPPED [{pkg.PackageName}]: no public API");
+                        Interlocked.Increment(ref skipped);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -105,7 +114,7 @@ internal static class BatchGenerateCommand
             });
 
         sw.Stop();
-        Console.WriteLine($"Batch complete in {sw.Elapsed.TotalSeconds:F1}s: {success} succeeded, {failed} failed");
+        Console.WriteLine($"Batch complete in {sw.Elapsed.TotalSeconds:F1}s: {success} succeeded, {failed} failed, {skipped} skipped");
 
         return failed > 0 ? 1 : 0;
     }

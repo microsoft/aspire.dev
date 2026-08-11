@@ -19,8 +19,10 @@
            a. generate-package-json.ps1  -> src/data/pkgs/*.json (C# API)
            b. pnpm update:ts-api         -> src/data/ts-modules/*.json (TS API)
                                             + chains twoslash aspire.d.ts bundle
-      4. Scope check — the working tree must only contain allowed data files.
-      5. Emits a summary + PR title/body. In CI, writes step outputs to
+      4. Semantic validation — cross-checks generated identities, provenance,
+         DTO optionality, inheritance, options shapes, and attribute payloads.
+      5. Scope check — the working tree must only contain allowed data files.
+      6. Emits a summary + PR title/body. In CI, writes step outputs to
          $GITHUB_OUTPUT and the PR body to a file; locally prints a summary.
 
     Exit codes:
@@ -28,9 +30,8 @@
       1  a required phase failed (update:all, TS API regen, out-of-scope diff).
          The caller must NOT open a PR on a non-zero exit.
 
-    Per-package failures inside generate-package-json.ps1 are tolerated (they
-    are common for meta-packages without a public API surface); their counts are
-    reported in the PR body but do not fail the run.
+    Packages without a public API surface are reported as explicit skips. Any
+    generation failure or semantic validation error fails the run.
 
 .PARAMETER SkipRegen
     Skip the API-reference regeneration phase even when versions changed. Useful
@@ -79,6 +80,9 @@ $AllowedPaths = @(
 )
 
 $IsCI = [bool]$env:GITHUB_ACTIONS
+$script:ApiStageRoot = $null
+$script:PreserveApiStage = $false
+$script:PreviousApiEnvironment = @{}
 
 function Write-Section([string]$Text) {
     Write-Host ""
@@ -124,6 +128,128 @@ function Test-PathAllowed {
     return $false
 }
 
+function Restore-ApiEnvironment {
+    foreach ($name in @(
+        'ASPIRE_API_PKGS_DIR',
+        'ASPIRE_API_TS_MODULES_DIR',
+        'ASPIRE_API_TWOSLASH_FILE'
+    )) {
+        $previousValue = $script:PreviousApiEnvironment[$name]
+        if ($null -eq $previousValue) {
+            Remove-Item "Env:$name" -ErrorAction SilentlyContinue
+        }
+        else {
+            Set-Item "Env:$name" $previousValue
+        }
+    }
+}
+
+function Remove-ApiStage {
+    Restore-ApiEnvironment
+    if ($script:ApiStageRoot -and (Test-Path $script:ApiStageRoot)) {
+        if ($script:PreserveApiStage) {
+            Write-Warning "Preserving API generation recovery data at $($script:ApiStageRoot)."
+        }
+        else {
+            Remove-Item -Path $script:ApiStageRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    $script:ApiStageRoot = $null
+    $script:PreserveApiStage = $false
+}
+
+function Stop-ApiRegeneration {
+    param([Parameter(Mandatory)][string]$Message)
+
+    Remove-ApiStage
+    Write-Host $Message -ForegroundColor Red
+    exit 1
+}
+
+function Publish-GeneratedApiData {
+    param(
+        [Parameter(Mandatory)][string]$PackageSource,
+        [Parameter(Mandatory)][string]$ModuleSource,
+        [Parameter(Mandatory)][string]$TwoslashSource
+    )
+
+    $moves = @(
+        [PSCustomObject]@{
+            Source = $PackageSource
+            Destination = Join-Path $DataDir 'pkgs'
+            Backup = Join-Path $script:ApiStageRoot 'backup-pkgs'
+        },
+        [PSCustomObject]@{
+            Source = $ModuleSource
+            Destination = Join-Path $DataDir 'ts-modules'
+            Backup = Join-Path $script:ApiStageRoot 'backup-ts-modules'
+        },
+        [PSCustomObject]@{
+            Source = $TwoslashSource
+            Destination = Join-Path $DataDir 'twoslash' 'aspire.d.ts'
+            Backup = Join-Path $script:ApiStageRoot 'backup-aspire.d.ts'
+        }
+    )
+    $completed = [System.Collections.Generic.List[object]]::new()
+
+    try {
+        foreach ($move in $moves) {
+            if (-not (Test-Path $move.Source)) {
+                throw "Staged API artifact is missing: $($move.Source)"
+            }
+            if (-not (Test-Path $move.Destination)) {
+                throw "Published API artifact is missing: $($move.Destination)"
+            }
+            if (Test-Path $move.Backup) {
+                throw "API recovery path already exists: $($move.Backup)"
+            }
+        }
+
+        foreach ($move in $moves) {
+            Move-Item -LiteralPath $move.Destination -Destination $move.Backup
+            $completed.Add($move)
+            Move-Item -LiteralPath $move.Source -Destination $move.Destination
+        }
+    }
+    catch {
+        $publishError = $_
+        $rollbackErrors = [System.Collections.Generic.List[string]]::new()
+        for ($index = $completed.Count - 1; $index -ge 0; $index--) {
+            $move = $completed[$index]
+            try {
+                if (Test-Path $move.Destination) {
+                    if (Test-Path $move.Source) {
+                        throw "Staged path already exists: $($move.Source)"
+                    }
+                    Move-Item -LiteralPath $move.Destination -Destination $move.Source
+                }
+            }
+            catch {
+                $rollbackErrors.Add("$($move.Destination) -> $($move.Source): $_")
+            }
+
+            try {
+                if (Test-Path $move.Backup) {
+                    if (Test-Path $move.Destination) {
+                        throw "Destination is still occupied: $($move.Destination)"
+                    }
+                    Move-Item -LiteralPath $move.Backup -Destination $move.Destination
+                }
+            }
+            catch {
+                $rollbackErrors.Add("$($move.Backup) -> $($move.Destination): $_")
+            }
+        }
+
+        if ($rollbackErrors.Count -gt 0) {
+            $script:PreserveApiStage = $true
+            throw "Publishing failed: $publishError Rollback was incomplete: $($rollbackErrors -join '; '). Recovery data remains under $($script:ApiStageRoot)."
+        }
+
+        throw "Publishing failed: $publishError The original generated data was restored."
+    }
+}
+
 # ── Phase 1: data update ────────────────────────────────────────────────────
 Write-Section 'Phase 1 — pnpm update:all'
 Push-Location $FrontendDir
@@ -166,6 +292,7 @@ if (-not $anyChanges) {
     Set-Output 'changed' 'false'
     Set-Output 'versions_changed' 'false'
     Set-Output 'regen_ran' 'false'
+    Set-Output 'semantic_validation' 'not run'
     exit 0
 }
 
@@ -229,23 +356,59 @@ else {
 # ── Phase 3: conditional API-reference regeneration ─────────────────────────
 $regenRan = $false
 $pkgSummary = ''
+$pkgSkippedPackages = ''
 $tsApiSummary = ''
+$tsSkippedPackages = ''
 $twoslashSummary = ''
+$semanticSummary = ''
 
 if ($versionsChanged -and -not $SkipRegen) {
     Write-Section 'Phase 3 — API reference regeneration'
 
-    # 3a. C# API JSON. Per-package failures are tolerated (meta-packages).
+    $script:ApiStageRoot = Join-Path $DataDir ".api-generation-$([Guid]::NewGuid().ToString('N'))"
+    New-Item -ItemType Directory -Path $script:ApiStageRoot -Force | Out-Null
+    $pkgStageDir = Join-Path $script:ApiStageRoot 'pkgs'
+    $tsStageDir = Join-Path $script:ApiStageRoot 'ts-modules'
+    $twoslashStageFile = Join-Path $script:ApiStageRoot 'twoslash' 'aspire.d.ts'
+    foreach ($name in @(
+        'ASPIRE_API_PKGS_DIR',
+        'ASPIRE_API_TS_MODULES_DIR',
+        'ASPIRE_API_TWOSLASH_FILE'
+    )) {
+        $script:PreviousApiEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+    }
+    $env:ASPIRE_API_PKGS_DIR = $pkgStageDir
+    $env:ASPIRE_API_TS_MODULES_DIR = $tsStageDir
+    $env:ASPIRE_API_TWOSLASH_FILE = $twoslashStageFile
+
+    # 3a. C# API JSON.
     Write-Host "→ generate-package-json.ps1 (C# API → pkgs/)" -ForegroundColor Cyan
-    $pkgArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PkgGenScript)
+    $pkgArgs = @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass',
+        '-File', $PkgGenScript,
+        '-OutputDir', $pkgStageDir
+    )
     if ($Framework) { $pkgArgs += @('-Framework', $Framework) }
     $pkgLog = & pwsh @pkgArgs 2>&1 | Tee-Object -Variable pkgTeed | Out-String
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "generate-package-json.ps1 failed hard (exit $LASTEXITCODE). Aborting; no PR will be opened."
-        exit 1
+        Stop-ApiRegeneration "generate-package-json.ps1 failed (exit $LASTEXITCODE).`n$pkgLog`nAborting; no PR will be opened."
     }
     $pkgDone = ($pkgLog -split "`n" | Where-Object { $_ -match 'Done!\s+Success:' } | Select-Object -First 1)
-    $pkgSummary = if ($pkgDone) { ($pkgDone -replace '.*Done!\s+', '').Trim() } else { 'summary unavailable' }
+    if (-not $pkgDone -or
+        $pkgDone -notmatch 'Done!\s+Success:\s+(?<Succeeded>\d+)\s+\|\s+Failed:\s+(?<Failed>\d+)\s+\|\s+Skipped:\s+(?<Skipped>\d+)') {
+        Stop-ApiRegeneration "C# API generation did not emit a valid completion summary. Aborting; no PR will be opened."
+    }
+    $pkgSummary = "Success: $($Matches.Succeeded) | Failed: $($Matches.Failed) | Skipped: $($Matches.Skipped)"
+    if ([int]$Matches.Failed -gt 0) {
+        Stop-ApiRegeneration "C# API generation reported $($Matches.Failed) package failure(s). Aborting; no PR will be opened."
+    }
+    $pkgSkippedLine = ($pkgLog -split "`n" |
+        Where-Object { $_ -match '^\s*Skipped packages:' } |
+        Select-Object -First 1)
+    $pkgSkippedPackages = if ($pkgSkippedLine) {
+        ($pkgSkippedLine -replace '^\s*Skipped packages:\s*', '').Trim()
+    }
+    else { '' }
     Write-Host "  C# API: $pkgSummary"
 
     # 3a-normalize. Enforce Aspire terminology in the freshly generated C# API
@@ -262,8 +425,7 @@ if ($versionsChanged -and -not $SkipRegen) {
         Pop-Location
     }
     if ($pkgNormExit -ne 0) {
-        Write-Error "normalize:api-data (pkgs) failed (exit $pkgNormExit).`n$pkgNormLog`nAborting; no PR will be opened."
-        exit 1
+        Stop-ApiRegeneration "normalize:api-data (pkgs) failed (exit $pkgNormExit).`n$pkgNormLog`nAborting; no PR will be opened."
     }
 
     # 3b. TS API JSON (+ chained twoslash bundle). Requires the Aspire CLI; the
@@ -281,12 +443,11 @@ if ($versionsChanged -and -not $SkipRegen) {
     if ($tsExit -ne 0) {
         # Distinguish phase-2 vs phase-3 failure using the script's log markers.
         if ($tsLog -match 'Twoslash type generation failed') {
-            Write-Error "Twoslash bundle generation failed. Aborting; no PR will be opened."
+            Stop-ApiRegeneration "Twoslash bundle generation failed.`n$tsLog`nAborting; no PR will be opened."
         }
         else {
-            Write-Error "TypeScript API generation failed. Aborting; no PR will be opened."
+            Stop-ApiRegeneration "TypeScript API generation failed.`n$tsLog`nAborting; no PR will be opened."
         }
-        exit 1
     }
 
     $tsApiDone = ($tsLog -split "`n" |
@@ -294,24 +455,56 @@ if ($versionsChanged -and -not $SkipRegen) {
         Select-Object -First 1)
     if (-not $tsApiDone -or
         $tsApiDone -notmatch 'Complete:\s+(?<Succeeded>\d+)\s+succeeded,\s+(?<Failed>\d+)\s+failed,\s+(?<Skipped>\d+)\s+skipped') {
-        Write-Error "TypeScript API generation did not emit a valid completion summary. Aborting; no PR will be opened."
-        exit 1
+        Stop-ApiRegeneration "TypeScript API generation did not emit a valid completion summary. Aborting; no PR will be opened."
     }
     $tsApiSummary = "$($Matches.Succeeded) succeeded, $($Matches.Failed) failed, $($Matches.Skipped) skipped"
     if ([int]$Matches.Failed -gt 0) {
-        Write-Error "TypeScript API generation reported $($Matches.Failed) package failure(s). Aborting; no PR will be opened."
-        exit 1
+        Stop-ApiRegeneration "TypeScript API generation reported $($Matches.Failed) package failure(s). Aborting; no PR will be opened."
     }
+    $tsSkippedLine = ($tsLog -split "`n" |
+        Where-Object { $_ -match '^\s*Skipped packages:' } |
+        Select-Object -First 1)
+    $tsSkippedPackages = if ($tsSkippedLine) {
+        ($tsSkippedLine -replace '^\s*Skipped packages:\s*', '').Trim()
+    }
+    else { '' }
 
     $twoslashSummary = 'succeeded'
+
+    # 3c. Cross-artifact semantic validation. This runs only after every
+    # generator has completed and must pass before the workflow can publish.
+    Write-Host "→ pnpm validate:api-data (semantic regression gate)" -ForegroundColor Cyan
+    Push-Location $FrontendDir
+    try {
+        $validationLog = & pnpm run validate:api-data 2>&1 | Tee-Object -Variable validationTeed | Out-String
+        $validationExit = $LASTEXITCODE
+    }
+    finally {
+        Pop-Location
+    }
+    if ($validationExit -ne 0) {
+        Stop-ApiRegeneration "Generated API semantic validation failed.`n$validationLog`nAborting; no PR will be opened."
+    }
+    $semanticSummary = 'passed'
+
+    try {
+        Publish-GeneratedApiData `
+            -PackageSource $pkgStageDir `
+            -ModuleSource $tsStageDir `
+            -TwoslashSource $twoslashStageFile
+    }
+    catch {
+        Stop-ApiRegeneration "Publishing validated API data failed: $_"
+    }
+    Remove-ApiStage
     $regenRan = $true
 }
 elseif ($versionsChanged -and $SkipRegen) {
     Write-Warning "Versions changed but -SkipRegen was set; regeneration skipped (local/dev use only)."
 }
 
-# ── Phase 4: scope check ────────────────────────────────────────────────────
-Write-Section 'Phase 4 — scope check'
+# ── Phase 5: scope check ────────────────────────────────────────────────────
+Write-Section 'Phase 5 — scope check'
 $allStatus = @(Invoke-Git @('status', '--porcelain') | Where-Object { $_ -and $_.Trim().Length -gt 0 })
 $outOfScope = [System.Collections.Generic.List[string]]::new()
 foreach ($line in $allStatus) {
@@ -396,6 +589,13 @@ if ($regenRan) {
     [void]$sb.AppendLine("- C# API JSON (``generate-package-json.ps1`` → ``pkgs/``): $pkgSummary")
     [void]$sb.AppendLine("- TS API JSON (``update:ts-api`` → ``ts-modules/``): $tsApiSummary")
     [void]$sb.AppendLine("- Twoslash bundle (``twoslash/aspire.d.ts``): $twoslashSummary")
+    [void]$sb.AppendLine("- Semantic generated-data validation: $semanticSummary")
+    if ($pkgSkippedPackages) {
+        [void]$sb.AppendLine("- C# packages skipped because they have no public API: ``$pkgSkippedPackages``")
+    }
+    if ($tsSkippedPackages) {
+        [void]$sb.AppendLine("- TypeScript packages skipped because they export no ATS functions: ``$tsSkippedPackages``")
+    }
 }
 else {
     [void]$sb.AppendLine("_No integration package versions changed in this run — API reference regeneration was skipped._")
@@ -429,6 +629,7 @@ Set-Content -Path $prBodyFile -Value $prBody -Encoding utf8
 Set-Output 'changed' 'true'
 Set-Output 'versions_changed' ($versionsChanged.ToString().ToLowerInvariant())
 Set-Output 'regen_ran' ($regenRan.ToString().ToLowerInvariant())
+Set-Output 'semantic_validation' $(if ($regenRan) { $semanticSummary } else { 'not run' })
 Set-Output 'pr_title' $prTitle
 Set-Output 'pr_body_file' $prBodyFile
 Set-Output 'icon_warnings' $iconWarnings

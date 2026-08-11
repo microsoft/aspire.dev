@@ -328,6 +328,253 @@ public sealed class PackageJsonGeneratorTests
         Assert.Contains("Placeholder", description!);
     }
 
+    [Fact]
+    public void GeneratePackageJson_PreservesAspireAttributeConstructorAndNamedArguments()
+    {
+        using var attributes = TestAssembly.Create(
+            AspireAttributesSource,
+            assemblyName: "Aspire.Attribute.Dependency");
+        using var consumer = TestAssembly.Create(
+            AspireConsumerSource,
+            assemblyName: "Aspire.Consumer",
+            additionalReferences: [attributes.AssemblyPath]);
+        var outputPath = Path.Combine(consumer.DirectoryPath, "Package.json");
+
+        PackageJsonGenerator.GeneratePackageJson(
+            consumer.AssemblyPath,
+            consumer.References,
+            outputPath,
+            packageNameOverride: "Aspire.Consumer.Package");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(outputPath));
+        var attribute = document.RootElement
+            .GetProperty("types")
+            .EnumerateArray()
+            .Single(type => type.GetProperty("name").GetString() == "ExportedResource")
+            .GetProperty("attributes")
+            .EnumerateArray()
+            .Single();
+
+        Assert.Equal(
+            ["resource-name", "3"],
+            attribute.GetProperty("constructorArguments")
+                .EnumerateArray()
+                .Select(argument => argument.GetString()));
+        Assert.Equal(
+            "named-value",
+            attribute.GetProperty("arguments").GetProperty("Alias").GetString());
+    }
+
+    [Fact]
+    public void GeneratePackageJson_FailsWhenAspireAttributeDependencyIsMismatched()
+    {
+        using var attributes = TestAssembly.Create(
+            AspireAttributesSource,
+            assemblyName: "Aspire.Attribute.Dependency");
+        using var consumer = TestAssembly.Create(
+            AspireConsumerSource,
+            assemblyName: "Aspire.Consumer",
+            additionalReferences: [attributes.AssemblyPath]);
+        using var mismatchedAttributes = TestAssembly.Create(
+            """
+            using System;
+            using System.Reflection;
+            [assembly: AssemblyVersion("1.0.0.0")]
+            namespace Aspire.Hosting;
+            [AttributeUsage(AttributeTargets.All)]
+            public sealed class AspireExportAttribute : Attribute
+            {
+                public string? Alias { get; set; }
+            }
+            """,
+            assemblyName: "Aspire.Attribute.Dependency");
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            PackageJsonGenerator.GeneratePackageJson(
+                consumer.AssemblyPath,
+                [.. consumer.References.Where(reference => reference != attributes.AssemblyPath), mismatchedAttributes.AssemblyPath],
+                Path.Combine(consumer.DirectoryPath, "Package.json"),
+                packageNameOverride: "Aspire.Consumer.Package"));
+
+        Assert.Contains("Aspire.Consumer.Package", exception.Message);
+        Assert.Contains("ExportedResource", exception.Message);
+        Assert.Contains("AspireExportAttribute", exception.Message);
+        Assert.Contains("constructor", exception.Message);
+    }
+
+    [Fact]
+    public void GeneratePackageJson_FailsWhenReferencedAttributeAssemblyIsMissing()
+    {
+        using var attributes = TestAssembly.Create(
+            AspireAttributesSource,
+            assemblyName: "Aspire.Attribute.Dependency");
+        using var consumer = TestAssembly.Create(
+            AspireConsumerSource,
+            assemblyName: "Aspire.Consumer",
+            additionalReferences: [attributes.AssemblyPath]);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            PackageJsonGenerator.GeneratePackageJson(
+                consumer.AssemblyPath,
+                [.. consumer.References.Where(reference => reference != attributes.AssemblyPath)],
+                Path.Combine(consumer.DirectoryPath, "Package.json"),
+                packageNameOverride: "Aspire.Consumer.Package"));
+
+        Assert.Contains("Aspire.Consumer.Package", exception.Message);
+        Assert.Contains("ExportedResource", exception.Message);
+        Assert.Contains("AspireExportAttribute", exception.Message);
+        Assert.Contains("class", exception.Message);
+    }
+
+    [Fact]
+    public void GeneratePackageJson_FailsWhenInputAssemblyReferenceIsMissing()
+    {
+        using var dependency = TestAssembly.Create(
+            "namespace External.Dependency; public class ExternalBase;",
+            assemblyName: "External.Dependency");
+        using var consumer = TestAssembly.Create(
+            "namespace Sample.Library; public sealed class ExportedResource : External.Dependency.ExternalBase;",
+            assemblyName: "Aspire.Consumer",
+            additionalReferences: [dependency.AssemblyPath]);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            PackageJsonGenerator.GeneratePackageJson(
+                consumer.AssemblyPath,
+                [.. consumer.References.Where(reference => reference != dependency.AssemblyPath)],
+                Path.Combine(consumer.DirectoryPath, "Package.json"),
+                packageNameOverride: "Aspire.Consumer.Package"));
+
+        Assert.Contains("Aspire.Consumer.Package", exception.Message);
+        Assert.Contains("unresolved referenced assemblies", exception.Message);
+        Assert.Contains("External.Dependency", exception.Message);
+    }
+
+    [Fact]
+    public void GeneratePackageJson_FailsWhenPublicApiTypeCannotBeResolved()
+    {
+        using var dependency = TestAssembly.Create(
+            "namespace External.Dependency; public sealed class ExpectedType;",
+            assemblyName: "External.Dependency");
+        using var consumer = TestAssembly.Create(
+            "namespace Sample.Library; public sealed class ExportedResource { public External.Dependency.ExpectedType GetValue() => new(); }",
+            assemblyName: "Aspire.Consumer",
+            additionalReferences: [dependency.AssemblyPath]);
+        using var mismatchedDependency = TestAssembly.Create(
+            "namespace External.Dependency; public sealed class OtherType;",
+            assemblyName: "External.Dependency");
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            PackageJsonGenerator.GeneratePackageJson(
+                consumer.AssemblyPath,
+                [.. consumer.References.Where(reference => reference != dependency.AssemblyPath), mismatchedDependency.AssemblyPath],
+                Path.Combine(consumer.DirectoryPath, "Package.json"),
+                packageNameOverride: "Aspire.Consumer.Package"));
+
+        Assert.Contains("Aspire.Consumer.Package", exception.Message);
+        Assert.Contains("GetValue", exception.Message);
+        Assert.Contains("unresolved public API type", exception.Message);
+        Assert.Contains("ExpectedType", exception.Message);
+    }
+
+    [Fact]
+    public void GeneratePackageJson_FailsWhenTypeAttributeArgumentCannotBeResolved()
+    {
+        using var dependency = TestAssembly.Create(
+            "namespace External.Dependency; public sealed class ExpectedType;",
+            assemblyName: "External.Dependency");
+        using var consumer = TestAssembly.Create(
+            """
+            using System;
+            namespace Aspire.Hosting
+            {
+                [AttributeUsage(AttributeTargets.All)]
+                public sealed class AspireExportAttribute(Type resourceType) : Attribute;
+            }
+            namespace Sample.Library
+            {
+                [Aspire.Hosting.AspireExport(typeof(External.Dependency.ExpectedType))]
+                public sealed class ExportedResource;
+            }
+            """,
+            assemblyName: "Aspire.Consumer",
+            additionalReferences: [dependency.AssemblyPath]);
+        using var mismatchedDependency = TestAssembly.Create(
+            "namespace External.Dependency; public sealed class OtherType;",
+            assemblyName: "External.Dependency");
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            PackageJsonGenerator.GeneratePackageJson(
+                consumer.AssemblyPath,
+                [.. consumer.References.Where(reference => reference != dependency.AssemblyPath), mismatchedDependency.AssemblyPath],
+                Path.Combine(consumer.DirectoryPath, "Package.json"),
+                packageNameOverride: "Aspire.Consumer.Package"));
+
+        Assert.Contains("Aspire.Consumer.Package", exception.Message);
+        Assert.Contains("AspireExportAttribute", exception.Message);
+        Assert.Contains("constructor arguments contain an unresolved value", exception.Message);
+    }
+
+    [Fact]
+    public void GeneratePackageJson_FailsWhenTypeArrayAttributeArgumentCannotBeResolved()
+    {
+        using var dependency = TestAssembly.Create(
+            "namespace External.Dependency; public sealed class ExpectedType;",
+            assemblyName: "External.Dependency");
+        using var consumer = TestAssembly.Create(
+            """
+            using System;
+            namespace Aspire.Hosting
+            {
+                [AttributeUsage(AttributeTargets.All)]
+                public sealed class AspireUnionAttribute(params Type[] resourceTypes) : Attribute;
+            }
+            namespace Sample.Library
+            {
+                [Aspire.Hosting.AspireUnion(typeof(External.Dependency.ExpectedType), typeof(string))]
+                public sealed class ExportedResource;
+            }
+            """,
+            assemblyName: "Aspire.Consumer",
+            additionalReferences: [dependency.AssemblyPath]);
+        using var mismatchedDependency = TestAssembly.Create(
+            "namespace External.Dependency; public sealed class OtherType;",
+            assemblyName: "External.Dependency");
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            PackageJsonGenerator.GeneratePackageJson(
+                consumer.AssemblyPath,
+                [.. consumer.References.Where(reference => reference != dependency.AssemblyPath), mismatchedDependency.AssemblyPath],
+                Path.Combine(consumer.DirectoryPath, "Package.json"),
+                packageNameOverride: "Aspire.Consumer.Package"));
+
+        Assert.Contains("Aspire.Consumer.Package", exception.Message);
+        Assert.Contains("AspireUnionAttribute", exception.Message);
+        Assert.Contains("constructor arguments contain an unresolved value", exception.Message);
+    }
+
+    private const string AspireAttributesSource =
+        """
+        using System;
+        using System.Reflection;
+        [assembly: AssemblyVersion("1.0.0.0")]
+        namespace Aspire.Hosting;
+        [AttributeUsage(AttributeTargets.All)]
+        public sealed class AspireExportAttribute(string name, int order) : Attribute
+        {
+            public string Name { get; } = name;
+            public int Order { get; } = order;
+            public string? Alias { get; set; }
+        }
+        """;
+
+    private const string AspireConsumerSource =
+        """
+        using Aspire.Hosting;
+        namespace Sample.Library;
+        [AspireExport("resource-name", 3, Alias = "named-value")]
+        public sealed class ExportedResource;
+        """;
+
     private sealed class TestAssembly : IDisposable
     {
         private TestAssembly(string directoryPath, string assemblyPath, string[] references)
@@ -345,10 +592,19 @@ public sealed class PackageJsonGeneratorTests
 
         public static TestAssembly Create(string source) => Create([source]);
 
-        public static TestAssembly Create(string[] sources)
+        public static TestAssembly Create(
+            string source,
+            string assemblyName,
+            string[]? additionalReferences = null) =>
+            Create([source], assemblyName, additionalReferences);
+
+        public static TestAssembly Create(
+            string[] sources,
+            string assemblyName = "Sample.Library",
+            string[]? additionalReferences = null)
         {
             var tempDirectory = Directory.CreateTempSubdirectory("pkg-generator-tests-");
-            var assemblyPath = Path.Combine(tempDirectory.FullName, "Sample.Library.dll");
+            var assemblyPath = Path.Combine(tempDirectory.FullName, $"{assemblyName}.dll");
             var pdbPath = Path.ChangeExtension(assemblyPath, ".pdb");
             var xmlPath = Path.ChangeExtension(assemblyPath, ".xml");
 
@@ -358,10 +614,11 @@ public sealed class PackageJsonGeneratorTests
 
             var references = trustedPlatformAssemblies
                 .Where(path => path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                .Concat(additionalReferences ?? [])
                 .ToArray();
 
             var compilation = CSharpCompilation.Create(
-                assemblyName: "Sample.Library",
+                assemblyName: assemblyName,
                 syntaxTrees: sources.Select(s => CSharpSyntaxTree.ParseText(s)),
                 references: references.Select(reference => MetadataReference.CreateFromFile(reference)),
                 options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));

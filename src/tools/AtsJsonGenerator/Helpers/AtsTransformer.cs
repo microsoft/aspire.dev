@@ -123,6 +123,9 @@ internal static class AtsTransformer
                 .Select(i => StripAssemblyPrefix(i.TypeId))
                 .OrderBy(i => i)
                 .ToList(),
+            BaseTypeHierarchy = h.BaseTypeHierarchy
+                .Select(i => StripAssemblyPrefix(i.TypeId))
+                .ToList(),
         };
     }
 
@@ -203,7 +206,9 @@ internal static class AtsTransformer
             {
                 Name = p.Name,
                 Type = FormatTypeRef(p.Type),
-                IsOptional = p.IsOptional,
+                // The Aspire TypeScript SDK intentionally emits DTOs as partial
+                // object shapes, regardless of the raw ATS property's nullability.
+                IsOptional = true,
                 Description = NormalizeDoc(p.Documentation?.Summary) ?? NormalizeDoc(p.Description),
             }).ToList(),
         };
