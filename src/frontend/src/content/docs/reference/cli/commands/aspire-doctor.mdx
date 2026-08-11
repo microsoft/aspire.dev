@@ -68,6 +68,20 @@ This command is useful for troubleshooting when you encounter issues with Aspire
   install it first.
 </Aside>
 
+<Aside type="note">
+  Each environment check is bounded to 30 seconds, and all environment checks
+  together are bounded to a two-minute aggregate limit. If an individual check
+  exceeds its 30-second deadline, `aspire doctor` reports a warning for that
+  check and continues running the remaining checks. If the two-minute
+  aggregate limit is reached, `aspire doctor` reports a warning and stops
+  scheduling any remaining checks. Installation discovery (used to build the
+  `Aspire CLI Installations` table) is bounded separately to 30 seconds; if it
+  times out, the table reports a failed discovery row instead of blocking
+  indefinitely. Cancellation also terminates owned `dotnet --list-sdks` and,
+  on Linux, `certutil` process trees so timed-out checks don't leave child
+  processes running.
+</Aside>
+
 The command displays results with clear status indicators:
 
 - ✅ (green) - Check passed
@@ -210,6 +224,20 @@ Development tools
        Install the Aspire extension from the VS Code Marketplace for an integrated Aspire experience.
 ```
 
+When an individual environment check exceeds its 30-second timeout, `aspire doctor` reports a warning and continues with the remaining checks:
+
+```bash title="Aspire CLI"
+Environment
+  ⚠️ Environment check 'dot-net-sdk' timed out after 30 seconds.
+```
+
+When the two-minute aggregate timeout for all environment checks is reached, `aspire doctor` reports a warning and stops scheduling any remaining checks:
+
+```bash title="Aspire CLI"
+Environment
+  ⚠️ Environment checks timed out after 120 seconds.
+```
+
 ## Exit codes
 
 The command returns the following exit codes:
@@ -318,6 +346,23 @@ The `operating-system` check is always present and includes the following metada
 | `displayName` | A human-readable OS name, for example `Windows`, `macOS`, or `Linux Ubuntu`.                                                                                                                    |
 | `version`     | The OS version string. On Linux this is the `VERSION_ID` from `/etc/os-release` when available; on Windows and macOS it is the value from `Environment.OSVersion`.                              |
 | `description` | A longer description of the OS. On Linux this is the `PRETTY_NAME` value from `/etc/os-release` (for example `Ubuntu 24.04.2 LTS`); on other platforms it is the runtime OS description string. |
+
+When an individual environment check times out, its `metadata` includes `checkType` and `timeoutSeconds`:
+
+```json title="JSON output"
+{
+  "category": "environment",
+  "name": "dot-net-sdk",
+  "status": "warning",
+  "message": "Environment check 'dot-net-sdk' timed out after 30 seconds.",
+  "metadata": {
+    "checkType": "DotNetSdkCheck",
+    "timeoutSeconds": 30
+  }
+}
+```
+
+When the aggregate two-minute timeout for all environment checks is reached, an `environment-checks` entry is added with the same `checkType`/`timeoutSeconds` metadata shape, identifying the check that was running when the aggregate deadline expired, and any remaining checks are skipped.
 
 ## See also
 
