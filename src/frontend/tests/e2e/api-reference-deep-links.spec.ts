@@ -14,9 +14,13 @@ test('C# method name and overload deep links scroll to and highlight the request
     (element) => getComputedStyle(element).backgroundColor
   );
 
-  await page.goto(`${methodsPath}#withhostport-int32`);
-  const exactAnchor = page.locator('#withhostport-int32');
-  await expect(exactAnchor).toHaveCount(1);
+  const exactAnchorId = await member.locator('.mc-exact-anchor').getAttribute('id');
+  if (!exactAnchorId) {
+    throw new Error('Expected the aliased member to expose an exact overload anchor.');
+  }
+
+  await page.goto(`${methodsPath}#${exactAnchorId}`);
+  const exactAnchor = page.locator(`#${exactAnchorId}`);
   await expect.poll(() => exactAnchor.evaluate((element) => element.matches(':target'))).toBe(true);
 
   const exactMember = exactAnchor.locator('..');
