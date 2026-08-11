@@ -48,9 +48,10 @@ export const TS_MODULES_DIR = path.join(DATA_DIR, 'ts-modules');
 // left intact, hence the kind gating below. `description`/`returns`/`remarks`
 // are always prose (and appear as string values only in the TS API + member
 // summaries; the C# doc arrays open with `[` and are skipped, their inner text
-// nodes handled by the `text` rule).
+// nodes handled by the `text` rule). `Reason` is the prose payload of
+// `AspireExportIgnoreAttribute`.
 const nodeLine =
-  /^[ \t]*"kind"[ \t]*:[ \t]*"([^"]*)"|^([ \t]*")(text|description|returns|remarks)("[ \t]*:[ \t]*")((?:[^"\\]|\\.)*)(")/gm;
+  /^[ \t]*"kind"[ \t]*:[ \t]*"([^"]*)"|^([ \t]*")(text|description|returns|remarks|Reason)("[ \t]*:[ \t]*")((?:[^"\\]|\\.)*)(")/gm;
 
 /**
  * Rewrite deprecated Aspire terminology in the prose fields of a generated API
