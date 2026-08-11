@@ -149,13 +149,12 @@ var web = builder.AddProject<Projects.Web>("web");
 
 var options = new DevTunnelOptions
 {
-    TunnelId = "my-tunnel-id",
     Description = "QA environment tunnel",
-    Labels = new[] { "qa", "testing" },
+    Labels = ["qa", "testing"],
     AllowAnonymous = false
 };
 
-var tunnel = builder.AddDevTunnel("qa", options)
+var tunnel = builder.AddDevTunnel("qa", tunnelId: "my-tunnel-id", options: options)
                     .WithReference(web);
 ```
 </TabItem>
@@ -167,12 +166,8 @@ const builder = await createBuilder();
 
 const web = await builder.addNodeApp("web", "../web", "index.js");
 
-const tunnel = await builder.addDevTunnel("qa", {
-    tunnelId: "my-tunnel-id",
-    description: "QA environment tunnel",
-    labels: ["qa", "testing"],
-    allowAnonymous: false,
-}).withReference(web);
+const tunnel = await builder.addDevTunnel("qa", "my-tunnel-id", false, "QA environment tunnel", ["qa", "testing"])
+    .withReference(web);
 ```
 </TabItem>
 </Tabs>
@@ -246,6 +241,12 @@ The `DevTunnelOptions` class provides several configuration options:
 | `Description`    | A description for the tunnel that appears in the dev tunnels service   |
 | `Labels`         | A list of labels to apply to the tunnel for organization and filtering |
 | `AllowAnonymous` | Whether to allow anonymous access to the entire tunnel                 |
+| `Region`         | The `DevTunnelRegion` to create the tunnel in; automatic when unset    |
+
+<Aside type="note">
+  `Region` is only configurable in C# via `DevTunnelOptions`. The polyglot
+  TypeScript `addDevTunnel` export doesn't surface a region parameter.
+</Aside>
 
 ### Dev tunnel port options
 
