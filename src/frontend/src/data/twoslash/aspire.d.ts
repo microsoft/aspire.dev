@@ -219,6 +219,33 @@ export declare const OtlpProtocol: {
 };
 
 /**
+ * Enum Aspire.Hosting.AWS.Lambda.APIGatewayType
+ */
+
+export type APIGatewayType = "Rest" | "HttpV1" | "HttpV2";
+export declare const APIGatewayType: {
+  readonly Rest: "Rest";
+  readonly HttpV1: "HttpV1";
+  readonly HttpV2: "HttpV2";
+};
+
+/**
+ * Enum Aspire.Hosting.AWS.Lambda.Method
+ */
+
+export type Method = "Any" | "Get" | "Post" | "Put" | "Delete" | "Patch" | "Head" | "Options";
+export declare const Method: {
+  readonly Any: "Any";
+  readonly Get: "Get";
+  readonly Post: "Post";
+  readonly Put: "Put";
+  readonly Delete: "Delete";
+  readonly Patch: "Patch";
+  readonly Head: "Head";
+  readonly Options: "Options";
+};
+
+/**
  * Enum Aspire.Hosting.AzureAppConfigurationRole
  */
 
@@ -794,6 +821,76 @@ export interface InteractionInput {
   allowCustomChoice: boolean;
   disabled: boolean;
   maxLength: number;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.DynamoDB.DynamoDBLocalOptions
+ */
+
+export interface DynamoDBLocalOptions {
+  registry: string;
+  image: string;
+  tag: string;
+  sharedDb: boolean;
+  inMemory: boolean;
+  localStorageDirectory: string;
+  disableDynamoDBLocalTelemetry: boolean;
+  delayTransientStatuses: boolean;
+  port: number;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.Lambda.APIGatewayEmulatorOptions
+ */
+
+export interface APIGatewayEmulatorOptions {
+  httpPort: number;
+  httpsPort: number;
+  disableHttpsEndpoint: boolean;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.Lambda.DynamoDBStreamsEventSourceOptions
+ */
+
+export interface DynamoDBStreamsEventSourceOptions {
+  resourceName: string;
+  batchSize: number;
+  pollingIntervalMs: number;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.Lambda.LambdaEmulatorOptions
+ */
+
+export interface LambdaEmulatorOptions {
+  disableAutoInstall: boolean;
+  overrideMinimumInstallVersion: string;
+  allowDowngrade: boolean;
+  httpPort: number;
+  httpsPort: number;
+  configStoragePath: string;
+  disableHttpsEndpoint: boolean;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.Lambda.LambdaFunctionPolyglotOptions
+ */
+
+export interface LambdaFunctionPolyglotOptions {
+  logFormat: string;
+  applicationLogLevel: string;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.Lambda.SQSEventSourceOptions
+ */
+
+export interface SQSEventSourceOptions {
+  resourceName: string;
+  batchSize: number;
+  disableMessageDelete: boolean;
+  visibilityTimeout: number;
 }
 
 /**
@@ -2964,12 +3061,12 @@ export interface IDistributedApplicationResourceEvent {
 
 export interface ExternalServiceResource extends IResource {
   /**
-   * Adds an HTTP health check to the external service for polyglot AppHosts.
+   * Adds an HTTP health check to the external service for polyglot app hosts.
    */
 
   withHttpHealthCheck(options?: { path?: string; statusCode?: number; endpointName?: string }): this;
   /**
-   * Adds an HTTP health check to the external service for polyglot AppHosts.
+   * Adds an HTTP health check to the external service for polyglot app hosts.
    */
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
@@ -3629,6 +3726,57 @@ export interface BeforePublishEvent extends IDistributedApplicationEvent {
    */
 
   services: PropertyAccessor<IServiceProvider>;
+}
+
+/**
+ * Handle Aspire.Hosting.AWS.DynamoDB.DynamoDBLocalResource
+ */
+
+export interface DynamoDBLocalResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IDynamoDBLocalResource {
+}
+
+/**
+ * Handle Aspire.Hosting.AWS.IAWSSDKConfig
+ */
+
+export interface IAWSSDKConfig {
+
+  withProfile(profile: string): IAWSSDKConfig;
+
+  withRegion(systemName: string): IAWSSDKConfig;
+
+  withSdkValidation(sdkValidationEnabled: boolean): IAWSSDKConfig;
+}
+
+/**
+ * Handle Aspire.Hosting.AWS.Lambda.APIGatewayEmulatorResource
+ */
+
+export interface APIGatewayEmulatorResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+
+  withAPIGatewayLambdaReference(lambda: LambdaProjectResource, httpMethod: Method, path: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.AWS.Lambda.LambdaEmulatorResource
+ */
+
+export interface LambdaEmulatorResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+}
+
+/**
+ * Handle Aspire.Hosting.AWS.Lambda.LambdaProjectResource
+ */
+
+export interface LambdaProjectResource extends ProjectResource, ContainerResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+
+  withDynamoDBStreamsEventSource(tableName: string, options?: { options?: DynamoDBStreamsEventSourceOptions }): this;
+
+  withDynamoDBStreamsEventSource(tableName: string, options?: DynamoDBStreamsEventSourceOptions): this;
+
+  withSQSEventSource(queueUrl: string, options?: { options?: SQSEventSourceOptions }): this;
+
+  withSQSEventSource(queueUrl: string, options?: SQSEventSourceOptions): this;
 }
 
 /**
@@ -6930,12 +7078,12 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
 
   withMigrationOutputDirectory(outputDirectory: string): this;
   /**
-   * Configures a separate project containing migrations for polyglot AppHosts.
+   * Configures a separate project containing migrations for polyglot app hosts.
    */
 
   withMigrationsProject(options?: { migrationsProject?: ProjectResource }): this;
   /**
-   * Configures a separate project containing migrations for polyglot AppHosts.
+   * Configures a separate project containing migrations for polyglot app hosts.
    */
 
   withMigrationsProject(migrationsProject?: ProjectResource): this;
@@ -12947,6 +13095,24 @@ export interface K6Resource extends ContainerResource, IComputeResource, IResour
 // ---- target-type interfaces (resource/builder APIs) ----
 // augments handle type IDistributedApplicationBuilder with extension methods
 export interface IDistributedApplicationBuilder {
+
+  addAWSAPIGatewayEmulator(name: string, apiGatewayType: APIGatewayType, options?: { options?: APIGatewayEmulatorOptions }): APIGatewayEmulatorResource;
+
+  addAWSAPIGatewayEmulator(name: string, apiGatewayType: APIGatewayType, options?: APIGatewayEmulatorOptions): APIGatewayEmulatorResource;
+
+  addAWSDynamoDBLocal(name: string, options?: { options?: DynamoDBLocalOptions }): DynamoDBLocalResource;
+
+  addAWSDynamoDBLocal(name: string, options?: DynamoDBLocalOptions): DynamoDBLocalResource;
+
+  addAWSLambdaFunction(name: string, projectPath: string, lambdaHandler: string, options?: { options?: LambdaFunctionPolyglotOptions }): LambdaProjectResource;
+
+  addAWSLambdaFunction(name: string, projectPath: string, lambdaHandler: string, options?: LambdaFunctionPolyglotOptions): LambdaProjectResource;
+
+  addAWSLambdaServiceEmulator(options?: { options?: LambdaEmulatorOptions }): LambdaEmulatorResource;
+
+  addAWSLambdaServiceEmulator(options?: LambdaEmulatorOptions): LambdaEmulatorResource;
+
+  addAWSSDKConfig(): IAWSSDKConfig;
   /**
    * Adds an Azure environment resource to the application model.
    */
@@ -14056,6 +14222,14 @@ export interface ActiveMQServerResource {
    */
 
   withDataVolume(name?: string, isReadOnly?: boolean): this;
+}
+
+// augments handle type APIGatewayEmulatorResource with extension methods
+export interface APIGatewayEmulatorResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
 }
 
 // augments handle type AzureAISearchToolResource with extension methods
@@ -16063,6 +16237,10 @@ export interface ContainerResource {
    */
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Associates an Azure user-assigned identity with a compute resource
    */
@@ -16757,6 +16935,10 @@ export interface CSharpAppResource {
    */
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Associates an Azure user-assigned identity with a compute resource
    */
@@ -16898,12 +17080,12 @@ export interface CSharpAppResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
@@ -17460,6 +17642,10 @@ export interface DotnetToolResource {
    */
 
   withWorkingDirectory(workingDirectory: string): this;
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Associates an Azure user-assigned identity with a compute resource
    */
@@ -17690,6 +17876,14 @@ export interface DotnetToolResource {
    */
 
   withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
+}
+
+// augments handle type DynamoDBLocalResource with extension methods
+export interface DynamoDBLocalResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
 }
 
 export interface ElasticsearchResource {
@@ -18132,6 +18326,10 @@ export interface ExecutableResource {
    */
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Associates an Azure user-assigned identity with a compute resource
    */
@@ -18934,6 +19132,10 @@ export interface IResourceWithEndpoints {
 
 // augments handle type IResourceWithEnvironment with extension methods
 export interface IResourceWithEnvironment {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Adds an Orleans client to the resource.
    */
@@ -19262,6 +19464,22 @@ export interface KubernetesResource {
    */
 
   withNodePool(nodePool: KubernetesNodePoolResource): this;
+}
+
+// augments handle type LambdaEmulatorResource with extension methods
+export interface LambdaEmulatorResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
+}
+
+// augments handle type LambdaProjectResource with extension methods
+export interface LambdaProjectResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
 }
 
 // augments handle type MauiAndroidDeviceResource with extension methods
@@ -20401,6 +20619,10 @@ export interface ProjectResource {
    */
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Associates an Azure user-assigned identity with a compute resource
    */
@@ -20542,12 +20764,12 @@ export interface ProjectResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot AppHosts.
+   * Adds EF Core migration management for polyglot app hosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
@@ -20653,8 +20875,28 @@ export interface ProjectResource {
   withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
 }
 
+// augments handle type RedisCommanderResource with extension methods
+export interface RedisCommanderResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
+}
+
+// augments handle type RedisInsightResource with extension methods
+export interface RedisInsightResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
+}
+
 // augments handle type RedisResource with extension methods
 export interface RedisResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Adds an administration and development platform for Redis to the application model using DbGate.
    */
@@ -20770,6 +21012,14 @@ export interface UvicornAppResource {
    */
 
   withVirtualEnvironment(virtualEnvironmentPath: string, createIfNotExists?: boolean): this;
+}
+
+// augments handle type ValkeyResource with extension methods
+export interface ValkeyResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
 }
 
 // augments handle type ViteAppResource with extension methods
@@ -21010,6 +21260,7 @@ export interface IConfigurationSection {}
 export interface IContainerRegistry {}
 export interface IConvertible {}
 export interface IDisposable {}
+export interface IDynamoDBLocalResource {}
 export interface IEnumerable {}
 export interface IFormattable {}
 export interface IFoundryTool {}
