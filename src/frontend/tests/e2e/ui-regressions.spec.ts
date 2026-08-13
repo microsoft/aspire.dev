@@ -411,6 +411,15 @@ test('language selector stays open while its listbox is scrolled', async ({ page
   await expect(languageTrigger).toHaveAttribute('aria-expanded', 'true');
   await expect(languageListbox).toBeVisible();
 
+  // Regression: on small touch viewports the tap that scrolls the footer control
+  // into view can deliver a window `scroll` event a frame after the menu opens.
+  // Because it reports the same scroll offset the menu was opened at, it must be
+  // ignored instead of dismissing the freshly opened menu (only a real page
+  // scroll, below, should close it).
+  await page.evaluate(() => window.dispatchEvent(new Event('scroll')));
+  await expect(languageTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(languageListbox).toBeVisible();
+
   const lastOption = options.last();
   await expect(lastOption).toBeInViewport();
   await lastOption.hover();
