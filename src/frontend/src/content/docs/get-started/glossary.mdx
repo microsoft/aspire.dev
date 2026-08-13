@@ -4,6 +4,8 @@ description: Key terms and concepts used throughout Aspire documentation — App
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
 This glossary defines the key terms and concepts you'll encounter when working with Aspire. Bookmark this page as a quick reference.
 
@@ -13,16 +15,27 @@ These are the foundational concepts you need to understand when working with Asp
 
 ### AppHost
 
-The **AppHost** is the orchestration project where you define your entire application's architecture in C# code. It's a special Aspire project that:
+The **AppHost** is the orchestration project where you define your entire application's architecture. It's a special Aspire project that:
 
-- Declares what services, databases, and containers make up your application
-- Defines how resources depend on each other
-- Configures how resources communicate
-- Orchestrates startup order during local development
-- Generates deployment artifacts for production
+- Declares what services, databases, and containers make up your application.
+- Defines how resources depend on each other.
+- Configures how resources communicate.
+- Orchestrates startup order during local development.
+- Generates deployment artifacts for production.
 
 Think of it as the "control tower" for your distributed application.
 
+<PivotSelector
+  title="Select your programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 // This IS the AppHost - Program.cs in your AppHost project
 var builder = DistributedApplication.CreateBuilder(args);
@@ -33,6 +46,21 @@ var api = builder.AddProject<Projects.Api>("api")
 
 builder.Build().Run();
 ```
+</Pivot>
+<Pivot id="typescript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+// This IS the AppHost in a TypeScript project
+const builder = await createBuilder();
+
+const db = await builder.addPostgres("db");
+await builder.addProject("api", "../Api/Api.csproj")
+    .withReference(db);
+
+await builder.build().run();
+```
+</Pivot>
 
 ### Resource
 
@@ -92,11 +120,20 @@ These are the key APIs and patterns you'll use when building Aspire applications
 2. Sets up service discovery so your code can find the other resource
 3. Creates a dependency relationship for startup ordering
 
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var db = builder.AddPostgres("db");
 var api = builder.AddProject<Projects.Api>("api")
     .WithReference(db);  // API now has DATABASE connection info injected
 ```
+</Pivot>
+<Pivot id="typescript">
+```typescript title="apphost.mts"
+const db = await builder.addPostgres("db");
+await builder.addProject("api", "../Api/Api.csproj")
+    .withReference(db);  // API now has DATABASE connection info injected
+```
+</Pivot>
 
 The API project will receive environment variables like:
 - `ConnectionStrings__db` - The database connection string
@@ -104,38 +141,66 @@ The API project will receive environment variables like:
 
 ### WaitFor
 
-`WaitFor()` tells Aspire to delay starting a resource until its dependency is ready:
+`WaitFor()`/`waitFor()` tells Aspire to delay starting a resource until its dependency is ready:
 
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var db = builder.AddPostgres("db");
 var api = builder.AddProject<Projects.Api>("api")
     .WithReference(db)
     .WaitFor(db);  // Don't start API until database is healthy
 ```
+</Pivot>
+<Pivot id="typescript">
+```typescript title="apphost.mts"
+const db = await builder.addPostgres("db");
+await builder.addProject("api", "../Api/Api.csproj")
+    .withReference(db)
+    .waitFor(db);  // Don't start API until database is healthy
+```
+</Pivot>
 
 <Aside type="tip">
-  Without `WaitFor()`, your API might start and immediately crash because the database isn't ready yet. This prevents race conditions during startup.
+  Without `WaitFor()`/`waitFor()`, your API might start and immediately crash because the database isn't ready yet. This prevents race conditions during startup.
 </Aside>
 
 ### WaitForCompletion
 
 `WaitForCompletion()` waits for a resource to finish and exit (not just start). Useful for setup scripts:
 
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var migrate = builder.AddProject<Projects.DbMigration>("migrate");
 var api = builder.AddProject<Projects.Api>("api")
     .WaitForCompletion(migrate);  // Wait for migrations to complete
 ```
+</Pivot>
+<Pivot id="typescript">
+```typescript title="apphost.mts"
+const migrate = await builder.addProject("migrate", "../DbMigration/DbMigration.csproj");
+await builder.addProject("api", "../Api/Api.csproj")
+    .waitForCompletion(migrate);  // Wait for migrations to complete
+```
+</Pivot>
 
 ### WaitForStart
 
 `WaitForStart()` waits only for a resource to reach the running state, without waiting for health checks to pass:
+
 
 ```csharp title="AppHost.cs"
 var db = builder.AddPostgres("db");
 var api = builder.AddProject<Projects.Api>("api")
     .WaitForStart(db);  // Start as soon as db is running, don't wait for healthy
 ```
+</Pivot>
+<Pivot id="typescript">
+```typescript title="apphost.mts"
+const db = await builder.addPostgres("db");
+await builder.addProject("api", "../Api/Api.csproj")
+    .waitForStart(db);  // Start as soon as db is running, don't wait for healthy
+```
+</Pivot>
 
 <Aside type="tip">
   Use `WaitForStart()` when you need looser coupling—your service can handle initial connection failures via retry policies. Use `WaitFor()` when you need strict dependency on health.
@@ -293,10 +358,18 @@ These patterns appear frequently in Aspire applications.
 
 Many hosting integrations support running as an **emulator** for local development:
 
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var storage = builder.AddAzureStorage("storage")
     .RunAsEmulator();  // Uses Azurite container locally
 ```
+</Pivot>
+<Pivot id="typescript">
+```typescript title="apphost.mts"
+const storage = await builder.addAzureStorage("storage");
+await storage.runAsEmulator();  // Uses Azurite container locally
+```
+</Pivot>
 
 This lets you develop against Azure, AWS, or other cloud services without needing actual cloud accounts during development.
 
@@ -304,9 +377,16 @@ This lets you develop against Azure, AWS, or other cloud services without needin
 
 Connect to resources that already exist (not managed by Aspire):
 
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var existingDb = builder.AddConnectionString("db");
 ```
+</Pivot>
+<Pivot id="typescript">
+```typescript title="apphost.mts"
+const existingDb = await builder.addConnectionString("db");
+```
+</Pivot>
 
 Aspire resolves this from `ConnectionStrings:db` (or environment variable `ConnectionStrings__db`) in the AppHost configuration and passes it through as a single connection string value.
 
@@ -340,4 +420,3 @@ These terms appear frequently in API documentation and advanced usage:
 
 - [What is Aspire?](/get-started/what-is-aspire/)
 - [Create your first Aspire app](/get-started/first-app/)
-- [AppHost overview](/get-started/app-host/)
