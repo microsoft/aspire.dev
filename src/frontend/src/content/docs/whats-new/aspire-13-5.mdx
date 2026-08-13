@@ -25,11 +25,11 @@ We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline'
 
 This release introduces:
 
-- **Interactive terminal sessions** with the experimental `WithTerminal()` API, so the dashboard and CLI can attach to REPLs, shells, and other terminal programs running as Aspire resources.
+- **Interactive terminal sessions** with the experimental `WithTerminal()` API, so you can attach to REPLs, shells, and other terminal programs running as Aspire resources from the dashboard — with an opt-in `aspire terminal` CLI command.
 - **Polyglot Interaction Service parity**, bringing prompts, message boxes, notifications, and dynamic inputs to TypeScript, Python, Go, Java, and Rust AppHosts alongside C#.
 - **File uploads and progress dialogs** in the Interaction Service — the file-upload input is stable, and progress dialogs are available behind an experimental diagnostic.
 - **Stable prompt and input APIs** — the core `PromptInput`/`PromptInputs` surface no longer requires suppressing `ASPIREINTERACTION001`.
-- **User-defined resource command arguments**, so the dashboard and CLI can prompt for input before invoking a command, with full C# and TypeScript parity.
+- **User-defined resource command arguments**, so the dashboard can prompt for input before invoking a command — the CLI exposes them as `--<name>` options — with full C# and TypeScript parity.
 - **Custom health checks and container file copying for TypeScript AppHosts**, plus faster startup and a batch of reliability fixes.
 - **HTTPS certificates for project resources** through a new experimental configuration API.
 - **Cross-scope Azure resource references** with the `AsExisting*` family, and **persistent volumes for Kubernetes and AKS**.
@@ -100,10 +100,10 @@ Or install the CLI from scratch:
 
 ### 🖥️ Interactive terminal sessions with WithTerminal()
 
-AppHost authors can now call `WithTerminal()` on a resource to enable an interactive terminal session. The dashboard and CLI can attach to and detach from the session at will, so you can drive REPLs, shells, and other terminal programs that run as Aspire resources — right from the dashboard's terminal view. Terminal dimensions are configurable through `TerminalOptions`, which exposes `Columns` (default `120`), `Rows` (default `30`), and `ShowTerminalHost`.
+AppHost authors can now call `WithTerminal()` on a resource to enable an interactive terminal session. The dashboard can attach to and detach from the session at will, so you can drive REPLs, shells, and other terminal programs that run as Aspire resources — right from the dashboard's terminal view. Terminal dimensions are configurable through `TerminalOptions`, which exposes `Columns` (default `120`), `Rows` (default `30`), and `ShowTerminalHost`.
 
 <Aside type="caution">
-  `WithTerminal()` and `TerminalOptions` are experimental. C# callers must suppress the `ASPIRETERMINAL001` diagnostic to use them, and the API may change in a future release.
+  `WithTerminal()` and `TerminalOptions` are experimental. C# callers must suppress the `ASPIRETERMINAL001` diagnostic to use them, and the API may change in a future release. The matching `aspire terminal` CLI command is hidden behind a feature flag while the feature is experimental — enable it with `aspire config set features.terminalCommandsEnabled true`.
 </Aside>
 
 ```csharp title="AppHost.cs"
@@ -145,6 +145,13 @@ var api = builder.AddContainer("api", "nginx");
 api.WithCommand("configure-region", "Configure region", async ctx =>
 {
     var interaction = ctx.Services.GetRequiredService<IInteractionService>();
+
+    // Commands invoked from the CLI run with NonInteractive = true, where
+    // PromptInputsAsync throws. Only prompt when a UI is attached.
+    if (!interaction.IsAvailable)
+    {
+        return CommandResults.Success();
+    }
 
     var result = await interaction.PromptInputsAsync(
         title: "Configure region",
@@ -209,9 +216,12 @@ await api.withCommand('configure-region', 'Configure region', async (ctx) => {
     { primaryButtonText: 'Apply' }
   );
 
-  const canceled = await result.canceled();
+  if (await result.canceled()) {
+    return { success: false, message: 'Canceled.' };
+  }
+
   const region = await result.inputs().value('region');
-  return { success: !canceled, message: `region=${region ?? ''}` };
+  return { success: true, message: `region=${region ?? ''}` };
 });
 
 await builder.build().run();
@@ -246,6 +256,13 @@ importer.WithCommand("import-data", "Import data", async ctx =>
 {
     var interaction = ctx.Services.GetRequiredService<IInteractionService>();
 
+    // Commands invoked from the CLI run with NonInteractive = true, where
+    // PromptInputsAsync throws. Only prompt when a UI is attached.
+    if (!interaction.IsAvailable)
+    {
+        return CommandResults.Success();
+    }
+
     var result = await interaction.PromptInputsAsync(
         title: "Import data",
         message: "Select a JSON file to import.",
@@ -257,7 +274,8 @@ importer.WithCommand("import-data", "Import data", async ctx =>
                 Label = "Data file",
                 InputType = InputType.File,
                 FileFilter = ".json",
-                MaxFileSize = 10 * 1024 * 1024 // 10 MB
+                MaxFileSize = 10 * 1024 * 1024, // 10 MB
+                Required = true
             }
         ],
         cancellationToken: ctx.CancellationToken);
@@ -267,13 +285,28 @@ importer.WithCommand("import-data", "Import data", async ctx =>
         return CommandResults.Canceled();
     }
 
-    var fileInput = result.Data["dataFile"];
-    var bytes = await fileInput.Files![0].ReadAllBytesAsync(ctx.CancellationToken);
+    var file = result.Data["dataFile"].Files?[0];
+    if (file is null)
+    {
+        return CommandResults.Failure("No file was uploaded.");
+    }
 
-    // Progress dialog is experimental (ASPIREINTERACTION001).
+    var bytes = await file.ReadAllBytesAsync(ctx.CancellationToken);
+
+    // Progress dialog is experimental (ASPIREINTERACTION001). Run the work in
+    // ProgressInteractionOptions.Work so the dialog closes when the work
+    // completes; without a Work callback it stays open until the token cancels.
     await interaction.PromptProgressAsync(
-        "Importing...",
-        $"Processing {bytes.Length} bytes",
+        message: $"Processing {bytes.Length} bytes",
+        title: "Importing...",
+        options: new ProgressInteractionOptions
+        {
+            Work = async progress =>
+            {
+                // Long-running processing runs here while the dialog is shown.
+                await Task.Delay(TimeSpan.FromSeconds(2), progress.CancellationToken);
+            }
+        },
         cancellationToken: ctx.CancellationToken);
 
     return CommandResults.Success();
@@ -288,7 +321,7 @@ builder.Build().Run();
 
 ### ⚙️ Resource commands with user-defined arguments
 
-Resource commands can now declare **named arguments** that the dashboard and CLI prompt for before the command runs. Populate `CommandOptions.Arguments` with `InteractionInput` descriptors, and read the collected values from `ExecuteCommandContext.Arguments` inside the command callback. TypeScript AppHosts get full parity through Aspire Type System (ATS) exports. This mechanism is stable and works for interactive workflows such as custom deployment or setup procedures.
+Resource commands can now declare **named arguments**. In the dashboard, users are prompted for these arguments before the command runs; from the CLI, each argument is surfaced as a `--<name>` option, and the command errors when a required option is missing. Populate `CommandOptions.Arguments` with `InteractionInput` descriptors, and read the collected values from `ExecuteCommandContext.Arguments` inside the command callback. TypeScript AppHosts get full parity through Aspire Type System (ATS) exports. This mechanism is stable and works for interactive workflows such as custom deployment or setup procedures.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -531,10 +564,10 @@ builder.Build().Run();
 
 ### 🏷️ Unique resource naming for Azure Container Apps
 
-Azure Container Apps environments can opt into deterministic, collision-resistant resource names with `WithUniqueResourceNaming()`, which is useful when multiple environments are provisioned into the same subscription.
+Azure Container Apps environments can opt into deterministic, collision-resistant resource names with `WithUniqueResourceNaming()`, which is useful when you deploy more than one environment into the same resource group. Names incorporate a `uniqueString(resourceGroup().id)` suffix while preserving each environment's digits, so `cae1` and `cae2` stay distinct.
 
 <Aside type="caution">
-  `WithUniqueResourceNaming()` is experimental and emits [`ASPIREACANAMING002`](/diagnostics/aspireacanaming002/), which C# callers must suppress to use it.
+  `WithUniqueResourceNaming()` is experimental and emits [`ASPIREACANAMING002`](/diagnostics/aspireacanaming002/), which C# callers must suppress to use it. Enabling it on an already-deployed environment changes the environment's `name`, which causes Azure to recreate it — apply it to new deployments, or to environments that specifically need distinct names.
 </Aside>
 
 ```csharp title="AppHost.cs"
@@ -599,7 +632,7 @@ New projects now set `AspireUseCliBundle=true`, so the AppHost resolves the CLI 
 
 ### 🛠️ Command improvements
 
-- **`aspire stop --force`** stops AppHosts more aggressively when a graceful stop isn't enough.
+- **`aspire stop --force`** performs a normal stop and then cleans up the AppHost's persistent resources, permanently deleting their data without an additional confirmation prompt.
 - **`aspire update --migrate`** migrates legacy TypeScript AppHost entry points (`apphost.ts` → `apphost.mts`).
 - **`aspire doctor`** reports operating-system details (including Linux distro info from `/etc/os-release`), detects Visual Studio Code, and adds DCP health checks. JSON output includes a structured `operating-system` check for tooling.
 - **`aspire docs search`** returns more relevant results.
@@ -624,7 +657,7 @@ The dashboard adopts official Aspire branding and a refreshed visual design buil
 
 ### 🖥️ Terminal view
 
-Resources configured with `WithTerminal()` open in a terminal view in the dashboard by default, so you can interact with the session immediately.
+Running resources configured with `WithTerminal()` open in a terminal view in the dashboard by default, so you can interact with the live session immediately. Resources that are waiting, starting, exited, or failed fall back to the console-logs view until they reach the running state.
 
 <Aside type="note">
   The dashboard's AI Assistant chat has been removed in Aspire 13.5.
