@@ -596,16 +596,17 @@ A new **BeforeStart** pipeline phase replaces the bespoke eventing-subscriber cl
 
 ### Subscribe extensions for lifecycle events
 
-Two new convenience extension methods on `IDistributedApplicationBuilder` make it easier to wire up lifecycle event handlers without `.Eventing.Subscribe(...)` plumbing:
+Lifecycle event subscriptions use the typed API available for each event. In C#, `OnBeforeStart` is a builder-level convenience method, while `AfterResourcesCreatedEvent` uses the lower-level eventing API:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="Subscribe to lifecycle events"
 // Run a callback right before the AppHost begins starting resources.
-builder.SubscribeBeforeStart(async e => { /* ... */ });
+builder.OnBeforeStart(async (e, ct) => { /* ... */ });
 // Run a callback once all resources have been created.
-builder.SubscribeAfterResourcesCreated(async e => { /* ... */ });
+builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(
+    async (e, ct) => { /* ... */ });
 ```
 
 </TabItem>
@@ -682,7 +683,7 @@ The Aspire trusted developer certificate is now used in more places — includin
 
 Aspire 13.3 closes most of the remaining functional gap between C# AppHosts and the TypeScript AppHost SDK:
 
-- **Unified `withEnvironment` API** — a single method now handles all environment variable value kinds (endpoints, parameters, connection strings, expressions), replacing several per-kind helpers that are now deprecated.
+- **Unified `withEnvironment` API** — a single method now handles all environment variable value kinds (endpoints, parameters, connection strings, expressions). Apps using the earlier per-kind helpers must migrate to the unified method.
 - **Endpoint property expressions** (`endpoint.url`, `endpoint.host`, `endpoint.port`) are now usable inside TypeScript AppHost expressions.
 - **Docker Compose API parity**: `PublishAsDockerComposeService`-equivalent hooks and post-processing are exposed in TypeScript.
 - **Custom domain configuration** for Azure Container Apps is now exposed in the TypeScript AppHost SDK.
@@ -694,19 +695,18 @@ Aspire 13.3 closes most of the remaining functional gap between C# AppHosts and 
 
 ### Unified `withEnvironment` API
 
-Aspire 13.3 introduces a unified `withEnvironment(name, value)` API for polyglot AppHosts (TypeScript, Java, Python, Go, Rust). Previously, environment variable injection required separate methods for each value kind (`withEnvironmentEndpoint`, `withEnvironmentParameter`, `withEnvironmentConnectionString`, and so on). Now, a single call handles all value types:
+Aspire 13.3 introduces a unified `withEnvironment(name, value)` API for polyglot AppHosts (TypeScript, Java, Python, Go, Rust). The public TypeScript API accepts plain strings, reference expressions, endpoint references, parameter resources, supported resources that expose connection strings, expression values, and awaitable forms of supported values:
 
 ```typescript title="apphost.mts"
+const primaryEndpoint = await cache.primaryEndpoint();
 const api = await builder.addProject('api', '../Api/Api.csproj');
 await api
-  .withEnvironment('SERVICE_URL', cache.primaryEndpoint)
+  .withEnvironment('SERVICE_URL', primaryEndpoint)
   .withEnvironment('API_KEY', apiKeyParam)
   .withEnvironment('DB', database);
 ```
 
-The `value` argument accepts any of: a plain `string`, a `ReferenceExpression`, an `EndpointReference`, a parameter builder, a connection string resource builder, or an `IExpressionValue`.
-
-The previous per-kind helpers are still generated for backward compatibility but are marked `@deprecated` in the SDK. See the [Breaking changes](#breaking-changes) section for migration details.
+The 13.3 TypeScript SDK doesn't generate the earlier per-kind helper aliases. Update every existing call site to use `withEnvironment(name, value)` when you upgrade.
 
 <LearnMore>
   For more details, see [Authoring multi-language
@@ -1257,22 +1257,7 @@ Aspire is built in the open, and this release wouldn't be what it is without you
 | `aspire init` no longer fully wires up your AppHost on its own                                                   | Run the `aspireify` agent skill (e.g. via Copilot CLI) to complete wiring after `aspire init`.      |
 | Kubernetes Ingress and Gateway routing types moved namespaces                                                    | Update `using` directives if you reference them directly.                                           |
 | `dotnet new aspire-py-starter` removed                                                                           | Use `aspire new aspire-py-starter` from the Aspire CLI.                                             |
-| TypeScript AppHost `withEnvironment*` helper methods deprecated                                                  | Replace per-kind helpers with the unified `withEnvironment(name, value)` API — see the table below. |
-
-#### TypeScript `withEnvironment` migration
-
-The following per-kind `withEnvironment*` helpers are deprecated in favor of the unified `withEnvironment(name, value)` API:
-
-| Old method (deprecated)                           | Replacement                       |
-| ------------------------------------------------- | --------------------------------- |
-| `withEnvironmentExpression(name, expr)`           | `withEnvironment(name, expr)`     |
-| `withEnvironmentEndpoint(name, endpoint)`         | `withEnvironment(name, endpoint)` |
-| `withEnvironmentParameter(name, param)`           | `withEnvironment(name, param)`    |
-| `withEnvironmentConnectionString(name, resource)` | `withEnvironment(name, resource)` |
-| `withEnvironmentFromOutput(name, output)`         | `withEnvironment(name, output)`   |
-| `withEnvironmentFromKeyVaultSecret(name, secret)` | `withEnvironment(name, secret)`   |
-
-The old methods are still present and marked `@deprecated` — they will be removed in a future release.
+| TypeScript AppHost per-kind `withEnvironment*` helper methods removed                                           | Replace every per-kind helper call with the unified `withEnvironment(name, value)` API.            |
 
 #### In-dashboard GitHub Copilot UI replaced by agentic development
 

@@ -16,7 +16,7 @@ import {
   typeHref,
   resolveTypeLink,
   shortTypeName,
-  memberSlug,
+  resolveMemberAnchorMap,
   memberDisplayName,
 } from '@utils/packages';
 
@@ -31,6 +31,7 @@ interface Props {
 const { members = [], typeName, typeArity = 0, allTypes = [], packageName = '' } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const groups = groupMembersByKind(members);
+const anchorByMember = resolveMemberAnchorMap(members);
 
 /** Build the href for a member-kind detail page. */
 function kindPageHref(kind: string): string {
@@ -54,7 +55,7 @@ function kindPageHref(kind: string): string {
             {items.map((m: any) => {
               const rawDisplayName = memberDisplayName(m);
               const displayName = m.name === '.ctor' ? rawDisplayName.replace('.ctor', typeName) : rawDisplayName;
-              const memberAnchor = memberSlug(m);
+              const memberAnchor = anchorByMember.get(m)!.exact;
               const memberHref = kindHref !== '#' ? `${kindHref}#${memberAnchor}` : undefined;
               const returnShort = m.returnType && m.returnType !== 'void'
                 ? shortTypeName(m.returnType)
