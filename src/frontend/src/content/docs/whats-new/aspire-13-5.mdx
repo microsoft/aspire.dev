@@ -106,6 +106,9 @@ AppHost authors can now call `WithTerminal()` on a resource to enable an interac
   `WithTerminal()` and `TerminalOptions` are experimental. C# callers must suppress the `ASPIRETERMINAL001` diagnostic to use them, and the API may change in a future release. The matching `aspire terminal` CLI command is hidden behind a feature flag while the feature is experimental — enable it with `aspire config set features.terminalCommandsEnabled true`.
 </Aside>
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIRETERMINAL001
 
@@ -120,6 +123,25 @@ builder.AddContainer("db", "postgres")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Polyglot AppHosts expose a parameterless withTerminal(). Terminal dimensions
+// (TerminalOptions.Columns/Rows) can only be configured from C#.
+const db = await builder.addContainer('db', 'postgres');
+await db.withTerminal();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <LearnMore>
   For details, see [Interactive terminal sessions with WithTerminal()](/app-host/with-terminal/).
@@ -242,6 +264,9 @@ The Interaction Service can now ask users to **upload a file**. Add an `Interact
   `PromptProgressAsync`, `ProgressInteractionOptions`, and `ProgressContext` are experimental. C# callers must suppress [`ASPIREINTERACTION001`](/diagnostics/aspireinteraction001/) to use the progress-dialog APIs. The file-upload input (`InputType.File`) is stable and needs no suppression.
 </Aside>
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREINTERACTION001
 
@@ -314,6 +339,71 @@ importer.WithCommand("import-data", "Import data", async ctx =>
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import { statSync } from 'node:fs';
+
+const builder = await createBuilder();
+
+const importer = await builder.addContainer('importer', 'nginx');
+
+await importer.withCommand('import-data', 'Import data', async (ctx) => {
+  const interaction = await ctx.services().getInteractionService();
+
+  // Commands invoked from the CLI run without an attached UI, where prompting
+  // throws. Only prompt when the interaction service is available.
+  if (!(await interaction.isAvailable())) {
+    return { success: true, message: 'No interactive dashboard.' };
+  }
+
+  const fileInput = await interaction.createFileInput('dataFile', {
+    label: 'Data file',
+    fileFilter: '.json',
+    maxFileSize: 10 * 1024 * 1024, // 10 MB
+    required: true,
+  });
+
+  const result = await interaction.promptInput(
+    'Import data',
+    'Select a JSON file to import.',
+    fileInput,
+    { primaryButtonText: 'Import' });
+
+  if (result.canceled) {
+    return { success: false, message: 'Canceled.' };
+  }
+
+  // Uploaded files are written to disk; read them through their filePath.
+  const file = result.input?.files?.[0];
+  if (!file?.filePath) {
+    return { success: false, message: 'No file was uploaded.' };
+  }
+
+  const bytes = statSync(file.filePath).size;
+
+  // The work callback runs while the progress dialog is shown; the dialog
+  // closes when the callback completes.
+  await interaction.promptProgress(`Processing ${bytes} bytes`, {
+    title: 'Importing...',
+    options: {
+      work: async () => {
+        await new Promise<void>((resolve) => setTimeout(resolve, 2000));
+      },
+    },
+  });
+
+  return { success: true, message: 'Imported.' };
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <LearnMore>
   For inputs, validation, and result handling, see [Interaction service](/extensibility/interaction-service/).
@@ -400,6 +490,9 @@ Project and executable resources can now be configured with HTTPS certificates d
   The HTTPS certificate APIs are experimental. C# callers must suppress [`ASPIRECERTIFICATES001`](/diagnostics/aspirecertificates001/) to use them.
 </Aside>
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIRECERTIFICATES001
 
@@ -411,6 +504,23 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', './src/Api');
+await api.withHttpsDeveloperCertificate();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 <LearnMore>
   For certificate options and deployment considerations, see [Certificate configuration](/app-host/certificate-configuration/).
 </LearnMore>
@@ -418,6 +528,9 @@ builder.Build().Run();
 ### ☁️ Reference existing Azure resources across scopes
 
 Aspire 13.5 makes it easier to point at Azure resources that live **outside** your app's own resource group, subscription, or tenant. The `AsExistingInResourceGroup(name, resourceGroup, subscription)`, `AsExistingInSubscription(name, subscription)`, and `AsExistingInTenant(name)` methods — along with their `RunAsExisting*` and `PublishAsExisting*` variants — attach an existing-resource annotation so provisioning references the resource in the scope you specify. Each accepts either literal strings or `ParameterResource` values, so scope details can come from parameters and secrets.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -432,6 +545,27 @@ builder.AddAzureServiceBus("sb")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const name = await builder.addParameter('sb-name');
+const resourceGroup = await builder.addParameter('sb-rg');
+const subscription = await builder.addParameter('sb-sub');
+
+const sb = await builder.addAzureServiceBus('sb');
+await sb.asExistingInResourceGroup(name, resourceGroup, subscription);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 <LearnMore>
   For run- versus publish-mode behavior, see [Use existing Azure resources](/integrations/cloud/azure/customize-resources/).
 </LearnMore>
@@ -444,6 +578,9 @@ Aspire 13.5 adds the experimental `AddDotnetProject(name, path)` API in the new 
   `AddDotnetProject` and `DotnetProjectResource` are experimental and emit the `ASPIREDOTNETPROJECT001` diagnostic, which C# callers must suppress to use them.
 </Aside>
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREDOTNETPROJECT001
 
@@ -454,6 +591,22 @@ builder.AddDotnetProject("inventory", @"../InventoryService/InventoryService.csp
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addDotnetProject('inventory', '../InventoryService/InventoryService.csproj');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 <LearnMore>
   For Go debugging, see [Go hosting integration](/integrations/frameworks/go/go-host/).
 </LearnMore>
@@ -462,7 +615,7 @@ builder.Build().Run();
 
 ### 💚 Custom health checks
 
-TypeScript AppHosts can now register custom health check callbacks with `builder.addHealthCheck(name, check)` and attach them (or the built-in checks) to a resource with `resource.withHealthCheck(key)`. The callback returns a `HealthCheckResult` with a `status`, optional `description`, and optional `data`. Project resources also gain `withEndpointsInEnvironment(endpointNames)` to control which endpoints are injected into environment variables.
+TypeScript AppHosts can now register custom health check callbacks with `builder.addHealthCheck(name, check)` and attach them (or the built-in checks) to a resource with `resource.withHealthCheck(key)`. The callback returns a `HealthCheckResult` with a `status`, optional `description`, and optional `data`. Project resources also gain `withEndpointsInEnvironment(endpointNames)` to control which endpoints are injected into environment variables. This brings TypeScript to parity with C#, where custom checks are registered through `AddHealthChecks().AddCheck(...)` and attached with the same `WithHealthCheck(key)` method.
 
 ```typescript title="apphost.mts"
 import { createBuilder, HealthStatus } from './.aspire/modules/aspire.mjs';
@@ -489,7 +642,7 @@ await builder.build().run();
 
 ### 🐳 Container file copying
 
-TypeScript AppHosts can now copy host files into container resources, reaching parity with C#. Use `withContainerFiles(destinationPath, sourcePath, options)` to copy a directory, or `withContainerFilesCallback(destinationPath, callback, options)` to generate files dynamically at build time. Ownership and permissions are controlled through `ContainerFilesOptions` (`defaultOwner`, `defaultGroup`, `umask`).
+TypeScript AppHosts can now copy host files into container resources, reaching parity with C#. Use `withContainerFiles(destinationPath, sourcePath, options)` to copy a directory, or `withContainerFilesCallback(destinationPath, callback, options)` to generate files dynamically at build time. Ownership and permissions are controlled through `ContainerFilesOptions` (`defaultOwner`, `defaultGroup`, `umask`). C# exposes the same capability through the `WithContainerFiles(...)` overloads, which accept either a source directory or a build-time callback.
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -537,6 +690,9 @@ You can now model Kubernetes `PersistentVolumeClaim`s as first-class resources. 
   The compute-environment volume APIs are experimental and emit [`ASPIRECOMPUTE002`](/diagnostics/aspirecompute002/), which C# callers must suppress to use them.
 </Aside>
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIRECOMPUTE002
 
@@ -558,6 +714,33 @@ builder.AddContainer("postgres", "postgres:16")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder, PersistentVolumeAccessMode } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const data = await k8s.addPersistentVolume('data');
+await data.withStorageClass('managed-csi');
+await data.withCapacity('20Gi');
+await data.withAccessMode(PersistentVolumeAccessMode.ReadWriteOnce);
+
+// The polyglot withVolume() reorders parameters to (target, name?), so the
+// mount path comes first. withKubernetesPersistentVolume() then binds by name.
+const postgres = await builder.addContainer('postgres', 'postgres:16');
+await postgres.withVolume('/var/lib/postgresql/data', 'data');
+await postgres.withKubernetesPersistentVolume(data);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 <LearnMore>
   For details, see [Persistent volumes](/deployment/kubernetes/persistent-volumes/) and [Deploy to AKS](/deployment/kubernetes/aks/).
 </LearnMore>
@@ -570,6 +753,9 @@ Azure Container Apps environments can opt into deterministic, collision-resistan
   `WithUniqueResourceNaming()` is experimental and emits [`ASPIREACANAMING002`](/diagnostics/aspireacanaming002/), which C# callers must suppress to use it. Enabling it on an already-deployed environment changes the environment's `name`, which causes Azure to recreate it — apply it to new deployments, or to environments that specifically need distinct names.
 </Aside>
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREACANAMING002
 
@@ -580,6 +766,23 @@ builder.AddAzureContainerAppEnvironment("acaenv")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const acaenv = await builder.addAzureContainerAppEnvironment('acaenv');
+await acaenv.withUniqueResourceNaming();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <LearnMore>
   For more configuration options, see [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/).
@@ -602,7 +805,10 @@ Azure Container Apps and Azure App Service environments can now be placed into a
 - **Foundry Local.** `AddFoundry(name).RunAsFoundryLocal()` now drives the installed **foundry CLI** for lifecycle management and requires foundry CLI **1.1.0+**. Resources can also be exposed as hosted agents with `AsHostedAgent(...)`, where `HostedAgentProtocol` is `Responses` or `Invocations`.
 - **Blazor gateway.** Blazor gateway resources now support Docker Compose publishing.
 
-```csharp title="AppHost.cs — Redis modules"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddRedis("cache")
@@ -611,6 +817,24 @@ builder.AddRedis("cache")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder, RedisModules } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis('cache');
+await cache.withModule(RedisModules.Json);
+await cache.withModule(RedisModules.Search);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <LearnMore>
   For Redis hosting, see [Redis hosting integration](/integrations/caching/redis/redis-host/); for tunnels, see [Dev tunnels](/integrations/devtools/dev-tunnels/); for Foundry, see [Azure AI Foundry](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/).
