@@ -161,8 +161,15 @@ describe('Aspire terminology normalization in code', () => {
     );
   });
 
-  test('leaves plural "app hosts" untouched to match the forbidden-words boundary', () => {
-    const input = `// Works across polyglot ${legacyAppHostName}s.`;
+  test('normalizes the plural form in code comments', () => {
+    const input = `// Polyglot ${legacyAppHostName}s use the exported API.`;
+    expect(normalizeAspireTerminologyInCode(input)).toBe(
+      '// Polyglot AppHosts use the exported API.'
+    );
+  });
+
+  test('preserves verb usage of hosts', () => {
+    const input = `// The ${legacyAppHostName}s a service.`;
     expect(normalizeAspireTerminologyInCode(input)).toBe(input);
   });
 
