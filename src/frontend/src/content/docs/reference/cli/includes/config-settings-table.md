@@ -6,7 +6,6 @@ title: Config Settings Table
 | ----------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `appHost.path`                            | `appHost.path`                            | Project-scoped path to the default AppHost entry point. This setting must be configured in the local `aspire.config.json` file. |
 | `channel`                                 | `channel`                                 | Default Aspire channel used by channel-aware commands such as `aspire new`, `aspire init`, and `aspire update`.                 |
-| `features.aspireSkillsRemoteFetchEnabled` | `features.aspireSkillsRemoteFetchEnabled` | Enable or disable preview remote fetching of Aspire skills bundles from GitHub.                                                 |
 | `features.defaultWatchEnabled`            | `features.defaultWatchEnabled`            | Enable or disable watch mode by default when running Aspire applications for automatic restarts on file changes.                |
 | `features.experimentalPolyglot:go`        | `features.experimentalPolyglot:go`        | Enable or disable experimental Go language support for polyglot Aspire applications.                                            |
 | `features.experimentalPolyglot:java`      | `features.experimentalPolyglot:java`      | Enable or disable experimental Java language support for polyglot Aspire applications.                                          |

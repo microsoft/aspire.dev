@@ -78,18 +78,18 @@ $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..\..")).Path
 $ToolProject = Join-Path $ScriptDir "AtsJsonGenerator.csproj"
 $AspireCliPath = if ([string]::IsNullOrWhiteSpace($env:ASPIRE_CLI_PATH)) { "aspire" } else { $env:ASPIRE_CLI_PATH }
 
-if (-not $OutputDir) {
-    $OutputDir = Join-Path $RepoRoot "src\frontend\src\data\ts-modules"
+$FinalOutputDir = if ($OutputDir) {
+    [System.IO.Path]::GetFullPath($OutputDir)
 }
-
-if (-not (Test-Path $OutputDir)) {
-    New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
+else {
+    Join-Path $RepoRoot "src\frontend\src\data\ts-modules"
 }
+$OutputDir = Join-Path ([System.IO.Path]::GetDirectoryName($FinalOutputDir)) (
+    ".$([System.IO.Path]::GetFileName($FinalOutputDir))-staging-$([Guid]::NewGuid().ToString('N'))")
+New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
 $TempDir = Join-Path $OutputDir ".tmp-dumps"
-if (-not (Test-Path $TempDir)) {
-    New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
-}
+New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
 
 function Remove-StaleTsModuleFiles {
     param(
@@ -397,6 +397,37 @@ function Test-IsTypeScriptSdkPackage {
     )
 }
 
+function Get-CSharpHostingPackageMetadata {
+    $packageJsonDir = if (-not [string]::IsNullOrWhiteSpace($env:ASPIRE_API_PKGS_DIR)) {
+        [System.IO.Path]::GetFullPath($env:ASPIRE_API_PKGS_DIR)
+    }
+    else {
+        Join-Path $RepoRoot "src\frontend\src\data\pkgs"
+    }
+    if (-not (Test-Path $packageJsonDir)) {
+        return @()
+    }
+
+    return @(
+        Get-ChildItem -Path $packageJsonDir -Filter '*.json' -File |
+            ForEach-Object {
+                $json = Get-Content $_.FullName -Raw | ConvertFrom-Json
+                if ((Test-IsTypeScriptSdkPackage -PackageName $json.package.name) -and
+                    -not [string]::IsNullOrWhiteSpace($json.package.version)) {
+                    $sourceRepository = $json.package.PSObject.Properties["sourceRepository"]
+                    $sourceCommit = $json.package.PSObject.Properties["sourceCommit"]
+                    [PSCustomObject]@{
+                        Name             = [string]$json.package.name
+                        Version          = [string]$json.package.version
+                        SourceRepository = if ($sourceRepository) { [string]$sourceRepository.Value } else { $null }
+                        SourceCommit     = if ($sourceCommit) { [string]$sourceCommit.Value } else { $null }
+                        Path             = $_.FullName
+                    }
+                }
+            }
+    )
+}
+
 function Get-PackageSourceRepository {
     [CmdletBinding()]
     param([string]$PackageName)
@@ -415,44 +446,33 @@ function Get-PackageSourceRepository {
     return $null
 }
 
-if (-not $AspireRepoPath -and (-not $NuGetPackageVersion -or $NuGetPackageVersion.Count -eq 0)) {
+$generatedPackageMetadata = @(Get-CSharpHostingPackageMetadata)
+$packageMetadataBySpec = @{}
+foreach ($metadata in $generatedPackageMetadata) {
+    $spec = "$($metadata.Name)@$($metadata.Version)"
+    if ($packageMetadataBySpec.ContainsKey($spec)) {
+        throw "Duplicate generated C# package metadata for '$spec': '$($packageMetadataBySpec[$spec].Path)' and '$($metadata.Path)'."
+    }
+    $packageMetadataBySpec[$spec] = $metadata
+}
+
+$hasExplicitNuGetPackageVersion = $NuGetPackageVersion -and $NuGetPackageVersion.Count -gt 0
+if (-not $AspireRepoPath -and -not $hasExplicitNuGetPackageVersion) {
     Write-Host "No -AspireRepoPath or -NuGetPackageVersion provided. Auto-detecting from generated C# package JSON..." -ForegroundColor Cyan
 
-    $packageJsonDir = Join-Path $RepoRoot "src\frontend\src\data\pkgs"
-    if (-not (Test-Path $packageJsonDir)) {
-        Write-Error "C# package JSON directory not found at $packageJsonDir"
-        return
-    }
-
-    $packageFiles = @(Get-ChildItem -Path $packageJsonDir -Filter '*.json' -File)
-    if ($packageFiles.Count -eq 0) {
-        Write-Error "No generated C# package JSON files found in $packageJsonDir"
-        return
-    }
-
-    $hostingPackages = @(
-        $packageFiles |
-            ForEach-Object {
-                $json = Get-Content $_.FullName -Raw | ConvertFrom-Json
-                [PSCustomObject]@{
-                    Name         = $json.package.name
-                    Version      = $json.package.version
-                    LastWriteUtc = $_.LastWriteTimeUtc
-                }
-            } |
-            Where-Object {
-                (Test-IsTypeScriptSdkPackage -PackageName $_.Name) -and
-                -not [string]::IsNullOrWhiteSpace($_.Version)
-            } |
-            Group-Object Name |
-            ForEach-Object {
-                $_.Group | Sort-Object LastWriteUtc -Descending | Select-Object -First 1
-            }
-    )
+    $hostingPackages = @($generatedPackageMetadata)
 
     if ($hostingPackages.Count -eq 0) {
-        Write-Error "No TypeScript SDK package JSON files found in $packageJsonDir"
+        Write-Error "No TypeScript SDK package JSON files found in src/frontend/src/data/pkgs"
         return
+    }
+
+    $duplicatePackages = @($hostingPackages | Group-Object Name | Where-Object Count -gt 1)
+    if ($duplicatePackages.Count -gt 0) {
+        $details = $duplicatePackages | ForEach-Object {
+            "$($_.Name): $((@($_.Group) | ForEach-Object { "$($_.Version) [$($_.Path)]" }) -join ', ')"
+        }
+        throw "Multiple generated C# package versions prevent deterministic TypeScript API generation:`n  $($details -join "`n  ")"
     }
 
     # Build Name@Version entries directly from the generated C# package data.
@@ -527,6 +547,8 @@ if ($AspireRepoPath) {
         $Packages += @{
             Name = "Aspire.Hosting"
             DumpArgs = @($coreCsproj)
+            SourceRepository = Get-PackageSourceRepository -PackageName "Aspire.Hosting"
+            SourceCommit = $null
         }
         }
     }
@@ -557,6 +579,8 @@ if ($AspireRepoPath) {
             $Packages += @{
                 Name = $dir.Name
                 DumpArgs = @($csproj)
+                SourceRepository = Get-PackageSourceRepository -PackageName $dir.Name
+                SourceCommit = $null
             }
         }
     }
@@ -573,6 +597,10 @@ if ($NuGetPackageVersion -and $NuGetPackageVersion.Count -gt 0) {
         }
         $pkgName = $Matches[1]
         $pkgVersion = $Matches[2]
+        $packageMetadata = $packageMetadataBySpec["$pkgName@$pkgVersion"]
+        if ($null -eq $packageMetadata) {
+            throw "No exact generated C# package metadata was found for '$pkgName@$pkgVersion'. Run generate-package-json.ps1 first."
+        }
 
         if (-not (Test-IsTypeScriptSdkPackage -PackageName $pkgName)) {
             Write-Warning "Skipping $pkgName — only Aspire.Hosting* and CommunityToolkit.Aspire.Hosting* packages have ATS capabilities"
@@ -583,6 +611,8 @@ if ($NuGetPackageVersion -and $NuGetPackageVersion.Count -gt 0) {
             Name = $pkgName
             Version = $pkgVersion
             DumpArgs = @("$pkgName@$pkgVersion")
+            SourceRepository = $packageMetadata.SourceRepository
+            SourceCommit = $packageMetadata.SourceCommit
         }
     }
 }
@@ -623,8 +653,9 @@ Write-Host ""
 Write-Host "Building AtsJsonGenerator..." -ForegroundColor Cyan
 & dotnet build $ToolProject --nologo -v q 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to build AtsJsonGenerator"
-    return
+    Write-Host "Failed to build AtsJsonGenerator" -ForegroundColor Red
+    Remove-Item -Path $OutputDir -Recurse -Force -ErrorAction SilentlyContinue
+    exit 1
 }
 
 # ── Generate ATS dumps ─────────────────────────────────────────────────────────
@@ -636,6 +667,10 @@ $integrationPackages = @($Packages | Where-Object { $_.Name -ne "Aspire.Hosting"
 $success = 0
 $failed = 0
 $skipped = 0
+$failedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
+    [StringComparer]::OrdinalIgnoreCase)
+$skippedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
+    [StringComparer]::OrdinalIgnoreCase)
 $coreOutputFile = $null
 
 # Process core first
@@ -664,12 +699,14 @@ foreach ($pkg in $corePackages) {
             Write-Warning "  aspire sdk dump failed (exit $($proc.ExitCode))"
             if ($stderr) { Write-Warning "  $stderr" }
             $failed++
+            [void]$failedPackageNames.Add($name)
             continue
         }
 
         if (-not (Test-Path $dumpFile)) {
             Write-Warning "  Dump file not created"
             $failed++
+            [void]$failedPackageNames.Add($name)
             continue
         }
 
@@ -680,6 +717,7 @@ foreach ($pkg in $corePackages) {
     catch {
         Write-Warning "  Error running aspire sdk dump: $_"
         $failed++
+        [void]$failedPackageNames.Add($name)
         continue
     }
 
@@ -692,9 +730,12 @@ foreach ($pkg in $corePackages) {
             "--output", $outputFile,
             "--package-name", $name
         )
-        $sourceRepository = Get-PackageSourceRepository -PackageName $name
+        $sourceRepository = $pkg.SourceRepository
         if ($sourceRepository) {
             $transformArgs += @("--source-repo", $sourceRepository)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($pkg.SourceCommit)) {
+            $transformArgs += @("--source-commit", $pkg.SourceCommit)
         }
 
         & dotnet @transformArgs 2>&1 | ForEach-Object {
@@ -714,11 +755,13 @@ foreach ($pkg in $corePackages) {
         } else {
             Write-Warning "  Transform failed"
             $failed++
+            [void]$failedPackageNames.Add($name)
         }
     }
     catch {
         Write-Warning "  Error transforming: $_"
         $failed++
+        [void]$failedPackageNames.Add($name)
     }
 }
 
@@ -754,12 +797,14 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
             Write-Warning "  aspire sdk dump failed (exit $($proc.ExitCode))"
             if ($stderr) { Write-Warning "  $stderr" }
             $failed++
+            [void]$failedPackageNames.Add($name)
             continue
         }
 
         if (-not (Test-Path $dumpFile)) {
             Write-Warning "  Dump file not created"
             $failed++
+            [void]$failedPackageNames.Add($name)
             continue
         }
 
@@ -770,6 +815,7 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
     catch {
         Write-Warning "  Error running aspire sdk dump: $_"
         $failed++
+        [void]$failedPackageNames.Add($name)
         continue
     }
 
@@ -782,9 +828,12 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
             "--output", $outputFile,
             "--package-name", $name
         )
-        $sourceRepository = Get-PackageSourceRepository -PackageName $name
+        $sourceRepository = $pkg.SourceRepository
         if ($sourceRepository) {
             $transformArgs += @("--source-repo", $sourceRepository)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($pkg.SourceCommit)) {
+            $transformArgs += @("--source-commit", $pkg.SourceCommit)
         }
 
         # Dedup against core if available
@@ -806,25 +855,34 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
             }
             if (Remove-EmptyTsModuleFile -PackageName $name -OutputFile $outputFile) {
                 $skipped++
+                [void]$skippedPackageNames.Add($name)
             } else {
                 $success++
             }
         } else {
             Write-Warning "  Transform failed"
             $failed++
+            [void]$failedPackageNames.Add($name)
         }
     }
     catch {
         Write-Warning "  Error transforming: $_"
         $failed++
+        [void]$failedPackageNames.Add($name)
     }
 }
 
-# ── Cleanup ────────────────────────────────────────────────────────────────────
+# ── Reconcile and cleanup ───────────────────────────────────────────────────────
 
 Write-Host ""
 Write-Host "════════════════════════════════════════════════════" -ForegroundColor White
 Write-Host "Complete: $success succeeded, $failed failed, $skipped skipped" -ForegroundColor $(if ($failed -gt 0) { "Yellow" } else { "Green" })
+if ($failedPackageNames.Count -gt 0) {
+    Write-Host "Failed packages: $(($failedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Red
+}
+if ($skippedPackageNames.Count -gt 0) {
+    Write-Host "Skipped packages: $(($skippedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Yellow
+}
 
 # Clean up temp files
 if (Test-Path $TempDir) {
@@ -834,3 +892,47 @@ if (Test-Path $TempDir) {
 if ($aspireCliWorkingDirectory -and (Test-Path $aspireCliWorkingDirectory)) {
     Remove-Item $aspireCliWorkingDirectory -Recurse -Force -ErrorAction SilentlyContinue
 }
+
+if ($failed -gt 0) {
+    Remove-Item -Path $OutputDir -Recurse -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+
+New-Item -ItemType Directory -Path $FinalOutputDir -Force | Out-Null
+$stagedFiles = @(Get-ChildItem -Path $OutputDir -Filter "*.json" -File)
+$stagedNames = [System.Collections.Generic.HashSet[string]]::new(
+    [StringComparer]::OrdinalIgnoreCase)
+foreach ($file in $stagedFiles) {
+    [void]$stagedNames.Add($file.Name)
+}
+
+$isFullReconciliation = -not $AspireRepoPath -and -not $PackageFilter -and -not $hasExplicitNuGetPackageVersion
+if ($isFullReconciliation) {
+    foreach ($existingFile in Get-ChildItem -Path $FinalOutputDir -Filter "*.json" -File) {
+        if (-not $stagedNames.Contains($existingFile.Name)) {
+            Remove-Item -Path $existingFile.FullName -Force
+            Write-Host "Removed stale module: $($existingFile.Name)" -ForegroundColor DarkYellow
+        }
+    }
+}
+else {
+    foreach ($pkg in $Packages) {
+        $packageFilePattern = "^{0}(?:\.\d.*)?\.json$" -f [regex]::Escape($pkg.Name)
+        $stagedForPackage = @($stagedFiles | Where-Object {
+            $_.Name -match $packageFilePattern
+        })
+        foreach ($existingFile in Get-ChildItem -Path $FinalOutputDir -Filter "*.json" -File | Where-Object {
+            $_.Name -match $packageFilePattern
+        }) {
+            if ($existingFile.Name -notin $stagedForPackage.Name) {
+                Remove-Item -Path $existingFile.FullName -Force
+                Write-Host "Removed stale module: $($existingFile.Name)" -ForegroundColor DarkYellow
+            }
+        }
+    }
+}
+
+foreach ($file in $stagedFiles) {
+    Copy-Item -Path $file.FullName -Destination (Join-Path $FinalOutputDir $file.Name) -Force
+}
+Remove-Item -Path $OutputDir -Recurse -Force
