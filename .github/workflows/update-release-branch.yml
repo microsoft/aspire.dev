@@ -75,14 +75,139 @@ jobs:
 
       - name: Merge main into release branch
         if: ${{ steps.find-branch.outputs.branch != '' }}
+        env:
+          BRANCH: ${{ steps.find-branch.outputs.branch }}
         shell: bash
         run: |
+          set -euo pipefail
+
           git fetch origin main
-          if git merge origin/main --no-edit; then
-            echo "Merged main into ${{ steps.find-branch.outputs.branch }} successfully."
-            git push
-          else
-            echo "::error::Merge conflict detected between main and ${{ steps.find-branch.outputs.branch }}. Manual intervention required."
+          MAIN_SHA="$(git rev-parse origin/main)"
+
+          # The release branch is a curated snapshot of the shipped site. Merging
+          # main into it conflicts in three, and only three, well-understood ways:
+          #   1. Generated data          -> main is authoritative (mirror it).
+          #   2. Curated content/imagery -> the release branch is authoritative.
+          #   3. Anything else           -> a human must decide; abort cleanly.
+          #
+          # (1) is the exact output set of the update-integration-data workflow
+          # (its `allowed-files`); those paths are 100% machine-generated, so main
+          # always wins and mirroring also clears the version-stamped rename/rename
+          # orphans they routinely produce. (2) is site content plus documentation
+          # imagery, which the release branch pins to release-specific versions (the
+          # "Aspire 13.5 is available" banner, 13.5 dashboard screenshots, ...) and
+          # must never regress. (3) is a genuine divergence we refuse to guess at.
+
+          GEN_FILES="
+          src/frontend/src/data/aspire-integrations.json
+          src/frontend/src/data/github-stats.json
+          src/frontend/src/data/samples.json
+          src/frontend/src/data/twoslash/aspire.d.ts
+          "
+          GEN_DIRS="
+          src/frontend/src/data/pkgs
+          src/frontend/src/data/ts-modules
+          src/frontend/src/assets/samples
+          "
+
+          is_generated() {
+            case "$1" in
+              src/frontend/src/data/aspire-integrations.json|\
+              src/frontend/src/data/github-stats.json|\
+              src/frontend/src/data/samples.json|\
+              src/frontend/src/data/twoslash/aspire.d.ts|\
+              src/frontend/src/data/pkgs/*|\
+              src/frontend/src/data/ts-modules/*|\
+              src/frontend/src/assets/samples/*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          # assets/samples/** is generated and is matched by is_generated first;
+          # it is excluded here defensively in case the checks are reordered.
+          is_curated() {
+            case "$1" in
+              src/frontend/src/assets/samples/*) return 1 ;;
+              src/frontend/src/content/*) return 0 ;;
+              src/frontend/src/assets/*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          # Keep the release branch's version, honoring a release-side deletion.
+          keep_release() {
+            if git cat-file -e "HEAD:$1" 2>/dev/null; then
+              git checkout HEAD -- "$1"
+              git add -- "$1"
+            else
+              git rm -q --force --ignore-unmatch -- "$1" >/dev/null
+            fi
+          }
+
+          # A generated path needs syncing when it has a conflict stage or its
+          # merged content differs from main.
+          needs_mirror() {
+            [ -n "$(git ls-files -u -- "$1")" ] && return 0
+            git diff --quiet "$MAIN_SHA" -- "$1" 2>/dev/null || return 0
+            return 1
+          }
+
+          git merge --no-commit --no-ff origin/main || true
+
+          if ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+            echo "Already up to date with origin/main; nothing to merge."
+            exit 0
+          fi
+
+          # Triage conflicts: generated ones are handled by the mirror step below;
+          # keep-release for curated paths; flag anything else as unresolvable.
+          unresolved=0
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            if is_generated "$f"; then
+              continue
+            elif is_curated "$f"; then
+              keep_release "$f"
+            else
+              echo "::error::Unresolvable merge conflict in ${f} (not a generated or curated path)."
+              unresolved=1
+            fi
+          done < <(git diff --name-only --diff-filter=U)
+
+          if [ "$unresolved" -ne 0 ]; then
             git merge --abort
+            echo "::error::Automated merge of main into ${BRANCH} aborted; a human must resolve the conflicts above."
             exit 1
           fi
+
+          # Force every generated producer path to match main exactly. This clears
+          # remaining generated conflicts and drops stale version-stamped orphans,
+          # without ever touching hand-authored files under data/.
+          for p in $GEN_FILES $GEN_DIRS; do
+            if git cat-file -e "$MAIN_SHA:$p" 2>/dev/null; then
+              if needs_mirror "$p"; then
+                git rm -r -q --force --ignore-unmatch -- "$p" >/dev/null 2>&1 || true
+                git checkout "$MAIN_SHA" -- "$p"
+                git add -A -- "$p"
+              fi
+            else
+              git rm -r -q --force --ignore-unmatch -- "$p" >/dev/null 2>&1 || true
+            fi
+          done
+
+          if [ -n "$(git ls-files -u)" ]; then
+            git merge --abort
+            echo "::error::Unexpected unmerged entries remain after auto-resolution; aborting."
+            exit 1
+          fi
+
+          markers="$(git diff --cached --check || true)"
+          if printf '%s' "$markers" | grep -q 'conflict marker'; then
+            git merge --abort
+            echo "::error::Conflict markers detected after auto-resolution; aborting."
+            exit 1
+          fi
+
+          git commit --no-edit
+          echo "Merged origin/main into ${BRANCH} with automated conflict resolution."
+          git push
