@@ -167,6 +167,16 @@ When a resource has more than one replica, choose which one to attach to with `a
 Add a terminal to a resource only once. Calling `WithTerminal()` more than once on the same resource throws an exception.
 </Aside>
 
+## Terminal cleanup after a crash or forced stop
+
+Each terminal host listens on a per-replica Unix domain socket under `~/.aspire/trmnl/` on Linux and macOS. Aspire cleans these sockets up automatically when a resource stops normally, but it's also resilient to less graceful endings:
+
+- If the AppHost sends `SIGTERM` (for example, `docker stop` or a process manager shutting things down) or you interrupt it with `Ctrl+C`, the terminal host receives the signal, cancels its work, and unlinks its own socket before exiting.
+- If the AppHost process itself crashes or is killed without giving its children a chance to shut down, each terminal host detects that its parent process is gone and exits on its own shortly after.
+- On the next AppHost startup, a background sweep reclaims any sockets left behind by replicas whose owning process is confirmed gone—for example, after a machine reboot or an unclean shutdown. Sockets belonging to a process that might still be running (or that Aspire can't confirm has exited) are left alone.
+
+You don't need to do anything to benefit from this—it runs automatically in run mode. It doesn't apply to publish mode, since publish never materializes terminal hosts or their sockets.
+
 ## View terminals in the dashboard
 
 When a resource has `WithTerminal` applied, its **Console Logs** page in the [Aspire dashboard](/dashboard/overview/) gains a live terminal session alongside the usual console log stream. You can drive the running process directly in the browser without leaving the dashboard. For example, you can type commands, scroll the scrollback buffer, and switch between replicas. Each replica appears as its own entry (for example, `agent-r0`, `agent-r1`, `agent-r2`) with an independent session.
