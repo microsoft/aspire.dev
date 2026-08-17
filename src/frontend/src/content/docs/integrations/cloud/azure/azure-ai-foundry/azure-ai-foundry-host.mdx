@@ -464,6 +464,36 @@ In publish mode, Aspire creates an `AzureHostedAgentResource` and publishes the 
 
 For C# AppHosts, the parameterless `AsHostedAgent()` overload reuses an existing Foundry project from the app model or creates one automatically. TypeScript AppHosts pass the project resource explicitly.
 
+### Select a hosted agent protocol
+
+`AsHostedAgent` defaults to the Responses protocol version `2.0.0`. If your hosted agent implements a different protocol or protocol version, use the C# `AsHostedAgent(project, protocol, version)` overload or the polyglot/TypeScript `asHostedAgentWithProtocol` export. For example, some Microsoft Agent Framework (MAF) agents use the Invocations protocol:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp
+builder.AddPythonApp("agent-python", "../agent", "main:app")
+    .WithReference(project)
+    .WithReference(chat)
+    .AsHostedAgent(project, HostedAgentProtocol.Invocations, "1.0.0");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript
+await builder
+  .addPythonApp('agent-python', '../agent', 'main:app')
+  .withReference(project)
+  .withReference(chat)
+  .asHostedAgentWithProtocol(project, HostedAgentProtocol.Invocations, '1.0.0');
+```
+
+</TabItem>
+</Tabs>
+
+The defaulted `asHostedAgent` entry point and the explicit `asHostedAgentWithProtocol` entry point are both exported to polyglot AppHosts, so existing AppHosts that call `asHostedAgent(project, options?)` continue to work unchanged with the Responses `2.0.0` default. Reach for `asHostedAgentWithProtocol` only when you need a protocol or version other than the default.
+
 ### Add and publish a prompt agent
 
 For prompt-only scenarios, use `AddPromptAgent` on a Foundry project:
