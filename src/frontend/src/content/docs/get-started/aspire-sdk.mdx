@@ -146,3 +146,24 @@ Most apps don't need to set the CLI bundle path. If the Aspire CLI isn't on `PAT
 #### Running with aspire run or aspire start
 
 When you start an opted-in AppHost using `aspire run` or `aspire start`, the CLI automatically passes the resolved bundle paths through the `ASPIRE_DCP_PATH` and `ASPIRE_DASHBOARD_PATH` environment variables.
+
+#### Running with dotnet run
+
+When `AspireUseCliBundle` is `true` and you start the AppHost with `dotnet run` instead of `aspire run`, the SDK resolves and invokes the Aspire CLI itself. Set `AspireCliInvocationMode` to control how that invocation happens:
+
+- **`Path`** (default) — resolves a compatible `aspire` command from `AspireCliPath` (if set) or `PATH`. If no compatible command is found, it falls back to invoking the `Aspire.Cli` version paired with `Aspire.AppHost.Sdk` through [`dnx`](https://learn.microsoft.com/dotnet/core/tools/dotnet-tool-exec).
+- **`Dnx`** — always invokes the Aspire CLI through `dnx`, using the unversioned `Aspire.Cli` package. This honors an in-scope [.NET local tool manifest](https://learn.microsoft.com/dotnet/core/tools/local-tools-how-to-use#create-a-manifest-file) (`.config/dotnet-tools.json`) if one pins `Aspire.Cli`, or resolves the latest published package when no manifest applies.
+- **`DnxPinned`** — always invokes the Aspire CLI through `dnx`, using `Aspire.Cli@<version>` pinned to the exact `Aspire.Cli` version paired with `Aspire.AppHost.Sdk`. Use this when the CLI must match the AppHost SDK version exactly, ignoring any local tool manifest.
+
+Set `AspireCliInvocationMode` in your AppHost `.csproj`:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+  <AspireCliInvocationMode>Dnx</AspireCliInvocationMode>
+</PropertyGroup>
+```
+
+:::note
+`dotnet run` is noninteractive, so `dnx` restores and executes without prompting for confirmation. If `dnx` can't be found on `PATH` when `Dnx` or `DnxPinned` mode is configured, the build emits error `ASPIRE011`. Install or use the .NET SDK 10.0 or later, set `AspireCliInvocationMode` to `Path` to use the global `aspire` command, or set `AspireCliPath` to an explicit Aspire CLI executable.
+:::
