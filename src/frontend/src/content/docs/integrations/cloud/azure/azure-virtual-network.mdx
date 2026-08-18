@@ -82,7 +82,7 @@ This updates your `aspire.config.json` with the Azure Network hosting integratio
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.Azure.Network": "13.3.0"
+    "Aspire.Hosting.Azure.Network": "13.5.0"
   }
 }
 ```
@@ -344,35 +344,33 @@ Compute environment integrations that support regional virtual network integrati
 <TabItem id="csharp" label="C#">
 ```csharp title="AppHost.cs"
 var vnet = builder.AddAzureVirtualNetwork("vnet");
-var subnet = vnet.AddSubnet("compute-subnet", "10.0.0.0/24");
+var acaSubnet = vnet.AddSubnet("aca-subnet", "10.0.0.0/24");
+var appServiceSubnet = vnet.AddSubnet("app-service-subnet", "10.0.1.0/24");
 
 // Azure Container Apps environment
 builder.AddAzureContainerAppEnvironment("aca-env")
-    .WithDelegatedSubnet(subnet);
-
-// -- or --
+    .WithDelegatedSubnet(acaSubnet);
 
 // Azure App Service environment (requires ASPIREAZURE003 suppression)
 #pragma warning disable ASPIREAZURE003
 builder.AddAzureAppServiceEnvironment("app-service-env")
-    .WithDelegatedSubnet(subnet);
+    .WithDelegatedSubnet(appServiceSubnet);
 #pragma warning restore ASPIREAZURE003
 ````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="apphost.mts"
 const vnet = await builder.addAzureVirtualNetwork("vnet");
-const subnet = await vnet.addSubnet("compute-subnet", "10.0.0.0/24");
+const acaSubnet = await vnet.addSubnet("aca-subnet", "10.0.0.0/24");
+const appServiceSubnet = await vnet.addSubnet("app-service-subnet", "10.0.1.0/24");
 
 // Azure Container Apps environment
 await builder.addAzureContainerAppEnvironment("aca-env")
-    .withDelegatedSubnet(subnet);
-
-// -- or --
+    .withDelegatedSubnet(acaSubnet);
 
 // Azure App Service environment
 await builder.addAzureAppServiceEnvironment("app-service-env")
-    .withDelegatedSubnet(subnet);
+    .withDelegatedSubnet(appServiceSubnet);
 ````
 
 </TabItem>
@@ -424,7 +422,7 @@ await subnet.withServiceDelegation(
 | `AppServiceEnvironments`          | `Microsoft.Web/serverFarms`                             |
 | `ApplicationGatewayForContainers` | `Microsoft.ServiceNetworking/trafficControllers`       |
 
-You can also pass another supported Azure resource provider path as `serviceName` if the service doesn't have a well-known constant. Aspire models and emits one service delegation for a subnet. Repeated `WithServiceDelegation` calls, or combining `WithServiceDelegation` with `WithDelegatedSubnet`, replace the previously modeled delegation with the latest value (last-write-wins).
+You can also pass another supported Azure resource provider path as `serviceName` if the service doesn't have a well-known constant. For a given subnet, use either a compute environment's `WithDelegatedSubnet` helper or `WithServiceDelegation` directly. Repeated `WithServiceDelegation` calls collapse prior service-delegation annotations so only the latest value remains (last-write-wins). `WithDelegatedSubnet` throws if the subnet's effective delegation is for a different Azure service instead of overwriting the conflicting delegation.
 
 ### Add private endpoints
 
