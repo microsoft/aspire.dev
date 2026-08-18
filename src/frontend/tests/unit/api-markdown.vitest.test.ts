@@ -7,17 +7,39 @@
 */
 import { describe, expect, it, vi } from 'vitest';
 
-import { renderCSharpDocMarkdown } from '@utils/csharp-api-markdown';
-import { memberKindSlugs } from '@utils/packages';
+import {
+  renderCSharpDocMarkdown,
+  renderCSharpMemberKindMarkdown,
+  renderCSharpTypeMarkdown,
+} from '@utils/csharp-api-markdown';
+import { memberKindSlugs, resolveMemberAnchors } from '@utils/packages';
 import { tsSlugify } from '@utils/ts-modules';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import type { TsApiDocument, TsHandleType } from '@utils/ts-modules';
 
 vi.mock('astro:content', async (importOriginal) => {
   const actual = await importOriginal<typeof import('astro:content')>();
+  const csharpPackageModules = import.meta.glob<{ default: any }>('../../src/data/pkgs/Aspire.Hosting.*.json');
+  const typeScriptModuleModules = import.meta.glob<{ default: any }>('../../src/data/ts-modules/Aspire.Hosting.*.json');
+  const rootHostingPackagePattern = /\/(Aspire\.Hosting\.\d[^/]*\.json)$/;
+  const getRootHostingIds = (modules: Record<string, () => Promise<{ default: any }>>) =>
+    Object.keys(modules)
+      .map((path) => path.match(rootHostingPackagePattern)?.[1])
+      .filter((id): id is string => Boolean(id));
+  const csharpPackageIds = getRootHostingIds(csharpPackageModules);
+  const typeScriptModuleIds = new Set(getRootHostingIds(typeScriptModuleModules));
+  const commonPackageIds = csharpPackageIds
+    .filter((id) => typeScriptModuleIds.has(id))
+    .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+  const fixtureId = commonPackageIds[commonPackageIds.length - 1];
+
+  if (!fixtureId) {
+    throw new Error('Expected matching Aspire.Hosting package and TypeScript module fixtures.');
+  }
+
   const [{ default: csharpPackageFixture }, { default: typeScriptModuleFixture }] = await Promise.all([
-    import('../../src/data/pkgs/Aspire.Hosting.13.3.0.json'),
-    import('../../src/data/ts-modules/Aspire.Hosting.13.3.0.json'),
+    csharpPackageModules[`../../src/data/pkgs/${fixtureId}`](),
+    typeScriptModuleModules[`../../src/data/ts-modules/${fixtureId}`](),
   ]);
 
   return {
@@ -26,14 +48,14 @@ vi.mock('astro:content', async (importOriginal) => {
     // content layer comes up empty in CI.
     getCollection: async (collectionName: string) => {
       if (collectionName === 'packages') {
-        return [{ id: 'Aspire.Hosting.13.3.0.json', data: csharpPackageFixture }];
+        return [{ id: fixtureId, data: csharpPackageFixture }];
       }
 
       if (collectionName === 'tsModules') {
-        return [{ id: 'Aspire.Hosting.13.3.0.json', data: typeScriptModuleFixture }];
+        return [{ id: fixtureId, data: typeScriptModuleFixture }];
       }
 
-      return actual.getCollection(collectionName as never);
+      return await actual.getCollection(collectionName);
     },
   };
 });
@@ -275,6 +297,52 @@ describe('API markdown helpers', () => {
     const markdown = renderTypeScriptItemMarkdown(pkg, item, 'handle', '');
 
     expect(markdown).toContain('[GitHub](https://github.com/microsoft/aspire/tree/abc123)');
+  });
+
+  it('uses resolved exact anchors for colliding C# member links and crefs', () => {
+    const members = [
+      {
+        name: 'Run',
+        kind: 'method',
+        signature: 'public void Widget.Run(int value)',
+        parameters: [{ name: 'value', type: 'System.Int32' }],
+        returnType: 'void',
+      },
+      {
+        name: 'Run',
+        kind: 'method',
+        signature: 'public void Widget.Run(params int[] values)',
+        parameters: [{ name: 'values', type: 'System.Int32[]', modifier: 'params' }],
+        returnType: 'void',
+      },
+    ];
+    const type = {
+      name: 'Widget',
+      fullName: 'Sample.Widget',
+      namespace: 'Sample',
+      kind: 'class',
+      members,
+    };
+    const pkg = {
+      package: { name: 'Sample.Package', version: '1.0.0' },
+      types: [type],
+    };
+    const anchors = resolveMemberAnchors(members);
+
+    const typeMarkdown = renderCSharpTypeMarkdown(pkg, type, [type], '');
+    expect(typeMarkdown).toContain(`methods.md#${anchors[0].exact}`);
+    expect(typeMarkdown).toContain(`methods.md#${anchors[1].exact}`);
+
+    const memberMarkdown = renderCSharpMemberKindMarkdown(pkg, type, 'method', [type], '');
+    expect(memberMarkdown).toContain(`<a id="${anchors[0].exact}"></a>`);
+    expect(memberMarkdown).toContain(`<a id="${anchors[1].exact}"></a>`);
+    expect(memberMarkdown).toContain(`<a id="${anchors[0].aliases[0]}"></a>`);
+
+    const crefMarkdown = renderCSharpDocMarkdown(
+      [{ kind: 'cref', value: 'M:Sample.Widget.Run(System.Int32)' }],
+      { allTypes: [type], base: '', packageName: pkg.package.name }
+    );
+    expect(crefMarkdown).toContain(`methods.md#${anchors[0].exact}`);
   });
 });
 

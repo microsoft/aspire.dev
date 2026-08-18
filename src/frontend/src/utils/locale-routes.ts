@@ -2,7 +2,6 @@ import { locales } from '../../config/locales';
 
 export const DEFAULT_LOCALE = 'en';
 export const PREFERRED_LOCALE_STORAGE_KEY = 'aspire-preferred-locale';
-export const VISITED_STORAGE_KEY = 'aspire-visited';
 export const LOCALE_PATH_SEGMENT_PATTERN_SOURCE = '[a-z]{2}(?:-[a-z]{2,4})?';
 export const LOCALE_PATH_PREFIX_PATTERN_SOURCE = `^/(${LOCALE_PATH_SEGMENT_PATTERN_SOURCE})(?=/|$)`;
 

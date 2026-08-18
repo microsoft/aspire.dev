@@ -3,7 +3,7 @@ title: 正常性チェック
 description: Aspire の正常性チェックを確認する
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import healthChecksDashboardStatus from '@assets/fundamentals/health-checks-dashboard-status.png';
 
@@ -13,14 +13,15 @@ import healthChecksDashboardStatus from '@assets/fundamentals/health-checks-dash
 
 Aspire は、2 つの異なるコンテキストで正常性チェックを利用します。この違いを理解することが重要です:
 
-| 正常性チェックの種類 | 実行場所 | チェック内容 | 用途 |
-|----------------------|----------|--------------|------|
-| **AppHost リソース チェック** | AppHost プロジェクト | 「依存関係の準備はできているか?」 | 起動オーケストレーション、`WaitFor()` |
-| **サービス エンドポイント チェック** | アプリケーション | 「自分は正常か?」 | ロード バランサー、Kubernetes プローブ |
+| 正常性チェックの種類           | 実行場所             | チェック内容                   | 用途                                 |
+| ------------------------------ | -------------------- | ------------------------------ | ------------------------------------ |
+| **AppHost リソース チェック**  | AppHost プロジェクト | 「依存関係の準備はできているか?」 | 起動オーケストレーション、`WaitFor()` |
+| **サービス エンドポイント チェック** | アプリケーション     | 「自分は正常か?」               | ロード バランサー、Kubernetes プローブ |
 
 <Aside type="tip" title="重要なポイント">
-AppHost の正常性チェックが答える問い: 「このリソースに依存するサービスを起動すべきか?」  
-サービス エンドポイントの正常性チェックが答える問い: 「このインスタンスにトラフィックを送るべきか?」
+  AppHost の正常性チェックが答える問い: 「このリソースに依存するサービスを
+  起動すべきか?」 サービス エンドポイントの正常性チェックが答える問い: 「このインスタンスにトラフィックを
+  送るべきか?」
 </Aside>
 
 ## Readiness と Liveness
@@ -51,13 +52,16 @@ Aspire では、_Program.cs_ ファイルから `AddServiceDefaults` と `MapDef
 
   `/alive` エンドポイントは、アプリが _alive_ のときに HTTP ステータス コード 200 と `text/plain` 値 `Healthy` を返します。
 
-`AddServiceDefaults` と `MapDefaultEndpoints` は、正常性チェック以外にも、OpenTelemetry や [サービス ディスカバリー](/ja/fundamentals/service-discovery/) の構成など、アプリにさまざまな設定を適用します。
+`AddServiceDefaults` と `MapDefaultEndpoints` は、正常性チェック以外にも、OpenTelemetry や [サービス検出](/ja/fundamentals/service-discovery/) の構成など、アプリにさまざまな設定を適用します。
 
 ### 非 Development 環境
 
 非 Development 環境では、`/health` と `/alive` エンドポイントは既定で無効です。これらを有効にする必要がある場合は、ホスト フィルタリングや認可などのルーティング機能で保護することを推奨します。詳細は [ASP.NET Core の正常性チェック](https://learn.microsoft.com/ja-jp/aspnet/core/host-and-deploy/health-checks#use-health-checks-routing) を参照してください。
 
 さらに、悪用やサービス拒否攻撃を防ぐため、これらのエンドポイントに要求タイムアウトと出力キャッシュを構成すると有効な場合があります。次のように変更した `AddDefaultHealthChecks` メソッドを検討してください:
+
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
 
 ```csharp title="Extensions.cs"
 public static IHostApplicationBuilder AddDefaultHealthChecks(
@@ -80,12 +84,81 @@ public static IHostApplicationBuilder AddDefaultHealthChecks(
 }
 ```
 
+</TabItem>
+<TabItem label="Go">
+
+```go title="health.go"
+package main
+
+import (
+    "net/http"
+)
+
+// healthHandler は、アプリが正常なときに HTTP 200 を返します。
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/plain")
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Healthy"))
+}
+
+// aliveHandler は、アプリが実行中のときに HTTP 200 を返します。
+func aliveHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/plain")
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Healthy"))
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="health.py"
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/health")
+async def health():
+    """Readiness check — returns 200 when the app is ready for traffic."""
+    return {"status": "Healthy"}
+
+@app.get("/alive")
+async def alive():
+    """Liveness check — returns 200 when the app is running."""
+    return {"status": "Healthy"}
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="health.ts"
+import express from 'express';
+
+const app = express();
+
+// Readiness チェック - アプリがトラフィックを受け付ける準備ができたら 200 を返します
+app.get('/health', (req, res) => {
+  res.type('text/plain').send('Healthy');
+});
+
+// Liveness チェック - アプリが実行中なら 200 を返します
+app.get('/alive', (req, res) => {
+  res.type('text/plain').send('Healthy');
+});
+```
+
+</TabItem>
+</Tabs>
+
 前述のコードでは、次を行います:
 
 - `HealthChecks` という名前のポリシーで、正常性チェック要求に 5 秒のタイムアウトを追加します。
 - `HealthChecks` という名前のポリシーで、正常性チェック応答に 10 秒のキャッシュを追加します。
 
 次に、更新した `MapDefaultEndpoints` メソッドを見てみましょう:
+
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
 
 ```csharp title="Extensions.cs"
 public static WebApplication MapDefaultEndpoints(
@@ -112,6 +185,59 @@ public static WebApplication MapDefaultEndpoints(
 }
 ```
 
+</TabItem>
+<TabItem label="Go">
+
+```go title="health.go"
+package main
+
+import (
+    "net/http"
+    "time"
+)
+
+func main() {
+    mux := http.NewServeMux()
+    mux.HandleFunc("/health", healthHandler)
+    mux.HandleFunc("/alive", aliveHandler)
+
+    server := &http.Server{
+        Addr:         ":8080",
+        Handler:      mux,
+        ReadTimeout:  5 * time.Second,
+        WriteTimeout: 5 * time.Second,
+    }
+
+    server.ListenAndServe()
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="main.py"
+import uvicorn
+
+# 上で定義した /health と /alive エンドポイントは
+# FastAPI アプリ実行時に自動的に公開されます
+if __name__ == "__main__":
+    uvicorn.run("health:app", host="0.0.0.0", port=8080)
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="server.ts"
+// 上で定義した /health と /alive エンドポイントは
+// Express アプリ起動時に自動的に公開されます
+app.listen(8080, () => {
+  console.log('Server running on port 8080');
+});
+```
+
+</TabItem>
+</Tabs>
+
 前述のコードでは、次を行います:
 
 - 正常性チェック エンドポイントを `/` パス配下でグループ化します。
@@ -120,6 +246,9 @@ public static WebApplication MapDefaultEndpoints(
 更新した `AddDefaultHealthChecks` と `MapDefaultEndpoints` に加えて、要求タイムアウトと出力キャッシュに対応するサービスも追加する必要があります。
 
 利用側アプリのエントリ ポイント (通常は _Program.cs_ ファイル) に、次のコードを追加します:
+
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
 
 ```csharp
 // サービスを登録している場所。
@@ -136,6 +265,51 @@ app.UseOutputCache();
 app.Run();
 ```
 
+</TabItem>
+<TabItem label="Go">
+
+```go title="main.go"
+import (
+ 	"context"
+ 	"net/http"
+ 	"time"
+ )
+
+// Go では、要求タイムアウト制御に context のタイムアウトを使います
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+ 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+ 	defer cancel()
+ 	// 正常性チェック ロジックで ctx を使います
+ 	_ = ctx
+ }
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="main.py"
+from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
+import asyncio
+
+# FastAPI はミドルウェアまたは
+# サーバー レベル構成 (例: uvicorn --timeout-keep-alive) で要求タイムアウトをサポートします
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="server.ts"
+// Express では、要求タイムアウトにミドルウェアを使います
+import timeout from 'connect-timeout';
+
+app.use('/health', timeout('5s'));
+app.use('/alive', timeout('5s'));
+```
+
+</TabItem>
+</Tabs>
+
 詳細は [ASP.NET Core の要求タイムアウト ミドルウェア](https://learn.microsoft.com/ja-jp/aspnet/core/performance/timeouts) と [ASP.NET Core の出力キャッシュ ミドルウェア](https://learn.microsoft.com/ja-jp/aspnet/core/performance/caching/output) を参照してください。
 
 ## 統合正常性チェック
@@ -151,7 +325,7 @@ Aspire の統合機能は、アプリに追加の正常性チェックを登録�
 
 利用中の統合機能に対する正常性チェックは、利用可能な構成オプションのいずれかで無効化できます。Aspire の統合機能は、_appsettings.json_ などの構成ファイル経由で設定を適用するために [Microsoft.Extensions.Configuration](https://learn.microsoft.com/ja-jp/dotnet/api/microsoft.extensions.configuration) をサポートしています:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Npgsql": {
@@ -163,11 +337,84 @@ Aspire の統合機能は、アプリに追加の正常性チェックを登録�
 
 インライン デリゲートを使って正常性チェックを構成することもできます:
 
-```csharp title="C# — Program.cs"
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
+
+```csharp title="Program.cs"
 builder.AddNpgsqlDbContext<MyDbContext>(
     "postgresdb",
     static settings => settings.DisableHealthChecks  = true);
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="main.go"
+package main
+
+import (
+    "net/http"
+    "os"
+    "context"
+    "github.com/jackc/pgx/v4"
+)
+
+connStr := os.Getenv("ConnectionStrings__postgresdb")
+conn, err := pgx.Connect(context.Background(), connStr)
+
+// Health エンドポイントはデータベースを確認せずに healthy を返します
+// Go では正常性チェックが明示的なため、無効化するには
+// データベース ping を省略します
+http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Healthy"))
+})
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="app.py"
+import os
+import psycopg2
+
+if __name__ == "__main__":
+    uvicorn.run("health:app", host="0.0.0.0", port=8080)
+
+conn_str = os.environ.get("ConnectionStrings__postgresdb")
+conn = psycopg2.connect(conn_str)
+
+# Health エンドポイントはデータベースを確認せずに healthy を返します
+# Python では正常性チェックが明示的なため、無効化するには
+# データベース ping を省略します
+@app.get("/health")
+async def health():
+    return {"status": "Healthy"}
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="app.ts"
+import pg from 'pg';
+import express from 'express';
+
+const app = express();
+
+const pool = new pg.Pool({
+    connectionString: process.env.ConnectionStrings__postgresdb,
+});
+
+// Health エンドポイントはデータベースを確認せずに healthy を返します
+// TypeScript では正常性チェックが明示的なため、無効化するには
+// データベース ping を省略します
+app.get('/health', (req, res) => {
+    res.type('text/plain').send('Healthy');
+});
+```
+
+</TabItem>
+</Tabs>
 
 ## AppHost リソース正常性チェック
 
@@ -181,7 +428,10 @@ AppHost リソース正常性チェックは、前述の正常性チェック �
 
 HTTP エンドポイントを公開するリソースには、特定パスをポーリングする正常性チェックを追加できます:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var catalogApi = builder.AddContainer("catalog-api", "catalog-api")
@@ -193,9 +443,36 @@ builder.AddProject<Projects.WebApp>("webapp")
        .WaitFor(catalogApi); // /health が HTTP 200 を返すまで待機
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalogApi = await builder
+  .addContainer('catalog-api', { image: 'catalog-api', tag: 'latest' })
+  .withHttpEndpoint({ targetPort: 8080 })
+  .withHttpHealthCheck('/health');
+
+await builder
+  .addProject('webapp', './WebApp/WebApp.csproj')
+  .withReference(catalogApi)
+  .waitFor(catalogApi);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 `WithHttpHealthCheck` メソッドは、プロジェクト リソースにも適用できます:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var backend = builder.AddProject<Projects.Backend>("backend")
                      .WithHttpHealthCheck("/health");
 
@@ -204,11 +481,37 @@ builder.AddProject<Projects.Frontend>("frontend")
        .WaitFor(backend);
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const backend = await builder
+  .addProject('backend', './Backend/Backend.csproj')
+  .withHttpHealthCheck('/health');
+
+await builder
+  .addProject('frontend', './Frontend/Frontend.csproj')
+  .withReference(backend)
+  .waitFor(backend);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 ### カスタム リソース正常性チェック
 
 より複雑な準備完了シナリオでは、カスタム正常性チェックを作成できます。まず AppHost のサービス コレクションで正常性チェックを定義し、その後リソースに関連付けます:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var startAfter = DateTime.Now.AddSeconds(30);
@@ -228,6 +531,33 @@ builder.AddProject<Projects.MyApp>("myapp")
     .WaitFor(pg); // Postgres コンテナーが実行中になるのを待ち
                   // かつカスタム "mycheck" が healthy になるのを待機
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+:::note
+`builder.services.addHealthChecks()` によるカスタム正常性チェックの登録は、TypeScript AppHost SDK ではまだ利用できません。代わりに HTTP ベースの正常性チェックには `withHttpHealthCheck` を使用してください。
+:::
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const pg = await builder
+  .addPostgres('pg')
+  .withHttpHealthCheck('/health');
+
+await builder
+  .addProject('myapp', './MyApp/MyApp.csproj')
+  .withReference(pg)
+  .waitFor(pg);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 `AddCheck` メソッドは正常性チェックを登録し、`WithHealthCheck` はそれを特定リソースに関連付けます。カスタム正常性チェックの作成と登録の詳細は、[正常性チェックの作成](https://learn.microsoft.com/ja-jp/aspnet/core/host-and-deploy/health-checks#create-health-checks) を参照してください。
 

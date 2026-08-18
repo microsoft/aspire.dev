@@ -1,6 +1,7 @@
 import type { StarlightSidebarTopicsUserConfig } from 'starlight-sidebar-topics';
 
 export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
+  id: 'reference',
   label: {
     en: 'Reference',
     es: 'Referencia',
@@ -18,50 +19,72 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
     tr: 'Referans',
     uk: 'Довідник',
   },
-  link: '/reference/overview',
+  link: '/reference/overview/',
   icon: 'seti:json',
   items: [
     {
-      label: 'Overview',
+      label: 'Aspire Reference',
       translations: {
-        da: 'Oversigt',
-        de: 'Übersicht',
-        en: 'Overview',
-        es: 'Descripción general',
-        fr: "Vue d'ensemble",
-        hi: 'अवलोकन',
-        id: 'Ikhtisar',
-        it: 'Panoramica',
-        ja: '概要',
-        ko: '개요',
-        'pt-BR': 'Visão geral',
-        ru: 'Обзор',
-        tr: 'Genel Bakış',
-        uk: 'Огляд',
-        'zh-CN': '概述',
+        da: 'Aspire-reference',
+        de: 'Aspire-Referenz',
+        en: 'Aspire Reference',
+        es: 'Referencia de Aspire',
+        fr: 'Référence Aspire',
+        hi: 'Aspire संदर्भ',
+        id: 'Referensi Aspire',
+        it: 'Riferimento di Aspire',
+        ja: 'Aspireリファレンス',
+        ko: 'Aspire 참고 자료',
+        'pt-BR': 'Referência do Aspire',
+        ru: 'Справочник Aspire',
+        tr: 'Aspire Referansı',
+        uk: 'Довідник Aspire',
+        'zh-CN': 'Aspire 参考',
       },
-      slug: 'reference/overview',
-    },
-    {
-      label: 'Samples',
-      translations: {
-        da: 'Eksempler',
-        de: 'Beispiele',
-        en: 'Samples',
-        es: 'Muestras',
-        fr: 'Exemples',
-        hi: 'नमूने',
-        id: 'Sampel',
-        it: 'Esempi',
-        ja: 'サンプル',
-        ko: '샘플',
-        'pt-BR': 'Exemplos',
-        ru: 'Примеры',
-        tr: 'Örnekler',
-        uk: 'Зразки',
-        'zh-CN': '示例',
-      },
-      slug: 'reference/samples',
+      items: [
+        {
+          label: 'Overview',
+          translations: {
+            da: 'Oversigt',
+            de: 'Übersicht',
+            en: 'Overview',
+            es: 'Descripción general',
+            fr: "Vue d'ensemble",
+            hi: 'अवलोकन',
+            id: 'Ikhtisar',
+            it: 'Panoramica',
+            ja: '概要',
+            ko: '개요',
+            'pt-BR': 'Visão geral',
+            ru: 'Обзор',
+            tr: 'Genel Bakış',
+            uk: 'Огляд',
+            'zh-CN': '概述',
+          },
+          slug: 'reference/overview',
+        },
+        {
+          label: 'Reference samples',
+          translations: {
+            da: 'Reference-eksempler',
+            de: 'Referenzbeispiele',
+            en: 'Reference samples',
+            es: 'Muestras de referencia',
+            fr: 'Exemples de référence',
+            hi: 'संदर्भ नमूने',
+            id: 'Sampel referensi',
+            it: 'Esempi di riferimento',
+            ja: 'リファレンスサンプル',
+            ko: '참조 샘플',
+            'pt-BR': 'Exemplos de referência',
+            ru: 'Образцы из справочника',
+            tr: 'Referans örnekleri',
+            uk: 'Зразки з довідника',
+            'zh-CN': '参考示例',
+          },
+          slug: 'reference/samples',
+        },
+      ],
     },
     {
       label: 'API reference',
@@ -190,6 +213,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             'zh-CN': '安装脚本',
           },
           slug: 'reference/cli/install-script',
+        },
+        {
+          label: 'Search and filter',
+          slug: 'reference/cli/search-filter',
         },
         {
           label: 'Configuration',
@@ -412,6 +439,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-export',
             },
             { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
+            { label: 'aspire ls', slug: 'reference/cli/commands/aspire-ls' },
             {
               label: 'aspire logs',
               slug: 'reference/cli/commands/aspire-logs',
@@ -467,6 +495,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-resource',
             },
             {
+              label: 'aspire resources',
+              slug: 'reference/cli/commands/aspire-resources',
+            },
+            {
               label: 'aspire restore',
               slug: 'reference/cli/commands/aspire-restore',
             },
@@ -506,6 +538,24 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-start',
             },
             { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
+            {
+              label: 'aspire terminal',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire terminal',
+                  slug: 'reference/cli/commands/aspire-terminal',
+                },
+                {
+                  label: 'aspire terminal attach',
+                  slug: 'reference/cli/commands/aspire-terminal-attach',
+                },
+                {
+                  label: 'aspire terminal ps',
+                  slug: 'reference/cli/commands/aspire-terminal-ps',
+                },
+              ],
+            },
             {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',
@@ -548,10 +598,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE002', link: '/diagnostics/aspire002' },
             { label: 'ASPIRE003', link: '/diagnostics/aspire003' },
             { label: 'ASPIRE004', link: '/diagnostics/aspire004' },
-            {
-              label: 'ASPIREATS001',
-              link: '/diagnostics/aspireats001',
-            },
+            { label: 'ASPIRE010', link: '/diagnostics/aspire010' },
             {
               label: 'ASPIREEXPORT005',
               link: '/diagnostics/aspireexport005',
@@ -579,6 +626,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREEXPORT013',
               link: '/diagnostics/aspireexport013',
+            },
+            {
+              label: 'ASPIREEXPORT016',
+              link: '/diagnostics/aspireexport016',
             },
             {
               label: 'ASPIRECERTIFICATES001',
@@ -645,8 +696,20 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspirepostgres001',
             },
             {
+              label: 'ASPIREPROCESSCOMMAND001',
+              link: '/diagnostics/aspireprocesscommand001',
+            },
+            {
+              label: 'ASPIREPROJECTS001',
+              link: '/diagnostics/aspireprojects001',
+            },
+            {
               label: 'ASPIREUSERSECRETS001',
               link: '/diagnostics/aspireusersecrets001',
+            },
+            {
+              label: 'ASPIREWATCH001',
+              link: '/diagnostics/aspirewatch001',
             },
           ],
         },
@@ -657,11 +720,17 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE006', link: '/diagnostics/aspire006' },
             { label: 'ASPIRE007', link: '/diagnostics/aspire007' },
             { label: 'ASPIRE008', link: '/diagnostics/aspire008' },
+            { label: 'ASPIRE009', link: '/diagnostics/aspire009' },
+            { label: 'ASPIRE011', link: '/diagnostics/aspire011' },
             {
               label: 'ASPIREACADOMAIN001',
               link: '/diagnostics/aspireacadomains001',
             },
             { label: 'ASPIRECOMPUTE001', link: '/diagnostics/aspirecompute001' },
+            {
+              label: 'ASPIREACANAMING002',
+              link: '/diagnostics/aspireacanaming002',
+            },
             {
               label: 'ASPIRECSHARPAPPS001',
               link: '/diagnostics/aspirecsharpapps001',
@@ -687,8 +756,16 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspireexport004',
             },
             {
+              label: 'ASPIREEXPORT015',
+              link: '/diagnostics/aspireexport015',
+            },
+            {
               label: 'ASPIREHOSTINGPYTHON001',
               link: '/diagnostics/aspirehostingpython001',
+            },
+            {
+              label: 'ASPIREPERSISTENCE001',
+              link: '/diagnostics/aspirepersistence001',
             },
             {
               label: 'ASPIREPIPELINES001',

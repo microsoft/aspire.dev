@@ -1,0 +1,586 @@
+---
+title: Interaction service（プレビュー）
+description: Interaction service API を使用して、公開とデプロイ中に Aspire ダッシュボードまたは CLI でユーザー入力の要求、確認依頼、メッセージ表示を行います。
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import messageDialog from '@assets/extensibility/interaction-service-message-dialog.png';
+import messageBar from '@assets/extensibility/interaction-service-message-bar.png';
+import confirmation from '@assets/extensibility/interaction-service-confirmation.png';
+import multipleInput from '@assets/extensibility/interaction-service-multiple-input.png';
+import multipleInputFilled from '@assets/extensibility/interaction-service-multiple-input-filled.png';
+import multipleInputLogs from '@assets/extensibility/interaction-service-multiple-input-logs.png';
+
+Interaction service（`Aspire.Hosting.IInteractionService`）を使うと、ユーザー入力の要求、確認依頼、メッセージ表示を行えます。Interaction service は 2 つの異なるコンテキストで動作します:
+
+- **Aspire dashboard**: `aspire run` を実行するか AppHost を直接起動すると、ダッシュボード UI にダイアログと通知として表示されます。
+- **Aspire CLI**: `aspire publish` または `aspire deploy` を実行すると、コマンド ライン インターフェイス経由で対話が促されます。
+
+これは、アプリケーションの起動方法やデプロイ方法に関係なく、ユーザーから情報を収集したり、操作の状態に関するフィードバックを提供したりする必要があるシナリオで役立ちます。
+
+## `IInteractionService` API
+
+`IInteractionService` インターフェイスは、`DistributedApplication` の依存関係注入コンテナーから取得します。`IInteractionService` は DI で作成される型に注入でき、また通常はイベントに渡されるコンテキスト引数で利用できる `IServiceProvider` から解決することもできます。
+
+`IInteractionService` を要求したら、必ず利用可能かどうかを確認してください。利用できないとき（`IInteractionService.IsAvailable` が `false` を返すとき）に Interaction service を使おうとすると、例外がスローされます。
+
+```csharp
+var interactionService = serviceProvider.GetRequiredService<IInteractionService>();
+if (interactionService.IsAvailable)
+{
+    var result = await interactionService.PromptConfirmationAsync(
+        title: "Delete confirmation",
+        message: "Are you sure you want to delete the data?");
+
+    if (result.Data)
+    {
+        // リソース/コマンド ロジックを実行します。
+    }
+}
+```
+
+Interaction service には、ユーザーと対話したりメッセージを表示したりするための複数のメソッドがあります。これらのメソッドの動作は実行コンテキストによって異なります:
+
+- **Dashboard context**（`aspire run` または AppHost の直接起動）: 対話は、[Aspire dashboard web interface](/ja/dashboard/overview/) のモーダル ダイアログ、通知、フォーム入力として表示されます。
+- **CLI context**（`aspire publish` または `aspire deploy`）: 対話は、テキスト ベースのプロンプトと応答を通じてコマンド ライン インターフェイスで促されます。
+
+次のセクションでは、これらの API を両方のコンテキストで効果的に使う方法を説明します:
+
+| メソッド | 説明 | サポートされるコンテキスト |
+|--------|-------------|-------------------|
+| `PromptMessageBoxAsync` | ユーザー操作用のメッセージとボタンを持つモーダル ダイアログ ボックスを表示します。 | Dashboard のみ |
+| `PromptNotificationAsync` | ダッシュボードでメッセージ バーとして非モーダル通知を表示します。 | Dashboard のみ |
+| `PromptConfirmationAsync` | ユーザーが操作を確認またはキャンセルするための確認ダイアログを表示します。 | Dashboard のみ |
+| `PromptInputAsync` | テキストやシークレットなど、単一の入力値をユーザーに求めます。 | Dashboard、CLI |
+| `PromptInputsAsync` | 複数の入力値を 1 つのダイアログ（dashboard）または順次（CLI）でユーザーに求めます。 | Dashboard、CLI |
+
+<Aside type="caution">
+`aspire publish` と `aspire deploy` の実行中に利用できるのは `PromptInputAsync` と `PromptInputsAsync` のみです。その他の対話メソッド（`PromptMessageBoxAsync`、`PromptNotificationAsync`、`PromptConfirmationAsync`）は CLI コンテキストで呼び出すと例外をスローします。
+</Aside>
+
+## Interaction service の使用場所
+
+`IResourceBuilder<T>` の利用可能なコールバック ベース拡張メソッドは、どれも Interaction service を使ってユーザー入力や確認を求められます。Interaction service は次のシナリオで使用します:
+
+- **カスタム リソース型**: カスタム リソース型を作成するときに、ユーザーから入力を取得したり、アクションを確認したりします。リソース型では、ユーザー入力の要求やメッセージ表示など、ダッシュボード対話を自由に定義できます。
+
+- **カスタム リソース コマンド**: Aspire ダッシュボードまたは CLI でリソースにコマンドを追加します。これらのコマンド実行時に、Interaction service を使ってユーザー入力や確認を求めます。対象の `IResourceBuilder<T>` に `WithCommand` 呼び出しをチェーンすると、コールバック内で Interaction service を使って入力収集や確認ができます。詳細は、[Custom resource commands](/ja/fundamentals/custom-resource-commands/) を参照してください。
+
+- **公開とデプロイのワークフロー**: `aspire publish` または `aspire deploy` の実行中に、Interaction service を使ってデプロイ固有の構成を収集し、CLI から破壊的操作の確認を行います。
+
+これらのアプローチにより、ローカル開発、ダッシュボード操作、デプロイ ワークフローにおいて、対話的で使いやすい体験を作成できます。
+
+<Aside type="tip">
+この記事では `FakeResource` 型を使った `WithCommand` コールバックの文脈で Interaction service を示していますが、同じ原則はユーザー対話をサポートする他の拡張メソッドにも適用できます。
+
+例えば:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddFakeResource("fake-resource")
+       .WithCommand("msg-dialog", "Example Message Dialog", async context =>
+{
+    var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+
+    // Interaction service を使用...
+
+    return CommandResults.Success();
+});
+```
+
+CLI 固有コンテキストでは、実行中の操作に応じて `PublishingContext` または `PipelineStepContext` から Interaction service を取得します。
+</Aside>
+
+## メッセージを表示する
+
+ユーザーにメッセージを表示する方法はいくつかあります:
+
+- **ダイアログ メッセージ**: 注意を必要とする重要な情報をダイアログ ボックスで表示します。
+- **通知メッセージ**: 重要度が低い情報を通知で表示します。
+
+<Aside type="note">
+メッセージ表示メソッド（`PromptMessageBoxAsync` と `PromptNotificationAsync`）は dashboard コンテキストでのみ利用できます。これらのメソッドは `aspire publish` または `aspire deploy` 実行中に呼び出すと例外をスローします。
+</Aside>
+
+### ダイアログ メッセージ ボックスを表示する
+
+ダイアログ メッセージは、ユーザーの注意を必要とする重要な情報を提供します。
+
+`IInteractionService.PromptMessageBoxAsync` メソッドは、応答オプションをカスタマイズ可能なメッセージを表示します。
+
+```csharp title="AppHost.cs"
+var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+var result = await interactionService.PromptMessageBoxAsync(
+    "Simple Message Box: Example",
+    """
+    ##### 🤓 Nice!
+
+    It's worth noting that **Markdown** is _supported_
+    (and demonstrated here) in the message body.
+
+    Cool, [📖 learn more](/extensibility/interaction-service/)...
+    """,
+    new MessageBoxInteractionOptions
+    {
+        EnableMessageMarkdown = true,
+        PrimaryButtonText = "Awesome"
+    }
+);
+
+if (result.Canceled)
+{
+    return CommandResults.Failure("User cancelled.");
+}
+
+return result.Data
+    ? CommandResults.Success()
+    : CommandResults.Failure("The user doesn't like the example");
+```
+
+**Dashboard view:**
+
+<Image src={messageDialog} alt="タイトル、メッセージ、ボタンを含むメッセージ ダイアログを表示している Aspire ダッシュボード インターフェイス。" />
+
+**CLI view:**
+
+`PromptMessageBoxAsync` メソッドは dashboard コンテキストでのみ動作します。`aspire publish` または `aspire deploy` の実行中に呼び出すと、このメソッドは例外をスローし、CLI にはメッセージを表示しません。
+
+### 通知メッセージを表示する
+
+通知メッセージは、非モーダルの通知を提供します。
+
+<Aside type="tip">
+dashboard では、通知メッセージは上部に積み重なって表示されるため、一度に複数のメッセージを表示できます。次を表示する前に各通知が閉じられるのを待てば順番に表示できますし、各通知の終了を待たずに同時表示することもできます。
+</Aside>
+
+`PromptNotificationAsync` メソッドは、dashboard コンテキストで任意のアクション リンク付き情報メッセージを表示します。通知メッセージの結果が不要なら await する必要はありません。これは通知に特に有用で、ユーザーが閉じるのを待たずに通知を表示して処理を続行したい場合に役立ちます。
+
+```csharp title="AppHost.cs"
+var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+// 異なる intent を持つ各種通知タイプを示す
+var tasks = new List<Task>
+{
+    interactionService.PromptNotificationAsync(
+        title: "Confirmation",
+        message: "Are you sure you want to proceed?",
+        options: new NotificationInteractionOptions
+        {
+            Intent = MessageIntent.Confirmation
+        }),
+    interactionService.PromptNotificationAsync(
+        title: "Success",
+        message: "Your operation completed successfully.",
+        options: new NotificationInteractionOptions
+        {
+            Intent = MessageIntent.Success,
+            LinkText = "View Details",
+            LinkUrl = "/"
+        }),
+    interactionService.PromptNotificationAsync(
+        title: "Warning",
+        message: "Your SSL certificate will expire soon.",
+        options: new NotificationInteractionOptions
+        {
+            Intent = MessageIntent.Warning,
+            LinkText = "Renew Certificate",
+            LinkUrl = "https://portal.azure.com/certificates"
+        }),
+    interactionService.PromptNotificationAsync(
+        title: "Information",
+        message: "There is an update available for your application.",
+        options: new NotificationInteractionOptions
+        {
+            Intent = MessageIntent.Information,
+            LinkText = "Update Now",
+            LinkUrl = "/"
+        }),
+    interactionService.PromptNotificationAsync(
+        title: "Error",
+        message: "An error occurred while processing your request.",
+        options: new NotificationInteractionOptions
+        {
+            Intent = MessageIntent.Error,
+            LinkText = "Troubleshoot",
+            LinkUrl = "/get-started/troubleshooting/"
+        })
+};
+
+await Task.WhenAll(tasks);
+
+return CommandResults.Success();
+```
+
+前の例では、通知 API のいくつかの使い方を示しています。各アプローチは異なる種類の通知を表示し、すべて並列で呼び出されるため、ほぼ同時に dashboard へ表示されます。
+
+**Dashboard view:**
+
+<Image src={messageBar} alt="ページ上部付近に複数の通知メッセージが積み重なっている Aspire ダッシュボード インターフェイス。5 つの通知が表示され、それぞれ通知タイプが異なります。" />
+
+**CLI view:**
+
+`PromptNotificationAsync` メソッドは CLI コンテキストでは利用できません。`aspire publish` または `aspire deploy` の実行中に呼び出すと、例外をスローします。
+
+## ユーザー確認を求める
+
+続行前にユーザーの確認が必要な場合は、Interaction service を使用します。`PromptConfirmationAsync` メソッドは dashboard コンテキストで確認プロンプトを表示します。確認プロンプトは、破壊的操作や重大な影響を持つアクションに不可欠です。意図しない操作を防ぎ、ユーザーが判断を見直す機会を提供します。
+
+### 破壊的操作の前に確認を求める
+
+リソース削除のように取り消せない操作では、必ず確認を求めます:
+
+```csharp title="AppHost.cs"
+var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+// データベースのリセット前に確認を求める
+var resetConfirmation = await interactionService.PromptConfirmationAsync(
+    title: "Confirm Reset",
+    message: "Are you sure you want to reset the `development-database`? This action **cannot** be undone.",
+    options: new MessageBoxInteractionOptions
+    {
+        Intent = MessageIntent.Confirmation,
+        PrimaryButtonText = "Reset",
+        SecondaryButtonText = "Cancel",
+        ShowSecondaryButton = true,
+        EnableMessageMarkdown = true
+    });
+
+if (resetConfirmation.Data is true)
+{
+    // リセット操作を実行する...
+
+    return CommandResults.Success();
+}
+else
+{
+    return CommandResults.Failure("Database reset canceled by user.");
+}
+```
+
+**Dashboard view:**
+
+<Image src={confirmation} alt="操作を確認またはキャンセルするためのタイトル、メッセージ、ボタンを備えた確認ダイアログを表示している Aspire ダッシュボード インターフェイス。" />
+
+**CLI view:**
+
+`PromptConfirmationAsync` メソッドは CLI コンテキストでは利用できません。`aspire publish` または `aspire deploy` の実行中に呼び出すと、このメソッドは例外をスローします。
+
+## ユーザー入力を求める
+
+Interaction service API では、さまざまな方法でユーザー入力を求められます。単一値または複数値を収集でき、テキスト、シークレット、選択肢、真偽値、数値などの入力タイプをサポートしています。表示は実行コンテキストに応じて自動的に切り替わります。
+
+| 種類         | Dashboard                 | CLI プロンプト        |
+|--------------|---------------------------|-----------------------|
+| `Text`       | テキスト ボックス         | テキスト プロンプト   |
+| `SecretText` | マスク入力付きテキスト ボックス | マスク テキスト プロンプト |
+| `Choice`     | オプションのドロップダウン | 選択プロンプト         |
+| `Boolean`    | チェック ボックス         | 真偽値選択プロンプト   |
+| `Number`     | 数値テキスト ボックス     | テキスト プロンプト   |
+
+### ユーザーに入力値を求める
+
+`PromptInputAsync` メソッドで単一値を求めることも、`PromptInputsAsync` で複数の情報を収集することもできます。dashboard では複数入力が 1 つのダイアログにまとめて表示されます。CLI では各入力が順番に要求されます。
+
+<Aside type="caution">
+Interaction service を使うと、ウィザードのようなフローを作成できます。複数のプロンプトを連鎖し、1 つの結果を処理してから次へ進むことで、関連する質問を段階的に案内し、必要な情報を集めやすくできます。
+</Aside>
+
+次の例では、ユーザーに複数の入力値を求めます:
+
+```csharp title="AppHost.cs"
+var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+var loggerService = context.ServiceProvider.GetRequiredService<ResourceLoggerService>();
+var logger = loggerService.GetLogger(fakeResource);
+
+var inputs = new List<InteractionInput>
+{
+    new()
+    {
+        Name = "Application Name",
+        InputType = InputType.Text,
+        Required = true,
+        Placeholder = "my-app"
+    },
+    new()
+    {
+        Name = "Environment",
+        InputType = InputType.Choice,
+        Required = true,
+        Options =
+        [
+            new("dev", "Development"),
+            new("staging", "Staging"),
+            new("test", "Testing")
+        ]
+    },
+    new()
+    {
+        Name = "Instance Count",
+        InputType = InputType.Number,
+        Required = true,
+        Placeholder = "1"
+    },
+    new()
+    {
+        Name = "Enable Monitoring",
+        InputType = InputType.Boolean,
+        Required = false
+    }
+};
+
+var appConfigurationInput = await interactionService.PromptInputsAsync(
+    title: "Application Configuration",
+    message: "Configure your application deployment settings:",
+    inputs: inputs);
+
+if (!appConfigurationInput.Canceled)
+{
+    // 収集した入力値を処理する
+    var appName = appConfigurationInput.Data[0].Value;
+    var environment = appConfigurationInput.Data[1].Value;
+    var instanceCount = int.Parse(appConfigurationInput.Data[2].Value ?? "1");
+    var enableMonitoring = bool.Parse(appConfigurationInput.Data[3].Value ?? "false");
+
+    logger.LogInformation("""
+        Application Name: {AppName}
+        Environment: {Environment}
+        Instance Count: {InstanceCount}
+        Monitoring Enabled: {EnableMonitoring}
+        """,
+        appName, environment, instanceCount, enableMonitoring);
+
+    // 必要に応じて収集値を使用する
+    return CommandResults.Success();
+}
+else
+{
+    return CommandResults.Failure("User canceled application configuration input.");
+}
+```
+
+**Dashboard view:**
+
+これは、次の画像のように dashboard で描画されます:
+
+<Image src={multipleInput} alt="ラベル、入力フィールド、入力の確定またはキャンセル用ボタンを含む複数入力ダイアログを表示している Aspire ダッシュボード インターフェイス。" />
+
+次の値でダイアログを入力したと想像してください:
+
+<Image src={multipleInputFilled} alt="入力フィールドに値が入力され、入力の確定またはキャンセル用ボタンを備えた複数入力ダイアログを表示している Aspire ダッシュボード インターフェイス。" />
+
+**Ok** ボタンを選択すると、リソース ログには次の出力が表示されます:
+
+<Image src={multipleInputLogs} alt="複数入力ダイアログで入力した値をログに表示している Aspire ダッシュボード インターフェイス。" />
+
+**CLI view:**
+
+CLI コンテキストでは、同じ入力が順番に要求されます:
+
+```plaintext data-disable-copy
+aspire deploy
+
+Step 1: Analyzing model.
+
+       ✓ DONE: Analyzing the distributed application model for publishing and deployment capabilities. 00:00:00
+       Found 1 resources that support deployment. (FakeResource)
+
+✅ COMPLETED: Analyzing model. completed successfully
+
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Configure your application deployment settings:
+Application Name: example-app
+Environment:  Staging
+Instance Count: 3
+Enable Monitoring: [y/n] (n): y
+✓ DEPLOY COMPLETED: Deploying completed successfully
+```
+
+入力タイプによっては、CLI が追加のプロンプトを表示する場合があります。例えば `Enable Monitoring` 入力は真偽値選択なので、CLI は yes/no の応答を求めます。`y` を入力すると監視が有効になり、`n` を入力すると無効になります。environment 入力では、CLI が選択可能な環境一覧を表示します:
+
+```plaintext data-disable-copy
+Configure your application deployment settings:
+Application Name: example-app
+Environment:
+
+> Development
+  Staging
+  Testing
+
+(Type to search)
+```
+
+#### 入力オプションを動的に読み込む
+
+Interaction service は動的入力をサポートしており、先行する回答に基づいてオプションを設定できます。これにより、dashboard と CLI の両方で連動ドロップダウンなどの依存プロンプトを実現できます。
+
+動的入力を構成するには、`InteractionInput.DynamicLoading` プロパティに `InputLoadOptions` のインスタンスを設定します。`InputLoadOptions` には次のプロパティがあります:
+
+- **LoadCallback**: 入力オプションを設定または更新するコールバック関数です。入力の読み込みや更新が必要なときに呼び出されます。`context.AllInputs` ディクショナリを通じて、他の入力の現在値にアクセスできます。
+- **DependsOnInputs**: 動的入力が依存する入力名の一覧です。これらの入力が変化すると `LoadCallback` がトリガーされ、動的入力のオプションが更新されます。依存関係が指定されていない場合、コールバックは対話開始時にトリガーされます。
+- **AlwaysLoadOnStart**: `true` に設定すると、動的入力に依存関係がある場合でも、対話開始時に常に `LoadCallback` が呼び出されます。
+
+```csharp
+var inputs = new List<InteractionInput>
+{
+    new()
+    {
+        Name = "DatabaseType",
+        InputType = InputType.Choice,
+        Label = "Database Type",
+        Required = true,
+        Options =
+        [
+            KeyValuePair.Create("postgres", "PostgreSQL"),
+            KeyValuePair.Create("mysql", "MySQL"),
+            KeyValuePair.Create("sqlserver", "SQL Server")
+        ]
+    },
+
+    new()
+    {
+        Name = "DatabaseVersion",
+        InputType = InputType.Choice,
+        Label = "Database Version",
+        Required = true,
+        DynamicLoading = new InputLoadOptions
+        {
+            LoadCallback = async context =>
+            {
+                var dbType = context.AllInputs["DatabaseType"].Value;
+                context.Input.Options = await GetAvailableVersionsAsync(dbType);
+            },
+            DependsOnInputs = ["DatabaseType"]
+        }
+    }
+};
+
+var result = await interactionService.PromptInputsAsync(
+    title: "Database configuration",
+    message: "Select a database type and version",
+    inputs: inputs);
+
+if (!result.Canceled)
+{
+    var version = result.Data["DatabaseVersion"].Value;
+    // バージョン固有の構成を使用する...
+}
+```
+
+前述の例では、`DatabaseVersion` 入力は選択された `DatabaseType` に基づいて動的に設定されます。
+
+#### 入力検証
+
+基本的な入力検証は `InteractionInput` を設定することで利用できます。値の必須化や、`Text` または `SecretText` フィールドの最大文字数を指定できます。
+
+複雑なシナリオでは、`InputsDialogInteractionOptions.ValidationCallback` プロパティを使ってカスタム検証ロジックを提供できます:
+
+```csharp
+// カスタム検証を持つ複数入力
+var databaseInputs = new List<InteractionInput>
+{
+    new()
+    {
+        Name = "Database Name",
+        InputType = InputType.Text,
+        Required = true,
+        Placeholder = "myapp-db"
+    },
+    new()
+    {
+        Name = "Username",
+        InputType = InputType.Text,
+        Required = true,
+        Placeholder = "admin"
+    },
+    new()
+    {
+        Name = "Password",
+        InputType = InputType.SecretText,
+        Required = true,
+        Placeholder = "Enter a strong password"
+    },
+    new()
+    {
+        Name = "Confirm password",
+        InputType = InputType.SecretText,
+        Required = true,
+        Placeholder = "Confirm your password"
+    }
+};
+
+var validationOptions = new InputsDialogInteractionOptions
+{
+    ValidationCallback = async context =>
+    {
+        var passwordInput = context.Inputs.FirstOrDefault(i => i.Label == "Password");
+        var confirmPasswordInput = context.Inputs.FirstOrDefault(i => i.Label == "Confirm password");
+
+        // パスワード強度を検証する
+        if (passwordInput?.Value is { Length: < 8 })
+        {
+            context.AddValidationError(passwordInput, "Password must be at least 8 characters long");
+        }
+
+        // パスワード確認を検証する
+        if (passwordInput?.Value != confirmPasswordInput?.Value)
+        {
+            context.AddValidationError(confirmPasswordInput!, "Passwords do not match");
+        }
+
+        await Task.CompletedTask;
+    }
+};
+
+var dbResult = await interactionService.PromptInputsAsync(
+    title: "Database configuration",
+    message: "Configure your PostgreSQL database connection:",
+    inputs: databaseInputs,
+    options: validationOptions);
+
+if (!dbResult.Canceled && dbResult.Data != null)
+{
+    // 検証済み構成を使用する
+}
+```
+
+ユーザーにパスワード入力を求め、同じ値か確認することは「二重独立検証」入力と呼ばれます。このアプローチは、タイプミスや不一致を避けるために同じパスワードを 2 回入力してもらいたい場面で一般的です。
+
+### ユーザー入力のベスト プラクティス
+
+ユーザー入力を求めるときは、次のベスト プラクティスを考慮してください:
+
+<Steps>
+
+1. **関連入力をグループ化する**: 関連する構成値を収集するには複数入力プロンプトを使います。dashboard では 1 つのダイアログに表示され、CLI では順次要求されますが、概念的には同じグループです。
+1. **明確なラベルとプレースホルダーを提供する**: コンテキストに関係なく、どの情報が期待されているかをユーザーが理解できるようにします。
+1. **適切な入力タイプを使う**: 収集するデータに合った入力タイプ（パスワードには secret、定義済み選択肢には choice など）を選択します。両コンテキストで適切にサポートされます。
+1. **検証を実装する**: ユーザー入力を検証し、検証失敗時には明確なエラー メッセージを提供します。両コンテキストで検証フィードバックをサポートします。
+1. **必須フィールドを明確にする**: 必須フィールドを明示し、任意フィールドには適切な既定値を提供します。
+1. **キャンセルを処理する**: ユーザーが入力プロンプトをキャンセルしたかを常に確認し、適切に処理します。dashboard と CLI の両方でキャンセルできます。
+
+</Steps>
+
+## 対話コンテキスト
+
+Interaction service の動作は、Aspire ソリューションの起動方法によって異なります:
+
+### Dashboard context
+
+`aspire run` を使用するか AppHost プロジェクトを直接起動すると、対話は Aspire ダッシュボード Web インターフェイスに表示されます:
+
+- **モーダル ダイアログ**: メッセージ ボックスや入力プロンプトが、ユーザー操作を必要とするオーバーレイ ダイアログとして表示されます。
+- **通知メッセージ**: 情報メッセージが、ダッシュボード上部の閉じられるバナーとして表示されます。
+- **リッチ UI**: 対話的なフォーム要素、検証、視覚的フィードバックを完全にサポートします。
+- **全メソッド利用可能**: dashboard コンテキストでは、すべての Interaction service メソッドがサポートされます。
+
+### CLI context
+
+`aspire publish` または `aspire deploy` を実行すると、対話はコマンド ライン インターフェイス経由で促されます:
+
+- **テキスト プロンプト**: 入力プロンプト（`PromptInputAsync` と `PromptInputsAsync`）のみ利用でき、ターミナルにテキスト ベースのプロンプトとして表示されます。
+- **順次入力**: 複数入力は 1 つのダイアログではなく、1 つずつ要求されます。
+- **機能制限**: メッセージ ボックス、通知、確認ダイアログは利用できず、呼び出すと例外がスローされます。
+
+<Aside type="caution">
+Interaction service は dashboard と CLI の各コンテキストに自動で適応します。CLI モードでサポートされるのは入力関連メソッドである `PromptInputAsync` と `PromptInputsAsync` のみです。`aspire publish` や `aspire deploy` などの CLI 操作で `PromptMessageBoxAsync`、`PromptNotificationAsync`、`PromptConfirmationAsync` を呼び出すと例外になります。
+</Aside>

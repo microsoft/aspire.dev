@@ -1,20 +1,34 @@
 ---
-title: 起動プロファイル
-description: Aspire が .NET の起動プロファイルとどのように連携するかを学ぶ
+title: C# の起動プロファイル
+description: C# AppHost とサービス プロジェクト向けに、Aspire が .NET の起動プロファイルとどのように統合されるかを学びます。
 ---
 
 import { Image } from 'astro:assets';
-import { Steps } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import dotnetIcon from '@assets/icons/dotnet.svg';
 
-Aspire は、AppHost プロジェクトおよびサービス プロジェクトの両方で定義された _「起動プロファイル（launch profiles）」_ を利用し、Aspire ベースの分散アプリケーションにおけるデバッグおよび発行（パブリッシュ）体験のさまざまな側面の構成を簡素化します。
+<Image
+  src={dotnetIcon}
+  alt=".NET ロゴ"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+Aspire は、AppHost とサービス プロジェクトの両方で定義された _起動プロファイル_ を活用して、Aspire ベースの分散アプリケーションにおけるデバッグと公開の体験に関する複数の側面の構成を簡素化します。
+
+:::note
+この記事は、`launchSettings.json` を使用する C# AppHost と .NET サービス プロジェクトに適用されます。TypeScript AppHost では、代わりに `aspire.config.json` でプロファイルを定義します。詳細は、[AppHost 構成](/ja/app-host/configuration/) と [TypeScript AppHost のプロジェクト構造](/ja/app-host/typescript-apphost/) を参照してください。
+:::
 
 ## 起動プロファイルの基本
 
-テンプレートから新しい .NET アプリケーションを作成すると、`Properties` ディレクトリが作成され、その中に _launchSettings.json_ というファイルが含まれていることがよくあります。この起動設定ファイルには、複数の _「起動プロファイル（launch profiles）」_ が含まれています。各起動プロファイルは関連するオプションの集合であり、`dotnet` がどのようにアプリケーションを起動するかを定義します。
+テンプレートから新しい .NET アプリケーションを作成すると、_launchSettings.json_ という名前のファイルを含む `Properties` ディレクトリがあることがよくあります。起動設定ファイルには _起動プロファイル_ の一覧が含まれます。各起動プロファイルは、`dotnet` がアプリケーションをどのように開始するかを定義する、関連オプションの集合です。
 
-以下のコードは、**ASP.NET Core** アプリケーションにおける _launchSettings.json_ ファイル内の起動プロファイルの例です。
+次の JSON は、ASP.NET Core アプリケーションの _launchSettings.json_ ファイルにある起動プロファイルの例です:
 
-```json title="JSON — launchSettings.json"
+```json title="launchSettings.json"
 {
   "$schema": "http://json.schemastore.org/launchsettings.json",
   "profiles": {
@@ -40,21 +54,21 @@ Aspire は、AppHost プロジェクトおよびサービス プロジェクト�
 }
 ```
 
-上記の _launchSettings.json_ ファイルでは、`http` と `https` という 2 つの _起動プロファイル（launch profiles）_ が定義されています。それぞれが独自の環境変数、起動 URL、その他のオプションを持っています。.NET Core アプリケーションを起動する際、開発者はどの起動プロファイルを使用するかを選択できます。
+前述の _launchSettings.json_ ファイルでは、`http` と `https` の 2 つの起動プロファイルを定義しています。それぞれに独自の環境変数、起動 URL、その他のオプションがあります。.NET アプリケーションを起動するときは、使用する起動プロファイルを選択できます:
 
-```bash
+```bash title="Terminal"
 dotnet run --launch-profile https
 ```
 
-起動プロファイルが指定されていない場合、既定では最初の起動プロファイルが選択されます。`--no-launch-profile` オプションを使用すると、起動プロファイルを使用せずに .NET Core アプリケーションを起動することも可能です。また、_launchSettings.json_ ファイル内の一部のフィールドは環境変数に変換されます。たとえば、`applicationUrl` フィールドは `ASPNETCORE_URLS` 環境変数に変換され、ASP.NET Core がバインドするアドレスとポートを制御します。
+起動プロファイルを指定しない場合は、既定で最初の起動プロファイルが選択されます。`--no-launch-profile` オプションを使うと、起動プロファイルなしで .NET アプリケーションを起動することもできます。_launchSettings.json_ ファイルの一部のフィールドは環境変数に変換されます。たとえば `applicationUrl` フィールドは `ASPNETCORE_URLS` 環境変数に変換され、ASP.NET Core がバインドするアドレスとポートを制御します。
 
-起動プロファイルを指定して .NET アプリケーションを起動すると、`DOTNET_LAUNCH_PROFILE` という特別な環境変数に、プロセスの起動時に使用された起動プロファイル名が設定されます。
+起動プロファイルを使用して .NET アプリケーションを起動すると、`DOTNET_LAUNCH_PROFILE` 環境変数には使用された起動プロファイル名が設定されます。
 
-## Aspire AppHost の起動プロファイル
+## C# AppHost 向けの起動プロファイル
 
-Aspire では、AppHost は単なる .NET アプリケーションです。そのため、他のアプリケーションと同様に `launchSettings.json` ファイルを持っています。以下は、スターターテンプレート（`dotnet new aspire-starter`）から新しい Aspire プロジェクトを作成した際に生成される `launchSettings.json` ファイルの例です。
+Aspire では、C# AppHost は .NET アプリケーションであるため、他の .NET プロジェクトと同様に `launchSettings.json` ファイルがあります。次の JSON は、スターター テンプレート（`dotnet new aspire-starter`）から新しい Aspire プロジェクトを作成したときに生成される `launchSettings.json` ファイルの例です:
 
-```json title="JSON — launchSettings.json"
+```json title="launchSettings.json"
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
@@ -86,50 +100,62 @@ Aspire では、AppHost は単なる .NET アプリケーションです。そ�
 }
 ```
 
-Aspire のテンプレートは、通常の ASP.NET Core アプリケーションと非常によく似た _起動プロファイル_ のセットを持っています。Aspire アプリプロジェクトが起動すると、`DistributedApplication` が開始され、Aspire によってオーケストレーションされているリソースの情報を Aspire ダッシュボードが取得するために使用される Web サーバーがホストされます。
+Aspire テンプレートでは、通常の ASP.NET Core アプリケーションと同様の起動プロファイル セットが定義されています。C# AppHost プロジェクトを起動すると、`DistributedApplication` が開始され、Aspire ダッシュボードが Aspire によってオーケストレーションされるリソース情報を取得するために使う Web サーバーをホストします。
 
-## AppHost の起動プロファイルとサービス プロジェクト
+## AppHost の起動プロファイルと .NET サービス プロジェクト
 
-Aspire では、AppHost が複数のサービス プロジェクトの起動を調整する役割を担います。コマンドラインや Visual Studio（または他の開発環境）から AppHost を実行すると、AppHost 用の起動プロファイルが選択されます。すると AppHost は、起動対象となる各サービス プロジェクト内から対応する起動プロファイルを探し出し、その設定を使用してサービス プロジェクトの環境や既定のネットワーク構成を制御します。
+C# AppHost は、複数のサービス プロジェクトの起動を調整する責任を担います。コマンド ライン、Visual Studio、または別の開発環境から AppHost を実行すると、AppHost 用の起動プロファイルが選択されます。続いて AppHost は、起動するサービス プロジェクト内で一致する起動プロファイルを見つけようとし、そのオプションを使ってサービス プロジェクトの環境と既定のネットワーク構成を制御します。
 
-AppHost がサービス プロジェクトを起動する際、単純に `--launch-profile` オプションを指定してサービス プロジェクトを起動するわけではありません。そのため、サービス プロジェクトには `DOTNET_LAUNCH_PROFILE` 環境変数は設定されません。これは、Aspire が起動プロファイル内の `applicationUrl` フィールドから派生した `ASPNETCORE_URLS` 環境変数を変更し、別のポートを使用するためです。既定では、Aspire は ASP.NET Core アプリケーションの前段にリバース プロキシを挿入し、`WithReplicas` メソッドを使用してアプリケーションの複数インスタンスを利用できるようにします。
+AppHost がサービス プロジェクトを起動する場合、`--launch-profile` オプションを直接使うわけではありません。代わりに、Aspire は有効な起動プロファイルを解決し、`dotnet run` および `dotnet watch` との整合性のために `DOTNET_LAUNCH_PROFILE` を設定し、（起動プロファイルの `applicationUrl` フィールドから導出される）`ASPNETCORE_URLS` 環境変数を別のポートになるよう調整します。既定では、Aspire は `WithReplicas` を通じた複数インスタンスのサポートのため、ASP.NET Core アプリケーションの前段にリバース プロキシを挿入します。
 
-`environmentVariables` フィールドに含まれるその他の設定については、変更されることなくそのままアプリケーションに渡されます。
+`environmentVariables` などのその他の設定は、変更せずにアプリケーションへ渡されます。
 
-## 起動プロファイルの選択を制御する
+## 起動プロファイル選択の制御
 
-理想的には、AppHost とサービス プロジェクト間で起動プロファイル名を揃えることで、AppHost によってまとめて管理されているすべてのプロジェクトの構成オプションを一括で切り替えられるようにすることができます。ただし、特定のプロジェクトが使用する起動プロファイルを個別に制御したい場合もあります。そのための仕組みとして、`AddProject` 拡張メソッドが用意されています。
+理想的には、AppHost とそのサービス プロジェクトの間で起動プロファイル名をそろえることで、AppHost 側でプロファイルを切り替えると連携する全プロジェクトでも一括で切り替えられます。ただし、`AddProject` に `launchProfileName` を渡すことで、特定プロジェクトで使うプロファイルを指定することもできます:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.InventoryService>(
     "inventoryservice",
     launchProfileName: "mylaunchprofile");
+
+builder.Build().Run();
 ```
 
-上記のコードでは、i`nventoryservice` リソース（.NET プロジェクト）が `mylaunchprofile` という起動プロファイルの設定を使用して起動されることを示しています。起動プロファイルの優先順位のロジックは次のとおりです:
+前述のコードは、`inventoryservice` リソースを `mylaunchprofile` 起動プロファイルのオプションで起動します。起動プロファイルの優先順位ロジックは次のとおりです:
 
 <Steps>
 
-1. `launchProfileName` 引数で指定された起動プロファイルがあれば、それを使用する。
-2. AppHost と同じ名前の起動プロファイルを使用する（`DOTNET_LAUNCH_PROFILE` 環境変数を読み取って判断される）。
-3. _launchSettings.json_ に定義されている既定（最初）の起動プロファイルを使用する。
+1. `launchProfileName` 引数が指定されていれば、その起動プロファイルを使用する。
+2. AppHost と同名の起動プロファイルを使用する（`DOTNET_LAUNCH_PROFILE` 環境変数を読み取って判定）。
+3. _launchSettings.json_ の既定（先頭）起動プロファイルを使用する。
 4. 起動プロファイルを使用しない。
 
 </Steps>
 
-サービス プロジェクトを起動プロファイルなしで起動させたい場合は、`AddProject` メソッドの `launchProfileName` 引数に null を指定します。
+サービス プロジェクトを起動プロファイルなしで強制起動するには、`launchProfileName` 引数を `null` に設定します。
 
-## 起動プロファイルとエンドポイント
+## ASP.NET Core プロジェクト向けの起動プロファイルとエンドポイント
 
-ASP.NET Core プロジェクトを AppHost に追加すると、Aspire は _launchSettings.json_ ファイルを解析し、適切な起動プロファイルを選択します。そして、`applicationUrl` フィールドに含まれる URL に基づいて、アプリケーションモデル内のエンドポイントを自動的に生成します。自動的に注入されるエンドポイントを変更したい場合は、`WithEndpoint` 拡張メソッドを使用します。
+ASP.NET Core プロジェクトを AppHost に追加する際、Aspire は _launchSettings.json_ ファイルを解析し、適切な起動プロファイルを選択して、`applicationUrl` フィールド内の URL に基づきアプリケーション モデル内へエンドポイントを自動生成します。自動挿入されたエンドポイントを変更するには `WithEndpoint` を使用します:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.InventoryService>("inventoryservice")
-       .WithEndpoint("https", endpoint => endpoint.IsProxied = false);
+    .WithEndpoint("https", endpoint => endpoint.IsProxied = false);
+
+builder.Build().Run();
 ```
 
-上記のコードは、Aspire が .NET Core アプリケーションの前段に配置するリバース プロキシを無効化し、その代わりに .NET Core アプリケーション自身が HTTP(S) 経由のリクエストに直接応答できるようにする方法を示しています。
+前述のコードは、Aspire が .NET アプリケーションの前段に配置するリバース プロキシを無効化し、アプリケーションが HTTP(S) 経由の要求へ直接応答できるようにします。
+
+## 関連項目
+
+- [プロジェクト リソース](/ja/integrations/dotnet/project-resources/)
+- [AppHost 構成](/ja/app-host/configuration/)
+- [TypeScript AppHost のプロジェクト構造](/ja/app-host/typescript-apphost/)
+- [インナー ループ ネットワーク](/ja/fundamentals/networking-overview/)
+- [.NET 環境のドキュメント](https://learn.microsoft.com/ja-jp/aspnet/core/fundamentals/environments)

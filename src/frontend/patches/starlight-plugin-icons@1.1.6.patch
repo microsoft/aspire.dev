@@ -1,0 +1,25 @@
+diff --git a/src/lib/material-icons.ts b/src/lib/material-icons.ts
+index 29dca716eebfdf374fc3c6dfdcdc2b2e401a7182..e44de4f99970b274d268328cb89e6a9a2eba0c02 100644
+--- a/src/lib/material-icons.ts
++++ b/src/lib/material-icons.ts
+@@ -115,6 +115,20 @@ export async function getMaterialIconsData(): Promise<MaterialIconsData | undefi
+     return data
+   }
+   catch (error) {
++    // The network is treated as a best-effort refresh, not a hard dependency.
++    // When the version/data fetch fails (offline builds, CI sandboxes, GitHub
++    // raw rate limiting, corporate proxies, etc.) fall back to the icon data
++    // vendored into the repo under `.starlight-icons` so icons keep rendering
++    // instead of silently disappearing.
++    const fallback = await getCachedData()
++    if (fallback) {
++      if (error instanceof Error) {
++        console.warn('Using cached material icons data (could not reach network):', error.message)
++      }
++      cachedData = fallback
++      return fallback
++    }
++
+     if (error instanceof Error) {
+       console.warn('Failed to fetch material icons data:', error.message)
+     }

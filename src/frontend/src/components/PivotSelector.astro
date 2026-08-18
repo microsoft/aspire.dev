@@ -456,6 +456,20 @@ const { options, key, title, marginTop } = Astro.props;
       // persist pref
       localStorage.setItem(qsKey, id);
 
+      // When the pivot drives the global `aspire-lang` preference, mirror the
+      // selection into the Starlight synced-tabs storage so that destination
+      // pages with `<Tabs syncKey="aspire-lang">` default to the same language.
+      // Mirrors the label map in src/components/starlight/Head.astro.
+      if (qsKey === 'aspire-lang') {
+        const appHostLangLabels = { csharp: 'C#', typescript: 'TypeScript' };
+        const label = appHostLangLabels[id];
+        if (label) {
+          try {
+            localStorage.setItem('starlight-synced-tabs__aspire-lang', label);
+          } catch (e) {}
+        }
+      }
+
       // sync URL
       const url = new URL(window.location);
       url.searchParams.set(qsKey, id);

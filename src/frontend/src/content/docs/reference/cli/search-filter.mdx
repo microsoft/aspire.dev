@@ -1,0 +1,106 @@
+---
+title: Search and filter telemetry data in the Aspire CLI
+description: Learn how to use the --search option to filter logs, traces, and spans in the Aspire CLI.
+---
+
+The `--search` option filters output by matching against text and attributes on returned data. Search is supported by these commands:
+
+- [`aspire logs`](../commands/aspire-logs/)
+- [`aspire otel logs`](../commands/aspire-otel-logs/)
+- [`aspire otel spans`](../commands/aspire-otel-spans/)
+- [`aspire otel traces`](../commands/aspire-otel-traces/)
+
+For example, to filter console logs for a specific resource by text:
+
+```bash title="Aspire CLI"
+aspire logs redis --search "timeout"
+```
+
+## Search syntax
+
+Search queries support free-text fragments, field qualifiers, attribute qualifiers, negation, and comparison operators.
+
+| Syntax | Meaning | Example |
+|--------|---------|---------|
+| `word` | Free-text fragment — must appear in at least one searchable field | `timeout` |
+| `"quoted phrase"` | Single fragment containing spaces | `"connection refused"` |
+| `field:value` | Field qualifier — value must match the named field | `severity:error` |
+| `field:"value with spaces"` | Quoted field qualifier value | `message:"connection failed"` |
+| `@attr:value` | Attribute qualifier — matches custom span/log attributes | `@http.method:GET` |
+| `-field:value` / `-@attr:value` | Negated qualifier — excludes matches | `-severity:debug` |
+| `field:>value` / `field:>=value` / `field:<value` / `field:<=value` | Comparison for supported numeric and timestamp fields | `duration:>100` |
+
+All terms are AND'd: every fragment and qualifier must independently match.
+
+## Timestamp qualifier
+
+Use the `timestamp` field qualifier to narrow structured logs, traces, and spans to a specific date/time range. The qualifier accepts ISO 8601 date or date/time strings together with a comparison operator:
+
+```bash title="Aspire CLI"
+aspire otel logs --search "timestamp:>2026-01-15T09:30:00"
+aspire otel traces --search "timestamp:<=2026-06-01T12:00:00Z"
+aspire otel spans --search "timestamp:>=2026-01-01 timestamp:<2027-01-01"
+```
+
+The supported comparison operators are `>`, `>=`, `<`, and `<=`.
+
+Timestamp values are internally stored in UTC. The `timestamp` value is converted to UTC using these timezone rules:
+
+- A value with no timezone suffix (for example `2026-01-15` or `2026-01-15T09:30:00`) is treated as local time on the dashboard server and adjusted to UTC before comparison.
+- A value with a UTC offset (for example `2026-06-01T12:00:00+05:00`) is adjusted to UTC before comparison.
+- A value with the `Z` suffix is treated as UTC directly.
+
+## Console logs
+
+Matches against log line text content and resource name. Only free-text is supported (no structured qualifiers).
+
+```bash title="Aspire CLI"
+aspire logs redis --search "timeout"
+aspire logs --follow --search "\"connection error\""
+```
+
+## Structured logs
+
+Supports free-text and structured qualifiers. Free-text matches against message, resource name, scope, trace/span IDs, severity, and all attribute keys/values.
+
+Available field qualifiers: `severity`, `resource`, `scope`, `message`, `trace-id`, `span-id`, `event`, `timestamp`.
+
+```bash title="Aspire CLI"
+aspire otel logs --search "severity:error \"connection failed\""
+aspire otel logs --search "resource:api -severity:debug"
+aspire otel logs --search "scope:Microsoft.EntityFrameworkCore"
+aspire otel logs --search "timestamp:>=2026-06-01T12:00:00 severity:error"
+```
+
+## Traces
+
+Supports free-text and structured qualifiers. Free-text matches against trace name, resource name, and all span fields within the trace.
+
+Available field qualifiers: `name`, `resource`, `trace-id`, `status`, `duration`, `timestamp`.
+
+```bash title="Aspire CLI"
+aspire otel traces --search "checkout"
+aspire otel traces --search "status:error duration:>500"
+aspire otel traces --search "@http.status_code:500"
+aspire otel traces --search "timestamp:>2026-01-15T09:30:00 status:error"
+```
+
+## Spans
+
+Supports free-text and structured qualifiers. Free-text matches against span name, resource name, scope, trace/span IDs, status, kind, and all attribute keys/values.
+
+Available field qualifiers: `name`, `resource`, `scope`, `status`, `kind`, `trace-id`, `span-id`, `duration`, `timestamp`.
+
+```bash title="Aspire CLI"
+aspire otel spans --search "@http.method:GET duration:>100 status:error"
+aspire otel spans --search "@db.system:postgresql"
+aspire otel spans --search "-kind:internal"
+aspire otel spans --search "timestamp:>=2026-03-01T08:30:00 kind:server"
+```
+
+## See also
+
+- [Command reference: `aspire logs`](../commands/aspire-logs/)
+- [Command reference: `aspire otel logs`](../commands/aspire-otel-logs/)
+- [Command reference: `aspire otel spans`](../commands/aspire-otel-spans/)
+- [Command reference: `aspire otel traces`](../commands/aspire-otel-traces/)

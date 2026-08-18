@@ -1,6 +1,7 @@
 ---
 title: Container files
-description: Learn how to inject files and directories into containers at development time and publish time using the container file APIs in Aspire.
+seoTitle: Inject container files in your Aspire AppHost project
+description: Inject files and directories into Aspire container resources at development and publish time using WithContainerFiles, with options for source paths and permissions.
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -89,9 +90,19 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-:::note
-The `withContainerFiles` API is not yet available in the TypeScript AppHost SDK.
-:::
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const frontend = await builder.addViteApp("frontend", "../frontend");
+await frontend.withContainerFilesSource("/app/dist");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.publishWithContainerFiles(frontend, "./wwwroot");
+
+await builder.build().run();
+```
 </TabItem>
 </Tabs>
 
@@ -346,14 +357,14 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 const frontend = await builder.addViteApp("frontend", "../frontend");
 
-const api = await builder.addProject("api", "./Api/Api.csproj", "https")
+const api = await builder.addProject("api", "./Api/Api.csproj")
     .publishWithContainerFiles(frontend, "./wwwroot");
 
 await builder.build().run();
@@ -385,8 +396,8 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -431,4 +442,4 @@ Use `ClearContainerFilesSources` to remove any previously configured source path
 
 - [Certificate configuration](/app-host/certificate-configuration/)
 - [Add Dockerfiles to your app model](/app-host/withdockerfile/)
-- [Persistent container lifetimes](/app-host/persistent-containers/)
+- [Resource lifetimes](/app-host/resource-lifetimes/)

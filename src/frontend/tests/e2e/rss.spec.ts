@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { locales } from '../../config/locales';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 test('rss feed endpoint returns XML with stylesheet and items', async ({ request }) => {
@@ -18,6 +19,10 @@ test('rss feed endpoint returns XML with stylesheet and items', async ({ request
   expect(body).toContain('<description>Latest updates to the documentation</description>');
   expect(body).toContain('https://aspire.dev');
   expect(body).toMatch(/<item>[\s\S]*<\/item>/);
+
+  for (const locale of Object.keys(locales).filter((locale) => locale !== 'root')) {
+    expect(body).not.toContain(`<link>https://aspire.dev/${locale}/`);
+  }
 });
 
 test('rss link opens the feed in a new tab', async ({ page }) => {

@@ -1,6 +1,7 @@
 ---
 title: Compiler Warning ASPIREEXPORT010
-description: Learn more about compiler Warning ASPIREEXPORT010. A synchronous callback parameter is invoked inline and may deadlock in multi-language app hosts.
+seoTitle: "ASPIREEXPORT010: A synchronous callback parameter is invoked"
+description: Learn what causes the Aspire compiler warning ASPIREEXPORT010 — a synchronous callback parameter is invoked inline and may deadlock in multi-language app hosts.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -20,7 +21,7 @@ This diagnostic warning is reported when an `[AspireExport]` method directly inv
 
 The following code generates `ASPIREEXPORT010`:
 
-```csharp title="C# — Integration.cs"
+```csharp title="Integration.cs"
 [AspireExport("withConfiguration")]
 public static IResourceBuilder<RedisResource> WithConfiguration(
     IResourceBuilder<RedisResource> builder,
@@ -38,7 +39,7 @@ Use one of the following approaches:
 
 **Option 1:** Defer the callback by wrapping it with `.WithEnvironment` or a similar deferred-execution pattern:
 
-```csharp title="C# — Integration.cs"
+```csharp title="Integration.cs"
 [AspireExport("withConfiguration")]
 public static IResourceBuilder<RedisResource> WithConfiguration(
     IResourceBuilder<RedisResource> builder,
@@ -55,7 +56,7 @@ public static IResourceBuilder<RedisResource> WithConfiguration(
 
 **Option 2:** Accept an async delegate instead of a synchronous one:
 
-```csharp title="C# — Integration.cs"
+```csharp title="Integration.cs"
 [AspireExport("withConfiguration")]
 public static IResourceBuilder<RedisResource> WithConfiguration(
     IResourceBuilder<RedisResource> builder,
@@ -69,6 +70,24 @@ public static IResourceBuilder<RedisResource> WithConfiguration(
     });
 }
 ```
+
+**Option 3:** Set `RunSyncOnBackgroundThread = true` on the export to run the method invocation on a background thread, allowing the JSON-RPC dispatcher to continue processing nested callback responses:
+
+```csharp title="Integration.cs"
+[AspireExport("withConfiguration", RunSyncOnBackgroundThread = true)]
+public static IResourceBuilder<RedisResource> WithConfiguration(
+    IResourceBuilder<RedisResource> builder,
+    Action<RedisConfiguration> configure)
+{
+    var config = new RedisConfiguration();
+    configure(config);  // Safe — invocation runs off the JSON-RPC synchronization context
+    return builder.WithEnvironment("REDIS_CONFIG", config.ToConnectionString());
+}
+```
+
+:::note
+`RunSyncOnBackgroundThread = true` applies to both synchronous and async-returning exports. For async exports, it offloads the entire synchronous invocation path — including any work done before the first `await` — to a background thread. This prevents deadlocks when an async export calls a synchronous callback before yielding.
+:::
 
 ## Suppress the warning
 

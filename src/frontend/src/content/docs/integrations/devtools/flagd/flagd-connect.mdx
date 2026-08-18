@@ -1,0 +1,338 @@
+---
+title: Connect to flagd
+seoTitle: Connect to flagd from Aspire apps in four languages
+description: Learn how to connect to flagd from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+next: false
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import flagdIcon from '@assets/icons/flagd-icon.svg';
+import flagdLightIcon from '@assets/icons/flagd-light-icon.svg';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={flagdLightIcon}
+  dark={flagdIcon}
+  alt="flagd logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+This page describes how consuming apps connect to a flagd resource that's already modeled in your AppHost. For the AppHost API surface — adding a flagd resource, file sync, port configuration, log levels, and health checks — see [flagd Hosting integration](../flagd-host/).
+
+When you reference a flagd resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. There isn't a dedicated Aspire client package for flagd, so each app configures a stable OpenFeature SDK and flagd provider directly.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `flagd` becomes `FLAGD_URI`.
+
+The flagd resource exposes the following connection properties:
+
+| Property Name | Description                                              |
+| ------------- | -------------------------------------------------------- |
+| `Host`        | The hostname or IP address of the flagd server           |
+| `Port`        | The port number of the flagd HTTP/gRPC endpoint          |
+| `Uri`         | The endpoint URI, with the format `http://{Host}:{Port}` |
+
+For a resource named `flagd`, Aspire injects both `ConnectionStrings__flagd` and individual connection properties:
+
+```
+ConnectionStrings__flagd=http://localhost:8013
+FLAGD_HOST=localhost
+FLAGD_PORT=8013
+FLAGD_URI=http://localhost:8013
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a flagd resource named `flagd` and references it from the consuming app.
+
+<Tabs syncKey="flagd-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, use the OpenFeature SDK with the flagd provider. Install the [📦 OpenFeature.Providers.Flagd](https://www.nuget.org/packages/OpenFeature.Providers.Flagd) NuGet package in the consuming project:
+
+<InstallDotNetPackage packageName="OpenFeature.Providers.Flagd" />
+
+In _Program.cs_, read the Aspire-injected connection string and register the flagd provider with the OpenFeature SDK:
+
+```csharp title="Program.cs"
+using OpenFeature;
+using OpenFeature.Providers.Flagd;
+
+var connectionString = builder.Configuration.GetConnectionString("flagd");
+
+await OpenFeature.Api.Instance.SetProviderAsync(
+    new FlagdProvider(new Uri(connectionString!)));
+```
+
+<Aside type="tip">
+  The connection name passed to `GetConnectionString` must match the flagd
+  resource name from the AppHost. For more information, see [Add flagd
+  resource](../flagd-host/#add-flagd-resource).
+</Aside>
+
+Obtain a client and evaluate feature flags:
+
+```csharp title="ExampleService.cs"
+var flagClient = OpenFeature.Api.Instance.GetClient();
+
+var welcomeBanner = await flagClient.GetBooleanValueAsync(
+    "welcome-banner",
+    defaultValue: false);
+
+var backgroundColor = await flagClient.GetStringValueAsync(
+    "background-color",
+    defaultValue: "#000000");
+```
+
+#### Read environment variables in C\#
+
+If you prefer to read the connection URI from environment variables directly rather than through `IConfiguration`:
+
+```csharp title="Program.cs"
+using OpenFeature;
+using OpenFeature.Providers.Flagd;
+
+var uri = Environment.GetEnvironmentVariable("FLAGD_URI");
+
+await OpenFeature.Api.Instance.SetProviderAsync(
+    new FlagdProvider(new Uri(uri!)));
+```
+
+For more information, see the [OpenFeature .NET SDK documentation](https://openfeature.dev/docs/reference/technologies/server/dotnet/) and the [flagd .NET provider](https://flagd.dev/providers/dotnet/).
+
+</TabItem>
+<TabItem label="Go">
+
+Install the OpenFeature Go SDK and flagd provider:
+
+```bash title="Terminal"
+go get github.com/open-feature/go-sdk/openfeature
+go get github.com/open-feature/go-sdk-contrib/providers/flagd/pkg
+```
+
+Read the injected environment variable, parse the URI, and configure the provider:
+
+```go title="main.go"
+package main
+
+import (
+    "context"
+    "net/url"
+    "os"
+    "strconv"
+
+    "github.com/open-feature/go-sdk/openfeature"
+    flagd "github.com/open-feature/go-sdk-contrib/providers/flagd/pkg"
+)
+
+func main() {
+    // Read the Aspire-injected connection URI
+    uri, err := url.Parse(os.Getenv("FLAGD_URI"))
+    if err != nil {
+        panic(err)
+    }
+
+    port, _ := strconv.Atoi(uri.Port())
+
+    provider, err := flagd.NewProvider(
+        flagd.WithHost(uri.Hostname()),
+        flagd.WithPort(uint16(port)),
+    )
+    if err != nil {
+        panic(err)
+    }
+
+    openfeature.SetProvider(provider)
+
+    client := openfeature.NewClient("app")
+
+    enabled, _ := client.BooleanValue(
+        context.Background(),
+        "welcome-banner",
+        false,
+        openfeature.NewEvaluationContext("", nil),
+    )
+    _ = enabled
+}
+```
+
+For more information, see the [OpenFeature Go SDK](https://openfeature.dev/docs/reference/technologies/server/go/) and the [flagd Go provider](https://flagd.dev/providers/go/).
+
+</TabItem>
+<TabItem label="Python">
+
+Install the OpenFeature SDK and flagd provider:
+
+```bash title="Terminal"
+pip install openfeature-sdk openfeature-provider-flagd
+```
+
+Read the injected environment variable, parse the URI, and configure the provider:
+
+```python title="app.py"
+import os
+from urllib.parse import urlparse
+from openfeature import api
+from openfeature.contrib.provider.flagd import FlagdProvider
+
+# Read the Aspire-injected connection URI
+uri = urlparse(os.getenv("FLAGD_URI"))
+
+api.set_provider(FlagdProvider(
+    host=uri.hostname,
+    port=uri.port,
+))
+
+client = api.get_client()
+
+welcome_banner = client.get_boolean_value("welcome-banner", False)
+background_color = client.get_string_value("background-color", "#000000")
+```
+
+For more information, see the [OpenFeature Python SDK](https://openfeature.dev/docs/reference/technologies/server/python/) and the [flagd Python provider](https://flagd.dev/providers/python/).
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the OpenFeature Server SDK and flagd provider:
+
+```bash title="Terminal"
+npm install @openfeature/server-sdk @openfeature/flagd-provider
+```
+
+Read the injected environment variable, parse the URI, and configure the provider:
+
+```typescript title="index.ts"
+import { OpenFeature } from '@openfeature/server-sdk';
+import { FlagdProvider } from '@openfeature/flagd-provider';
+
+// Read the Aspire-injected connection URI
+const uri = new URL(process.env.FLAGD_URI!);
+
+OpenFeature.setProvider(
+  new FlagdProvider({
+    host: uri.hostname,
+    port: Number(uri.port),
+  })
+);
+
+const client = OpenFeature.getClient();
+
+const welcomeBanner = await client.getBooleanValue('welcome-banner', false);
+const backgroundColor = await client.getStringValue(
+  'background-color',
+  '#000000'
+);
+```
+
+For more information, see the [OpenFeature JavaScript SDK](https://openfeature.dev/docs/reference/technologies/server/javascript/) and the [flagd Node.js provider](https://flagd.dev/providers/js/).
+
+</TabItem>
+</Tabs>
+
+## Use OFREP provider
+
+As an alternative to the native provider, you can connect to flagd using the [OFREP (OpenFeature Remote Evaluation Protocol)](https://openfeature.dev/specification/appendix-c/). OFREP is a standardized HTTP/REST-based protocol for remote feature flag evaluation, making it language-agnostic and well-suited for polyglot environments.
+
+### Install the OFREP provider
+
+Install the [📦 OpenFeature.Providers.Ofrep](https://www.nuget.org/packages/OpenFeature.Providers.Ofrep) NuGet package in the client-consuming project:
+
+```powershell
+dotnet add package OpenFeature.Providers.Ofrep
+```
+
+### Configure the AppHost
+
+In your AppHost, retrieve the OFREP endpoint from the flagd resource and pass it to your consuming project as an environment variable:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var flagd = builder.AddFlagd("flagd")
+    .WithBindFileSync("./flags/");
+
+var ofrepEndpoint = flagd.GetEndpoint("ofrep");
+
+builder.AddProject<Projects.ExampleProject>("api")
+    .WaitFor(flagd)
+    .WithEnvironment("OFREP_ENDPOINT", ofrepEndpoint);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const flagd = await builder.addFlagd('flagd');
+await flagd.withBindFileSync('./flags/');
+
+const ofrepEndpoint = await flagd.ofrepEndpoint();
+
+const api = await builder.addProject(
+  'api',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await api.waitFor(flagd);
+await api.withEnvironment('OFREP_ENDPOINT', ofrepEndpoint);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Configure the client
+
+In the `Program.cs` file of your client-consuming project, register the OpenFeature SDK with the OFREP provider using dependency injection:
+
+```csharp
+using OpenFeature.Providers.Ofrep;
+using OpenFeature.Providers.Ofrep.DependencyInjection;
+
+builder.Services.AddOpenFeature(featureBuilder =>
+{
+    featureBuilder.AddOfrepProvider(options =>
+    {
+        // Leave BaseUrl unset so the provider falls back to the
+        // OFREP_ENDPOINT environment variable injected by the AppHost.
+    });
+});
+```
+
+The OFREP provider automatically reads the `OFREP_ENDPOINT` environment variable to discover the flagd OFREP endpoint. You can then evaluate feature flags by injecting `IFeatureClient`:
+
+```csharp
+using OpenFeature;
+
+app.MapGet("/", async (IFeatureClient flagClient) =>
+{
+    var welcomeBanner = await flagClient.GetBooleanValueAsync(
+        "welcome-banner",
+        defaultValue: false);
+
+    var backgroundColor = await flagClient.GetStringValueAsync(
+        "background-color",
+        defaultValue: "#000000");
+
+    return Results.Ok(new { welcomeBanner, backgroundColor });
+});
+```
+
+For more information on the OFREP specification, see the [OFREP specification](https://openfeature.dev/specification/appendix-c/).

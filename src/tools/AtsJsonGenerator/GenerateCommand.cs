@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using AtsJsonGenerator.Helpers;
 
@@ -145,6 +146,11 @@ internal static class GenerateCommand
         {
             WriteIndented = true,
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault,
+            // Match the C# packages JSON output: emit characters like `, <, >, ', + and other
+            // non-ASCII content as their literal UTF-8 bytes rather than \uXXXX escape sequences.
+            // The output is read by Astro at build time, not embedded in HTML, so the relaxed
+            // encoder is safe and keeps diffs human-readable.
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         };
         var wroteFile = StableFileWriter.WriteIfChanged(outputPath, JsonSerializer.Serialize(result, options));
 

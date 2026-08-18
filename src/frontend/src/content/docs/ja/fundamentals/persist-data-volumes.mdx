@@ -3,7 +3,7 @@ title: ボリュームまたはバインド マウントを使用して Aspire �
 description: コンテナーでボリュームとバインド マウントを使い、再起動をまたいでデータを保持する Aspire の構成について学びます。
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Aspire プロジェクトを開始して停止するたびに、アプリはアプリ リソース コンテナーも作成し、破棄します。デバッグ セッション中にそれらのコンテナーに保存されたデータやファイルは、次のセッションでは失われます。多くの開発チームは、たとえば実行のたびにサンプル データでデータベースを再投入しなくて済むように、デバッグ セッション間でこのデータを保持したいと考えます。
 
@@ -41,9 +41,12 @@ Aspire プロジェクトを開始して停止するたびに、アプリはア�
 - **`target`**: 保持したいデータのコンテナー内ターゲット パス。
 - **`isReadOnly`**: ボリューム内データを変更可能かどうかを示すブール値です。既定値は `false` です。
 
-この記事の残りでは、分散アプリ ビルダーの基本がすでに定義されている Aspire の [AppHost プロジェクト](/ja/get-started/app-host/)にある `Program` クラスを確認していると想定します:
+この記事の残りでは、分散アプリ ビルダーの基本がすでに定義されている Aspire の [AppHost プロジェクト](/ja/get-started/app-host/) にある `Program` クラスを確認していると想定します:
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // TODO:
@@ -53,23 +56,71 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// TODO:
+//   ここでボリュームの構成と
+//   永続パスワードの設定に関するさまざまなコード スニペットを検討する。
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 最初に示すコード スニペットでは `WithVolume` API を使用して SQL Server リソースのボリュームを構成します。次のコードは Aspire AppHost プロジェクトで SQL Server リソースにボリュームを構成する方法を示しています:
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var sql = builder.AddSqlServer("sql")
                  .WithVolume(target: "/var/opt/mssql")
                  .AddDatabase("sqldb");
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const sql = await builder.addSqlServer("sql");
+await sql.withVolume("/var/opt/mssql");
+const sqldb = await sql.addDatabase("sqldb");
+```
+
+</TabItem>
+</Tabs>
+
 この例では `/var/opt/mssql` がコンテナー内のデータベース ファイルへのパスを設定します。
 
 すべての Aspire コンテナー リソースでボリュームを利用でき、さらに一部ではリソースから派生した名前付きボリュームを追加するための便利な API が提供されています。`WithDataVolume` メソッドを例にすると、次のコードは先ほどの例と機能的に等価ですが、より簡潔です:
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var sql = builder.AddSqlServer("sql")
                  .WithDataVolume()
                  .AddDatabase("sqldb");
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const sql = await builder.addSqlServer("sql");
+await sql.withDataVolume();
+const sqldb = await sql.addDatabase("sqldb");
+```
+
+</TabItem>
+</Tabs>
 
 AppHost プロジェクト名が `VolumeMount.AppHost` の場合、`WithDataVolume` メソッドは自動的に `VolumeMount.AppHost-sql-data` という名前付きボリュームを作成し、SQL Server コンテナー内の `/var/opt/mssql` パスにマウントします。命名規則は次のとおりです:
 
@@ -85,11 +136,26 @@ AppHost プロジェクト名が `VolumeMount.AppHost` の場合、`WithDataVolu
 
 次のコード スニペットでは `WithBindMount` API を使用して SQL Server リソースのバインド マウントを構成しています:
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var sql = builder.AddSqlServer("sql")
                  .WithBindMount(source: @"C:\SqlServer\Data", target: "/var/opt/mssql")
                  .AddDatabase("sqldb");
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const sql = await builder.addSqlServer("sql");
+await sql.withBindMount("C:\\SqlServer\\Data", "/var/opt/mssql");
+const sqldb = await sql.addDatabase("sqldb");
+```
+
+</TabItem>
+</Tabs>
 
 この例では:
 
@@ -98,21 +164,51 @@ var sql = builder.AddSqlServer("sql")
 
 ボリュームと同様に、一部の Aspire コンテナー リソースではバインド マウントを追加するための便利な API が提供されています。`WithDataBindMount` メソッドを例にすると、次のコードは先ほどの例と機能的に等価ですが、より簡潔です:
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var sql = builder.AddSqlServer("sql")
                  .WithDataBindMount(source: @"C:\SqlServer\Data")
                  .AddDatabase("sqldb");
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const sql = await builder.addSqlServer("sql");
+await sql.withDataBindMount("C:\\SqlServer\\Data");
+const sqldb = await sql.addDatabase("sqldb");
+```
+
+</TabItem>
+</Tabs>
+
 ## 永続パスワードの作成
 
 名前付きボリュームでは、アプリ起動間で一貫したパスワードが必要です。Aspire にはランダムなパスワード生成機能が用意されています。先ほどの例をもう一度見てみましょう。ここではパスワードが自動生成されます:
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var sql = builder.AddSqlServer("sql")
                  .WithDataVolume()
                  .AddDatabase("sqldb");
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const sql = await builder.addSqlServer("sql");
+await sql.withDataVolume();
+const sqldb = await sql.addDatabase("sqldb");
+```
+
+</TabItem>
+</Tabs>
 
 `AddSqlServer` 呼び出し時に `password` パラメーターを指定しないため、Aspire は SQL Server リソース用パスワードを自動生成します。
 
@@ -143,13 +239,30 @@ aspire secret set Parameters:sql-password <password>
 
 生成されたパスワードを上書きすることで、アプリ起動間でパスワードを一貫して保てます。別の方法として `AddParameter` メソッドを使用し、パスワードとして利用できるパラメーターを作成することもできます。次のコードは SQL Server リソースの永続パスワードを作成する方法を示しています:
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var sqlPassword = builder.AddParameter("sql-password", secret: true);
 
 var sql = builder.AddSqlServer("sql", password: sqlPassword)
                  .WithDataVolume()
                  .AddDatabase("sqldb");
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const sqlPassword = await builder.addParameter("sql-password", { secret: true });
+
+const sql = await builder.addSqlServer("sql", { password: sqlPassword });
+await sql.withDataVolume();
+const sqldb = await sql.addDatabase("sqldb");
+```
+
+</TabItem>
+</Tabs>
 
 `AddParameter` メソッドは `sql-password` という名前のパラメーターを作成し、それをシークレットとして扱います。続いて `AddSqlServer` メソッドを `password` パラメーター付きで呼び出し、SQL Server リソースのパスワードを設定します。詳しくは [外部パラメーター](/ja/fundamentals/external-parameters/) を参照してください。
 

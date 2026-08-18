@@ -136,12 +136,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/ai/github-models/github-models-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up GitHub Models in the AppHost',
               slug: 'integrations/ai/github-models/github-models-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/ai/github-models/github-models-client',
+              label: 'Connect to GitHub Models',
+              slug: 'integrations/ai/github-models/github-models-connect',
             },
           ],
         },
@@ -154,12 +154,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/ai/ollama/ollama-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Ollama in the AppHost',
               slug: 'integrations/ai/ollama/ollama-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/ai/ollama/ollama-client',
+              label: 'Connect to Ollama',
+              slug: 'integrations/ai/ollama/ollama-connect',
             },
           ],
         },
@@ -172,12 +172,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/ai/openai/openai-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up OpenAI in the AppHost',
               slug: 'integrations/ai/openai/openai-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/ai/openai/openai-client',
+              label: 'Connect to OpenAI',
+              slug: 'integrations/ai/openai/openai-connect',
             },
           ],
         },
@@ -332,12 +332,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                       slug: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started',
                     },
                     {
-                      label: 'Hosting integration (AppHost)',
+                      label: 'Set up Azure in the AppHost',
                       slug: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host',
                     },
                     {
-                      label: 'Client integration',
-                      slug: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-client',
+                      label: 'Connect to Azure',
+                      slug: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect',
                     },
                   ],
                 },
@@ -350,12 +350,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                       slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started',
                     },
                     {
-                      label: 'Hosting integration (AppHost)',
+                      label: 'Set up Azure AI Inference in the AppHost',
                       slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-host',
                     },
                     {
-                      label: 'Client integration',
-                      slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-client',
+                      label: 'Connect to Azure AI Inference',
+                      slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect',
                     },
                   ],
                 },
@@ -368,12 +368,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                       slug: 'integrations/cloud/azure/azure-ai-search/azure-ai-search-get-started',
                     },
                     {
-                      label: 'Hosting integration (AppHost)',
+                      label: 'Set up Azure AI Search in the AppHost',
                       slug: 'integrations/cloud/azure/azure-ai-search/azure-ai-search-host',
                     },
                     {
-                      label: 'Client integration',
-                      slug: 'integrations/cloud/azure/azure-ai-search/azure-ai-search-client',
+                      label: 'Connect to Azure AI Search',
+                      slug: 'integrations/cloud/azure/azure-ai-search/azure-ai-search-connect',
                     },
                   ],
                 },
@@ -386,12 +386,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                       slug: 'integrations/cloud/azure/azure-openai/azure-openai-get-started',
                     },
                     {
-                      label: 'Hosting integration (AppHost)',
+                      label: 'Set up Azure OpenAI in the AppHost',
                       slug: 'integrations/cloud/azure/azure-openai/azure-openai-host',
                     },
                     {
-                      label: 'Client integration',
-                      slug: 'integrations/cloud/azure/azure-openai/azure-openai-client',
+                      label: 'Connect to Azure OpenAI',
+                      slug: 'integrations/cloud/azure/azure-openai/azure-openai-connect',
                     },
                   ],
                 },
@@ -406,12 +406,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-app-configuration/azure-app-configuration-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure App Configuration in the AppHost',
                   slug: 'integrations/cloud/azure/azure-app-configuration/azure-app-configuration-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-app-configuration/azure-app-configuration-client',
+                  label: 'Connect to Azure App Configuration',
+                  slug: 'integrations/cloud/azure/azure-app-configuration/azure-app-configuration-connect',
                 },
               ],
             },
@@ -424,12 +424,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-app-service/azure-app-service-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure App Service in the AppHost',
                   slug: 'integrations/cloud/azure/azure-app-service/azure-app-service-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-app-service/azure-app-service-client',
+                  label: 'Connect to Azure App Service',
+                  slug: 'integrations/cloud/azure/azure-app-service/azure-app-service-connect',
                 },
               ],
             },
@@ -446,12 +446,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-cache-redis/azure-cache-redis-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure Cache for Redis in the AppHost',
                   slug: 'integrations/cloud/azure/azure-cache-redis/azure-cache-redis-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-cache-redis/azure-cache-redis-client',
+                  label: 'Connect to Azure Cache for Redis',
+                  slug: 'integrations/cloud/azure/azure-cache-redis/azure-cache-redis-connect',
                 },
               ],
             },
@@ -464,12 +464,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure Container Registry in the AppHost',
                   slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-client',
+                  label: 'Connect to Azure Container Registry',
+                  slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-connect',
                 },
               ],
             },
@@ -486,12 +486,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure Cosmos DB in the AppHost',
                   slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-client',
+                  label: 'Connect to Azure Cosmos DB',
+                  slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-connect',
                 },
               ],
             },
@@ -508,12 +508,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure Event Hubs in the AppHost',
                   slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-client',
+                  label: 'Connect to Azure Event Hubs',
+                  slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-connect',
                 },
               ],
             },
@@ -530,12 +530,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-functions/azure-functions-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure Functions in the AppHost',
                   slug: 'integrations/cloud/azure/azure-functions/azure-functions-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-functions/azure-functions-client',
+                  label: 'Connect to Azure Functions',
+                  slug: 'integrations/cloud/azure/azure-functions/azure-functions-connect',
                 },
               ],
             },
@@ -548,12 +548,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure Key Vault in the AppHost',
                   slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-client',
+                  label: 'Connect to Azure Key Vault',
+                  slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-connect',
                 },
               ],
             },
@@ -570,12 +570,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-postgresql/azure-postgresql-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure PostgreSQL in the AppHost',
                   slug: 'integrations/cloud/azure/azure-postgresql/azure-postgresql-host',
                 },
                 {
-                  label: 'Client integration (Your app)',
-                  slug: 'integrations/cloud/azure/azure-postgresql/azure-postgresql-client',
+                  label: 'Connect to Azure PostgreSQL',
+                  slug: 'integrations/cloud/azure/azure-postgresql/azure-postgresql-connect',
                 },
               ],
             },
@@ -588,12 +588,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure Service Bus in the AppHost',
                   slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-client',
+                  label: 'Connect to Azure Service Bus',
+                  slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-connect',
                 },
               ],
             },
@@ -606,12 +606,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-signalr/azure-signalr-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure SignalR Service in the AppHost',
                   slug: 'integrations/cloud/azure/azure-signalr/azure-signalr-host',
                 },
                 {
                   label: 'Hub host integration',
-                  slug: 'integrations/cloud/azure/azure-signalr/azure-signalr-client',
+                  slug: 'integrations/cloud/azure/azure-signalr/azure-signalr-connect',
                 },
               ],
             },
@@ -624,12 +624,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-sql-database/azure-sql-database-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure SQL Database in the AppHost',
                   slug: 'integrations/cloud/azure/azure-sql-database/azure-sql-database-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-sql-database/azure-sql-database-client',
+                  label: 'Connect to Azure SQL Database',
+                  slug: 'integrations/cloud/azure/azure-sql-database/azure-sql-database-connect',
                 },
               ],
             },
@@ -642,12 +642,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-get-started',
                 },
                 {
-                  label: 'Hosting integration',
+                  label: 'Set up Azure Storage Blobs in the AppHost',
                   slug: 'integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-client',
+                  label: 'Connect to Azure Storage Blobs',
+                  slug: 'integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-connect',
                 },
               ],
             },
@@ -664,12 +664,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-storage-queues/azure-storage-queues-get-started',
                 },
                 {
-                  label: 'Hosting integration',
+                  label: 'Set up Azure Storage Queues in the AppHost',
                   slug: 'integrations/cloud/azure/azure-storage-queues/azure-storage-queues-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-storage-queues/azure-storage-queues-client',
+                  label: 'Connect to Azure Storage Queues',
+                  slug: 'integrations/cloud/azure/azure-storage-queues/azure-storage-queues-connect',
                 },
               ],
             },
@@ -682,12 +682,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-storage-tables/azure-storage-tables-get-started',
                 },
                 {
-                  label: 'Hosting integration',
+                  label: 'Set up Azure Storage Tables in the AppHost',
                   slug: 'integrations/cloud/azure/azure-storage-tables/azure-storage-tables-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-storage-tables/azure-storage-tables-client',
+                  label: 'Connect to Azure Storage Tables',
+                  slug: 'integrations/cloud/azure/azure-storage-tables/azure-storage-tables-connect',
                 },
               ],
             },
@@ -704,12 +704,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-get-started',
                 },
                 {
-                  label: 'Hosting integration',
+                  label: 'Set up Azure Web PubSub in the AppHost',
                   slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-host',
                 },
                 {
-                  label: 'Client integration',
-                  slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-client',
+                  label: 'Connect to Azure Web PubSub',
+                  slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-connect',
                 },
               ],
             },
@@ -759,12 +759,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/caching/redis/redis-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Redis in the AppHost',
               slug: 'integrations/caching/redis/redis-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/caching/redis/redis-client',
+              label: 'Connect to Redis',
+              slug: 'integrations/caching/redis/redis-connect',
             },
             {
               label: 'Community extensions',
@@ -781,12 +781,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/caching/redis-distributed/redis-distributed-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Redis Distributed Cache in the AppHost',
               slug: 'integrations/caching/redis-distributed/redis-distributed-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/caching/redis-distributed/redis-distributed-client',
+              label: 'Connect to Redis Distributed Cache',
+              slug: 'integrations/caching/redis-distributed/redis-distributed-connect',
             },
           ],
         },
@@ -799,12 +799,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/caching/redis-output/redis-output-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Redis Output Cache in the AppHost',
               slug: 'integrations/caching/redis-output/redis-output-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/caching/redis-output/redis-output-client',
+              label: 'Connect to Redis Output Cache',
+              slug: 'integrations/caching/redis-output/redis-output-connect',
             },
           ],
         },
@@ -817,12 +817,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/caching/valkey/valkey-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Valkey in the AppHost',
               slug: 'integrations/caching/valkey/valkey-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/caching/valkey/valkey-client',
+              label: 'Connect to Valkey',
+              slug: 'integrations/caching/valkey/valkey-connect',
             },
           ],
         },
@@ -835,12 +835,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/caching/garnet/garnet-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Garnet in the AppHost',
               slug: 'integrations/caching/garnet/garnet-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/caching/garnet/garnet-client',
+              label: 'Connect to Garnet',
+              slug: 'integrations/caching/garnet/garnet-connect',
             },
           ],
         },
@@ -868,6 +868,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         { label: 'Docker', slug: 'integrations/compute/docker' },
+        { label: 'K3s', slug: 'integrations/compute/k3s' },
         { label: 'Kubernetes', slug: 'integrations/compute/kubernetes' },
       ],
     },
@@ -901,12 +902,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/clickhouse/clickhouse-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up ClickHouse in the AppHost',
               slug: 'integrations/databases/clickhouse/clickhouse-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/clickhouse/clickhouse-client',
+              label: 'Connect to ClickHouse',
+              slug: 'integrations/databases/clickhouse/clickhouse-connect',
             },
           ],
         },
@@ -919,12 +920,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/elasticsearch/elasticsearch-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Elasticsearch in the AppHost',
               slug: 'integrations/databases/elasticsearch/elasticsearch-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/elasticsearch/elasticsearch-client',
+              label: 'Connect to Elasticsearch',
+              slug: 'integrations/databases/elasticsearch/elasticsearch-connect',
             },
           ],
         },
@@ -953,12 +954,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Entity Framework Core in the AppHost',
                   slug: 'integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-host',
                 },
                 {
-                  label: 'Client integration (Your app)',
-                  slug: 'integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-client',
+                  label: 'Connect to Entity Framework Core',
+                  slug: 'integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-connect',
                 },
               ],
             },
@@ -971,8 +972,8 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/azure-postgresql/azure-postgresql-get-started',
                 },
                 {
-                  label: 'Client integration (Your app)',
-                  slug: 'integrations/databases/efcore/azure-postgresql/azure-postgresql-client',
+                  label: 'Connect to Azure PostgreSQL',
+                  slug: 'integrations/databases/efcore/azure-postgresql/azure-postgresql-connect',
                 },
               ],
             },
@@ -985,12 +986,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/azure-sql/azure-sql-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Azure SQL in the AppHost',
                   slug: 'integrations/databases/efcore/azure-sql/azure-sql-host',
                 },
                 {
-                  label: 'Client integration (Your app)',
-                  slug: 'integrations/databases/efcore/azure-sql/azure-sql-client',
+                  label: 'Connect to Azure SQL',
+                  slug: 'integrations/databases/efcore/azure-sql/azure-sql-connect',
                 },
               ],
             },
@@ -1003,8 +1004,8 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/mysql/mysql-get-started',
                 },
                 {
-                  label: 'Client integration (Your app)',
-                  slug: 'integrations/databases/efcore/mysql/mysql-client',
+                  label: 'Connect to MySQL Pomelo',
+                  slug: 'integrations/databases/efcore/mysql/mysql-connect',
                 },
               ],
             },
@@ -1017,8 +1018,8 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/mongodb/mongodb-efcore-get-started',
                 },
                 {
-                  label: 'Client integration (Your app)',
-                  slug: 'integrations/databases/efcore/mongodb/mongodb-efcore-client',
+                  label: 'Connect to MongoDB',
+                  slug: 'integrations/databases/efcore/mongodb/mongodb-efcore-connect',
                 },
               ],
             },
@@ -1031,12 +1032,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/oracle/oracle-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
+                  label: 'Set up Oracle in the AppHost',
                   slug: 'integrations/databases/efcore/oracle/oracle-host',
                 },
                 {
-                  label: 'Client integration (Your app)',
-                  slug: 'integrations/databases/efcore/oracle/oracle-client',
+                  label: 'Connect to Oracle',
+                  slug: 'integrations/databases/efcore/oracle/oracle-connect',
                 },
               ],
             },
@@ -1049,8 +1050,8 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/postgres/postgresql-get-started',
                 },
                 {
-                  label: 'Client integration (Your app)',
-                  slug: 'integrations/databases/efcore/postgres/postgresql-client',
+                  label: 'Connect to PostgreSQL',
+                  slug: 'integrations/databases/efcore/postgres/postgresql-connect',
                 },
               ],
             },
@@ -1063,8 +1064,8 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/sql-server/sql-server-get-started',
                 },
                 {
-                  label: 'Client integration (Your app)',
-                  slug: 'integrations/databases/efcore/sql-server/sql-server-client',
+                  label: 'Connect to SQL Server',
+                  slug: 'integrations/databases/efcore/sql-server/sql-server-connect',
                 },
               ],
             },
@@ -1079,12 +1080,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/kurrentdb/kurrentdb-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up KurrentDB in the AppHost',
               slug: 'integrations/databases/kurrentdb/kurrentdb-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/kurrentdb/kurrentdb-client',
+              label: 'Connect to KurrentDB',
+              slug: 'integrations/databases/kurrentdb/kurrentdb-connect',
             },
           ],
         },
@@ -1097,12 +1098,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/meilisearch/meilisearch-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Meilisearch in the AppHost',
               slug: 'integrations/databases/meilisearch/meilisearch-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/meilisearch/meilisearch-client',
+              label: 'Connect to Meilisearch',
+              slug: 'integrations/databases/meilisearch/meilisearch-connect',
             },
           ],
         },
@@ -1115,12 +1116,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/milvus/milvus-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Milvus in the AppHost',
               slug: 'integrations/databases/milvus/milvus-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/milvus/milvus-client',
+              label: 'Connect to Milvus',
+              slug: 'integrations/databases/milvus/milvus-connect',
             },
           ],
         },
@@ -1133,12 +1134,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/mongodb/mongodb-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up MongoDB in the AppHost',
               slug: 'integrations/databases/mongodb/mongodb-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/mongodb/mongodb-client',
+              label: 'Connect to MongoDB',
+              slug: 'integrations/databases/mongodb/mongodb-connect',
             },
             {
               label: 'Community extensions',
@@ -1155,12 +1156,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/mysql/mysql-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up MySQL in the AppHost',
               slug: 'integrations/databases/mysql/mysql-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/mysql/mysql-client',
+              label: 'Connect to MySQL',
+              slug: 'integrations/databases/mysql/mysql-connect',
             },
             {
               label: 'Community extensions',
@@ -1199,12 +1200,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/qdrant/qdrant-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Qdrant in the AppHost',
               slug: 'integrations/databases/qdrant/qdrant-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/qdrant/qdrant-client',
+              label: 'Connect to Qdrant',
+              slug: 'integrations/databases/qdrant/qdrant-connect',
             },
           ],
         },
@@ -1217,12 +1218,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/ravendb/ravendb-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up RavenDB in the AppHost',
               slug: 'integrations/databases/ravendb/ravendb-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/ravendb/ravendb-client',
+              label: 'Connect to RavenDB',
+              slug: 'integrations/databases/ravendb/ravendb-connect',
             },
           ],
         },
@@ -1235,12 +1236,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/sql-server/sql-server-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up SQL Server in the AppHost',
               slug: 'integrations/databases/sql-server/sql-server-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/sql-server/sql-server-client',
+              label: 'Connect to SQL Server',
+              slug: 'integrations/databases/sql-server/sql-server-connect',
             },
             {
               label: 'Community extensions',
@@ -1248,7 +1249,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { 
+        {
           label: 'SQLite',
           collapsed: true,
           items: [
@@ -1257,12 +1258,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/sqlite/sqlite-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up SQLite in the AppHost',
               slug: 'integrations/databases/sqlite/sqlite-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/sqlite/sqlite-client',
+              label: 'Connect to SQLite',
+              slug: 'integrations/databases/sqlite/sqlite-connect',
             },
           ],
         },
@@ -1275,12 +1276,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/surrealdb/surrealdb-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up SurrealDB in the AppHost',
               slug: 'integrations/databases/surrealdb/surrealdb-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/surrealdb/surrealdb-client',
+              label: 'Connect to SurrealDB',
+              slug: 'integrations/databases/surrealdb/surrealdb-connect',
             },
           ],
         },
@@ -1332,14 +1333,80 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             { label: 'C# file-based apps', slug: 'integrations/dotnet/csharp-file-based-apps' },
             { label: 'Launch profiles', slug: 'integrations/dotnet/launch-profiles' },
             { label: '.NET tool resources', slug: 'integrations/dotnet/dotnet-tool-resources' },
+            {
+              label: 'Blazor',
+              collapsed: true,
+              items: [
+                { label: 'Get started', slug: 'integrations/dotnet/blazor-get-started' },
+                { label: 'Set up Blazor hosting in the AppHost', slug: 'integrations/dotnet/blazor-hosting' },
+                { label: 'Connect Blazor apps and APIs', slug: 'integrations/dotnet/blazor-connect' },
+              ],
+            },
             { label: '.NET MAUI', slug: 'integrations/dotnet/maui' },
             { label: 'WPF and Windows Forms', slug: 'integrations/frameworks/wpf-winforms' },
             { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
           ],
         },
-        { label: 'Dapr', slug: 'integrations/frameworks/dapr' },
-        { label: 'Go', slug: 'integrations/frameworks/go-apps' },
-        { label: 'Java', slug: 'integrations/frameworks/java' },
+        {
+          label: 'Dapr',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/dapr/dapr-get-started',
+            },
+            {
+              label: 'Set up Dapr resources in the AppHost',
+              slug: 'integrations/frameworks/dapr/dapr-host',
+            },
+            {
+              label: 'Connect to Dapr',
+              slug: 'integrations/frameworks/dapr/dapr-connect',
+            },
+          ],
+        },
+        {
+          label: '.NET / C#',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/dotnet/dotnet-get-started',
+            },
+            {
+              label: 'Set up .NET / C# apps in the AppHost',
+              slug: 'integrations/frameworks/dotnet/dotnet-host',
+            },
+          ],
+        },
+        {
+          label: 'Go',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/go/go-get-started',
+            },
+            {
+              label: 'Set up Go apps in the AppHost',
+              slug: 'integrations/frameworks/go/go-host',
+            },
+          ],
+        },
+        {
+          label: 'Java',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/java/java-get-started',
+            },
+            {
+              label: 'Set up Java apps in the AppHost',
+              slug: 'integrations/frameworks/java/java-host',
+            },
+          ],
+        },
         {
           label: 'JavaScript and Node.js',
           collapsed: true,
@@ -1362,14 +1429,70 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           },
           items: [
             { label: 'Bun', slug: 'integrations/frameworks/bun-apps' },
-            { label: 'Deno', slug: 'integrations/frameworks/deno-apps' },
+            {
+              label: 'Deno',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/frameworks/deno/deno-get-started',
+                },
+                {
+                  label: 'Set up Deno apps in the AppHost',
+                  slug: 'integrations/frameworks/deno/deno-host',
+                },
+              ],
+            },
             { label: 'JavaScript', slug: 'integrations/frameworks/javascript' },
-            { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
+            {
+              label: 'JavaScript monorepo extensions',
+              slug: 'integrations/frameworks/nodejs-extensions',
+            },
           ],
         },
-        { label: 'PowerShell', slug: 'integrations/frameworks/powershell' },
+        {
+          label: 'Perl',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/perl/perl-get-started',
+            },
+            {
+              label: 'Set up Perl apps in the AppHost',
+              slug: 'integrations/frameworks/perl/perl-host',
+            },
+          ],
+        },
+        {
+          label: 'PowerShell',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/powershell/powershell-get-started',
+            },
+            {
+              label: 'Set up PowerShell scripts in the AppHost',
+              slug: 'integrations/frameworks/powershell/powershell-host',
+            },
+          ],
+        },
         { label: 'Python', slug: 'integrations/frameworks/python' },
-        { label: 'Rust', slug: 'integrations/frameworks/rust' },
+        {
+          label: 'Rust',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/rust/rust-get-started',
+            },
+            {
+              label: 'Set up Rust apps in the AppHost',
+              slug: 'integrations/frameworks/rust/rust-host',
+            },
+          ],
+        },
       ],
     },
     {
@@ -1402,16 +1525,33 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/messaging/apache-kafka/apache-kafka-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Apache Kafka in the AppHost',
               slug: 'integrations/messaging/apache-kafka/apache-kafka-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/messaging/apache-kafka/apache-kafka-client',
+              label: 'Connect to Apache Kafka',
+              slug: 'integrations/messaging/apache-kafka/apache-kafka-connect',
             },
           ],
         },
-        { label: 'LavinMQ', slug: 'integrations/messaging/lavinmq' },
+        {
+          label: 'LavinMQ',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/lavinmq/lavinmq-get-started',
+            },
+            {
+              label: 'Set up LavinMQ in the AppHost',
+              slug: 'integrations/messaging/lavinmq/lavinmq-host',
+            },
+            {
+              label: 'Connect to LavinMQ',
+              slug: 'integrations/messaging/lavinmq/lavinmq-connect',
+            },
+          ],
+        },
         {
           label: 'NATS',
           collapsed: true,
@@ -1421,14 +1561,18 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/messaging/nats/nats-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up NATS in the AppHost',
               slug: 'integrations/messaging/nats/nats-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/messaging/nats/nats-client',
+              label: 'Connect to NATS',
+              slug: 'integrations/messaging/nats/nats-connect',
             },
           ],
+        },
+        {
+          label: 'Particular Service Platform',
+          link: 'https://docs.particular.net/platform/aspire/',
         },
         {
           label: 'RabbitMQ',
@@ -1439,12 +1583,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/messaging/rabbitmq/rabbitmq-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up RabbitMQ in the AppHost',
               slug: 'integrations/messaging/rabbitmq/rabbitmq-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/messaging/rabbitmq/rabbitmq-client',
+              label: 'Connect to RabbitMQ',
+              slug: 'integrations/messaging/rabbitmq/rabbitmq-connect',
             },
           ],
         },
@@ -1502,12 +1646,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/observability/seq/seq-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Seq in the AppHost',
               slug: 'integrations/observability/seq/seq-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/observability/seq/seq-client',
+              label: 'Connect to Seq',
+              slug: 'integrations/observability/seq/seq-connect',
             },
           ],
         },
@@ -1582,7 +1726,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           },
           slug: 'integrations/devtools/browser-logs',
         },
-        { label: 'Data API Builder', slug: 'integrations/devtools/dab' },
+        {
+          label: 'Data API Builder',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/dab/dab-get-started',
+            },
+            {
+              label: 'Set up Data API Builder in the AppHost',
+              slug: 'integrations/devtools/dab/dab-host',
+            },
+            {
+              label: 'Connect to Data API Builder',
+              slug: 'integrations/devtools/dab/dab-connect',
+            },
+          ],
+        },
         { label: 'Dev Tunnels', slug: 'integrations/devtools/dev-tunnels' },
         {
           label: 'flagd',
@@ -1593,12 +1754,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/devtools/flagd/flagd-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up flagd in the AppHost',
               slug: 'integrations/devtools/flagd/flagd-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/devtools/flagd/flagd-client',
+              label: 'Connect to flagd',
+              slug: 'integrations/devtools/flagd/flagd-connect',
             },
           ],
         },
@@ -1611,16 +1772,29 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/devtools/goff/goff-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up goff in the AppHost',
               slug: 'integrations/devtools/goff/goff-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/devtools/goff/goff-client',
+              label: 'Connect to goff',
+              slug: 'integrations/devtools/goff/goff-connect',
             },
           ],
         },
-        { label: 'k6', slug: 'integrations/devtools/k6' },
+        {
+          label: 'k6',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/k6/k6-get-started',
+            },
+            {
+              label: 'Set up k6 tests in the AppHost',
+              slug: 'integrations/devtools/k6/k6-host',
+            },
+          ],
+        },
         {
           label: 'MailPit',
           collapsed: true,
@@ -1630,18 +1804,28 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/devtools/mailpit/mailpit-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up MailPit in the AppHost',
               slug: 'integrations/devtools/mailpit/mailpit-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/devtools/mailpit/mailpit-client',
+              label: 'Connect to MailPit',
+              slug: 'integrations/devtools/mailpit/mailpit-connect',
             },
           ],
         },
         {
           label: 'SQL Database Projects',
-          slug: 'integrations/devtools/sql-projects',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/sql-projects/sql-projects-get-started',
+            },
+            {
+              label: 'Set up SQL projects in the AppHost',
+              slug: 'integrations/devtools/sql-projects/sql-projects-host',
+            },
+          ],
         },
       ],
     },

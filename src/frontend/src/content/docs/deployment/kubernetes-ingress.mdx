@@ -15,7 +15,24 @@ Aspire provides first-class APIs for defining Ingress and Gateway API resources 
 <Aside type="note">
   This guide covers exposing services to external traffic. For the basics of
   deploying to Kubernetes with Aspire, see [Deploy to
-  Kubernetes](/deployment/kubernetes/).
+  Kubernetes](/deployment/kubernetes/). If you're targeting AKS via
+  [`AddAzureKubernetesEnvironment`](/deployment/kubernetes/aks/), the
+  integrated AGC + cert-manager walkthrough lives in
+  [Deploy to AKS](/deployment/kubernetes/aks/#expose-your-app-to-the-internet)
+  and is the recommended path for that scenario.
+</Aside>
+
+<Aside type="tip" title="Prefer Gateway API for new deployments">
+  The Kubernetes project recommends [Gateway
+  API](https://kubernetes.io/docs/concepts/services-networking/gateway/) as the
+  long-term successor to Ingress — the Ingress API is feature-frozen and all
+  new traffic-routing capabilities are landing in Gateway API instead. For new
+  Aspire deployments, prefer
+  [`AddGateway(...)`](/deployment/kubernetes-gateway-aks/) over
+  `AddIngress(...)` unless your cluster or controller doesn't yet support
+  Gateway API. See [Gateway API
+  concepts](https://gateway-api.sigs.k8s.io/concepts/api-overview/) for the
+  upstream design rationale.
 </Aside>
 
 ## Ingress vs. Gateway API
@@ -46,6 +63,55 @@ When you use `AddIngress()` or `AddGateway()`, Aspire generates additional Kuber
 **For Gateway API (`AddGateway`):**
 - A `gateway.networking.k8s.io/v1 Gateway` resource with listeners (HTTP on port 80, HTTPS on port 443 if TLS is configured)
 - One or more `HTTPRoute` resources attached to the Gateway, grouped by hostname
+
+## Routing paths to services
+
+Use `WithPath` on an Ingress (or `WithRoute` on a Gateway) to forward traffic for a URL path to one of your Aspire services. Each call adds a rule to the generated `Ingress` (or `HTTPRoute`) resource pointing at the named endpoint's backing Kubernetes service.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var api = builder.AddProject<Projects.Api>("api");
+var web = builder.AddProject<Projects.Web>("web");
+
+var ingress = k8s.AddIngress("public")
+    .WithIngressClass("nginx")
+    .WithHostname("app.example.com")
+    .WithTls();
+
+// Route /api/* to the API service and everything else to the web frontend.
+ingress.WithPath("/api", api.GetEndpoint("http"));
+ingress.WithPath("/", web.GetEndpoint("http"));
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const api = await builder.addProject('api');
+const web = await builder.addProject('web');
+
+const ingress = await k8s.addIngress('public');
+await ingress.withIngressClass('nginx');
+await ingress.withHostname('app.example.com');
+await ingress.withTls();
+
+// Route /api/* to the API service and everything else to the web frontend.
+await ingress.withPath('/api', api.getEndpoint('http'));
+await ingress.withPath('/', web.getEndpoint('http'));
+```
+</TabItem>
+</Tabs>
+
+`WithPath` defaults to a `Prefix` match — pass an `IngressPathType` argument to request `Exact` or `ImplementationSpecific` matching when your controller supports it. There's also a host-scoped overload (`WithPath("api.example.com", "/", endpoint)`) for routing different hostnames to different backends from the same Ingress. If you'd rather forward all unmatched traffic to a single service without enumerating paths, call `WithDefaultBackend(endpoint)` instead — the two APIs can be combined.
+
+<Aside type="note">
+  Prior to Aspire 13.4, the Ingress path API was named `WithRoute`. The Gateway
+  API equivalent (`gateway.WithRoute(...)`) keeps the original name to match
+  the `HTTPRoute` resource it generates.
+</Aside>
 
 ## TLS and certificates
 
@@ -82,7 +148,7 @@ var ingress = k8s.AddIngress("ingress")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.mts"
 const hostname = builder.addParameter('hostname');
 const ingressClass = builder.addParameter('ingressclass');
 

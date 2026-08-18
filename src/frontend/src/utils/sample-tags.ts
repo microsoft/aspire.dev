@@ -6,6 +6,7 @@ export const TAG_LABELS: Record<string, string> = {
   'csharp': 'C#',
   'python': 'Python',
   'javascript': 'JavaScript',
+  'typescript': 'TypeScript',
   'node': 'Node.js',
   'go': 'Go',
   'redis': 'Redis',

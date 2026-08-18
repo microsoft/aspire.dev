@@ -1,5 +1,6 @@
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
 import { stripApiReferenceLocale } from './utils/api-reference-routes';
+import { getOgMetadata } from './utils/page-metadata';
 
 /**
  * Custom route middleware that applies implicit pagination rules:
@@ -31,6 +32,14 @@ export const onRequest = defineRouteMiddleware((context) => {
   // /it/reference/api/csharp/). Rewrite those hrefs to point to the canonical
   // English path so the sidebar never emits a link that 404s.
   canonicalizeApiReferenceLinks(sidebar);
+
+  // --- Step 0.5: Optimize Open Graph metadata in the emitted head ---
+  // Starlight populates `head` with `og:title` from `data.title` and
+  // `og:description` from `data.description`. We compose an SEO-optimal
+  // title (via `seoTitle` or the `· Aspire` suffix) and trim the
+  // description to the 200-char Open Graph limit so social previews never
+  // see the raw, sometimes-too-long frontmatter strings.
+  optimizeOpenGraphHead(routeData, context.url, context.site);
 
   // --- Step 1: Group boundary rules ---
   const location = findCurrentPage(sidebar);
@@ -87,6 +96,62 @@ export const onRequest = defineRouteMiddleware((context) => {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+interface MetaHeadEntry {
+  tag: string;
+  attrs?: Record<string, string | boolean | undefined>;
+  content?: string;
+}
+
+/**
+ * Replace the `og:title` / `og:description` meta entries Starlight emits by
+ * default with our SEO-optimized values from `getOgMetadata`. The function
+ * mutates `routeData.head` in place so downstream components (the
+ * Starlight `<Head>` default and our wrapper) emit a single, consistent set
+ * of Open Graph tags.
+ *
+ * Idempotent: callers can invoke it more than once per request without
+ * accumulating duplicate entries.
+ */
+function optimizeOpenGraphHead(
+  routeData: Parameters<Parameters<typeof defineRouteMiddleware>[0]>[0]['locals']['starlightRoute'],
+  url: URL,
+  site: URL | string | undefined
+): void {
+  const head = routeData.head as MetaHeadEntry[];
+  if (!Array.isArray(head)) return;
+
+  const og = getOgMetadata(routeData, url, site);
+
+  upsertMetaEntry(head, 'property', 'og:title', og.ogTitle);
+  upsertMetaEntry(head, 'property', 'og:description', og.description);
+}
+
+/**
+ * Replace (or insert) a `<meta>` entry in the Starlight head array. Matches
+ * on the `property`/`name` attribute so `og:*` and `name="…"` tags can both
+ * be addressed.
+ */
+function upsertMetaEntry(
+  head: MetaHeadEntry[],
+  attribute: 'property' | 'name',
+  attributeValue: string,
+  content: string
+): void {
+  const existing = head.find(
+    (entry) => entry.tag === 'meta' && entry.attrs?.[attribute] === attributeValue
+  );
+
+  if (existing) {
+    existing.attrs = { ...existing.attrs, content };
+    return;
+  }
+
+  head.push({
+    tag: 'meta',
+    attrs: { [attribute]: attributeValue, content },
+  });
+}
 
 interface SidebarEntry {
   type: string;

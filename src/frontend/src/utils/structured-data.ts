@@ -1,5 +1,12 @@
 import type { StarlightRouteData } from '@astrojs/starlight/route-data';
 
+import {
+  getContentBasePath,
+  isHomePagePath,
+  resolveCanonicalUrl,
+  resolveSiteUrl,
+} from './page-metadata';
+
 type JsonPrimitive = boolean | number | string | null;
 type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
 
@@ -52,7 +59,7 @@ export function getStructuredData(
   }
 
   const siteUrl = resolveSiteUrl(site, currentUrl);
-  const pageUrl = resolvePageUrl(route, currentUrl, siteUrl);
+  const pageUrl = resolveCanonicalUrl(route, currentUrl, siteUrl);
   const language = route.entryMeta.lang || route.lang;
   const description = route.entry.data.description ?? organizationDescription;
   const structuredData = buildStructuredData(
@@ -65,10 +72,6 @@ export function getStructuredData(
   );
 
   return structuredData ? serializeStructuredData(structuredData) : undefined;
-}
-
-function isHomePagePath(contentBasePath: string): boolean {
-  return contentBasePath === 'index' || contentBasePath === '';
 }
 
 function isCommunityPagePath(contentBasePath: string): boolean {
@@ -323,43 +326,6 @@ function serializeStructuredData(structuredData: JsonObject): string {
   );
 }
 
-function resolveSiteUrl(site: URL | undefined, currentUrl: URL): string {
-  const siteHref = site?.href ?? new URL('/', currentUrl).href;
-  return siteHref.replace(/\/$/, '');
-}
-
-function resolvePageUrl(route: StarlightRouteData, currentUrl: URL, siteUrl: string): string {
-  const canonicalHref = route.head.find(
-    (entry) =>
-      entry.tag === 'link' &&
-      entry.attrs?.rel === 'canonical' &&
-      typeof entry.attrs.href === 'string'
-  )?.attrs?.href;
-
-  if (typeof canonicalHref === 'string') {
-    return canonicalHref;
-  }
-
-  return ensureTrailingSlash(new URL(currentUrl.pathname, `${siteUrl}/`).href);
-}
-
-function normalizeEntryId(entryId: string): string {
-  return entryId.replace(/\\/g, '/');
-}
-
-function getContentBasePath(route: StarlightRouteData): string {
-  const entryId = normalizeEntryId(route.entry.id);
-  const localePrefix = route.locale ? `${route.locale}/` : '';
-  const contentPath =
-    localePrefix && entryId.startsWith(localePrefix) ? entryId.slice(localePrefix.length) : entryId;
-
-  return stripMarkdownExtension(contentPath);
-}
-
-function stripMarkdownExtension(value: string): string {
-  return value.replace(/\.mdx?$/i, '');
-}
-
 function extractFaqEntries(body: string): FaqEntry[] {
   const entries: FaqEntry[] = [];
   const lines = body.replace(/\r\n/g, '\n').split('\n');
@@ -466,8 +432,4 @@ function getReleaseVersion(contentBasePath: string): string | undefined {
 
   const version = contentBasePath.slice('whats-new/aspire-'.length);
   return version ? version.replace(/-/g, '.') : undefined;
-}
-
-function ensureTrailingSlash(url: string): string {
-  return url.endsWith('/') ? url : `${url}/`;
 }

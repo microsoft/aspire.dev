@@ -8,19 +8,23 @@ import {
   isOfficialAspirePackage,
   resolveOfficialAspirePackageSource,
 } from './aspire-package-source';
+import { normalizeAspireTerminology } from './aspire-terminology';
 
 const OFFICIAL_NUGET_ORG_QUERIES = ['owner:aspire', 'Aspire.Hosting.'];
 const OFFICIAL_RELEASE_FEED_QUERIES = ['Aspire.'];
 const COMMUNITY_TOOLKIT_QUERIES = ['CommunityToolkit.Aspire'];
 const EXCLUDED_PACKAGES = [
   'Aspire.Cli',
+  'Aspire.Hosting.Azure.AIFoundry',
   'Aspire.Hosting.IncrementalMigration',
   'Aspire.Hosting.NodeJs',
+  'Aspire.Hosting.Testing',
   'Aspire.Microsoft.AspNetCore.SystemWebAdapters',
   'Aspire.MongoDB.Driver.v3',
   'Aspire.RabbitMQ.Client.v7',
   'CommunityToolkit.Aspire.Hosting.Azure.StaticWebApps',
   'CommunityToolkit.Aspire.Hosting.EventStore',
+  'CommunityToolkit.Aspire.Hosting.Golang',
   'CommunityToolkit.Aspire.EventStore',
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
@@ -95,6 +99,7 @@ interface PackageSource {
   trusted: boolean;
   serviceIndex: string;
   queries: string[];
+  optional?: boolean;
 }
 
 export interface IntegrationOutput {
@@ -252,9 +257,9 @@ export function resolveIconUrl(pkg: PackageRecord): string {
   }
 
   return (
-    pkg.iconUrl ||
     buildNuGetFlatContainerIconUrl(pkg.id, iconVersion) ||
     buildNuGetIconUrl(pkg.id, iconVersion) ||
+    pkg.iconUrl ||
     DEFAULT_NUGET_ICON_URL
   );
 }
@@ -282,9 +287,8 @@ function filterAndTransform(pkgs: PackageRecord[]): IntegrationOutput[] {
     })
     .map((pkg) => ({
       title: pkg.id,
-      description: pkg.description
-        ?.replace(/\bA \.NET Aspire\b/gi, 'An Aspire')
-        .replace(/\.NET Aspire/gi, 'Aspire'),
+      description:
+        pkg.description === undefined ? undefined : normalizeAspireTerminology(pkg.description),
       icon: resolveIconUrl(pkg),
       href: `https://www.nuget.org/packages/${pkg.id}`,
       tags: pkg.tags?.map((tag) => tag.toLowerCase()) ?? [],
@@ -500,7 +504,15 @@ async function fetchNuGetOrgMetadata(packageIds: string[]): Promise<Map<string, 
     return metadataById;
   }
 
-  const searchBase = await discoverBase(NUGET_ORG_SERVICE_INDEX);
+  let searchBase: string;
+  try {
+    searchBase = await discoverBase(NUGET_ORG_SERVICE_INDEX);
+  } catch (error: unknown) {
+    console.warn(
+      `⚠️ Skipping nuget.org metadata backfill (search service unavailable): ${getErrorMessage(error)}`
+    );
+    return metadataById;
+  }
   const concurrency = 10;
   let nextIndex = 0;
 
@@ -575,6 +587,72 @@ function mergeFallbackPackageMetadata(
   });
 }
 
+function readPreviousCatalog(): IntegrationOutput[] {
+  try {
+    if (!fs.existsSync(OUTPUT_PATH)) {
+      return [];
+    }
+    const parsed = JSON.parse(fs.readFileSync(OUTPUT_PATH, 'utf8')) as IntegrationOutput[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error: unknown) {
+    console.warn(
+      `⚠️ Could not read the previous catalog for release-branch reconciliation: ${getErrorMessage(error)}`
+    );
+    return [];
+  }
+}
+
+// On release branches the official Aspire packages resolve from a branch-specific build
+// feed that only carries the packages produced by that build. Integrations that ship on a
+// separate cadence (and Community Toolkit packages, which never appear on the release feed)
+// would otherwise vanish, and freshly built packages have no nuget.org presentation metadata
+// (download counts, published icon) yet. Reconcile the freshly generated catalog against the
+// previously published one so a release-branch refresh only advances versions and never drops
+// or visually regresses previously published integrations. This is a no-op on non-release
+// branches, where nuget.org already provides the complete, authoritative catalog.
+function reconcileReleaseBranchCatalog(
+  fresh: IntegrationOutput[],
+  fetchedIds: ReadonlySet<string>
+): IntegrationOutput[] {
+  const previous = readPreviousCatalog();
+  if (previous.length === 0) {
+    return fresh;
+  }
+
+  const previousByTitle = new Map(
+    previous.map((entry) => [entry.title.toLowerCase(), entry] as const)
+  );
+  const freshTitles = new Set(fresh.map((entry) => entry.title.toLowerCase()));
+
+  const reconciled = fresh.map((entry) => {
+    const prior = previousByTitle.get(entry.title.toLowerCase());
+    if (!prior) {
+      return entry;
+    }
+    const icon =
+      prior.icon && prior.icon !== DEFAULT_NUGET_ICON_URL ? prior.icon : entry.icon;
+    const downloads = entry.downloads && entry.downloads > 0 ? entry.downloads : prior.downloads;
+    return { ...entry, icon, downloads };
+  });
+
+  // Only carry forward integrations that never appeared in any fetched source.
+  // A package that was fetched but intentionally dropped by a later filter (e.g.
+  // deprecated or unverified) is absent from `fresh` yet present in `fetchedIds`;
+  // carrying it forward would silently reintroduce a package we chose to exclude.
+  const carriedForward = previous.filter(
+    (entry) =>
+      !freshTitles.has(entry.title.toLowerCase()) &&
+      !fetchedIds.has(entry.title.toLowerCase())
+  );
+  if (carriedForward.length > 0) {
+    console.log(
+      `ℹ️ Release-branch reconciliation carried forward ${carriedForward.length} integration(s) absent from the release feed.`
+    );
+  }
+
+  return [...reconciled, ...carriedForward].sort((a, b) => a.title.localeCompare(b.title));
+}
+
 export async function updateIntegrations(): Promise<void> {
   const officialSource = resolveOfficialAspirePackageSource();
   if (officialSource.isReleaseBranch) {
@@ -601,10 +679,25 @@ export async function updateIntegrations(): Promise<void> {
       trusted: false,
       serviceIndex: NUGET_ORG_SERVICE_INDEX,
       queries: COMMUNITY_TOOLKIT_QUERIES,
+      optional: true,
     },
   ];
 
-  const results = await Promise.all(sources.map((source) => fetchPackagesFromSource(source)));
+  const results = await Promise.all(
+    sources.map(async (source) => {
+      try {
+        return await fetchPackagesFromSource(source);
+      } catch (error: unknown) {
+        if (source.optional) {
+          console.warn(
+            `⚠️ Skipping optional package source "${source.label}" (unavailable): ${getErrorMessage(error)}`
+          );
+          return [] as PackageRecord[];
+        }
+        throw error;
+      }
+    })
+  );
   const merged = results.flat();
   const uniqueById = merged.reduce<Record<string, PackageRecord>>((acc, pkg) => {
     const existing = acc[pkg.id];
@@ -623,8 +716,16 @@ export async function updateIntegrations(): Promise<void> {
     unique = mergeFallbackPackageMetadata(unique, nugetOrgMetadata);
   }
 
+  // Capture every package id seen across sources before deprecation filtering and
+  // transformation, so release-branch reconciliation can tell "shipped on another
+  // cadence / never fetched" (carry forward) apart from "fetched then filtered out"
+  // (drop, do not reintroduce).
+  const fetchedPackageIds = new Set(unique.map((pkg) => pkg.id.toLowerCase()));
   const nonDeprecated = await filterOutDeprecatedWithRegistration(unique);
-  const output = filterAndTransform(nonDeprecated);
+  let output = filterAndTransform(nonDeprecated);
+  if (officialSource.isReleaseBranch) {
+    output = reconcileReleaseBranchCatalog(output, fetchedPackageIds);
+  }
   const defaultIconPackages = getOfficialAspireDefaultIconPackages(output);
   if (defaultIconPackages.length > 0) {
     console.warn(

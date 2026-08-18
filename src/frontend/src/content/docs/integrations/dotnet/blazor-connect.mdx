@@ -1,0 +1,128 @@
+---
+title: Connect Blazor apps and APIs
+description: Learn which service discovery connection properties Aspire exposes for Blazor resources and how to wire Blazor apps to APIs through your AppHost.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import blazorIcon from '@assets/icons/blazor-icon.svg';
+
+<Image
+  src={blazorIcon}
+  alt="Blazor logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how to connect Blazor app resources and APIs after you've already modeled them in your AppHost. For the full hosting API surface, see [Set up Blazor hosting in the AppHost](../blazor-hosting/).
+
+## Connection properties
+
+When you use `WithReference` / `withReference`, Aspire publishes service discovery endpoint values as environment variables. The key format is:
+
+- `services__{resource-name}__{endpoint-name}__{index}`
+
+For example, if you reference an API resource named `weatherapi` with an `http` endpoint, Aspire exposes:
+
+- `services__weatherapi__http__0`
+
+Common properties used in Blazor-hosted app models are:
+
+| Property                              | Description                                            |
+| ------------------------------------- | ------------------------------------------------------ |
+| `services__{resource}__http__0`       | The first HTTP endpoint URL for a referenced resource  |
+| `services__{resource}__https__0`      | The first HTTPS endpoint URL for a referenced resource |
+| `services__{resource}__{endpoint}__0` | A named endpoint URL when the endpoint name is custom  |
+
+<Aside type="note">
+  For a broader service discovery reference, including multi-language examples,
+  see [Service discovery](/fundamentals/service-discovery/).
+</Aside>
+
+## Connect from your AppHost
+
+Use the AppHost to connect APIs to a Blazor WebAssembly project resource, then associate the client app with a Blazor Gateway.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var weatherApi = builder.AddProject<Projects.WeatherApi>("weatherapi")
+    .WithHttpEndpoint(name: "http");
+
+var blazorApp = builder.AddBlazorWasmProject("app", "../Client/Client.csproj")
+    .WithReference(weatherApi.GetEndpoint("http"));
+
+builder.AddBlazorGateway("gateway")
+    .WithExternalHttpEndpoints()
+    .WithBlazorClientApp(blazorApp);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const weatherApi = await builder
+  .addProject('weatherapi', '../WeatherApi/WeatherApi.csproj')
+  .withHttpEndpoint({ name: 'http' });
+
+const blazorApp = await builder
+  .addBlazorWasmProject('app', '../Client/Client.csproj')
+  .withReference(await weatherApi.getEndpoint('http'));
+
+await builder
+  .addBlazorGateway('gateway')
+  .withExternalHttpEndpoints()
+  .withBlazorClientApp(blazorApp);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Connect from consuming apps
+
+Any app resource that references the same APIs can consume the `services__...` values directly.
+
+<Tabs syncKey='blazor-consuming-lang'>
+<TabItem label='C#'>
+
+```csharp title="Program.cs"
+var weatherApiUrl = Environment.GetEnvironmentVariable("services__weatherapi__http__0");
+```
+
+</TabItem>
+<TabItem label='TypeScript'>
+
+```typescript title="index.ts"
+const weatherApiUrl = process.env.services__weatherapi__http__0;
+```
+
+</TabItem>
+<TabItem label='Python'>
+
+```python title="app.py"
+import os
+
+weather_api_url = os.getenv("services__weatherapi__http__0")
+```
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Set up Blazor hosting in the AppHost](/integrations/dotnet/blazor-hosting/)
+- [Get started with Blazor hosting](/integrations/dotnet/blazor-get-started/)
+- [Service discovery](/fundamentals/service-discovery/)

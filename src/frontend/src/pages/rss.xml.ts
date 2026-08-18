@@ -1,6 +1,7 @@
 import type { APIContext } from 'astro';
 import rss from '@astrojs/rss';
 import { getCollection } from 'astro:content';
+import { isDefaultLocaleEntry } from '@utils/page-metadata';
 
 type FeedDocData = Record<string, unknown>;
 
@@ -39,6 +40,7 @@ export async function GET(context: APIContext) {
     if (data.draft) return false;
     if (!data.description) return false;
     if (data.title === '404') return false;
+    if (!isDefaultLocaleEntry(doc.id)) return false;
 
     return true;
   });

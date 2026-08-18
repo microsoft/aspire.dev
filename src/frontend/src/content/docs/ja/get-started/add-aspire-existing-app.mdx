@@ -4,7 +4,8 @@ description: "`aspire init` と AI コーディング エージェントを使�
 next: false
 ---
 
-import { FileTree, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+import { Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
 
@@ -53,7 +54,7 @@ Aspire は段階的にも導入できます。まずは、コンテナー、デ�
    aspire init
    ```
 
-   プロンプトが表示されたら AppHost 言語（ C# または TypeScript）を選ぶか、 `--language csharp` / `--language typescript` を指定します。コマンドは最小構成の AppHost ファイル、 `aspire.config.json`、および `aspireify` スキルをエージェントのスキル ディレクトリへ作成します。
+   プロンプトが表示されたら AppHost 言語（ C# または TypeScript）を選ぶか、 `--language csharp` / `--language typescript` を指定します。コマンドは最小構成の AppHost、 `aspire.config.json`、および `aspireify` スキルをエージェントのスキル ディレクトリへ作成します。ルートに既存の `package.json` がある JavaScript または TypeScript アプリでは、既存アプリ パッケージのモジュール設定を変更しないように、TypeScript AppHost は `aspire-apphost/` サブフォルダーに作成されます。
 
     :::note[AppHost の言語はオーケストレーション対象を制限しません]
     C# と TypeScript のどちらの AppHost を選んでも、 Aspire は任意の言語で書かれたサービスをオーケストレーションできます。 C#、 JavaScript、 Python、 Go、 Rust、 Java、コンテナーなどに対応します。 AppHost 言語はオーケストレーションをどう記述するかの違いであり、ワークロードの制約ではありません。
@@ -106,7 +107,7 @@ Aspire には C# AppHost のスタイルが 2 つあります:
 
 TypeScript AppHost は、リポジトリが Node.js ワークスペース中心の場合や、 TypeScript でパス ベースのオーケストレーションを記述したい場合に適しています。
 
-- `apphost.ts` で管理
+- `apphost.mts` で管理。既存の JavaScript または TypeScript アプリでは、`aspire init` が `aspire-apphost/` の下に作成します
 - npm、 pnpm、 yarn、 Bun など主要なパッケージ マネージャーで実行可能
 - 既存のパッケージ マネージャーおよびモノレポのワークフローに自然に適合
 
@@ -282,10 +283,10 @@ AppHost 内の各 `ProjectReference` はソース ジェネレーターを起動
    aspire add postgres
    ```
 
-3. `apphost.ts` でリソースを配線します:
+3. `aspire-apphost/apphost.mts` でリソースを配線します:
 
-   ```typescript title="apphost.ts" twoslash
-   import { createBuilder } from './.modules/aspire.js';
+   ```typescript title="apphost.mts" twoslash
+   import { createBuilder } from './.aspire/modules/aspire.mjs';
 
    const builder = await createBuilder();
 
@@ -294,13 +295,13 @@ AppHost 内の各 `ProjectReference` はソース ジェネレーターを起動
    const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
 
    const api = await builder
-       .addProject('api', './src/Api/MyApp.Api.csproj')
+       .addProject('api', '../src/Api/MyApp.Api.csproj')
        .withReference(db)
        .withReference(cache)
        .waitFor(db);
 
    await builder
-       .addViteApp('web', './services/web')
+       .addViteApp('web', '../services/web')
        .withReference(api)
        .waitFor(api);
 
@@ -312,10 +313,13 @@ AppHost 内の各 `ProjectReference` はソース ジェネレーターを起動
 セットアップ後の典型的なワークスペース構成は次のとおりです:
 
 <FileTree>
-    - apphost.ts (new)
-    - .modules/ (new)
     - aspire.config.json (new)
-    - package.json (new or updated)
+    - package.json (Aspire 委譲スクリプトを追加)
+    - aspire-apphost/ (new)
+        - apphost.mts
+        - .aspire/modules/
+        - package.json
+        - tsconfig.apphost.json
     - services/
         - web/
             - package.json
@@ -325,8 +329,8 @@ AppHost 内の各 `ProjectReference` はソース ジェネレーターを起動
             - MyApp.Api.csproj
 </FileTree>
 
-:::note[.modules フォルダーは自動生成されます]
-生成された SDK ファイルを手動編集するのではなく、 `.modules/` は Aspire CLI に管理させてください。
+:::note[.aspire フォルダーは自動生成されます]
+生成された SDK ファイルを手動編集するのではなく、 `aspire-apphost/.aspire/` は Aspire CLI に管理させてください。
 :::
 
 </TabItem>
@@ -369,25 +373,25 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts — Existing services with hosting integrations" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts — Existing services with hosting integrations" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 const cache = await builder.addRedis('cache');
 
 const api = await builder
-    .addUvicornApp('api', './services/api', 'main:app')
+    .addUvicornApp('api', '../services/api', 'main:app')
     .withUv()
     .withReference(cache)
     .withExternalHttpEndpoints();
 
 await builder
-    .addPythonApp('worker', './workers/inventory-sync', 'worker.py')
+    .addPythonApp('worker', '../workers/inventory-sync', 'worker.py')
     .withReference(cache);
 
 await builder
-    .addViteApp('web', './services/web')
+    .addViteApp('web', '../services/web')
     .withReference(api)
     .waitFor(api);
 
@@ -448,8 +452,8 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts — Existing containers and shared infrastructure" twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts — Existing containers and shared infrastructure" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -458,13 +462,13 @@ const db = (await builder.addPostgres('postgres')).addDatabase('orders');
 const cache = await builder.addRedis('cache');
 
 const api = await builder
-    .addContainer('api', 'ghcr.io/contoso/orders-api:latest')
+    .addContainer('api', { image: 'ghcr.io/contoso/orders-api', tag: 'latest' })
     .withReference(db)
     .withReference(cache)
     .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
 
 await builder
-    .addContainer('web', 'ghcr.io/contoso/orders-web:latest')
+    .addContainer('web', { image: 'ghcr.io/contoso/orders-web', tag: 'latest' })
     .withReference(api)
     .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
 
@@ -535,20 +539,20 @@ builder.Build().Run();
 </TabItem>
 <TabItem label='TypeScript'>
 
-```typescript title="apphost.ts" showLineNumbers twoslash
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts" showLineNumbers twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
 
 const api = await builder
-    .addDockerfile('api', './api')
+    .addDockerfile('api', '../api')
     .withReference(db)
     .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
 
 await builder
-    .addDockerfile('web', './web')
+    .addDockerfile('web', '../web')
     .withReference(api)
     .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
 

@@ -10,6 +10,10 @@ export default getViteConfig({
     ],
   },
   test: {
+    // `threads` (worker_threads) has lower spawn overhead than the default
+    // `forks` pool on Linux CI runners. Tests are `environment: 'node'` and
+    // don't touch native addons, so this is safe.
+    pool: 'threads',
     include: ['tests/unit/**/*.vitest.test.ts'],
     environment: 'node',
     testTimeout: 30000,

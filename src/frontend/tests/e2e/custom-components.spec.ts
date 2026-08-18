@@ -13,18 +13,177 @@ test('app host builder swaps visible code when toggles and language change', asy
 
   const csharpGroup = builder.locator('.code-lang-group[data-code-lang="csharp"]');
   const typeScriptGroup = builder.locator('.code-lang-group[data-code-lang="typescript"]');
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+  const languageToggles = builder.locator('.lang-toggle');
+  const typeScriptToggle = builder.locator('.lang-toggle[data-lang="typescript"]');
+  const csharpToggle = builder.locator('.lang-toggle[data-lang="csharp"]');
 
-  await expect(csharpGroup).toBeVisible();
-  await expect(csharpGroup).toContainText('AddViteApp("frontend"');
+  await expect(languageToggles).toHaveText(['TypeScript', 'C#']);
+  await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(csharpToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(codeStage).toBeVisible();
+  await expect(codeStage).toHaveAttribute('data-code-lang', 'typescript');
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'frontend');
+  await expect(codeStage).toContainText('.addViteApp("frontend"');
+  await expect(typeScriptGroup).toBeHidden();
+  await expect(csharpGroup).toBeHidden();
 
   await builder.locator('.toggle[data-toggle="database"]').click();
-  await expect(csharpGroup).toContainText('AddPostgres("db")');
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage).toContainText('.addPostgres("db")');
 
-  await builder.locator('.lang-toggle[data-lang="typescript"]').click();
+  await csharpToggle.click();
 
-  await expect(typeScriptGroup).toBeVisible();
+  await expect(csharpToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(codeStage).toHaveAttribute('data-code-lang', 'csharp');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage).toContainText('AddPostgres("db")');
   await expect(csharpGroup).toBeHidden();
-  await expect(typeScriptGroup).toContainText('.addPostgres("db")');
+  await expect(typeScriptGroup).toBeHidden();
+});
+
+test('AppHost builder types additions and selects removals before deleting them', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+  const databaseToggle = builder.locator('.toggle[data-toggle="database"]');
+
+  await expect(builder.locator('[data-editor-caret]')).toHaveCSS('position', 'absolute');
+  await databaseToggle.click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'typing');
+  await expect(codeStage.locator('[data-editor-inserting]')).toHaveCount(1);
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+
+  await databaseToggle.click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'selecting');
+  await expect(codeStage.locator('[data-editor-selection]')).not.toHaveCount(0);
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'frontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage).not.toContainText('.addPostgres("db")');
+});
+
+test('AppHost builder applies code changes immediately when reduced motion is requested', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+
+  await builder.locator('.toggle[data-toggle="database"]').click();
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-motion', 'reduced');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage.locator('[data-editor-selection], [data-editor-inserting]')).toHaveCount(
+    0
+  );
+});
+
+test('AppHost builder can disable typing motion and its caret', async ({ page }) => {
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+  const motionToggle = builder.locator('[data-editor-motion-toggle]');
+  const databaseToggle = builder.locator('.toggle[data-toggle="database"]');
+
+  await expect(motionToggle).toBeChecked();
+  await databaseToggle.click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'typing');
+
+  await motionToggle.uncheck();
+  await expect(builder).toHaveAttribute('data-editor-motion-enabled', 'false');
+  await expect(codeDisplay).toHaveAttribute('data-editor-motion', 'disabled');
+  await expect(builder.locator('[data-editor-caret]')).toBeHidden();
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage.locator('[data-editor-selection], [data-editor-inserting]')).toHaveCount(
+    0
+  );
+
+  await builder.locator('.toggle[data-toggle="api"]').click();
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseApiFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await builder.locator('.lang-toggle[data-lang="csharp"]').click();
+  await expect(codeStage).toHaveAttribute('data-code-lang', 'csharp');
+  await expect(codeStage).toContainText('AddPostgres("db")');
+  await expect(codeStage.locator('[data-editor-selection], [data-editor-inserting]')).toHaveCount(
+    0
+  );
+
+  await motionToggle.check();
+  await expect(builder).toHaveAttribute('data-editor-motion-enabled', 'true');
+  await builder.locator('.toggle[data-toggle="api"]').click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'selecting');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+});
+
+test('AI context tips overlay section content on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const cases = [
+    ['.home-model [data-home-agent-badge]', '.model-proof'],
+    ['[data-home-environments] [data-home-agent-badge]', '.environment-switcher'],
+    ['.home-dashboard [data-home-agent-badge]', '.dashboard-stage'],
+  ] as const;
+
+  for (const [index, [badgeSelector, contentSelector]] of cases.entries()) {
+    const badge = page.locator(badgeSelector);
+    const trigger = badge.getByRole('button');
+    const popover = badge.getByRole('region');
+
+    await badge.scrollIntoViewIfNeeded();
+    await trigger.focus();
+    await expect(popover).toBeVisible();
+
+    const geometry = await page.evaluate(
+      ({ badgeSelector, contentSelector }) => {
+        const badge = document.querySelector<HTMLElement>(badgeSelector);
+        const popover = badge?.querySelector<HTMLElement>('[role="region"]');
+        const content = document.querySelector<HTMLElement>(contentSelector);
+        if (!popover || !content) return null;
+
+        const popoverRect = popover.getBoundingClientRect();
+        const contentRect = content.getBoundingClientRect();
+        const overlapLeft = Math.max(popoverRect.left, contentRect.left);
+        const overlapRight = Math.min(popoverRect.right, contentRect.right);
+        const overlapTop = Math.max(popoverRect.top, contentRect.top);
+        const overlapBottom = Math.min(popoverRect.bottom, contentRect.bottom);
+        const overlaps = overlapRight > overlapLeft && overlapBottom > overlapTop;
+        const pointX = overlaps ? (overlapLeft + overlapRight) / 2 : popoverRect.left + 4;
+        const pointY = overlaps ? (overlapTop + overlapBottom) / 2 : popoverRect.top + 4;
+        const topElement = document.elementFromPoint(pointX, pointY);
+
+        return {
+          insideViewport: popoverRect.left >= 0 && popoverRect.right <= window.innerWidth,
+          overlaps,
+          paintsOnTop: topElement === popover || popover.contains(topElement),
+        };
+      },
+      { badgeSelector, contentSelector }
+    );
+
+    expect(geometry).not.toBeNull();
+    expect(geometry?.insideViewport).toBe(true);
+    expect(geometry?.paintsOnTop).toBe(true);
+    if (index < 2) expect(geometry?.overlaps).toBe(true);
+  }
 });
 
 test('accessible code enhancements label code regions and remove disabled copy buttons', async ({
@@ -81,26 +240,39 @@ test('prerequisites presents container runtimes as one choice with Podman setup 
   await expect(podmanChoice.locator('starlight-tabs[data-sync-key="terminal"]')).toBeVisible();
 });
 
-test('testimonial carousel advances cards and enables the previous control', async ({ page }) => {
+test('homepage environment story exposes a keyboard-operable selected state', async ({ page }) => {
   await page.goto('/');
   await dismissCookieConsentIfVisible(page);
 
-  const track = page.locator('.testimonial-carousel [data-track]');
-  const prevButton = page.locator('.testimonial-carousel .prev-btn');
-  const nextButton = page.locator('.testimonial-carousel .next-btn');
+  const environment = page.locator('[data-home-environments]');
+  const localButton = environment.getByRole('button', { name: 'Local' });
+  const productionButton = environment.getByRole('button', { name: 'Production' });
+  const localPanel = environment.locator('[data-environment-panel="local"]');
+  const productionPanel = environment.locator('[data-environment-panel="production"]');
 
-  const initialScrollLeft = await track.evaluate((element) => Math.round(element.scrollLeft));
-  if (await nextButton.isDisabled()) {
-    await expect(prevButton).toBeDisabled();
-    await expect(nextButton).toBeDisabled();
-  } else {
-    await nextButton.click();
+  await expect(localButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(localPanel).toBeVisible();
+  await expect(productionPanel).toBeHidden();
 
-    await expect(prevButton).toBeEnabled();
-    await expect
-      .poll(async () => track.evaluate((element) => Math.round(element.scrollLeft)))
-      .toBeGreaterThan(initialScrollLeft);
-  }
+  const selectedIndicator = await localButton.evaluate((button) => {
+    const style = getComputedStyle(button, '::after');
+    return {
+      borderRadius: style.borderRadius,
+      width: Number.parseFloat(style.width),
+      buttonWidth: button.getBoundingClientRect().width,
+    };
+  });
+
+  expect(selectedIndicator.borderRadius).not.toBe('0px');
+  expect(selectedIndicator.width).toBeLessThan(selectedIndicator.buttonWidth);
+
+  await productionButton.focus();
+  await page.keyboard.press('Enter');
+
+  await expect(productionButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(localButton).toHaveAttribute('aria-pressed', 'false');
+  await expect(localPanel).toBeHidden();
+  await expect(productionPanel).toBeVisible();
 });
 
 test('os aware tabs default first-time Windows visitors to PowerShell', async ({ browser }) => {
@@ -147,4 +319,47 @@ test('os aware tabs default first-time Windows visitors to PowerShell', async ({
   } finally {
     await context.close();
   }
+});
+
+test('samples grid hydrates filters from the URL and syncs them back on change', async ({
+  page,
+}) => {
+  // Land directly on a pre-filtered URL. The browse view should:
+  //   - prefill the search box with the `q` value,
+  //   - mark each `tags` slug as active (silently dropping unknown slugs).
+  await page.goto('/reference/samples/?q=redis&tags=databases,not-a-real-tag');
+  await dismissCookieConsentIfVisible(page);
+
+  const searchInput = page.locator('[data-search-input]');
+  await expect(searchInput).toHaveValue('redis');
+
+  const databasesChip = page.locator('[data-tag="databases"]');
+  await expect(databasesChip).toHaveClass(/\bactive\b/);
+  await expect(databasesChip).toHaveAttribute('aria-pressed', 'true');
+
+  // The "Clear all" text link shows up once any filter is active and acts as
+  // the single reset point — there is no separate "Filtered by" bar anymore.
+  const clearAll = page.locator('[data-clear-all]');
+  await expect(clearAll).toBeVisible();
+
+  // Unknown slugs are dropped on hydrate, so the URL gets rewritten to a
+  // canonical form that only contains tags the page actually knows about.
+  await expect.poll(() => page.url()).toMatch(/[?&]tags=databases(?:&|$)/);
+  await expect.poll(() => page.url()).not.toMatch(/not-a-real-tag/);
+
+  // Toggling another tag updates `location.search` without pushing to the
+  // back/forward stack, so a shared link reflects current state but
+  // browser history stays clean.
+  const redisChip = page.locator('[data-tag="redis"]');
+  await redisChip.click();
+  await expect.poll(() => page.url()).toMatch(/tags=databases%2Credis|tags=databases,redis/);
+
+  // The "Clear all" link resets every filter at once (search + tags) and
+  // hides itself when there is nothing left to clear.
+  await clearAll.click();
+  await expect(searchInput).toHaveValue('');
+  await expect(databasesChip).not.toHaveClass(/\bactive\b/);
+  await expect(redisChip).not.toHaveClass(/\bactive\b/);
+  await expect(clearAll).toBeHidden();
+  await expect.poll(() => page.url()).not.toMatch(/[?&](q|tags)=/);
 });

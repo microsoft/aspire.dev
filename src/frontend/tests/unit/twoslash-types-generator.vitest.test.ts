@@ -11,19 +11,17 @@ const outputFile = path.join(frontendRoot, 'src', 'data', 'twoslash', 'aspire.d.
 
 let output = '';
 
-// TEMP: twoslash is temporarily disabled in ec.config.mjs. Re-enable this
-// suite (and flip TWOSLASH_ENABLED back to `true` in ec.config.mjs) when the
-// twoslash integration is restored.
-describe.skip('generate-twoslash-types', () => {
-  beforeAll(() => {
-    // The output is source-controlled, so don't unlink it. Re-run the generator
-    // in place; subsequent assertions read the refreshed content.
-    // Invoke tsx directly via node to avoid cross-platform `pnpm`/`pnpm.cmd`
-    // resolution issues (and the DEP0190 warning from `shell: true`).
-    const tsxBin = path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
-    execFileSync(process.execPath, [tsxBin, generatorScript], { cwd: frontendRoot, stdio: 'pipe' });
-    output = readFileSync(outputFile, 'utf8');
-  }, 60_000);
+beforeAll(() => {
+  // The output is source-controlled, so don't unlink it. Re-run the generator
+  // in place; subsequent assertions read the refreshed content.
+  // Invoke tsx directly via node to avoid cross-platform `pnpm`/`pnpm.cmd`
+  // resolution issues (and the DEP0190 warning from `shell: true`).
+  const tsxBin = path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+  execFileSync(process.execPath, [tsxBin, generatorScript], { cwd: frontendRoot, stdio: 'pipe' });
+  output = readFileSync(outputFile, 'utf8');
+}, 60_000);
+
+describe('generate-twoslash-types', () => {
 
   test('writes aspire.d.ts to disk', () => {
     expect(existsSync(outputFile)).toBe(true);
@@ -52,9 +50,41 @@ describe.skip('generate-twoslash-types', () => {
     expect(output).not.toMatch(/^\s*PasswordParameter:/m);
   });
 
+  test('preserves optional DTO fields', () => {
+    expect(output).toMatch(
+      /export interface CertificateTrustExecutionConfigurationContext\s*\{[^}]*\bisContainer\?: boolean;/s
+    );
+  });
+
   test('emits an options-object overload for primitive-only param lists', () => {
     // withDataVolume(options?: { ... }) is the canonical shape produced when all
     // params are primitives — generator pairs it with a positional overload.
     expect(output).toMatch(/withDataVolume\(options\?: \{/);
+  });
+
+  test('does not wrap an existing options DTO in another options object', () => {
+    expect(output).not.toMatch(/options\?: \{\s*options\?:/);
+  });
+
+  test('does not infer ContainerResource from marker interfaces', () => {
+    expect(output).not.toMatch(
+      /export interface \w+[^{]*extends[^{]*(?:ExecutableResource[^{]*ContainerResource|ContainerResource[^{]*ExecutableResource)/
+    );
+  });
+
+  test('prefers generated DTO metadata over post-snapshot shims', () => {
+    const declarations = output.match(/export interface ParameterCustomInputOptions\b/g) ?? [];
+
+    expect(declarations).toHaveLength(1);
+    expect(output).toMatch(/inputType\?: InputType/);
+    expect(output).toMatch(/label\?: string/);
+    expect(output).toMatch(/description\?: string/);
+    expect(output).toMatch(/enableDescriptionMarkdown\?: boolean/);
+    expect(output).toMatch(/options\?: Dict<string,string>/);
+    expect(output).toMatch(/value\?: string/);
+    expect(output).toMatch(/placeholder\?: string/);
+    expect(output).toMatch(/allowCustomChoice\?: boolean/);
+    expect(output).toMatch(/disabled\?: boolean/);
+    expect(output).toMatch(/maxLength\?: number/);
   });
 });
