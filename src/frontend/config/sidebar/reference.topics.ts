@@ -598,6 +598,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE002', link: '/diagnostics/aspire002' },
             { label: 'ASPIRE003', link: '/diagnostics/aspire003' },
             { label: 'ASPIRE004', link: '/diagnostics/aspire004' },
+            { label: 'ASPIRE010', link: '/diagnostics/aspire010' },
             {
               label: 'ASPIREEXPORT005',
               link: '/diagnostics/aspireexport005',
@@ -715,6 +716,8 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE006', link: '/diagnostics/aspire006' },
             { label: 'ASPIRE007', link: '/diagnostics/aspire007' },
             { label: 'ASPIRE008', link: '/diagnostics/aspire008' },
+            { label: 'ASPIRE009', link: '/diagnostics/aspire009' },
+            { label: 'ASPIRE011', link: '/diagnostics/aspire011' },
             {
               label: 'ASPIREACADOMAIN001',
               link: '/diagnostics/aspireacadomains001',

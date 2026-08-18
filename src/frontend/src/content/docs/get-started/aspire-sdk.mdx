@@ -114,17 +114,19 @@ When `AspireUseCliBundle` is `true`:
 
 - `Aspire.AppHost.Sdk` still sets AppHost properties and adds the implicit `Aspire.Hosting.AppHost` package.
 - Your AppHost uses the DCP and Dashboard versions installed with the Aspire CLI.
-- At build time, the SDK resolves the invocation used to launch the AppHost in this priority order:
-    1. An explicit `AspireCliPath` (or `AspireCliBundlePath`) property in the project file.
-    2. Forced DNX mode, when `AspireCliInvocationMode` is set to `Dnx`.
-    3. The `aspire` executable on `PATH`.
-    4. The `dnx` command on `PATH`.
-- If the bundle cannot be resolved, the build emits error [`ASPIRE009`](/diagnostics/aspire009/) with a message directing you to [get.aspire.dev](https://get.aspire.dev) to install the Aspire CLI.
-- If `AspireCliInvocationMode` is forced to `Dnx` but `dnx` isn't found on `PATH`, the build emits error [`ASPIRE011`](/diagnostics/aspire011/).
+- The SDK selects the executable used to launch the AppHost as follows:
+  1. An explicit `AspireCliPath` is always authoritative.
+  2. When `AspireCliInvocationMode` is set to `Dnx`, the SDK selects a usable `dnx` host.
+  3. Otherwise, the default `Path` mode selects `aspire` on `PATH`, then falls back to a usable `dnx` host.
+- `AspireCliBundlePath` isn't an executable candidate. It explicitly identifies a bundle layout for DCP and Dashboard resolution.
+- If a required bundle layout can't be resolved, the build emits error [`ASPIRE009`](/diagnostics/aspire009/). Invalid explicit `AspireCliPath` and `AspireCliBundlePath` values remain authoritative and can produce this error.
+- If forced DNX mode can't find `dnx`, ordinary builds remain valid. The run preflight emits error [`ASPIRE011`](/diagnostics/aspire011/) when it prepares the launch command.
 
 #### Delegating through DNX
 
-When `aspire` isn't found on `PATH` (or `AspireCliInvocationMode` is set to `Dnx`), the AppHost delegates its launch to DNX, invoked noninteractively as `dnx --yes aspire.cli@$(AspireHostingSDKVersion)`. This restores and executes the exact Aspire CLI version paired with the AppHost SDK from your configured NuGet sources, rather than an unpinned package. If DNX can't restore or probe that package, the launch fails explicitly instead of falling back to an incomplete direct launch.
+In the default `Path` mode, the AppHost can fall back to DNX when `aspire` isn't found on `PATH`. A PATH `aspire` candidate that can't support the run hook can also fall back to DNX. An explicit `AspireCliPath` remains authoritative and isn't replaced by the fallback.
+
+The AppHost invokes DNX noninteractively as `dnx --yes aspire.cli@$(AspireHostingSDKVersion)`. This restores and executes the exact Aspire CLI version paired with the AppHost SDK from your configured NuGet sources. If DNX can't restore or probe that package, the launch fails explicitly instead of falling back to an incomplete direct launch.
 
 To force DNX delegation instead of preferring `aspire` on `PATH`, set `AspireCliInvocationMode`:
 
@@ -146,14 +148,14 @@ Set `AspireUseCliBundle` in your AppHost `.csproj`:
 ```
 
 :::note[Advanced scenario: Override the bundle path]
-Most apps don't need to set the CLI bundle path. If the Aspire CLI isn't on `PATH`, provide an explicit path using `AspireCliBundlePath` (path to the CLI bundle directory) or `AspireCliPath` (path to the `aspire` executable):
+Most apps don't need to set either path. `AspireCliPath` selects an explicit `aspire` executable for invocation and bundle discovery. `AspireCliBundlePath` supplies an explicit unpacked bundle layout for DCP and Dashboard resolution, but it doesn't select the executable used to launch the AppHost:
 
 ```xml title="MyApp.AppHost.csproj"
 <PropertyGroup>
   <AspireUseCliBundle>true</AspireUseCliBundle>
-  <!-- Either set the path to the aspire executable: -->
+  <!-- Select an explicit aspire executable: -->
   <AspireCliPath>/usr/local/bin/aspire</AspireCliPath>
-  <!-- Or set the path to the unpacked CLI bundle directory: -->
+  <!-- Or identify an explicit unpacked bundle layout: -->
   <!-- <AspireCliBundlePath>/path/to/aspire/bundle</AspireCliBundlePath> -->
 </PropertyGroup>
 ```

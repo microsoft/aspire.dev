@@ -1,6 +1,6 @@
 ---
 title: Compiler Warning ASPIRE010
-seoTitle: "ASPIRE010: AspireUseCliBundle=false disables CLI bundle features · Aspire"
+seoTitle: 'ASPIRE010: Aspire CLI bundle opt-out warning · Aspire'
 description: Learn what causes Aspire compiler warning ASPIRE010 — the AppHost has opted out of the Aspire CLI bundle — and how to enable or suppress it.
 ---
 
@@ -39,7 +39,9 @@ Set `AspireUseCliBundle` to `true` to opt in to CLI bundle delegation:
 </PropertyGroup>
 ```
 
-When you opt in, an AppHost launched with `dotnet run` or an IDE resolves the invocation in this order: an explicit `AspireCliPath`, forced DNX mode (`AspireCliInvocationMode=Dnx`), the `aspire` command on `PATH`, then the `dnx` command on `PATH`. If none of these resolve, the build reports [`ASPIRE009`](/diagnostics/aspire009/) or [`ASPIRE011`](/diagnostics/aspire011/).
+When you opt in, an explicit `AspireCliPath` is authoritative. Otherwise, the default `Path` invocation mode selects `aspire` on `PATH`, with a usable `dnx` host as a fallback when `aspire` is unavailable or can't support the run hook. Setting `AspireCliInvocationMode=Dnx` selects DNX instead. `AspireCliBundlePath` is a bundle-layout input, not an executable invocation candidate.
+
+An unresolved bundle layout reports [`ASPIRE009`](/diagnostics/aspire009/). [`ASPIRE011`](/diagnostics/aspire011/) is limited to the run preflight when forced DNX mode can't find `dnx`; it doesn't represent every CLI resolution failure.
 
 If you intend to keep using NuGet-restored orchestration dependencies, suppress `ASPIRE010`:
 
