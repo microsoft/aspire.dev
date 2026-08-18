@@ -380,9 +380,9 @@ await builder.addAzureAppServiceEnvironment("app-service-env")
 
 Each compute environment delegates the subnet to its own Azure service (for example, App Service delegates to `Microsoft.Web/serverFarms`). Regional virtual network integration affects outbound traffic only—it doesn't make ingress private and doesn't enable Route All.
 
-### Delegate a subnet to any Azure service
+### Delegate a subnet to an Azure service
 
-For scenarios that aren't covered by a compute environment's `WithDelegatedSubnet` helper, call `WithServiceDelegation` (or `withServiceDelegation` in TypeScript) directly on the subnet builder to delegate it to any Azure service. The delegation `name` defaults to `serviceName` so you don't have to repeat the value:
+For scenarios that aren't covered by a compute environment's `WithDelegatedSubnet` helper, call `WithServiceDelegation` (or `withServiceDelegation` in TypeScript) directly on the subnet builder to delegate it to a supported Azure service. The delegation `name` defaults to `serviceName` so you don't have to repeat the value:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -390,13 +390,26 @@ For scenarios that aren't covered by a compute environment's `WithDelegatedSubne
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 var subnet = vnet.AddSubnet("aci-subnet", "10.0.0.0/23")
     .WithServiceDelegation(AzureSubnetServiceDelegations.ContainerInstances);
+
+// Or specify a custom delegation name.
+subnet.WithServiceDelegation(
+    AzureSubnetServiceDelegations.ContainerInstances,
+    name: "aci-delegation");
 ````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="apphost.mts"
+import { AzureSubnetServiceDelegations } from './.aspire/modules/aspire.mjs';
+
 const vnet = await builder.addAzureVirtualNetwork("vnet");
-const subnet = await vnet.addSubnet("aci-subnet", "10.0.0.0/23")
-    .withServiceDelegation(AzureSubnetServiceDelegations.ContainerInstances);
+const subnet = await vnet.addSubnet("aci-subnet", "10.0.0.0/23");
+
+await subnet.withServiceDelegation(AzureSubnetServiceDelegations.ContainerInstances);
+
+// Or specify a custom delegation name.
+await subnet.withServiceDelegation(
+    AzureSubnetServiceDelegations.ContainerInstances,
+    { name: "aci-delegation" });
 ````
 
 </TabItem>
@@ -404,14 +417,14 @@ const subnet = await vnet.addSubnet("aci-subnet", "10.0.0.0/23")
 
 `AzureSubnetServiceDelegations` provides discoverable, well-known service identifiers so you don't have to remember or duplicate the underlying Azure resource provider strings:
 
-| Constant | Value |
-| --- | --- |
-| `ContainerInstances` | `Microsoft.ContainerInstance/containerGroups` |
-| `ContainerAppEnvironments` | `Microsoft.App/environments` |
-| `AppServiceEnvironments` | `Microsoft.Web/serverFarms` |
-| `ApplicationGatewayForContainers` | `Microsoft.ServiceNetworking/trafficControllers` |
+| Constant                          | Value                                                   |
+| --------------------------------- | ------------------------------------------------------- |
+| `ContainerInstances`              | `Microsoft.ContainerInstance/containerGroups`           |
+| `ContainerAppEnvironments`        | `Microsoft.App/environments`                            |
+| `AppServiceEnvironments`          | `Microsoft.Web/serverFarms`                             |
+| `ApplicationGatewayForContainers` | `Microsoft.ServiceNetworking/trafficControllers`       |
 
-You can also pass any other Azure resource provider path as `serviceName` if you need to delegate to a service that doesn't have a well-known constant. A subnet can carry only one active delegation—calling `WithServiceDelegation` again, or combining it with `WithDelegatedSubnet`, replaces any previously configured delegation with the latest value (last-write-wins).
+You can also pass another supported Azure resource provider path as `serviceName` if the service doesn't have a well-known constant. Aspire models and emits one service delegation for a subnet. Repeated `WithServiceDelegation` calls, or combining `WithServiceDelegation` with `WithDelegatedSubnet`, replace the previously modeled delegation with the latest value (last-write-wins).
 
 ### Add private endpoints
 
