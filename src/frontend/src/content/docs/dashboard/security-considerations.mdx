@@ -40,6 +40,34 @@ The telemetry endpoint accepts incoming <abbr title="OpenTelemetry Protocol" dat
 
 For information about securing the telemetry when running the dashboard in standalone mode, see [Securing the telemetry endpoint](#secure-telemetry-endpoint).
 
+### Allow anonymous access
+
+Running `aspire dashboard run --allow-anonymous`, or setting `DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` (or `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS`) to `true`, explicitly opts into unsecured access. This shortcut configures `Dashboard:Frontend:AuthMode`, `Dashboard:Otlp:AuthMode`, and `Dashboard:Api:AuthMode` to `Unsecured`, which disables authentication for the dashboard frontend, the OTLP endpoint, and the telemetry API.
+
+Frontend, OTLP, and telemetry API authentication can also be configured individually with `Dashboard:Frontend:AuthMode`, `Dashboard:Otlp:AuthMode`, and `Dashboard:Api:AuthMode`. When any of these endpoints are enabled with `Unsecured`, the dashboard writes warnings to the logs and displays a warning in the UI to inform users about the risks of anonymous access.
+
+Only use anonymous access during local development. It's not recommended when hosting the dashboard publicly or in other untrusted environments.
+
+## Authentication modes
+
+### Frontend authentication modes
+
+`Dashboard:Frontend:AuthMode` controls how access to the dashboard frontend is authenticated:
+
+- `BrowserToken` (default): The frontend asks for a token before allowing access. This is the default authentication mode.
+- `OpenIdConnect`: Users authenticate with an OpenID Connect (OIDC) identity provider.
+- `Unsecured`: The frontend allows anonymous access. Only use this during local development.
+
+### OTLP authentication modes
+
+`Dashboard:Otlp:AuthMode` controls how clients sending telemetry to the dashboard are authenticated:
+
+- `Unsecured` (default): Clients can send telemetry without authentication. When the OTLP endpoint is enabled, the dashboard logs a warning and displays a warning in the UI by default.
+- `ApiKey`: Clients authenticate with an API key.
+- `ClientCertificate`: Clients authenticate with a client certificate.
+
+For more information, see [Dashboard configuration: OTLP](/dashboard/configuration/#otlp).
+
 ## Secure telemetry endpoint
 
 The Aspire dashboard provides a variety of ways to view logs, traces, and metrics for your app. This information enables you to track the behavior and performance of your app and to diagnose any issues that arise. It's important that you can trust this information, and a warning is displayed in the dashboard UI if telemetry isn't secured.
