@@ -610,7 +610,10 @@ function readPreviousCatalog(): IntegrationOutput[] {
 // previously published one so a release-branch refresh only advances versions and never drops
 // or visually regresses previously published integrations. This is a no-op on non-release
 // branches, where nuget.org already provides the complete, authoritative catalog.
-function reconcileReleaseBranchCatalog(fresh: IntegrationOutput[]): IntegrationOutput[] {
+function reconcileReleaseBranchCatalog(
+  fresh: IntegrationOutput[],
+  fetchedIds: ReadonlySet<string>
+): IntegrationOutput[] {
   const previous = readPreviousCatalog();
   if (previous.length === 0) {
     return fresh;
@@ -632,8 +635,14 @@ function reconcileReleaseBranchCatalog(fresh: IntegrationOutput[]): IntegrationO
     return { ...entry, icon, downloads };
   });
 
+  // Only carry forward integrations that never appeared in any fetched source.
+  // A package that was fetched but intentionally dropped by a later filter (e.g.
+  // deprecated or unverified) is absent from `fresh` yet present in `fetchedIds`;
+  // carrying it forward would silently reintroduce a package we chose to exclude.
   const carriedForward = previous.filter(
-    (entry) => !freshTitles.has(entry.title.toLowerCase())
+    (entry) =>
+      !freshTitles.has(entry.title.toLowerCase()) &&
+      !fetchedIds.has(entry.title.toLowerCase())
   );
   if (carriedForward.length > 0) {
     console.log(
@@ -707,10 +716,15 @@ export async function updateIntegrations(): Promise<void> {
     unique = mergeFallbackPackageMetadata(unique, nugetOrgMetadata);
   }
 
+  // Capture every package id seen across sources before deprecation filtering and
+  // transformation, so release-branch reconciliation can tell "shipped on another
+  // cadence / never fetched" (carry forward) apart from "fetched then filtered out"
+  // (drop, do not reintroduce).
+  const fetchedPackageIds = new Set(unique.map((pkg) => pkg.id.toLowerCase()));
   const nonDeprecated = await filterOutDeprecatedWithRegistration(unique);
   let output = filterAndTransform(nonDeprecated);
   if (officialSource.isReleaseBranch) {
-    output = reconcileReleaseBranchCatalog(output);
+    output = reconcileReleaseBranchCatalog(output, fetchedPackageIds);
   }
   const defaultIconPackages = getOfficialAspireDefaultIconPackages(output);
   if (defaultIconPackages.length > 0) {
