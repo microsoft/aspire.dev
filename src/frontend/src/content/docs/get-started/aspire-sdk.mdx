@@ -123,34 +123,6 @@ When `AspireUseCliBundle` is `true`:
 - If a required bundle layout can't be resolved, the build emits error [`ASPIRE009`](/diagnostics/aspire009/). Invalid explicit `AspireCliPath` and `AspireCliBundlePath` values remain authoritative and can produce this error.
 - If `Dnx` or `DnxPinned` mode can't find `dnx`, the run preflight emits error [`ASPIRE011`](/diagnostics/aspire011/) when it prepares the launch command. A regular build doesn't emit this diagnostic.
 
-#### Delegating through DNX
-
-The DNX package selection depends on `AspireCliInvocationMode`:
-
-- `Path` is the default. The AppHost prefers a compatible `aspire` on `PATH`. If the command is missing or can't support the run hook, the AppHost can fall back to `dnx --yes aspire.cli@$(AspireHostingSDKVersion) -- ...`, which selects the version paired with the AppHost SDK.
-- `Dnx` skips `aspire` on `PATH` and invokes `dnx --yes aspire.cli -- ...`. The unversioned package reference allows an in-scope tool manifest to select the package; when no manifest applies, DNX uses the latest package.
-- `DnxPinned` skips `aspire` on `PATH` and invokes `dnx --yes aspire.cli@$(AspireHostingSDKVersion) -- ...`, selecting the version paired with the AppHost SDK.
-
-All DNX invocations are noninteractive and use your configured NuGet sources. If DNX can't restore or probe the selected package, the launch fails explicitly instead of falling back to an incomplete direct launch. An explicit `AspireCliPath` remains authoritative and isn't replaced by DNX fallback.
-
-To force manifest-aware DNX delegation instead of preferring `aspire` on `PATH`, set `AspireCliInvocationMode`:
-
-```xml title="MyApp.AppHost.csproj"
-<PropertyGroup>
-  <AspireUseCliBundle>true</AspireUseCliBundle>
-  <AspireCliInvocationMode>Dnx</AspireCliInvocationMode>
-</PropertyGroup>
-```
-
-To force the SDK-paired package through DNX, use `DnxPinned`:
-
-```xml title="MyApp.AppHost.csproj"
-<PropertyGroup>
-  <AspireUseCliBundle>true</AspireUseCliBundle>
-  <AspireCliInvocationMode>DnxPinned</AspireCliInvocationMode>
-</PropertyGroup>
-```
-
 #### Enable the opt-in
 
 Set `AspireUseCliBundle` in your AppHost `.csproj`:
@@ -197,5 +169,5 @@ Set `AspireCliInvocationMode` in your AppHost `.csproj`:
 ```
 
 :::note
-`dotnet run` is noninteractive, so `dnx` restores and executes without prompting for confirmation. If `dnx` can't be found on `PATH` when `Dnx` or `DnxPinned` mode is configured, the build emits error `ASPIRE011`. Install or use the .NET SDK 10.0 or later, set `AspireCliInvocationMode` to `Path` to use the global `aspire` command, or set `AspireCliPath` to an explicit Aspire CLI executable.
+`dotnet run` is noninteractive, so `dnx` restores and executes without prompting for confirmation and uses your configured NuGet sources. Restore or probe failures fail explicitly instead of falling back to an incomplete direct launch. If `dnx` can't be found on `PATH` when `Dnx` or `DnxPinned` mode is configured, the build emits error `ASPIRE011`. Install or use the .NET SDK 10.0 or later, set `AspireCliInvocationMode` to `Path` to use the global `aspire` command, or set `AspireCliPath` to an explicit Aspire CLI executable.
 :::
