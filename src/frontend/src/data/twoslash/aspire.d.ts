@@ -183,13 +183,28 @@ export declare const DistributedApplicationOperation: {
  * Enum Aspire.Hosting.InputType
  */
 
-export type InputType = "Text" | "SecretText" | "Choice" | "Boolean" | "Number";
+export type InputType = "Text" | "SecretText" | "Choice" | "Boolean" | "Number" | "File";
 export declare const InputType: {
   readonly Text: "Text";
   readonly SecretText: "SecretText";
   readonly Choice: "Choice";
   readonly Boolean: "Boolean";
   readonly Number: "Number";
+  readonly File: "File";
+};
+
+/**
+ * Enum Aspire.Hosting.MessageIntent
+ */
+
+export type MessageIntent = "None" | "Success" | "Warning" | "Error" | "Information" | "Confirmation";
+export declare const MessageIntent: {
+  readonly None: "None";
+  readonly Success: "Success";
+  readonly Warning: "Warning";
+  readonly Error: "Error";
+  readonly Information: "Information";
+  readonly Confirmation: "Confirmation";
 };
 
 /**
@@ -201,6 +216,41 @@ export declare const OtlpProtocol: {
   readonly Grpc: "Grpc";
   readonly HttpProtobuf: "HttpProtobuf";
   readonly HttpJson: "HttpJson";
+};
+
+/**
+ * Enum Aspire.Hosting.Publishing.ContainerImageDestination
+ */
+
+export type ContainerImageDestination = "Registry" | "Archive";
+export declare const ContainerImageDestination: {
+  readonly Registry: "Registry";
+  readonly Archive: "Archive";
+};
+
+/**
+ * Enum Aspire.Hosting.Publishing.ContainerImageFormat
+ */
+
+export type ContainerImageFormat = "Docker" | "Oci";
+export declare const ContainerImageFormat: {
+  readonly Docker: "Docker";
+  readonly Oci: "Oci";
+};
+
+/**
+ * Enum Aspire.Hosting.Publishing.ContainerTargetPlatform
+ */
+
+export type ContainerTargetPlatform = "LinuxAmd64" | "LinuxArm64" | "AllLinux" | "LinuxArm" | "Linux386" | "WindowsAmd64" | "WindowsArm64";
+export declare const ContainerTargetPlatform: {
+  readonly LinuxAmd64: "LinuxAmd64";
+  readonly LinuxArm64: "LinuxArm64";
+  readonly AllLinux: "AllLinux";
+  readonly LinuxArm: "LinuxArm";
+  readonly Linux386: "Linux386";
+  readonly WindowsAmd64: "WindowsAmd64";
+  readonly WindowsArm64: "WindowsArm64";
 };
 
 /**
@@ -447,6 +497,18 @@ export declare const IngressPathType: {
 };
 
 /**
+ * Enum Aspire.Hosting.Kubernetes.PersistentVolumeAccessMode
+ */
+
+export type PersistentVolumeAccessMode = "ReadWriteOnce" | "ReadOnlyMany" | "ReadWriteMany" | "ReadWriteOncePod";
+export declare const PersistentVolumeAccessMode: {
+  readonly ReadWriteOnce: "ReadWriteOnce";
+  readonly ReadOnlyMany: "ReadOnlyMany";
+  readonly ReadWriteMany: "ReadWriteMany";
+  readonly ReadWriteOncePod: "ReadWriteOncePod";
+};
+
+/**
  * Enum Aspire.Hosting.Python.EntrypointType
  */
 
@@ -547,6 +609,17 @@ export interface CommandOptions {
   iconVariant?: IconVariant;
   isHighlighted?: boolean;
   updateState?: callback;
+  progress?: CommandProgressOptions;
+}
+
+/**
+ * DTO Aspire.Hosting.ApplicationModel.CommandProgressOptions
+ */
+
+export interface CommandProgressOptions {
+  message?: string;
+  title?: string;
+  hideCancelButton?: boolean;
 }
 
 /**
@@ -592,6 +665,7 @@ export interface GenerateParameterDefault {
  */
 
 export interface HttpCommandExportOptions {
+  commandOptions?: CommandOptions;
   description?: string;
   confirmationMessage?: string;
   iconName?: string;
@@ -600,7 +674,19 @@ export interface HttpCommandExportOptions {
   commandName?: string;
   endpointName?: string;
   methodName?: string;
+  prepareRequest?: callback;
   resultMode?: HttpCommandResultMode;
+}
+
+/**
+ * DTO Aspire.Hosting.ApplicationModel.HttpCommandRequestExportData
+ */
+
+export interface HttpCommandRequestExportData {
+  methodName?: string;
+  headers?: Dict<string,string>;
+  content?: string;
+  contentType?: string;
 }
 
 /**
@@ -610,6 +696,7 @@ export interface HttpCommandExportOptions {
 export interface HttpsCertificateExecutionConfigurationContext {
   certificatePath?: ReferenceExpression;
   keyPath?: ReferenceExpression;
+  certificateWithKeyPath?: ReferenceExpression;
   pfxPath?: ReferenceExpression;
 }
 
@@ -625,6 +712,7 @@ export interface ProcessCommandExportOptions {
   inheritEnvironmentVariables?: boolean;
   standardInputContent?: string;
   killEntireProcessTree?: boolean;
+  createProcessSpec?: callback;
   commandOptions?: CommandOptions;
   maxOutputLineCount?: number;
   displayImmediately?: boolean;
@@ -689,6 +777,15 @@ export interface AddContainerOptions {
 }
 
 /**
+ * DTO Aspire.Hosting.Ats.BoolInteractionResult
+ */
+
+export interface BoolInteractionResult {
+  canceled?: boolean;
+  value?: boolean;
+}
+
+/**
  * DTO Aspire.Hosting.Ats.CertificateTrustExecutionConfigurationExportData
  */
 
@@ -696,6 +793,16 @@ export interface CertificateTrustExecutionConfigurationExportData {
   scope?: CertificateTrustScope;
   certificateSubjects?: string[];
   customBundlePaths?: string[];
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.ContainerFilesOptions
+ */
+
+export interface ContainerFilesOptions {
+  defaultOwner?: number;
+  defaultGroup?: number;
+  umask?: number;
 }
 
 /**
@@ -714,6 +821,44 @@ export interface CreateBuilderOptions {
 }
 
 /**
+ * DTO Aspire.Hosting.Ats.CreateInteractionInputOptions
+ */
+
+export interface CreateInteractionInputOptions {
+  label?: string;
+  description?: string;
+  enableDescriptionMarkdown?: boolean;
+  required?: boolean;
+  placeholder?: string;
+  value?: string;
+  allowCustomChoice?: boolean;
+  disabled?: boolean;
+  maxLength?: number;
+  maxFileSize?: number;
+  allowMultipleFiles?: boolean;
+  fileFilter?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.DynamicLoadingOptions
+ */
+
+export interface DynamicLoadingOptions {
+  alwaysLoadOnStart?: boolean;
+  dependsOnInputs?: string[];
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.HealthCheckResult
+ */
+
+export interface HealthCheckResult {
+  status?: HealthStatus;
+  description?: string;
+  data?: Dict<string,string>;
+}
+
+/**
  * DTO Aspire.Hosting.Ats.HttpsCertificateExecutionConfigurationExportData
  */
 
@@ -723,6 +868,7 @@ export interface HttpsCertificateExecutionConfigurationExportData {
   keyPathExpression?: string;
   pfxPathExpression?: string;
   isKeyPathReferenced?: boolean;
+  isCertificateWithKeyPathReferenced?: boolean;
   isPfxPathReferenced?: boolean;
   password?: string;
 }
@@ -735,6 +881,75 @@ export interface HttpsCertificateInfo {
   subject?: string;
   issuer?: string;
   thumbprint?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InputInteractionResult
+ */
+
+export interface InputInteractionResult {
+  canceled?: boolean;
+  input?: InteractionInput;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InteractionChoiceOption
+ */
+
+export interface InteractionChoiceOption {
+  value?: string;
+  label?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InteractionInputsDialogOptions
+ */
+
+export interface InteractionInputsDialogOptions {
+  primaryButtonText?: string;
+  secondaryButtonText?: string;
+  showSecondaryButton?: boolean;
+  showDismiss?: boolean;
+  enableMessageMarkdown?: boolean;
+  validationCallback?: callback;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InteractionMessageBoxOptions
+ */
+
+export interface InteractionMessageBoxOptions {
+  primaryButtonText?: string;
+  secondaryButtonText?: string;
+  showSecondaryButton?: boolean;
+  showDismiss?: boolean;
+  enableMessageMarkdown?: boolean;
+  intent?: MessageIntent;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InteractionNotificationOptions
+ */
+
+export interface InteractionNotificationOptions {
+  primaryButtonText?: string;
+  secondaryButtonText?: string;
+  showSecondaryButton?: boolean;
+  showDismiss?: boolean;
+  enableMessageMarkdown?: boolean;
+  intent?: MessageIntent;
+  linkText?: string;
+  linkUrl?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InteractionProgressOptions
+ */
+
+export interface InteractionProgressOptions {
+  primaryButtonText?: string;
+  enableMessageMarkdown?: boolean;
+  work?: callback;
 }
 
 /**
@@ -790,12 +1005,22 @@ export interface InteractionInput {
   inputType?: InputType;
   required?: boolean;
   options?: KeyValuePair<string,string>[];
-  dynamicLoading?: InputLoadOptions;
   value?: string;
   placeholder?: string;
   allowCustomChoice?: boolean;
   disabled?: boolean;
   maxLength?: number;
+  allowMultipleFiles?: boolean;
+  fileFilter?: string;
+  maxFileSize?: number;
+}
+
+/**
+ * DTO Aspire.Hosting.RunConfiguration
+ */
+
+export interface RunConfiguration {
+  watchEnabled?: boolean;
 }
 
 /**
@@ -905,6 +1130,19 @@ export interface HostedAgentOptions {
 export interface HostedAgentProtocolVersion {
   protocol?: string;
   version?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Go.DelveServerOptions
+ */
+
+export interface DelveServerOptions {
+  port?: number;
+  acceptMultiClient?: boolean;
+  onlySameUser?: boolean;
+  continueOnStart?: boolean;
+  log?: boolean;
+  logOutput?: string;
 }
 
 /**
@@ -1145,6 +1383,152 @@ export interface ConnectionStringAvailableEvent extends IDistributedApplicationE
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.ContainerBuildOptionsCallbackContext
+ */
+
+export interface ContainerBuildOptionsCallbackContext {
+  /**
+   * Gets the cancellation token.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+  /**
+   * Gets or sets the destination for the container image.
+   */
+
+  destination: PropertyAccessor<ContainerImageDestination>;
+  /**
+   * Gets the distributed application execution context.
+   */
+
+  executionContext: PropertyAccessor<DistributedApplicationExecutionContext>;
+  /**
+   * Gets or sets the container image format.
+   */
+
+  imageFormat: PropertyAccessor<ContainerImageFormat>;
+  /**
+   * Gets or sets the local image name for the built container.
+   */
+
+  localImageName: PropertyAccessor<string>;
+  /**
+   * Gets or sets the local image tag for the built container.
+   */
+
+  localImageTag: PropertyAccessor<string>;
+  /**
+   * Gets the logger instance.
+   */
+
+  logger: PropertyAccessor<ILogger>;
+  /**
+   * Gets or sets the output path for the container archive.
+   */
+
+  outputPath: PropertyAccessor<string>;
+  /**
+   * Gets the resource being built.
+   */
+
+  resource: PropertyAccessor<IResource>;
+  /**
+   * Gets the service provider.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
+  /**
+   * Gets or sets the destination for the container image.
+   */
+
+  setDestination(value: ContainerImageDestination): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the container image format.
+   */
+
+  setImageFormat(value: ContainerImageFormat): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the local image name for the built container.
+   */
+
+  setLocalImageName(value: string): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the local image tag for the built container.
+   */
+
+  setLocalImageTag(value: string): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the output path for the container archive.
+   */
+
+  setOutputPath(value: string): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the target platform for the container.
+   */
+
+  setTargetPlatform(value: ContainerTargetPlatform): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the target platform for the container.
+   */
+
+  targetPlatform: PropertyAccessor<ContainerTargetPlatform>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ContainerFileSystemCallbackContext
+ */
+
+export interface ContainerFileSystemCallbackContext {
+  /**
+   * The app model resource the callback is associated with.
+   */
+
+  model: PropertyAccessor<IResource>;
+  /**
+   * A `IServiceProvider` that can be used to resolve services in the callback.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
+  /**
+   * Creates a PEM container certificate file entry with the OpenSSL subject-hash symlink.
+   */
+
+  createCertificateFile(name: string, options?: { contents?: string; sourcePath?: string; owner?: number; group?: number; mode?: number; continueOnError?: boolean }): ContainerFileSystemItem;
+  /**
+   * Creates a PEM container certificate file entry with the OpenSSL subject-hash symlink.
+   */
+
+  createCertificateFile(name: string, contents?: string, sourcePath?: string, owner?: number, group?: number, mode?: number, continueOnError?: boolean): ContainerFileSystemItem;
+  /**
+   * Creates a container directory entry containing the specified child entries.
+   */
+
+  createDirectory(name: string, entries: ContainerFileSystemItem[], options?: { owner?: number; group?: number; mode?: number }): ContainerFileSystemItem;
+  /**
+   * Creates a container directory entry containing the specified child entries.
+   */
+
+  createDirectory(name: string, entries: ContainerFileSystemItem[], owner?: number, group?: number, mode?: number): ContainerFileSystemItem;
+  /**
+   * Creates a container file entry with inline contents or a host source path.
+   */
+
+  createFile(name: string, options?: { contents?: string; sourcePath?: string; owner?: number; group?: number; mode?: number; continueOnError?: boolean }): ContainerFileSystemItem;
+  /**
+   * Creates a container file entry with inline contents or a host source path.
+   */
+
+  createFile(name: string, contents?: string, sourcePath?: string, owner?: number, group?: number, mode?: number, continueOnError?: boolean): ContainerFileSystemItem;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ContainerFileSystemItem
+ */
+
+export interface ContainerFileSystemItem {
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.ContainerImagePushOptions
  */
 
@@ -1306,6 +1690,16 @@ export interface ContainerResource extends IComputeResource, IResource, IResourc
    */
 
   withContainerCertificatePaths(customCertificatesDestination?: string, defaultCertificateBundlePaths?: string[], defaultCertificateDirectoryPaths?: string[]): this;
+  /**
+   * Creates or updates files and folders in a container by copying them from a source path on the host.
+   */
+
+  withContainerFiles(destinationPath: string, sourcePath: string, options?: ContainerFilesOptions): this;
+  /**
+   * Creates or updates files and/or folders at the destination path in the container using entries produced by a callback.
+   */
+
+  withContainerFilesCallback(destinationPath: string, callback: (arg1: ContainerFileSystemCallbackContext, arg2: cancellationToken) => Promise<ContainerFileSystemItem[]>, options?: ContainerFilesOptions): this;
   /**
    * Overrides the default container name for this resource. By default Aspire generates a unique container name based on the resource name and a random postfix (or a postfix based on a hash of the AppHost project path for persistent container resources). This method allows you to override that behavior with a custom name, but could lead to naming conflicts if the specified name is not unique.
    */
@@ -1929,6 +2323,117 @@ export interface ExecuteCommandContext {
    */
 
   resourceName: PropertyAccessor<string>;
+  /**
+   * The service provider.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.HttpCommandPrepareRequestContext
+ */
+
+export interface HttpCommandPrepareRequestContext {
+  /**
+   * Gets the invocation arguments supplied by the client when the command is executed.
+   */
+
+  arguments: PropertyAccessor<InteractionInputCollection>;
+  /**
+   * The cancellation token.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+  /**
+   * The endpoint the request is targeting.
+   */
+
+  endpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * The name of the resource the command was configured on.
+   */
+
+  resourceName: PropertyAccessor<string>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.HttpsCertificateConfigurationCallbackAnnotationContext
+ */
+
+export interface HttpsCertificateConfigurationCallbackAnnotationContext {
+  /**
+   * Gets the editor used to manipulate the command-line arguments in polyglot callbacks.
+   */
+
+  arguments: PropertyAccessor<CommandLineArgsEditor>;
+  /**
+   * Gets the `CancellationToken` that can be used to cancel the operation.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+  /**
+   * A value provider that will resolve to a path to the certificate file.
+   */
+
+  certificatePath: PropertyAccessor<ReferenceExpression>;
+  /**
+   * A value provider that will resolve to a path to the certificate and key concatenated together in PEM format.
+   */
+
+  certificateWithKeyPath: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the editor used to set environment variables in polyglot callbacks.
+   */
+
+  environment: PropertyAccessor<EnvironmentEditor>;
+  /**
+   * Gets the `DistributedApplicationExecutionContext` for this session.
+   */
+
+  executionContext: PropertyAccessor<DistributedApplicationExecutionContext>;
+  /**
+   * A value provider that will resolve to a path to the private key for the certificate.
+   */
+
+  keyPath: PropertyAccessor<ReferenceExpression>;
+  /**
+   * A value provider that will resolve to a path to a PFX file for the key pair.
+   */
+
+  pfxPath: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the resource to which the annotation is applied.
+   */
+
+  resource: PropertyAccessor<IResource>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.HttpsEndpointUpdateCallbackContext
+ */
+
+export interface HttpsEndpointUpdateCallbackContext {
+  /**
+   * Gets the `CancellationToken` for the operation.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+  /**
+   * Gets the `DistributedApplicationModel` instance.
+   */
+
+  model: PropertyAccessor<DistributedApplicationModel>;
+  /**
+   * Gets the `IResource` that is being configured for HTTPS.
+   */
+
+  resource: PropertyAccessor<IResource>;
+  /**
+   * Gets the `IServiceProvider` instance from the application.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
 }
 
 /**
@@ -2089,6 +2594,11 @@ export interface IResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Sets a child relationship
    */
 
@@ -2103,6 +2613,11 @@ export interface IResource {
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -2214,10 +2729,25 @@ export interface IResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -2432,6 +2962,11 @@ export interface IResourceWithEnvironment {
 
   withEnvironmentCallback(callback: (arg: EnvironmentCallbackContext) => Promise<void>): this;
   /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
+  /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
 
@@ -2572,6 +3107,11 @@ export interface ProjectResource extends IComputeResource, IContainerFilesDestin
 
   publishAsDockerFile(configure?: (obj: ContainerResource) => Promise<void>): this;
   /**
+   * Includes only the specified project endpoint names in environment-variable injection.
+   */
+
+  withEndpointsInEnvironment(endpointNames: string[]): this;
+  /**
    * Configures how many replicas of the project should be created for the project.
    */
 
@@ -2622,6 +3162,55 @@ export interface ReferenceExpressionBuilder {
    */
 
   isEmpty: PropertyAccessor<boolean>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RequiredCommandValidationContext
+ */
+
+export interface RequiredCommandValidationContext {
+  /**
+   * Gets a cancellation token that can be used to cancel the validation.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+  /**
+   * Creates a failed validation result with the specified message.
+   */
+
+  failure(validationMessage: string): RequiredCommandValidationResult;
+  /**
+   * Gets the resolved full path to the command executable.
+   */
+
+  resolvedPath: PropertyAccessor<string>;
+  /**
+   * Gets the service provider for accessing application services.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
+  /**
+   * Creates a successful validation result.
+   */
+
+  success(): RequiredCommandValidationResult;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RequiredCommandValidationResult
+ */
+
+export interface RequiredCommandValidationResult {
+  /**
+   * Gets a value indicating whether the command validation succeeded.
+   */
+
+  isValid: PropertyAccessor<boolean>;
+  /**
+   * Gets an optional validation message describing why validation failed.
+   */
+
+  validationMessage: PropertyAccessor<string>;
 }
 
 /**
@@ -2815,6 +3404,11 @@ export interface UpdateCommandStateContext {
    */
 
   resourceSnapshot: PropertyAccessor<UpdateCommandStateResourceSnapshot>;
+  /**
+   * The service provider.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
 }
 
 /**
@@ -2855,6 +3449,84 @@ export interface EventingSubscriberRegistrationContext {
 }
 
 /**
+ * Handle Aspire.Hosting.Ats.InputsInteractionResult
+ */
+
+export interface InputsInteractionResult {
+  /**
+   * Gets a value indicating whether the interaction was canceled by the user.
+   */
+
+  canceled: PropertyAccessor<boolean>;
+  /**
+   * Gets the inputs returned from the interaction. Empty when `Canceled` is `true`.
+   */
+
+  inputs: PropertyAccessor<InteractionInputCollection>;
+}
+
+/**
+ * Handle Aspire.Hosting.Ats.InteractionInputBuilder
+ */
+
+export interface InteractionInputBuilder {
+  /**
+   * Sets the choice options for the input.
+   */
+
+  withChoiceOptions(choices: InteractionChoiceOption[]): InteractionInputBuilder;
+  /**
+   * Attaches a callback that dynamically loads or updates the input after the prompt starts.
+   */
+
+  withDynamicLoading(callback: (arg: InteractionInputLoadContext) => Promise<void>, options?: DynamicLoadingOptions): InteractionInputBuilder;
+  /**
+   * Sets the value of the input.
+   */
+
+  withValue(value: string): InteractionInputBuilder;
+}
+
+/**
+ * Handle Aspire.Hosting.Ats.InteractionInputLoadContext
+ */
+
+export interface InteractionInputLoadContext {
+  /**
+   * Gets a handle to the input that is loading. Mutate the input through this handle.
+   */
+
+  input(): InteractionLoadingInput;
+  /**
+   * Gets all inputs in the prompt, including the one currently loading.
+   */
+
+  inputs: PropertyAccessor<InteractionInputCollection>;
+}
+
+/**
+ * Handle Aspire.Hosting.Ats.InteractionLoadingInput
+ */
+
+export interface InteractionLoadingInput {
+  /**
+   * Gets the name of the input.
+   */
+
+  getName(): string;
+  /**
+   * Sets the choice options for the input.
+   */
+
+  setChoiceOptions(choices: InteractionChoiceOption[]): void;
+  /**
+   * Sets the value of the input.
+   */
+
+  setValue(value: string): void;
+}
+
+/**
  * Handle Aspire.Hosting.DistributedApplication
  */
 
@@ -2892,10 +3564,20 @@ export interface DistributedApplicationExecutionContext {
 
   publisherName: PropertyAccessor<string>;
   /**
+   * Describes how the AppHost is being run. Only meaningful when `Operation` is `Run`; otherwise every aspect holds its default value.
+   */
+
+  runConfiguration: PropertyAccessor<RunConfiguration>;
+  /**
    * The `IServiceProvider` for the AppHost.
    */
 
   serviceProvider: PropertyAccessor<IServiceProvider>;
+  /**
+   * The `IServiceProvider` for the AppHost.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
   /**
    * The name of the publisher that is being used if `Operation` is set to `Publish`.
    */
@@ -3053,6 +3735,11 @@ export interface IDistributedApplicationBuilder {
 
   addExternalService(name: string, url: string | ParameterResource): ExternalServiceResource;
   /**
+   * Adds a custom health check callback to the distributed-application builder.
+   */
+
+  addHealthCheck(name: string, check: () => Promise<HealthCheckResult>): void;
+  /**
    * Adds a parameter resource
    */
 
@@ -3160,6 +3847,78 @@ export interface IDistributedApplicationBuilder {
 }
 
 /**
+ * Handle Aspire.Hosting.IInteractionService
+ */
+
+export interface IInteractionService {
+  /**
+   * Creates a boolean (checkbox) input.
+   */
+
+  createBooleanInput(name: string, options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Creates a choice input that selects from a list of options.
+   */
+
+  createChoiceInput(name: string, choices?: InteractionChoiceOption[], options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Creates a file input.
+   */
+
+  createFileInput(name: string, options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Creates a numeric input.
+   */
+
+  createNumberInput(name: string, options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Creates a secret (masked) text input.
+   */
+
+  createSecretInput(name: string, options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Creates a single-line text input.
+   */
+
+  createTextInput(name: string, options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Gets a value indicating whether the interaction service is available to prompt the user.
+   */
+
+  isAvailable(): boolean;
+  /**
+   * Prompts the user for confirmation with an OK/Cancel dialog.
+   */
+
+  promptConfirmation(title: string, message: string, options?: InteractionMessageBoxOptions, cancellationToken?: cancellationToken): BoolInteractionResult;
+  /**
+   * Prompts the user for a single input.
+   */
+
+  promptInput(title: string, message: string, input: InteractionInputBuilder, options?: InteractionInputsDialogOptions, cancellationToken?: cancellationToken): InputInteractionResult;
+  /**
+   * Prompts the user for multiple inputs.
+   */
+
+  promptInputs(title: string, message: string, inputs: InteractionInputBuilder[], options?: InteractionInputsDialogOptions, cancellationToken?: cancellationToken): InputsInteractionResult;
+  /**
+   * Prompts the user with a message box dialog.
+   */
+
+  promptMessageBox(title: string, message: string, options?: InteractionMessageBoxOptions, cancellationToken?: cancellationToken): BoolInteractionResult;
+  /**
+   * Prompts the user with a notification.
+   */
+
+  promptNotification(title: string, message: string, options?: InteractionNotificationOptions, cancellationToken?: cancellationToken): BoolInteractionResult;
+  /**
+   * Displays a progress dialog with an indeterminate progress indicator.
+   */
+
+  promptProgress(message: string, title?: string, options?: InteractionProgressOptions, cancellationToken?: cancellationToken): BoolInteractionResult;
+}
+
+/**
  * Handle Aspire.Hosting.InputsDialogValidationContext
  */
 
@@ -3179,6 +3938,11 @@ export interface InputsDialogValidationContext {
    */
 
   inputs: PropertyAccessor<InteractionInputCollection>;
+  /**
+   * Gets the service provider for resolving services during validation.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
 }
 
 /**
@@ -3548,6 +4312,18 @@ export interface PipelineSummary {
 }
 
 /**
+ * Handle Aspire.Hosting.ProgressContext
+ */
+
+export interface ProgressContext {
+  /**
+   * Gets the `CancellationToken` that is triggered when the user clicks the cancel button or the operation is externally canceled.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+}
+
+/**
  * Handle Aspire.Hosting.ProjectResourceOptions
  */
 
@@ -3629,6 +4405,21 @@ export interface IAzureResource {
 
   asExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription in both run and publish modes.
+   */
+
+  asExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInTenant(name: string | ParameterResource): IAzureResource;
+  /**
    * Clears all default role assignments for the specified Azure resource.
    */
 
@@ -3659,10 +4450,40 @@ export interface IAzureResource {
 
   publishAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): this;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is deployed.
+   */
+
+  publishAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInTenant(name: string | ParameterResource): this;
+  /**
    * Marks the resource as an existing resource when the application is running.
    */
 
   runAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is running.
+   */
+
+  runAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInTenant(name: string | ParameterResource): IAzureResource;
 }
 
 /**
@@ -3857,13 +4678,18 @@ export interface AzureContainerAppEnvironmentResource extends AzureBicepResource
    */
 
   withHttpsUpgrade(upgrade?: boolean): this;
+  /**
+   * Configures the container app environment to incorporate its resource name into the generated managed environment `name`, so that multiple environments in the same resource group get distinct names.
+   */
+
+  withUniqueResourceNaming(): this;
 }
 
 /**
  * Handle Aspire.Hosting.Azure.AzureAppServiceEnvironmentResource
  */
 
-export interface AzureAppServiceEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IContainerRegistry, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureContainerRegistry {
+export interface AzureAppServiceEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IContainerRegistry, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureContainerRegistry, IAzureDelegatedSubnetResource {
   /**
    * Configures the Azure App Service environment to use the supplied `AzureUserAssignedIdentityResource` as the managed identity that App Service apps use to pull images from the configured container registry (the `AcrPull` identity), instead of having Aspire create a new identity and a new `AcrPull` role assignment.
    */
@@ -4049,12 +4875,12 @@ export interface AzureCosmosDBDatabaseResource extends IExpressionValue, IManife
 
 export interface AzureCosmosDBEmulatorResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
   /**
-   * Configures the Azure Cosmos DB preview emulator to expose the Data Explorer endpoint.
+   * Configures the Azure Cosmos DB Linux-based (vNext) emulator to expose the Data Explorer endpoint.
    */
 
   withDataExplorer(options?: { port?: number }): this;
   /**
-   * Configures the Azure Cosmos DB preview emulator to expose the Data Explorer endpoint.
+   * Configures the Azure Cosmos DB Linux-based (vNext) emulator to expose the Data Explorer endpoint.
    */
 
   withDataExplorer(port?: number): this;
@@ -4101,7 +4927,7 @@ export interface AzureCosmosDBResource extends AzureBicepResource, AzureProvisio
 
   runAsEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource;
   /**
-   * Configures the Azure Cosmos DB resource to run using the preview emulator
+   * Configures the Azure Cosmos DB resource to run using the Linux-based (vNext) emulator
    */
 
   runAsPreviewEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource;
@@ -4382,6 +5208,11 @@ export interface AzureKubernetesEnvironmentResource extends AzureBicepResource, 
 
   addNodePool(name: string, vmSize?: string, minCount?: number, maxCount?: number): AksNodePoolResource;
   /**
+   * Adds a Kubernetes PersistentVolumeClaim resource to an AKS environment
+   */
+
+  addPersistentVolume(name: string): KubernetesPersistentVolumeResource;
+  /**
    * Configures the AKS environment to use a specific Azure Container Registry for image storage. When set, this replaces the auto-created default container registry.
    */
 
@@ -4601,6 +5432,16 @@ export interface AzureSubnetResource extends IResource, IResourceWithParent {
    */
 
   withNetworkSecurityGroup(nsg: AzureNetworkSecurityGroupResource): this;
+  /**
+   * Delegates the subnet to the specified Azure service.
+   */
+
+  withServiceDelegation(serviceName: string, options?: { name?: string }): this;
+  /**
+   * Delegates the subnet to the specified Azure service.
+   */
+
+  withServiceDelegation(serviceName: string, name?: string): this;
 }
 
 /**
@@ -6420,6 +7261,11 @@ export interface Service {
 
   setSecurityOpt(value: List<string>): Service;
   /**
+   * Gets or sets the size of the `/dev/shm` partition for the container.
+   */
+
+  setShmSize(value: string): Service;
+  /**
    * Indicates whether standard input (stdin) should remain open and be attached to the service container, even if no terminal is connected.
    */
 
@@ -6469,6 +7315,11 @@ export interface Service {
    */
 
   setWorkingDir(value: string): Service;
+  /**
+   * Gets or sets the size of the `/dev/shm` partition for the container.
+   */
+
+  shmSize: PropertyAccessor<string>;
   /**
    * Indicates whether standard input (stdin) should remain open and be attached to the service container, even if no terminal is connected.
    */
@@ -6774,6 +7625,13 @@ export interface Volume {
    */
 
   type: PropertyAccessor<string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Dotnet.DotnetProjectResource
+ */
+
+export interface DotnetProjectResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
 }
 
 /**
@@ -7501,15 +8359,10 @@ export interface GoAppResource extends ExecutableResource, IComputeResource, ICo
 
   withAppArgs(args: any[]): this;
   /**
-   * Starts a headless Delve debug server so that any DAP-compatible client can attach remotely. The application is launched as `dlv --headless=true --listen=127.0.0.1:<port> --api-version=2 debug .` instead of `go run .`. Delve must be available on the PATH.
+   * Starts a configurable headless Delve debug server so that DAP-compatible clients can attach remotely. The application is launched with `dlv debug` instead of `go run`. Delve must be available on the PATH.
    */
 
-  withDelveServer(options?: { port?: number }): this;
-  /**
-   * Starts a headless Delve debug server so that any DAP-compatible client can attach remotely. The application is launched as `dlv --headless=true --listen=127.0.0.1:<port> --api-version=2 debug .` instead of `go run .`. Delve must be available on the PATH.
-   */
-
-  withDelveServer(port?: number): this;
+  withDelveServer(options?: DelveServerOptions): this;
   /**
    * Configures private Go module authentication for publish-time Dockerfile generation.
    */
@@ -7987,6 +8840,11 @@ export interface KubernetesEnvironmentResource extends IComputeEnvironmentResour
 
   addNodePool(name: string): KubernetesNodePoolResource;
   /**
+   * Adds a Kubernetes PersistentVolumeClaim resource
+   */
+
+  addPersistentVolume(name: string): KubernetesPersistentVolumeResource;
+  /**
    * Configures the dashboard properties for this Kubernetes environment.
    */
 
@@ -8316,6 +9174,48 @@ export interface KubernetesManifestResource {
  */
 
 export interface KubernetesNodePoolResource extends IResource, IResourceWithParent {
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.KubernetesPersistentVolumeResource
+ */
+
+export interface KubernetesPersistentVolumeResource extends IResource, IResourceWithParent {
+  /**
+   * Adds an access mode to a persistent volume
+   */
+
+  withAccessMode(accessMode: PersistentVolumeAccessMode): this;
+  /**
+   * Sets the requested storage capacity for a persistent volume
+   */
+
+  withCapacity(capacity: string): this;
+  /**
+   * Sets a parameterized storage capacity for a persistent volume
+   */
+
+  withCapacityParam(capacity: string | ParameterResource): this;
+  /**
+   * Sets the storage class for a persistent volume
+   */
+
+  withStorageClass(storageClassName: string): this;
+  /**
+   * Sets a parameterized storage class for a persistent volume
+   */
+
+  withStorageClassParam(storageClassName: string | ParameterResource): this;
+  /**
+   * Adds a Kubernetes metadata annotation to a persistent volume
+   */
+
+  withVolumeAnnotation(key: string, value: string): this;
+  /**
+   * Adds a parameterized Kubernetes metadata annotation to a persistent volume
+   */
+
+  withVolumeAnnotationParam(key: string, value: string | ParameterResource): this;
 }
 
 /**
@@ -9580,6 +10480,28 @@ export interface RabbitMQServerResource extends ContainerResource, IComputeResou
 }
 
 /**
+ * Handle Aspire.Hosting.Radius.RadiusEnvironmentResource
+ */
+
+export interface RadiusEnvironmentResource extends IComputeEnvironmentResource, IResource {
+  /**
+   * Gets or sets the Kubernetes namespace for resource deployment.
+   */
+
+  namespace: PropertyAccessor<string>;
+  /**
+   * Gets or sets the Kubernetes namespace for resource deployment.
+   */
+
+  setNamespace(value: string): RadiusEnvironmentResource;
+  /**
+   * Sets the Kubernetes namespace for the Radius environment.
+   */
+
+  withNamespace(kubernetesNamespace: string): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.RedisResource
  */
 
@@ -9649,6 +10571,11 @@ export interface RedisResource extends ContainerResource, IComputeResource, IExp
    */
 
   withHostPort(port: number | null): this;
+  /**
+   * Configures the Redis resource to use the specified Redis module by providing its path inside the container.
+   */
+
+  withModule(path: string): this;
   /**
    * Configures the password that the Redis resource is used.
    */
@@ -13145,6 +14072,11 @@ export interface IDistributedApplicationBuilder {
 
   addDockerComposeEnvironment(name: string): DockerComposeEnvironmentResource;
   /**
+   * Adds a C# application resource.
+   */
+
+  addDotnetProject(name: string, path: string, options?: ProjectResourceOptions): DotnetProjectResource;
+  /**
    * Adds a Microsoft Foundry resource to the application model.
    */
 
@@ -13369,6 +14301,11 @@ export interface IDistributedApplicationBuilder {
    */
 
   addRabbitMQ(name: string, userName?: string | ParameterResource, password?: string | ParameterResource, port?: number): RabbitMQServerResource;
+  /**
+   * Adds a Radius compute environment to the application model.
+   */
+
+  addRadiusEnvironment(name: string): RadiusEnvironmentResource;
   /**
    * Adds a Redis container to the application model.
    */
@@ -14089,6 +15026,21 @@ export interface AzureBicepResource {
 
   asExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription in both run and publish modes.
+   */
+
+  asExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInTenant(name: string | ParameterResource): IAzureResource;
+  /**
    * Clears all default role assignments for the specified Azure resource.
    */
 
@@ -14119,10 +15071,40 @@ export interface AzureBicepResource {
 
   publishAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): this;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is deployed.
+   */
+
+  publishAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInTenant(name: string | ParameterResource): this;
+  /**
    * Marks the resource as an existing resource when the application is running.
    */
 
   runAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is running.
+   */
+
+  runAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInTenant(name: string | ParameterResource): IAzureResource;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
@@ -14631,6 +15613,21 @@ export interface AzureProvisioningResource {
 
   asExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription in both run and publish modes.
+   */
+
+  asExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInTenant(name: string | ParameterResource): IAzureResource;
+  /**
    * Clears all default role assignments for the specified Azure resource.
    */
 
@@ -14666,10 +15663,40 @@ export interface AzureProvisioningResource {
 
   publishAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): this;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is deployed.
+   */
+
+  publishAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInTenant(name: string | ParameterResource): this;
+  /**
    * Marks the resource as an existing resource when the application is running.
    */
 
   runAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is running.
+   */
+
+  runAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInTenant(name: string | ParameterResource): IAzureResource;
   /**
    * Adds a Bicep parameter
    */
@@ -14995,6 +16022,21 @@ export interface AzureUserAssignedIdentityResource {
 
   asExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription in both run and publish modes.
+   */
+
+  asExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInTenant(name: string | ParameterResource): IAzureResource;
+  /**
    * Clears all default role assignments for the specified Azure resource.
    */
 
@@ -15035,10 +16077,40 @@ export interface AzureUserAssignedIdentityResource {
 
   publishAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): this;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is deployed.
+   */
+
+  publishAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInTenant(name: string | ParameterResource): this;
+  /**
    * Marks the resource as an existing resource when the application is running.
    */
 
   runAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is running.
+   */
+
+  runAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInTenant(name: string | ParameterResource): IAzureResource;
   /**
    * Adds a Bicep parameter
    */
@@ -15387,6 +16459,11 @@ export interface ContainerRegistryResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Sets a child relationship
    */
 
@@ -15401,6 +16478,11 @@ export interface ContainerRegistryResource {
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -15512,10 +16594,25 @@ export interface ContainerRegistryResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -15676,6 +16773,11 @@ export interface ContainerResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Waits for another resource to be ready
    */
 
@@ -15725,6 +16827,11 @@ export interface ContainerResource {
    */
 
   withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -15855,6 +16962,11 @@ export interface ContainerResource {
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
+  /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
   /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
@@ -16011,10 +17123,25 @@ export interface ContainerResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -16180,6 +17307,21 @@ export interface ContainerResource {
    */
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -16355,6 +17497,11 @@ export interface CSharpAppResource {
 
   publishWithContainerFiles(source: IResourceWithContainerFiles, destinationPath: string): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Waits for another resource to be ready
    */
 
@@ -16405,6 +17552,11 @@ export interface CSharpAppResource {
 
   withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
   /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
+  /**
    * Configures the resource to use the specified container registry for container image operations.
    */
 
@@ -16449,6 +17601,11 @@ export interface CSharpAppResource {
    */
 
   withEndpointProxySupport(proxyEnabled: boolean): this;
+  /**
+   * Includes only the specified project endpoint names in environment-variable injection.
+   */
+
+  withEndpointsInEnvironment(endpointNames: string[]): this;
   /**
    * Sets an environment variable
    */
@@ -16534,6 +17691,11 @@ export interface CSharpAppResource {
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
+  /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
   /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
@@ -16695,10 +17857,25 @@ export interface CSharpAppResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -16885,6 +18062,21 @@ export interface CSharpAppResource {
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
   /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
 
@@ -16899,6 +18091,11 @@ export interface CSharpAppResource {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Associates a pre-built container image reference with a project resource so the Aspire.Hosting.Radius publisher can emit a valid Radius container manifest for it.
+   */
+
+  withContainerImage(image: string): this;
   /**
    * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
    */
@@ -17043,6 +18240,11 @@ export interface DotnetToolResource {
 
   publishAsDockerFile(configure: (obj: ContainerResource) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Waits for another resource to be ready
    */
 
@@ -17092,6 +18294,11 @@ export interface DotnetToolResource {
    */
 
   withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -17227,6 +18434,11 @@ export interface DotnetToolResource {
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
+  /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
   /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
@@ -17383,10 +18595,25 @@ export interface DotnetToolResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -17558,6 +18785,21 @@ export interface DotnetToolResource {
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
   /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
 
@@ -17715,6 +18957,11 @@ export interface ExecutableResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Waits for another resource to be ready
    */
 
@@ -17764,6 +19011,11 @@ export interface ExecutableResource {
    */
 
   withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -17894,6 +19146,11 @@ export interface ExecutableResource {
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
+  /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
   /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
@@ -18050,10 +19307,25 @@ export interface ExecutableResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -18220,6 +19492,21 @@ export interface ExecutableResource {
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
   /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
 
@@ -18349,6 +19636,11 @@ export interface ExternalServiceResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Sets a child relationship
    */
 
@@ -18363,6 +19655,11 @@ export interface ExternalServiceResource {
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -18474,10 +19771,25 @@ export interface ExternalServiceResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -18718,6 +20030,21 @@ export interface IComputeResource {
    */
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
 }
 
 export interface IConfiguration {
@@ -18850,6 +20177,15 @@ export interface IMauiPlatformResource {
   withOtlpDevTunnel(): this;
 }
 
+// augments handle type IResourceWithConnectionString with extension methods
+export interface IResourceWithConnectionString {
+  /**
+   * Configures a resource to use the specified Orleans provider type.
+   */
+
+  withOrleansProviderType(providerType: string): this;
+}
+
 // augments handle type IResourceWithEndpoints with extension methods
 export interface IResourceWithEndpoints {
   /**
@@ -18969,6 +20305,11 @@ export interface IServiceProvider {
    */
 
   getEventing(): IDistributedApplicationEventing;
+  /**
+   * Gets the interaction service from the service provider.
+   */
+
+  getInteractionService(): IInteractionService;
   /**
    * Gets the logger factory from the service provider.
    */
@@ -19111,6 +20452,21 @@ export interface KubernetesAspireDashboardResource {
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
   /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
 
@@ -19185,6 +20541,15 @@ export interface KubernetesIngressResource {
 
 // augments handle type KubernetesNodePoolResource with extension methods
 export interface KubernetesNodePoolResource {
+  /**
+   * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
+   */
+
+  withNodePool(nodePool: KubernetesNodePoolResource): this;
+}
+
+// augments handle type KubernetesPersistentVolumeResource with extension methods
+export interface KubernetesPersistentVolumeResource {
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -19645,6 +21010,11 @@ export interface ParameterResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Sets a child relationship
    */
 
@@ -19659,6 +21029,11 @@ export interface ParameterResource {
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -19770,10 +21145,25 @@ export interface ParameterResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -19964,6 +21354,11 @@ export interface ProjectResource {
 
   publishWithContainerFiles(source: IResourceWithContainerFiles, destinationPath: string): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Waits for another resource to be ready
    */
 
@@ -20013,6 +21408,11 @@ export interface ProjectResource {
    */
 
   withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -20143,6 +21543,11 @@ export interface ProjectResource {
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
+  /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
   /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
@@ -20299,10 +21704,25 @@ export interface ProjectResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -20489,6 +21909,21 @@ export interface ProjectResource {
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
   /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
 
@@ -20503,6 +21938,11 @@ export interface ProjectResource {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Associates a pre-built container image reference with a project resource so the Aspire.Hosting.Radius publisher can emit a valid Radius container manifest for it.
+   */
+
+  withContainerImage(image: string): this;
   /**
    * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
    */
@@ -20946,7 +22386,6 @@ export interface IResourceWithServiceDiscovery extends IResource {}
 export interface ISpanFormattable {}
 export interface IValueProvider {}
 export interface IValueWithReferences {}
-export interface InputLoadOptions {}
 export interface KeyValuePair<T = unknown, T1 = unknown> {}
 export interface List<T = unknown> {}
 export interface NetworkSecurityPerimeterAccessRuleDirection {}
