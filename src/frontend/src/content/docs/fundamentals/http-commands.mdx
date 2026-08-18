@@ -42,7 +42,7 @@ Use the `HttpCommandOptions.PrepareRequest` callback to enhance security by addi
 
 ## HTTP command timeouts
 
-HTTP commands are user-cancelable from the dashboard, so by default the request the command sends has no timeout: the unnamed `HttpClient` used to send the request has its `HttpClient.Timeout` set to `Timeout.InfiniteTimeSpan`. This allows long-running commands, such as ones that trigger database migrations or other admin actions, to run for as long as needed without failing due to `HttpClient`'s default 100-second timeout. The command still stops if you cancel it from the dashboard.
+HTTP commands are user-cancelable from the dashboard, so by default the request the command sends has no timeout: the unnamed `HttpClient` used to send the request has its `HttpClient.Timeout` set to `Timeout.InfiniteTimeSpan`. This allows long-running commands, such as ones that trigger database migrations or other admin actions, to run for as long as needed without failing due to `HttpClient`'s default 100-second timeout. Canceling the command from the dashboard cancels this client-side HTTP request through the command's cancellation token; it doesn't guarantee that server-side work already started, such as a migration, also stops.
 
 If you want a command to time out after a specific duration, specify `HttpCommandOptions.HttpClientName` with the name of an `HttpClient` you configure with `IHttpClientFactory`, and set its `Timeout` accordingly:
 
