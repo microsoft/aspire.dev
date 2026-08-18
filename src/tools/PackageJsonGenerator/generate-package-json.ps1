@@ -53,7 +53,11 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$NuGetOrgServiceIndex = "https://api.nuget.org/v3/index.json"
+$NuGetOrgServiceIndex = if ([string]::IsNullOrWhiteSpace($env:ASPIRE_PUBLIC_NUGET_INDEX)) {
+    "https://api.nuget.org/v3/index.json"
+} else {
+    $env:ASPIRE_PUBLIC_NUGET_INDEX.Trim()
+}
 $AspireRepoCandidates = @(
     $env:ASPIRE_GITHUB_REPO_URL,
     "https://github.com/microsoft/aspire"
