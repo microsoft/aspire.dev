@@ -37,6 +37,17 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             .WithTags("live")
             .DisableAntiforgery();
 
+        // Everything under /api/live is per-request dynamic (snapshots, SSE, and the
+        // WebSub/EventSub challenge echoes). Mark every response no-store centrally so
+        // an edge cache (Azure Front Door) can never serve a stale snapshot or, worse,
+        // cache and replay a verification challenge. Individual handlers therefore
+        // don't need to remember to set it.
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            context.HttpContext.Response.Headers.CacheControl = "no-store";
+            return await next(context).ConfigureAwait(false);
+        });
+
         group.MapGet("", GetSnapshot)
             .WithName("LiveStatusSnapshot")
             .WithSummary("Returns the current live-status snapshot.");
@@ -70,7 +81,8 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
     private static IResult GetSnapshot(HttpContext context, LiveStatusBroadcaster broadcaster)
     {
-        context.Response.Headers.CacheControl = "no-store";
+        // Cache-Control: no-store is applied to the whole /api/live group by an
+        // endpoint filter in MapLiveStatus.
         var snapshot = broadcaster.Current;
         return Results.Json(snapshot, LiveStatusJsonContext.Default.LiveStatus,
             statusCode: StatusCodes.Status200OK);
@@ -84,8 +96,9 @@ public static class LiveStatusEndpointRouteBuilderExtensions
     {
         context.Response.StatusCode = StatusCodes.Status200OK;
         context.Response.Headers.ContentType = "text/event-stream";
-        context.Response.Headers.CacheControl = "no-store";
         context.Response.Headers["X-Accel-Buffering"] = "no";
+        // Cache-Control: no-store is applied to the whole /api/live group by an
+        // endpoint filter in MapLiveStatus.
 
         // Disable response buffering so events flush immediately.
         var bufferingFeature = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpResponseBodyFeature>();
@@ -136,6 +149,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         IHostEnvironment env,
         IOptions<LiveStatusOptions> options,
         LiveStatusBroadcaster broadcaster,
+        TimeProvider time,
         ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger("StaticHost.Live.Twitch.Webhook");
@@ -172,6 +186,16 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             return Results.Unauthorized();
         }
 
+        // The signature covers the timestamp, so a valid-but-old message is a replay
+        // of a genuinely-signed notification. Reject anything outside a 10 minute
+        // window (Twitch itself recommends this) so a captured callback can't be
+        // replayed indefinitely.
+        if (!TwitchWebhookHandler.IsFresh(timestamp, time.GetUtcNow(), TimeSpan.FromMinutes(10)))
+        {
+            logger.LogWarning("Twitch webhook timestamp {Timestamp} is stale or unparseable; rejecting.", timestamp);
+            return Results.Unauthorized();
+        }
+
         if (RequiresDevCommandSecret(env, liveOptions, twitch.IsConfigured) &&
             !HasValidDevCommandSecret(context, liveOptions))
         {
@@ -179,7 +203,10 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             return Results.Unauthorized();
         }
 
-        if (!s_twitchDedup.TryRegister(messageId))
+        // Verification handshakes must echo the challenge every time the hub retries,
+        // so never let message-id dedup swallow them; only real notifications dedupe.
+        var isVerification = string.Equals(messageType, "webhook_callback_verification", StringComparison.Ordinal);
+        if (!isVerification && !s_twitchDedup.TryRegister(messageId))
         {
             logger.LogDebug("Twitch webhook replay ignored for {MessageId}.", messageId);
             return Results.Ok();
@@ -220,7 +247,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         HttpContext context,
         IOptions<LiveStatusOptions> options,
         LiveStatusBroadcaster broadcaster,
-        IYouTubeClient ytClient,
+        YouTubeLiveConfirmationQueue confirmationQueue,
         IHostEnvironment env,
         ILoggerFactory loggerFactory)
     {
@@ -259,23 +286,10 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             return Results.Ok();
         }
 
-        // Run the confirming poll out of band; we don't want to block the hub.
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await ConfirmYouTubeLiveStatusAsync(
-                    youtube,
-                    ytClient,
-                    broadcaster,
-                    logger,
-                    CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Confirming poll after YouTube webhook failed.");
-            }
-        });
+        // Queue a coalesced, host-scoped confirming poll instead of blocking the hub
+        // or spawning an untracked Task.Run per notification. The queue collapses a
+        // burst of retries into a single Data API call and cancels on shutdown.
+        confirmationQueue.RequestConfirmation();
 
         return Results.Ok();
     }

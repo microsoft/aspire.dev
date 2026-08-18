@@ -140,6 +140,46 @@ public sealed class LiveStatusBroadcasterTests
     }
 
     [Fact]
+    public void Update_KeepsFirstSourcePrimaryWhenSecondJoinsWithinCoalesceWindow()
+    {
+        // Regression: while a going-live burst is still coalescing, the source that
+        // arrived first must stay primary. Resolving against _current (still Idle)
+        // instead of the pending basis let the second source steal primary.
+        var (b, time) = Create(coalesceMs: 750);
+
+        b.Update(new LiveStatusUpdate { YouTube = new YouTubeStatus(true, "v") });
+        b.Update(new LiveStatusUpdate { Twitch = new TwitchStatus(true, "x", null) });
+
+        time.Advance(TimeSpan.FromSeconds(1));
+
+        Assert.Equal("youtube", b.Current.PrimarySource);
+        Assert.True(b.Current.Twitch.Live);
+        Assert.True(b.Current.YouTube.Live);
+    }
+
+    [Fact]
+    public async Task Update_WithIdenticalSubstantiveState_DoesNotBroadcastAgain()
+    {
+        // Regression: an ever-advancing UpdatedAt must not turn a no-change reconcile
+        // into a redundant SSE event.
+        var (b, time) = Create(coalesceMs: 0);
+        var (reader, sub) = b.Subscribe();
+
+        await reader.ReadAsync(); // seed
+
+        b.Update(new LiveStatusUpdate { Twitch = new TwitchStatus(true, "x", null) });
+        var first = await reader.ReadAsync();
+        Assert.True(first.IsLive);
+
+        time.Advance(TimeSpan.FromSeconds(5));
+        b.Update(new LiveStatusUpdate { Twitch = new TwitchStatus(true, "x", null) });
+
+        Assert.False(reader.TryRead(out _));
+
+        sub.Dispose();
+    }
+
+    [Fact]
     public async Task Unsubscribe_StopsDeliveringEvents()
     {
         var (b, time) = Create(coalesceMs: 1);

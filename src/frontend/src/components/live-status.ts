@@ -119,7 +119,12 @@ async function seed(): Promise<void> {
     const res = await fetch('/api/live', { headers: { Accept: 'application/json' } });
     if (res.ok) {
       const json = (await res.json()) as LiveSnapshot;
-      applySnapshot(json, true);
+      // A `state` SSE event can arrive while this request is in flight. Only apply
+      // the seed if it isn't older than what we've already rendered, so a slow
+      // snapshot response can't clobber fresher live state pushed over SSE.
+      if (Date.parse(json.updatedAt) >= Date.parse(current.updatedAt)) {
+        applySnapshot(json, true);
+      }
     }
   } catch {
     /* fine — SSE will catch up */
