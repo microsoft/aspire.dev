@@ -50,13 +50,16 @@ try {
       ASTRO_OUT_DIR: staticHostWwwroot,
     },
   );
-
+} finally {
+  // Restore in `finally`: astro build wipes the out dir before it (re)writes it,
+  // so if the build throws, scalar/.gitignore are already gone from wwwroot. These
+  // must run before tempDir is removed or the only preserved copies are lost.
   restore(join(staticHostWwwroot, 'scalar'), 'scalar');
   const gitignorePath = join(staticHostWwwroot, '.gitignore');
   restore(gitignorePath, '.gitignore');
   if (!existsSync(gitignorePath)) {
     writeFileSync(gitignorePath, gitignoreContents);
   }
-} finally {
+
   rmSync(tempDir, { recursive: true, force: true });
 }

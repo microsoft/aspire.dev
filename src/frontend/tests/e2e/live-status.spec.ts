@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
 import { dismissCookieConsentIfVisible, isNarrowViewport } from '@tests/e2e/helpers';
 
@@ -33,6 +33,23 @@ test.describe('live status', () => {
 
   function visibleLiveButton(page: Page) {
     return page.locator('.live-btn:visible').first();
+  }
+
+  // Playwright's route.fulfill cannot stream a live connection: the body must be a
+  // complete string/Buffer (a ReadableStream silently serialises to garbage). Fulfil
+  // the SSE endpoint with one complete `state` frame so the real EventSource fires
+  // once. Tests that need to push further frames install a mock EventSource and use
+  // window.__aspireLiveSseEmit instead.
+  function fulfillSseState(route: Route, snapshot: LiveSnapshot) {
+    return route.fulfill({
+      status: 200,
+      headers: {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-store',
+        connection: 'keep-alive',
+      },
+      body: `event: state\ndata: ${JSON.stringify(snapshot)}\n\n`,
+    });
   }
 
   test('live action dialog stays within the mobile viewport when live', async ({ page }) => {
@@ -430,24 +447,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route('**/api/live/stream', async (route) => {
-      const body = new ReadableStream<Uint8Array>({
-        start(controller) {
-          controller.enqueue(
-            new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(liveSnapshot)}\n\n`)
-          );
-        },
-      });
-      await route.fulfill({
-        status: 200,
-        headers: {
-          'content-type': 'text/event-stream',
-          'cache-control': 'no-store',
-          connection: 'keep-alive',
-        },
-        body: body as unknown as Buffer,
-      });
-    });
+    await page.route('**/api/live/stream', (route) => fulfillSseState(route, liveSnapshot));
 
     await page.goto('/community/videos/');
     await dismissCookieConsentIfVisible(page);
@@ -511,24 +511,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route('**/api/live/stream', async (route) => {
-      const body = new ReadableStream<Uint8Array>({
-        start(controller) {
-          controller.enqueue(
-            new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(liveSnapshot)}\n\n`)
-          );
-        },
-      });
-      await route.fulfill({
-        status: 200,
-        headers: {
-          'content-type': 'text/event-stream',
-          'cache-control': 'no-store',
-          connection: 'keep-alive',
-        },
-        body: body as unknown as Buffer,
-      });
-    });
+    await page.route('**/api/live/stream', (route) => fulfillSseState(route, liveSnapshot));
 
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
@@ -657,24 +640,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route('**/api/live/stream', async (route) => {
-      const body = new ReadableStream<Uint8Array>({
-        start(controller) {
-          controller.enqueue(
-            new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(liveSnapshot)}\n\n`)
-          );
-        },
-      });
-      await route.fulfill({
-        status: 200,
-        headers: {
-          'content-type': 'text/event-stream',
-          'cache-control': 'no-store',
-          connection: 'keep-alive',
-        },
-        body: body as unknown as Buffer,
-      });
-    });
+    await page.route('**/api/live/stream', (route) => fulfillSseState(route, liveSnapshot));
 
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
@@ -768,24 +734,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route('**/api/live/stream', async (route) => {
-      const body = new ReadableStream<Uint8Array>({
-        start(controller) {
-          controller.enqueue(
-            new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(idleSnapshot)}\n\n`)
-          );
-        },
-      });
-      await route.fulfill({
-        status: 200,
-        headers: {
-          'content-type': 'text/event-stream',
-          'cache-control': 'no-store',
-          connection: 'keep-alive',
-        },
-        body: body as unknown as Buffer,
-      });
-    });
+    await page.route('**/api/live/stream', (route) => fulfillSseState(route, idleSnapshot));
 
     await page.goto('/community/videos/');
     await dismissCookieConsentIfVisible(page);

@@ -121,6 +121,39 @@ public sealed class TwitchWebhookHandlerTests
         Assert.Null(broadcaster.Current.PrimarySource);
     }
 
+    [Fact]
+    public void IsFresh_ReturnsTrueForRecentTimestamp()
+    {
+        var now = new DateTimeOffset(2026, 4, 27, 20, 0, 0, TimeSpan.Zero);
+        var sent = now.AddMinutes(-5).ToString("o");
+        Assert.True(TwitchWebhookHandler.IsFresh(sent, now, TimeSpan.FromMinutes(10)));
+    }
+
+    [Fact]
+    public void IsFresh_ReturnsFalseForStaleTimestamp()
+    {
+        var now = new DateTimeOffset(2026, 4, 27, 20, 0, 0, TimeSpan.Zero);
+        var sent = now.AddMinutes(-11).ToString("o");
+        Assert.False(TwitchWebhookHandler.IsFresh(sent, now, TimeSpan.FromMinutes(10)));
+    }
+
+    [Fact]
+    public void IsFresh_AllowsSmallFutureSkewButRejectsLargeSkew()
+    {
+        var now = new DateTimeOffset(2026, 4, 27, 20, 0, 0, TimeSpan.Zero);
+        Assert.True(TwitchWebhookHandler.IsFresh(now.AddSeconds(30).ToString("o"), now, TimeSpan.FromMinutes(10)));
+        Assert.False(TwitchWebhookHandler.IsFresh(now.AddMinutes(5).ToString("o"), now, TimeSpan.FromMinutes(10)));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not-a-timestamp")]
+    public void IsFresh_ReturnsFalseForUnparseableTimestamp(string timestamp)
+    {
+        var now = new DateTimeOffset(2026, 4, 27, 20, 0, 0, TimeSpan.Zero);
+        Assert.False(TwitchWebhookHandler.IsFresh(timestamp, now, TimeSpan.FromMinutes(10)));
+    }
+
     private static string ComputeTwitchSignature(string secret, string messageId, string timestamp, byte[] body)
     {
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));

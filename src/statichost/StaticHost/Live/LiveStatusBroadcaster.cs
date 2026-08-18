@@ -75,12 +75,13 @@ public sealed class LiveStatusBroadcaster(
             SingleWriter = false,
         });
 
-        // Seed with current state so a freshly-connected client doesn't have to
-        // wait for the next change to render correctly.
-        channel.Writer.TryWrite(Current);
-
+        // Seed with current state and register the subscriber atomically under
+        // the same lock. Otherwise a Flush landing between the seed write and the
+        // Add would deliver the new state to every other subscriber and leave this
+        // one stuck on the stale seed until the next change.
         lock (_gate)
         {
+            channel.Writer.TryWrite(_current);
             _subscribers = _subscribers.Add(channel.Writer);
         }
 
@@ -100,8 +101,11 @@ public sealed class LiveStatusBroadcaster(
             var youtube = update.YouTube ?? basis.YouTube;
 
             // Sticky primary: keep the previous primary if it's still live;
-            // otherwise pick whichever source is live.
-            var primary = ResolvePrimary(_current.PrimarySource, twitch, youtube);
+            // otherwise pick whichever source is live. Resolve against the pending
+            // basis (not _current) so that during the coalescing window the source
+            // that arrived first stays primary even if a second source's update
+            // lands before the flush.
+            var primary = ResolvePrimary(basis.PrimarySource, twitch, youtube);
             var isLive = twitch.Live || youtube.Live;
             var now = _time.GetUtcNow();
             var liveSessionId = ResolveLiveSessionId(basis, isLive, now);
@@ -114,9 +118,12 @@ public sealed class LiveStatusBroadcaster(
                 LiveSessionId: liveSessionId,
                 UpdatedAt: now);
 
-            if (next == _current && _pending is null)
+            // Ignore UpdatedAt when deciding whether anything substantive changed;
+            // otherwise the ever-advancing timestamp makes every reconcile look new
+            // and forces a redundant broadcast. When nothing else changed, keep the
+            // previous snapshot (and its UpdatedAt) untouched.
+            if (_pending is null && (next with { UpdatedAt = _current.UpdatedAt }) == _current)
             {
-                // No-op: nothing to broadcast.
                 return;
             }
 
@@ -162,7 +169,9 @@ public sealed class LiveStatusBroadcaster(
     private void FlushLocked()
     {
         if (_pending is not { } next) return;
-        if (next == _current) { _pending = null; return; }
+        // Excluding UpdatedAt: if an update and a later revert coalesce into the
+        // same substantive state as _current, don't broadcast a timestamp-only bump.
+        if ((next with { UpdatedAt = _current.UpdatedAt }) == _current) { _pending = null; return; }
 
         Volatile.Write(ref _current, next);
         _pending = null;

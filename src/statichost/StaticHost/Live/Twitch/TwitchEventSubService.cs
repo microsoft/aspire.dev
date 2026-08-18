@@ -47,7 +47,7 @@ public sealed class TwitchEventSubService(
             {
                 await ReconcileAsync(stoppingToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException) { return; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Twitch reconcile loop failed; will retry.");

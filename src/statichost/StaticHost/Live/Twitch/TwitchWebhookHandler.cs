@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -33,6 +34,26 @@ public static class TwitchWebhookHandler
         return CryptographicOperations.FixedTimeEquals(
             Encoding.ASCII.GetBytes(actualHex),
             Encoding.ASCII.GetBytes(expectedHex));
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="timestamp"/> (the
+    /// <c>Twitch-Eventsub-Message-Timestamp</c> header, RFC3339) is no older than
+    /// <paramref name="maxAge"/> relative to <paramref name="now"/>. A minute of
+    /// future clock skew is tolerated; an unparseable timestamp is treated as not
+    /// fresh. Combined with message-id dedup this bounds how long a captured — but
+    /// genuinely signed — notification can be replayed.
+    /// </summary>
+    public static bool IsFresh(string timestamp, DateTimeOffset now, TimeSpan maxAge)
+    {
+        if (!DateTimeOffset.TryParse(timestamp, CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind, out var sent))
+        {
+            return false;
+        }
+
+        var age = now - sent;
+        return age <= maxAge && age >= TimeSpan.FromMinutes(-1);
     }
 
     /// <summary>

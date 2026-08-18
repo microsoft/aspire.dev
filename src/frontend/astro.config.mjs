@@ -30,6 +30,14 @@ const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] ==
 const outDir = process.env.ASTRO_OUT_DIR;
 const isBuildTimingEnabled = process.env.BUILD_TIMING === '1';
 
+// Under `aspire run` the frontend dev server (Vite) and StaticHost are separate
+// origins. The live-status client fetches same-origin `/api/live` and streams
+// `/api/live/stream`, so in dev those must be proxied to StaticHost. The AppHost
+// injects its origin as ASPIRE_STATICHOST_URL; unset in CI/production builds
+// (where StaticHost serves both the site and the API from one origin), so the
+// proxy is simply omitted then.
+const staticHostUrl = process.env.ASPIRE_STATICHOST_URL;
+
 // Astro renders pages mostly on the main JS thread. Default `build.concurrency`
 // is 1, so a multi-vCPU CI runner is largely idle during the generate phase.
 // Internal benchmarks on a 12k-page build showed:
@@ -234,4 +242,21 @@ export default defineConfig({
   build: {
     concurrency: buildConcurrency,
   },
+  ...(staticHostUrl
+    ? {
+        vite: {
+          server: {
+            proxy: {
+              // Prefix match: covers both the JSON snapshot (/api/live) and the
+              // SSE stream (/api/live/stream). changeOrigin so StaticHost sees its
+              // own host header.
+              '/api/live': {
+                target: staticHostUrl,
+                changeOrigin: true,
+              },
+            },
+          },
+        },
+      }
+    : {}),
 });

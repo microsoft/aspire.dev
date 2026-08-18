@@ -76,7 +76,12 @@ const { youtubeChannelId, twitchChannel } = Astro.props;
     root.dataset.bound = '1';
     userSticky = false;
     root.querySelectorAll<HTMLElement>('[role="tab"]').forEach((tab) => {
-      tab.addEventListener('click', () => {
+      tab.addEventListener('click', (event) => {
+        // Only a real user selecting a tab makes the choice sticky. activateTab()
+        // switches tabs via a synthetic .click(), which is untrusted; ignore those
+        // so auto-switching on primary-source changes keeps working. Playwright
+        // user clicks are trusted, so this stays test-friendly.
+        if (!event.isTrusted) return;
         userSticky = true;
       });
     });

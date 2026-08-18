@@ -48,7 +48,7 @@ public sealed class YouTubeWebSubService(
             {
                 await TickAsync(stoppingToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException) { return; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
             catch (Exception ex)
             {
                 logger.LogError(ex, "YouTube WebSub tick failed; will retry.");
