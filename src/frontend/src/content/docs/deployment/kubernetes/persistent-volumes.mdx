@@ -189,7 +189,11 @@ await api.withKubernetesPersistentVolumeMount(media, '/srv/media');
 
 A Kubernetes access mode such as `ReadWriteOnce` controls how a volume can be attached and mounted; it doesn't grant the container's Linux process permission to write to the mounted filesystem. Without further configuration, a freshly provisioned volume is typically owned by `root:root`, so a workload that runs as a non-root user fails on its first write even though the PVC is `Bound` and the pod is `Running`.
 
-To avoid that out-of-the-box failure, both `WithPersistentVolume(...)` overloads add the following pod security context to the workload automatically:
+<Aside type="caution" title="Aspire version">
+  The automatic security context described in this section requires Aspire 13.6 or later.
+</Aside>
+
+To avoid that out-of-the-box failure, both `WithPersistentVolume(...)` overloads — and their TypeScript equivalents, `withKubernetesPersistentVolume` and `withKubernetesPersistentVolumeMount` — add the following pod security context to the workload automatically:
 
 ```yaml
 securityContext:
@@ -209,17 +213,24 @@ The default security context is applied before any `PublishAsKubernetesService` 
 <TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
-builder.AddProject<Projects.WebFrontend>("webfrontend")
-    .WithPersistentVolume(data, "/data")
+using Aspire.Hosting.Kubernetes.Resources;
+
+builder.AddProject<Projects.Api>("api")
+    .WithPersistentVolume(media, "/srv/media")
     .PublishAsKubernetesService(resource =>
     {
-        var podSpec = resource.Workload?.PodTemplate.Spec
-            ?? throw new InvalidOperationException("The Kubernetes workload was not generated.");
+        var statefulSet = (StatefulSet)resource.Workload!;
+        var podSpec = statefulSet.Spec.Template.Spec;
 
         podSpec.SecurityContext ??= new();
         podSpec.SecurityContext.FsGroup = 3000;
     });
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+The TypeScript AppHost API supports `publishAsKubernetesService`, but its `KubernetesResource` callback doesn't currently expose the generated workload or pod spec. It can't override the generated `fsGroup` from the AppHost.
 
 </TabItem>
 </Tabs>
@@ -232,16 +243,21 @@ To remove the generated pod security context entirely — for example, when owne
 <TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
-builder.AddProject<Projects.WebFrontend>("webfrontend")
-    .WithPersistentVolume(data, "/data")
+using Aspire.Hosting.Kubernetes.Resources;
+
+builder.AddProject<Projects.Api>("api")
+    .WithPersistentVolume(media, "/srv/media")
     .PublishAsKubernetesService(resource =>
     {
-        var podSpec = resource.Workload?.PodTemplate.Spec
-            ?? throw new InvalidOperationException("The Kubernetes workload was not generated.");
-
-        podSpec.SecurityContext = null;
+        var statefulSet = (StatefulSet)resource.Workload!;
+        statefulSet.Spec.Template.Spec.SecurityContext = null;
     });
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+The TypeScript AppHost API supports `publishAsKubernetesService`, but its `KubernetesResource` callback doesn't currently expose the generated workload or pod spec. It can't remove the generated pod security context from the AppHost.
 
 </TabItem>
 </Tabs>
@@ -276,6 +292,9 @@ spec:
         - name: "data"
           persistentVolumeClaim:
             claimName: "data"
+      securityContext:
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
   replicas: 1
 ```
 
