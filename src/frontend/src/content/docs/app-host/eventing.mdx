@@ -116,18 +116,17 @@ builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(
 <Aside type="caution">
   `Eventing.Subscribe<T>()` requires `T` to be a concrete event type.
   Subscribing to an interface or abstract class, such as
-  `IDistributedApplicationEvent`, throws an `ArgumentException` because
-  the internal lookup key is `typeof(T)` while `PublishAsync<T>` is always
-  invoked with the concrete event type — so an interface or abstract
-  subscription could never fire. Subscribe to the concrete event type
-  instead, for example `BeforeStartEvent` or `AfterResourcesCreatedEvent`.
+  `IDistributedApplicationEvent`, throws an `ArgumentException` with the
+  message `Cannot subscribe to interface or abstract type
+  'IDistributedApplicationEvent'. Subscribe to a concrete event type instead.`
+  Subscribe to a concrete type such as `BeforeStartEvent` or
+  `AfterResourcesCreatedEvent`.
 
-  ```csharp
-  // Throws ArgumentException: Cannot subscribe to interface or abstract
-  // type 'IDistributedApplicationEvent'. Subscribe to a concrete event
-  // type instead.
-  builder.Eventing.Subscribe<IDistributedApplicationEvent>((e, ct) => { ... });
-  ```
+```csharp title="AppHost.cs"
+builder.Eventing.Subscribe<IDistributedApplicationEvent>(
+    static (@event, cancellationToken) => Task.CompletedTask);
+```
+
 </Aside>
 
 When the AppHost is run, by the time the Aspire dashboard is displayed, you should see the following log output in the console:
