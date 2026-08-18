@@ -185,6 +185,87 @@ await api.withKubernetesPersistentVolumeMount(media, '/srv/media');
   Any workload bound to a persistent volume is rendered as a `StatefulSet` instead of a `Deployment`, regardless of its default workload kind. There is no opt-out. A `Deployment` with a `ReadWriteOnce` claim and more than one replica is broken by design because the second pod can't mount the same volume. Therefore, binding to a durable volume automatically selects the `StatefulSet` path, which gives pods stable identity and ordered rollout.
 </Aside>
 
+## Default pod security context
+
+A Kubernetes access mode such as `ReadWriteOnce` controls how a volume can be attached and mounted; it doesn't grant the container's Linux process permission to write to the mounted filesystem. Without further configuration, a freshly provisioned volume is typically owned by `root:root`, so a workload that runs as a non-root user fails on its first write even though the PVC is `Bound` and the pod is `Running`.
+
+<Aside type="caution" title="Aspire version">
+  The automatic security context described in this section requires Aspire 13.6 or later.
+</Aside>
+
+To avoid that out-of-the-box failure, both `WithPersistentVolume(...)` overloads — and their TypeScript equivalents, `withKubernetesPersistentVolume` and `withKubernetesPersistentVolumeMount` — add the following pod security context to the workload automatically:
+
+```yaml
+securityContext:
+  fsGroup: 2000
+  fsGroupChangePolicy: OnRootMismatch
+```
+
+`fsGroup` adds a supplemental group to the pod's processes and, for supported volume types, instructs Kubernetes or the CSI driver to make the mounted volume accessible to that group. It doesn't change the image-defined UID or primary GID, so Aspire doesn't need to know which identity the image uses. Aspire always uses the same group ID, `2000`, rather than choosing a new value on each deployment, because group ownership is persisted on the volume. `OnRootMismatch` avoids an unnecessary recursive ownership change when the volume already has the expected group.
+
+This default only applies to workloads bound through `WithPersistentVolume(...)`. Ordinary workloads and legacy PVC generation through the Kubernetes environment's default storage type are unaffected, and read-only mounts remain read-only.
+
+### Overriding or removing the default
+
+The default security context is applied before any `PublishAsKubernetesService` callback runs, so a workload or cluster that needs a different group can replace it:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+
+builder.AddProject<Projects.Api>("api")
+    .WithPersistentVolume(media, "/srv/media")
+    .PublishAsKubernetesService(resource =>
+    {
+        var statefulSet = (StatefulSet)resource.Workload!;
+        var podSpec = statefulSet.Spec.Template.Spec;
+
+        podSpec.SecurityContext ??= new();
+        podSpec.SecurityContext.FsGroup = 3000;
+    });
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+The TypeScript AppHost API supports `publishAsKubernetesService`, but its `KubernetesResource` callback doesn't currently expose the generated workload or pod spec. It can't override the generated `fsGroup` from the AppHost.
+
+</TabItem>
+</Tabs>
+
+The generated `OnRootMismatch` change policy is retained unless the callback also replaces it.
+
+To remove the generated pod security context entirely — for example, when ownership is managed by the image, an admission controller, or storage-specific configuration — set it to `null` in the same callback:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+
+builder.AddProject<Projects.Api>("api")
+    .WithPersistentVolume(media, "/srv/media")
+    .PublishAsKubernetesService(resource =>
+    {
+        var statefulSet = (StatefulSet)resource.Workload!;
+        statefulSet.Spec.Template.Spec.SecurityContext = null;
+    });
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+The TypeScript AppHost API supports `publishAsKubernetesService`, but its `KubernetesResource` callback doesn't currently expose the generated workload or pod spec. It can't remove the generated pod security context from the AppHost.
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  The group ID `2000` is an Aspire-managed default, not a Kubernetes-reserved value. Some storage drivers don't support `fsGroup`, some CSI drivers apply the group at mount time themselves, and cluster admission policies can restrict allowed group ranges. Use the customization callback above as an escape hatch in those environments.
+</Aside>
+
 ## Unbound volumes and default storage
 
 Volumes on a workload that aren't bound to a `KubernetesPersistentVolumeResource` continue to use the environment's default storage type. You can mix a first-class persistent volume and an unbound ephemeral volume on the same workload — each is resolved independently at publish time.
@@ -211,6 +292,9 @@ spec:
         - name: "data"
           persistentVolumeClaim:
             claimName: "data"
+      securityContext:
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
   replicas: 1
 ```
 
