@@ -99,6 +99,7 @@ interface PackageSource {
   trusted: boolean;
   serviceIndex: string;
   queries: string[];
+  optional?: boolean;
 }
 
 export interface IntegrationOutput {
@@ -503,7 +504,15 @@ async function fetchNuGetOrgMetadata(packageIds: string[]): Promise<Map<string, 
     return metadataById;
   }
 
-  const searchBase = await discoverBase(NUGET_ORG_SERVICE_INDEX);
+  let searchBase: string;
+  try {
+    searchBase = await discoverBase(NUGET_ORG_SERVICE_INDEX);
+  } catch (error: unknown) {
+    console.warn(
+      `⚠️ Skipping nuget.org metadata backfill (search service unavailable): ${getErrorMessage(error)}`
+    );
+    return metadataById;
+  }
   const concurrency = 10;
   let nextIndex = 0;
 
@@ -578,6 +587,63 @@ function mergeFallbackPackageMetadata(
   });
 }
 
+function readPreviousCatalog(): IntegrationOutput[] {
+  try {
+    if (!fs.existsSync(OUTPUT_PATH)) {
+      return [];
+    }
+    const parsed = JSON.parse(fs.readFileSync(OUTPUT_PATH, 'utf8')) as IntegrationOutput[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error: unknown) {
+    console.warn(
+      `⚠️ Could not read the previous catalog for release-branch reconciliation: ${getErrorMessage(error)}`
+    );
+    return [];
+  }
+}
+
+// On release branches the official Aspire packages resolve from a branch-specific build
+// feed that only carries the packages produced by that build. Integrations that ship on a
+// separate cadence (and Community Toolkit packages, which never appear on the release feed)
+// would otherwise vanish, and freshly built packages have no nuget.org presentation metadata
+// (download counts, published icon) yet. Reconcile the freshly generated catalog against the
+// previously published one so a release-branch refresh only advances versions and never drops
+// or visually regresses previously published integrations. This is a no-op on non-release
+// branches, where nuget.org already provides the complete, authoritative catalog.
+function reconcileReleaseBranchCatalog(fresh: IntegrationOutput[]): IntegrationOutput[] {
+  const previous = readPreviousCatalog();
+  if (previous.length === 0) {
+    return fresh;
+  }
+
+  const previousByTitle = new Map(
+    previous.map((entry) => [entry.title.toLowerCase(), entry] as const)
+  );
+  const freshTitles = new Set(fresh.map((entry) => entry.title.toLowerCase()));
+
+  const reconciled = fresh.map((entry) => {
+    const prior = previousByTitle.get(entry.title.toLowerCase());
+    if (!prior) {
+      return entry;
+    }
+    const icon =
+      prior.icon && prior.icon !== DEFAULT_NUGET_ICON_URL ? prior.icon : entry.icon;
+    const downloads = entry.downloads && entry.downloads > 0 ? entry.downloads : prior.downloads;
+    return { ...entry, icon, downloads };
+  });
+
+  const carriedForward = previous.filter(
+    (entry) => !freshTitles.has(entry.title.toLowerCase())
+  );
+  if (carriedForward.length > 0) {
+    console.log(
+      `ℹ️ Release-branch reconciliation carried forward ${carriedForward.length} integration(s) absent from the release feed.`
+    );
+  }
+
+  return [...reconciled, ...carriedForward].sort((a, b) => a.title.localeCompare(b.title));
+}
+
 export async function updateIntegrations(): Promise<void> {
   const officialSource = resolveOfficialAspirePackageSource();
   if (officialSource.isReleaseBranch) {
@@ -604,10 +670,25 @@ export async function updateIntegrations(): Promise<void> {
       trusted: false,
       serviceIndex: NUGET_ORG_SERVICE_INDEX,
       queries: COMMUNITY_TOOLKIT_QUERIES,
+      optional: true,
     },
   ];
 
-  const results = await Promise.all(sources.map((source) => fetchPackagesFromSource(source)));
+  const results = await Promise.all(
+    sources.map(async (source) => {
+      try {
+        return await fetchPackagesFromSource(source);
+      } catch (error: unknown) {
+        if (source.optional) {
+          console.warn(
+            `⚠️ Skipping optional package source "${source.label}" (unavailable): ${getErrorMessage(error)}`
+          );
+          return [] as PackageRecord[];
+        }
+        throw error;
+      }
+    })
+  );
   const merged = results.flat();
   const uniqueById = merged.reduce<Record<string, PackageRecord>>((acc, pkg) => {
     const existing = acc[pkg.id];
@@ -627,7 +708,10 @@ export async function updateIntegrations(): Promise<void> {
   }
 
   const nonDeprecated = await filterOutDeprecatedWithRegistration(unique);
-  const output = filterAndTransform(nonDeprecated);
+  let output = filterAndTransform(nonDeprecated);
+  if (officialSource.isReleaseBranch) {
+    output = reconcileReleaseBranchCatalog(output);
+  }
   const defaultIconPackages = getOfficialAspireDefaultIconPackages(output);
   if (defaultIconPackages.length > 0) {
     console.warn(

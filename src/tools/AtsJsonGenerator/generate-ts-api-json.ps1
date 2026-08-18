@@ -67,7 +67,11 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$NuGetOrgServiceIndex = "https://api.nuget.org/v3/index.json"
+$NuGetOrgServiceIndex = if ([string]::IsNullOrWhiteSpace($env:ASPIRE_PUBLIC_NUGET_INDEX)) {
+    "https://api.nuget.org/v3/index.json"
+} else {
+    $env:ASPIRE_PUBLIC_NUGET_INDEX.Trim()
+}
 $AspireRepoCandidates = @(
     $env:ASPIRE_GITHUB_REPO_URL,
     "https://github.com/microsoft/aspire"
@@ -77,6 +81,14 @@ $ScriptDir = $PSScriptRoot
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..\..")).Path
 $ToolProject = Join-Path $ScriptDir "AtsJsonGenerator.csproj"
 $AspireCliPath = if ([string]::IsNullOrWhiteSpace($env:ASPIRE_CLI_PATH)) { "aspire" } else { $env:ASPIRE_CLI_PATH }
+
+# Opt-in resilience: when ASPIRE_TS_API_CARRY_FORWARD=1, a package whose ATS dump
+# fails does not abort the whole run. Its previously committed module in the final
+# output directory is preserved (carried forward) and every package that succeeded
+# is still synced. Off by default so CI keeps failing hard on unexpected dump
+# errors. Intended for constrained environments where a package's transitive
+# restore requires a feed that is unreachable (e.g. an authenticated internal feed).
+$CarryForwardOnDumpFailure = ($env:ASPIRE_TS_API_CARRY_FORWARD -eq '1')
 
 $FinalOutputDir = if ($OutputDir) {
     [System.IO.Path]::GetFullPath($OutputDir)
@@ -893,9 +905,12 @@ if ($aspireCliWorkingDirectory -and (Test-Path $aspireCliWorkingDirectory)) {
     Remove-Item $aspireCliWorkingDirectory -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-if ($failed -gt 0) {
+if ($failed -gt 0 -and -not $CarryForwardOnDumpFailure) {
     Remove-Item -Path $OutputDir -Recurse -Force -ErrorAction SilentlyContinue
     exit 1
+}
+if ($failed -gt 0) {
+    Write-Host "Carry-forward: $failed package(s) failed to dump; preserving their existing committed modules and syncing the rest." -ForegroundColor Yellow
 }
 
 New-Item -ItemType Directory -Path $FinalOutputDir -Force | Out-Null
@@ -910,6 +925,16 @@ $isFullReconciliation = -not $AspireRepoPath -and -not $PackageFilter -and -not 
 if ($isFullReconciliation) {
     foreach ($existingFile in Get-ChildItem -Path $FinalOutputDir -Filter "*.json" -File) {
         if (-not $stagedNames.Contains($existingFile.Name)) {
+            if ($failedPackageNames.Count -gt 0) {
+                $belongsToFailed = $false
+                foreach ($failedName in $failedPackageNames) {
+                    if ($existingFile.Name -match ("^{0}(?:\.\d.*)?\.json$" -f [regex]::Escape($failedName))) {
+                        $belongsToFailed = $true
+                        break
+                    }
+                }
+                if ($belongsToFailed) { continue }
+            }
             Remove-Item -Path $existingFile.FullName -Force
             Write-Host "Removed stale module: $($existingFile.Name)" -ForegroundColor DarkYellow
         }
@@ -917,6 +942,7 @@ if ($isFullReconciliation) {
 }
 else {
     foreach ($pkg in $Packages) {
+        if ($failedPackageNames.Contains($pkg.Name)) { continue }
         $packageFilePattern = "^{0}(?:\.\d.*)?\.json$" -f [regex]::Escape($pkg.Name)
         $stagedForPackage = @($stagedFiles | Where-Object {
             $_.Name -match $packageFilePattern
