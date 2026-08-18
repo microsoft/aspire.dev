@@ -135,15 +135,19 @@ const aks = await builder.addAzureKubernetesEnvironment("aks");
 const data = await aks.addPersistentVolume("data");
 await data.withCapacity("20Gi");
 
-await api.withKubernetesPersistentVolumeMount(data, "/data");
+const api = await builder
+    .addNodeApp('api', './api', 'src/index.ts')
+    .withHttpEndpoint({ env: 'PORT' })
+    .withExternalHttpEndpoints()
+    .withKubernetesPersistentVolumeMount(data, "/data");
 ```
 </TabItem>
 </Tabs>
 
-When you don't set a storage class, the generated claim omits `spec.storageClassName` so the cluster's default storage class provisions the disk. A standard AKS cluster dynamically provisions an Azure managed disk for such claims — to request Premium SSD storage explicitly, call `WithStorageClass("managed-csi-premium")` in C# or `withStorageClass('managed-csi-premium')` in TypeScript.
+When you don't set a storage class, the generated claim omits `spec.storageClassName` so the cluster's default storage class provisions the disk. A standard AKS cluster dynamically provisions an Azure managed disk for such claims. To request Premium SSD storage explicitly, call `WithStorageClass("managed-csi-premium")` in C# or `withStorageClass('managed-csi-premium')` in TypeScript.
 
 <Aside type="note">
-  Azure Files-specific APIs are intentionally deferred until managed-identity mounting can be modeled securely.
+  The APIs that are specific to Azure Files are intentionally deferred until managed-identity mounting can be modeled securely.
 </Aside>
 
 <LearnMore>
