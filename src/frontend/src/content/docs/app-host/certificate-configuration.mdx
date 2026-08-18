@@ -36,42 +36,53 @@ Many of the certificate features in Aspire rely on a development certificate. Be
 
 ### Using the Aspire CLI (recommended)
 
-The preferred way to manage the development certificate is to use the [Aspire CLI](/get-started/install-cli/). When you run `aspire run`, the CLI automatically ensures the development certificate is created and trusted. No additional manual steps are required.
+The preferred way to manage the development certificate is to use the [Aspire CLI](/get-started/install-cli/). In an interactive session, `aspire run` checks the certificate before starting the AppHost and attempts to create and trust it when needed. On Windows and macOS, the operating system requests consent before trusting a new certificate.
 
-You can also manage certificates explicitly with the Aspire CLI:
+When interactive input isn't available on Windows or macOS, the CLI creates an untrusted certificate if needed, skips the trust step, and displays a warning. This behavior applies to non-interactive CI jobs and commands launched without an interactive terminal in Codespaces or dev containers.
+
+To create or trust the certificate explicitly, run the following command in an interactive terminal:
 
 ```bash title="Trust the development certificate"
 aspire certs trust
 ```
 
-```bash title="Remove and re-trust (refresh)"
+If you manage the certificate with the .NET SDK instead, run:
+
+```bash title="Trust with the .NET CLI"
+dotnet dev-certs https --trust
+```
+
+If trusting the certificate doesn't resolve stale or corrupt certificate state, you can remove the development certificates before creating and trusting a new one.
+
+:::caution[Cleaning development certificates]
+`aspire certs clean` removes all HTTPS development certificates for the current user, not only certificates used by Aspire. The `dotnet dev-certs https --clean` command has the same scope. Cleaning can disrupt unrelated ASP.NET Core apps until you create and trust a new certificate.
+:::
+
+```bash title="Remove and re-trust the development certificate"
 aspire certs clean
 aspire certs trust
 ```
 
-<Aside type="tip">
-  If you encounter unexpected HTTPS or certificate trust errors during local
-  development, running `aspire certs clean` followed by `aspire certs trust` is
-  a good first troubleshooting step.
-</Aside>
+### Linux trust for OpenSSL clients and browsers
 
-<Aside type="note" title="Linux certificate trust">
-  On Linux, the development certificate is exported to `~/.aspnet/dev-certs/trust`, but applications using OpenSSL won't discover it unless the `SSL_CERT_DIR` environment variable includes that path. You can set `SSL_CERT_DIR` in your shell profile (~/.bashrc, ~/.zshrc, ~/.profile, etc.):
+On Linux, `aspire certs trust` runs without an operating system consent prompt and can configure two independent trust paths:
 
-  ```bash title="~/.bashrc, ~/.zshrc, or ~/.profile"
-  # Confirm /usr/lib/ssl/certs is the correct certificate directory for
-  # your Linux distribution. Common alternatives include:
-  #   /etc/ssl/certs
-  #   /etc/pki/tls/certs
-  if [ -z "$SSL_CERT_DIR" ]; then
-      export SSL_CERT_DIR="/usr/lib/ssl/certs:$HOME/.aspnet/dev-certs/trust"
-  else
-      export SSL_CERT_DIR="$SSL_CERT_DIR:$HOME/.aspnet/dev-certs/trust"
-  fi
-  ```
+- **OpenSSL-aware clients**: The CLI exports the certificate to `~/.aspnet/dev-certs/trust` and adds that path to `SSL_CERT_DIR` for the AppHost process it launches. Shells and apps started separately don't inherit that value, and `SSL_CERT_DIR` doesn't configure browser trust. Add the path to your shell profile (`~/.bashrc`, `~/.zshrc`, `~/.profile`, or equivalent) when other OpenSSL-aware clients need to trust the certificate.
+- **Firefox and Chromium-based browsers**: The CLI uses `certutil` to update existing browser NSS databases. Install the `certutil` utility from your distribution's NSS tools package and start each browser once to create its profile before you run `aspire certs trust`. Run the command again after you create another browser profile.
 
-  You may need to reload your profile or start a new terminal session for the change to take effect.
-</Aside>
+```bash title="~/.bashrc, ~/.zshrc, or ~/.profile"
+# Confirm /usr/lib/ssl/certs is the correct certificate directory for
+# your Linux distribution. Common alternatives include:
+#   /etc/ssl/certs
+#   /etc/pki/tls/certs
+if [ -z "$SSL_CERT_DIR" ]; then
+    export SSL_CERT_DIR="/usr/lib/ssl/certs:$HOME/.aspnet/dev-certs/trust"
+else
+    export SSL_CERT_DIR="$SSL_CERT_DIR:$HOME/.aspnet/dev-certs/trust"
+fi
+```
+
+Reload your profile or start a new terminal session for the change to take effect.
 
 ### Developer certificate for DCP communication
 
