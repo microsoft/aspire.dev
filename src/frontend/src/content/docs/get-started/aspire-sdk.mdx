@@ -116,24 +116,37 @@ When `AspireUseCliBundle` is `true`:
 - Your AppHost uses the DCP and Dashboard versions installed with the Aspire CLI.
 - The SDK selects the executable used to launch the AppHost as follows:
   1. An explicit `AspireCliPath` is always authoritative.
-  2. When `AspireCliInvocationMode` is set to `Dnx`, the SDK selects a usable `dnx` host.
-  3. Otherwise, the default `Path` mode selects `aspire` on `PATH`, then falls back to a usable `dnx` host.
+  2. When `AspireCliInvocationMode` is set to `Dnx` or `DnxPinned`, the SDK selects a usable `dnx` host.
+  3. Otherwise, the default `Path` mode selects a compatible `aspire` on `PATH`, then falls back to the SDK-paired Aspire CLI package through DNX.
 - `AspireCliBundlePath` isn't an executable candidate. It explicitly identifies a bundle layout for DCP and Dashboard resolution.
 - If a required bundle layout can't be resolved, the build emits error [`ASPIRE009`](/diagnostics/aspire009/). Invalid explicit `AspireCliPath` and `AspireCliBundlePath` values remain authoritative and can produce this error.
-- If forced DNX mode can't find `dnx`, ordinary builds remain valid. The run preflight emits error [`ASPIRE011`](/diagnostics/aspire011/) when it prepares the launch command.
+- If `Dnx` or `DnxPinned` mode can't find `dnx`, the run preflight emits error [`ASPIRE011`](/diagnostics/aspire011/) when it prepares the launch command. A regular build doesn't emit this diagnostic.
 
 #### Delegating through DNX
 
-In the default `Path` mode, the AppHost can fall back to DNX when `aspire` isn't found on `PATH`. A PATH `aspire` candidate that can't support the run hook can also fall back to DNX. An explicit `AspireCliPath` remains authoritative and isn't replaced by the fallback.
+The DNX package selection depends on `AspireCliInvocationMode`:
 
-The AppHost invokes DNX noninteractively as `dnx --yes aspire.cli@$(AspireHostingSDKVersion)`. This restores and executes the exact Aspire CLI version paired with the AppHost SDK from your configured NuGet sources. If DNX can't restore or probe that package, the launch fails explicitly instead of falling back to an incomplete direct launch.
+- `Path` is the default. The AppHost prefers a compatible `aspire` on `PATH`. If the command is missing or can't support the run hook, the AppHost can fall back to `dnx --yes aspire.cli@$(AspireHostingSDKVersion) -- ...`, which selects the version paired with the AppHost SDK.
+- `Dnx` skips `aspire` on `PATH` and invokes `dnx --yes aspire.cli -- ...`. The unversioned package reference allows an in-scope tool manifest to select the package; when no manifest applies, DNX uses the latest package.
+- `DnxPinned` skips `aspire` on `PATH` and invokes `dnx --yes aspire.cli@$(AspireHostingSDKVersion) -- ...`, selecting the version paired with the AppHost SDK.
 
-To force DNX delegation instead of preferring `aspire` on `PATH`, set `AspireCliInvocationMode`:
+All DNX invocations are noninteractive and use your configured NuGet sources. If DNX can't restore or probe the selected package, the launch fails explicitly instead of falling back to an incomplete direct launch. An explicit `AspireCliPath` remains authoritative and isn't replaced by DNX fallback.
+
+To force manifest-aware DNX delegation instead of preferring `aspire` on `PATH`, set `AspireCliInvocationMode`:
 
 ```xml title="MyApp.AppHost.csproj"
 <PropertyGroup>
   <AspireUseCliBundle>true</AspireUseCliBundle>
   <AspireCliInvocationMode>Dnx</AspireCliInvocationMode>
+</PropertyGroup>
+```
+
+To force the SDK-paired package through DNX, use `DnxPinned`:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+  <AspireCliInvocationMode>DnxPinned</AspireCliInvocationMode>
 </PropertyGroup>
 ```
 

@@ -13,7 +13,7 @@ import { Badge } from '@astrojs/starlight/components';
   class:list={'mb-1'}
 />
 
-> '[ProjectName]' is configured with AspireUseCliBundle=false. Some Aspire features require the Aspire CLI bundle. Set AspireUseCliBundle=true to enable those features, or suppress ASPIRE010 to continue without the bundle.
+> '[ProjectName]' is configured with AspireUseCliBundle=false. Some Aspire features require the Aspire CLI bundle. Set AspireUseCliBundle=true to enable those features, or suppress ASPIRE010 to continue without the bundle. See https://aka.ms/aspire/diagnostics/aspire010 for more information.
 
 This diagnostic warning is reported when an AppHost project has `AspireUseCliBundle` set to `false` (the default). Launching the AppHost directly with `dotnet run` or an IDE continues to work without the Aspire CLI, but features that depend on the CLI bundle — such as resolving DCP and the Aspire Dashboard from the installed Aspire CLI instead of NuGet packages — remain unavailable.
 
@@ -39,9 +39,9 @@ Set `AspireUseCliBundle` to `true` to opt in to CLI bundle delegation:
 </PropertyGroup>
 ```
 
-When you opt in, an explicit `AspireCliPath` is authoritative. Otherwise, the default `Path` invocation mode selects `aspire` on `PATH`, with a usable `dnx` host as a fallback when `aspire` is unavailable or can't support the run hook. Setting `AspireCliInvocationMode=Dnx` selects DNX instead. `AspireCliBundlePath` is a bundle-layout input, not an executable invocation candidate.
+When you opt in, an explicit `AspireCliPath` is authoritative. Otherwise, the default `Path` invocation mode selects a compatible `aspire` on `PATH`, with the SDK-paired Aspire CLI package through DNX as a fallback. Setting `AspireCliInvocationMode=Dnx` selects the unversioned package through DNX so a tool manifest can apply, while `DnxPinned` selects the version paired with the AppHost SDK. `AspireCliBundlePath` is a bundle-layout input, not an executable invocation candidate.
 
-An unresolved bundle layout reports [`ASPIRE009`](/diagnostics/aspire009/). [`ASPIRE011`](/diagnostics/aspire011/) is limited to the run preflight when forced DNX mode can't find `dnx`; it doesn't represent every CLI resolution failure.
+An unresolved bundle layout reports [`ASPIRE009`](/diagnostics/aspire009/). [`ASPIRE011`](/diagnostics/aspire011/) is limited to the run preflight when `Dnx` or `DnxPinned` mode can't find `dnx`; it doesn't represent every CLI resolution failure.
 
 If you intend to keep using NuGet-restored orchestration dependencies, suppress `ASPIRE010`:
 

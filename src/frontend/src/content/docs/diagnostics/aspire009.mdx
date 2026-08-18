@@ -17,7 +17,7 @@ import { Badge } from '@astrojs/starlight/components';
 
 This diagnostic error is reported when an AppHost project opts in to the Aspire CLI bundle (`AspireUseCliBundle=true`) but the SDK can't resolve a usable bundle layout for the developer control plane (DCP) and the Aspire Dashboard.
 
-When neither `AspireCliPath` nor `AspireCliBundlePath` is set, a usable `dnx` host can provide the required paths at run time. Therefore, a missing `aspire` command alone doesn't cause `ASPIRE009`. Explicit paths are authoritative: an invalid `AspireCliPath` or `AspireCliBundlePath` causes `ASPIRE009` even when `dnx` is available.
+When neither `AspireCliPath` nor `AspireCliBundlePath` is set, a usable `dnx` host can resolve or prepare the required bundle layout through the selected Aspire CLI package. Therefore, a missing `aspire` command alone doesn't cause `ASPIRE009`. Explicit paths are authoritative: an invalid `AspireCliPath` or `AspireCliBundlePath` causes `ASPIRE009` even when `dnx` is available.
 
 ## Example
 
@@ -44,9 +44,9 @@ If you set `AspireCliPath` or `AspireCliBundlePath`, correct or remove the inval
 </PropertyGroup>
 ```
 
-When no explicit path is set, either [install the Aspire CLI](https://get.aspire.dev) so `aspire` and its bundle are available, or install and use .NET SDK 10.0 or later so a usable `dnx` host can run the paired Aspire CLI package.
+When no explicit path is set, either [install the Aspire CLI](https://get.aspire.dev) so `aspire` and its bundle are available, or install and use .NET SDK 10.0 or later so a usable `dnx` host can run the Aspire CLI package selected by the invocation mode.
 
-If forced DNX mode can't find `dnx`, ordinary builds remain valid and the run preflight reports [`ASPIRE011`](/diagnostics/aspire011/) instead of `ASPIRE009`.
+If `Dnx` or `DnxPinned` mode can't find `dnx`, the run preflight reports [`ASPIRE011`](/diagnostics/aspire011/). A missing `dnx` command isn't itself an `ASPIRE009` condition, although a separate bundle-resolution failure can still produce `ASPIRE009`.
 
 Alternatively, set `AspireUseCliBundle` to `false` to restore orchestration dependencies from NuGet packages. Doing so reports [`ASPIRE010`](/diagnostics/aspire010/) because some Aspire features require the CLI bundle.
 
