@@ -1,0 +1,258 @@
+---
+title: Resource naming conventions
+description: Learn when Aspire preserves resource names in configuration keys and when it encodes names for endpoint and connection-property environment variables.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+When you define resources in an Aspire AppHost, their names determine how configuration is surfaced to consuming services. This article explains which generated configuration keys preserve resource names, which environment variables encode them, and how to choose valid names.
+
+## How resource names map to environment variables
+
+When a resource is referenced by another resource using `WithReference`, Aspire injects configuration into the consuming resource. Connection strings use the `ConnectionStrings__<resourceName>` pattern, and service discovery endpoints use `services__<resourceName>__<endpointName>__<index>`.
+
+<Aside type="note">
+  The connection string and service discovery formats preserve the resource name
+  exactly, including dashes. Other injected forms, such as uppercase endpoint
+  and connection-property variables, encode dashes as underscores. For more
+  information, see [When Aspire encodes resource
+  names](#when-aspire-encodes-resource-names).
+</Aside>
+
+### Connection string environment variables
+
+For connection strings, Aspire uses the following pattern:
+
+```
+ConnectionStrings__<resourceName>
+```
+
+For example, if you define a Redis resource named `cache`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+var api = builder.AddProject<Projects.MyApi>("api")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis('cache');
+
+await builder.addProject('api', '../MyApi/MyApi.csproj').withReference(cache);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The `api` project receives a `ConnectionStrings__cache` environment variable containing the Redis connection string.
+
+### Service discovery environment variables
+
+For service endpoints, Aspire injects variables following this pattern:
+
+```
+services__<resourceName>__<endpointName>__0
+```
+
+For example, a project named `catalog` with an `http` endpoint provides:
+
+```
+services__catalog__http__0=http://localhost:5123
+```
+
+Multiple endpoints are indexed starting from `0`:
+
+```
+services__catalog__http__0=http://localhost:5123
+services__catalog__https__0=https://localhost:7234
+```
+
+For more information, see [Service discovery](/fundamentals/service-discovery/).
+
+## When Aspire encodes resource names
+
+Aspire preserves the original resource name in connection string and service discovery keys. For the separately injected uppercase endpoint and connection-property variables, Aspire creates an environment-variable-safe prefix by replacing dashes with underscores.
+
+The following AppHost defines resources whose names contain dashes:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres").AddDatabase("app-db");
+var catalog = builder.AddProject<Projects.CatalogApi>("catalog-api");
+
+builder.AddProject<Projects.Worker>("worker")
+    .WithReference(db)
+    .WithReference(catalog);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const db = await postgres.addDatabase('app-db');
+const catalog = await builder.addProject(
+  'catalog-api',
+  '../CatalogApi/CatalogApi.csproj'
+);
+
+const worker = await builder.addProject('worker', '../Worker/Worker.csproj');
+await worker.withReference(db);
+await worker.withReference(catalog);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The `worker` resource receives different name forms according to the configuration type:
+
+| Configuration type | Example environment variable     | Resource name handling |
+| ------------------ | -------------------------------- | ---------------------- |
+| Connection string  | `ConnectionStrings__app-db`      | Preserved              |
+| Service discovery  | `services__catalog-api__http__0` | Preserved              |
+| Uppercase endpoint | `CATALOG_API_HTTP`               | Encoded                |
+
+<Aside type="note">
+  Connection-property variables use the same encoded uppercase prefix. For
+  example, a `HOST` property exported for `app-db` uses the name `APP_DB_HOST`.
+</Aside>
+
+### Accessing the connection string in consuming services
+
+In your .NET application, the configuration system maps double underscores (`__`) to the colon (`:`) separator used by `IConfiguration`. This means the environment variable `ConnectionStrings__app-db` is transformed to the configuration key `ConnectionStrings:app-db`:
+
+```csharp title="Program.cs"
+// This resolves ConnectionStrings__app-db (injected by Aspire)
+var connectionString = builder.Configuration.GetConnectionString("app-db");
+```
+
+<Aside type="tip">
+  When using Aspire integration client APIs (for example,
+  `AddNpgsqlDataSource("app-db")`), pass the original resource name with dashes
+  — Aspire integrations resolve the correct environment variable internally.
+</Aside>
+
+For Python and JavaScript services, the double-underscore format is used directly:
+
+```python title="app.py"
+import os
+
+connection_string = os.environ.get("ConnectionStrings__app-db")
+```
+
+```javascript title="app.js"
+const connectionString = process.env['ConnectionStrings__app-db'];
+```
+
+## Naming best practices
+
+Follow these recommendations when naming resources in your AppHost:
+
+- **Prefer lowercase names**: Uppercase letters are allowed, but lowercase names match the conventions used by DNS names and container networking, so they read more consistently across the dashboard, environment variables, and logs.
+- **Use dashes as separators**: Dashes (`-`) are the conventional separator for multi-word resource names in Aspire. Underscores aren't valid in resource names.
+- **Keep names short and descriptive**: Resource names appear in the Aspire dashboard, in environment variables, and in logs. Short names reduce visual noise.
+- **Be consistent with related names**: If you name a server resource `postgres`, name related databases `postgres-appdb` rather than something unrelated.
+
+The following example shows a set of clear, conventional resource names:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var appDb = postgres.AddDatabase("app-db");
+var cache = builder.AddRedis("cache");
+var messageBus = builder.AddRabbitMQ("message-bus");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(appDb)
+    .WithReference(cache)
+    .WithReference(messageBus);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const appDb = await postgres.addDatabase('app-db');
+const cache = await builder.addRedis('cache');
+const messageBus = await builder.addRabbitMQ('message-bus');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(appDb);
+await api.withReference(cache);
+await api.withReference(messageBus);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Names to avoid, and why:
+
+- `my_service` — underscores aren't allowed in resource names.
+- `web--api` — consecutive dashes aren't allowed.
+- `api-` — a name can't end with a dash.
+- `1api` — a name must start with a letter, not a digit.
+
+## Resource name validation
+
+Aspire validates resource names at startup. A valid resource name:
+
+- Is between 1 and 64 characters long.
+- Starts with an ASCII letter (`a`–`z` or `A`–`Z`).
+- Contains only ASCII letters, digits (`0`–`9`), and dashes (`-`).
+- Doesn't contain consecutive dashes (`--`).
+- Doesn't end with a dash.
+
+<Aside type="note">
+  Uppercase letters are permitted by validation, but lowercase names are the
+  recommended convention. Underscores (`_`) aren't valid in resource names.
+</Aside>
+
+If a resource name is invalid, Aspire reports a diagnostic error at build time. For more information, see [ASPIRE006](/diagnostics/aspire006/).
+
+## See also
+
+- [Service discovery](/fundamentals/service-discovery/)
+- [Inner-loop networking overview](/fundamentals/networking-overview/)
+- [External parameters](/fundamentals/external-parameters/)

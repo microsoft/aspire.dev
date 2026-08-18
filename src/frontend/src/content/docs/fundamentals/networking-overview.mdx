@@ -508,6 +508,142 @@ The following built-in Aspire integrations already apply this pattern to their a
 `ExcludeReferenceEndpoint` defaults to `false`. Existing endpoints continue to behave as before unless the property is explicitly set to `true`.
 :::
 
+## Binding to all interfaces for LAN access
+
+By default, Aspire binds service endpoints to `localhost` (loopback), making them accessible only from the local machine. If you need to expose a service to other devices on your local network — for example, for testing on a mobile device or another machine — you need to configure the service to listen on all network interfaces (`0.0.0.0`).
+
+<Aside type="caution">
+  Binding to `0.0.0.0` exposes your service on all network interfaces, including
+  local network and any externally routable interfaces. Only do this in a
+  trusted development environment. Never deploy with this configuration to
+  production.
+</Aside>
+
+### For ASP.NET Core projects
+
+Configure a proxyless endpoint whose public and target ports match, and set its target host to `0.0.0.0`. Aspire derives Kestrel's binding from the endpoint, so the AppHost and workload stay aligned:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithHttpEndpoint(port: 5000, targetPort: 5000, isProxied: false)
+    .WithEndpoint("http", endpoint => endpoint.TargetHost = "0.0.0.0");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withHttpEndpoint({ port: 5000, targetPort: 5000, isProxied: false });
+await api.withHttpEndpointCallback(
+  async (endpoint) => {
+    await endpoint.targetHost.set('0.0.0.0');
+  },
+  { createIfNotExists: false }
+);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### For container resources
+
+For container resources, configure a proxyless host-to-container port mapping and make the application inside the container listen on `0.0.0.0`:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Map host port 8080 to container port 80, and configure the app inside to bind on all interfaces
+builder.AddContainer("myapp", "myregistry/myapp")
+    .WithHttpEndpoint(port: 8080, targetPort: 80, isProxied: false)
+    .WithEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:80");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Map host port 8080 to container port 80, and configure the app inside to bind on all interfaces
+const myapp = await builder.addContainer('myapp', {
+  image: 'myregistry/myapp',
+  tag: 'latest',
+});
+await myapp.withHttpEndpoint({ port: 8080, targetPort: 80, isProxied: false });
+await myapp.withEnvironment('ASPNETCORE_URLS', 'http://0.0.0.0:80');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### For executable resources
+
+For executable resources, pass `0.0.0.0` as the bind address and configure a proxyless endpoint whose public and target ports match:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddExecutable("api", "uvicorn", ".", "main:app", "--host", "0.0.0.0", "--port", "8000")
+    .WithHttpEndpoint(port: 8000, targetPort: 8000, isProxied: false);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addExecutable('api', 'uvicorn', '.', [
+  'main:app',
+  '--host',
+  '0.0.0.0',
+  '--port',
+  '8000',
+]);
+await api.withHttpEndpoint({ port: 8000, targetPort: 8000, isProxied: false });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Container-to-host networking
+
+Starting with Aspire 13.3, the DCP container tunnel is enabled by default and provides container-to-host connectivity when you use `WithReference`. Runtime-specific host gateway names such as `host.docker.internal` are fallbacks for when the tunnel is disabled.
+
+For tunnel behavior, configuration, and examples, see [Container networking](/fundamentals/container-networking/).
+
 ## Troubleshooting
 
 ### Port already in use
@@ -521,6 +657,7 @@ The following built-in Aspire integrations already apply this pattern to their a
 - Another application is using the same port
 
 **Solutions**:
+
 1. Stop any running Aspire sessions with <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> or close the dashboard
 2. Check for processes using the port: `netstat -ano | findstr :5000` (Windows) or `lsof -i :5000` (macOS/Linux)
 3. Let Aspire assign random ports by removing explicit port numbers from `WithEndpoint`
