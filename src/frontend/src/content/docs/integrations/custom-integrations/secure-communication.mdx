@@ -3,7 +3,7 @@ title: Secure communication between integrations
 description: Learn how to secure communication between Aspire hosting and client integrations with HTTPS, mutual TLS, secret-backed parameters, and managed identities in production.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
 import ThemeImage from '@components/ThemeImage.astro';
 import maildevDetails from '@assets/integrations/custom-integrations/maildev-details.png';
@@ -12,6 +12,8 @@ import newsletterDetails from '@assets/integrations/custom-integrations/newslett
 import newsletterDetailsLight from '@assets/integrations/custom-integrations/newsletter-details-light.png';
 
 This article is a continuation of two previous articles demonstrating the creation of [custom hosting integrations](/integrations/custom-integrations/hosting-integrations/) and [custom client integrations](/integrations/custom-integrations/client-integrations/).
+
+The [MailDev and MailKit custom integrations sample](https://github.com/microsoft/aspire-samples/tree/main/samples/maildev-mailkit) shows the complete secure flow with both TypeScript and C# AppHost examples. The Aspire CLI uses [Aspire Type System (ATS)](/extensibility/multi-language-integration-authoring/) metadata from the C# hosting integration to generate its TypeScript API.
 
 One of the primary benefits to Aspire is how it simplifies the configurability of resources and consuming clients (or integrations). This article demonstrates how to share authentication credentials from a custom resource in a hosting integration, to the consuming client in a custom client integration. The custom resource is a MailDev container that allows for either incoming or outgoing credentials. The custom client integration is a MailKit client that sends emails.
 
@@ -51,8 +53,9 @@ The MailDev container supports basic authentication for both incoming and outgoi
 // an alternative namespace.
 namespace Aspire.Hosting.ApplicationModel;
 
+[AspireExport]
 public sealed class MailDevResource(
-    string name,
+    [ResourceName] string name,
     ParameterResource? username,
     ParameterResource password)
         : ContainerResource(name), IResourceWithConnectionString
@@ -123,9 +126,10 @@ public static class MailDevResourceBuilderExtensions
     /// An <see cref="IResourceBuilder{MailDevResource}"/> instance that
     /// represents the added MailDev resource.
     /// </returns>
+    [AspireExport]
     public static IResourceBuilder<MailDevResource> AddMailDev(
         this IDistributedApplicationBuilder builder,
-        string name,
+        [ResourceName] string name,
         int? httpPort = null,
         int? smtpPort = null,
         IResourceBuilder<ParameterResource>? username = null,
@@ -174,35 +178,63 @@ internal static class MailDevContainerImageTags
 }
 ```
 
-The preceding code updates the `AddMailDev` extension method to include the `userName` and `password` parameters. The `WithEnvironment` method is updated to include the `UserEnvVarName` and `PasswordEnvVarName` environment variables. These environment variables are used to set the MailDev username and password.
+The preceding code updates the `AddMailDev` extension method to include the `username` and `password` parameters. The `WithEnvironment` method is updated to include the `UserEnvVarName` and `PasswordEnvVarName` environment variables. These environment variables are used to set the MailDev username and password.
 
 ## Update the AppHost
 
-Now that the resource is updated to include the username and password parameters, you need to update the AppHost to include these parameters. Update the `AppHost.cs` file in the `MailDevResource.AppHost` project with the following C# code:
+Now that the resource includes username and password parameters, update the AppHost to provide them. Mark the password parameter as secret so tooling and deployment environments can handle it appropriately.
 
-```csharp {3-4,6-9} title="AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mailDevUsername = builder.AddParameter("maildev-username");
-var mailDevPassword = builder.AddParameter("maildev-password");
+var mailDevPassword = builder.AddParameter("maildev-password", secret: true);
 
 var maildev = builder.AddMailDev(
     name: "maildev",
-    userName: mailDevUsername,
+    username: mailDevUsername,
     password: mailDevPassword);
 
 builder.AddProject<Projects.MailDevResource_NewsletterService>("newsletterservice")
-    .WithUrlForEndpoint("https", e =>
-    {
-        e.DisplayText = "Scalar";
-        e.Url += "/scalar";
-    })
     .WithReference(maildev);
 
 builder.Build().Run();
 ```
 
-The preceding code adds two parameters for the MailDev username and password. It assigns these parameters to the MailDev resource. The `AddMailDev` method has two chained calls to `WithEnvironment` which includes these environment variables.
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+After referencing the hosting integration in `aspire.config.json`, run `aspire restore`. The Aspire CLI generates the `addMailDev` method and its typed options.
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mailDevUsername = await builder.addParameter('maildev-username');
+const mailDevPassword = await builder.addParameter(
+    'maildev-password',
+    { secret: true }
+);
+
+const maildev = await builder.addMailDev('maildev', {
+    username: mailDevUsername,
+    password: mailDevPassword
+});
+
+await builder.addCSharpApp('newsletterservice', './NewsletterService')
+    .withReference(maildev);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The preceding code adds parameters for the MailDev username and password, then passes them to the MailDev resource. The resource provides the credentials to the container through environment variables.
 
 Next, configure the secrets for these parameters. Right-click on the `MailDevResource.AppHost` project and select `Manage User Secrets` (from within Visual Studio Code or Visual Studio). Add the following JSON to the `secrets.json` file:
 

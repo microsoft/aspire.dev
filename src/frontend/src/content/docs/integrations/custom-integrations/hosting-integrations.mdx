@@ -57,11 +57,15 @@ Building a custom resource in Aspire requires the following:
 2. An extension method for `IDistributedApplicationBuilder` named `Add{CustomResource}` where `{CustomResource}` is the name of the custom resource.
 </Steps>
 
+To use a C# hosting integration from a TypeScript AppHost, mark the resource types and extension methods that you want to expose with `[AspireExport]`. The Aspire CLI uses this metadata to generate a typed TypeScript API that calls the C# implementation. For export rules and analyzer guidance, see [Multi-language integrations](/extensibility/multi-language-integration-authoring/).
+
 When custom resource requires optional configuration, developers may wish to implement `With*` suffixed extension methods to make these configuration options discoverable using the _builder pattern_.
 
 ## A practical example: MailDev
 
 To help understand how to develop custom resources, this article shows an example of how to build a custom resource for [MailDev](https://maildev.github.io/maildev/). MailDev is an open-source tool which provides a local mail server designed to allow developers to test e-mail sending behaviors within their app. For more information, see [the MailDev GitHub repository](https://github.com/maildev/maildev).
+
+For a runnable version with TypeScript and C# AppHost examples, see the [MailDev and MailKit custom integrations sample](https://github.com/microsoft/aspire-samples/tree/main/samples/maildev-mailkit).
 
 In this example you create a new Aspire project as a test environment for the MailDev resource that you create. While you can create custom resources in existing Aspire projects it's a good idea to consider whether the custom resource might be used across multiple Aspire-based solutions and should be developed as a reusable integration.
 
@@ -80,7 +84,7 @@ dotnet new aspire -o MailDevResource
 <Steps>
 1. When prompted to select a template, choose the **AppHost and service defaults** template — use the <Kbd windows="↑" mac="↑" /> and <Kbd windows="↓" mac="↓" /> keys to navigate the options. Press <Kbd windows="Enter" mac="Return" /> to select the template.
 1. Enter a project name, in this example use `MailDevResource`, then press <Kbd windows="Enter" mac="Return" /> to continue.
-1. Finally, use the <Kbd windows="↑" mac="↑" /> and <Kbd windows="↓" mac="↓" /> keys to navigate to the desired template version. This example uses 13.1.0.
+1. Finally, use the <Kbd windows="↑" mac="↑" /> and <Kbd windows="↓" mac="↓" /> keys to navigate to the desired template version. This example uses 13.5.0.
 </Steps>
 
 ```bash title="Change directory"
@@ -140,7 +144,7 @@ Aspire resources are just classes and methods contained within a class library t
 2. Add `Aspire.Hosting` to the class library as a package reference.
 
     ```bash title=".NET CLI"
-    dotnet add ./MailDev.Hosting/MailDev.Hosting.csproj package Aspire.Hosting --version 13.1.0
+    dotnet add ./MailDev.Hosting/MailDev.Hosting.csproj package Aspire.Hosting --version 13.5.0
     ```
 
     :::note
@@ -200,6 +204,7 @@ Replace the contents of the `Class1.cs` file in the `MailDev.Hosting` project, a
 // an alternative namespace.
 namespace Aspire.Hosting.ApplicationModel;
 
+[AspireExport]
 public sealed class MailDevResource([ResourceName] string name) 
     : ContainerResource(name), IResourceWithConnectionString
 {
@@ -256,6 +261,7 @@ public static class MailDevResourceBuilderExtensions
     /// An <see cref="IResourceBuilder{MailDevResource}"/> instance that
     /// represents the added MailDev resource.
     /// </returns>
+    [AspireExport]
     public static IResourceBuilder<MailDevResource> AddMailDev(
         this IDistributedApplicationBuilder builder,
         [ResourceName] string name,
@@ -301,7 +307,12 @@ This example uses MailDev version 2.2.1. Be sure to check the [MailDev Docker Hu
 
 ## Validate custom integration inside the AppHost
 
-Now that the basic structure for the custom resource is complete it's time to test it in a real AppHost project. Open the `AppHost.cs` file in the `MailDevResource.AppHost` project and update it with the following code:
+Now that the basic structure for the custom resource is complete, test it in an AppHost. The `[AspireExport]` attributes make the same C# implementation available to both AppHost languages.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+Open the `AppHost.cs` file in the `MailDevResource.AppHost` project and update it with the following code:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -310,6 +321,36 @@ var maildev = builder.AddMailDev("maildev");
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+Reference the local integration project from `aspire.config.json`. The key is the integration assembly name, and the project path is relative to the configuration file:
+
+```json title="aspire.config.json"
+{
+    "packages": {
+        "MailDev.Hosting": "MailDev.Hosting/MailDev.Hosting.csproj"
+    }
+}
+```
+
+Run `aspire restore` to generate the typed API, then use `addMailDev` in the AppHost:
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const maildev = await builder.addMailDev('maildev');
+
+await builder.build().run();
+```
+
+Files under `.aspire/modules` are generated and shouldn't be edited.
+
+</TabItem>
+</Tabs>
 
 After updating the `AppHost.cs` file, launch the AppHost project and open the dashboard:
 
