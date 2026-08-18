@@ -108,16 +108,32 @@ Today, the Aspire SDK restores the binaries for these dependencies from platform
 
 Aspire is moving toward using the installed **Aspire CLI bundle** as the source for those orchestration dependencies. With this model, those binaries update when you update the Aspire CLI through [`aspire update --self`](/reference/cli/commands/aspire-update/) instead of being tied to RID-specific `Aspire.Hosting.Orchestration.*` and `Aspire.Dashboard.Sdk.*` package references in each AppHost project.
 
-Set `AspireUseCliBundle` to `true` to opt in during the transition before this behavior becomes the default.
+Set `AspireUseCliBundle` to `true` to opt in during the transition before this behavior becomes the default. `AspireUseCliBundle` defaults to `false`, so launching a C# AppHost with `dotnet run` or an IDE continues to work without requiring the Aspire CLI. Leaving it unset (or explicitly `false`) reports warning [`ASPIRE010`](/diagnostics/aspire010/) as a reminder that some Aspire features require the bundle; suppress it if you intend to keep using NuGet-restored orchestration dependencies.
 
 When `AspireUseCliBundle` is `true`:
 
 - `Aspire.AppHost.Sdk` still sets AppHost properties and adds the implicit `Aspire.Hosting.AppHost` package.
 - Your AppHost uses the DCP and Dashboard versions installed with the Aspire CLI.
-- At build time, the SDK resolves the DCP and Dashboard executables in this priority order:
-    1. Explicit `AspireCliBundlePath` / `AspireCliPath` properties in the project file.
-    2. The `aspire` executable on `PATH`.
-- If the bundle cannot be found, the build emits error `ASPIRE009` with a message directing you to [get.aspire.dev](https://get.aspire.dev) to install the Aspire CLI.
+- At build time, the SDK resolves the invocation used to launch the AppHost in this priority order:
+    1. An explicit `AspireCliPath` (or `AspireCliBundlePath`) property in the project file.
+    2. Forced DNX mode, when `AspireCliInvocationMode` is set to `Dnx`.
+    3. The `aspire` executable on `PATH`.
+    4. The `dnx` command on `PATH`.
+- If the bundle cannot be resolved, the build emits error [`ASPIRE009`](/diagnostics/aspire009/) with a message directing you to [get.aspire.dev](https://get.aspire.dev) to install the Aspire CLI.
+- If `AspireCliInvocationMode` is forced to `Dnx` but `dnx` isn't found on `PATH`, the build emits error [`ASPIRE011`](/diagnostics/aspire011/).
+
+#### Delegating through DNX
+
+When `aspire` isn't found on `PATH` (or `AspireCliInvocationMode` is set to `Dnx`), the AppHost delegates its launch to DNX, invoked noninteractively as `dnx --yes aspire.cli@$(AspireHostingSDKVersion)`. This restores and executes the exact Aspire CLI version paired with the AppHost SDK from your configured NuGet sources, rather than an unpinned package. If DNX can't restore or probe that package, the launch fails explicitly instead of falling back to an incomplete direct launch.
+
+To force DNX delegation instead of preferring `aspire` on `PATH`, set `AspireCliInvocationMode`:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+  <AspireCliInvocationMode>Dnx</AspireCliInvocationMode>
+</PropertyGroup>
+```
 
 #### Enable the opt-in
 

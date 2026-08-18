@@ -1,0 +1,45 @@
+---
+title: Compiler Error ASPIRE011
+seoTitle: "ASPIRE011: AspireCliInvocationMode=Dnx but dnx isn't on PATH · Aspire"
+description: Learn what causes Aspire compiler error ASPIRE011 — the AppHost is configured to force DNX invocation, but the dnx command could not be found on PATH — and how to fix it.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> '[ProjectName]' is configured with AspireCliInvocationMode=Dnx, but the dnx command could not be found on PATH.
+
+This diagnostic error is reported when an AppHost project sets `AspireCliInvocationMode` to `Dnx` — forcing the AppHost to delegate its launch through DNX — but the `dnx` command can't be resolved on `PATH`.
+
+## Example
+
+The following configuration produces `ASPIRE011` when `dnx` isn't installed or isn't on `PATH`:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+  <AspireCliInvocationMode>Dnx</AspireCliInvocationMode>
+</PropertyGroup>
+```
+
+## To correct this error
+
+Install a .NET SDK that provides `dnx` and ensure it's available on `PATH`.
+
+If you don't need to force DNX, remove `AspireCliInvocationMode` and let the AppHost resolve an invocation automatically. With `AspireUseCliBundle=true`, the AppHost prefers an explicit `AspireCliPath`, then the `aspire` command on `PATH`, and falls back to `dnx` only when `aspire` isn't found:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+</PropertyGroup>
+```
+
+When DNX delegation is used (forced or as a fallback), the AppHost invokes it noninteractively as `dnx --yes aspire.cli@$(AspireHostingSDKVersion)`, restoring and executing the exact Aspire CLI version paired with the AppHost SDK. This fails explicitly, rather than falling back to an incomplete direct launch, if DNX can't restore or probe that package.
+
+For more information, see [Use the Aspire CLI bundle for orchestration dependencies](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies).

@@ -1,0 +1,48 @@
+---
+title: Compiler Error ASPIRE009
+seoTitle: "ASPIRE009: The Aspire CLI bundle could not be resolved · Aspire"
+description: Learn what causes Aspire compiler error ASPIRE009 — the AppHost is configured to use the Aspire CLI bundle, but the bundle could not be resolved — and how to fix it.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> '[ProjectName]' is configured to use the Aspire CLI bundle, but the bundle could not be resolved.
+
+This diagnostic error is reported when an AppHost project opts in to the Aspire CLI bundle (`AspireUseCliBundle=true`) but the SDK can't resolve orchestration dependencies (DCP and the Aspire Dashboard) from an explicitly configured path or from the `aspire` executable on `PATH`.
+
+## Example
+
+The following configuration can produce `ASPIRE009` when the Aspire CLI isn't installed and no explicit bundle path is set:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+</PropertyGroup>
+```
+
+## To correct this error
+
+Install the Aspire CLI so `aspire` is available on `PATH`. Visit [get.aspire.dev](https://get.aspire.dev) for installation instructions.
+
+If the CLI is installed but not on `PATH`, set an explicit path in the project file:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+  <!-- Either set the path to the aspire executable: -->
+  <AspireCliPath>/usr/local/bin/aspire</AspireCliPath>
+  <!-- Or set the path to the unpacked CLI bundle directory: -->
+  <!-- <AspireCliBundlePath>/path/to/aspire/bundle</AspireCliBundlePath> -->
+</PropertyGroup>
+```
+
+Alternatively, set `AspireUseCliBundle` to `false` to fall back to restoring orchestration dependencies from NuGet packages instead of the CLI bundle. Doing so reports [`ASPIRE010`](/diagnostics/aspire010/) as a reminder that some Aspire features require the CLI bundle.
+
+For more information, see [Use the Aspire CLI bundle for orchestration dependencies](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies).
