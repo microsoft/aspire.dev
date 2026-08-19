@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
 test('renders a complete semantic landing page without horizontal overflow', async ({ page }) => {
   await expect(page.locator('main h1')).toHaveCount(1);
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Model distributed apps in code.' })
+    page.getByRole('heading', { level: 1, name: 'Compose distributed apps in code.' })
   ).toBeVisible();
   await expect(
     page.getByText(
