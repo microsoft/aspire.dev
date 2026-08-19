@@ -2,17 +2,15 @@
  * Aspire core team roster.
  *
  * This is the running list of core team members rendered in the "Community"
- * section of every "What's new" release page (see `Community.astro`). Unlike
- * the per-release contributor list — which is generated from GitHub release
- * notes by `scripts/update-release-contributors.ts` — this roster is
+ * section of every "What's new" release page (see `ReleaseCommunity.astro`).
+ * Unlike the per-release contributor list — which is generated from GitHub
+ * release notes by `scripts/update-release-contributors.ts` — this roster is
  * maintained by hand.
  *
- * ⚠️ PLACEHOLDER ROSTER — REVIEW BEFORE MERGE ⚠️
- * The handles below were seeded from well-known Aspire maintainers so the
- * feature can be demonstrated end-to-end. Confirm the exact roster (add or
- * remove members, fix display names, and set preferred social links) before
- * shipping. Members listed here are intentionally excluded from the generated
- * per-release "Special thanks" list so they are credited once, in the roster.
+ * Members listed here are intentionally excluded from the generated per-release
+ * "Special thanks" list so they are credited once, in the roster. Keep the
+ * roster current as membership changes, and set a member's `social` link to
+ * override the default GitHub profile link.
  *
  * For each member:
  *  - `handle` is the GitHub login. The avatar is derived as

@@ -6,7 +6,7 @@ import { coreTeamHandles } from '../src/data/core-team';
 
 /**
  * Generates the per-release community contributor list rendered by
- * `Community.astro` in every "What's new" page.
+ * `ReleaseCommunity.astro` in every "What's new" page.
  *
  * For each documented release, this queries GitHub's automatic release-notes
  * endpoint for the tag range and collects every contributor (PR authors and
@@ -25,7 +25,7 @@ const REPO = 'microsoft/aspire';
 const OUTPUT_PATH = './src/data/release-contributors.json';
 
 interface Release {
-  /** Version key used by `<Community version="..." />` in the MDX docs. */
+  /** Version key used by `<ReleaseCommunity version="..." />` in the MDX docs. */
   version: string;
   /** The release tag that closed this cycle. */
   tag: string;
