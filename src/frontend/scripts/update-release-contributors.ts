@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 
 import { fetchWithProxy as fetch } from './fetch-with-proxy';
+import { extractHandles, isBot } from './release-notes-parser';
 import { coreTeamHandles } from '../src/data/core-team';
 
 /**
@@ -50,20 +51,6 @@ const RELEASES: readonly Release[] = [
   { version: '9.0', tag: 'v9.0.0', previousTag: 'v8.2.2' },
 ];
 
-// Automation accounts that should never be credited as community contributors.
-const IGNORED_HANDLES = new Set(
-  [
-    'Copilot',
-    'copilot-swe-agent',
-    'github-actions',
-    'dependabot',
-    'dotnet-maestro',
-    'dotnet-bot',
-    'microsoftopensource',
-    'azure-sdk',
-  ].map((handle) => handle.toLowerCase())
-);
-
 interface GenerateNotesResponse {
   body: string;
 }
@@ -93,54 +80,6 @@ function resolveToken(): string {
   throw new Error(
     'No GitHub token found. Set GITHUB_TOKEN (or GH_TOKEN), or sign in with `gh auth login`.'
   );
-}
-
-function isBot(handle: string): boolean {
-  const lower = handle.toLowerCase();
-  return lower.endsWith('-bot') || lower.includes('[bot]') || IGNORED_HANDLES.has(lower);
-}
-
-/**
- * Extracts contributor handles from an auto-generated release-notes body.
- *
- * Each entry looks like:
- *   `* <title> by @author [with @coauthor ...] in https://github.com/.../pull/123`
- * Only the attribution segment (from " by @" up to the trailing PR/commit URL)
- * is scanned, so an `@mention` inside a PR title is never mistaken for a
- * contributor. "New Contributors" lines (`* @handle made their first ...`) are
- * also captured.
- */
-function extractHandles(body: string): string[] {
-  const handles = new Set<string>();
-  const mentionPattern = /@([A-Za-z\d](?:[A-Za-z\d-]{0,38}))/g;
-
-  for (const rawLine of body.split('\n')) {
-    const line = rawLine.trim();
-    if (!line.startsWith('* ')) {
-      continue;
-    }
-
-    const urlMatch = line.match(/\sin\shttps:\/\/github\.com\//);
-    const urlIndex = urlMatch?.index ?? -1;
-    const byIndex = line.indexOf(' by @');
-
-    let segment: string | undefined;
-    if (byIndex !== -1) {
-      segment = urlIndex !== -1 ? line.slice(byIndex, urlIndex) : line.slice(byIndex);
-    } else if (line.startsWith('* @')) {
-      segment = urlIndex !== -1 ? line.slice(0, urlIndex) : line;
-    }
-
-    if (!segment) {
-      continue;
-    }
-
-    for (const match of segment.matchAll(mentionPattern)) {
-      handles.add(match[1]);
-    }
-  }
-
-  return [...handles];
 }
 
 async function fetchReleaseContributors(token: string, release: Release): Promise<string[]> {

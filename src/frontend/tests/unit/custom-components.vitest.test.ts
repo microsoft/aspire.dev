@@ -294,7 +294,7 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: [
       'The Aspire core team is',
       '.png?size=96',
-      'Special thanks to everyone who contributed to Aspire 13.4',
+      'Special thanks to everyone whose pull requests shipped in Aspire 13.4',
       'https://github.com/edmondshtogu',
       '/community/contributors/',
       '/community/contributor-guide/',
