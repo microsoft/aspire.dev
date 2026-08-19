@@ -13,8 +13,12 @@ ingestion once content has settled.
 - Reconcile **"✨ New integrations"**, **"📦 Integration updates"**, and **"🐳 Default
   container image updates"** against the freshly regenerated data (below).
 - Finalize **contributor thanks** (`@handle` + one-line note per merged community PR).
-- **SEO:** tighten `title`/`description` frontmatter; add descriptive `alt` text to
-  every image.
+- **SEO:** tighten `title`/`description` frontmatter and add descriptive `alt` text to
+  every image. Add a custom **`seoTitle`** — the visible `title` ("What's new in Aspire
+  N.N", ~24 chars) is shorter than the optimal 50–60 char social-card range, and
+  `seoTitle` is used **verbatim** as `og:title`/`twitter:title` (no `· Aspire` suffix)
+  without bloating the H1/sidebar label (e.g. `seoTitle: "What's new in Aspire N.N —
+  <headline theme 1>, <headline theme 2>, and more"`).
 - Set the `publishDate` frontmatter (ISO `YYYY-MM-DD`) if it was still pending — the `Released MMMM D, YYYY` badge auto-renders from it.
 
 ## CI triage

@@ -34,6 +34,12 @@ staff engineer would set reviewing their own team's release notes.
   `description` (headline features, ≤ ~200 chars for OG cards), `sidebar.label:
   "Aspire N.N"`, `sidebar.order: 0`, `tableOfContents` min/max heading level `2`
   (only `##` sections show in the on-page TOC), and `publishDate: YYYY-MM-DD`.
+- **`seoTitle` (recommended):** the visible `title` is short (~24 chars), so add a
+  custom `seoTitle` to hit the optimal 50–60 char social-card range. It's used
+  **verbatim** as `og:title`/`twitter:title` (no `· Aspire` suffix appended) and
+  falls back to `title` when unset — so it tunes the social card without touching the
+  visible H1 or sidebar label. Weave in the headline themes, e.g.
+  `seoTitle: "What's new in Aspire N.N — <theme 1>, <theme 2>, and more"`.
 - **Standardized header (automatic — never hand-authored):** the `Released MMMM D,
   YYYY` badge and the GitHub release-notes link render **centrally** from the page's
   `publishDate` frontmatter and its slug (`components/starlight/MarkdownContent.astro`
