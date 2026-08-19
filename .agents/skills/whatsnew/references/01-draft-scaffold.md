@@ -1,4 +1,4 @@
-# `{draft｜scaffold}` — initialize a release (structure only)
+# `{draft/scaffold}` — initialize a release (structure only)
 
 > Aliases: `draft`, `scaffold`, `init`. **Structure only — no researched content.**
 
@@ -17,13 +17,12 @@ and update what already exists instead of duplicating.
 
 ## Actions
 
-1. **Release branch (upstream).** Ensure `release/{N.N}` exists on `upstream`
-   (`microsoft/aspire.dev`). If missing, create it from the **latest**
-   `upstream/main` (fetch first — always branch from up-to-date upstream to avoid
-   later conflicts). `release/*` branches are **not** subject to the `dapine/{context}`
-   feature-branch prefix.
-2. **Draft PR.** Ensure a **draft** PR `release/{N.N}` → `upstream` `main` exists for
-   the team to iterate on. Create it if missing; don't undraft here (that's {review}).
+1. **Release branch.** Ensure a `release/{N.N}` branch exists in the repository. If
+   missing, create it from the **latest default branch** (e.g. `main`) — fetch first so
+   you branch from an up-to-date base and avoid later conflicts.
+2. **Draft PR.** Ensure a **draft** PR from `release/{N.N}` into the repository's
+   **default branch** exists for the team to iterate on. Create it if missing; don't
+   mark it ready here (that's {review}).
 3. **Scaffold the MDX.** Copy `references/whats-new-template.mdx` to
    `src/frontend/src/content/docs/whats-new/{SLUG}.mdx`. Replace the scaffold tokens
    (`{{VERSION_MAJOR_MINOR}}`, `{{VERSION_FULL}}`, `{{SLUG}}`, `{{RELEASE_DATE}}`,
@@ -55,7 +54,8 @@ and update what already exists instead of duplicating.
 
 ## Output
 
-- Committed scaffold on `release/{N.N}`, open **draft** PR to `upstream` `main`.
+- Committed scaffold on `release/{N.N}`, with an open **draft** PR into the
+  repository's default branch.
 
 ## Exit criteria
 

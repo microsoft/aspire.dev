@@ -1,6 +1,6 @@
 ---
 name: whatsnew
-description: "Step-argument skill that formalizes writing an Aspire \"What's new in N.N\" release-notes page (src/frontend/src/content/docs/whats-new/aspire-N-N.mdx) as a repeatable lifecycle. Invoke as `/whatsnew {modality}` where modality is one of: draft|scaffold (init), research, critique, validate, polish, review. USE FOR: start/scaffold a new what's-new page for a release, research a release's changes into a dossier, critique a draft, fact-check/validate the diff, polish and run data ingestion, or sign off the PR. DO NOT USE FOR: general docs pages (use doc-writer), reviewing an arbitrary docs PR (use doc-pr-reviewer), or product-repo changes. ORCHESTRATES: doc-writer, doc-pr-reviewer, doc-tester, twoslash-validator, update-integrations, update-samples, container-images."
+description: "Step-argument skill that formalizes writing an Aspire \"What's new in N.N\" release-notes page (src/frontend/src/content/docs/whats-new/aspire-N-N.mdx) as a repeatable lifecycle. Invoke as `/whatsnew {modality}` where modality is one of: draft/scaffold (init), research, critique, validate, polish, review. USE FOR: start/scaffold a new what's-new page for a release, research a release's changes into a dossier, critique a draft, fact-check/validate the diff, polish and run data ingestion, or sign off the PR. DO NOT USE FOR: general docs pages (use doc-writer), reviewing an arbitrary docs PR (use doc-pr-reviewer), or product-repo changes. ORCHESTRATES: doc-writer, doc-pr-reviewer, doc-tester, twoslash-validator, update-integrations, update-samples, container-images."
 ---
 
 # What's-new release-notes skill
@@ -10,7 +10,7 @@ Aspire N.N"** page as a single, step-argument skill with a repeatable lifecycle.
 Invoke it as `/whatsnew {modality}` — the modality argument selects one phase:
 
 ```
-{draft｜scaffold} → {research} → {critique} → {validate} → {polish} → {review}
+{draft/scaffold} → {research} → {critique} → {validate} → {polish} → {review}
    init/structure    dossier      self-review   fact-check    edits+data    sign-off
 ```
 
@@ -43,13 +43,11 @@ infer from context — e.g. a fresh release with no page → `draft`).
 ## Cross-cutting rules (apply to every phase)
 
 ### Git / branching / PR
-- Release work uses **`release/{N.N}` branches on `upstream`** (`microsoft/aspire.dev`).
-- Always cut `release/{N.N}` from the **latest `upstream/main`** (fetch first) to avoid
-  merge conflicts.
-- Iterate via a **draft PR** `release/{N.N}` → `upstream` `main`; `{review}` undrafts it.
-- `aspire.dev` is **not** an IEvangelist repo → **standard git-flow (PRs)**, target
-  `upstream`. The `dapine/{context}` feature-branch prefix does **not** apply to
-  `release/*` branches.
+- Release work happens on a **`release/{N.N}` branch** in the repository.
+- Cut `release/{N.N}` from the **latest default branch** (e.g. `main`) — fetch first so
+  you branch from an up-to-date base and avoid merge conflicts.
+- Iterate via a **draft PR** from `release/{N.N}` into the repository's **default
+  branch**; `{review}` marks it ready for review.
 
 ### Voice & quality (see `writing-guidelines.md` + `doc-writer`)
 - **Impact first, positives first, KISS.** No walls of text, no marketing fluff.
@@ -72,7 +70,7 @@ infer from context — e.g. a fresh release with no page → `draft`).
 | What's-new pages | `src/frontend/src/content/docs/whats-new/aspire-N-N.mdx` (JA under `.../ja/whats-new/`) |
 | Version constants | `src/frontend/config/aspire-versions.mjs` (`currentAspireMajorMinorVersion`, `currentAspireVersion`) |
 | Sidebar | `src/frontend/config/sidebar/docs.topics.ts` (What's-new `items`) |
-| Announcement banner | `banner:` frontmatter on `content/docs/index.mdx`, `docs.mdx`, `community/index.mdx`, and each `{locale}/index.mdx` (+ `ja/docs.mdx`); rendered by `src/frontend/src/components/starlight/Banner.astro` |
+| Announcement banner | `banner:` frontmatter on `src/frontend/src/content/docs/index.mdx`, `src/frontend/src/content/docs/docs.mdx`, `src/frontend/src/content/docs/community/index.mdx`, and each `src/frontend/src/content/docs/{locale}/index.mdx` (+ `.../ja/docs.mdx`); rendered by `src/frontend/src/components/starlight/Banner.astro` |
 | Assets | `src/frontend/src/assets/whats-new/aspire-<version>/` |
 | Container image data | `src/frontend/src/data/container-images.json` |
 | Diagnostics articles | `src/frontend/src/content/docs/diagnostics/aspire<area><NNN>.mdx` → `/diagnostics/aspire<NNN>/` |

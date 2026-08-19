@@ -5,7 +5,7 @@ Take the finished article from draft to ready-to-merge, and prove it works by dr
 
 ## Actions
 
-1. **Undraft** the PR (`release/{N.N}` → `upstream` `main`).
+1. **Mark the PR ready for review** (`release/{N.N}` → the repository's default branch).
 2. **PR description.** Write/refresh it: summary, headline highlights, breaking
    changes, and key links (release tag, notable PRs).
 3. **CI green.** Confirm all checks pass (coordinate with {polish} if not).
@@ -30,8 +30,7 @@ following it verbatim should succeed.
 
 This modality can also **review** a what's-new PR you didn't write: run the same
 content-standard checks ({critique}'s rubric), the {validate} factual loop, and the
-`doc-tester` blind run, then leave review feedback. Targets the `upstream` `aspire.dev`
-PR (standard git-flow).
+`doc-tester` blind run, then leave review feedback on the PR.
 
 ## Exit criteria
 

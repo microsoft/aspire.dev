@@ -34,10 +34,10 @@ staff engineer would set reviewing their own team's release notes.
   `description` (headline features, ≤ ~200 chars for OG cards), `sidebar.label:
   "Aspire N.N"`, `sidebar.order: 0`, and `tableOfContents` min/max heading level `2`
   (only `##` sections show in the on-page TOC).
-- **Standardized header (new articles only):** a `Released MMMM D, YYYY`
-  `<Badge variant="note" size="large">` followed by a GitHub release-tag link
-  (`.../releases/tag/vN.N.0`) with `<Icon name="github" />`. Existing pages are left
-  as-is — do not retrofit.
+- **Standardized header (new articles only):** a
+  `<Badge text="Released MMMM D, YYYY" variant="note" size="large" />` followed by a
+  GitHub release-tag link (`.../releases/tag/vN.N.0`) with `<Icon name="github" />`.
+  Existing pages are left as-is — do not retrofit.
 - **Lede:** 2–4 sentences. Lead with the single biggest win, then name the other
   headline themes. Bold the concrete feature names.
 - **Feedback line:** the standard Discord + GitHub issues line (see template) — keep verbatim.
@@ -73,10 +73,10 @@ These are the specific quality gates critique/validate enforce:
 
 ## Language/tech conventions (inherited from doc-writer — quick reference)
 
-- **Aspire**, not ".NET Aspire". **AppHost**, **resource** (not "component"),
-  **integration** (not "connector").
+- **Aspire** is the product name — never prepend the old pre-rebrand qualifier.
+  **AppHost**, **resource** (not "component"), **integration** (not "connector").
 - **Inclusive framing:** name runtimes/languages positively (C#, TypeScript, Python,
-  Go). Avoid "non-.NET" / "other languages" framing.
+  Go) rather than defining any of them in opposition to another.
 - **Second person, active voice, imperative mood.** Concise, professional-approachable.
 - **Dates spelled out:** "August 18, 2025" — never "8/18/25".
 - **C#/TypeScript parity:** when a feature spans AppHost languages, show both with
