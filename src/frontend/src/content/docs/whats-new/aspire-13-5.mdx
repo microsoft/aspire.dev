@@ -622,51 +622,6 @@ await builder.build().run();
   For run- versus publish-mode behavior, see [Use existing Azure resources](/integrations/cloud/azure/customize-resources/).
 </LearnMore>
 
-### 🐞 Model .NET projects by path with AddDotnetProject
-
-Aspire 13.5 adds the experimental `AddDotnetProject(name, path)` API in the new `Aspire.Hosting.Dotnet` package. It models a .NET project **by its path** — as a `DotnetProjectResource` — which is useful when you can't (or don't want to) add a compile-time `ProjectReference` from the AppHost, for example when the project lives outside your solution or you're assembling a mixed-language app. The resource participates in orchestration like any other project, and the [Aspire Visual Studio Code extension](/get-started/aspire-vscode-extension/) can attach a debugger to it through the new `SupportsDebuggingAnnotation`.
-
-<Aside type="caution">
-  `AddDotnetProject` and `DotnetProjectResource` are experimental and emit the `ASPIREDOTNETPROJECT001` diagnostic, which C# callers must suppress to use them.
-</Aside>
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-#pragma warning disable ASPIREDOTNETPROJECT001
-
-var builder = DistributedApplication.CreateBuilder(args);
-
-builder.AddDotnetProject("inventory", @"../InventoryService/InventoryService.csproj");
-
-builder.Build().Run();
-```
-
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-await builder.addDotnetProject('inventory', '../InventoryService/InventoryService.csproj');
-
-await builder.build().run();
-```
-
-</TabItem>
-</Tabs>
-
-Because a `DotnetProjectResource` is orchestration-only, `aspire publish` and `aspire deploy` fail with an actionable error rather than emitting a manifest with machine-local paths. When you need to publish a path-based project, reach for `AddCSharpApp(...)`/`addCSharpApp(...)` or configure container publishing with `PublishAsDockerFile(...)`.
-
-Go resources get a debugging boost too: the Delve server accepts a single client by default and can opt into **multi-client** mode via `WithDelveServer(o => o.AcceptMultiClient = true)`, and typed options for common Delve server flags (including `--continue`) are configured through `DelveServerOptions` in C# AppHosts.
-
-<LearnMore>
-  For modeling .NET projects, see [Set up .NET / C# apps in the AppHost](/integrations/frameworks/dotnet/dotnet-host/); for Go, see [Go hosting integration](/integrations/frameworks/go/go-host/).
-</LearnMore>
-
 ## 🟦 TypeScript AppHost improvements
 
 TypeScript (and polyglot) AppHost support is now **generally available** in 13.5 — the `ASPIREATS001` experimental diagnostic is gone, so you no longer suppress anything to author an AppHost in TypeScript. With GA in place, this release closes several remaining gaps with C#.
@@ -948,7 +903,7 @@ The integrations ecosystem keeps growing. Aspire 13.5 opens a preview path to a 
 - **Radius (preview).** The new `Aspire.Hosting.Radius` integration adds `AddRadiusEnvironment(name)` (with `WithNamespace(...)`) so you can publish your app to a [Radius](https://radapp.io/) environment. Publish-time infrastructure configuration (`ConfigureRadiusInfrastructure`) and project container-image overrides are gated behind experimental diagnostics.
 - **Foundry Local.** `AddFoundry(name).RunAsFoundryLocal()` now drives the installed **foundry CLI** for lifecycle management, and resources can be exposed as hosted agents with `AsHostedAgent(...)`, where `HostedAgentProtocol` is `Responses` or `Invocations`.
 - **Redis modules.** `AddRedis(...).WithModule(path)` loads a Redis module into the container, with `RedisModules` constants (`Json`, `Search`, `BloomFilter`, `TimeSeries`) pointing at the modules shipped in Redis 8+ images — see the sample below.
-- **.NET projects by path.** The new `Aspire.Hosting.Dotnet` package provides the experimental `AddDotnetProject` API for modeling .NET projects by path, covered earlier in this release.
+- **.NET projects by path.** The new `Aspire.Hosting.Dotnet` package provides the experimental `AddDotnetProject` API for modeling .NET projects by path.
 - **Dev tunnels regions.** `DevTunnelOptions.Region` (a `DevTunnelRegion?` enum) lets you pin the region a tunnel is created in.
 - **Blazor gateway on Docker Compose.** Blazor gateway resources now support Docker Compose publishing.
 
