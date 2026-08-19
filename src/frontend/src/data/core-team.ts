@@ -43,14 +43,16 @@ export const coreTeam: CoreTeamMember[] = [
   { handle: 'DamianEdwards', name: 'Damian Edwards' },
   { handle: 'mitchdenny', name: 'Mitch Denny' },
   { handle: 'eerhardt', name: 'Eric Erhardt' },
+  { handle: 'ellahathaway', name: 'Ella Hathaway' },
   { handle: 'joperezr', name: 'José Pérez' },
   { handle: 'JamesNK', name: 'James Newton-King' },
   { handle: 'sebastienros', name: 'Sébastien Ros' },
   { handle: 'karolz-ms', name: 'Karol Zadora-Przylecki' },
   { handle: 'radical', name: 'Ankit Jain' },
   { handle: 'adamint', name: 'Adam Ratzman' },
-  { handle: 'danegsta', name: 'Dane Gstautas' },
+  { handle: 'danegsta', name: 'David Negstad' },
   { handle: 'IEvangelist', name: 'David Pine' },
+  { handle: 'maddymontaquila', name: 'Maddy Montaquila' },
 ];
 
 /** Lower-cased core team handles, for case-insensitive de-duplication. */
