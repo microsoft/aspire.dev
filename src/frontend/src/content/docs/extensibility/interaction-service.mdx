@@ -862,6 +862,12 @@ Prompting the user for a password and confirming they match is referred to as "d
 
 The `File` input type enables users to select and upload files through the native OS/browser file picker in the dashboard, or by providing a file path in the CLI. Files are uploaded to the AppHost and stored on disk, with metadata available through the `InteractionFile` class.
 
+:::danger[Uploaded files are untrusted]
+Treat every uploaded file as untrusted input. Before processing it, validate its size and content using checks appropriate for the expected format; a file name, extension, or `FileFilter` match doesn't establish that the content is safe or valid. Configure downstream parsers and tools securely, isolate processing where appropriate, and don't execute an uploaded file merely because its name or extension is expected.
+
+Don't use the uploaded file's name directly when saving it to physical storage. If the workflow requires a specific file name, validate it against the exact expected value; otherwise, generate a safe, application-controlled name. In .NET, combine [`Path.GetRandomFileName()`](https://learn.microsoft.com/dotnet/api/system.io.path.getrandomfilename) with a trusted storage directory, or use [`Path.GetTempFileName()`](https://learn.microsoft.com/dotnet/api/system.io.path.gettempfilename) to create a full path for temporary storage. Use equivalent secure APIs in other languages.
+:::
+
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
