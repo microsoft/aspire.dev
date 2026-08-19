@@ -10,7 +10,7 @@ dossier (scratch on the branch / session workspace) — **not** shipped prose.
 - **GitHub release notes** — `https://github.com/microsoft/aspire/releases/tag/vN.N.0`
   (also the canonical **release date** and the header's release-tag URL).
 - **Automated wiki change-log** — `https://github.com/microsoft/aspire/wiki/{N.N}-Change-log`.
-- **Merged PRs + labels**, milestone/issues for `N.N`. Also dashboard/CLI repos where relevant.
+- **Merged PRs + labels**, milestone/issues for `N.N`. Also, the `microsoft/dcp` repo when relevant.
 - **`src/frontend/src/data/container-images.json`** — diff prior vs new release to
   find default container image **tag** bumps.
 
