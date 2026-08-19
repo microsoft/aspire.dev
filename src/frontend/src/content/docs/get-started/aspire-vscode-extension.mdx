@@ -18,7 +18,7 @@ The official Aspire extension for [Visual Studio Code](https://code.visualstudio
 Press <Kbd windows='F5' /> to build your AppHost, start your resources, and debug supported resource types — C#, TypeScript, Python, browser apps, and Azure Functions — alongside the Aspire dashboard.
 
 :::note[Prerequisites]
-A recent version of [Visual Studio Code](https://code.visualstudio.com/) and the **Aspire CLI** — install the CLI via the **Aspire: Install Aspire CLI (stable)** command from the Command Palette, or follow the [installation guide](/get-started/install-cli/).
+A recent version of [Visual Studio Code](https://code.visualstudio.com/) and the **Aspire CLI** — install the CLI via the **Aspire: Install Aspire CLI** command from the Command Palette, or follow the [installation guide](/get-started/install-cli/).
 :::
 
 ## Install the extension
@@ -65,13 +65,13 @@ The Command Palette has commands for the most common tasks:
 - **Aspire: Initialize Aspire in an existing codebase** wires Aspire into a repo that has not yet been Aspirified.
 - **Aspire: Update integrations** updates hosting integrations and the Aspire SDK.
 - **Aspire: Open Aspire terminal** drops you into a terminal with the Aspire CLI already on `PATH` for anything the UI doesn't cover.
-- **Aspire: Update Aspire CLI** and **Aspire: Install Aspire CLI** let you manage CLI installation.
+- **Aspire: Update Aspire CLI** and **Aspire: Install Aspire CLI** let you manage CLI installation. **Install Aspire CLI** shows a package-manager picker (WinGet, Homebrew, npm, .NET tool, or mise, depending on your platform) plus a **Daily build (dev)** option and a link to the full [installation guide](/get-started/install-cli/) for every option, including the install script.
 
 ## Live editor integration
 
 When an AppHost is running, the extension paints live state directly into your editor.
 
-**CodeLens** appears above each resource definition in C# and TypeScript AppHosts. It shows the current state and health and exposes one-click `Start`, `Stop`, `Restart`, and `View Logs` actions in addition to any custom commands the resource publishes. 
+**CodeLens** appears above each resource definition in C# and TypeScript AppHosts. It shows the current state and health and exposes one-click `Start`, `Stop`, `Restart`, and `View Logs` actions in addition to any custom commands the resource publishes.
 
 **Editor title bar buttons** add **Run Aspire AppHost** and **Debug Aspire AppHost** actions next to the standard Run/Debug buttons whenever you have an AppHost file open.
 
@@ -89,13 +89,17 @@ Aspire registers an AppHost view to VS Code. **Workspace** mode shows the AppHos
 
 Each resource shows its type, state, health summary, and exit code, plus a health-aware icon and a markdown tooltip listing endpoint URLs. Resources with health checks expose an expandable **Health Checks** group; use **Expand all** on the AppHost item to open everything at once. You can right-click a resource to start, stop, or restart it, view its logs, run resource-specific commands, or open the dashboard.
 
+:::note[Renamed polling setting]
+`aspire.globalAppHostsPollingInterval` is deprecated. Use `aspire.appHostsPollingInterval` to configure how often the Aspire view polls for running AppHosts.
+:::
+
 ## Run, debug, and deploy
 
 :::note[Debugging]
 The Aspire Dashboard is no longer opened by default when the AppHost starts, as most operations can be performed using the Aspire view inside VS Code. To launch the dashboard, use the **Open Dashboard** CodeLens, the **Aspire: Open Dashboard** command, or open it from the Aspire view.
 :::
 
-**Aspire: Configure launch.json file** adds a minimal launch configuration `.vscode/launch.json` that supports AppHosts written in any language. AppHosts are discovered automatically in the workspace. 
+**Aspire: Configure launch.json file** adds a minimal launch configuration `.vscode/launch.json` that supports AppHosts written in any language. AppHosts are discovered automatically in the workspace.
 
 <LearnMore>
 To launch a specific AppHost, configure an [aspire.config.json](/reference/cli/configuration/) with an `appHost.path` property.
@@ -126,6 +130,25 @@ All of these commands are debuggable; you can step into custom publishers and de
 />
 
 The `debuggers` property forwards configuration to specific debuggers. Recognized keys are: `apphost`, `project` (C#/.NET), `node`, `python`, `browser`, and `azure-functions`.
+
+For `project`, the extension normally generates a `serverReadyAction` from the project's `launchSettings.json` to automatically open the browser when the server is ready. Set `debuggers.project.serverReadyAction` explicitly to override this generated default with your own action and pattern:
+
+:::note[AppHost behavior]
+A .NET AppHost also uses the `project` debugger, so `debuggers.project.serverReadyAction` is included in its debug configuration. If you set both `debuggers.apphost.serverReadyAction` and `debuggers.project.serverReadyAction`, the `project` value takes precedence.
+:::
+
+```json title=".vscode/launch.json — override debuggers.project.serverReadyAction"
+{
+  "debuggers": {
+    "project": {
+      "serverReadyAction": {
+        "action": "openIntegratedBrowser",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+      }
+    }
+  }
+}
+```
 
 Finally, you can specify `env` and `args` to set environment variables and command-line arguments for the AppHost process.
 

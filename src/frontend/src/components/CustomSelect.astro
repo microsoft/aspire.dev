@@ -127,6 +127,11 @@ const hasIcon = Astro.slots.has('icon');
 
   const openEventName = 'aspire:custom-select-open';
   const syncEventName = 'aspire:custom-select-sync';
+  // Pixels of slop allowed when comparing the live window scroll offset against
+  // the offset captured when the menu opened. Absorbs sub-pixel rounding on
+  // high-DPI mobile viewports so a settled, stale open-time scroll is treated as
+  // "no movement". See handleWindowScroll.
+  const scrollSettleTolerancePx = 2;
 
   function initializeCustomSelects() {
     document.querySelectorAll<CustomSelectRoot>('[data-custom-select]').forEach((root) => {
@@ -148,6 +153,11 @@ const hasIcon = Astro.slots.has('icon');
       );
       let typeahead = '';
       let typeaheadTimer = 0;
+      // Scroll offset captured when the menu opens, used to distinguish a real
+      // page scroll (dismiss) from a stale scroll event still in flight from the
+      // gesture that opened the menu (keep open). See handleWindowScroll below.
+      let openScrollX = 0;
+      let openScrollY = 0;
 
       const isOpen = () => root.hasAttribute('data-open');
 
@@ -233,6 +243,8 @@ const hasIcon = Astro.slots.has('icon');
       function open() {
         if (isOpen()) return;
 
+        openScrollX = window.scrollX;
+        openScrollY = window.scrollY;
         document.dispatchEvent(new CustomEvent(openEventName, { detail: root }));
         listbox.hidden = false;
         if (typeof listbox.showPopover === 'function') {
@@ -350,14 +362,42 @@ const hasIcon = Astro.slots.has('icon');
       const handleOtherSelect = (event: Event) => {
         if (event instanceof CustomEvent && event.detail !== root) close();
       };
-      const handleViewportChange = (event: Event) => {
-        // Scrolling the page (or resizing) should dismiss the menu, but scrolling
-        // *inside* the fixed, overflowing listbox must not. A capture-phase scroll
-        // listener on window also fires for scrolls targeted at the listbox
-        // (e.g. wheel/touch, or option.scrollIntoView() during keyboard nav), so
-        // ignore any scroll that originates within the menu.
+      const handleViewportResize = () => close();
+      const handleWindowScroll = (event: Event) => {
+        // Scrolling should dismiss the menu so the fixed listbox never detaches
+        // from its trigger, but some scrolls must NOT close it:
+        //   1. Scrolls that originate *inside* the fixed, overflowing listbox
+        //      (wheel/touch, or option.scrollIntoView() during keyboard nav). A
+        //      capture-phase window listener also fires for those.
+        //   2. A stale page scroll still in flight from the gesture that
+        //      revealed and opened the control. Tapping the footer selector
+        //      scrolls it into view first; on small touch viewports that scroll
+        //      event can be delivered a frame later — after open() — even though
+        //      the page has already settled. Such stale events report the same
+        //      offset we captured when opening, so only dismiss once the page
+        //      actually moves underneath the menu (with a couple of pixels of
+        //      slop to absorb sub-pixel rounding on high-DPI mobile viewports).
+        //
+        // The stale-offset guard only makes sense for page/document scrolls,
+        // whose position window.scrollX/Y actually tracks. An ancestor *element*
+        // scrolling (e.g. a modal body) leaves window.scrollX/Y unchanged yet
+        // still slides the trigger out from under the fixed listbox, so those
+        // must always close.
         const target = event.target;
         if (target instanceof Node && listbox.contains(target)) return;
+        const isPageScroll =
+          target === document ||
+          target === window ||
+          target === document.scrollingElement ||
+          target === document.documentElement ||
+          target === document.body;
+        if (
+          isPageScroll &&
+          Math.abs(window.scrollX - openScrollX) <= scrollSettleTolerancePx &&
+          Math.abs(window.scrollY - openScrollY) <= scrollSettleTolerancePx
+        ) {
+          return;
+        }
         close();
       };
       const handleSync = () => syncFromNative();
@@ -369,8 +409,8 @@ const hasIcon = Astro.slots.has('icon');
         nativeSelect.removeEventListener(syncEventName, handleSync);
         document.removeEventListener('pointerdown', handleDocumentPointer);
         document.removeEventListener(openEventName, handleOtherSelect);
-        window.removeEventListener('resize', handleViewportChange);
-        window.removeEventListener('scroll', handleViewportChange, true);
+        window.removeEventListener('resize', handleViewportResize);
+        window.removeEventListener('scroll', handleWindowScroll, true);
         close();
         delete root.dataset.customSelectInitialized;
         delete root.syncCustomSelect;
@@ -387,8 +427,8 @@ const hasIcon = Astro.slots.has('icon');
       nativeSelect.addEventListener(syncEventName, handleSync);
       document.addEventListener('pointerdown', handleDocumentPointer);
       document.addEventListener(openEventName, handleOtherSelect);
-      window.addEventListener('resize', handleViewportChange, { passive: true });
-      window.addEventListener('scroll', handleViewportChange, { passive: true, capture: true });
+      window.addEventListener('resize', handleViewportResize, { passive: true });
+      window.addEventListener('scroll', handleWindowScroll, { passive: true, capture: true });
       document.addEventListener('astro:before-swap', handleBeforeSwap, { once: true });
 
       root.syncCustomSelect = syncFromNative;

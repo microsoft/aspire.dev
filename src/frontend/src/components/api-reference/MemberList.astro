@@ -6,7 +6,7 @@
  */
 import MemberCard from './MemberCard.astro';
 import AnchorHeading from './AnchorHeading.astro';
-import { groupMembersByKind, memberKindLabels } from '@utils/packages';
+import { groupMembersByKind, memberKindLabels, resolveMemberAnchorMap } from '@utils/packages';
 import type { ParentTypeInfo } from '@utils/packages';
 
 interface Props {
@@ -20,6 +20,7 @@ interface Props {
 
 const { members = [], allTypes = [], packageName = '', parentType, sourceBaseUrl, diagnosticSlugs } = Astro.props;
 const groups = groupMembersByKind(members);
+const anchorByMember = resolveMemberAnchorMap(members);
 ---
 
 {groups.size > 0 && (
@@ -33,6 +34,8 @@ const groups = groupMembersByKind(members);
           {items.map((m: any) => (
             <MemberCard
               member={m}
+              exactAnchor={anchorByMember.get(m)?.exact}
+              anchorAliases={anchorByMember.get(m)?.aliases}
               allTypes={allTypes}
               packageName={packageName}
               parentType={parentType}

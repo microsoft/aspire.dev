@@ -8,15 +8,21 @@
  * after regenerating).
  */
 
-import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const MODULES_DIR = resolve(__dirname, '..', 'src', 'data', 'ts-modules');
-const PKGS_DIR = resolve(__dirname, '..', 'src', 'data', 'pkgs');
-const OUTPUT_DIR = resolve(__dirname, '..', 'src', 'data', 'twoslash');
-const OUTPUT_FILE = resolve(OUTPUT_DIR, 'aspire.d.ts');
+const MODULES_DIR = process.env.ASPIRE_API_TS_MODULES_DIR
+  ? resolve(process.env.ASPIRE_API_TS_MODULES_DIR)
+  : resolve(__dirname, '..', 'src', 'data', 'ts-modules');
+const PKGS_DIR = process.env.ASPIRE_API_PKGS_DIR
+  ? resolve(process.env.ASPIRE_API_PKGS_DIR)
+  : resolve(__dirname, '..', 'src', 'data', 'pkgs');
+const OUTPUT_FILE = process.env.ASPIRE_API_TWOSLASH_FILE
+  ? resolve(process.env.ASPIRE_API_TWOSLASH_FILE)
+  : resolve(__dirname, '..', 'src', 'data', 'twoslash', 'aspire.d.ts');
+const OUTPUT_DIR = dirname(OUTPUT_FILE);
 
 interface Parameter {
   name: string;
@@ -43,6 +49,7 @@ interface FunctionEntry {
 interface DtoField {
   name: string;
   type: string;
+  isOptional?: boolean;
 }
 
 interface DtoType {
@@ -65,6 +72,7 @@ interface HandleType {
   kind: 'handle';
   exposeProperties?: boolean;
   implementedInterfaces?: string[];
+  baseTypeHierarchy?: string[];
   capabilities?: FunctionEntry[];
 }
 
@@ -78,6 +86,7 @@ interface ModuleJson {
 
 interface PkgTypeEntry {
   name: string;
+  fullName: string;
   kind: string;
   baseType?: string;
 }
@@ -96,6 +105,10 @@ function lastDotted(id: string): string {
   const afterSlash = id.includes('/') ? id.slice(id.lastIndexOf('/') + 1) : id;
   const parts = afterSlash.split('.');
   return parts[parts.length - 1];
+}
+
+function withoutAssemblyPrefix(id: string): string {
+  return id.includes('/') ? id.slice(id.lastIndexOf('/') + 1) : id;
 }
 
 function cleanType(raw: string | undefined): string {
@@ -282,6 +295,7 @@ function optionsOverloadSplit(fnName: string, params: Parameter[]): number {
   }
   if (firstOpt < 0) return -1;
   const tail = params.slice(firstOpt);
+  if (tail.length === 1 && tail[0].name === 'options') return -1;
   const minTail = /^(add|with|publish)[A-Z0-9]/.test(fnName) ? 1 : 2;
   if (tail.length < minTail) return -1;
   // `with*` methods that take a callback (e.g. `withPgAdmin(configureContainer?)`)
@@ -324,25 +338,26 @@ const modules: ModuleJson[] = files.map(
 
 console.log(`📚 Loaded ${modules.length} module JSON files`);
 
-// Load class-inheritance metadata from the richer pkgs/*.json dumps. The
-// ts-modules JSON captures implemented interfaces but not class-level `extends`,
-// so resource types like ViteAppResource lose inherited methods such as
-// publishAsDockerFile. Map each class short-name to its base class short-name.
-const classBaseByName = new Map<string, string>();
-try {
+// Load class-inheritance metadata from the richer pkgs/*.json dumps. Older
+// ts-modules snapshots omitted BaseTypeHierarchy, so this remains the fallback.
+// Key by full type name: short names are not unique across integration packages.
+const classBaseByFullName = new Map<string, string>();
+if (existsSync(PKGS_DIR)) {
   const pkgFiles = readdirSync(PKGS_DIR).filter((f) => f.endsWith('.json'));
   for (const f of pkgFiles) {
     const pkg = JSON.parse(readFileSync(resolve(PKGS_DIR, f), 'utf8')) as PkgJson;
     for (const t of pkg.types ?? []) {
       if (t.kind !== 'class' || !t.baseType) continue;
-      const base = lastDotted(t.baseType).split('<')[0];
-      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(base)) continue;
-      if (!classBaseByName.has(t.name)) classBaseByName.set(t.name, base);
+      const existing = classBaseByFullName.get(t.fullName);
+      if (existing && existing !== t.baseType) {
+        throw new Error(
+          `Conflicting base types for ${t.fullName}: ${existing} and ${t.baseType}`
+        );
+      }
+      classBaseByFullName.set(t.fullName, t.baseType);
     }
   }
-  console.log(`   + ${classBaseByName.size} class-inheritance links from pkgs/`);
-} catch {
-  // pkgs directory is optional — older snapshots may not include it.
+  console.log(`   + ${classBaseByFullName.size} class-inheritance links from pkgs/`);
 }
 
 // ---------- collect ----------
@@ -354,11 +369,6 @@ const handleTypes: HandleType[] = [];
 const handleByName = new Map<string, HandleType>();
 const dtoByName = new Map<string, DtoType>();
 const enumByName = new Map<string, EnumType>();
-// Track which package each handle originates from, so we can decide whether
-// to inject a ContainerResource base (integration packages ship container-backed
-// resources whose .NET class extends ContainerResource, but the JSON dump only
-// lists implemented interfaces — no class inheritance).
-const handlePackage = new Map<string, string>();
 
 // target short name -> methods
 const methodsByTarget = new Map<string, FunctionEntry[]>();
@@ -383,7 +393,9 @@ export declare function refExpr(strings: TemplateStringsArray, ...values: unknow
 ];
 
 const POST_SNAPSHOT_DECLARATIONS = [
-  `/**
+  {
+    name: 'InputType',
+    declaration: `/**
  * Enum Aspire.Hosting.ApplicationModel.InputType
  */
 export type InputType = "Text" | "Number" | "Choice" | "SecretText";
@@ -393,28 +405,35 @@ export declare const InputType: {
   readonly Choice: "Choice";
   readonly SecretText: "SecretText";
 };`,
-  `export interface ParameterCustomInputOptions {
+  },
+  {
+    name: 'ParameterCustomInputOptions',
+    declaration: `export interface ParameterCustomInputOptions {
   inputType?: InputType;
   label?: string;
   placeholder?: string;
   options?: Record<string, string>;
 }`,
-  `export interface BeforePublishEvent extends IDistributedApplicationEvent {
+  },
+  {
+    name: 'BeforePublishEvent',
+    declaration: `export interface BeforePublishEvent extends IDistributedApplicationEvent {
   model: PropertyAccessor<DistributedApplicationModel>;
   services: PropertyAccessor<IServiceProvider>;
 }`,
-  `export interface AfterPublishEvent extends IDistributedApplicationEvent {
+  },
+  {
+    name: 'AfterPublishEvent',
+    declaration: `export interface AfterPublishEvent extends IDistributedApplicationEvent {
   model: PropertyAccessor<DistributedApplicationModel>;
   services: PropertyAccessor<IServiceProvider>;
 }`,
+  },
 ];
 
-const POST_SNAPSHOT_DECLARATION_TYPE_NAMES = new Set([
-  'BeforePublishEvent',
-  'AfterPublishEvent',
-  'InputType',
-  'ParameterCustomInputOptions',
-]);
+const POST_SNAPSHOT_DECLARATION_TYPE_NAMES = new Set(
+  POST_SNAPSHOT_DECLARATIONS.map(({ name }) => name)
+);
 
 const POST_SNAPSHOT_AUGMENTATIONS = [
   `export interface IDistributedApplicationBuilder {
@@ -508,7 +527,6 @@ for (const mod of modules) {
     if (!handleByName.has(h.name)) {
       handleByName.set(h.name, h);
       handleTypes.push(h);
-      handlePackage.set(h.name, mod.package.name);
     }
   }
 
@@ -633,12 +651,8 @@ const BUILT_IN = new Set([
 ]);
 
 const declaredTypes = new Set<string>([
-  ...dtoTypes
-    .filter((d) => !POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(d.name))
-    .map((d) => d.name),
-  ...enumTypes
-    .filter((e) => !POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(e.name))
-    .map((e) => e.name),
+  ...dtoTypes.map((d) => d.name),
+  ...enumTypes.map((e) => e.name),
   ...handleTypes.map((h) => h.name),
   ...methodsByTarget.keys(),
   ...POST_SNAPSHOT_DECLARATION_TYPE_NAMES,
@@ -672,12 +686,17 @@ parts.push(`  set(key: string, value: unknown): Promise<void>;`);
 parts.push(`};`);
 parts.push(``);
 parts.push(`// ---- enums ----`);
-for (const declaration of POST_SNAPSHOT_DECLARATIONS) {
+const generatedDeclarationTypeNames = new Set([
+  ...dtoTypes.map((dto) => dto.name),
+  ...enumTypes.map((enumType) => enumType.name),
+  ...handleTypes.map((handle) => handle.name),
+]);
+for (const { name, declaration } of POST_SNAPSHOT_DECLARATIONS) {
+  if (generatedDeclarationTypeNames.has(name)) continue;
   parts.push(declaration);
   parts.push('');
 }
 for (const en of enumTypes) {
-  if (POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(en.name)) continue;
   parts.push(jsdoc([`Enum ${en.fullName}`]));
   const members = en.members.map((m) => JSON.stringify(m)).join(' | ') || 'string';
   parts.push(`export type ${en.name} = ${members};`);
@@ -694,40 +713,20 @@ for (const en of enumTypes) {
 
 parts.push(`// ---- DTOs ----`);
 for (const dto of dtoTypes) {
-  if (POST_SNAPSHOT_DECLARATION_TYPE_NAMES.has(dto.name)) continue;
   parts.push(jsdoc([`DTO ${dto.fullName}`]));
   parts.push(`export interface ${dto.name} {`);
   for (const f of dto.fields) {
     const t = cleanType(f.type);
     extractTypeIdentifiers(t, referencedTypes);
     scanExprForGenerics(t);
-    parts.push(`  ${camelCase(f.name)}: ${t};`);
+    const optional = f.isOptional ? '?' : '';
+    parts.push(`  ${camelCase(f.name)}${optional}: ${t};`);
   }
   parts.push(`}`);
   parts.push('');
 }
 
 parts.push(`// ---- handle types ----`);
-// Integration packages whose resources are NOT container-backed. Resources
-// from these packages implement the same IComputeResource/IResourceWithArgs/
-// IResourceWithEndpoints trio that container-backed resources do, but their
-// .NET class does not derive from ContainerResource — so we must not inject
-// it into the TS extends clause.
-const NON_CONTAINER_PACKAGES = new Set([
-  'Aspire.Hosting', // core primitives (ProjectResource, ExecutableResource, ...)
-  'Aspire.Hosting.JavaScript',
-  'Aspire.Hosting.Python',
-  'Aspire.Hosting.DevTunnels',
-  'Aspire.Hosting.Maui',
-]);
-// Specific handles to exclude even if their package is container-friendly.
-// AzureFunctionsProjectResource is a project handle that lives in the Functions
-// package alongside the Storage emulator (which IS container-backed).
-const NON_CONTAINER_HANDLES = new Set([
-  'AzureFunctionsProjectResource',
-  'AzurePromptAgentResource',
-]);
-
 const EXTRA_HANDLE_MEMBERS: Record<string, string[]> = {
   AzureResourceInfrastructure: [
     '  /** Gets the provisionable Azure resources produced by the infrastructure callback. */',
@@ -739,17 +738,22 @@ const EXTRA_HANDLE_MEMBERS: Record<string, string[]> = {
   ],
 };
 
-function isContainerBacked(h: HandleType): boolean {
-  if (h.name === 'ContainerResource') return false;
-  if (NON_CONTAINER_HANDLES.has(h.name)) return false;
-  const pkg = handlePackage.get(h.name);
-  if (pkg && NON_CONTAINER_PACKAGES.has(pkg)) return false;
-  const ifaces = new Set((h.implementedInterfaces ?? []).map((i) => lastDotted(i).split('<')[0]));
-  return (
-    ifaces.has('IComputeResource') &&
-    ifaces.has('IResourceWithArgs') &&
-    ifaces.has('IResourceWithEndpoints')
-  );
+function getBaseTypeHierarchy(h: HandleType): string[] {
+  if ((h.baseTypeHierarchy?.length ?? 0) > 0) {
+    return h.baseTypeHierarchy!;
+  }
+
+  const hierarchy: string[] = [];
+  const seen = new Set<string>([h.fullName]);
+  let ancestor = classBaseByFullName.get(h.fullName);
+  while (ancestor) {
+    const identity = withoutAssemblyPrefix(ancestor);
+    if (seen.has(identity)) break;
+    seen.add(identity);
+    hierarchy.push(identity);
+    ancestor = classBaseByFullName.get(identity);
+  }
+  return hierarchy;
 }
 
 for (const h of handleTypes) {
@@ -758,23 +762,16 @@ for (const h of handleTypes) {
     .map((i) => i.split('<')[0])
     .filter((i) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(i) && i !== h.name);
   const uniqueParents = [...new Set(parents)];
-  if (isContainerBacked(h) && !uniqueParents.includes('ContainerResource')) {
-    // Put ContainerResource first so chains like `.withImageTag(...).withLifetime(...)`
-    // resolve to inherited members before the marker interfaces contribute noise.
-    uniqueParents.unshift('ContainerResource');
-  }
-  // Chase the class-inheritance chain so methods defined on a parent class
-  // (e.g. publishAsDockerFile on ExecutableResource) are visible on subclasses
-  // (e.g. ViteAppResource). The ts-modules dump only lists implemented
-  // interfaces, so without this step subclasses lose inherited members.
-  let ancestor = classBaseByName.get(h.name);
-  const seen = new Set<string>([h.name]);
-  while (ancestor && !seen.has(ancestor)) {
-    seen.add(ancestor);
-    if (handleByName.has(ancestor) && !uniqueParents.includes(ancestor)) {
-      uniqueParents.unshift(ancestor);
+
+  for (const ancestor of getBaseTypeHierarchy(h)) {
+    const ancestorName = cleanType(ancestor).split('<')[0];
+    if (
+      ancestorName !== h.name &&
+      handleByName.has(ancestorName) &&
+      !uniqueParents.includes(ancestorName)
+    ) {
+      uniqueParents.unshift(ancestorName);
     }
-    ancestor = classBaseByName.get(ancestor);
   }
   const implementsClause = uniqueParents.length > 0 ? ` extends ${uniqueParents.join(', ')}` : '';
   for (const i of uniqueParents) referencedTypes.add(i);

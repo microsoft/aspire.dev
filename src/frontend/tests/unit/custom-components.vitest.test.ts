@@ -36,6 +36,7 @@ import Pivot from '@components/Pivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import Placeholder from '@components/Placeholder.astro';
 import QuickStartJourney from '@components/QuickStartJourney.astro';
+import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 import SampleCard from '@components/SampleCard.astro';
 import SampleDetail from '@components/SampleDetail.astro';
 import SampleGrid from '@components/SampleGrid.astro';
@@ -285,6 +286,19 @@ const basicRenderCases: BasicRenderCase[] = [
     Component: CapabilityGrid,
     props: { capabilities: capabilityItems, columns: 2 },
     includes: ['Model distributed apps', 'Learn more', '/get-started/app-host/', '--cap-cols: 2'],
+  },
+  {
+    name: 'ReleaseCommunity renders the core team roster and release contributors',
+    Component: ReleaseCommunity,
+    props: { version: '13.4' },
+    includes: [
+      'The Aspire core team is',
+      '.png?size=96',
+      'Special thanks to everyone whose pull requests shipped in Aspire 13.4',
+      'https://github.com/edmondshtogu',
+      '/community/contributors/',
+      '/community/contributor-guide/',
+    ],
   },
   {
     name: 'Breadcrumb renders current location and links',

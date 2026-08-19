@@ -244,6 +244,27 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'dashboard/security-considerations',
     },
     {
+      label: 'Troubleshooting',
+      translations: {
+        da: 'Fejlfinding',
+        de: 'Fehlerbehebung',
+        en: 'Troubleshooting',
+        es: 'Solución de problemas',
+        fr: 'Dépannage',
+        hi: 'समस्या निवारण',
+        id: 'Pemecahan masalah',
+        it: 'Risoluzione dei problemi',
+        ja: 'トラブルシューティング',
+        ko: '문제 해결',
+        'pt-BR': 'Solução de problemas',
+        ru: 'Устранение неполадок',
+        tr: 'Sorun giderme',
+        uk: 'Усунення неполадок',
+        'zh-CN': '故障排除',
+      },
+      slug: 'dashboard/troubleshooting',
+    },
+    {
       label: 'Telemetry',
       translations: {
         da: 'Telemetri',

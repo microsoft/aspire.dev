@@ -375,7 +375,7 @@ For GoLand, VS Code attach mode, or another Delve-compatible client, use `WithDe
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddGoApp("api", "./api")
-    .WithDelveServer(port: 2345)
+    .WithDelveServer()
     .WithHttpEndpoint(port: 8080, env: "PORT");
 
 builder.Build().Run();
@@ -390,7 +390,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const api = await builder.addGoApp('api', './api');
-await api.withDelveServer({ port: 2345 });
+await api.withDelveServer();
 await api.withHttpEndpoint({ port: 8080, env: 'PORT' });
 
 await builder.build().run();
@@ -398,6 +398,56 @@ await builder.build().run();
 
 </TabItem>
 </Tabs>
+
+By default the Delve server accepts a single debugger client on port `2345`. To accept multiple
+clients, keep the server running after a client disconnects, or configure additional Delve flags,
+pass a `DelveServerOptions` instance:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var api = builder.AddGoApp("api", "./api")
+    .WithDelveServer(new DelveServerOptions
+    {
+        AcceptMultiClient = true,
+        ContinueOnStart = true,
+        Log = true,
+        LogOutput = "rpc,dap,debugger",
+    })
+    .WithHttpEndpoint(port: 8080, env: "PORT");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const api = await builder.addGoApp('api', './api');
+await api.withDelveServer({
+    acceptMultiClient: true,
+    continueOnStart: true,
+    log: true,
+    logOutput: 'rpc,dap,debugger',
+});
+```
+
+</TabItem>
+</Tabs>
+
+| Option | Default | Delve behavior |
+|---|---|---|
+| `Port` | `2345` | Sets the loopback listener port. |
+| `AcceptMultiClient` | `false` | Passes `--accept-multiclient` when enabled. |
+| `OnlySameUser` | `null` | Passes `--only-same-user=true` or `--only-same-user=false` when set. |
+| `ContinueOnStart` | `false` | Passes `--continue` when enabled. |
+| `Log` | `false` | Passes `--log` when enabled. |
+| `LogOutput` | `null` | Passes `--log-output=<components>` when logging is enabled and components are specified. |
+
+:::note
+`WithDelveServer(int port = 2345)` remains available as an obsolete overload for binary
+compatibility and preserves its original single-client behavior. New code should use
+`WithDelveServer()` or `WithDelveServer(DelveServerOptions)` instead.
+:::
 
 Start your attach configuration after the Go resource is running in the Aspire dashboard. For GoLand, create a **Go Remote** configuration with host `localhost` and port `2345`. For VS Code attach mode, add a launch configuration like this:
 

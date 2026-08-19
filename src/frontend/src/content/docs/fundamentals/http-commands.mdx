@@ -40,6 +40,34 @@ Since HTTP commands are exposed via HTTP endpoints, consider potential security 
 
 Use the `HttpCommandOptions.PrepareRequest` callback to enhance security by adding authentication headers or other measures. A common approach is to use a shared secret, [external parameter](/fundamentals/external-parameters/), or token known only to the AppHost and resource. This shared value can be used to validate requests and prevent unauthorized access.
 
+## HTTP command timeouts
+
+HTTP commands are user-cancelable from the dashboard, so by default the request the command sends has no timeout: the unnamed `HttpClient` used to send the request has its `HttpClient.Timeout` set to `Timeout.InfiniteTimeSpan`. This allows long-running commands, such as ones that trigger database migrations or other admin actions, to run for as long as needed without failing due to `HttpClient`'s default 100-second timeout. Canceling the command from the dashboard cancels this client-side HTTP request through the command's cancellation token; it doesn't guarantee that server-side work already started, such as a migration, also stops.
+
+If you want a command to time out after a specific duration, specify `HttpCommandOptions.HttpClientName` with the name of an `HttpClient` you configure with `IHttpClientFactory`, and set its `Timeout` accordingly:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.Services.AddHttpClient("commands-with-timeout", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
+builder.AddProject<Projects.Api>("api")
+    .WithHttpCommand(
+        path: "/admin/sync",
+        displayName: "Sync now",
+        commandOptions: new HttpCommandOptions
+        {
+            HttpClientName = "commands-with-timeout"
+        });
+
+builder.Build().Run();
+```
+
+When `HttpCommandOptions.HttpClientName` is specified, the named `HttpClient` is used as configured, including its `Timeout`.
+
 ## Add a custom HTTP command
 
 In your _AppHost.cs_ file, you add a custom HTTP command using the `WithHttpCommand` API on an `IResourceBuilder<T>` where `T` is an `IResourceWithEndpoints`. Here's an example of how to do this:
@@ -137,7 +165,7 @@ The preceding code:
 
 ## Return the HTTP response body
 
-By default, an HTTP command uses the HTTP status code to determine whether the command succeeded, and it doesn't return the response body as command result data. Set `HttpCommandOptions.ResultMode` to opt in to returning a non-empty response body from the endpoint. The body is surfaced as the command's structured output, just like [structured output from custom resource commands](/fundamentals/custom-resource-commands/#return-structured-output-from-a-command).
+By default, an HTTP command uses the HTTP status code to determine whether the command succeeded, and it doesn't return the response body as command result data. Set `HttpCommandOptions.ResultMode` to opt in to returning a non-empty response body from the endpoint. The body is surfaced as the command's structured output, just like [structured output from custom resource commands](/fundamentals/custom-resource-commands/#return-a-result-from-a-command).
 
 The following example configures an HTTP command that returns a JSON response body:
 

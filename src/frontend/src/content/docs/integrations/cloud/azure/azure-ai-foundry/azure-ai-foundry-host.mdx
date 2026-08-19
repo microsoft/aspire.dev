@@ -188,7 +188,7 @@ The preceding code:
 - Adds an Azure AI Foundry resource named `foundry`.
 - Adds a Foundry deployment resource named `chat` using the generated `FoundryModel.OpenAI.Gpt5Mini` descriptor.
 
-If you need a different generated model descriptor, use the corresponding nested type, such as `FoundryModel.Microsoft.Phi4Reasoning`:
+If you need a different generated model descriptor, use the corresponding nested type. The `FoundryModel` class organizes models by provider family: `FoundryModel.Microsoft`, `FoundryModel.OpenAI`, `FoundryModel.Cohere`, `FoundryModel.MistralAI`, and others. For example, to use `FoundryModel.Microsoft.Phi4Reasoning`:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -464,6 +464,36 @@ In publish mode, Aspire creates an `AzureHostedAgentResource` and publishes the 
 
 For C# AppHosts, the parameterless `AsHostedAgent()` overload reuses an existing Foundry project from the app model or creates one automatically. TypeScript AppHosts pass the project resource explicitly.
 
+### Select a hosted agent protocol
+
+`AsHostedAgent` defaults to the Responses protocol version `2.0.0`. If your hosted agent implements a different protocol or protocol version, use the C# `AsHostedAgent(project, protocol, version)` overload or the polyglot/TypeScript `asHostedAgentWithProtocol` export. For example, some Microsoft Agent Framework (MAF) agents use the Invocations protocol:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp
+builder.AddPythonApp("agent-python", "../agent", "main:app")
+    .WithReference(project)
+    .WithReference(chat)
+    .AsHostedAgent(project, HostedAgentProtocol.Invocations, "1.0.0");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript
+await builder
+  .addPythonApp('agent-python', '../agent', 'main:app')
+  .withReference(project)
+  .withReference(chat)
+  .asHostedAgentWithProtocol(project, HostedAgentProtocol.Invocations, '1.0.0');
+```
+
+</TabItem>
+</Tabs>
+
+The defaulted `asHostedAgent` entry point and the explicit `asHostedAgentWithProtocol` entry point are both exported to polyglot AppHosts, so existing AppHosts that call `asHostedAgent(project, options?)` continue to work unchanged with the Responses `2.0.0` default. Reach for `asHostedAgentWithProtocol` only when you need a protocol or version other than the default.
+
 ### Add and publish a prompt agent
 
 For prompt-only scenarios, use `AddPromptAgent` on a Foundry project:
@@ -663,9 +693,11 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-When the AppHost starts up, the local foundry service is also started. This requires the local machine to have [Foundry Local](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started) installed and running.
+When the AppHost starts, Aspire automatically starts the Foundry Local service using the `foundry` CLI (`foundry service start`). It then discovers the service endpoint, downloads and loads the specified models via CLI commands, and stops the service (`foundry service stop`) when the AppHost shuts down or is disposed. You do not need to pre-start Foundry Local manually.
 
-The `RunAsFoundryLocal` method configures the resource to run as an emulator. It downloads and loads the specified models locally. The method provides health checks for the local service and automatically manages the Foundry Local lifecycle.
+This requires the `foundry` CLI to be installed and available on `PATH`. For installation instructions, see [Foundry Local get started](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started).
+
+The `RunAsFoundryLocal` method configures the resource to use the local service. It downloads and loads the specified models locally, provides health checks for the local service, and fully manages the Foundry Local lifecycle — including start and stop — through the `foundry` CLI.
 
 <Aside type="caution">
   Foundry Projects aren't supported when the parent Foundry resource uses

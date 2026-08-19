@@ -642,6 +642,63 @@ await builder.build().run();
 For more end-to-end examples — including chaining outputs between Bicep resources and using the `existing` Bicep keyword to reference resources that Aspire didn't provision — see the [Aspire `playground/bicep` sample](https://github.com/dotnet/aspire/tree/main/playground/bicep).
 </LearnMore>
 
+### Set the deployment scope
+
+By default, Aspire deploys Bicep resources at the resource group scope. Some Bicep templates require a different [deployment scope](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-to-subscription), such as the subscription or the tenant.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+Set the `Scope` property on the Bicep resource using `AzureBicepResourceScope.CreateForSubscription` or `AzureBicepResourceScope.CreateForTenant`:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var subscriptionId = builder.AddParameter("subscriptionId");
+
+var subscriptionScoped = builder.AddBicepTemplateString(
+    "subscriptionScoped",
+    """
+    targetScope = 'subscription'
+
+    param location string
+
+    output value string = 'subscription'
+    """);
+subscriptionScoped.Resource.Scope = AzureBicepResourceScope.CreateForSubscription(subscriptionId.Resource);
+
+var tenantScoped = builder.AddBicepTemplateString(
+    "tenantScoped",
+    """
+    targetScope = 'tenant'
+
+    param location string
+
+    output value string = 'tenant'
+    """);
+tenantScoped.Resource.Scope = AzureBicepResourceScope.CreateForTenant();
+
+builder.Build().Run();
+```
+
+<Aside type="note">
+`AzureBicepResourceScope.CreateForSubscription` and `AzureBicepResourceScope.CreateForTenant` are available in Aspire 13.5 and later, and require a `using Aspire.Hosting.Azure;` directive. `targetScope` in the Bicep template must match the scope you assign in C#. `CreateForSubscription` requires a subscription identifier; `CreateForTenant` targets the current tenant and takes no arguments.
+
+Keep the `param location string` declaration in each template. `location` is a well-known Aspire parameter that the provisioner fills in automatically from the environment's location and passes to every Bicep deployment — including subscription- and tenant-scoped ones — so the template must declare it to accept the value.
+</Aside>
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+<Aside type="note">
+  `AzureBicepResourceScope` and `Resource.Scope` are not currently exposed in the TypeScript AppHost APIs, so subscription/tenant deployment scopes for Bicep resources are currently C# only.
+</Aside>
+
+</TabItem>
+</Tabs>
+
 ### Inspect generated Bicep
 
 To see the Bicep that Aspire emits after applying your `ConfigureInfrastructure` callbacks, publish the AppHost and read the files from the output folder:

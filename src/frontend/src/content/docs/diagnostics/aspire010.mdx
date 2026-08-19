@@ -1,0 +1,55 @@
+---
+title: Compiler Warning ASPIRE010
+seoTitle: 'ASPIRE010: Aspire CLI bundle opt-out warning · Aspire'
+description: Learn what causes Aspire compiler warning ASPIRE010 — the AppHost has opted out of the Aspire CLI bundle — and how to enable or suppress it.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> '[ProjectName]' is configured with AspireUseCliBundle=false. Some Aspire features require the Aspire CLI bundle. Set AspireUseCliBundle=true to enable those features, or suppress ASPIRE010 to continue without the bundle. See https://aka.ms/aspire/diagnostics/aspire010 for more information.
+
+This diagnostic warning is reported when an AppHost project has `AspireUseCliBundle` set to `false` (the default). Launching the AppHost directly with `dotnet run` or an IDE continues to work without the Aspire CLI, but features that depend on the CLI bundle — such as resolving DCP and the Aspire Dashboard from the installed Aspire CLI instead of NuGet packages — remain unavailable.
+
+## Example
+
+The following configuration produces `ASPIRE010`:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>false</AspireUseCliBundle>
+</PropertyGroup>
+```
+
+`ASPIRE010` is also reported when `AspireUseCliBundle` isn't set at all, because `false` is the default.
+
+## To correct this warning
+
+Set `AspireUseCliBundle` to `true` to opt in to CLI bundle delegation:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+</PropertyGroup>
+```
+
+When you opt in, an explicit `AspireCliPath` is authoritative. Otherwise, the default `Path` invocation mode selects a compatible `aspire` on `PATH`, with the SDK-paired Aspire CLI package through DNX as a fallback. Setting `AspireCliInvocationMode=Dnx` selects the unversioned package through DNX so a tool manifest can apply, while `DnxPinned` selects the version paired with the AppHost SDK. `AspireCliBundlePath` is a bundle-layout input, not an executable invocation candidate.
+
+An unresolved bundle layout reports [`ASPIRE009`](/diagnostics/aspire009/). [`ASPIRE011`](/diagnostics/aspire011/) is limited to the run preflight when `Dnx` or `DnxPinned` mode can't find `dnx`; it doesn't represent every CLI resolution failure.
+
+If you intend to keep using NuGet-restored orchestration dependencies, suppress `ASPIRE010`:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>false</AspireUseCliBundle>
+  <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+</PropertyGroup>
+```
+
+For more information, see [Use the Aspire CLI bundle for orchestration dependencies](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies).

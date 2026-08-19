@@ -571,7 +571,146 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
             baseSymbol = FindInheritDocSource(symbol);
         }
 
-        return baseSymbol is not null ? ExtractDocumentation(baseSymbol, inheritDepth + 1) : null;
+        if (baseSymbol is null)
+        {
+            return null;
+        }
+
+        var inherited = ExtractDocumentation(baseSymbol, inheritDepth + 1);
+        if (inherited is not null)
+        {
+            SubstituteInheritedTypeParameters(inherited, baseSymbol);
+        }
+
+        return inherited;
+    }
+
+    private static void SubstituteInheritedTypeParameters(
+        CanonicalDocumentation documentation,
+        ISymbol sourceSymbol)
+    {
+        var substitutions = new Dictionary<string, ITypeSymbol>(StringComparer.Ordinal);
+        AddTypeParameterSubstitutions(sourceSymbol.ContainingType, substitutions);
+        if (sourceSymbol is INamedTypeSymbol namedType)
+        {
+            AddTypeParameterSubstitutions(namedType, substitutions);
+        }
+        if (sourceSymbol is IMethodSymbol method)
+        {
+            AddTypeParameterSubstitutions(method, substitutions);
+        }
+
+        if (substitutions.Count == 0)
+        {
+            return;
+        }
+
+        SubstituteDocNodes(documentation.Summary, substitutions);
+        SubstituteDocNodes(documentation.Remarks, substitutions);
+        SubstituteDocNodes(documentation.Returns, substitutions);
+        SubstituteDocNodes(documentation.Value, substitutions);
+        foreach (var nodes in documentation.Parameters?.Values ?? Enumerable.Empty<List<DocNode>>())
+        {
+            SubstituteDocNodes(nodes, substitutions);
+        }
+        foreach (var nodes in documentation.TypeParameters?.Values ?? Enumerable.Empty<List<DocNode>>())
+        {
+            SubstituteDocNodes(nodes, substitutions);
+        }
+        foreach (var exception in documentation.Exceptions ?? [])
+        {
+            SubstituteDocNodes(exception.Description, substitutions);
+        }
+        foreach (var example in documentation.Examples ?? [])
+        {
+            SubstituteDocNodes(example.Description, substitutions);
+        }
+    }
+
+    private static void AddTypeParameterSubstitutions(
+        INamedTypeSymbol? type,
+        Dictionary<string, ITypeSymbol> substitutions)
+    {
+        if (type is null)
+        {
+            return;
+        }
+
+        AddTypeParameterSubstitutions(type.ContainingType, substitutions);
+        AddTypeParameterSubstitutions(
+            type.OriginalDefinition.TypeParameters,
+            type.TypeArguments,
+            substitutions);
+    }
+
+    private static void AddTypeParameterSubstitutions(
+        IMethodSymbol method,
+        Dictionary<string, ITypeSymbol> substitutions)
+    {
+        AddTypeParameterSubstitutions(
+            method.OriginalDefinition.TypeParameters,
+            method.TypeArguments,
+            substitutions);
+    }
+
+    private static void AddTypeParameterSubstitutions(
+        ImmutableArray<ITypeParameterSymbol> parameters,
+        ImmutableArray<ITypeSymbol> arguments,
+        Dictionary<string, ITypeSymbol> substitutions)
+    {
+        for (var index = 0; index < Math.Min(parameters.Length, arguments.Length); index++)
+        {
+            var argument = arguments[index];
+            if (SymbolEqualityComparer.Default.Equals(parameters[index], argument))
+            {
+                continue;
+            }
+
+            substitutions[parameters[index].Name] = argument;
+        }
+    }
+
+    private static void SubstituteDocNodes(
+        List<DocNode>? nodes,
+        IReadOnlyDictionary<string, ITypeSymbol> substitutions)
+    {
+        foreach (var node in nodes ?? [])
+        {
+            if (node.Kind == "typeparamref" &&
+                node.Value is not null &&
+                substitutions.TryGetValue(node.Value, out var argument))
+            {
+                if (argument is ITypeParameterSymbol typeParameter)
+                {
+                    node.Value = typeParameter.Name;
+                }
+                else
+                {
+                    var documentationId = argument.GetDocumentationCommentId();
+                    if (documentationId is not null)
+                    {
+                        node.Kind = "cref";
+                        node.Value = documentationId;
+                        node.Text = null;
+                    }
+                    else
+                    {
+                        node.Kind = "code";
+                        node.Text = argument.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+                        node.Value = null;
+                    }
+                }
+            }
+
+            SubstituteDocNodes(node.Children, substitutions);
+            SubstituteDocNodes(node.Header?.Term, substitutions);
+            SubstituteDocNodes(node.Header?.Description, substitutions);
+            foreach (var item in node.Items ?? [])
+            {
+                SubstituteDocNodes(item.Term, substitutions);
+                SubstituteDocNodes(item.Description, substitutions);
+            }
+        }
     }
 
     /// <summary>

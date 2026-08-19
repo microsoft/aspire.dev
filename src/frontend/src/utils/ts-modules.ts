@@ -49,6 +49,7 @@ export interface TsHandleType extends TsNamedItem {
   kind?: 'handle';
   exposeProperties?: boolean;
   implementedInterfaces?: string[];
+  baseTypeHierarchy?: string[];
   capabilities?: TsFunction[];
 }
 
