@@ -32,12 +32,13 @@ staff engineer would set reviewing their own team's release notes.
 
 - **Title/frontmatter:** `title: "What's new in Aspire N.N"`, a tight SEO
   `description` (headline features, ≤ ~200 chars for OG cards), `sidebar.label:
-  "Aspire N.N"`, `sidebar.order: 0`, and `tableOfContents` min/max heading level `2`
-  (only `##` sections show in the on-page TOC).
-- **Standardized header (new articles only):** a
-  `<Badge text="Released MMMM D, YYYY" variant="note" size="large" />` followed by a
-  GitHub release-tag link (`.../releases/tag/vN.N.0`) with `<Icon name="github" />`.
-  Existing pages are left as-is — do not retrofit.
+  "Aspire N.N"`, `sidebar.order: 0`, `tableOfContents` min/max heading level `2`
+  (only `##` sections show in the on-page TOC), and `publishDate: YYYY-MM-DD`.
+- **Standardized header (automatic — never hand-authored):** the `Released MMMM D,
+  YYYY` badge and the GitHub release-notes link render **centrally** from the page's
+  `publishDate` frontmatter and its slug (`components/starlight/MarkdownContent.astro`
+  + `utils/whats-new.ts`). Just set `publishDate` — never place a `<Badge>` or a
+  release-tag link in the body. Omit `publishDate` and the badge simply doesn't show.
 - **Lede:** 2–4 sentences. Lead with the single biggest win, then name the other
   headline themes. Bold the concrete feature names.
 - **Feedback line:** the standard Discord + GitHub issues line (see template) — keep verbatim.
@@ -69,7 +70,7 @@ These are the specific quality gates critique/validate enforce:
    17.6→18.3), call it out in **"🐳 Default container image updates"** with old → new
    tags. Source of truth: `src/frontend/src/data/container-images.json` — diff prior
    vs new release. We historically under-report these.
-4. **Standardized header** present and correct on new articles (badge + release-tag link).
+4. **`publishDate` set** in frontmatter — the release-date badge + GitHub release-notes link auto-render (no hand-placed header).
 
 ## Language/tech conventions (inherited from doc-writer — quick reference)
 

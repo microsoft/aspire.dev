@@ -10,10 +10,12 @@ and update what already exists instead of duplicating.
 ## Input
 
 - Target release `N.N` (e.g. `13.5`). **Prompt for it** if not supplied.
-- Derived: `SLUG = aspire-N-N`, `VERSION_FULL = N.N.0` (unless told otherwise),
-  `RELEASE_TAG_URL = https://github.com/microsoft/aspire/releases/tag/vN.N.0`.
-  `RELEASE_DATE` may be unknown at init — leave the `{{RELEASE_DATE}}` token for
-  {research}/{polish} to fill.
+- Derived: `SLUG = aspire-N-N`, `VERSION_FULL = N.N.0` (unless told otherwise). The
+  release-date badge and GitHub release-notes link render **automatically** from the
+  page's `publishDate` frontmatter + slug — no token needed for them.
+- `RELEASE_DATE` (→ frontmatter `publishDate: YYYY-MM-DD`) may be unknown at init.
+  If so, **delete the `publishDate:` line** and let {research}/{polish} add it — the
+  badge simply doesn't render until it's set.
 
 ## Actions
 
@@ -25,8 +27,9 @@ and update what already exists instead of duplicating.
    mark it ready here (that's {review}).
 3. **Scaffold the MDX.** Copy `references/whats-new-template.mdx` to
    `src/frontend/src/content/docs/whats-new/{SLUG}.mdx`. Replace the scaffold tokens
-   (`{{VERSION_MAJOR_MINOR}}`, `{{VERSION_FULL}}`, `{{SLUG}}`, `{{RELEASE_DATE}}`,
-   `{{RELEASE_TAG_URL}}`) and delete the template's leading comment block. Keep it
+   (`{{VERSION_MAJOR_MINOR}}`, `{{VERSION_FULL}}`, `{{SLUG}}`, and `{{RELEASE_DATE}}`
+   → `publishDate`, or drop that line if the date is unknown) and delete the template's
+   leading comment block. Keep it
    **structure only** — placeholders and `TODO(...)` markers, no real prose. Preserve
    the **content-standards taxonomy**: Deployment and Integrations **separate**, plus
    dedicated **"New integrations"** and **"Default container image updates"** sections.

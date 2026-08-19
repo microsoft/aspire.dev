@@ -15,7 +15,7 @@ ingestion once content has settled.
 - Finalize **contributor thanks** (`@handle` + one-line note per merged community PR).
 - **SEO:** tighten `title`/`description` frontmatter; add descriptive `alt` text to
   every image.
-- Fill the standardized header's `Released MMMM D, YYYY` badge if it was still pending.
+- Set the `publishDate` frontmatter (ISO `YYYY-MM-DD`) if it was still pending — the `Released MMMM D, YYYY` badge auto-renders from it.
 
 ## CI triage
 

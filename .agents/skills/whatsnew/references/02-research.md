@@ -30,8 +30,9 @@ dossier (scratch on the branch / session workspace) — **not** shipped prose.
 4. **Default container image tag bumps.** Diff `container-images.json`; list every
    default image whose **tag** changed (old → new) with any data-volume/migration
    caveat. → "🐳 Default container image updates".
-5. **Header facts.** Record the **release date** (`Released MMMM D, YYYY`) and the
-   release-tag URL for the standardized header.
+5. **Release date.** Record the **release date** → the page's `publishDate`
+   frontmatter (the badge + GitHub release-notes link then render automatically; the
+   release-tag URL is derived from the slug, so there's nothing to hand-author).
 6. **Edges.** Note preview-only/experimental packages, Community-Toolkit changes,
    and **breaking changes** (what changed, who's affected, remediation).
 
@@ -44,7 +45,7 @@ A categorized dossier (scratch, on branch — not shipped) with, per change:
 - Source PR link + contributor handle(s).
 - `LearnMore` target path, or explicit "no target yet".
 - New-integration / image-tag-bump / breaking-change flags as applicable.
-- Release date + release-tag URL for the header.
+- Release date (→ frontmatter `publishDate`).
 
 ## Skills orchestrated
 
@@ -56,4 +57,4 @@ A categorized dossier (scratch, on branch — not shipped) with, per change:
 - Every shipped change has a dossier entry with a source link, an impact note, and a
   `LearnMore` target (or explicit "none yet").
 - New integrations, image-tag bumps, and breaking changes are each explicitly listed.
-- Release date + release-tag URL captured.
+- Release date captured (for `publishDate`).

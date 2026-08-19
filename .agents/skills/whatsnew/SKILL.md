@@ -35,7 +35,7 @@ infer from context — e.g. a fresh release with no page → `draft`).
 ## Supporting references
 
 - [`whats-new-template.mdx`](./references/whats-new-template.mdx) — structure-only
-  skeleton the `draft` phase copies (with scaffold tokens + the standardized header +
+  skeleton the `draft` phase copies (scaffold tokens, `publishDate` frontmatter, and
   the mandated section taxonomy).
 - [`writing-guidelines.md`](./references/writing-guidelines.md) — humanized voice +
   the maintainer content standards. Defers to `doc-writer` for canonical style.
@@ -54,8 +54,8 @@ infer from context — e.g. a fresh release with no page → `draft`).
 - **Judicious `<Aside>`** — a spotlight, not a floodlight. Don't burn the reader's eyes.
 - **Content standards:** Deployment and Integrations are **separate** sections; a
   distinct **"New integrations"** section for brand-new ones; a **"Default container
-  image updates"** section for tag bumps; the standardized header (release-date badge +
-  release-tag link) on new articles only.
+  image updates"** section for tag bumps. The release-date badge + GitHub release-notes
+  link render **automatically** from `publishDate` + slug — never hand-place them.
 
 ### Safety / mechanics
 - **Never run `pnpm build` locally** — validate build-readiness by inspection.

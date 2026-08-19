@@ -27,7 +27,7 @@ actionable, severity-ranked findings report. **Makes no edits** — {polish} act
 - Emoji section headings correct; `####` subsections used where appropriate.
 - `<Aside>` used **judiciously** (not eye-burning); breaking-changes caution present.
 - C#/TypeScript **tab parity** (`syncKey='aspire-lang'`) wherever a feature spans AppHost languages.
-- Standardized header present: `Released MMMM D, YYYY` badge + release-tag link.
+- `publishDate` frontmatter set (the `Released MMMM D, YYYY` badge + GitHub release-notes link auto-render; no hand-placed header).
 
 **Content standards (mandated)**
 - Deployment and Integrations are **separate** (not over-grouped).
