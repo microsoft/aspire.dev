@@ -51,6 +51,17 @@ During local development on a trusted machine, you might allow anonymous access 
 
 Both settings disable dashboard authentication and have the same security risks.
 
+:::note[Restrict allowed hosts]
+When anonymous access is enabled, consider [configuring host filtering](https://learn.microsoft.com/aspnet/core/fundamentals/servers/kestrel/host-filtering) by setting `AllowedHosts` to the host names used to access the dashboard. Browser token authentication uses a host-scoped authentication cookie, which helps prevent an attacker-controlled host name from accessing dashboard responses in a DNS rebinding attack. Anonymous access removes this protection, so restricting accepted `Host` headers provides additional hardening.
+
+For example, provide a semicolon-delimited list of host names without port numbers:
+
+```bash title="Aspire CLI"
+aspire dashboard run --allow-anonymous --AllowedHosts='localhost;dashboard.example.com'
+```
+
+:::
+
 :::danger
 Anyone who can reach an anonymously accessible dashboard can view potentially sensitive resource and telemetry data without authentication. Untrusted apps can also send telemetry to an unsecured OTLP endpoint. Only allow anonymous access in trusted local development environments, and don't expose an anonymously accessible dashboard or its endpoints to an untrusted network.
 :::
