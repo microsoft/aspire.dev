@@ -938,19 +938,26 @@ const result = await interactionService.promptInput(
   { primaryButtonText: 'Upload' }
 );
 
-if (result.canceled) {
-  return { success: false, message: 'Canceled' };
-}
+try {
+  if (result.canceled) {
+    return { success: false, message: 'Canceled' };
+  }
 
-const files = result.input?.files ?? [];
-if (files.length === 0) {
-  return { success: false, message: 'No file uploaded' };
-}
+  const files = result.input?.files ?? [];
+  if (files.length === 0) {
+    return { success: false, message: 'No file uploaded' };
+  }
 
-const file = files[0];
-// file.name - original filename
-// file.filePath - path to uploaded file on disk
+  const file = files[0];
+  // file.name - original filename
+  // file.filePath - path to uploaded file on disk
+} finally {
+  // Delete the uploaded temporary files from the AppHost.
+  await fileInput.releaseFiles();
+}
 ```
+
+Call `releaseFiles()` after the uploaded files have been processed to delete the temporary files on the AppHost. The call is idempotent, so a `finally` block is a good place for it. Files that are never released are deleted when the AppHost shuts down.
 
 </TabItem>
 </Tabs>
