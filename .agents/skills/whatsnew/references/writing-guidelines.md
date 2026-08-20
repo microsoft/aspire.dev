@@ -53,13 +53,17 @@ staff engineer would set reviewing their own team's release notes.
 - **Section headings** are emoji-prefixed `##` (see taxonomy below). Use `####`
   subsections within a section (e.g. one per breaking change or per new integration).
 - **Upgrade section** comes first after the lede: `## 🆙 Upgrade to Aspire N.N` with a
-  `<span id="upgrade-to-aspire-N-N">` anchor, the breaking-changes caution `<Aside>`,
-  and `<Steps>` for `aspire update --self` / `aspire update`.
+  `<span id="upgrade-to-aspire-N-N">` anchor and `<Steps>` for `aspire update --self` /
+  `aspire update`. Include the breaking-changes caution `<Aside>` **only when the
+  release actually has breaking changes** (omit it otherwise — see below).
 - **Bug fixes** section links to the GitHub release tag rather than re-listing fixes.
 - **Community contributions** thanks contributors by `@handle` with a one-line note
   on what each shipped. Never omit credit for a merged community PR.
-- **Breaking changes** is the final `##` section, with a `<span id="breaking-changes">`
-  anchor and one `####` per change: what changed, who's affected, exact remediation.
+- **Breaking changes (conditional).** When the release has them, this is the final
+  `##` section, with a `<span id="breaking-changes">` anchor and one `####` per change:
+  what changed, who's affected, exact remediation. **Not every release ships breaking
+  changes** — when there are none, omit both this section *and* the upgrade caution
+  `<Aside>` (and any breaking-changes intro bullet). Never ship an empty section.
 
 ## Content standards (maintainer-mandated)
 
@@ -70,7 +74,11 @@ These are the specific quality gates critique/validate enforce:
    sections.
 2. **Call out brand-new integrations distinctly.** New integrations go in a dedicated
    **"✨ New integrations"** section, separate from **"📦 Integration updates"**
-   (changes to existing integrations). New integrations must not be buried.
+   (changes to existing integrations). New integrations must not be buried. **Scope:
+   first-party `microsoft/aspire` integrations only** — **Community Toolkit**
+   (`CommunityToolkit/Aspire`) integrations ship on their own cadence with their own
+   release notes, so don't list them here. Mention the Toolkit only when a core
+   integration migrates to/from it or is deprecated in favor of it.
 3. **Highlight default container image tag bumps.** When a hosting integration's
    default container image **tag** bumps (e.g. RabbitMQ 4.2→4.3, PostgreSQL
    17.6→18.3), call it out in **"🐳 Default container image updates"** with old → new

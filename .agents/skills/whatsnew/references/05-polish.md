@@ -2,7 +2,8 @@
 
 The one phase that **applies edits**. Turn a validated draft into a finished,
 ship-ready article; triage CI; ping diagnostics authors; and run the automated data
-ingestion once content has settled.
+ingestion once content has settled — then **re-validate**, because every edit here
+lands *after* the `{validate}` gate and must not ship unchecked.
 
 ## Editorial (apply edits)
 
@@ -52,9 +53,25 @@ Once content has settled, regenerate the generated data from the `release/{N.N}`
 - Re-reconcile the image-tag and new/updated integration sections against the
   regenerated data, then commit.
 
+## Re-validate (mandatory gate)
+
+Everything above edits content **after** the `{validate}` gate — prose, frontmatter,
+regenerated data, reconciled sections — so those edits must be re-checked before
+handoff. **Re-run [`{validate}`](./04-validate.md)** on the changed article and loop
+`polish → validate` until it converges clean:
+
+- `doc-pr-reviewer` surfaces **no** new factual findings on the edited prose.
+- `twoslash-validator` passes on any changed/regenerated `twoslash` blocks.
+- MDX/frontmatter still valid; all links/assets still resolve; sidebar/banner/version
+  wiring intact.
+
+`{polish}` is **not done** until this final `{validate}` pass is green (`{review}`
+re-confirms it).
+
 ## Skills orchestrated
 
-- `doc-writer` (voice) · `update-integrations` · `update-samples` · `container-images`.
+- `doc-writer` (voice) · `update-integrations` · `update-samples` · `container-images`
+  · `doc-pr-reviewer` / `twoslash-validator` (final re-validate gate).
 
 ## Exit criteria
 
@@ -62,3 +79,5 @@ Once content has settled, regenerate the generated data from the `release/{N.N}`
 - Generated data regenerated and committed; the three integration/image sections
   reconciled against it.
 - Diagnostics-author `@mentions` posted.
+- A final `{validate}` pass runs **after** all polish edits and converges clean — no
+  polish edit bypasses the validation gate.

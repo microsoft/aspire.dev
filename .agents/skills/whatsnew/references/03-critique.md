@@ -5,7 +5,7 @@ actionable, severity-ranked findings report. **Makes no edits** — {polish} act
 
 ## Inputs
 
-- The scaffolded/in-progress `whats-new/aspire-N-N.mdx`.
+- The **draft** `whats-new/aspire-N-N.mdx` (authored in {research} from the dossier).
 - The {research} dossier.
 - [`writing-guidelines.md`](./writing-guidelines.md) and the `doc-writer` skill (style/tone/voice/tech-stack).
 
@@ -25,13 +25,17 @@ actionable, severity-ranked findings report. **Makes no edits** — {polish} act
 **What's-new style adherence**
 - "This release introduces" bullets map **1:1** to the `##` sections, same order.
 - Emoji section headings correct; `####` subsections used where appropriate.
-- `<Aside>` used **judiciously** (not eye-burning); breaking-changes caution present.
+- `<Aside>` used **judiciously** (not eye-burning). Breaking-changes caution present
+  **only** when the release has breaking changes — when it has none, both the caution
+  *and* the "⚠️ Breaking changes" section are omitted (no empty section left behind).
 - C#/TypeScript **tab parity** (`syncKey='aspire-lang'`) wherever a feature spans AppHost languages.
 - `publishDate` frontmatter set (the `Released MMMM D, YYYY` badge + GitHub release-notes link auto-render; no hand-placed header).
 
 **Content standards (mandated)**
 - Deployment and Integrations are **separate** (not over-grouped).
-- A distinct **"✨ New integrations"** section exists when new integrations shipped.
+- A distinct **"✨ New integrations"** section exists when new **first-party**
+  integrations shipped. Community Toolkit integrations are **not** listed here — they
+  ship separately with their own release notes.
 - **"🐳 Default container image updates"** lists every tag bump found in research.
 
 **Completeness**
