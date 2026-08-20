@@ -220,7 +220,7 @@ const basicRenderCases: BasicRenderCase[] = [
       'RedisInsight',
       'Companion',
       'ghcr.io',
-      'data-ci-copy',
+      'Copy to clipboard',
       'Source',
     ],
   },
@@ -236,7 +236,7 @@ const basicRenderCases: BasicRenderCase[] = [
       'Container image',
       'Redis Commander',
       'Companion',
-      'Copy ghcr.io/joeferner/redis-commander:latest to clipboard',
+      'data-code="ghcr.io/joeferner/redis-commander:latest"',
     ],
   },
   {
