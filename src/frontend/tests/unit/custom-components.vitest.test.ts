@@ -1330,7 +1330,7 @@ describe('custom Astro component render coverage', () => {
         data: {
           title: 'Aspire',
           hero: {
-            title: 'Model distributed apps in code.',
+            title: 'Compose distributed apps in code.',
             tagline:
               'Model, run, observe, and deploy distributed applications from one code-first control plane.',
             image: {
@@ -1372,7 +1372,7 @@ describe('custom Astro component render coverage', () => {
           title: 'Aspire',
           hero: {
             title: 'Aspire',
-            tagline: 'Model distributed apps in code.',
+            tagline: 'Compose distributed apps in code.',
             image: {
               alt: 'Aspire logo',
               file: heroImage,
@@ -1393,7 +1393,7 @@ describe('custom Astro component render coverage', () => {
     );
 
     expect(html).toContain('home-hero-story');
-    expect(html).toContain('Model distributed apps in');
+    expect(html).toContain('Compose distributed apps in');
     expect(html).toContain('code.');
     expect(html).toContain('home-hero-product');
     expect(html).toContain('The AppHost defines how your resources connect.');

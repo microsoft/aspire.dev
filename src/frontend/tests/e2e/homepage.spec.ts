@@ -11,8 +11,25 @@ test.beforeEach(async ({ page }) => {
 test('renders a complete semantic landing page without horizontal overflow', async ({ page }) => {
   await expect(page.locator('main h1')).toHaveCount(1);
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Model distributed apps in code.' })
+    page.getByRole('heading', { level: 1, name: 'Compose distributed apps in code.' })
   ).toBeVisible();
+  const heroAccent = page.locator('main h1 > span.accent');
+  await expect(heroAccent).toHaveCount(1);
+  await expect(heroAccent).toHaveText('code.');
+  const heroAccentColor = await heroAccent.evaluate((element) => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--home-purple)';
+    element.append(probe);
+    const purple = getComputedStyle(probe).color;
+    probe.remove();
+    return {
+      accent: getComputedStyle(element).color,
+      heading: element.parentElement ? getComputedStyle(element.parentElement).color : null,
+      purple,
+    };
+  });
+  expect(heroAccentColor.accent).toBe(heroAccentColor.purple);
+  expect(heroAccentColor.accent).not.toBe(heroAccentColor.heading);
   await expect(
     page.getByText(
       'Aspire is an agent-ready, code-first tool for composing, debugging, and deploying distributed applications.'
