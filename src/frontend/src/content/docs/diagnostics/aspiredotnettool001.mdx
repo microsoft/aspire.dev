@@ -21,9 +21,13 @@ This diagnostic warning is reported when using experimental .NET tool resource A
 - `DotnetToolAnnotation`
 - `AddDotnetTool` extension methods
 
+:::note[Which ID do I suppress?]
+Aspire currently emits this diagnostic as `ASPIREDOTNETTOOL` (without the numeric suffix). `ASPIREDOTNETTOOL001` is the canonical identifier that aligns with every other `ASPIRE*` diagnostic and will be emitted in a future release. Until then, suppress the `ASPIREDOTNETTOOL` ID that appears in your build output. The examples below suppress both IDs so they keep working across the change.
+:::
+
 ## Example
 
-The following code generates `ASPIREDOTNETTOOL001`:
+The following code generates `ASPIREDOTNETTOOL` (canonically `ASPIREDOTNETTOOL001`):
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -41,6 +45,7 @@ Suppress the warning with one of the following methods:
 
   ```ini title=".editorconfig"
   [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREDOTNETTOOL.severity = none
   dotnet_diagnostic.ASPIREDOTNETTOOL001.severity = none
   ```
 
@@ -50,16 +55,16 @@ Suppress the warning with one of the following methods:
 
   ```xml title="C# project file"
   <PropertyGroup>
-      <NoWarn>$(NoWarn);ASPIREDOTNETTOOL001</NoWarn>
+      <NoWarn>$(NoWarn);ASPIREDOTNETTOOL;ASPIREDOTNETTOOL001</NoWarn>
   </PropertyGroup>
   ```
 
-- Suppress in code with the `#pragma warning disable ASPIREDOTNETTOOL001` directive:
+- Suppress in code with the `#pragma warning disable` directive:
 
   ```csharp title="Suppressing the warning"
-  #pragma warning disable ASPIREDOTNETTOOL001
+  #pragma warning disable ASPIREDOTNETTOOL, ASPIREDOTNETTOOL001
   var tool = builder.AddDotnetTool("my-tool", "dotnet-tool-package");
-  #pragma warning restore ASPIREDOTNETTOOL001
+  #pragma warning restore ASPIREDOTNETTOOL, ASPIREDOTNETTOOL001
   ```
 
 ## See also
