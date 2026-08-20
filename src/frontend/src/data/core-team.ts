@@ -8,9 +8,10 @@
  * maintained by hand.
  *
  * Members listed here are intentionally excluded from the generated per-release
- * "Special thanks" list so they are credited once, in the roster. Keep the
- * roster current as membership changes, and set a member's `social` link to
- * override the default GitHub profile link.
+ * "Special thanks" list so they are credited once, in the roster. Entries are
+ * ordered alphabetically by display name; keep the roster current and sorted as
+ * membership changes, and set a member's `social` link to override the default
+ * GitHub profile link.
  *
  * For each member:
  *  - `handle` is the GitHub login. The avatar is derived as
@@ -37,20 +38,20 @@ export interface CoreTeamMember {
 }
 
 export const coreTeam: CoreTeamMember[] = [
-  { handle: 'davidfowl', name: 'David Fowler' },
-  { handle: 'DamianEdwards', name: 'Damian Edwards' },
-  { handle: 'mitchdenny', name: 'Mitch Denny' },
-  { handle: 'eerhardt', name: 'Eric Erhardt' },
-  { handle: 'ellahathaway', name: 'Ella Hathaway' },
-  { handle: 'joperezr', name: 'José Pérez' },
-  { handle: 'JamesNK', name: 'James Newton-King' },
-  { handle: 'sebastienros', name: 'Sébastien Ros' },
-  { handle: 'karolz-ms', name: 'Karol Zadora-Przylecki' },
-  { handle: 'radical', name: 'Ankit Jain' },
   { handle: 'adamint', name: 'Adam Ratzman' },
+  { handle: 'radical', name: 'Ankit Jain' },
+  { handle: 'DamianEdwards', name: 'Damian Edwards' },
+  { handle: 'davidfowl', name: 'David Fowler' },
   { handle: 'danegsta', name: 'David Negstad' },
   { handle: 'IEvangelist', name: 'David Pine' },
+  { handle: 'ellahathaway', name: 'Ella Hathaway' },
+  { handle: 'eerhardt', name: 'Eric Erhardt' },
+  { handle: 'JamesNK', name: 'James Newton-King' },
+  { handle: 'joperezr', name: 'José Pérez' },
+  { handle: 'karolz-ms', name: 'Karol Zadora-Przylecki' },
   { handle: 'maddymontaquila', name: 'Maddy Montaquila' },
+  { handle: 'mitchdenny', name: 'Mitch Denny' },
+  { handle: 'sebastienros', name: 'Sébastien Ros' },
 ];
 
 /** Lower-cased core team handles, for case-insensitive de-duplication. */
