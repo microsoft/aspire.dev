@@ -632,8 +632,20 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspireexport016',
             },
             {
+              label: 'ASPIREACANAMING001',
+              link: '/diagnostics/aspireacanaming001',
+            },
+            {
+              label: 'ASPIREBLAZOR001',
+              link: '/diagnostics/aspireblazor001',
+            },
+            {
               label: 'ASPIRECERTIFICATES001',
               link: '/diagnostics/aspirecertificates001',
+            },
+            {
+              label: 'ASPIRECOMMAND001',
+              link: '/diagnostics/aspirecommand001',
             },
             {
               label: 'ASPIRECOMPUTE002',
@@ -654,6 +666,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREDOCKERFILEBUILDER001',
               link: '/diagnostics/aspiredockerfilebuilder001',
+            },
+            {
+              label: 'ASPIREDOTNETPROJECT001',
+              link: '/diagnostics/aspiredotnetproject001',
             },
             {
               label: 'ASPIREDOTNETTOOL',
@@ -702,6 +718,26 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREPROJECTS001',
               link: '/diagnostics/aspireprojects001',
+            },
+            {
+              label: 'ASPIRERADIUS003',
+              link: '/diagnostics/aspireradius003',
+            },
+            {
+              label: 'ASPIRERADIUS004',
+              link: '/diagnostics/aspireradius004',
+            },
+            {
+              label: 'ASPIRERADIUS006',
+              link: '/diagnostics/aspireradius006',
+            },
+            {
+              label: 'ASPIRERADIUS057',
+              link: '/diagnostics/aspireradius057',
+            },
+            {
+              label: 'ASPIRETERMINAL001',
+              link: '/diagnostics/aspireterminal001',
             },
             {
               label: 'ASPIREUSERSECRETS001',
