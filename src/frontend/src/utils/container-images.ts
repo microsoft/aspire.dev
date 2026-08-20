@@ -1,4 +1,5 @@
 import containerImagesData from '@data/container-images.json';
+import integrationDocsData from '@data/integration-docs.json';
 
 /**
  * A single container image reference extracted from the `microsoft/aspire`
@@ -114,4 +115,114 @@ export function getRegistryLabel(registry: string): string {
     default:
       return registry;
   }
+}
+
+/** `{ match, href }` entry from the generated integration-docs data file. */
+interface IntegrationDoc {
+  match: string;
+  href: string;
+}
+
+const integrationHrefByPackage = new Map(
+  (integrationDocsData as IntegrationDoc[]).map((doc) => [doc.match, doc.href]),
+);
+
+/**
+ * Docs URL for the hosting integration that ships an image, e.g.
+ * `/integrations/databases/postgres/postgres-get-started/`. Returns `null` when
+ * the package has no matching docs entry.
+ */
+export function getIntegrationHref(aspirePackage: string): string | null {
+  return integrationHrefByPackage.get(aspirePackage) ?? null;
+}
+
+// Friendly labels + display order for the catalog's category headings. Keys are
+// derived from each integration's docs href (`/integrations/<key>/...`), with
+// `cloud` deepened to its provider segment (`cloud/azure` -> `azure`).
+const CATEGORY_LABELS: Record<string, string> = {
+  databases: 'Databases',
+  caching: 'Caching',
+  messaging: 'Messaging',
+  observability: 'Observability',
+  security: 'Security',
+  'reverse-proxies': 'Reverse proxies',
+  azure: 'Azure emulators',
+};
+
+const CATEGORY_ORDER = [
+  'databases',
+  'caching',
+  'messaging',
+  'observability',
+  'security',
+  'reverse-proxies',
+  'azure',
+];
+
+function titleCase(key: string): string {
+  return key.replace(
+    /(^|[-\s])(\w)/g,
+    (_match: string, sep: string, ch: string) => `${sep === '-' ? ' ' : sep}${ch.toUpperCase()}`,
+  );
+}
+
+/**
+ * Derive a catalog category key for a hosting package from the site's own
+ * information architecture (its docs href), so new integrations are categorized
+ * automatically without a hand-maintained package map.
+ */
+function categoryKeyFor(aspirePackage: string): string {
+  const href = integrationHrefByPackage.get(aspirePackage);
+  if (!href) return 'other';
+  const segments = href.split('/').filter(Boolean);
+  const start = segments.indexOf('integrations');
+  if (start === -1) return 'other';
+  let key = segments[start + 1];
+  // Cloud integrations nest under a provider (`cloud/azure/...`); group by the
+  // provider so the heading reads "Azure emulators" rather than "Cloud".
+  if (key === 'cloud' && segments[start + 2]) {
+    key = segments[start + 2];
+  }
+  return key ?? 'other';
+}
+
+/** A category group of container images for the reference catalog. */
+export interface ContainerImageCategory {
+  /** Stable key, usable as a heading anchor id (e.g. `databases`). */
+  key: string;
+  /** Human-friendly heading (e.g. `Databases`). */
+  label: string;
+  /** Images in this category, preserving the data file's package/primary order. */
+  images: ContainerImage[];
+}
+
+/**
+ * Group every container image into ordered categories for the reference catalog.
+ * Categories follow the site's integration IA and a curated display order;
+ * unknown categories are appended alphabetically with a title-cased label.
+ */
+export function getContainerImageCatalog(): ContainerImageCategory[] {
+  const groups = new Map<string, ContainerImage[]>();
+  for (const image of containerImages) {
+    const key = categoryKeyFor(image.aspirePackage);
+    const bucket = groups.get(key);
+    if (bucket) {
+      bucket.push(image);
+    } else {
+      groups.set(key, [image]);
+    }
+  }
+
+  const orderIndex = (key: string) => {
+    const index = CATEGORY_ORDER.indexOf(key);
+    return index === -1 ? CATEGORY_ORDER.length : index;
+  };
+
+  return [...groups.entries()]
+    .sort(([a], [b]) => orderIndex(a) - orderIndex(b) || a.localeCompare(b))
+    .map(([key, images]) => ({
+      key,
+      label: CATEGORY_LABELS[key] ?? titleCase(key),
+      images,
+    }));
 }
