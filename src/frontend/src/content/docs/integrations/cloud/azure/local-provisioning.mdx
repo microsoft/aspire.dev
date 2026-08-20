@@ -270,6 +270,27 @@ AppHost/
 Program.cs
 ```
 
+## Change a resource's Azure location
+
+Locally provisioned Azure resources expose a `change-location` dev-time resource command that lets you move an existing resource to a different Azure region without manually deleting it first.
+
+Some Azure resource types are location-immutable — moving them to a new region requires Aspire to delete the existing live resource and recreate it in the new location. Deleting the resource this way can permanently destroy any data it holds, so Aspire requires an explicit acknowledgement before it deletes a live Azure resource as part of a location change:
+
+- **Dashboard**: The change-location dialog shows an **Allow deletion and possible permanent data loss** checkbox. You must select it before Aspire deletes and recreates the resource.
+- **Aspire CLI**: Pass `--confirm-delete` to the `change-location` resource command:
+
+  ```bash title="Aspire CLI"
+  aspire resource my-storage change-location --location westus2 --confirm-delete true
+  ```
+
+- **MCP**: Set `arguments.confirmDelete` to `true` when invoking the `change-location` command.
+
+If the acknowledgement is missing, Aspire fails the command before deleting the resource, persisting any location override, resetting provisioning state, or reprovisioning.
+
+<Aside type="note">
+Aspire doesn't require this acknowledgement when the resource's current location already matches the requested location, when the resource has no cached Azure resource ID (nothing to delete), or when the cached resource is already absent from Azure.
+</Aside>
+
 ## Limitations
 
 Local provisioning has some limitations:
@@ -343,3 +364,4 @@ Enable detailed logging:
 - [Azure integrations overview](/integrations/cloud/azure/overview/)
 - [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
 - [Deploy to Azure Container Apps](/get-started/deploy-first-app/)
+- [`aspire resource` command reference](/reference/cli/commands/aspire-resource/)

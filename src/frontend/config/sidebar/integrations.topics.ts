@@ -1367,6 +1367,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
+          label: '.NET / C#',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/dotnet/dotnet-get-started',
+            },
+            {
+              label: 'Set up .NET / C# apps in the AppHost',
+              slug: 'integrations/frameworks/dotnet/dotnet-host',
+            },
+          ],
+        },
+        {
           label: 'Go',
           collapsed: true,
           items: [

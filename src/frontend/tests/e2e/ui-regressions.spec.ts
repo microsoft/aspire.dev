@@ -411,6 +411,15 @@ test('language selector stays open while its listbox is scrolled', async ({ page
   await expect(languageTrigger).toHaveAttribute('aria-expanded', 'true');
   await expect(languageListbox).toBeVisible();
 
+  // Regression: on small touch viewports the tap that scrolls the footer control
+  // into view can deliver a window `scroll` event a frame after the menu opens.
+  // Because it reports the same scroll offset the menu was opened at, it must be
+  // ignored instead of dismissing the freshly opened menu (only a real page
+  // scroll, below, should close it).
+  await page.evaluate(() => window.dispatchEvent(new Event('scroll')));
+  await expect(languageTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(languageListbox).toBeVisible();
+
   const lastOption = options.last();
   await expect(lastOption).toBeInViewport();
   await lastOption.hover();
@@ -429,6 +438,36 @@ test('language selector stays open while its listbox is scrolled', async ({ page
 
   // Scrolling the page (not the listbox) still dismisses the menu as intended.
   await page.evaluate(() => window.scrollBy(0, -8));
+  await expect(languageTrigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(languageListbox).toBeHidden();
+});
+
+test('language selector closes when an ancestor element scrolls', async ({ page }) => {
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+
+  const languageTrigger = page.getByRole('combobox', { name: 'Select language' });
+  const languageListbox = page.locator('#footer-language-select-listbox');
+
+  await languageTrigger.click();
+  await expect(languageListbox).toBeVisible();
+
+  // Regression: the open-time guard that ignores a stale, same-offset scroll keys
+  // off window.scrollX/Y, which do NOT move when an ancestor *element* (e.g. a
+  // scrollable modal body) scrolls. That scroll still slides the trigger out from
+  // under the position:fixed listbox, so an element scroll must always dismiss the
+  // menu — only page/window scrolls are eligible for the stale-offset guard.
+  const dispatched = await page.evaluate(() => {
+    const listbox = document.getElementById('footer-language-select-listbox');
+    const root = listbox?.closest('[data-custom-select]');
+    const ancestor = root?.parentElement;
+    if (!ancestor || ancestor === document.body || ancestor === document.documentElement) {
+      return false;
+    }
+    ancestor.dispatchEvent(new Event('scroll'));
+    return true;
+  });
+  expect(dispatched).toBe(true);
   await expect(languageTrigger).toHaveAttribute('aria-expanded', 'false');
   await expect(languageListbox).toBeHidden();
 });

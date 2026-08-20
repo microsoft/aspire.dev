@@ -619,9 +619,11 @@ To express a parameter, consider the following example code:
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var db = builder.AddSqlServer("sql")
-                .PublishAsConnectionString()
-                .AddDatabase("db");
+// In run mode, add the actual SQL Server resource.
+// In publish mode, use a connection string representing an external SQL Server instance.
+IResourceBuilder<IResourceWithConnectionString> db = builder.ExecutionContext.IsRunMode
+    ? builder.AddSqlServer("sql").AddDatabase("db")
+    : builder.AddConnectionString("db");
 
 var insertionRows = builder.AddParameter("insertionRows");
 
@@ -640,9 +642,13 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const sql = await builder.addSqlServer('sql');
-await sql.publishAsConnectionString();
-const db = await sql.addDatabase('db');
+// In run mode, add the actual SQL Server resource.
+// In publish mode, use a connection string representing an external SQL Server instance.
+const isRunMode = await builder.executionContext.isRunMode();
+
+const db = isRunMode
+    ? (await builder.addSqlServer('sql')).addDatabase('db')
+    : await builder.addConnectionString('db');
 
 const insertionRows = await builder.addParameter('insertionRows');
 
@@ -663,12 +669,11 @@ The following steps are performed:
 
 <Steps>
 
-1. Adds a SQL Server resource named `sql` and publishes it as a connection string.
-2. Adds a database named `db`.
-3. Adds a parameter named `insertionRows`.
-4. Adds a project named `api` and associates it with the `Projects.Parameters_ApiService` project resource type-parameter.
-5. Passes the `insertionRows` parameter to the `api` project.
-6. References the `db` database.
+1. In run mode, adds a SQL Server resource named `sql` and a database named `db`. In publish mode, uses an external connection string named `db`.
+2. Adds a parameter named `insertionRows`.
+3. Adds a project named `api` and associates it with the `Projects.Parameters_ApiService` project resource type-parameter.
+4. Passes the `insertionRows` parameter to the `api` project.
+5. References the `db` database.
 
 </Steps>
 
