@@ -121,6 +121,7 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
   const expectedCompactHeaderOrder = [
     'Aspire',
     'Search',
+    'Watch Aspire live streams',
     'Open cookie preferences dialog',
     'Open install Aspire CLI dialog',
     'Docs',
@@ -172,6 +173,10 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
               const tourTarget = element.dataset.tourTarget;
               if (tourTarget === 'tour-help') {
                 return 'Start site tour';
+              }
+
+              if (tourTarget === 'live-status') {
+                return 'Watch Aspire live streams';
               }
 
               if (tourTarget === 'cookie-preferences') {

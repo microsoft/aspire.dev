@@ -1,0 +1,817 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import LiveSvg from '@assets/icons/live.svg';
+
+/**
+ * Site-global native Document Picture-in-Picture controller.
+ *
+ * The header live icon remains a normal link when we're offline. When we're
+ * live, clicking the icon opens a compact action dialog so visitors can choose
+ * native PiP, the aspire.dev embeds, a provider site, or silence the strobe.
+ * Closing the native PiP window never redirects.
+ */
+---
+
+<div
+  id="aspire-live-source-menu"
+  class="live-source-menu not-content"
+  role="dialog"
+  aria-label="Watch Aspire live"
+  hidden
+>
+  <div class="live-source-menu__header">
+    <div>
+      <p class="live-source-menu__eyebrow">Aspire is live</p>
+      <p class="live-source-menu__label">Choose how to watch</p>
+    </div>
+    <button
+      type="button"
+      class="live-source-menu__close"
+      aria-label="Dismiss live notification"
+      data-live-action="dismiss-close"
+    >
+      <Icon name="close" />
+    </button>
+  </div>
+  <div class="live-source-menu__body">
+    <div class="live-source-menu__group" data-live-pip-group>
+      <p class="live-source-menu__group-label">Picture-in-picture</p>
+      <button type="button" class="live-source-menu__item" data-live-pip-choice="youtube">
+        <Icon name="youtube" />
+        <span>
+          <span class="live-source-menu__name">Open YouTube Picture-in-Picture</span>
+          <span class="live-source-menu__description">Keep watching while browsing docs.</span>
+        </span>
+      </button>
+      <button type="button" class="live-source-menu__item" data-live-pip-choice="twitch">
+        <Icon name="twitch" />
+        <span>
+          <span class="live-source-menu__name">Open Twitch Picture-in-Picture</span>
+          <span class="live-source-menu__description">Keep watching while browsing docs.</span>
+        </span>
+      </button>
+    </div>
+
+    <div class="live-source-menu__group" data-live-site-group>
+      <p class="live-source-menu__group-label">Embedded players</p>
+      <a href="/community/videos/" class="live-source-menu__item" data-live-action="embeds">
+        <LiveSvg />
+        <span>
+          <span class="live-source-menu__name">Open live streams page</span>
+          <span class="live-source-menu__description"
+            >Use the embedded YouTube and Twitch players on aspire.dev.</span
+          >
+        </span>
+      </a>
+    </div>
+
+    <div class="live-source-menu__group" data-live-external-group>
+      <p class="live-source-menu__group-label">Open on platform</p>
+      <a
+        class="live-source-menu__item"
+        data-live-source-link="youtube"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Icon name="youtube" />
+        <span>
+          <span class="live-source-menu__name">Watch on YouTube</span>
+          <span class="live-source-menu__description">Open the stream in a new tab.</span>
+        </span>
+        <Icon name="external-link" class="live-source-menu__external-icon" />
+      </a>
+      <a
+        class="live-source-menu__item"
+        data-live-source-link="twitch"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Icon name="twitch" />
+        <span>
+          <span class="live-source-menu__name">Watch on Twitch</span>
+          <span class="live-source-menu__description">Open the stream in a new tab.</span>
+        </span>
+        <Icon name="external-link" class="live-source-menu__external-icon" />
+      </a>
+    </div>
+  </div>
+  <div class="live-source-menu__footer">
+    <button type="button" class="live-source-menu__dismiss" data-live-action="dismiss">
+      Dismiss notification
+    </button>
+  </div>
+</div>
+
+<script>
+  import {
+    dismissLiveNotification,
+    getCurrent,
+    isLiveNotificationDismissed,
+    subscribe,
+    type LiveSnapshot,
+  } from '@components/live-status.ts';
+
+  type DocumentPictureInPictureApi = {
+    requestWindow(options?: { width?: number; height?: number }): Promise<Window>;
+    window?: Window | null;
+  };
+
+  type LivePipState = {
+    pipWindow: Window | null;
+    activeEmbedKey: string;
+    open: boolean;
+    selectedSource: LiveSource | null;
+  };
+
+  type LiveSource = 'twitch' | 'youtube';
+
+  declare global {
+    interface Window {
+      documentPictureInPicture?: DocumentPictureInPictureApi;
+      __aspireLivePipState?: LivePipState;
+    }
+    interface DocumentEventMap {
+      'aspire:live-pip-change': CustomEvent<{ open: boolean }>;
+    }
+  }
+
+  const DEFAULT_TWITCH_CHANNEL = 'aspiredotdev';
+  const DEFAULT_YOUTUBE_HANDLE = 'aspiredotdev';
+  const DEFAULT_YOUTUBE_CHANNEL_ID = 'UC8Hyt2P1u3KKnBgRf-Iv6_Q';
+  const SOURCE_PICKER_ID = 'aspire-live-source-menu';
+  const VIDEOS_PATH = '/community/videos/';
+  const NARROW_VIEWPORT_QUERY = '(max-width: 799px)';
+
+  let current = getCurrent();
+
+  function getState(): LivePipState {
+    return (window.__aspireLivePipState ??= {
+      pipWindow: null,
+      activeEmbedKey: '',
+      open: false,
+      selectedSource: null,
+    });
+  }
+
+  function getPipWindow(): Window | null {
+    const state = getState();
+    const nativeWindow = window.documentPictureInPicture?.window;
+    if (nativeWindow && !nativeWindow.closed && state.pipWindow !== nativeWindow) {
+      state.pipWindow = nativeWindow;
+    }
+    if (state.pipWindow?.closed) {
+      state.pipWindow = null;
+      state.activeEmbedKey = '';
+      state.open = false;
+      state.selectedSource = null;
+    }
+    return state.pipWindow;
+  }
+
+  function publishPipState(open: boolean): void {
+    const state = getState();
+    if (state.open === open) return;
+    state.open = open;
+    document.dispatchEvent(new CustomEvent('aspire:live-pip-change', { detail: { open } }));
+  }
+
+  function clearPipState(): void {
+    const state = getState();
+    state.pipWindow = null;
+    state.activeEmbedKey = '';
+    state.selectedSource = null;
+    publishPipState(false);
+  }
+
+  function isModifiedClick(evt: MouseEvent): boolean {
+    return (
+      evt.defaultPrevented ||
+      evt.button !== 0 ||
+      evt.altKey ||
+      evt.ctrlKey ||
+      evt.metaKey ||
+      evt.shiftKey
+    );
+  }
+
+  function parentHost(): string {
+    return window.location.hostname || 'localhost';
+  }
+
+  function nativePipAvailable(): boolean {
+    return typeof window.documentPictureInPicture?.requestWindow === 'function';
+  }
+
+  function getLiveSources(snapshot: LiveSnapshot): LiveSource[] {
+    const sources: LiveSource[] = [];
+    if (snapshot.youtube.live) sources.push('youtube');
+    if (snapshot.twitch.live) sources.push('twitch');
+    return sources;
+  }
+
+  function sourceIsLive(snapshot: LiveSnapshot, source: LiveSource | null): source is LiveSource {
+    return source === 'youtube'
+      ? snapshot.youtube.live
+      : source === 'twitch'
+        ? snapshot.twitch.live
+        : false;
+  }
+
+  function chooseSource(
+    snapshot: LiveSnapshot,
+    requestedSource = getState().selectedSource
+  ): LiveSource | null {
+    if (sourceIsLive(snapshot, requestedSource)) {
+      return requestedSource;
+    }
+
+    const liveSources = getLiveSources(snapshot);
+    if (liveSources.length === 1) {
+      return liveSources[0];
+    }
+
+    if (sourceIsLive(snapshot, snapshot.primarySource)) {
+      return snapshot.primarySource;
+    }
+
+    return liveSources[0] ?? null;
+  }
+
+  function sourceUrl(snapshot: LiveSnapshot, source: LiveSource): string {
+    if (source === 'youtube') {
+      return snapshot.youtube.videoId
+        ? `https://www.youtube.com/watch?v=${encodeURIComponent(snapshot.youtube.videoId)}`
+        : `https://www.youtube.com/@${DEFAULT_YOUTUBE_HANDLE}/live`;
+    }
+
+    return `https://www.twitch.tv/${encodeURIComponent(snapshot.twitch.channel ?? DEFAULT_TWITCH_CHANNEL)}`;
+  }
+
+  function buildEmbed(
+    doc: Document,
+    snapshot: LiveSnapshot,
+    source: LiveSource | null
+  ): { key: string; iframe: HTMLIFrameElement | null; source: LiveSource | null } {
+    if (source === 'twitch' && snapshot.twitch.live) {
+      const channel = snapshot.twitch.channel ?? DEFAULT_TWITCH_CHANNEL;
+      const iframe = doc.createElement('iframe');
+      iframe.src = `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${encodeURIComponent(parentHost())}&autoplay=true&muted=true`;
+      iframe.allow = 'autoplay; fullscreen';
+      iframe.setAttribute('aria-label', `Twitch live stream from ${channel}`);
+      return { key: `twitch:${channel}`, iframe, source };
+    }
+
+    if (source === 'youtube' && snapshot.youtube.live) {
+      const id = snapshot.youtube.videoId;
+      const iframe = doc.createElement('iframe');
+      iframe.src = id
+        ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&mute=1`
+        : `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(DEFAULT_YOUTUBE_CHANNEL_ID)}&autoplay=1&mute=1`;
+      iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+      iframe.setAttribute('aria-label', 'YouTube live stream');
+      return {
+        key: id ? `youtube:${id}` : `youtube-channel:${DEFAULT_YOUTUBE_CHANNEL_ID}`,
+        iframe,
+        source,
+      };
+    }
+
+    return { key: '', iframe: null, source: null };
+  }
+
+  function renderPip(snapshot: LiveSnapshot): void {
+    const pipWindow = getPipWindow();
+    if (!pipWindow) {
+      publishPipState(false);
+      return;
+    }
+
+    if (!snapshot.isLive) {
+      pipWindow.close();
+      clearPipState();
+      return;
+    }
+
+    const doc = pipWindow.document;
+    const { key, iframe, source } = buildEmbed(doc, snapshot, chooseSource(snapshot));
+    if (!iframe || !key) return;
+    const state = getState();
+    if (state.activeEmbedKey === key) {
+      state.selectedSource = source;
+      publishPipState(true);
+      return;
+    }
+
+    doc.title = 'Aspire live stream';
+    doc.head.replaceChildren();
+
+    const style = doc.createElement('style');
+    style.textContent = `
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+      }
+      iframe {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+    `;
+    doc.head.append(style);
+    doc.body.replaceChildren(iframe);
+    state.activeEmbedKey = key;
+    state.selectedSource = source;
+    publishPipState(true);
+  }
+
+  async function openNativePip(source?: LiveSource): Promise<boolean> {
+    if (!current.isLive || !nativePipAvailable()) return false;
+
+    const selectedSource = chooseSource(current, source ?? null);
+    if (!selectedSource) return false;
+    const state = getState();
+    state.selectedSource = selectedSource;
+
+    const existingPipWindow = getPipWindow();
+    if (existingPipWindow) {
+      existingPipWindow.focus();
+      renderPip(current);
+      publishPipState(true);
+      return true;
+    }
+
+    const pipWindow = await window.documentPictureInPicture!.requestWindow({
+      width: 480,
+      height: 270,
+    });
+    state.pipWindow = pipWindow;
+    state.activeEmbedKey = '';
+    pipWindow.addEventListener(
+      'pagehide',
+      () => {
+        clearPipState();
+      },
+      { once: true }
+    );
+    renderPip(current);
+    return true;
+  }
+
+  function getSourcePicker(): HTMLElement | null {
+    return document.getElementById(SOURCE_PICKER_ID);
+  }
+
+  function closeSourcePicker(): void {
+    const picker = getSourcePicker();
+    if (picker) {
+      picker.hidden = true;
+    }
+    document.querySelectorAll<HTMLElement>('.live-btn').forEach((btn) => {
+      btn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function syncSourcePickerControls(): void {
+    const picker = getSourcePicker();
+    if (!picker) return;
+
+    if (!current.isLive) {
+      closeSourcePicker();
+      return;
+    }
+
+    const liveSources = getLiveSources(current);
+    const pipGroup = picker.querySelector<HTMLElement>('[data-live-pip-group]');
+    const showPipChoices = nativePipAvailable() && liveSources.length > 0;
+    if (pipGroup) {
+      pipGroup.hidden = !showPipChoices;
+    }
+
+    picker.querySelectorAll<HTMLButtonElement>('[data-live-pip-choice]').forEach((button) => {
+      const source = button.dataset.livePipChoice as LiveSource | undefined;
+      const live = sourceIsLive(current, source ?? null);
+      button.hidden = !showPipChoices || !live;
+      button.disabled = !showPipChoices || !live;
+    });
+
+    picker.querySelectorAll<HTMLAnchorElement>('[data-live-source-link]').forEach((link) => {
+      const source = link.dataset.liveSourceLink as LiveSource | undefined;
+      const live = sourceIsLive(current, source ?? null);
+      link.hidden = !live;
+      if (live && source) {
+        link.href = sourceUrl(current, source);
+      } else {
+        link.removeAttribute('href');
+      }
+    });
+
+    const dismissButton = picker.querySelector<HTMLButtonElement>('[data-live-action="dismiss"]');
+    if (dismissButton) {
+      const dismissed = isLiveNotificationDismissed(current);
+      dismissButton.textContent = dismissed ? 'Notification dismissed' : 'Dismiss notification';
+      dismissButton.disabled = dismissed;
+    }
+  }
+
+  function positionSourcePicker(anchor: HTMLElement, picker: HTMLElement): void {
+    if (window.matchMedia(NARROW_VIEWPORT_QUERY).matches) {
+      const visualViewport = window.visualViewport;
+      const viewportLeft = visualViewport?.offsetLeft ?? 0;
+      const viewportWidth =
+        visualViewport?.width ?? document.documentElement.clientWidth ?? window.innerWidth;
+      const viewportHeight =
+        visualViewport?.height ?? document.documentElement.clientHeight ?? window.innerHeight;
+      const viewportTop = visualViewport?.offsetTop ?? 0;
+      const viewportRightInset = Math.max(
+        0,
+        window.innerWidth - viewportLeft - viewportWidth
+      );
+      const headerBottom =
+        document.querySelector<HTMLElement>('.header')?.getBoundingClientRect().bottom ??
+        viewportTop;
+      const bottomInset = document.querySelector('astro-dev-toolbar') ? 64 : 0;
+      const top = Math.max(viewportTop, headerBottom);
+      const maxHeight = Math.max(0, viewportTop + viewportHeight - top - bottomInset);
+
+      picker.style.top = `${top}px`;
+      picker.style.right = `${viewportRightInset}px`;
+      picker.style.bottom = 'auto';
+      picker.style.left = `${viewportLeft}px`;
+      picker.style.width = 'auto';
+      picker.style.maxHeight = `${maxHeight}px`;
+      return;
+    }
+
+    const rect = anchor.getBoundingClientRect();
+    const margin = 12;
+    const availableWidth = Math.max(0, window.innerWidth - margin * 2);
+    const availableHeight = Math.max(0, window.innerHeight - margin * 2);
+
+    picker.style.maxHeight = `${availableHeight}px`;
+    picker.style.right = 'auto';
+    picker.style.bottom = 'auto';
+    picker.style.width = '';
+
+    const width = Math.min(picker.offsetWidth || availableWidth, availableWidth);
+    const height = Math.min(picker.offsetHeight || availableHeight, availableHeight);
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - height - margin);
+    const left = Math.min(Math.max(margin, rect.left + rect.width / 2 - width / 2), maxLeft);
+    const top = Math.min(Math.max(margin, rect.bottom + margin), maxTop);
+
+    picker.style.left = `${left}px`;
+    picker.style.top = `${top}px`;
+  }
+
+  function openSourcePicker(anchor: HTMLElement): void {
+    const picker = getSourcePicker();
+    if (!picker) return;
+
+    if (!picker.hidden && anchor.getAttribute('aria-expanded') === 'true') {
+      closeSourcePicker();
+      return;
+    }
+
+    syncSourcePickerControls();
+    picker.hidden = false;
+    positionSourcePicker(anchor, picker);
+    document.querySelectorAll<HTMLElement>('.live-btn').forEach((btn) => {
+      btn.setAttribute('aria-expanded', String(btn === anchor));
+    });
+    if (!window.matchMedia(NARROW_VIEWPORT_QUERY).matches) {
+      picker
+        .querySelector<HTMLElement>(
+          '[data-live-pip-choice]:not([hidden]):not(:disabled), [data-live-action="embeds"], [data-live-source-link]:not([hidden])'
+        )
+        ?.focus();
+    }
+  }
+
+  function bindSourcePicker(): void {
+    const picker = getSourcePicker();
+    if (!picker || picker.dataset.bound === 'true') return;
+    picker.dataset.bound = 'true';
+    picker.addEventListener('click', (evt) => {
+      const target = evt.target;
+      if (!(target instanceof Element)) return;
+
+      const pipButton = target.closest<HTMLButtonElement>('[data-live-pip-choice]');
+      if (pipButton && picker.contains(pipButton)) {
+        const source = pipButton.dataset.livePipChoice as LiveSource | undefined;
+        if (!source) return;
+        closeSourcePicker();
+        void openNativePip(source).catch((err) => {
+          console.warn(
+            '[live-status] native Picture-in-Picture failed, navigating to videos page',
+            err
+          );
+          window.location.assign(VIDEOS_PATH);
+        });
+        return;
+      }
+
+      const dismissButton = target.closest<HTMLButtonElement>(
+        '[data-live-action="dismiss"], [data-live-action="dismiss-close"]'
+      );
+      if (dismissButton && picker.contains(dismissButton)) {
+        dismissLiveNotification(current);
+        syncSourcePickerControls();
+        closeSourcePicker();
+        return;
+      }
+
+      if (target.closest<HTMLAnchorElement>('a')) {
+        closeSourcePicker();
+      }
+    });
+    document.addEventListener('click', (evt) => {
+      const target = evt.target;
+      if (!(target instanceof Node)) return;
+      if (picker.contains(target) || (target instanceof Element && target.closest('.live-btn')))
+        return;
+      closeSourcePicker();
+    });
+    document.addEventListener('keydown', (evt) => {
+      if (evt.key === 'Escape') {
+        closeSourcePicker();
+      }
+    });
+    window.addEventListener('resize', () => {
+      const expandedButton = document.querySelector<HTMLElement>('.live-btn[aria-expanded="true"]');
+      if (!picker.hidden && expandedButton) {
+        positionSourcePicker(expandedButton, picker);
+      }
+    });
+  }
+
+  function syncHeaderMenuState(): void {
+    const hasChoices = current.isLive;
+    document.querySelectorAll<HTMLElement>('.live-btn').forEach((btn) => {
+      if (hasChoices) {
+        btn.setAttribute('aria-haspopup', 'dialog');
+        btn.setAttribute('aria-controls', SOURCE_PICKER_ID);
+        btn.setAttribute(
+          'aria-expanded',
+          String(!getSourcePicker()?.hidden && btn.getAttribute('aria-expanded') === 'true')
+        );
+      } else {
+        btn.removeAttribute('aria-haspopup');
+        btn.removeAttribute('aria-controls');
+        btn.removeAttribute('aria-expanded');
+      }
+    });
+    syncSourcePickerControls();
+  }
+
+  function bindHeaderButtons(): void {
+    document.querySelectorAll<HTMLAnchorElement>('.live-btn').forEach((btn) => {
+      if (btn.dataset.nativePipBound === 'true') return;
+      btn.dataset.nativePipBound = 'true';
+      btn.addEventListener('click', (evt) => {
+        if (isModifiedClick(evt) || !current.isLive) {
+          return;
+        }
+
+        evt.preventDefault();
+        openSourcePicker(btn);
+      });
+    });
+  }
+
+  function init(): void {
+    bindSourcePicker();
+    bindHeaderButtons();
+    syncHeaderMenuState();
+    publishPipState(Boolean(getPipWindow()));
+  }
+
+  subscribe((snapshot) => {
+    current = snapshot;
+    syncHeaderMenuState();
+    renderPip(snapshot);
+  });
+
+  if (typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init, { once: true });
+    } else {
+      init();
+    }
+    document.addEventListener('astro:after-swap', init);
+  }
+</script>
+
+<style>
+  .live-source-menu {
+    position: fixed;
+    z-index: 2147483647;
+    box-sizing: border-box;
+    display: flex;
+    width: max-content;
+    max-width: min(32rem, calc(100vw - 1.5rem));
+    max-height: calc(100dvh - 1.5rem);
+    flex-direction: column;
+    min-width: 18rem;
+    padding: 0;
+    color: var(--sl-color-text);
+    background: var(--sl-color-bg);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    box-shadow: var(--sl-shadow-lg);
+    overflow: hidden;
+  }
+
+  .live-source-menu[hidden] {
+    display: none;
+  }
+
+  .live-source-menu__header {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    background: var(--sl-color-bg);
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  .live-source-menu__eyebrow {
+    margin: 0 0 0.25rem;
+    color: var(--sl-color-red);
+    font-size: var(--sl-text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .live-source-menu__label {
+    margin: 0;
+    color: var(--sl-color-text);
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+  }
+
+  .live-source-menu__close {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem;
+    color: var(--sl-color-text);
+    background: none;
+    border: 0;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition:
+      background-color 0.2s,
+      opacity 0.2s;
+  }
+
+  .live-source-menu__close:hover,
+  .live-source-menu__close:focus-visible {
+    background-color: var(--sl-color-gray-5);
+    opacity: 0.8;
+    outline: none;
+  }
+
+  .live-source-menu__close :global(svg) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .live-source-menu__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+    padding: 0.75rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .live-source-menu__group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .live-source-menu__group[hidden] {
+    display: none;
+  }
+
+  .live-source-menu__group-label {
+    margin: 0;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+  }
+
+  .live-source-menu__item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    color: inherit;
+    text-align: start;
+    background: transparent;
+    border: 0;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .live-source-menu__item > span {
+    min-width: 0;
+  }
+
+  .live-source-menu__item[hidden] {
+    display: none;
+  }
+
+  .live-source-menu__item:hover,
+  .live-source-menu__item:focus-visible {
+    background: var(--sl-color-gray-5);
+    outline: none;
+  }
+
+  .live-source-menu__name {
+    display: block;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .live-source-menu__description {
+    display: block;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+
+  .live-source-menu__item :global(svg) {
+    flex: 0 0 auto;
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  .live-source-menu__item :global(.live-source-menu__external-icon) {
+    width: 0.95rem;
+    height: 0.95rem;
+    margin-inline-start: auto;
+    color: var(--sl-color-gray-3);
+  }
+
+  .live-source-menu__footer {
+    flex: 0 0 auto;
+    padding: 0.75rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  .live-source-menu__dismiss {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    color: var(--sl-color-gray-2);
+    background: transparent;
+    border: 0;
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+
+  .live-source-menu__dismiss:not(:disabled):hover,
+  .live-source-menu__dismiss:not(:disabled):focus-visible {
+    color: var(--sl-color-text);
+    background: var(--sl-color-gray-5);
+    outline: none;
+  }
+
+  .live-source-menu__dismiss:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+
+  @media (max-width: 799px) {
+    .live-source-menu {
+      max-width: none;
+      min-width: 0;
+      max-height: calc(100dvh - var(--sl-nav-height, 0px));
+      border-top: 0;
+      border-right: 0;
+      border-left: 0;
+      border-radius: 0 0 0.75rem 0.75rem;
+    }
+
+    .live-source-menu__name,
+    .live-source-menu__description {
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+  }
+</style>

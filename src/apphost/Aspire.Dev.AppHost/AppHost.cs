@@ -10,9 +10,15 @@ builder.AddAzureFrontDoor(staticHostWebsite);
 
 if (builder.ExecutionContext.IsRunMode)
 {
-    // For local development: Use ViteApp for hot reload and development experience
+    staticHostWebsite.WithLocalLiveStatusDevCommands();
+
+    // For local development: Use ViteApp for hot reload and development experience.
+    // The live-status client calls same-origin /api/live[/stream]; inject StaticHost's
+    // origin so the Vite dev server can proxy those to the API (see astro.config.mjs).
+    // Without this, /api/live 404s against the Vite origin under `aspire run`.
     builder.AddViteApp("frontend", "../../frontend")
            .WithPnpm()
+           .WithEnvironment("ASPIRE_STATICHOST_URL", staticHostWebsite.GetEndpoint("http"))
            .WithUrlForEndpoint("http", static url => url.DisplayText = "aspire.dev (Local)")
            .WithExternalHttpEndpoints();
 }
