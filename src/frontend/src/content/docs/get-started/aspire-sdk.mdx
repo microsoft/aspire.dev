@@ -108,7 +108,7 @@ Today, the Aspire SDK restores the binaries for these dependencies from platform
 
 Aspire is moving toward using the installed **Aspire CLI bundle** as the source for those orchestration dependencies. With this model, those binaries update when you update the Aspire CLI through [`aspire update --self`](/reference/cli/commands/aspire-update/) instead of being tied to RID-specific `Aspire.Hosting.Orchestration.*` and `Aspire.Dashboard.Sdk.*` package references in each AppHost project.
 
-Set `AspireUseCliBundle` to `true` to opt in during the transition before this behavior becomes the default. `AspireUseCliBundle` defaults to `false`, so launching a C# AppHost with `dotnet run` or an IDE continues to work without requiring the Aspire CLI. Leaving it unset (or explicitly `false`) reports warning [`ASPIRE010`](/diagnostics/aspire010/) as a reminder that some Aspire features require the bundle; suppress it if you intend to keep using NuGet-restored orchestration dependencies.
+New C# AppHost projects created with `aspire new` or `dotnet new`, and new single-file AppHosts created with `aspire init`, set `AspireUseCliBundle` to `true` automatically. For existing AppHosts, set `AspireUseCliBundle` to `true` to opt in during the transition before this behavior becomes the SDK default. The SDK default remains `false`, so launching a C# AppHost with `dotnet run` or an IDE continues to work without requiring the Aspire CLI. Leaving it unset (or explicitly `false`) reports warning [`ASPIRE010`](/diagnostics/aspire010/) as a reminder that some Aspire features require the bundle; suppress it if you intend to keep using NuGet-restored orchestration dependencies.
 
 When `AspireUseCliBundle` is `true`:
 
@@ -131,6 +131,12 @@ Set `AspireUseCliBundle` in your AppHost `.csproj`:
 <PropertyGroup>
   <AspireUseCliBundle>true</AspireUseCliBundle>
 </PropertyGroup>
+```
+
+For an existing single-file AppHost, set the equivalent `#:property` directive:
+
+```csharp title="apphost.cs"
+#:property AspireUseCliBundle=true
 ```
 
 :::note[Advanced scenario: Override the bundle path]
