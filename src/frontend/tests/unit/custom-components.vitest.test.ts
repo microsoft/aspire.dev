@@ -9,6 +9,7 @@ import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
 import CapabilityGrid from '@components/CapabilityGrid.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
+import ContainerImages from '@components/ContainerImages.astro';
 import ContainerRuntimeChoices from '@components/ContainerRuntimeChoices.astro';
 import CustomSelect from '@components/CustomSelect.astro';
 import Expand from '@components/Expand.astro';
@@ -207,6 +208,35 @@ const basicRenderCases: BasicRenderCase[] = [
       'data-rows="18"',
       'data-autoplay="true"',
       'data-controls="auto"',
+    ],
+  },
+  {
+    name: 'ContainerImages renders primary and companion images for a package',
+    Component: ContainerImages,
+    props: { package: 'Aspire.Hosting.Redis' },
+    includes: [
+      'Container images for Aspire.Hosting.Redis',
+      'Redis Commander',
+      'RedisInsight',
+      'Companion',
+      'ghcr.io',
+      'Copy to clipboard',
+      'Source',
+    ],
+  },
+  {
+    name: 'ContainerImages filters to a single image and renders a title',
+    Component: ContainerImages,
+    props: {
+      package: 'Aspire.Hosting.Redis',
+      only: 'Redis Commander',
+      title: 'Container image',
+    },
+    includes: [
+      'Container image',
+      'Redis Commander',
+      'Companion',
+      'data-code="ghcr.io/joeferner/redis-commander:latest"',
     ],
   },
   {

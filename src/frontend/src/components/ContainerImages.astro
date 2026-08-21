@@ -1,0 +1,461 @@
+---
+import { Code, Icon } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import { getContainerImages, getRegistryUrl, getRegistryLabel } from '@utils/container-images';
+import dockerLogo from '@assets/icons/docker.svg';
+import microsoftMark from '@assets/icons/microsoft-icon.svg?raw';
+
+interface Props {
+  /** Exact hosting package name, e.g. `Aspire.Hosting.PostgreSQL`. */
+  package: string;
+  /**
+   * Optional image `name` (or list of names) to show. Case-insensitive.
+   * Omit to show every image for the package (primary first, then companions).
+   */
+  only?: string | string[];
+  /** Optional caption rendered above the cards. */
+  title?: string;
+  /**
+   * Optional override for the introducing AppHost API (e.g. `WithPgAdmin`).
+   * Defaults to each image's `api` from the data file; set this only to override
+   * it. `()` is appended automatically and the casing pivots with the page's
+   * C#/TypeScript language selection.
+   */
+  api?: string;
+}
+
+const { package: aspirePackage, only, title, api } = Astro.props;
+
+const images = getContainerImages(aspirePackage, only);
+
+if (images.length === 0) {
+  // Surface authoring mistakes (typo'd package/name, stale data) at build time
+  // instead of silently rendering nothing on the page.
+  console.warn(
+    `[ContainerImages] No container images matched package "${aspirePackage}"` +
+      (only ? ` with filter ${JSON.stringify(only)}` : '') +
+      '. Check src/frontend/src/data/container-images.json.',
+  );
+}
+
+const count = images.length;
+const displayLabel = title ?? (count === 1 ? 'Container image' : 'Container images');
+const groupLabel = `${displayLabel} for ${aspirePackage}`;
+
+// Resolve the introducing API label pair for an image. The explicit `api` prop
+// overrides the per-image `api` from the data file. Mirrors the page's C#/TS
+// pivot (Starlight `syncKey="aspire-lang"`): C# is PascalCase (`AddPostgres`),
+// the TypeScript AppHost binding lowercases the first letter (`addPostgres`).
+function apiLabels(raw: string | null | undefined) {
+  if (!raw) return null;
+  const cs = raw.endsWith(')') ? raw : `${raw}()`;
+  const ts = cs.charAt(0).toLowerCase() + cs.slice(1);
+  return { cs, ts };
+}
+
+// Registry-specific brand glyph, only for registries with a recognizable mark:
+// Docker Hub (its brand-blue logo), the Microsoft Artifact Registry (the
+// Microsoft mark, inlined so its `currentColor` fill follows the theme), and
+// GHCR (the GitHub mark). Others (Quay, Oracle, unknown) render no glyph so we
+// never imply a Docker/Microsoft origin for an image that isn't from there.
+function registryGlyph(registry: string) {
+  switch (registry) {
+    case 'docker.io':
+      return { kind: 'image' as const, src: dockerLogo };
+    case 'mcr.microsoft.com':
+      return { kind: 'raw' as const, raw: microsoftMark };
+    case 'ghcr.io':
+      return { kind: 'icon' as const, name: 'github' as const };
+    default:
+      return null;
+  }
+}
+---
+
+{
+  images.length > 0 && (
+    <div class="container-images not-content" role="group" aria-label={groupLabel}>
+      {title && <p class="ci-title">{title}</p>}
+      <ul class="ci-list">
+        {images.map((img) => {
+          const registryUrl = getRegistryUrl(img);
+          const registryLabel = getRegistryLabel(img.registry);
+          const glyph = registryGlyph(img.registry);
+          const labels = apiLabels(api ?? img.api);
+          return (
+          <li class="ci-card" class:list={[img.isCompanion && 'is-companion']}>
+            <div class="ci-head">
+              <span class="ci-name">
+                <strong>{img.name}</strong> container image
+              </span>
+              {img.isCompanion && img.companionOf && (
+                <span class="ci-companion" title={`Companion image for ${img.companionOf}`}>
+                  Companion · {img.companionOf}
+                </span>
+              )}
+              <span class="ci-links">
+                {registryUrl && (
+                  <a
+                    class="ci-link ci-link-registry"
+                    href={registryUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`View the ${img.name} image on ${registryLabel}`}
+                  >
+                    {glyph && (
+                      <span class="ci-glyph" aria-hidden="true">
+                        {glyph.kind === 'image' ? (
+                          <Image src={glyph.src} alt="" width={18} height={18} />
+                        ) : glyph.kind === 'raw' ? (
+                          <span class="ci-glyph-svg" set:html={glyph.raw} />
+                        ) : (
+                          <Icon name={glyph.name} size="0.95rem" />
+                        )}
+                      </span>
+                    )}
+                    {registryLabel}
+                    <Icon name="external" size="0.7rem" />
+                  </a>
+                )}
+              </span>
+            </div>
+
+            <div class="ci-code">
+              <Code code={img.fullImage} lang="text" meta={`"${img.tag}"`} />
+            </div>
+
+            <div class="ci-meta">
+              {labels && (
+                <p class="ci-caption">
+                  Added by{' '}
+                  <code class="ci-api">
+                    <span data-lang="csharp">{labels.cs}</span>
+                    <span data-lang="typescript">{labels.ts}</span>
+                  </code>.
+                </p>
+              )}
+              <a
+                class="ci-link ci-link-source"
+                href={img.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`View the ${img.name} container image tag definition on GitHub`}
+              >
+                <Icon name="github" size="0.85rem" />
+                Source
+                <Icon name="external" size="0.7rem" />
+              </a>
+            </div>
+
+            {img.alternateTags.length > 0 && (
+              <div class="ci-foot">
+                <span class="ci-alt">
+                  <span class="ci-alt-label">Also available:</span>
+                  {img.alternateTags.map((t) => (
+                    <code class="ci-alt-tag">{t}</code>
+                  ))}
+                </span>
+              </div>
+            )}
+          </li>
+          );
+        })}
+      </ul>
+      <p class="ci-provenance">
+        <Icon name="information" size="0.85rem" />
+        <span>
+          Tags reflect the latest defaults on the microsoft/aspire <strong>main</strong> branch,
+          and may be newer than the version pinned by the package you install.
+        </span>
+      </p>
+    </div>
+  )
+}
+
+{/* Reflect the page-wide C#/TS pivot (Starlight `syncKey="aspire-lang"`) onto
+    <html data-aspire-lang> so the API label above can swap casing with CSS.
+    Inlined + guarded so it runs once per page and before paint. */}
+<script is:inline>
+  (function () {
+    if (window.__aspireLangPivot) return;
+    window.__aspireLangPivot = true;
+
+    var KEY = 'starlight-synced-tabs__aspire-lang';
+
+    function normalize(label) {
+      if (!label) return null;
+      var value = label.trim().toLowerCase();
+      if (value === 'typescript') return 'typescript';
+      if (value === 'c#' || value === 'csharp') return 'csharp';
+      return null;
+    }
+
+    function readStored() {
+      try {
+        return normalize(localStorage.getItem(KEY));
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function apply(lang) {
+      document.documentElement.dataset.aspireLang = lang || 'csharp';
+    }
+
+    apply(readStored());
+
+    // Starlight persists the choice on tab click; defer a tick so we read the
+    // stored value it just wrote rather than the tab we clicked.
+    document.addEventListener('click', function (event) {
+      var target = event.target;
+      if (!target || !target.closest) return;
+      var tab = target.closest('starlight-tabs[data-sync-key="aspire-lang"] a[role="tab"]');
+      if (!tab) return;
+      var clicked = normalize(tab.textContent);
+      setTimeout(function () {
+        apply(readStored() || clicked);
+      }, 0);
+    });
+
+    // Keep in sync when the choice changes in another tab/window.
+    window.addEventListener('storage', function (event) {
+      if (event.key === KEY) apply(normalize(event.newValue));
+    });
+  })();
+</script>
+
+<style>
+  .container-images {
+    margin: 1rem 0;
+  }
+
+  .ci-title {
+    margin: 0 0 0.5rem;
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+
+  /* Caption tying the image back to the API that introduces it, rendered under
+     the reference so the card reads as a detail of that API call. */
+  .ci-caption {
+    margin: 0;
+    font-size: var(--sl-text-body);
+    color: var(--sl-color-gray-2);
+  }
+
+  /* Group-level provenance note. The catalog is generated from microsoft/aspire@main,
+     so a card's tag can be newer than the package version a page pins in its install
+     snippet. Stating that keeps readers from copying an image that doesn't match the
+     package they installed. Rendered once per component, below the cards. */
+  .ci-provenance {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin: 0.6rem 0 0;
+    font-size: var(--sl-text-sm);
+    line-height: 1.4;
+    color: var(--sl-color-gray-2);
+  }
+
+  .ci-provenance svg {
+    flex-shrink: 0;
+    margin-top: 0.15em;
+    color: var(--sl-color-gray-3);
+  }
+
+  /* The API method reads as inline code that matches prose inline code exactly.
+     The component root carries `.not-content`, which opts the subtree out of
+     Starlight's inline-code rule, so replicate that rule here with the same
+     theme vars. Casing pivots with the page's C#/TS selection (rules below). */
+  .ci-api {
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: var(--sl-text-body);
+    font-weight: 400;
+    color: var(--aspire-inline-code-text);
+    background-color: var(--aspire-inline-code-bg);
+    border: 1px solid var(--aspire-inline-code-border);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+  }
+
+  /* Language pivot: mirror the page-wide `syncKey="aspire-lang"` choice. Default
+     to the C# name; swap to the TypeScript name only when TS is selected. The
+     `data-aspire-lang` attribute is set on <html> by the inline script below. */
+  .ci-api [data-lang] {
+    display: none;
+  }
+
+  :global(html[data-aspire-lang='typescript']) .ci-api [data-lang='typescript'] {
+    display: inline;
+  }
+
+  :global(html:not([data-aspire-lang='typescript'])) .ci-api [data-lang='csharp'] {
+    display: inline;
+  }
+
+  .ci-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.75rem;
+    /* Single column: each card spans the full content width so the monospace
+       image reference stays on one line instead of wrapping inside a card. */
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ci-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    margin: 0;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background-color: var(--sl-color-gray-6);
+    box-shadow: var(--sl-shadow-sm);
+  }
+
+  .ci-head {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  /* The registry brand glyph lives inside the registry link, so it inherits the
+     link's accent color. The Microsoft and GitHub marks use `currentColor` and
+     follow the theme; the Docker logo keeps its own brand blue. */
+  .ci-glyph {
+    display: inline-flex;
+    align-items: center;
+    color: inherit;
+  }
+
+  .ci-glyph :global(img),
+  .ci-glyph :global(svg) {
+    display: block;
+    width: 14px;
+    height: 14px;
+  }
+
+  .ci-name {
+    font-size: var(--sl-text-base);
+    color: var(--sl-color-white);
+  }
+
+  /* The image name reads as inline code (matching prose inline code) inside the
+     "`{name}` container image" title. Same recipe as `.ci-api`. */
+  .ci-name-code {
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: var(--sl-text-body);
+    color: var(--aspire-inline-code-text);
+    background-color: var(--aspire-inline-code-bg);
+    border: 1px solid var(--aspire-inline-code-border);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+  }
+
+  .ci-companion {
+    font-size: var(--sl-text-xs);
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+    color: var(--sl-color-text-accent);
+    background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+  }
+
+  /* Reuse the site's Expressive Code block for the reference so the copy button
+     and code styling match every other code block on the page. Strip the EC
+     frame's default block margin so it sits flush inside the card. */
+  .ci-code :global(.expressive-code) {
+    margin: 0;
+  }
+
+  /* Bottom row: the API tie-in caption on the left, the provenance Source link
+     pushed to the right so it sits opposite the caption. */
+  .ci-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .ci-meta .ci-link-source {
+    margin-left: auto;
+  }
+
+  .ci-foot {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem 0.75rem;
+    flex-wrap: wrap;
+    padding-top: 0.1rem;
+  }
+
+  .ci-alt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-2);
+  }
+
+  .ci-alt-label {
+    font-weight: 500;
+  }
+
+  .ci-alt-tag {
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: 0.72rem;
+    background: var(--sl-color-gray-5);
+    color: var(--sl-color-white);
+    padding: 0.05rem 0.35rem;
+    border-radius: 0.25rem;
+  }
+
+  .ci-links {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .ci-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: var(--sl-text-xs);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  /* Registry link is the primary affordance; it uses the high-contrast accent
+     (not `--sl-color-text-accent`, which is ~4.42:1 here) so the text and brand
+     glyph meet WCAG AA contrast against the card's `--sl-color-gray-6`
+     background on both themes. The tag-source link is a secondary, muted
+     provenance link back to the pinned tag in microsoft/aspire. */
+  .ci-link-registry {
+    color: var(--sl-color-accent-high);
+  }
+
+  .ci-link-source {
+    color: var(--sl-color-gray-3);
+  }
+
+  .ci-link:hover {
+    text-decoration: underline;
+  }
+
+  /* The component renders its own single external-link icon; suppress Starlight's
+     auto-appended content icon so the links don't show two. */
+  .ci-link::after {
+    content: none !important;
+  }
+</style>
