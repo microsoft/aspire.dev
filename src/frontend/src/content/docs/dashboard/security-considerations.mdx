@@ -225,3 +225,13 @@ Use defense in depth when accepting telemetry:
 - Monitor the dashboard host's CPU and memory use, and isolate the dashboard from critical workloads when appropriate.
 
 Review these controls whenever the expected telemetry volume or the set of trusted senders changes.
+
+## WebSocket origin validation
+
+The dashboard frontend uses WebSockets for its Blazor Server UI and for streaming terminal sessions. Browsers don't apply CORS restrictions to WebSocket upgrade requests, so without additional checks a malicious page on another origin could attempt to open a WebSocket connection to the dashboard using a victim's existing dashboard session.
+
+To prevent this, the dashboard validates the `Origin` header on both the Blazor (`/_blazor`) and terminal WebSocket upgrade requests before a connection is established. An upgrade request is rejected with `403 Forbidden` when the `Origin` header is missing, malformed, or doesn't match the request's own scheme, host, and port. When the dashboard is run behind a reverse proxy with forwarded headers configured, the effective scheme and host used for this comparison reflect the forwarded values.
+
+:::note
+This same-origin check compares against `Host`, which is client-controlled and can be affected by DNS rebinding. It isn't a replacement for authentication — dashboard cookies remain host-scoped, so authorization is still the primary security boundary for sensitive data and operations. When [anonymous access](#anonymous-access) is enabled, also configure [host filtering](#restrict-allowed-hosts) to further reduce this risk.
+:::
