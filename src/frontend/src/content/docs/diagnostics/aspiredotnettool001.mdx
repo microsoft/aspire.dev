@@ -1,7 +1,7 @@
 ---
-title: Compiler Warning ASPIREDOTNETTOOL
-seoTitle: "ASPIREDOTNETTOOL: Learn more about compiler Warning"
-description: Learn what causes the Aspire compiler warning ASPIREDOTNETTOOL and how to fix it so your AppHost builds cleanly.
+title: Compiler Warning ASPIREDOTNETTOOL001
+seoTitle: 'ASPIREDOTNETTOOL001: .NET tool resource types and members'
+description: Learn what causes the Aspire compiler warning ASPIREDOTNETTOOL001 and how to fix it so your AppHost builds cleanly.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -21,25 +21,32 @@ This diagnostic warning is reported when using experimental .NET tool resource A
 - `DotnetToolAnnotation`
 - `AddDotnetTool` extension methods
 
+:::note[Which ID do I suppress?]
+Aspire emits this diagnostic as `ASPIREDOTNETTOOL`, without a numeric suffix. This documentation uses `ASPIREDOTNETTOOL001` as the canonical slug so it stays consistent with every other `ASPIRE*` diagnostic. Suppress the `ASPIREDOTNETTOOL` ID that appears in your build output; the examples below suppress both IDs so they keep working if the emitted ID ever changes.
+:::
+
 ## Example
 
-The following code generates `ASPIREDOTNETTOOL`:
+The following code generates `ASPIREDOTNETTOOL` (documented here as `ASPIREDOTNETTOOL001`):
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var tool = builder.AddDotnetTool("my-tool", "dotnet-tool-package");
+
+builder.Build().Run();
 ```
 
 ## To correct this warning
 
-Suppress the warning with either of the following methods:
+Suppress the warning with one of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 
   ```ini title=".editorconfig"
   [*.{cs,vb}]
   dotnet_diagnostic.ASPIREDOTNETTOOL.severity = none
+  dotnet_diagnostic.ASPIREDOTNETTOOL001.severity = none
   ```
 
   For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
@@ -48,8 +55,16 @@ Suppress the warning with either of the following methods:
 
   ```xml title="C# project file"
   <PropertyGroup>
-      <NoWarn>$(NoWarn);ASPIREDOTNETTOOL</NoWarn>
+      <NoWarn>$(NoWarn);ASPIREDOTNETTOOL;ASPIREDOTNETTOOL001</NoWarn>
   </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable` directive:
+
+  ```csharp title="Suppressing the warning"
+  #pragma warning disable ASPIREDOTNETTOOL, ASPIREDOTNETTOOL001
+  var tool = builder.AddDotnetTool("my-tool", "dotnet-tool-package");
+  #pragma warning restore ASPIREDOTNETTOOL, ASPIREDOTNETTOOL001
   ```
 
 ## See also

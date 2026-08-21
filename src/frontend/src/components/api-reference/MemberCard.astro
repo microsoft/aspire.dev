@@ -18,7 +18,7 @@ import {
   memberSlug,
   memberDisplayName,
 } from '@utils/packages';
-import { findAttribute } from '@utils/api-attributes';
+import { findAttribute, resolveDiagnosticSlug } from '@utils/api-attributes';
 import type { ParentTypeInfo } from '@utils/packages';
 import DocContent from './DocContent.astro';
 import Examples from './Examples.astro';
@@ -79,9 +79,8 @@ const obsoleteMessage = obsoleteAttr?.constructorArguments?.[0] ?? null;
 const experimentalAttr = findAttribute(member.attributes, 'Experimental');
 const isExperimental = !!experimentalAttr;
 const experimentalId = experimentalAttr?.constructorArguments?.[0] ?? null;
-const experimentalSlug = experimentalId ? experimentalId.toLowerCase() : null;
-const hasDiagnosticsPage =
-  experimentalSlug && diagnosticSlugs ? diagnosticSlugs.has(experimentalSlug) : false;
+const experimentalSlug = resolveDiagnosticSlug(experimentalId, diagnosticSlugs);
+const hasDiagnosticsPage = experimentalSlug !== null;
 
 const params: any[] = member.parameters ?? [];
 const paramDocs: Record<string, any> = member.docs?.parameters ?? {};
