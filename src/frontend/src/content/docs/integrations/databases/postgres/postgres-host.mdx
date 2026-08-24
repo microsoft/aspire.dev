@@ -6,6 +6,7 @@ description: Learn how to use the Aspire PostgreSQL Hosting integration to orche
 
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import postgresIcon from '@assets/icons/postgresql-icon.png';
 
@@ -39,11 +40,11 @@ aspire add postgres
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.PostgreSQL@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="*" />
 ```
 
@@ -63,7 +64,7 @@ This updates your `aspire.config.json` with the PostgreSQL hosting integration p
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.PostgreSQL": "13.3.0"
+    "Aspire.Hosting.PostgreSQL": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -77,7 +78,7 @@ Once you've installed the hosting integration in your AppHost project, you can a
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres");
@@ -90,7 +91,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -122,11 +123,13 @@ await builder.addNodeApp("api", "./api", "index.js")
     When you reference a PostgreSQL resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, and port numbers. For a complete list of these properties and per-language connection examples, see [Connect to PostgreSQL](../postgres-connect/).
 </Aside>
 
+<ContainerImages package="Aspire.Hosting.PostgreSQL" only="PostgreSQL" />
+
 ## Add PostgreSQL resource with database scripts
 
 By default, when you add a `PostgresDatabaseResource`, it relies on the following script to create the database:
 
-```sql title="SQL — Default database creation script"
+```sql title="Default database creation script"
 CREATE DATABASE "<QUOTED_DATABASE_NAME>"
 ```
 
@@ -134,7 +137,7 @@ To alter the default script, configure the database resource with a custom creat
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres");
@@ -157,7 +160,7 @@ builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -194,7 +197,7 @@ Add the [**dpage/pgadmin4**](https://www.pgadmin.org/) container to the PostgreS
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
@@ -209,7 +212,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -229,13 +232,15 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 The preceding code adds a container based on the `docker.io/dpage/pgadmin4` image. The container is used to manage the PostgreSQL server and database resources and serves a web-based admin dashboard for PostgreSQL databases.
 
+<ContainerImages package="Aspire.Hosting.PostgreSQL" only="pgAdmin" />
+
 ### Configure the pgAdmin host port
 
 To configure the host port for the pgAdmin container, configure the pgAdmin resource inside the callback as shown in the following examples:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
@@ -250,7 +255,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -280,7 +285,7 @@ Add the [**sosedoff/pgweb**](https://sosedoff.github.io/pgweb/) container to the
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
@@ -295,7 +300,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -315,13 +320,15 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 The preceding code adds a container based on the `docker.io/sosedoff/pgweb` image. All registered `PostgresDatabaseResource` instances are used to create a configuration file per instance, and each config is bound to the **pgweb** container bookmark directory. For more information, see [PgWeb docs: Server connection bookmarks](https://github.com/sosedoff/pgweb/wiki/Server-Connection-Bookmarks).
 
+<ContainerImages package="Aspire.Hosting.PostgreSQL" only="pgweb" />
+
 ### Configure the pgWeb host port
 
 To configure the host port for the pgWeb container, configure the pgWeb resource inside the callback as shown in the following examples:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
@@ -336,7 +343,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -366,7 +373,7 @@ Add a data volume to the PostgreSQL server resource as shown in the following ex
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
@@ -381,7 +388,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -399,7 +406,11 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-The data volume is used to persist the PostgreSQL server data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/postgresql/data` path in the PostgreSQL server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-postgresql-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+The data volume is used to persist the PostgreSQL server data outside the lifecycle of its container. The container data directory depends on the PostgreSQL image version: PostgreSQL 17 and earlier use `/var/lib/postgresql/data`, while PostgreSQL 18 and later use `/var/lib/postgresql`. `WithDataVolume(...)` selects the correct path automatically based on the configured image tag. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-postgresql-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+<Aside type="caution">
+  Aspire 13.4 bumped the default PostgreSQL image to 18, which uses a different on-disk data layout than PostgreSQL 17. A data volume or data bind mount created on PostgreSQL 17 (Aspire 13.3 or earlier) is incompatible after upgrading. See [PostgreSQL 18 data directory change](#postgresql-18-data-directory-change) for recovery options.
+</Aside>
 
 <Aside type="caution">
     Some database integrations, including the Aspire PostgreSQL integration, can't successfully use data volumes after deployment to Azure Container Apps (ACA). This is because ACA uses Server Message Block (SMB) to connect containers to data volumes, and some systems can't use this connection. In the Aspire Dashboard, a database affected by this issue has a status of **Activating** or **Activation Failed** but is never listed as **Running**.
@@ -413,7 +424,7 @@ Add a data bind mount to the PostgreSQL server resource as shown in the followin
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
@@ -430,7 +441,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -460,7 +471,7 @@ Use initialization files to seed the PostgreSQL server. The C# AppHost exposes `
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
@@ -475,7 +486,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -503,7 +514,7 @@ When you want to explicitly provide the username and password used by the contai
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var username = builder.AddParameter("username", secret: true);
@@ -519,7 +530,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -544,7 +555,7 @@ By default, Aspire injects the PostgreSQL connection information using variable 
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres");
@@ -565,7 +576,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -588,6 +599,68 @@ await builder.build().run();
 ```
 </TabItem>
 </Tabs>
+
+## PostgreSQL 18 data directory change
+
+Starting with Aspire 13.4, the default PostgreSQL container image used by `AddPostgres` is **18.3** (previously 17.6). PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`. For upstream details, see [docker-library/postgres#1259](https://github.com/docker-library/postgres/issues/1259) and [docker-library/postgres#37](https://github.com/docker-library/postgres/issues/37).
+
+`WithDataVolume(...)` and `WithDataBindMount(...)` are version-aware: Aspire chooses the container data directory from the configured image tag at the time the method is called. PostgreSQL 17 and earlier map to `/var/lib/postgresql/data`; PostgreSQL 18 and later map to `/var/lib/postgresql`.
+
+Because of this layout change, PostgreSQL 17 data persisted with `WithDataVolume(...)` or `WithDataBindMount(...)` (Aspire 13.3 or earlier) is incompatible with PostgreSQL 18 after upgrading to Aspire 13.4. The container fails to start with an error similar to:
+
+```text
+Error: in 18+, these Docker images are configured to store database data in a format which is compatible with "pg_ctlcluster" ... Counter to that, there appears to be PostgreSQL data in: /var/lib/postgresql
+```
+
+You have two ways to recover.
+
+### Option 1: Stay on PostgreSQL 17 (recommended, no migration)
+
+Pin the image back to a PostgreSQL 17 tag with `WithImageTag(...)` **before** calling `WithDataVolume(...)`. Aspire then selects the legacy `/var/lib/postgresql/data` path and your existing volume keeps working with no migration:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("pgsql")
+    .WithImageTag("17.6")
+    .WithDataVolume();
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("pgsql");
+await postgres.withImageTag("17.6");
+await postgres.withDataVolume();
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  Call `WithImageTag(...)` **before** `WithDataVolume(...)`. The data directory is chosen from the configured tag at the time `WithDataVolume(...)` runs, so the tag must be set first.
+</Aside>
+
+### Option 2: Upgrade the data volume to PostgreSQL 18
+
+Follow the official [PostgreSQL upgrade documentation](https://www.postgresql.org/docs/current/upgrading.html) using `pg_dumpall`/restore or `pg_upgrade`. Always back up the volume before migrating.
+
+If the data is disposable, you can start fresh. Stop the app, remove any container still referencing the old volume (`docker volume rm` fails while the volume is in use), then remove the volume so Aspire creates a new PostgreSQL 18 volume on the next run:
+
+```bash
+docker volume ls
+docker ps -a --filter volume=<old-volume-name>
+docker rm -f <container-id>
+docker volume rm <old-volume-name>
+```
 
 ## Connection properties
 

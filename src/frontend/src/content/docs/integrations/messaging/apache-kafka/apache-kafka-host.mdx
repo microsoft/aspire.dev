@@ -5,6 +5,7 @@ description: Learn how to use the Aspire Apache Kafka Hosting integration to orc
 
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import kafkaIcon from '@assets/icons/apache-kafka-icon.svg';
 
@@ -38,11 +39,11 @@ aspire add kafka
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.Kafka@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.Kafka" Version="*" />
 ```
 
@@ -62,7 +63,7 @@ This updates your `aspire.config.json` with the Kafka hosting integration packag
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.Kafka": "13.3.0"
+    "Aspire.Hosting.Kafka": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -76,7 +77,7 @@ Once you've installed the hosting integration in your AppHost project, you can a
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kafka = builder.AddKafka("kafka");
@@ -88,7 +89,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -115,13 +116,15 @@ await builder.addNodeApp("api", "./api", "index.js")
     When you reference a Kafka resource from the AppHost, Aspire makes several properties available to the consuming project, such as the bootstrap server host and port. For a complete list of these properties and per-language connection examples, see [Connect to Apache Kafka](../apache-kafka-connect/).
 </Aside>
 
+<ContainerImages package="Aspire.Hosting.Kafka" only="Kafka" />
+
 ## Add Kafka UI
 
 Add the [Kafka UI](https://hub.docker.com/r/kafbat/kafka-ui) sub-resource to the Kafka server resource to get a web interface for monitoring and managing your Kafka cluster during development:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kafka = builder.AddKafka("kafka")
@@ -134,7 +137,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -152,13 +155,15 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 The Kafka UI is a free, open-source web UI to monitor and manage Apache Kafka clusters. It's automatically linked to your Kafka server and appears as a separate resource in the Aspire dashboard.
 
+<ContainerImages package="Aspire.Hosting.Kafka" only="Kafka UI" />
+
 ## Change the Kafka UI host port
 
 To change the host port the Kafka UI listens on, chain a call to `WithHostPort` (or `withHostPort`):
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kafka = builder.AddKafka("kafka")
@@ -171,7 +176,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -197,7 +202,7 @@ Add a data volume to the Kafka server resource to persist data outside the lifec
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kafka = builder.AddKafka("kafka")
@@ -210,7 +215,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -234,7 +239,7 @@ Add a data bind mount to the Kafka server resource as shown in the following exa
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kafka = builder.AddKafka("kafka")
@@ -249,7 +254,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -277,14 +282,14 @@ To use a full broker topology in non-development environments, switch to an exte
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var kafka = builder.ExecutionContext.IsRunMode
     ? builder.AddKafka("kafka").WithKafkaUI()
     : builder.AddConnectionString("kafka");
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -313,7 +318,7 @@ By default, Aspire injects the Kafka connection information using variable names
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kafka = builder.AddKafka("kafka");
@@ -330,7 +335,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -355,7 +360,7 @@ To reference an externally managed Kafka instance rather than spinning up a loca
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kafka = builder.AddConnectionString("kafka");

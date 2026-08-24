@@ -19,6 +19,10 @@ import githubIcon from '@assets/icons/github-icon.png';
   data-zoom-off
 />
 
+:::caution[Integration deprecated]
+The GitHub Models service is **no longer available to new customers**. The `Aspire.Hosting.GitHub.Models` integration is sunset as of Aspire 13.5. All public APIs are marked `[Obsolete]` and the package no longer appears in `aspire add` output. The package will ship one final obsolete release on NuGet and will be removed entirely in a future version. For new and existing apps, use the [Azure AI Foundry integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/) instead, which provides access to a broad catalog of models — including OpenAI's GPT models — and supports local development with `RunAsFoundryLocal()`. See [microsoft/aspire#18402](https://github.com/microsoft/aspire/issues/18402) for details.
+:::
+
 This page describes how consuming apps connect to a GitHub Model resource that's already modeled in your AppHost. For the AppHost API surface — adding a model resource, API key parameters, organization configuration, and health checks — see [GitHub Models hosting integration](../github-models-host/).
 
 When you reference a GitHub Model resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire client integrations for automatic dependency injection, health checks, and telemetry.
@@ -70,7 +74,7 @@ Install the [📦 Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspi
 
 In _Program.cs_, call `AddAzureChatCompletionsClient` on your `IHostApplicationBuilder` to register a `ChatCompletionsClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureChatCompletionsClient(connectionName: "chat");
 ```
 
@@ -80,7 +84,7 @@ The `connectionName` must match the GitHub Model resource name from the AppHost.
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(ChatCompletionsClient client)
 {
     // Use client...
@@ -91,14 +95,14 @@ public class ExampleService(ChatCompletionsClient client)
 
 Call `AddChatClient` after `AddAzureChatCompletionsClient` to also register an `IChatClient` from `Microsoft.Extensions.AI`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureChatCompletionsClient("chat")
        .AddChatClient();
 ```
 
 Resolve the `IChatClient` through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IChatClient chatClient)
 {
     public async Task<string> GenerateAsync(string prompt)
@@ -123,13 +127,13 @@ Install the [📦 Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) N
 
 In _Program.cs_, call `AddOpenAIClient` to register an `OpenAIClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddOpenAIClient(connectionName: "chat");
 ```
 
 Resolve the client through dependency injection and use the model name from the connection string:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ChatService(OpenAIClient client, IConfiguration config)
 {
     public async Task<string> GetResponseAsync(string prompt)
@@ -145,7 +149,7 @@ public class ChatService(OpenAIClient client, IConfiguration config)
 
 ##### Add an OpenAI client with IChatClient
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddOpenAIClient("chat")
        .AddChatClient();
 ```
@@ -156,7 +160,7 @@ The Aspire OpenAI client integration supports configuration through connection s
 
 **Connection strings.** Provide a named connection string in `appsettings.json`:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "chat": "Endpoint=https://models.github.ai/inference;Key=${GITHUB_TOKEN};Model=openai/gpt-4o-mini"
@@ -166,7 +170,7 @@ The Aspire OpenAI client integration supports configuration through connection s
 
 **Configuration providers.** Use the `Aspire:OpenAI` key to load `OpenAISettings`:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "OpenAI": {
@@ -179,7 +183,7 @@ The Aspire OpenAI client integration supports configuration through connection s
 
 **Inline delegates.**
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddOpenAIClient("chat", settings => settings.DisableTracing = true);
 ```
 
@@ -197,7 +201,7 @@ The Aspire OpenAI client integration automatically configures logging, tracing, 
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection properties directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Azure;
 using Azure.AI.Inference;
 
@@ -229,7 +233,7 @@ go get github.com/sashabaranov/go-openai
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -279,7 +283,7 @@ GitHub Models exposes an OpenAI-compatible API. Install either the `openai` pack
 pip install openai
 ```
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from openai import OpenAI
 
@@ -304,7 +308,7 @@ print(response.choices[0].message.content)
 pip install azure-ai-inference
 ```
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage
@@ -334,7 +338,7 @@ GitHub Models exposes an OpenAI-compatible API. Use the [`openai`](https://www.n
 npm install openai
 ```
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import OpenAI from 'openai';
 
 const client = new OpenAI({

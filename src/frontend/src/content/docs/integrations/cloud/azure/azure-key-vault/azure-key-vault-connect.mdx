@@ -57,7 +57,7 @@ Install the [📦 Aspire.Azure.Security.KeyVault](https://www.nuget.org/packages
 
 In _Program.cs_, call `AddAzureKeyVaultClient` on your `IHostApplicationBuilder` to register a `SecretClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureKeyVaultClient(connectionName: "key-vault");
 ```
 
@@ -67,7 +67,7 @@ The `connectionName` must match the Azure Key Vault resource name from the AppHo
 
 Resolve the `SecretClient` through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(SecretClient secretClient)
 {
     public async Task<string> GetSecretAsync(string secretName)
@@ -82,20 +82,20 @@ public class ExampleService(SecretClient secretClient)
 
 Alternatively, call `AddAzureKeyVaultSecrets` to surface vault secrets through the `IConfiguration` API. This is useful for reading secrets with the options pattern or `IConfiguration` directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Configuration.AddAzureKeyVaultSecrets(connectionName: "key-vault");
 ```
 
 You can then read secrets by name through `IConfiguration` or bind them to strongly-typed options:
 
-```csharp title="C# — Using IConfiguration"
+```csharp title="Using IConfiguration"
 public class ExampleService(IConfiguration configuration)
 {
     private string _apiKey = configuration["my-secret-name"];
 }
 ```
 
-```csharp title="C# — Using IOptions<T>"
+```csharp title="Using IOptions<T>"
 public class ExampleService(IOptions<MyOptions> options)
 {
     private string _apiKey = options.Value.MySecretName;
@@ -112,14 +112,14 @@ public class ExampleService(IOptions<MyOptions> options)
 
 To register multiple `SecretClient` instances with different vault names, use `AddKeyedAzureKeyVaultClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedAzureKeyVaultClient(name: "feature-toggles");
 builder.AddKeyedAzureKeyVaultClient(name: "admin-portal");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("feature-toggles")] SecretClient featureTogglesClient,
     [FromKeyedServices("admin-portal")] SecretClient adminPortalClient)
@@ -136,13 +136,13 @@ The Aspire Azure Key Vault client integration offers multiple ways to provide co
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureKeyVaultClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureKeyVaultClient("key-vault");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "key-vault": "https://myvault.vault.azure.net/"
@@ -152,7 +152,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureSecurityKeyVaultSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Azure:Security:KeyVault` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Azure": {
@@ -174,7 +174,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Inline delegates.** Pass an `Action<AzureSecurityKeyVaultSettings>` to configure settings inline:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureKeyVaultClient(
     connectionName: "key-vault",
     configureSettings: settings => settings.DisableHealthChecks = true);
@@ -214,7 +214,7 @@ go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
 
 Read the Aspire-injected vault URI and create a client:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -260,7 +260,7 @@ pip install azure-keyvault-secrets azure-identity
 
 Read the Aspire-injected vault URI and create a client:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
@@ -286,7 +286,7 @@ npm install @azure/keyvault-secrets @azure/identity
 
 Read the Aspire-injected vault URI and create a client:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { SecretClient } from '@azure/keyvault-secrets';
 import { DefaultAzureCredential } from '@azure/identity';
 

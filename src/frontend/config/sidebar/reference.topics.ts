@@ -84,6 +84,27 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
           },
           slug: 'reference/samples',
         },
+        {
+          label: 'Container images',
+          translations: {
+            da: 'Container-images',
+            de: 'Container-Images',
+            en: 'Container images',
+            es: 'Imágenes de contenedor',
+            fr: 'Images de conteneur',
+            hi: 'कंटेनर इमेज',
+            id: 'Image kontainer',
+            it: 'Immagini dei container',
+            ja: 'コンテナーイメージ',
+            ko: '컨테이너 이미지',
+            'pt-BR': 'Imagens de contêiner',
+            ru: 'Образы контейнеров',
+            tr: 'Kapsayıcı görüntüleri',
+            uk: 'Образи контейнерів',
+            'zh-CN': '容器映像',
+          },
+          slug: 'reference/container-images',
+        },
       ],
     },
     {
@@ -495,6 +516,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-resource',
             },
             {
+              label: 'aspire resources',
+              slug: 'reference/cli/commands/aspire-resources',
+            },
+            {
               label: 'aspire restore',
               slug: 'reference/cli/commands/aspire-restore',
             },
@@ -534,6 +559,24 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-start',
             },
             { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
+            {
+              label: 'aspire terminal',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire terminal',
+                  slug: 'reference/cli/commands/aspire-terminal',
+                },
+                {
+                  label: 'aspire terminal attach',
+                  slug: 'reference/cli/commands/aspire-terminal-attach',
+                },
+                {
+                  label: 'aspire terminal ps',
+                  slug: 'reference/cli/commands/aspire-terminal-ps',
+                },
+              ],
+            },
             {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',
@@ -576,6 +619,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE002', link: '/diagnostics/aspire002' },
             { label: 'ASPIRE003', link: '/diagnostics/aspire003' },
             { label: 'ASPIRE004', link: '/diagnostics/aspire004' },
+            { label: 'ASPIRE010', link: '/diagnostics/aspire010' },
             {
               label: 'ASPIREEXPORT005',
               link: '/diagnostics/aspireexport005',
@@ -609,8 +653,20 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspireexport016',
             },
             {
+              label: 'ASPIREACANAMING001',
+              link: '/diagnostics/aspireacanaming001',
+            },
+            {
+              label: 'ASPIREBLAZOR001',
+              link: '/diagnostics/aspireblazor001',
+            },
+            {
               label: 'ASPIRECERTIFICATES001',
               link: '/diagnostics/aspirecertificates001',
+            },
+            {
+              label: 'ASPIRECOMMAND001',
+              link: '/diagnostics/aspirecommand001',
             },
             {
               label: 'ASPIRECOMPUTE002',
@@ -633,8 +689,12 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspiredockerfilebuilder001',
             },
             {
-              label: 'ASPIREDOTNETTOOL',
-              link: '/diagnostics/aspiredotnettool',
+              label: 'ASPIREDOTNETPROJECT001',
+              link: '/diagnostics/aspiredotnetproject001',
+            },
+            {
+              label: 'ASPIREDOTNETTOOL001',
+              link: '/diagnostics/aspiredotnettool001',
             },
             {
               label: 'ASPIREDURABLETASK001',
@@ -677,8 +737,36 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspireprocesscommand001',
             },
             {
+              label: 'ASPIREPROJECTS001',
+              link: '/diagnostics/aspireprojects001',
+            },
+            {
+              label: 'ASPIRERADIUS003',
+              link: '/diagnostics/aspireradius003',
+            },
+            {
+              label: 'ASPIRERADIUS004',
+              link: '/diagnostics/aspireradius004',
+            },
+            {
+              label: 'ASPIRERADIUS006',
+              link: '/diagnostics/aspireradius006',
+            },
+            {
+              label: 'ASPIRERADIUS057',
+              link: '/diagnostics/aspireradius057',
+            },
+            {
+              label: 'ASPIRETERMINAL001',
+              link: '/diagnostics/aspireterminal001',
+            },
+            {
               label: 'ASPIREUSERSECRETS001',
               link: '/diagnostics/aspireusersecrets001',
+            },
+            {
+              label: 'ASPIREWATCH001',
+              link: '/diagnostics/aspirewatch001',
             },
           ],
         },
@@ -689,11 +777,17 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE006', link: '/diagnostics/aspire006' },
             { label: 'ASPIRE007', link: '/diagnostics/aspire007' },
             { label: 'ASPIRE008', link: '/diagnostics/aspire008' },
+            { label: 'ASPIRE009', link: '/diagnostics/aspire009' },
+            { label: 'ASPIRE011', link: '/diagnostics/aspire011' },
             {
               label: 'ASPIREACADOMAIN001',
               link: '/diagnostics/aspireacadomains001',
             },
             { label: 'ASPIRECOMPUTE001', link: '/diagnostics/aspirecompute001' },
+            {
+              label: 'ASPIREACANAMING002',
+              link: '/diagnostics/aspireacanaming002',
+            },
             {
               label: 'ASPIRECSHARPAPPS001',
               link: '/diagnostics/aspirecsharpapps001',
@@ -725,6 +819,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREHOSTINGPYTHON001',
               link: '/diagnostics/aspirehostingpython001',
+            },
+            {
+              label: 'ASPIREPERSISTENCE001',
+              link: '/diagnostics/aspirepersistence001',
             },
             {
               label: 'ASPIREPIPELINES001',

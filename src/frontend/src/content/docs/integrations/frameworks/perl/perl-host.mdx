@@ -1,0 +1,320 @@
+---
+title: Set up Perl apps in the Aspire AppHost
+seoTitle: Perl application hosting integration for Aspire
+description: Configure Perl application resources in Aspire, including entrypoints, package managers, local libraries, endpoints, environment, and publishing.
+---
+
+import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
+import perlIcon from '@assets/icons/perl-096-1500.svg';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={perlIcon}
+  alt="Perl Camel"
+  width={75}
+  height={75}
+  fit="contain"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This reference describes the Community Toolkit Perl hosting integration APIs for the Aspire [AppHost](/get-started/app-host/). If you're new to the integration, start with [Get started with the Perl integration](/integrations/frameworks/perl/perl-get-started/).
+
+## Installation
+
+Add [📦 CommunityToolkit.Aspire.Hosting.Perl](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Perl) to the AppHost:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Perl
+```
+
+Or add the package manually:
+
+```csharp title="AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.Perl@*
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Perl
+```
+
+The command adds the package to `aspire.config.json`:
+
+```json title="aspire.config.json"
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Perl": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+## Add a Perl resource
+
+Each `AddPerl*` / `addPerl*` method accepts a resource name, an application directory, and an entrypoint. A relative application directory is resolved from the AppHost project directory and becomes the process working directory. Script paths are then resolved relative to that directory.
+
+| API                                       | Local command and arguments                    |
+| ----------------------------------------- | ---------------------------------------------- |
+| `AddPerlScript` / `addPerlScript`         | `perl -s <scriptName>`                         |
+| `AddPerlApi` / `addPerlApi`               | `perl <scriptName> daemon`                     |
+| `AddPerlModule` / `addPerlModule`         | `perl -M<moduleName> -e "<moduleName>->run()"` |
+| `AddPerlExecutable` / `addPerlExecutable` | Runs `<executablePath>` directly               |
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var script = builder.AddPerlScript("worker", "../perl-worker", "worker.pl");
+var api = builder.AddPerlApi("api", "../perl-api", "app.pl");
+var module = builder.AddPerlModule("module-worker", "../perl-module", "MyApp::Worker");
+var executable = builder.AddPerlExecutable("packed-app", "../perl-bin", "my-app");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const script = await builder.addPerlScript(
+  'worker',
+  '../perl-worker',
+  'worker.pl'
+);
+const api = await builder.addPerlApi('api', '../perl-api', 'app.pl');
+const module = await builder.addPerlModule(
+  'module-worker',
+  '../perl-module',
+  'MyApp::Worker'
+);
+const executable = await builder.addPerlExecutable(
+  'packed-app',
+  '../perl-bin',
+  'my-app'
+);
+```
+
+</TabItem>
+</Tabs>
+
+All entrypoints require `perl` and `cpan` to be available. Aspire adds the standard executable-resource lifecycle actions and process logs; the integration doesn't add a Perl-specific dashboard command. `WithCpanMinus` and `WithCarton` add their own command requirement checks.
+
+## Configure endpoints, arguments, and environment
+
+Perl resources don't add an HTTP endpoint or health check automatically. For an API, configure the application to listen on a port and add the standard AppHost endpoint. Use normal resource APIs such as `WithArgs` / `withArgs`, `WithReference` / `withReference`, and `WaitFor` / `waitFor` to supply arguments and model dependencies.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var api = builder.AddPerlApi("api", "../perl-api", "app.pl")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const api = await builder.addPerlApi('api', '../perl-api', 'app.pl');
+await api.withHttpEndpoint({ port: 3000, env: 'PORT' });
+```
+
+</TabItem>
+</Tabs>
+
+The application must honor the configured port itself. For example, configure your Mojolicious or Dancer application to read `PORT`; adding an endpoint doesn't change the framework's listener arguments.
+
+Every Perl resource configures OTLP export and sets `OTEL_TRACES_EXPORTER`, `OTEL_LOGS_EXPORTER`, `OTEL_METRICS_EXPORTER`, and their `OTEL_PERL_*` equivalents to `otlp`. It sets `OTEL_EXPORTER_OTLP_PROTOCOL` and `OTEL_PERL_EXPORTER_OTLP_PROTOCOL` to `http/protobuf`.
+
+### Configure a local::lib
+
+`WithLocalLib` / `withLocalLib` isolates modules in a local directory. Relative paths are resolved from `appDirectory`; rooted paths are used as supplied. The default path is `local`.
+
+It sets `PERL5LIB` to `<path>/lib/perl5`, `PERL_LOCAL_LIB_ROOT` to `<path>`, `PERL_MM_OPT` to `INSTALL_BASE=<path>`, and `PERL_MB_OPT` to `--install_base <path>`. If CPAN is active, the integration changes to cpanm because CPAN doesn't support the needed `--local-lib` option.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var worker = builder.AddPerlScript("worker", "../perl-worker", "worker.pl")
+    .WithLocalLib("local");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const worker = await builder.addPerlScript(
+  'worker',
+  '../perl-worker',
+  'worker.pl'
+);
+await worker.withLocalLib('local');
+```
+
+</TabItem>
+</Tabs>
+
+### Trust development certificates
+
+`WithPerlCertificateTrust` / `withPerlCertificateTrust` is experimental. When Aspire provides a certificate bundle, it sets `SSL_CERT_FILE`, `PERL_LWP_SSL_CA_FILE`, and `MOJO_CA_FILE` on the app and its dependency installers.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable CTASPIREPERL001
+api.WithPerlCertificateTrust();
+#pragma warning restore CTASPIREPERL001
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await api.withPerlCertificateTrust();
+```
+
+</TabItem>
+</Tabs>
+
+## Install dependencies
+
+The default package manager is CPAN. `WithPackage` / `withPackage` creates a child installer resource in run mode and makes the Perl app wait for it to complete. Use `force` to force an install and `skipTest` to skip package tests.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var api = builder.AddPerlApi("api", "../perl-api", "app.pl")
+    .WithCpanMinus()
+    .WithPackage("Mojolicious", skipTest: true);
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const api = await builder.addPerlApi('api', '../perl-api', 'app.pl');
+await api.withCpanMinus();
+await api.withPackage('Mojolicious', false, true);
+```
+
+</TabItem>
+</Tabs>
+
+`WithCpanMinus` / `withCpanMinus` selects cpanm. With cpanm, per-package installers use `--force` and `--notest` for the corresponding options; with the default CPAN manager, they use `-f` and `-T`.
+
+### Install dependencies from a cpanfile
+
+`WithProjectDependencies` / `withProjectDependencies` creates one project installer in run mode. It expects `cpanfile` in the working directory:
+
+- CPAN is automatically changed to cpanm, which runs `cpanm --installdeps --notest .`.
+- Carton runs `carton install`. Set `cartonDeployment` to add `--deployment`; this requires `cpanfile.snapshot`.
+- A project installer runs before individual package installers, and the application waits for them all to complete.
+
+When the application directory contains `cpanfile`, `Makefile.PL`, or `Build.PL`, the integration automatically configures project dependency installation in run mode.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var api = builder.AddPerlApi("api", "../perl-api", "app.pl")
+    .WithCpanMinus()
+    .WithProjectDependencies();
+
+var worker = builder.AddPerlScript("worker", "../perl-worker", "worker.pl")
+    .WithCarton()
+    .WithProjectDependencies(cartonDeployment: true);
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const api = await builder.addPerlApi('api', '../perl-api', 'app.pl');
+await api.withCpanMinus();
+await api.withProjectDependencies();
+
+const worker = await builder.addPerlScript(
+  'worker',
+  '../perl-worker',
+  'worker.pl'
+);
+await worker.withCarton();
+await worker.withProjectDependencies(true);
+```
+
+</TabItem>
+</Tabs>
+
+`WithCarton` / `withCarton` and `WithPackage` / `withPackage` can't be combined. Carton manages dependencies through the `cpanfile`; add the module there instead.
+
+## Use perlbrew
+
+`WithPerlbrew` / `withPerlbrew` is an alias for `WithPerlbrewEnvironment` / `withPerlbrewEnvironment`. Both select a perlbrew version, accepting `5.40.0` or `perl-5.40.0`, and optionally accept the perlbrew root. The default root comes from `PERLBREW_ROOT` or `~/perl5/perlbrew`.
+
+The integration switches the command to the selected Perl executable, sets `PERLBREW_ROOT`, `PERLBREW_PERL`, and `PERLBREW_HOME`, and prepends the Perl bin directory to `PATH`. `WithLocalLib` remains useful to keep project modules separate from the perlbrew installation.
+
+:::caution
+Perlbrew is Linux-only. On Windows, the resource displays a notification and fails before starting. Use a Windows Perl distribution instead.
+:::
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var worker = builder.AddPerlScript("worker", "../perl-worker", "worker.pl")
+    .WithPerlbrew("5.40.0", perlbrewRoot: "/opt/perlbrew");
+
+var api = builder.AddPerlApi("api", "../perl-api", "app.pl")
+    .WithPerlbrewEnvironment("perl-5.40.0", perlbrewRoot: "/opt/perlbrew");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const worker = await builder.addPerlScript(
+  'worker',
+  '../perl-worker',
+  'worker.pl'
+);
+await worker.withPerlbrew('5.40.0', '/opt/perlbrew');
+
+const api = await builder.addPerlApi('api', '../perl-api', 'app.pl');
+await api.withPerlbrewEnvironment('perl-5.40.0', '/opt/perlbrew');
+```
+
+</TabItem>
+</Tabs>
+
+## Publish Perl apps
+
+In publish mode, Perl resources emit a generated Dockerfile. Dependency installer child resources exist only in run mode and are excluded from the manifest, so declare publish dependencies in `cpanfile`.
+
+- The default cpanm Dockerfile uses `perl:5-slim`, installs cpanm, runs `cpanm --installdeps --notest .`, and starts the configured entrypoint.
+- Carton uses a `perl:5` build stage and a `perl:5-slim` runtime stage. Publish mode uses `carton install --deployment` by default, unless configured otherwise.
+- `WithLocalLib` carries `PERL5LIB` and `PERL_LOCAL_LIB_ROOT` into the generated image.
+- A script, API, module, or executable retains its corresponding entrypoint form in the generated image.
+
+## See also
+
+- [Get started with the Perl integration](/integrations/frameworks/perl/perl-get-started/)
+- [Perl documentation](https://perldoc.perl.org/)
+- [CPAN::cpanfile reference](https://github.com/miyagawa/cpanfile/blob/master/README.md)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
