@@ -1,5 +1,5 @@
 ---
-description: 'Verifies that a release branch is ready for publication by validating the build, site content, whats-new entry, version references, and integration docs.'
+description: 'Verifies that a release branch is ready for publication by validating the build, site content, whats-new entry, short links, diagnostics, version references, and integration docs.'
 tools: [read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, search, web, todo]
 name: Release Verifier
 ---
@@ -45,6 +45,8 @@ Execute every phase below **in order**. Mark each phase as a todo item so progre
    - `pnpm` (for build / preview)
    - `playwright-cli` (for site verification) — see the **playwright-cli** skill
    - `dotnet hex1b` (for terminal automation) — see the **hex1b** skill
+   - `curl` (for live redirect verification)
+   - `git` or `gh` (for inspecting the matching `microsoft/aspire` source)
 
 ### Phase 1 — Clean build
 
@@ -113,6 +115,35 @@ playwright-cli snapshot
 
 If a previous what's-new entry existed (e.g., `aspire-13-1.mdx` when verifying `13.2`), verify its `sidebar.order` has been incremented so the new release appears first.
 
+#### 3f. Current-release short link
+
+The stable Aspire update short link must be repointed for every release. This
+prevents the regression described in
+[microsoft/aspire.dev#1540](https://github.com/microsoft/aspire.dev/issues/1540).
+Run this final gate after the release page is deployed and before the release is
+announced. If verification starts before deployment, record the expected target
+and coordinate the `aka.ms` update, but mark this check as pending rather than
+passed until the live destination can be verified.
+
+Inspect the first response without following redirects:
+
+```bash
+curl --silent --show-error --head https://aka.ms/aspire/update
+```
+
+Verify all of the following:
+
+- The first response is `301 Moved Permanently`.
+- The `Location` header points to
+  `https://aspire.dev/whats-new/{VERSION_SLUG}/` and includes a fragment for
+  that page's upgrade section.
+- Following the redirect returns `200` and lands on the current release's
+  upgrade section, not a previous release or the top of the page.
+
+Use Playwright to confirm the fragment targets the rendered upgrade section.
+An old release, missing fragment, unregistered link, or broken destination is a
+**critical** failure. Record the expected and actual destinations in the report.
+
 ### Phase 4 — Version references audit
 
 Scan the documentation for version strings that should have been updated for this release. This catches stale references that still point to a prior version.
@@ -174,7 +205,76 @@ Spot-check that key documentation pages reference the release version:
 | `get-started/first-app` or equivalent | Sample project uses current SDK version |
 | `whats-new/upgrade-aspire.mdx` | Upgrade matrix includes the new version |
 
-### Phase 5 — Integration docs sync
+### Phase 5 — Diagnostic reference and short-link audit
+
+Audit every Aspire diagnostic against the matching `microsoft/aspire`
+`release/{VERSION}` branch. This prevents the missing article and unregistered
+short-link regressions described in
+[microsoft/aspire.dev#1543](https://github.com/microsoft/aspire.dev/issues/1543).
+
+#### 5a. Build the source diagnostic inventory
+
+Use the product source, not the existing aspire.dev pages, as the source of
+truth:
+
+1. Check out or inspect the `microsoft/aspire` `release/{VERSION}` branch.
+   If that branch is not publicly available, obtain the exact release commit
+   from the release owner; do not substitute `main`.
+2. Enumerate the distinct `ASPIRE*` diagnostic IDs defined under `src/`,
+   excluding generated `api/*.cs` files.
+3. Include IDs passed to attributes through constants; do not search only for
+   literal `[Experimental("ASPIRE...")]` declarations.
+4. Review the matches so unrelated identifiers are not treated as diagnostics.
+
+Audit the complete current set so a newly introduced diagnostic cannot be
+missed merely because it has no aspire.dev page yet. When the previous product
+release source is available, identify which IDs are new in this release and
+label them in the report. If the exact product release source is unavailable,
+mark this phase as blocked and the release as not yet verified.
+
+#### 5b. Verify each diagnostic article
+
+For every emitted diagnostic ID:
+
+- Confirm a corresponding
+  `src/frontend/src/content/docs/diagnostics/{diagnostic-id-lowercase}.mdx`
+  article exists, or that an intentional canonical replacement is documented
+  by a repository redirect.
+- Confirm the diagnostics overview and reference sidebar include the article.
+- Open the preview route and confirm it returns `200`, renders the expected
+  diagnostic ID and message, and accurately explains the affected APIs.
+- If the article uses a canonical ID different from the emitted ID, confirm it
+  explicitly documents that mapping and provides working suppression guidance
+  for the emitted ID.
+
+#### 5c. Verify each diagnostic short link
+
+For every emitted diagnostic ID, inspect the first response from:
+
+```text
+https://aka.ms/aspire/diagnostics/{DIAGNOSTIC_ID}
+```
+
+Verify:
+
+- The first response is `301 Moved Permanently`. A `302` to Bing is the
+  unregistered-link fallback and must fail the audit.
+- The `Location` header points to the matching canonical
+  `https://aspire.dev/diagnostics/.../` article.
+- Following the redirect returns `200`, and the destination article documents
+  the emitted diagnostic ID.
+
+For articles introduced by this release, rerun the live `200` check after the
+documentation deployment and before announcing the release. A successful local
+preview does not satisfy the live short-link check.
+
+Record one row per diagnostic with its article path, first response status,
+redirect destination, final response status, and pass/fail result. A missing
+article, unregistered short link, incorrect destination, or broken final page
+is a **critical** failure. Short-link registration may require a maintainer with
+`aka.ms` access, but the release remains blocked until the check passes.
+
+### Phase 6 — Integration docs sync
 
 Run the **update-integrations** skill to ensure integration documentation links are current.
 
@@ -190,7 +290,7 @@ Run the **update-integrations** skill to ensure integration documentation links 
 
 3. Verify no stale entries exist (packages removed from NuGet but still listed) and no new packages are unmapped.
 
-### Phase 6 — Site-wide smoke test (Playwright)
+### Phase 7 — Site-wide smoke test (Playwright)
 
 Using the **playwright-cli** skill, perform a quick smoke test of the preview site.
 
@@ -198,13 +298,13 @@ Using the **playwright-cli** skill, perform a quick smoke test of the preview si
 playwright-cli open http://localhost:4321
 ```
 
-#### 6a. Landing page
+#### 7a. Landing page
 
 - Navigate to the root URL.
 - Take a snapshot and confirm the page renders.
 - Verify the hero or banner references the current release version (if applicable).
 
-#### 6b. Navigation spot-checks
+#### 7b. Navigation spot-checks
 
 Navigate to each top-level section and confirm pages load:
 
@@ -217,7 +317,7 @@ Navigate to each top-level section and confirm pages load:
 | `/deployment/` | Page renders |
 | `/reference/` | Page renders |
 
-#### 6c. What's-new page rendering
+#### 7c. What's-new page rendering
 
 Navigate to `/whats-new/{VERSION_SLUG}/` and:
 
@@ -226,7 +326,7 @@ Navigate to `/whats-new/{VERSION_SLUG}/` and:
 - Confirm images load (no broken image placeholders).
 - Click at least two internal links and verify they resolve.
 
-### Phase 7 — Cleanup
+### Phase 8 — Cleanup
 
 1. Stop the preview server (kill the background process).
 2. Close any Playwright browser sessions:
@@ -236,6 +336,8 @@ Navigate to `/whats-new/{VERSION_SLUG}/` and:
    ```
 
 3. Stop any hex1b terminal sessions.
+4. Remove any temporary `microsoft/aspire` checkout created for the diagnostic
+   inventory.
 
 ---
 
@@ -257,11 +359,12 @@ After all phases are complete, produce a structured report:
 | 0 — Environment setup | ✅ / ❌ | ... |
 | 1 — Clean build | ✅ / ❌ | ... |
 | 2 — Preview server | ✅ / ❌ | ... |
-| 3 — What's-new entry | ✅ / ❌ | ... |
+| 3 — What's-new entry and update short link | ✅ / ⏳ / ❌ | ... |
 | 4 — Version references | ✅ / ⚠️ / ❌ | ... |
-| 5 — Integration docs | ✅ / ⚠️ / ❌ | ... |
-| 6 — Smoke test | ✅ / ❌ | ... |
-| 7 — Cleanup | ✅ / ❌ | ... |
+| 5 — Diagnostic docs and short links | ✅ / ⏳ / ❌ | ... |
+| 6 — Integration docs | ✅ / ⚠️ / ❌ | ... |
+| 7 — Smoke test | ✅ / ❌ | ... |
+| 8 — Cleanup | ✅ / ❌ | ... |
 
 ## Critical issues
 
@@ -285,6 +388,18 @@ After all phases are complete, produce a structured report:
 |------|------|---------|---------------|
 | ... | ... | ... | Stale / Intentional |
 
+## Release short-link status
+
+- Expected destination: current what's-new URL plus its verified upgrade-section fragment
+- Actual destination: ...
+- First response / final response: ... / ...
+
+## Diagnostic coverage
+
+| Diagnostic | New in release | Article | `aka.ms` first response | Final destination | Status |
+|------------|----------------|---------|-------------------------|-------------------|--------|
+| ... | Yes / No | ... | ... | ... | ✅ / ⏳ / ❌ |
+
 ## Integration docs status
 
 - Packages in catalog: N
@@ -304,9 +419,12 @@ After all phases are complete, produce a structured report:
 
 - **Build failure (Phase 1)**: This is a blocking failure. Log the error and continue with remaining phases to gather as much information as possible, but mark the overall verification as **FAILED**.
 - **Missing what's-new file (Phase 3a)**: Critical failure. Document it and continue.
+- **Pending live short-link checks (Phase 3f or Phase 5c)**: Mark the overall verification as **PENDING**, not passed. Rerun the live checks after documentation deployment and before announcing the release.
+- **Stale or broken update short link (Phase 3f)**: Critical failure. The link must target the current release's upgrade section before the release announcement.
 - **Stale version references (Phase 4)**: Flag each one with its classification. This is a **warning** unless the stale reference appears in user-facing installation or getting-started instructions, in which case it is **critical**.
-- **Integration docs out of sync (Phase 5)**: Warning unless packages are completely unmapped.
-- **Smoke test failures (Phase 6)**: Critical if pages fail to render; warning if only cosmetic issues.
+- **Missing diagnostic coverage (Phase 5)**: A missing article, unregistered or incorrect `aka.ms` link, or broken destination is a critical failure.
+- **Integration docs out of sync (Phase 6)**: Warning unless packages are completely unmapped.
+- **Smoke test failures (Phase 7)**: Critical if pages fail to render; warning if only cosmetic issues.
 
 ## Skills reference
 
@@ -314,7 +432,7 @@ This agent depends on the following skills. Read the full skill instructions bef
 
 | Skill | File | When used |
 |-------|------|-----------|
-| doc-tester | `.agents/skills/doc-tester/SKILL.md` | Phase 3 (content validation), Phase 6 (smoke test) |
+| doc-tester | `.agents/skills/doc-tester/SKILL.md` | Phase 3 and Phase 5 (content validation), Phase 7 (smoke test) |
 | hex1b | `.agents/skills/hex1b/SKILL.md` | Phase 2 (preview server management), terminal capture |
-| playwright-cli | `.agents/skills/playwright-cli/SKILL.md` | Phase 3d, Phase 6 (browser-based verification) |
-| update-integrations | `.agents/skills/update-integrations/SKILL.md` | Phase 5 (integration docs sync) |
+| playwright-cli | `.agents/skills/playwright-cli/SKILL.md` | Phase 3d, Phase 3f, Phase 5b, Phase 7 (browser-based verification) |
+| update-integrations | `.agents/skills/update-integrations/SKILL.md` | Phase 6 (integration docs sync) |
