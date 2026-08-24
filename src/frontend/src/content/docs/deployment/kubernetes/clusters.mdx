@@ -323,6 +323,38 @@ Resource names in Kubernetes must follow DNS naming conventions. The integration
 
 Use [external parameters](/fundamentals/external-parameters/) to configure values that differ between development and production environments.
 
+When a parameter is embedded inside a larger environment variable expression — for example, interpolated into a URL — Aspire declares the parameter as its own entry in `values.yaml` instead of generating a synthetic environment variable for it. This lets you override just the embedded piece at deployment time without needing to know the full composed value:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var host = builder.AddParameter("host", "localhost");
+
+builder.AddContainer("myapp", "nginx")
+    .WithEnvironment("SOME_URL", $"http://{host}/test");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const host = builder.addParameter('host', 'localhost');
+
+const myapp = await builder.addContainer('myapp', 'nginx');
+await myapp.withEnvironment('SOME_URL', `http://${host}/test`);
+```
+</TabItem>
+</Tabs>
+
+The generated `values.yaml` declares the nested `host` parameter alongside the composed `SOME_URL` value:
+
+```yaml title="values.yaml"
+config:
+  myapp:
+    SOME_URL: ""
+    host: ""
+```
+
+At deployment time, Aspire resolves the composite expression using the override for `host`, so `SOME_URL` becomes `http://localhost/test`. If a values path would conflict with an existing entry — either exactly or after normalization — Aspire rejects the publish instead of silently overwriting the existing value.
+
 ### Service discovery
 
 In Kubernetes, services discover each other using the cluster's built-in DNS. A service named `api` is reachable at `api.<namespace>.svc.cluster.local`. The generated Helm charts configure service references automatically using Kubernetes-native DNS resolution.
