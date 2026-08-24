@@ -41,6 +41,7 @@ This release introduces:
 - **A refreshed, officially branded dashboard** with timestamp filtering, numeric operators, and console-log text search.
 - **A rebranded Visual Studio Code extension** with a dashboard side panel, Bun and MAUI debugging, and resource commands in the tree view.
 - **Cross-scope Azure resource references** with the `AsExisting*` family, and **persistent volumes for Kubernetes and AKS**.
+- **New hosting integrations** — a preview **Radius** deployment target, and path-based **.NET project** modeling via the new `Aspire.Hosting.Dotnet` package.
 - …and much more.
 
 ## 🆙 Upgrade to Aspire 13.5
@@ -760,7 +761,7 @@ Running resources configured with `WithTerminal()` open in a terminal view in th
 
 Additional dashboard fixes include friendlier health-check error messages (in place of raw exception stacks), deduplicated replica display names, and correct telemetry streaming when resource filters are applied.
 
-## 🧩 Visual Studio Code extension
+## 🧰 Visual Studio Code extension
 
 The Aspire extension for Visual Studio Code is rebranded to **Aspire** (with an updated icon and display name) and gains a batch of new capabilities:
 
@@ -780,9 +781,9 @@ The Aspire extension for Visual Studio Code is rebranded to **Aspire** (with an 
   For setup and usage, see [Aspire Visual Studio Code extension](/get-started/aspire-vscode-extension/).
 </LearnMore>
 
-## 🚀 Deployment and integrations
+## 🚀 Deployment
 
-Getting from local development to a deployed environment keeps getting smoother. This release adds first-class Kubernetes and AKS storage, more predictable Azure Container Apps naming and networking, and a batch of new and updated hosting integrations.
+Getting from local development to a deployed environment keeps getting smoother. This release adds first-class Kubernetes and AKS storage, plus more predictable Azure Container Apps naming and networking.
 
 ### 📦 Persistent volumes for Kubernetes and AKS
 
@@ -898,14 +899,23 @@ Azure Container Apps and Azure App Service environments can now be placed into a
   For App Service hosting, see [Azure App Service hosting integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/).
 </LearnMore>
 
-### ✨ New and updated integrations
+## ✨ New integrations
 
-The integrations ecosystem keeps growing. Aspire 13.5 opens a preview path to a new deployment platform, sharpens the AI hosting story, and folds in a batch of community-driven improvements. Here are the highlights:
+Two brand-new hosting integrations join the ecosystem this release:
 
 - **Radius (preview).** The new `Aspire.Hosting.Radius` integration adds `AddRadiusEnvironment(name)` (with `WithNamespace(...)`) so you can publish your app to a [Radius](https://radapp.io/) environment. Publish-time infrastructure configuration (`ConfigureRadiusInfrastructure`) and project container-image overrides are gated behind experimental diagnostics.
+- **.NET projects by path.** The new `Aspire.Hosting.Dotnet` package provides the experimental `AddDotnetProject` API for modeling .NET projects by path — handy when you can't add a compile-time `ProjectReference` from the AppHost.
+
+<LearnMore>
+  For modeling .NET projects, see [Set up .NET / C# apps in the AppHost](/integrations/frameworks/dotnet/dotnet-host/).
+</LearnMore>
+
+## 📦 Integration updates
+
+Existing integrations pick up new capabilities, too:
+
 - **Foundry Local.** `AddFoundry(name).RunAsFoundryLocal()` now drives the installed **foundry CLI** for lifecycle management, and resources can be exposed as hosted agents with `AsHostedAgent(...)`, where `HostedAgentProtocol` is `Responses` or `Invocations`.
 - **Redis modules.** `AddRedis(...).WithModule(path)` loads a Redis module into the container, with `RedisModules` constants (`Json`, `Search`, `BloomFilter`, `TimeSeries`) pointing at the modules shipped in Redis 8+ images — see the sample below.
-- **.NET projects by path.** The new `Aspire.Hosting.Dotnet` package provides the experimental `AddDotnetProject` API for modeling .NET projects by path.
 - **Dev tunnels regions.** `DevTunnelOptions.Region` (a `DevTunnelRegion?` enum) lets you pin the region a tunnel is created in.
 - **Blazor gateway on Docker Compose.** Blazor gateway resources now support Docker Compose publishing.
 
@@ -944,11 +954,13 @@ await builder.build().run();
   For Redis hosting, see [Redis hosting integration](/integrations/caching/redis/redis-host/); for tunnels, see [Dev tunnels](/integrations/devtools/dev-tunnels/); for Foundry, see [Azure AI Foundry](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/).
 </LearnMore>
 
-## 🧰 Templates
+## 🏗️ Templates
 
 New project templates target **.NET 11 preview** in addition to the current LTS, and C# AppHost templates set `AspireUseCliBundle=true` by default so freshly scaffolded projects resolve the CLI bundle out of the box.
 
-## Breaking changes
+## ⚠️ Breaking changes
+
+<span id="breaking-changes"></span>
 
 The following breaking changes are included in Aspire 13.5:
 
@@ -980,7 +992,7 @@ The following breaking changes are included in Aspire 13.5:
   Review your code for uses of `ServiceProvider` on hosting context types and `PublishAsConnectionString` extension methods. These generate compiler warnings in Aspire 13.5 and may become harder errors in future releases. If you use the `Aspire.Hosting.GitHub.Models` integration, plan to migrate off it before the package is removed.
 </Aside>
 
-## Known issues
+## 🚧 Known issues
 
 ### Mixed Aspire 13.4 and 13.5 packages can fail at runtime
 
