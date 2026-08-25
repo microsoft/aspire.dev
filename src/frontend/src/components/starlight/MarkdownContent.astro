@@ -1,8 +1,10 @@
 ---
 import DefaultMarkdownContent from '@astrojs/starlight/components/MarkdownContent.astro';
+import { Badge, Icon } from '@astrojs/starlight/components';
 import StarlightImageZoom from 'starlight-image-zoom/components/ImageZoom.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import { getContentBreadcrumbs } from '@utils/content-breadcrumbs';
+import { getWhatsNewRelease } from '@utils/whats-new';
 
 const routeData = Astro.locals.starlightRoute;
 const pageData = routeData?.entry?.data as { crumbs?: boolean; publishDate?: Date } | undefined;
@@ -18,23 +20,41 @@ const formattedDate = publishDate
       timeZone: 'UTC',
     })
   : undefined;
+
+const route = routeData as
+  | { slug?: string; id?: string; entry?: { slug?: string; id?: string } }
+  | undefined;
+const release = getWhatsNewRelease(
+  route?.slug ?? route?.entry?.slug ?? route?.id ?? route?.entry?.id
+);
 ---
 
 <StarlightImageZoom />
 {crumbs && <Breadcrumb crumbs={crumbs} />}
 {
   formattedDate && (
-    <p class="publish-date">
-      <time datetime={publishDate!.toISOString().slice(0, 10)}>Released {formattedDate}</time>
-    </p>
+    <div class="release-meta">
+      <Badge text={`Released ${formattedDate}`} variant="note" size="large" class="release-badge" />
+      {release && (
+        <a class="release-notes-link" href={release.releaseNotesUrl}>
+          <Icon name="github" class="d-inline" /> Aspire {release.version} release notes on GitHub
+        </a>
+      )}
+    </div>
   )
 }
 <DefaultMarkdownContent><slot /></DefaultMarkdownContent>
 
 <style>
-  .publish-date {
+  .release-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
     margin-block: 0 1.5rem;
+  }
+
+  .release-notes-link {
     font-size: var(--sl-text-sm);
-    color: var(--sl-color-gray-3);
   }
 </style>

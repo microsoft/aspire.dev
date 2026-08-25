@@ -24,34 +24,6 @@ export type PropertyAccessor<T> = (T extends object ? T : unknown) & (() => Prom
 
 // ---- enums ----
 /**
- * Enum Aspire.Hosting.ApplicationModel.InputType
- */
-export type InputType = "Text" | "Number" | "Choice" | "SecretText";
-export declare const InputType: {
-  readonly Text: "Text";
-  readonly Number: "Number";
-  readonly Choice: "Choice";
-  readonly SecretText: "SecretText";
-};
-
-export interface ParameterCustomInputOptions {
-  inputType?: InputType;
-  label?: string;
-  placeholder?: string;
-  options?: Record<string, string>;
-}
-
-export interface BeforePublishEvent extends IDistributedApplicationEvent {
-  model: PropertyAccessor<DistributedApplicationModel>;
-  services: PropertyAccessor<IServiceProvider>;
-}
-
-export interface AfterPublishEvent extends IDistributedApplicationEvent {
-  model: PropertyAccessor<DistributedApplicationModel>;
-  services: PropertyAccessor<IServiceProvider>;
-}
-
-/**
  * Enum Aspire.Hosting.ApplicationModel.CertificateTrustScope
  */
 
@@ -208,6 +180,34 @@ export declare const DistributedApplicationOperation: {
 };
 
 /**
+ * Enum Aspire.Hosting.InputType
+ */
+
+export type InputType = "Text" | "SecretText" | "Choice" | "Boolean" | "Number" | "File";
+export declare const InputType: {
+  readonly Text: "Text";
+  readonly SecretText: "SecretText";
+  readonly Choice: "Choice";
+  readonly Boolean: "Boolean";
+  readonly Number: "Number";
+  readonly File: "File";
+};
+
+/**
+ * Enum Aspire.Hosting.MessageIntent
+ */
+
+export type MessageIntent = "None" | "Success" | "Warning" | "Error" | "Information" | "Confirmation";
+export declare const MessageIntent: {
+  readonly None: "None";
+  readonly Success: "Success";
+  readonly Warning: "Warning";
+  readonly Error: "Error";
+  readonly Information: "Information";
+  readonly Confirmation: "Confirmation";
+};
+
+/**
  * Enum Aspire.Hosting.OtlpProtocol
  */
 
@@ -216,6 +216,68 @@ export declare const OtlpProtocol: {
   readonly Grpc: "Grpc";
   readonly HttpProtobuf: "HttpProtobuf";
   readonly HttpJson: "HttpJson";
+};
+
+/**
+ * Enum Aspire.Hosting.Publishing.ContainerImageDestination
+ */
+
+export type ContainerImageDestination = "Registry" | "Archive";
+export declare const ContainerImageDestination: {
+  readonly Registry: "Registry";
+  readonly Archive: "Archive";
+};
+
+/**
+ * Enum Aspire.Hosting.Publishing.ContainerImageFormat
+ */
+
+export type ContainerImageFormat = "Docker" | "Oci";
+export declare const ContainerImageFormat: {
+  readonly Docker: "Docker";
+  readonly Oci: "Oci";
+};
+
+/**
+ * Enum Aspire.Hosting.Publishing.ContainerTargetPlatform
+ */
+
+export type ContainerTargetPlatform = "LinuxAmd64" | "LinuxArm64" | "AllLinux" | "LinuxArm" | "Linux386" | "WindowsAmd64" | "WindowsArm64";
+export declare const ContainerTargetPlatform: {
+  readonly LinuxAmd64: "LinuxAmd64";
+  readonly LinuxArm64: "LinuxArm64";
+  readonly AllLinux: "AllLinux";
+  readonly LinuxArm: "LinuxArm";
+  readonly Linux386: "Linux386";
+  readonly WindowsAmd64: "WindowsAmd64";
+  readonly WindowsArm64: "WindowsArm64";
+};
+
+/**
+ * Enum Aspire.Hosting.AWS.Lambda.APIGatewayType
+ */
+
+export type APIGatewayType = "Rest" | "HttpV1" | "HttpV2";
+export declare const APIGatewayType: {
+  readonly Rest: "Rest";
+  readonly HttpV1: "HttpV1";
+  readonly HttpV2: "HttpV2";
+};
+
+/**
+ * Enum Aspire.Hosting.AWS.Lambda.Method
+ */
+
+export type Method = "Any" | "Get" | "Post" | "Put" | "Delete" | "Patch" | "Head" | "Options";
+export declare const Method: {
+  readonly Any: "Any";
+  readonly Get: "Get";
+  readonly Post: "Post";
+  readonly Put: "Put";
+  readonly Delete: "Delete";
+  readonly Patch: "Patch";
+  readonly Head: "Head";
+  readonly Options: "Options";
 };
 
 /**
@@ -378,6 +440,16 @@ export declare const BrowserUserDataMode: {
 };
 
 /**
+ * Enum Aspire.Hosting.Foundry.HostedAgentProtocol
+ */
+
+export type HostedAgentProtocol = "Responses" | "Invocations";
+export declare const HostedAgentProtocol: {
+  readonly Responses: "Responses";
+  readonly Invocations: "Invocations";
+};
+
+/**
  * Enum Aspire.Hosting.FoundryRole
  */
 
@@ -462,6 +534,18 @@ export declare const IngressPathType: {
 };
 
 /**
+ * Enum Aspire.Hosting.Kubernetes.PersistentVolumeAccessMode
+ */
+
+export type PersistentVolumeAccessMode = "ReadWriteOnce" | "ReadOnlyMany" | "ReadWriteMany" | "ReadWriteOncePod";
+export declare const PersistentVolumeAccessMode: {
+  readonly ReadWriteOnce: "ReadWriteOnce";
+  readonly ReadOnlyMany: "ReadOnlyMany";
+  readonly ReadWriteMany: "ReadWriteMany";
+  readonly ReadWriteOncePod: "ReadWriteOncePod";
+};
+
+/**
  * Enum Aspire.Hosting.Python.EntrypointType
  */
 
@@ -493,6 +577,16 @@ export declare const GoFeatureFlagLogLevel: {
   readonly Information: "Information";
   readonly Warning: "Warning";
   readonly Error: "Error";
+};
+
+/**
+ * Enum Aspire.Hosting.ClusterLifetime
+ */
+
+export type ClusterLifetime = "Session" | "Persistent";
+export declare const ClusterLifetime: {
+  readonly Session: "Session";
+  readonly Persistent: "Persistent";
 };
 
 /**
@@ -531,10 +625,10 @@ export declare const KeyType: {
  */
 
 export interface CertificateTrustExecutionConfigurationContext {
-  certificateBundlePath: ReferenceExpression;
-  certificateDirectoriesPath: ReferenceExpression;
-  rootCertificatesPath: string;
-  isContainer: boolean;
+  certificateBundlePath?: ReferenceExpression;
+  certificateDirectoriesPath?: ReferenceExpression;
+  rootCertificatesPath?: string;
+  isContainer?: boolean;
 }
 
 /**
@@ -542,16 +636,27 @@ export interface CertificateTrustExecutionConfigurationContext {
  */
 
 export interface CommandOptions {
-  description: string;
-  parameter: any;
-  arguments: InteractionInput[];
-  validateArguments: callback;
-  visibility: ResourceCommandVisibility;
-  confirmationMessage: string;
-  iconName: string;
-  iconVariant: IconVariant;
-  isHighlighted: boolean;
-  updateState: callback;
+  description?: string;
+  parameter?: any;
+  arguments?: InteractionInput[];
+  validateArguments?: callback;
+  visibility?: ResourceCommandVisibility;
+  confirmationMessage?: string;
+  iconName?: string;
+  iconVariant?: IconVariant;
+  isHighlighted?: boolean;
+  updateState?: callback;
+  progress?: CommandProgressOptions;
+}
+
+/**
+ * DTO Aspire.Hosting.ApplicationModel.CommandProgressOptions
+ */
+
+export interface CommandProgressOptions {
+  message?: string;
+  title?: string;
+  hideCancelButton?: boolean;
 }
 
 /**
@@ -559,9 +664,9 @@ export interface CommandOptions {
  */
 
 export interface CommandResultData {
-  value: string;
-  format: CommandResultFormat;
-  displayImmediately: boolean;
+  value?: string;
+  format?: CommandResultFormat;
+  displayImmediately?: boolean;
 }
 
 /**
@@ -569,11 +674,11 @@ export interface CommandResultData {
  */
 
 export interface ExecuteCommandResult {
-  success: boolean;
-  canceled: boolean;
-  errorMessage: string;
-  message: string;
-  data: CommandResultData;
+  success?: boolean;
+  canceled?: boolean;
+  errorMessage?: string;
+  message?: string;
+  data?: CommandResultData;
 }
 
 /**
@@ -581,15 +686,15 @@ export interface ExecuteCommandResult {
  */
 
 export interface GenerateParameterDefault {
-  minLength: number;
-  lower: boolean;
-  upper: boolean;
-  numeric: boolean;
-  special: boolean;
-  minLower: number;
-  minUpper: number;
-  minNumeric: number;
-  minSpecial: number;
+  minLength?: number;
+  lower?: boolean;
+  upper?: boolean;
+  numeric?: boolean;
+  special?: boolean;
+  minLower?: number;
+  minUpper?: number;
+  minNumeric?: number;
+  minSpecial?: number;
 }
 
 /**
@@ -597,15 +702,28 @@ export interface GenerateParameterDefault {
  */
 
 export interface HttpCommandExportOptions {
-  description: string;
-  confirmationMessage: string;
-  iconName: string;
-  iconVariant: IconVariant;
-  isHighlighted: boolean;
-  commandName: string;
-  endpointName: string;
-  methodName: string;
-  resultMode: HttpCommandResultMode;
+  commandOptions?: CommandOptions;
+  description?: string;
+  confirmationMessage?: string;
+  iconName?: string;
+  iconVariant?: IconVariant;
+  isHighlighted?: boolean;
+  commandName?: string;
+  endpointName?: string;
+  methodName?: string;
+  prepareRequest?: callback;
+  resultMode?: HttpCommandResultMode;
+}
+
+/**
+ * DTO Aspire.Hosting.ApplicationModel.HttpCommandRequestExportData
+ */
+
+export interface HttpCommandRequestExportData {
+  methodName?: string;
+  headers?: Dict<string,string>;
+  content?: string;
+  contentType?: string;
 }
 
 /**
@@ -613,9 +731,10 @@ export interface HttpCommandExportOptions {
  */
 
 export interface HttpsCertificateExecutionConfigurationContext {
-  certificatePath: ReferenceExpression;
-  keyPath: ReferenceExpression;
-  pfxPath: ReferenceExpression;
+  certificatePath?: ReferenceExpression;
+  keyPath?: ReferenceExpression;
+  certificateWithKeyPath?: ReferenceExpression;
+  pfxPath?: ReferenceExpression;
 }
 
 /**
@@ -623,17 +742,18 @@ export interface HttpsCertificateExecutionConfigurationContext {
  */
 
 export interface ProcessCommandExportOptions {
-  executablePath: string;
-  arguments: string[];
-  workingDirectory: string;
-  environmentVariables: Dict<string,string>;
-  inheritEnvironmentVariables: boolean;
-  standardInputContent: string;
-  killEntireProcessTree: boolean;
-  commandOptions: CommandOptions;
-  maxOutputLineCount: number;
-  displayImmediately: boolean;
-  successExitCodes: number[];
+  executablePath?: string;
+  arguments?: string[];
+  workingDirectory?: string;
+  environmentVariables?: Dict<string,string>;
+  inheritEnvironmentVariables?: boolean;
+  standardInputContent?: string;
+  killEntireProcessTree?: boolean;
+  createProcessSpec?: callback;
+  commandOptions?: CommandOptions;
+  maxOutputLineCount?: number;
+  displayImmediately?: boolean;
+  successExitCodes?: number[];
 }
 
 /**
@@ -641,10 +761,10 @@ export interface ProcessCommandExportOptions {
  */
 
 export interface ProcessCommandResultExportOptions {
-  commandOptions: CommandOptions;
-  maxOutputLineCount: number;
-  displayImmediately: boolean;
-  successExitCodes: number[];
+  commandOptions?: CommandOptions;
+  maxOutputLineCount?: number;
+  displayImmediately?: boolean;
+  successExitCodes?: number[];
 }
 
 /**
@@ -652,13 +772,13 @@ export interface ProcessCommandResultExportOptions {
  */
 
 export interface ProcessCommandSpecExportData {
-  executablePath: string;
-  arguments: string[];
-  workingDirectory: string;
-  environmentVariables: Dict<string,string>;
-  inheritEnvironmentVariables: boolean;
-  standardInputContent: string;
-  killEntireProcessTree: boolean;
+  executablePath?: string;
+  arguments?: string[];
+  workingDirectory?: string;
+  environmentVariables?: Dict<string,string>;
+  inheritEnvironmentVariables?: boolean;
+  standardInputContent?: string;
+  killEntireProcessTree?: boolean;
 }
 
 /**
@@ -666,10 +786,10 @@ export interface ProcessCommandSpecExportData {
  */
 
 export interface ResourceUrlAnnotation {
-  url: string;
-  displayText: string;
-  endpoint: EndpointReference;
-  displayLocation: UrlDisplayLocation;
+  url?: string;
+  displayText?: string;
+  endpoint?: EndpointReference;
+  displayLocation?: UrlDisplayLocation;
 }
 
 /**
@@ -677,11 +797,11 @@ export interface ResourceUrlAnnotation {
  */
 
 export interface UpdateCommandStateResourceSnapshot {
-  resourceType: string;
-  state: string;
-  stateStyle: string;
-  healthStatus: HealthStatus;
-  exitCode: number;
+  resourceType?: string;
+  state?: string;
+  stateStyle?: string;
+  healthStatus?: HealthStatus;
+  exitCode?: number;
 }
 
 /**
@@ -689,8 +809,17 @@ export interface UpdateCommandStateResourceSnapshot {
  */
 
 export interface AddContainerOptions {
-  image: string;
-  tag: string;
+  image?: string;
+  tag?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.BoolInteractionResult
+ */
+
+export interface BoolInteractionResult {
+  canceled?: boolean;
+  value?: boolean;
 }
 
 /**
@@ -698,9 +827,19 @@ export interface AddContainerOptions {
  */
 
 export interface CertificateTrustExecutionConfigurationExportData {
-  scope: CertificateTrustScope;
-  certificateSubjects: string[];
-  customBundlePaths: string[];
+  scope?: CertificateTrustScope;
+  certificateSubjects?: string[];
+  customBundlePaths?: string[];
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.ContainerFilesOptions
+ */
+
+export interface ContainerFilesOptions {
+  defaultOwner?: number;
+  defaultGroup?: number;
+  umask?: number;
 }
 
 /**
@@ -708,14 +847,52 @@ export interface CertificateTrustExecutionConfigurationExportData {
  */
 
 export interface CreateBuilderOptions {
-  args: string[];
-  projectDirectory: string;
-  appHostFilePath: string;
-  containerRegistryOverride: string;
-  disableDashboard: boolean;
-  dashboardApplicationName: string;
-  allowUnsecuredTransport: boolean;
-  enableResourceLogging: boolean;
+  args?: string[];
+  projectDirectory?: string;
+  appHostFilePath?: string;
+  containerRegistryOverride?: string;
+  disableDashboard?: boolean;
+  dashboardApplicationName?: string;
+  allowUnsecuredTransport?: boolean;
+  enableResourceLogging?: boolean;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.CreateInteractionInputOptions
+ */
+
+export interface CreateInteractionInputOptions {
+  label?: string;
+  description?: string;
+  enableDescriptionMarkdown?: boolean;
+  required?: boolean;
+  placeholder?: string;
+  value?: string;
+  allowCustomChoice?: boolean;
+  disabled?: boolean;
+  maxLength?: number;
+  maxFileSize?: number;
+  allowMultipleFiles?: boolean;
+  fileFilter?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.DynamicLoadingOptions
+ */
+
+export interface DynamicLoadingOptions {
+  alwaysLoadOnStart?: boolean;
+  dependsOnInputs?: string[];
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.HealthCheckResult
+ */
+
+export interface HealthCheckResult {
+  status?: HealthStatus;
+  description?: string;
+  data?: Dict<string,string>;
 }
 
 /**
@@ -723,13 +900,14 @@ export interface CreateBuilderOptions {
  */
 
 export interface HttpsCertificateExecutionConfigurationExportData {
-  subject: string;
-  thumbprint: string;
-  keyPathExpression: string;
-  pfxPathExpression: string;
-  isKeyPathReferenced: boolean;
-  isPfxPathReferenced: boolean;
-  password: string;
+  subject?: string;
+  thumbprint?: string;
+  keyPathExpression?: string;
+  pfxPathExpression?: string;
+  isKeyPathReferenced?: boolean;
+  isCertificateWithKeyPathReferenced?: boolean;
+  isPfxPathReferenced?: boolean;
+  password?: string;
 }
 
 /**
@@ -737,9 +915,96 @@ export interface HttpsCertificateExecutionConfigurationExportData {
  */
 
 export interface HttpsCertificateInfo {
-  subject: string;
-  issuer: string;
-  thumbprint: string;
+  subject?: string;
+  issuer?: string;
+  thumbprint?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InputInteractionResult
+ */
+
+export interface InputInteractionResult {
+  canceled?: boolean;
+  input?: InteractionInput;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InteractionChoiceOption
+ */
+
+export interface InteractionChoiceOption {
+  value?: string;
+  label?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InteractionInputsDialogOptions
+ */
+
+export interface InteractionInputsDialogOptions {
+  primaryButtonText?: string;
+  secondaryButtonText?: string;
+  showSecondaryButton?: boolean;
+  showDismiss?: boolean;
+  enableMessageMarkdown?: boolean;
+  validationCallback?: callback;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InteractionMessageBoxOptions
+ */
+
+export interface InteractionMessageBoxOptions {
+  primaryButtonText?: string;
+  secondaryButtonText?: string;
+  showSecondaryButton?: boolean;
+  showDismiss?: boolean;
+  enableMessageMarkdown?: boolean;
+  intent?: MessageIntent;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InteractionNotificationOptions
+ */
+
+export interface InteractionNotificationOptions {
+  primaryButtonText?: string;
+  secondaryButtonText?: string;
+  showSecondaryButton?: boolean;
+  showDismiss?: boolean;
+  enableMessageMarkdown?: boolean;
+  intent?: MessageIntent;
+  linkText?: string;
+  linkUrl?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.InteractionProgressOptions
+ */
+
+export interface InteractionProgressOptions {
+  title?: string;
+  primaryButtonText?: string;
+  enableMessageMarkdown?: boolean;
+  work?: callback;
+}
+
+/**
+ * DTO Aspire.Hosting.Ats.ParameterCustomInputOptions
+ */
+
+export interface ParameterCustomInputOptions {
+  inputType?: InputType;
+  label?: string;
+  description?: string;
+  enableDescriptionMarkdown?: boolean;
+  options?: Dict<string,string>;
+  value?: string;
+  placeholder?: string;
+  allowCustomChoice?: boolean;
+  disabled?: boolean;
+  maxLength?: number;
 }
 
 /**
@@ -747,10 +1012,10 @@ export interface HttpsCertificateInfo {
  */
 
 export interface ReferenceEnvironmentInjectionOptions {
-  connectionString: boolean;
-  connectionProperties: boolean;
-  serviceDiscovery: boolean;
-  endpoints: boolean;
+  connectionString?: boolean;
+  connectionProperties?: boolean;
+  serviceDiscovery?: boolean;
+  endpoints?: boolean;
 }
 
 /**
@@ -758,12 +1023,12 @@ export interface ReferenceEnvironmentInjectionOptions {
  */
 
 export interface ResourceEventDto {
-  resourceName: string;
-  resourceId: string;
-  state: string;
-  stateStyle: string;
-  healthStatus: string;
-  exitCode: number;
+  resourceName?: string;
+  resourceId?: string;
+  state?: string;
+  stateStyle?: string;
+  healthStatus?: string;
+  exitCode?: number;
 }
 
 /**
@@ -771,19 +1036,99 @@ export interface ResourceEventDto {
  */
 
 export interface InteractionInput {
-  name: string;
-  label: string;
-  description: string;
-  enableDescriptionMarkdown: boolean;
-  inputType: InputType;
-  required: boolean;
-  options: String[];
-  dynamicLoading: InputLoadOptions;
-  value: string;
-  placeholder: string;
-  allowCustomChoice: boolean;
-  disabled: boolean;
-  maxLength: number;
+  name?: string;
+  label?: string;
+  description?: string;
+  enableDescriptionMarkdown?: boolean;
+  inputType?: InputType;
+  required?: boolean;
+  options?: KeyValuePair<string,string>[];
+  value?: string;
+  placeholder?: string;
+  allowCustomChoice?: boolean;
+  disabled?: boolean;
+  maxLength?: number;
+  allowMultipleFiles?: boolean;
+  fileFilter?: string;
+  maxFileSize?: number;
+}
+
+/**
+ * DTO Aspire.Hosting.RunConfiguration
+ */
+
+export interface RunConfiguration {
+  watchEnabled?: boolean;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.DynamoDB.DynamoDBLocalOptions
+ */
+
+export interface DynamoDBLocalOptions {
+  registry?: string;
+  image?: string;
+  tag?: string;
+  sharedDb?: boolean;
+  inMemory?: boolean;
+  localStorageDirectory?: string;
+  disableDynamoDBLocalTelemetry?: boolean;
+  delayTransientStatuses?: boolean;
+  port?: number;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.Lambda.APIGatewayEmulatorOptions
+ */
+
+export interface APIGatewayEmulatorOptions {
+  httpPort?: number;
+  httpsPort?: number;
+  disableHttpsEndpoint?: boolean;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.Lambda.DynamoDBStreamsEventSourceOptions
+ */
+
+export interface DynamoDBStreamsEventSourceOptions {
+  resourceName?: string;
+  batchSize?: number;
+  pollingIntervalMs?: number;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.Lambda.LambdaEmulatorOptions
+ */
+
+export interface LambdaEmulatorOptions {
+  disableAutoInstall?: boolean;
+  overrideMinimumInstallVersion?: string;
+  allowDowngrade?: boolean;
+  httpPort?: number;
+  httpsPort?: number;
+  configStoragePath?: string;
+  disableHttpsEndpoint?: boolean;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.Lambda.LambdaFunctionPolyglotOptions
+ */
+
+export interface LambdaFunctionPolyglotOptions {
+  logFormat?: string;
+  applicationLogLevel?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.AWS.Lambda.SQSEventSourceOptions
+ */
+
+export interface SQSEventSourceOptions {
+  resourceName?: string;
+  batchSize?: number;
+  disableMessageDelete?: boolean;
+  visibilityTimeout?: number;
 }
 
 /**
@@ -791,7 +1136,7 @@ export interface InteractionInput {
  */
 
 export interface AzureContainerAppScaleConfig {
-  minReplicas: number;
+  minReplicas?: number;
 }
 
 /**
@@ -799,7 +1144,7 @@ export interface AzureContainerAppScaleConfig {
  */
 
 export interface AzureAppServiceSiteConfig {
-  isAlwaysOn: boolean;
+  isAlwaysOn?: boolean;
 }
 
 /**
@@ -807,14 +1152,14 @@ export interface AzureAppServiceSiteConfig {
  */
 
 export interface AzureNspAccessRule {
-  name: string;
-  direction: NetworkSecurityPerimeterAccessRuleDirection;
-  addressPrefixes: List<string>;
-  addressPrefixReferences: List<ReferenceExpression>;
-  subscriptions: List<string>;
-  subscriptionReferences: List<ReferenceExpression>;
-  fullyQualifiedDomainNames: List<string>;
-  fullyQualifiedDomainNameReferences: List<ReferenceExpression>;
+  name?: string;
+  direction?: NetworkSecurityPerimeterAccessRuleDirection;
+  addressPrefixes?: List<string>;
+  addressPrefixReferences?: List<ReferenceExpression>;
+  subscriptions?: List<string>;
+  subscriptionReferences?: List<ReferenceExpression>;
+  fullyQualifiedDomainNames?: List<string>;
+  fullyQualifiedDomainNameReferences?: List<ReferenceExpression>;
 }
 
 /**
@@ -822,18 +1167,18 @@ export interface AzureNspAccessRule {
  */
 
 export interface AzureSecurityRule {
-  name: string;
-  description: string;
-  priority: number;
-  direction: SecurityRuleDirection;
-  access: SecurityRuleAccess;
-  protocol: SecurityRuleProtocol;
-  sourceAddressPrefix: string;
-  sourceAddressPrefixReference: ReferenceExpression;
-  sourcePortRange: string;
-  destinationAddressPrefix: string;
-  destinationAddressPrefixReference: ReferenceExpression;
-  destinationPortRange: string;
+  name?: string;
+  description?: string;
+  priority?: number;
+  direction?: SecurityRuleDirection;
+  access?: SecurityRuleAccess;
+  protocol?: SecurityRuleProtocol;
+  sourceAddressPrefix?: string;
+  sourceAddressPrefixReference?: ReferenceExpression;
+  sourcePortRange?: string;
+  destinationAddressPrefix?: string;
+  destinationAddressPrefixReference?: ReferenceExpression;
+  destinationPortRange?: string;
 }
 
 /**
@@ -841,16 +1186,16 @@ export interface AzureSecurityRule {
  */
 
 export interface AzureServiceBusCorrelationFilter {
-  properties: Dict<string,any>;
-  correlationId: string;
-  messageId: string;
-  sendTo: string;
-  replyTo: string;
-  subject: string;
-  sessionId: string;
-  replyToSessionId: string;
-  contentType: string;
-  requiresPreprocessing: boolean;
+  properties?: Dict<string,any>;
+  correlationId?: string;
+  messageId?: string;
+  sendTo?: string;
+  replyTo?: string;
+  subject?: string;
+  sessionId?: string;
+  replyToSessionId?: string;
+  contentType?: string;
+  requiresPreprocessing?: boolean;
 }
 
 /**
@@ -858,9 +1203,9 @@ export interface AzureServiceBusCorrelationFilter {
  */
 
 export interface AzureServiceBusRule {
-  name: string;
-  correlationFilter: AzureServiceBusCorrelationFilter;
-  filterType: AzureServiceBusFilterType;
+  name?: string;
+  correlationFilter?: AzureServiceBusCorrelationFilter;
+  filterType?: AzureServiceBusFilterType;
 }
 
 /**
@@ -868,9 +1213,9 @@ export interface AzureServiceBusRule {
  */
 
 export interface FoundryModel {
-  name: string;
-  version: string;
-  format: string;
+  name?: string;
+  version?: string;
+  format?: string;
 }
 
 /**
@@ -878,21 +1223,24 @@ export interface FoundryModel {
  */
 
 export interface HostedAgentOptions {
-  description: string;
-  cpu: number;
-  memory: number;
-  metadata: Dict<string,string>;
-  environmentVariables: Dict<string,string>;
-  protocols: List<HostedAgentProtocolVersion>;
+  description?: string;
+  cpu?: number;
+  memory?: number;
+  metadata?: Dict<string,string>;
+  environmentVariables?: Dict<string,string>;
 }
 
 /**
- * DTO Aspire.Hosting.Foundry.HostedAgentProtocolVersion
+ * DTO Aspire.Hosting.Go.DelveServerOptions
  */
 
-export interface HostedAgentProtocolVersion {
-  protocol: string;
-  version: string;
+export interface DelveServerOptions {
+  port?: number;
+  acceptMultiClient?: boolean;
+  onlySameUser?: boolean;
+  continueOnStart?: boolean;
+  log?: boolean;
+  logOutput?: string;
 }
 
 /**
@@ -900,12 +1248,12 @@ export interface HostedAgentProtocolVersion {
  */
 
 export interface YarpActiveHealthCheckConfig {
-  enabled: boolean;
-  interval: timespan;
-  path: string;
-  policy: string;
-  query: string;
-  timeout: timespan;
+  enabled?: boolean;
+  interval?: timespan;
+  path?: string;
+  policy?: string;
+  query?: string;
+  timeout?: timespan;
 }
 
 /**
@@ -913,10 +1261,10 @@ export interface YarpActiveHealthCheckConfig {
  */
 
 export interface YarpForwarderRequestConfig {
-  activityTimeout: timespan;
-  allowResponseBuffering: boolean;
-  version: string;
-  versionPolicy: HttpVersionPolicy;
+  activityTimeout?: timespan;
+  allowResponseBuffering?: boolean;
+  version?: string;
+  versionPolicy?: HttpVersionPolicy;
 }
 
 /**
@@ -924,9 +1272,9 @@ export interface YarpForwarderRequestConfig {
  */
 
 export interface YarpHealthCheckConfig {
-  active: YarpActiveHealthCheckConfig;
-  availableDestinationsPolicy: string;
-  passive: YarpPassiveHealthCheckConfig;
+  active?: YarpActiveHealthCheckConfig;
+  availableDestinationsPolicy?: string;
+  passive?: YarpPassiveHealthCheckConfig;
 }
 
 /**
@@ -934,13 +1282,13 @@ export interface YarpHealthCheckConfig {
  */
 
 export interface YarpHttpClientConfig {
-  dangerousAcceptAnyServerCertificate: boolean;
-  enableMultipleHttp2Connections: boolean;
-  maxConnectionsPerServer: number;
-  requestHeaderEncoding: string;
-  responseHeaderEncoding: string;
-  sslProtocols: YarpSslProtocol[];
-  webProxy: YarpWebProxyConfig;
+  dangerousAcceptAnyServerCertificate?: boolean;
+  enableMultipleHttp2Connections?: boolean;
+  maxConnectionsPerServer?: number;
+  requestHeaderEncoding?: string;
+  responseHeaderEncoding?: string;
+  sslProtocols?: YarpSslProtocol[];
+  webProxy?: YarpWebProxyConfig;
 }
 
 /**
@@ -948,9 +1296,9 @@ export interface YarpHttpClientConfig {
  */
 
 export interface YarpPassiveHealthCheckConfig {
-  enabled: boolean;
-  policy: string;
-  reactivationPeriod: timespan;
+  enabled?: boolean;
+  policy?: string;
+  reactivationPeriod?: timespan;
 }
 
 /**
@@ -958,10 +1306,10 @@ export interface YarpPassiveHealthCheckConfig {
  */
 
 export interface YarpRouteHeaderMatch {
-  name: string;
-  values: string[];
-  isCaseSensitive: boolean;
-  mode: HeaderMatchMode;
+  name?: string;
+  values?: string[];
+  isCaseSensitive?: boolean;
+  mode?: HeaderMatchMode;
 }
 
 /**
@@ -969,11 +1317,11 @@ export interface YarpRouteHeaderMatch {
  */
 
 export interface YarpRouteMatch {
-  path: string;
-  methods: string[];
-  hosts: string[];
-  headers: YarpRouteHeaderMatch[];
-  queryParameters: YarpRouteQueryParameterMatch[];
+  path?: string;
+  methods?: string[];
+  hosts?: string[];
+  headers?: YarpRouteHeaderMatch[];
+  queryParameters?: YarpRouteQueryParameterMatch[];
 }
 
 /**
@@ -981,10 +1329,10 @@ export interface YarpRouteMatch {
  */
 
 export interface YarpRouteQueryParameterMatch {
-  name: string;
-  values: string[];
-  isCaseSensitive: boolean;
-  mode: QueryParameterMatchMode;
+  name?: string;
+  values?: string[];
+  isCaseSensitive?: boolean;
+  mode?: QueryParameterMatchMode;
 }
 
 /**
@@ -992,11 +1340,11 @@ export interface YarpRouteQueryParameterMatch {
  */
 
 export interface YarpSessionAffinityConfig {
-  affinityKeyName: string;
-  cookie: YarpSessionAffinityCookieConfig;
-  enabled: boolean;
-  failurePolicy: string;
-  policy: string;
+  affinityKeyName?: string;
+  cookie?: YarpSessionAffinityCookieConfig;
+  enabled?: boolean;
+  failurePolicy?: string;
+  policy?: string;
 }
 
 /**
@@ -1004,14 +1352,14 @@ export interface YarpSessionAffinityConfig {
  */
 
 export interface YarpSessionAffinityCookieConfig {
-  domain: string;
-  expiration: timespan;
-  httpOnly: boolean;
-  isEssential: boolean;
-  maxAge: timespan;
-  path: string;
-  sameSite: SameSiteMode;
-  securePolicy: CookieSecurePolicy;
+  domain?: string;
+  expiration?: timespan;
+  httpOnly?: boolean;
+  isEssential?: boolean;
+  maxAge?: timespan;
+  path?: string;
+  sameSite?: SameSiteMode;
+  securePolicy?: CookieSecurePolicy;
 }
 
 /**
@@ -1019,9 +1367,9 @@ export interface YarpSessionAffinityCookieConfig {
  */
 
 export interface YarpWebProxyConfig {
-  address: uri;
-  bypassOnLocal: boolean;
-  useDefaultCredentials: boolean;
+  address?: uri;
+  bypassOnLocal?: boolean;
+  useDefaultCredentials?: boolean;
 }
 
 // ---- handle types ----
@@ -1130,6 +1478,152 @@ export interface ConnectionStringAvailableEvent extends IDistributedApplicationE
    */
 
   services: PropertyAccessor<IServiceProvider>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ContainerBuildOptionsCallbackContext
+ */
+
+export interface ContainerBuildOptionsCallbackContext {
+  /**
+   * Gets the cancellation token.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+  /**
+   * Gets or sets the destination for the container image.
+   */
+
+  destination: PropertyAccessor<ContainerImageDestination>;
+  /**
+   * Gets the distributed application execution context.
+   */
+
+  executionContext: PropertyAccessor<DistributedApplicationExecutionContext>;
+  /**
+   * Gets or sets the container image format.
+   */
+
+  imageFormat: PropertyAccessor<ContainerImageFormat>;
+  /**
+   * Gets or sets the local image name for the built container.
+   */
+
+  localImageName: PropertyAccessor<string>;
+  /**
+   * Gets or sets the local image tag for the built container.
+   */
+
+  localImageTag: PropertyAccessor<string>;
+  /**
+   * Gets the logger instance.
+   */
+
+  logger: PropertyAccessor<ILogger>;
+  /**
+   * Gets or sets the output path for the container archive.
+   */
+
+  outputPath: PropertyAccessor<string>;
+  /**
+   * Gets the resource being built.
+   */
+
+  resource: PropertyAccessor<IResource>;
+  /**
+   * Gets the service provider.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
+  /**
+   * Gets or sets the destination for the container image.
+   */
+
+  setDestination(value: ContainerImageDestination): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the container image format.
+   */
+
+  setImageFormat(value: ContainerImageFormat): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the local image name for the built container.
+   */
+
+  setLocalImageName(value: string): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the local image tag for the built container.
+   */
+
+  setLocalImageTag(value: string): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the output path for the container archive.
+   */
+
+  setOutputPath(value: string): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the target platform for the container.
+   */
+
+  setTargetPlatform(value: ContainerTargetPlatform): ContainerBuildOptionsCallbackContext;
+  /**
+   * Gets or sets the target platform for the container.
+   */
+
+  targetPlatform: PropertyAccessor<ContainerTargetPlatform>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ContainerFileSystemCallbackContext
+ */
+
+export interface ContainerFileSystemCallbackContext {
+  /**
+   * The app model resource the callback is associated with.
+   */
+
+  model: PropertyAccessor<IResource>;
+  /**
+   * A `IServiceProvider` that can be used to resolve services in the callback.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
+  /**
+   * Creates a PEM container certificate file entry with the OpenSSL subject-hash symlink.
+   */
+
+  createCertificateFile(name: string, options?: { contents?: string; sourcePath?: string; owner?: number; group?: number; mode?: number; continueOnError?: boolean }): ContainerFileSystemItem;
+  /**
+   * Creates a PEM container certificate file entry with the OpenSSL subject-hash symlink.
+   */
+
+  createCertificateFile(name: string, contents?: string, sourcePath?: string, owner?: number, group?: number, mode?: number, continueOnError?: boolean): ContainerFileSystemItem;
+  /**
+   * Creates a container directory entry containing the specified child entries.
+   */
+
+  createDirectory(name: string, entries: ContainerFileSystemItem[], options?: { owner?: number; group?: number; mode?: number }): ContainerFileSystemItem;
+  /**
+   * Creates a container directory entry containing the specified child entries.
+   */
+
+  createDirectory(name: string, entries: ContainerFileSystemItem[], owner?: number, group?: number, mode?: number): ContainerFileSystemItem;
+  /**
+   * Creates a container file entry with inline contents or a host source path.
+   */
+
+  createFile(name: string, options?: { contents?: string; sourcePath?: string; owner?: number; group?: number; mode?: number; continueOnError?: boolean }): ContainerFileSystemItem;
+  /**
+   * Creates a container file entry with inline contents or a host source path.
+   */
+
+  createFile(name: string, contents?: string, sourcePath?: string, owner?: number, group?: number, mode?: number, continueOnError?: boolean): ContainerFileSystemItem;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ContainerFileSystemItem
+ */
+
+export interface ContainerFileSystemItem {
 }
 
 /**
@@ -1294,6 +1788,16 @@ export interface ContainerResource extends IComputeResource, IResource, IResourc
    */
 
   withContainerCertificatePaths(customCertificatesDestination?: string, defaultCertificateBundlePaths?: string[], defaultCertificateDirectoryPaths?: string[]): this;
+  /**
+   * Creates or updates files and folders in a container by copying them from a source path on the host.
+   */
+
+  withContainerFiles(destinationPath: string, sourcePath: string, options?: ContainerFilesOptions): this;
+  /**
+   * Creates or updates files and/or folders at the destination path in the container using entries produced by a callback.
+   */
+
+  withContainerFilesCallback(destinationPath: string, callback: (arg1: ContainerFileSystemCallbackContext, arg2: cancellationToken) => Promise<ContainerFileSystemItem[]>, options?: ContainerFilesOptions): this;
   /**
    * Overrides the default container name for this resource. By default Aspire generates a unique container name based on the resource name and a random postfix (or a postfix based on a hash of the AppHost project path for persistent container resources). This method allows you to override that behavior with a custom name, but could lead to naming conflicts if the specified name is not unique.
    */
@@ -1917,6 +2421,117 @@ export interface ExecuteCommandContext {
    */
 
   resourceName: PropertyAccessor<string>;
+  /**
+   * The service provider.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.HttpCommandPrepareRequestContext
+ */
+
+export interface HttpCommandPrepareRequestContext {
+  /**
+   * Gets the invocation arguments supplied by the client when the command is executed.
+   */
+
+  arguments: PropertyAccessor<InteractionInputCollection>;
+  /**
+   * The cancellation token.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+  /**
+   * The endpoint the request is targeting.
+   */
+
+  endpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * The name of the resource the command was configured on.
+   */
+
+  resourceName: PropertyAccessor<string>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.HttpsCertificateConfigurationCallbackAnnotationContext
+ */
+
+export interface HttpsCertificateConfigurationCallbackAnnotationContext {
+  /**
+   * Gets the editor used to manipulate the command-line arguments in polyglot callbacks.
+   */
+
+  arguments: PropertyAccessor<CommandLineArgsEditor>;
+  /**
+   * Gets the `CancellationToken` that can be used to cancel the operation.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+  /**
+   * A value provider that will resolve to a path to the certificate file.
+   */
+
+  certificatePath: PropertyAccessor<ReferenceExpression>;
+  /**
+   * A value provider that will resolve to a path to the certificate and key concatenated together in PEM format.
+   */
+
+  certificateWithKeyPath: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the editor used to set environment variables in polyglot callbacks.
+   */
+
+  environment: PropertyAccessor<EnvironmentEditor>;
+  /**
+   * Gets the `DistributedApplicationExecutionContext` for this session.
+   */
+
+  executionContext: PropertyAccessor<DistributedApplicationExecutionContext>;
+  /**
+   * A value provider that will resolve to a path to the private key for the certificate.
+   */
+
+  keyPath: PropertyAccessor<ReferenceExpression>;
+  /**
+   * A value provider that will resolve to a path to a PFX file for the key pair.
+   */
+
+  pfxPath: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the resource to which the annotation is applied.
+   */
+
+  resource: PropertyAccessor<IResource>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.HttpsEndpointUpdateCallbackContext
+ */
+
+export interface HttpsEndpointUpdateCallbackContext {
+  /**
+   * Gets the `CancellationToken` for the operation.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+  /**
+   * Gets the `DistributedApplicationModel` instance.
+   */
+
+  model: PropertyAccessor<DistributedApplicationModel>;
+  /**
+   * Gets the `IResource` that is being configured for HTTPS.
+   */
+
+  resource: PropertyAccessor<IResource>;
+  /**
+   * Gets the `IServiceProvider` instance from the application.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
 }
 
 /**
@@ -2005,7 +2620,7 @@ export interface IExpressionValue {
 
 export interface InitializeResourceEvent extends IDistributedApplicationEvent, IDistributedApplicationResourceEvent {
   /**
-   * The `IDistributedApplicationEventing` service for the app host.
+   * The `IDistributedApplicationEventing` service for the AppHost.
    */
 
   eventing: PropertyAccessor<IDistributedApplicationEventing>;
@@ -2015,7 +2630,7 @@ export interface InitializeResourceEvent extends IDistributedApplicationEvent, I
 
   logger: PropertyAccessor<ILogger>;
   /**
-   * The `ResourceNotificationService` for the app host.
+   * The `ResourceNotificationService` for the AppHost.
    */
 
   notifications: PropertyAccessor<ResourceNotificationService>;
@@ -2025,7 +2640,7 @@ export interface InitializeResourceEvent extends IDistributedApplicationEvent, I
 
   resource: PropertyAccessor<IResource>;
   /**
-   * The `IServiceProvider` for the app host.
+   * The `IServiceProvider` for the AppHost.
    */
 
   services: PropertyAccessor<IServiceProvider>;
@@ -2077,6 +2692,11 @@ export interface IResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Sets a child relationship
    */
 
@@ -2091,6 +2711,11 @@ export interface IResource {
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -2185,11 +2810,6 @@ export interface IResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a relationship to another resource using its builder.
@@ -2207,10 +2827,25 @@ export interface IResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -2326,11 +2961,6 @@ export interface IResourceWithEndpoints {
    * Adds an HTTP resource command
    */
 
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
    * Adds an HTTP endpoint
@@ -2429,6 +3059,11 @@ export interface IResourceWithEnvironment {
    */
 
   withEnvironmentCallback(callback: (arg: EnvironmentCallbackContext) => Promise<void>): this;
+  /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
   /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
@@ -2533,7 +3168,7 @@ export interface LogFacade {
 
 export interface ParameterResource extends IExpressionValue, IManifestExpressionProvider, IResource, IValueProvider {
   /**
-   * Sets a custom input for the parameter resource from a polyglot app host.
+   * Sets a custom input for the parameter resource from a polyglot AppHost.
    */
 
   withCustomInput(options: ParameterCustomInputOptions): this;
@@ -2569,6 +3204,11 @@ export interface ProjectResource extends IComputeResource, IContainerFilesDestin
    */
 
   publishAsDockerFile(configure?: (obj: ContainerResource) => Promise<void>): this;
+  /**
+   * Includes only the specified project endpoint names in environment-variable injection.
+   */
+
+  withEndpointsInEnvironment(endpointNames: string[]): this;
   /**
    * Configures how many replicas of the project should be created for the project.
    */
@@ -2620,6 +3260,55 @@ export interface ReferenceExpressionBuilder {
    */
 
   isEmpty: PropertyAccessor<boolean>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RequiredCommandValidationContext
+ */
+
+export interface RequiredCommandValidationContext {
+  /**
+   * Gets a cancellation token that can be used to cancel the validation.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+  /**
+   * Creates a failed validation result with the specified message.
+   */
+
+  failure(validationMessage: string): RequiredCommandValidationResult;
+  /**
+   * Gets the resolved full path to the command executable.
+   */
+
+  resolvedPath: PropertyAccessor<string>;
+  /**
+   * Gets the service provider for accessing application services.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
+  /**
+   * Creates a successful validation result.
+   */
+
+  success(): RequiredCommandValidationResult;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RequiredCommandValidationResult
+ */
+
+export interface RequiredCommandValidationResult {
+  /**
+   * Gets a value indicating whether the command validation succeeded.
+   */
+
+  isValid: PropertyAccessor<boolean>;
+  /**
+   * Gets an optional validation message describing why validation failed.
+   */
+
+  validationMessage: PropertyAccessor<string>;
 }
 
 /**
@@ -2813,6 +3502,11 @@ export interface UpdateCommandStateContext {
    */
 
   resourceSnapshot: PropertyAccessor<UpdateCommandStateResourceSnapshot>;
+  /**
+   * The service provider.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
 }
 
 /**
@@ -2853,6 +3547,84 @@ export interface EventingSubscriberRegistrationContext {
 }
 
 /**
+ * Handle Aspire.Hosting.Ats.InputsInteractionResult
+ */
+
+export interface InputsInteractionResult {
+  /**
+   * Gets a value indicating whether the interaction was canceled by the user.
+   */
+
+  canceled: PropertyAccessor<boolean>;
+  /**
+   * Gets the inputs returned from the interaction. Empty when `Canceled` is `true`.
+   */
+
+  inputs: PropertyAccessor<InteractionInputCollection>;
+}
+
+/**
+ * Handle Aspire.Hosting.Ats.InteractionInputBuilder
+ */
+
+export interface InteractionInputBuilder {
+  /**
+   * Sets the choice options for the input.
+   */
+
+  withChoiceOptions(choices: InteractionChoiceOption[]): InteractionInputBuilder;
+  /**
+   * Attaches a callback that dynamically loads or updates the input after the prompt starts.
+   */
+
+  withDynamicLoading(callback: (arg: InteractionInputLoadContext) => Promise<void>, options?: DynamicLoadingOptions): InteractionInputBuilder;
+  /**
+   * Sets the value of the input.
+   */
+
+  withValue(value: string): InteractionInputBuilder;
+}
+
+/**
+ * Handle Aspire.Hosting.Ats.InteractionInputLoadContext
+ */
+
+export interface InteractionInputLoadContext {
+  /**
+   * Gets a handle to the input that is loading. Mutate the input through this handle.
+   */
+
+  input(): InteractionLoadingInput;
+  /**
+   * Gets all inputs in the prompt, including the one currently loading.
+   */
+
+  inputs: PropertyAccessor<InteractionInputCollection>;
+}
+
+/**
+ * Handle Aspire.Hosting.Ats.InteractionLoadingInput
+ */
+
+export interface InteractionLoadingInput {
+  /**
+   * Gets the name of the input.
+   */
+
+  getName(): string;
+  /**
+   * Sets the choice options for the input.
+   */
+
+  setChoiceOptions(choices: InteractionChoiceOption[]): void;
+  /**
+   * Sets the value of the input.
+   */
+
+  setValue(value: string): void;
+}
+
+/**
  * Handle Aspire.Hosting.DistributedApplication
  */
 
@@ -2890,10 +3662,20 @@ export interface DistributedApplicationExecutionContext {
 
   publisherName: PropertyAccessor<string>;
   /**
+   * Describes how the AppHost is being run. Only meaningful when `Operation` is `Run`; otherwise every aspect holds its default value.
+   */
+
+  runConfiguration: PropertyAccessor<RunConfiguration>;
+  /**
    * The `IServiceProvider` for the AppHost.
    */
 
   serviceProvider: PropertyAccessor<IServiceProvider>;
+  /**
+   * The `IServiceProvider` for the AppHost.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
   /**
    * The name of the publisher that is being used if `Operation` is set to `Publish`.
    */
@@ -2954,12 +3736,12 @@ export interface IDistributedApplicationResourceEvent {
 
 export interface ExternalServiceResource extends IResource {
   /**
-   * Adds an HTTP health check to the external service for polyglot app hosts.
+   * Adds an HTTP health check to the external service for polyglot AppHosts.
    */
 
   withHttpHealthCheck(options?: { path?: string; statusCode?: number; endpointName?: string }): this;
   /**
-   * Adds an HTTP health check to the external service for polyglot app hosts.
+   * Adds an HTTP health check to the external service for polyglot AppHosts.
    */
 
   withHttpHealthCheck(path?: string, statusCode?: number, endpointName?: string): this;
@@ -2995,11 +3777,6 @@ export interface IDistributedApplicationBuilder {
    */
 
   addContainerRegistry(name: string, endpoint: string | ParameterResource, repository?: string | ParameterResource): ContainerRegistryResource;
-  /**
-   * Adds a C# application resource
-   */
-
-  addCSharpApp(name: string, path: string, options?: { options?: ProjectResourceOptions }): CSharpAppResource;
   /**
    * Adds a C# application resource
    */
@@ -3056,6 +3833,11 @@ export interface IDistributedApplicationBuilder {
 
   addExternalService(name: string, url: string | ParameterResource): ExternalServiceResource;
   /**
+   * Adds a custom health check callback to the distributed-application builder.
+   */
+
+  addHealthCheck(name: string, check: () => Promise<HealthCheckResult>): void;
+  /**
    * Adds a parameter resource
    */
 
@@ -3101,7 +3883,7 @@ export interface IDistributedApplicationBuilder {
 
   getConfiguration(): IConfiguration;
   /**
-   * Directory of the project where the app host is located. Defaults to the content root if there's no project.
+   * Directory of the project where the AppHost is located. Defaults to the content root if there's no project.
    */
 
   appHostDirectory: PropertyAccessor<string>;
@@ -3163,6 +3945,78 @@ export interface IDistributedApplicationBuilder {
 }
 
 /**
+ * Handle Aspire.Hosting.IInteractionService
+ */
+
+export interface IInteractionService {
+  /**
+   * Creates a boolean (checkbox) input.
+   */
+
+  createBooleanInput(name: string, options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Creates a choice input that selects from a list of options.
+   */
+
+  createChoiceInput(name: string, choices?: InteractionChoiceOption[], options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Creates a file input.
+   */
+
+  createFileInput(name: string, options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Creates a numeric input.
+   */
+
+  createNumberInput(name: string, options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Creates a secret (masked) text input.
+   */
+
+  createSecretInput(name: string, options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Creates a single-line text input.
+   */
+
+  createTextInput(name: string, options?: CreateInteractionInputOptions): InteractionInputBuilder;
+  /**
+   * Gets a value indicating whether the interaction service is available to prompt the user.
+   */
+
+  isAvailable(): boolean;
+  /**
+   * Prompts the user for confirmation with an OK/Cancel dialog.
+   */
+
+  promptConfirmation(title: string, message: string, options?: InteractionMessageBoxOptions, cancellationToken?: cancellationToken): BoolInteractionResult;
+  /**
+   * Prompts the user for a single input.
+   */
+
+  promptInput(title: string, message: string, input: InteractionInputBuilder, options?: InteractionInputsDialogOptions, cancellationToken?: cancellationToken): InputInteractionResult;
+  /**
+   * Prompts the user for multiple inputs.
+   */
+
+  promptInputs(title: string, message: string, inputs: InteractionInputBuilder[], options?: InteractionInputsDialogOptions, cancellationToken?: cancellationToken): InputsInteractionResult;
+  /**
+   * Prompts the user with a message box dialog.
+   */
+
+  promptMessageBox(title: string, message: string, options?: InteractionMessageBoxOptions, cancellationToken?: cancellationToken): BoolInteractionResult;
+  /**
+   * Prompts the user with a notification.
+   */
+
+  promptNotification(title: string, message: string, options?: InteractionNotificationOptions, cancellationToken?: cancellationToken): BoolInteractionResult;
+  /**
+   * Displays a progress dialog with an indeterminate progress indicator.
+   */
+
+  promptProgress(message: string, options?: InteractionProgressOptions, cancellationToken?: cancellationToken): BoolInteractionResult;
+}
+
+/**
  * Handle Aspire.Hosting.InputsDialogValidationContext
  */
 
@@ -3182,6 +4036,11 @@ export interface InputsDialogValidationContext {
    */
 
   inputs: PropertyAccessor<InteractionInputCollection>;
+  /**
+   * Gets the service provider for resolving services during validation.
+   */
+
+  services: PropertyAccessor<IServiceProvider>;
 }
 
 /**
@@ -3551,6 +4410,18 @@ export interface PipelineSummary {
 }
 
 /**
+ * Handle Aspire.Hosting.ProgressContext
+ */
+
+export interface ProgressContext {
+  /**
+   * Gets the `CancellationToken` that is triggered when the user clicks the cancel button or the operation is externally canceled.
+   */
+
+  cancellationToken: PropertyAccessor<cancellationToken>;
+}
+
+/**
  * Handle Aspire.Hosting.ProjectResourceOptions
  */
 
@@ -3598,7 +4469,7 @@ export interface AfterPublishEvent extends IDistributedApplicationEvent {
 
   model: PropertyAccessor<DistributedApplicationModel>;
   /**
-   * The `IServiceProvider` for the app host.
+   * The `IServiceProvider` for the AppHost.
    */
 
   services: PropertyAccessor<IServiceProvider>;
@@ -3615,10 +4486,57 @@ export interface BeforePublishEvent extends IDistributedApplicationEvent {
 
   model: PropertyAccessor<DistributedApplicationModel>;
   /**
-   * The `IServiceProvider` for the app host.
+   * The `IServiceProvider` for the AppHost.
    */
 
   services: PropertyAccessor<IServiceProvider>;
+}
+
+/**
+ * Handle Aspire.Hosting.AWS.DynamoDB.DynamoDBLocalResource
+ */
+
+export interface DynamoDBLocalResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IDynamoDBLocalResource {
+}
+
+/**
+ * Handle Aspire.Hosting.AWS.IAWSSDKConfig
+ */
+
+export interface IAWSSDKConfig {
+
+  withProfile(profile: string): IAWSSDKConfig;
+
+  withRegion(systemName: string): IAWSSDKConfig;
+
+  withSdkValidation(sdkValidationEnabled: boolean): IAWSSDKConfig;
+}
+
+/**
+ * Handle Aspire.Hosting.AWS.Lambda.APIGatewayEmulatorResource
+ */
+
+export interface APIGatewayEmulatorResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+
+  withAPIGatewayLambdaReference(lambda: LambdaProjectResource, httpMethod: Method, path: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.AWS.Lambda.LambdaEmulatorResource
+ */
+
+export interface LambdaEmulatorResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+}
+
+/**
+ * Handle Aspire.Hosting.AWS.Lambda.LambdaProjectResource
+ */
+
+export interface LambdaProjectResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+
+  withDynamoDBStreamsEventSource(tableName: string, options?: DynamoDBStreamsEventSourceOptions): this;
+
+  withSQSEventSource(queueUrl: string, options?: SQSEventSourceOptions): this;
 }
 
 /**
@@ -3631,6 +4549,21 @@ export interface IAzureResource {
    */
 
   asExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the resource as an existing resource in a specific resource group and subscription in both run and publish modes.
+   */
+
+  asExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInTenant(name: string | ParameterResource): IAzureResource;
   /**
    * Clears all default role assignments for the specified Azure resource.
    */
@@ -3662,10 +4595,40 @@ export interface IAzureResource {
 
   publishAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): this;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is deployed.
+   */
+
+  publishAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInTenant(name: string | ParameterResource): this;
+  /**
    * Marks the resource as an existing resource when the application is running.
    */
 
   runAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is running.
+   */
+
+  runAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInTenant(name: string | ParameterResource): IAzureResource;
 }
 
 /**
@@ -3682,12 +4645,12 @@ export interface AzureBicepResource extends IAzureResource, IResource, IResource
    * Adds a Bicep parameter
    */
 
-  withParameter(name: string, options?: { value?: EndpointReference }): this;
+  withParameter(name: string, options?: { value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference }): this;
   /**
    * Adds a Bicep parameter
    */
 
-  withParameter(name: string, value?: EndpointReference): this;
+  withParameter(name: string, value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference): this;
 }
 
 /**
@@ -3860,13 +4823,18 @@ export interface AzureContainerAppEnvironmentResource extends AzureBicepResource
    */
 
   withHttpsUpgrade(upgrade?: boolean): this;
+  /**
+   * Configures the container app environment to incorporate its resource name into the generated managed environment `name`, so that multiple environments in the same resource group get distinct names.
+   */
+
+  withUniqueResourceNaming(): this;
 }
 
 /**
  * Handle Aspire.Hosting.Azure.AzureAppServiceEnvironmentResource
  */
 
-export interface AzureAppServiceEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IContainerRegistry, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureContainerRegistry {
+export interface AzureAppServiceEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IContainerRegistry, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureContainerRegistry, IAzureDelegatedSubnetResource {
   /**
    * Configures the Azure App Service environment to use the supplied `AzureUserAssignedIdentityResource` as the managed identity that App Service apps use to pull images from the configured container registry (the `AcrPull` identity), instead of having Aspire create a new identity and a new `AcrPull` role assignment.
    */
@@ -4052,12 +5020,12 @@ export interface AzureCosmosDBDatabaseResource extends IExpressionValue, IManife
 
 export interface AzureCosmosDBEmulatorResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
   /**
-   * Configures the Azure Cosmos DB preview emulator to expose the Data Explorer endpoint.
+   * Configures the Azure Cosmos DB Linux-based (vNext) emulator to expose the Data Explorer endpoint.
    */
 
   withDataExplorer(options?: { port?: number }): this;
   /**
-   * Configures the Azure Cosmos DB preview emulator to expose the Data Explorer endpoint.
+   * Configures the Azure Cosmos DB Linux-based (vNext) emulator to expose the Data Explorer endpoint.
    */
 
   withDataExplorer(port?: number): this;
@@ -4104,7 +5072,7 @@ export interface AzureCosmosDBResource extends AzureBicepResource, AzureProvisio
 
   runAsEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource;
   /**
-   * Configures the Azure Cosmos DB resource to run using the preview emulator
+   * Configures the Azure Cosmos DB resource to run using the Linux-based (vNext) emulator
    */
 
   runAsPreviewEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource;
@@ -4385,6 +5353,11 @@ export interface AzureKubernetesEnvironmentResource extends AzureBicepResource, 
 
   addNodePool(name: string, vmSize?: string, minCount?: number, maxCount?: number): AksNodePoolResource;
   /**
+   * Adds a Kubernetes PersistentVolumeClaim resource to an AKS environment
+   */
+
+  addPersistentVolume(name: string): KubernetesPersistentVolumeResource;
+  /**
    * Configures the AKS environment to use a specific Azure Container Registry for image storage. When set, this replaces the auto-created default container registry.
    */
 
@@ -4604,6 +5577,16 @@ export interface AzureSubnetResource extends IResource, IResourceWithParent {
    */
 
   withNetworkSecurityGroup(nsg: AzureNetworkSecurityGroupResource): this;
+  /**
+   * Delegates the subnet to the specified Azure service.
+   */
+
+  withServiceDelegation(serviceName: string, options?: { name?: string }): this;
+  /**
+   * Delegates the subnet to the specified Azure service.
+   */
+
+  withServiceDelegation(serviceName: string, name?: string): this;
 }
 
 /**
@@ -5448,6 +6431,105 @@ export interface AzureWebPubSubResource extends AzureBicepResource, AzureProvisi
  */
 
 export interface BlazorWasmAppResource extends IResource, IResourceWithEnvironment, IResourceWithParent {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ClickHouseDatabaseResource
+ */
+
+export interface ClickHouseDatabaseResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the ClickHouse database.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the database name.
+   */
+
+  databaseName: PropertyAccessor<string>;
+  /**
+   * Gets the parent ClickHouse container resource.
+   */
+
+  parent: PropertyAccessor<ClickHouseServerResource>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ClickHouseServerResource
+ */
+
+export interface ClickHouseServerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Adds a ClickHouse database to the application model.
+   */
+
+  addDatabase(name: string, options?: { databaseName?: string }): ClickHouseDatabaseResource;
+  /**
+   * Adds a ClickHouse database to the application model.
+   */
+
+  addDatabase(name: string, databaseName?: string): ClickHouseDatabaseResource;
+  /**
+   * Gets the connection string expression for the ClickHouse server.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * A dictionary where the key is the resource name and the value is the database name.
+   */
+
+  databases: PropertyAccessor<Dict<string,string>>;
+  /**
+   * Gets the host expression for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the parameter that contains the ClickHouse server password.
+   */
+
+  passwordParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets the port expression for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the ClickHouse server.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the parameter that contains the ClickHouse server username.
+   */
+
+  userNameParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets a reference to the user name for the ClickHouse server.
+   */
+
+  userNameReference: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a bind mount for the data folder to a ClickHouse container resource.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the data folder to a ClickHouse container resource.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the data folder to a ClickHouse container resource.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the data folder to a ClickHouse container resource.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
 }
 
 /**
@@ -6324,6 +7406,11 @@ export interface Service {
 
   setSecurityOpt(value: List<string>): Service;
   /**
+   * Gets or sets the size of the `/dev/shm` partition for the container.
+   */
+
+  setShmSize(value: string): Service;
+  /**
    * Indicates whether standard input (stdin) should remain open and be attached to the service container, even if no terminal is connected.
    */
 
@@ -6373,6 +7460,11 @@ export interface Service {
    */
 
   setWorkingDir(value: string): Service;
+  /**
+   * Gets or sets the size of the `/dev/shm` partition for the container.
+   */
+
+  shmSize: PropertyAccessor<string>;
   /**
    * Indicates whether standard input (stdin) should remain open and be attached to the service container, even if no terminal is connected.
    */
@@ -6681,6 +7773,13 @@ export interface Volume {
 }
 
 /**
+ * Handle Aspire.Hosting.Dotnet.DotnetProjectResource
+ */
+
+export interface DotnetProjectResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+}
+
+/**
  * Handle Aspire.Hosting.EntityFrameworkCore.EFMigrationResource
  */
 
@@ -6821,12 +7920,12 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
 
   withMigrationOutputDirectory(outputDirectory: string): this;
   /**
-   * Configures a separate project containing migrations for polyglot app hosts.
+   * Configures a separate project containing migrations for polyglot AppHosts.
    */
 
   withMigrationsProject(options?: { migrationsProject?: ProjectResource }): this;
   /**
-   * Configures a separate project containing migrations for polyglot app hosts.
+   * Configures a separate project containing migrations for polyglot AppHosts.
    */
 
   withMigrationsProject(migrationsProject?: ProjectResource): this;
@@ -6848,14 +7947,14 @@ export interface AzureAISearchToolResource extends FoundryToolResource, IResourc
  * Handle Aspire.Hosting.Foundry.AzureCognitiveServicesProjectConnectionResource
  */
 
-export interface AzureCognitiveServicesProjectConnectionResource extends IAzureResource, IResource, IResourceWithParameters, IResourceWithParent {
+export interface AzureCognitiveServicesProjectConnectionResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IResource, IResourceWithParameters, IResourceWithParent {
 }
 
 /**
  * Handle Aspire.Hosting.Foundry.AzureCognitiveServicesProjectResource
  */
 
-export interface AzureCognitiveServicesProjectResource extends IAzureResource, IComputeEnvironmentResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParameters, IResourceWithParent, IValueProvider, IValueWithReferences, IAzureComputeEnvironmentResource {
+export interface AzureCognitiveServicesProjectResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParameters, IResourceWithParent, IValueProvider, IValueWithReferences, IAzureComputeEnvironmentResource {
   /**
    * Adds an Azure AI Search tool to a Microsoft Foundry project, enabling agents to ground their responses using data from an Azure AI Search index.
    */
@@ -7071,7 +8170,7 @@ export interface AzurePromptAgentResource extends IExpressionValue, IManifestExp
  * Handle Aspire.Hosting.Foundry.BingGroundingConnectionResource
  */
 
-export interface BingGroundingConnectionResource extends IAzureResource, IResource, IResourceWithParameters, IResourceWithParent {
+export interface BingGroundingConnectionResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IResource, IResourceWithParameters, IResourceWithParent {
 }
 
 /**
@@ -7398,22 +8497,17 @@ export interface GitHubModelResource extends IExpressionValue, IManifestExpressi
  * Handle Aspire.Hosting.Go.GoAppResource
  */
 
-export interface GoAppResource extends ExecutableResource, ContainerResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface GoAppResource extends ExecutableResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
    * Passes extra arguments to the Go program at runtime. In normal run mode they appear after `go run .`; in Delve mode after the `--` separator.
    */
 
   withAppArgs(args: any[]): this;
   /**
-   * Starts a headless Delve debug server so that any DAP-compatible client can attach remotely. The application is launched as `dlv --headless=true --listen=127.0.0.1:<port> --api-version=2 debug .` instead of `go run .`. Delve must be available on the PATH.
+   * Starts a configurable headless Delve debug server so that DAP-compatible clients can attach remotely. The application is launched with `dlv debug` instead of `go run`. Delve must be available on the PATH.
    */
 
-  withDelveServer(options?: { port?: number }): this;
-  /**
-   * Starts a headless Delve debug server so that any DAP-compatible client can attach remotely. The application is launched as `dlv --headless=true --listen=127.0.0.1:<port> --api-version=2 debug .` instead of `go run .`. Delve must be available on the PATH.
-   */
-
-  withDelveServer(port?: number): this;
+  withDelveServer(options?: DelveServerOptions): this;
   /**
    * Configures private Go module authentication for publish-time Dockerfile generation.
    */
@@ -7891,6 +8985,11 @@ export interface KubernetesEnvironmentResource extends IComputeEnvironmentResour
 
   addNodePool(name: string): KubernetesNodePoolResource;
   /**
+   * Adds a Kubernetes PersistentVolumeClaim resource
+   */
+
+  addPersistentVolume(name: string): KubernetesPersistentVolumeResource;
+  /**
    * Configures the dashboard properties for this Kubernetes environment.
    */
 
@@ -8220,6 +9319,48 @@ export interface KubernetesManifestResource {
  */
 
 export interface KubernetesNodePoolResource extends IResource, IResourceWithParent {
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.KubernetesPersistentVolumeResource
+ */
+
+export interface KubernetesPersistentVolumeResource extends IResource, IResourceWithParent {
+  /**
+   * Adds an access mode to a persistent volume
+   */
+
+  withAccessMode(accessMode: PersistentVolumeAccessMode): this;
+  /**
+   * Sets the requested storage capacity for a persistent volume
+   */
+
+  withCapacity(capacity: string): this;
+  /**
+   * Sets a parameterized storage capacity for a persistent volume
+   */
+
+  withCapacityParam(capacity: string | ParameterResource): this;
+  /**
+   * Sets the storage class for a persistent volume
+   */
+
+  withStorageClass(storageClassName: string): this;
+  /**
+   * Sets a parameterized storage class for a persistent volume
+   */
+
+  withStorageClassParam(storageClassName: string | ParameterResource): this;
+  /**
+   * Adds a Kubernetes metadata annotation to a persistent volume
+   */
+
+  withVolumeAnnotation(key: string, value: string): this;
+  /**
+   * Adds a parameterized Kubernetes metadata annotation to a persistent volume
+   */
+
+  withVolumeAnnotationParam(key: string, value: string | ParameterResource): this;
 }
 
 /**
@@ -9484,6 +10625,28 @@ export interface RabbitMQServerResource extends ContainerResource, IComputeResou
 }
 
 /**
+ * Handle Aspire.Hosting.Radius.RadiusEnvironmentResource
+ */
+
+export interface RadiusEnvironmentResource extends IComputeEnvironmentResource, IResource {
+  /**
+   * Gets or sets the Kubernetes namespace for resource deployment.
+   */
+
+  namespace: PropertyAccessor<string>;
+  /**
+   * Gets or sets the Kubernetes namespace for resource deployment.
+   */
+
+  setNamespace(value: string): RadiusEnvironmentResource;
+  /**
+   * Sets the Kubernetes namespace for the Radius environment.
+   */
+
+  withNamespace(kubernetesNamespace: string): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.RedisResource
  */
 
@@ -9553,6 +10716,11 @@ export interface RedisResource extends ContainerResource, IComputeResource, IExp
    */
 
   withHostPort(port: number | null): this;
+  /**
+   * Configures the Redis resource to use the specified Redis module by providing its path inside the container.
+   */
+
+  withModule(path: string): this;
   /**
    * Configures the password that the Redis resource is used.
    */
@@ -10259,14 +11427,14 @@ export interface YarpRoute {
  * Handle Aspire.Hosting.ApplicationModel.ActiveMQArtemisServerResource
  */
 
-export interface ActiveMQArtemisServerResource extends ActiveMQServerResourceBase, ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+export interface ActiveMQArtemisServerResource extends ContainerResource, ActiveMQServerResourceBase, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
 }
 
 /**
  * Handle Aspire.Hosting.ApplicationModel.ActiveMQServerResource
  */
 
-export interface ActiveMQServerResource extends ActiveMQServerResourceBase, ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+export interface ActiveMQServerResource extends ContainerResource, ActiveMQServerResourceBase, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
 }
 
 /**
@@ -10418,6 +11586,90 @@ export interface AzureStorageExplorerResource extends ContainerResource, IComput
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.BitwardenSecretManagerResource
+ */
+
+export interface BitwardenSecretManagerResource extends IResource, IResourceWithWaitSupport {
+  /**
+   * Adds a managed Bitwarden secret whose local and remote names are the same. The secret value is resolved from configuration key `Parameters:{parentName}-{name}`.
+   */
+
+  addSecret(name: string): BitwardenSecretResource;
+  /**
+   * Adds a managed Bitwarden secret with distinct Aspire and remote names. The secret value is resolved from configuration key `Parameters:{parentName}-{name}`.
+   */
+
+  addSecretWithRemoteName(name: string, remoteName: string): BitwardenSecretResource;
+  /**
+   * Gets or creates a Bitwarden secret reference whose Aspire and remote names are the same. The secret must already exist in Bitwarden; use `AddSecret` if Aspire should own and write the secret value.
+   */
+
+  getSecret(name: string): BitwardenSecretResource;
+  /**
+   * Gets or creates a Bitwarden secret reference by secret identifier. Use this when multiple secrets share the same name and the identifier is the only unambiguous key. The secret must already exist in Bitwarden; use `AddSecret` if Aspire should own and write the secret value.
+   */
+
+  getSecretById(name: string, secretId: guid): BitwardenSecretResource;
+  /**
+   * Gets or creates a Bitwarden secret reference with distinct Aspire and remote names. The secret must already exist in Bitwarden; use `AddSecret` if Aspire should own and write the secret value.
+   */
+
+  getSecretWithRemoteName(name: string, remoteName: string): BitwardenSecretResource;
+  /**
+   * Overrides the Bitwarden API URL.
+   */
+
+  withApiUrl(apiUrl: string): this;
+  /**
+   * Overrides the Bitwarden API URL using an external service resource. The Bitwarden resource will wait for the external service before authenticating.
+   */
+
+  withApiUrlFromExternalService(server: ExternalServiceResource): this;
+  /**
+   * Overrides the Bitwarden API URL using a parameter.
+   */
+
+  withApiUrlFromParameter(apiUrl: string | ParameterResource): this;
+  /**
+   * Overrides the AppHost auth cache directory (Bitwarden SDK auth session used by the AppHost reconciler). Defaults to the Aspire store when not set. Override to reuse a cached auth session across CI runs. To configure the auth cache directory inside the deployed app, use `WithBitwardenAuthCacheDirectory``1`.
+   */
+
+  withAuthCacheDirectory(authCacheDirectory: string): this;
+  /**
+   * Overrides the AppHost cache file path (integration bookkeeping: Bitwarden project ID, secret ID mappings). Defaults to `.bitwarden/{resourceName}.{environment}.json` relative to the AppHost directory. Override to share the cache across multiple AppHost projects, or to store it in a CI cache directory.
+   */
+
+  withCacheFile(cacheFile: string): this;
+  /**
+   * Overrides the Bitwarden identity URL.
+   */
+
+  withIdentityUrl(identityUrl: string): this;
+  /**
+   * Overrides the Bitwarden identity URL using an external service resource. The Bitwarden resource will wait for the external service before authenticating.
+   */
+
+  withIdentityUrlFromExternalService(server: ExternalServiceResource): this;
+  /**
+   * Overrides the Bitwarden identity URL using a parameter.
+   */
+
+  withIdentityUrlFromParameter(identityUrl: string | ParameterResource): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.BitwardenSecretResource
+ */
+
+export interface BitwardenSecretResource extends ParameterResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Returns an `IExpressionValue` that resolves to the Bitwarden secret identifier. Pass it to `WithEnvironment` to inject the secret ID as an environment variable. The app then uses the Bitwarden SDK to fetch the secret value at runtime.
+   */
+
+  asSecretId(): IExpressionValue;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.DbGateContainerResource
  */
 
@@ -10455,15 +11707,44 @@ export interface DbGateContainerResource extends ContainerResource, IComputeReso
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.DbxContainerResource
+ */
+
+export interface DbxContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the primary endpoint for the dbx resource.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Configures the host port that the dbx resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.DenoAppResource
  */
 
-export interface DenoAppResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface DenoAppResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
    * Ensures the Deno packages are installed before the application starts using Deno as the package manager.
    */
 
   withDenoPackageInstallation(): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.DuckDBResource
+ */
+
+export interface DuckDBResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IValueProvider, IValueWithReferences {
+  /**
+   * Configures the DuckDB resource to open the database in read-only mode.
+   */
+
+  withReadOnly(): this;
 }
 
 /**
@@ -10599,7 +11880,7 @@ export interface JavaAppContainerResource extends ContainerResource, IComputeRes
  * Handle Aspire.Hosting.ApplicationModel.JavaAppExecutableResource
  */
 
-export interface JavaAppExecutableResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface JavaAppExecutableResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
    * Gets or sets the path to the JAR file to execute.
    */
@@ -10641,7 +11922,7 @@ export interface JavaAppExecutableResource extends ExecutableResource, Container
  * Handle Aspire.Hosting.ApplicationModel.NxAppResource
  */
 
-export interface NxAppResource extends ExecutableResource, JavaScriptAppResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+export interface NxAppResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
 }
 
 /**
@@ -10685,7 +11966,7 @@ export interface NxResource extends IResource {
  * Handle Aspire.Hosting.ApplicationModel.TurborepoAppResource
  */
 
-export interface TurborepoAppResource extends ExecutableResource, JavaScriptAppResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+export interface TurborepoAppResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
 }
 
 /**
@@ -10723,6 +12004,267 @@ export interface TurborepoResource extends IResource {
   withYarn(options?: { install?: boolean }): this;
 
   withYarn(install?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.HelmReleaseResource
+ */
+
+export interface HelmReleaseResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the Kubernetes namespace the chart is installed into.
+   */
+
+  namespace: PropertyAccessor<string>;
+  /**
+   * Gets the Parent property
+   */
+
+  parent: PropertyAccessor<K3sClusterResource>;
+  /**
+   * Gets the Helm release name passed to `helm upgrade --install`.
+   */
+
+  releaseName: PropertyAccessor<string>;
+  /**
+   * Adds a Helm `--set key=value` override to the release.
+   */
+
+  withHelmValue(key: string, value: string): this;
+  /**
+   * Supplies a YAML values file to the Helm release (`--values`).
+   */
+
+  withHelmValuesFile(path: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.K3sClusterResource
+ */
+
+export interface K3sClusterResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Installs a Helm chart into the k3s cluster.
+   */
+
+  addHelmRelease(name: string, chart: string, options?: { repo?: string; version?: string; namespace?: string }): HelmReleaseResource;
+  /**
+   * Installs a Helm chart into the k3s cluster.
+   */
+
+  addHelmRelease(name: string, chart: string, repo?: string, version?: string, namespace?: string): HelmReleaseResource;
+  /**
+   * Applies Kubernetes YAML manifests or a Kustomize overlay to the cluster.
+   */
+
+  addK8sManifest(name: string, path: string): K8sManifestResource;
+  /**
+   * Exposes a Kubernetes Service from the cluster as an Aspire endpoint resource.
+   */
+
+  addServiceEndpoint(name: string, serviceName: string, servicePort: number, options?: { namespace?: string; scheme?: string }): K3sServiceEndpointResource;
+  /**
+   * Exposes a Kubernetes Service from the cluster as an Aspire endpoint resource.
+   */
+
+  addServiceEndpoint(name: string, serviceName: string, servicePort: number, namespace?: string, scheme?: string): K3sServiceEndpointResource;
+  /**
+   * Gets the endpoint reference for the k3s API server (port 6443).
+   */
+
+  apiEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Overrides the default `ConnectionStrings__` prefix so Aspire injects `KUBECONFIG`.
+   */
+
+  connectionStringEnvironmentVariable: PropertyAccessor<string>;
+  /**
+   * Manifest expression for the local kubeconfig path.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Sets the number of k3s agent (worker) nodes to add to the cluster.
+   */
+
+  withAgentCount(count: number): this;
+  /**
+   * Mounts a named Docker volume at the k3s data directory so cluster state persists across AppHost restarts.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Mounts a named Docker volume at the k3s data directory so cluster state persists across AppHost restarts.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Disables a built-in k3s component (`--disable=<component>`).
+   */
+
+  withDisabledComponent(component: string): this;
+  /**
+   * Appends a raw argument to the `k3s server` command line.
+   */
+
+  withExtraArg(arg: string): this;
+  /**
+   * Overrides the container image used to run `helm upgrade --install` for all `HelmReleaseResource` children of this cluster.
+   */
+
+  withHelmImage(options?: { tag?: string; image?: string; registry?: string }): this;
+  /**
+   * Overrides the container image used to run `helm upgrade --install` for all `HelmReleaseResource` children of this cluster.
+   */
+
+  withHelmImage(tag?: string, image?: string, registry?: string): this;
+  /**
+   * Sets the k3s image version used by the cluster server and all its agent nodes.
+   */
+
+  withK3sVersion(tag: string): this;
+  /**
+   * Overrides the container image used to run `kubectl apply` for all `K8sManifestResource` children of this cluster.
+   */
+
+  withKubectlImage(options?: { tag?: string; image?: string; registry?: string }): this;
+  /**
+   * Overrides the container image used to run `kubectl apply` for all `K8sManifestResource` children of this cluster.
+   */
+
+  withKubectlImage(tag?: string, image?: string, registry?: string): this;
+  /**
+   * Sets the container lifetime for the k3s cluster and all its agent nodes.
+   */
+
+  withLifetime(lifetime: ContainerLifetime): this;
+  /**
+   * Sets the CIDR range for pod IP addresses (`--cluster-cidr`).
+   */
+
+  withPodSubnet(cidr: string): this;
+  /**
+   * Sets the CIDR range for Service cluster IPs (`--service-cidr`).
+   */
+
+  withServiceSubnet(cidr: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.K3sServiceEndpointResource
+ */
+
+export interface K3sServiceEndpointResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * The environment variable name used to inject the service URL into dependents (`services__{name}__url`), following the Aspire service-discovery convention.
+   */
+
+  connectionStringEnvironmentVariable: PropertyAccessor<string>;
+  /**
+   * Gets the manifest expression for the service URL. Resolves to `http(s)://localhost:{hostPort}` when the endpoint is ready.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host port bound by the port-forward listener.
+   */
+
+  hostPort: PropertyAccessor<number>;
+  /**
+   * Gets the Kubernetes namespace that contains the Service.
+   */
+
+  namespace: PropertyAccessor<string>;
+  /**
+   * Gets the Parent property
+   */
+
+  parent: PropertyAccessor<K3sClusterResource>;
+  /**
+   * Gets the name of the Kubernetes Service being forwarded.
+   */
+
+  serviceName: PropertyAccessor<string>;
+  /**
+   * Gets the port number declared on the Kubernetes Service.
+   */
+
+  servicePort: PropertyAccessor<number>;
+  /**
+   * Gets the host port bound by the port-forward listener.
+   */
+
+  setHostPort(value: number): K3sServiceEndpointResource;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.K8sManifestResource
+ */
+
+export interface K8sManifestResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the Parent property
+   */
+
+  parent: PropertyAccessor<K3sClusterResource>;
+  /**
+   * Gets the absolute host path to the YAML file, plain directory, or Kustomize directory that contains the manifests to apply.
+   */
+
+  path: PropertyAccessor<string>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.KindClusterResource
+ */
+
+export interface KindClusterResource extends IKindResource, IResource, IResourceWithWaitSupport {
+  /**
+   * Adds a Helm chart to be deployed to the Kind cluster.
+   */
+
+  addHelmChart(name: string, chartRef: string): KindHelmChartResource;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.KindDeployedResource
+ */
+
+export interface KindDeployedResource extends IResource, IResourceWithParent, IResourceWithWaitSupport {
+  /**
+   * Sets the Kubernetes namespace for the deployment.
+   */
+
+  withNamespace(namespace: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.KindEnvironmentResource
+ */
+
+export interface KindEnvironmentResource extends IKindResource, IResource, IResourceWithParent {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.KindHelmChartResource
+ */
+
+export interface KindHelmChartResource extends KindDeployedResource, IResource, IResourceWithParent, IResourceWithWaitSupport {
+  /**
+   * Sets the chart version (maps to `helm install --version`).
+   */
+
+  withChartVersion(version: string): this;
+  /**
+   * Sets a Helm value (maps to `helm install --set key=value`).
+   */
+
+  withHelmValue(key: string, value: string): this;
+  /**
+   * Adds a values file (maps to `helm install -f path`).
+   */
+
+  withHelmValuesFile(path: string): this;
 }
 
 /**
@@ -10825,6 +12367,230 @@ export interface LavinMQContainerResource extends ContainerResource, IComputeRes
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.ListmonkResource
+ */
+
+export interface ListmonkResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences, IResourceWithServiceDiscovery {
+  /**
+   * Gets the connection string expression for the listmonk instance.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary HTTP endpoint for the listmonk instance.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the listmonk instance.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Configures the first-run listmonk Super Admin credentials.
+   */
+
+  withAdminCredentials(username: string, password: string | ParameterResource): this;
+  /**
+   * Configures the first-run listmonk Super Admin password.
+   */
+
+  withAdminPassword(password: string | ParameterResource): this;
+  /**
+   * Configures the first-run listmonk Super Admin username.
+   */
+
+  withAdminUser(username: string): this;
+  /**
+   * Configures the listmonk web server address.
+   */
+
+  withAppAddress(address: string): this;
+  /**
+   * Configures the maximum number of idle PostgreSQL connections.
+   */
+
+  withDatabaseMaxIdleConnections(maxIdle: number): this;
+  /**
+   * Configures the maximum lifetime for PostgreSQL connections.
+   */
+
+  withDatabaseMaxLifetime(maxLifetime: string): this;
+  /**
+   * Configures the maximum number of open PostgreSQL connections.
+   */
+
+  withDatabaseMaxOpenConnections(maxOpen: number): this;
+  /**
+   * Configures additional PostgreSQL DSN parameters.
+   */
+
+  withDatabaseParameters(parameters: string): this;
+  /**
+   * Configures the PostgreSQL SSL mode used by listmonk.
+   */
+
+  withDatabaseSslMode(sslMode: string): this;
+  /**
+   * Configures the group ID used by the listmonk container entrypoint.
+   */
+
+  withGroupId(groupId: number): this;
+  /**
+   * References a `PostgresDatabaseResource` as the PostgreSQL database for the listmonk resource.
+   */
+
+  withReference(database: PostgresDatabaseResource): this;
+  /**
+   * Configures the time zone used by the listmonk container.
+   */
+
+  withTimeZone(timeZone: string): this;
+  /**
+   * Adds a bind mount for listmonk media uploads.
+   */
+
+  withUploadsBindMount(source: string): this;
+  /**
+   * Adds a named volume for listmonk media uploads.
+   */
+
+  withUploadsVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for listmonk media uploads.
+   */
+
+  withUploadsVolume(name?: string): this;
+  /**
+   * Configures the user ID used by the listmonk container entrypoint.
+   */
+
+  withUserId(userId: number): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.LogtoResource
+ */
+
+export interface LogtoResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the ConnectionStringExpression property
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the Host property
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the Port property
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the PrimaryEndpoint property
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the Logto container resource.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Configures the specified Logto resource to include an administrative endpoint with the given URL.
+   */
+
+  withAdminEndpoint(url: string): this;
+  /**
+   * Configures the Logto resource to connect to the specified PostgreSQL database.
+   */
+
+  withDatabase(postgres: PostgresServerResource, options?: { databaseName?: string }): this;
+  /**
+   * Configures the Logto resource to connect to the specified PostgreSQL database.
+   */
+
+  withDatabase(postgres: PostgresServerResource, databaseName?: string): this;
+  /**
+   * Starts Logto by running the database seed command before the application process.
+   */
+
+  withDatabaseSeeding(): this;
+  /**
+   * Configures the Logto resource to use a data bind mount with the specified source directory.
+   */
+
+  withDataBindMount(source: string): this;
+  /**
+   * Configures the Logto resource with a data volume, allowing persistent storage.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Configures the Logto resource with a data volume, allowing persistent storage.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Enables Node.js deprecation tracing for the Logto by setting the NODE_OPTIONS environment variable to '--trace-deprecation'. This allows stack traces to be printed for deprecated API usage.
+   */
+
+  withDeprecationTracing(): this;
+  /**
+   * Configures the Logto resource to disable the Admin Console port.
+   */
+
+  withDisableAdminConsole(disable: boolean): this;
+  /**
+   * Configures the Logto resource to use the specified Node.js environment value by setting the corresponding environment variable.
+   */
+
+  withNodeEnv(env: string): this;
+  /**
+   * Configures the Logto resource to use a specified Redis resource for caching or other functionality.
+   */
+
+  withRedis(redis: RedisResource): this;
+  /**
+   * Configures HTTP endpoints for the given Logto resource builder with specified port settings.
+   */
+
+  withResourcePort(options?: { port?: number; adminPort?: number }): this;
+  /**
+   * Configures HTTP endpoints for the given Logto resource builder with specified port settings.
+   */
+
+  withResourcePort(port?: number, adminPort?: number): this;
+  /**
+   * Configures the Logto resource to use a secret vault with the specified key encryption key (KEK).
+   */
+
+  withSecretVault(secretVaultKek: string): this;
+  /**
+   * Specifies whether the username is case-sensitive.
+   */
+
+  withSensitiveUsername(sensitiveUsername: boolean): this;
+  /**
+   * Configures the Logto resource to enable or disable the trust proxy header behavior.
+   */
+
+  withTrustProxyHeader(trustProxyHeader: boolean): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.MailPitContainerResource
  */
 
@@ -10880,7 +12646,7 @@ export interface MailPitContainerResource extends ContainerResource, IComputeRes
  * Handle Aspire.Hosting.ApplicationModel.McpInspectorResource
  */
 
-export interface McpInspectorResource extends ExecutableResource, JavaScriptAppResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+export interface McpInspectorResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
   /**
    * Configures the MCP Inspector to use bun as the package manager.
    */
@@ -11105,7 +12871,7 @@ export interface IOllamaResource {
  * Handle Aspire.Hosting.ApplicationModel.OllamaExecutableResource
  */
 
-export interface OllamaExecutableResource extends ExecutableResource, ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IOllamaResource, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+export interface OllamaExecutableResource extends ExecutableResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IOllamaResource, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
   /**
    * Gets the connection string expression for the Ollama server.
    */
@@ -11416,7 +13182,7 @@ export interface PapercutSmtpContainerResource extends ContainerResource, ICompu
  * Handle Aspire.Hosting.ApplicationModel.PerlAppResource
  */
 
-export interface PerlAppResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface PerlAppResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
    * Configures the Perl application to use Carton as its package manager. Carton manages dependencies via `cpanfile` and a lock file (`cpanfile.snapshot`), enabling reproducible builds. Use `WithProjectDependencies``1` to run `carton install` at startup.
    */
@@ -11509,7 +13275,7 @@ export interface PowerShellScriptResource extends IResource, IResourceWithArgs, 
  * Handle Aspire.Hosting.ApplicationModel.StreamlitAppResource
  */
 
-export interface StreamlitAppResource extends ExecutableResource, PythonAppResource, ContainerResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface StreamlitAppResource extends ExecutableResource, PythonAppResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
 }
 
 /**
@@ -11630,7 +13396,118 @@ export interface RavenDBServerResource extends ContainerResource, IComputeResour
  * Handle Aspire.Hosting.ApplicationModel.RustAppExecutableResource
  */
 
-export interface RustAppExecutableResource extends ExecutableResource, ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface RustAppExecutableResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RustFsBucketResource
+ */
+
+export interface RustFsBucketResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RustFsResource
+ */
+
+export interface RustFsResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Adds a bucket to the RustFs resource. The bucket is created by issuing a signed `PUT` request to the RustFs S3 API after the server resource becomes ready.
+   */
+
+  addBucket(bucketName: string): RustFsBucketResource;
+  /**
+   * Adds multiple buckets to the RustFs resource. Each bucket is registered as its own `RustFsBucketResource` child resource and created via the RustFs S3 API once the server resource becomes ready.
+   */
+
+  addBuckets(bucketNames: string[]): RustFsResource;
+  /**
+   * Adds a bind mount for the data folder to a RustFs container resource.
+   */
+
+  withDataBindMount(source: string): this;
+  /**
+   * Adds a named volume for the data folder to a RustFs container resource.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for the data folder to a RustFs container resource.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Sets the AWS signing region used when creating buckets via the S3 API. Defaults to `us-east-1` if not specified.
+   */
+
+  withSigningRegion(region: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.SeaweedFSContainerResource
+ */
+
+export interface SeaweedFSContainerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Configures the Access Key that the SeaweedFS S3 resource uses.
+   */
+
+  withAccessKey(accessKey: string | ParameterResource): this;
+  /**
+   * Adds a bind mount for the SeaweedFS data folder.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the SeaweedFS data folder.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the SeaweedFS data folder.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the SeaweedFS data folder.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Enables the SeaweedFS Native Filer API.
+   */
+
+  withFiler(options?: { filerPort?: number }): this;
+  /**
+   * Enables the SeaweedFS Native Filer API.
+   */
+
+  withFiler(filerPort?: number): this;
+  /**
+   * Configures the Master API host port that the SeaweedFS resource is exposed on.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
+   * Enables the SeaweedFS S3-Compatible API Gateway.
+   */
+
+  withS3(options?: { s3Port?: number }): this;
+  /**
+   * Enables the SeaweedFS S3-Compatible API Gateway.
+   */
+
+  withS3(s3Port?: number): this;
+  /**
+   * Configures the SeaweedFS S3 API to use a specific external security configuration file.
+   */
+
+  withS3ConfigFile(configFilePath: string): this;
+  /**
+   * Configures the Secret Key that the SeaweedFS S3 resource uses.
+   */
+
+  withSecretKey(secretKey: string | ParameterResource): this;
 }
 
 /**
@@ -11842,6 +13719,13 @@ export interface SqliteWebResource extends ContainerResource, IComputeResource, 
    */
 
   uriExpression: PropertyAccessor<ReferenceExpression>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.SquadResource
+ */
+
+export interface SquadResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IValueProvider, IValueWithReferences {
 }
 
 /**
@@ -12122,6 +14006,16 @@ export interface K6Resource extends ContainerResource, IComputeResource, IResour
 // ---- target-type interfaces (resource/builder APIs) ----
 // augments handle type IDistributedApplicationBuilder with extension methods
 export interface IDistributedApplicationBuilder {
+
+  addAWSAPIGatewayEmulator(name: string, apiGatewayType: APIGatewayType, options?: APIGatewayEmulatorOptions): APIGatewayEmulatorResource;
+
+  addAWSDynamoDBLocal(name: string, options?: DynamoDBLocalOptions): DynamoDBLocalResource;
+
+  addAWSLambdaFunction(name: string, projectPath: string, lambdaHandler: string, options?: LambdaFunctionPolyglotOptions): LambdaProjectResource;
+
+  addAWSLambdaServiceEmulator(options?: LambdaEmulatorOptions): LambdaEmulatorResource;
+
+  addAWSSDKConfig(): IAWSSDKConfig;
   /**
    * Adds an Azure environment resource to the application model.
    */
@@ -12308,6 +14202,16 @@ export interface IDistributedApplicationBuilder {
 
   addBlazorWasmProject(name: string, projectPath: string): BlazorWasmAppResource;
   /**
+   * Adds a ClickHouse resource to the application model.
+   */
+
+  addClickHouse(name: string, options?: { port?: number; userName?: string | ParameterResource; password?: string | ParameterResource }): ClickHouseServerResource;
+  /**
+   * Adds a ClickHouse resource to the application model.
+   */
+
+  addClickHouse(name: string, port?: number, userName?: string | ParameterResource, password?: string | ParameterResource): ClickHouseServerResource;
+  /**
    * Adds a Dev Tunnel resource to the distributed application model.
    */
 
@@ -12322,6 +14226,11 @@ export interface IDistributedApplicationBuilder {
    */
 
   addDockerComposeEnvironment(name: string): DockerComposeEnvironmentResource;
+  /**
+   * Adds a C# application resource.
+   */
+
+  addDotnetProject(name: string, path: string, options?: ProjectResourceOptions): DotnetProjectResource;
   /**
    * Adds a Microsoft Foundry resource to the application model.
    */
@@ -12548,6 +14457,11 @@ export interface IDistributedApplicationBuilder {
 
   addRabbitMQ(name: string, userName?: string | ParameterResource, password?: string | ParameterResource, port?: number): RabbitMQServerResource;
   /**
+   * Adds a Radius compute environment to the application model.
+   */
+
+  addRadiusEnvironment(name: string): RadiusEnvironmentResource;
+  /**
    * Adds a Redis container to the application model.
    */
 
@@ -12633,6 +14547,21 @@ export interface IDistributedApplicationBuilder {
 
   addDataAPIBuilder(name: string, configFilePaths?: string[], httpPort?: number): DataApiBuilderContainerResource;
   /**
+   * Adds a Bitwarden Secrets Manager resource. The `projectNameOrId` parameter resolves to either a project name (creates or finds by name) or a project identifier GUID (adopts the existing project by ID).
+   */
+
+  addBitwardenSecretManager(name: string, projectNameOrId: string | ParameterResource, organizationId: string | ParameterResource, accessToken: string | ParameterResource): BitwardenSecretManagerResource;
+  /**
+   * Adds a Bun app to the builder.
+   */
+
+  addBunApp(name: string, options?: { workingDirectory?: string; entryPoint?: string; watch?: boolean }): BunAppResource;
+  /**
+   * Adds a Bun app to the builder.
+   */
+
+  addBunApp(name: string, workingDirectory?: string, entryPoint?: string, watch?: boolean): BunAppResource;
+  /**
    * Adds a DbGate container resource to the application.
    */
 
@@ -12642,6 +14571,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addDbGate(name?: string, port?: number): DbGateContainerResource;
+  /**
+   * Adds a dbx container resource to the application.
+   */
+
+  addDbx(options?: { name?: string; port?: number }): DbxContainerResource;
+  /**
+   * Adds a dbx container resource to the application.
+   */
+
+  addDbx(name?: string, port?: number): DbxContainerResource;
   /**
    * Adds a Deno application to the application model. Deno should available on the PATH.
    */
@@ -12662,6 +14601,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addDenoTask(name: string, workingDirectory?: string, taskName?: string, args?: string[]): DenoAppResource;
+  /**
+   * Adds a DuckDB resource to the application builder.
+   */
+
+  addDuckDB(name: string, options?: { databasePath?: string; databaseFileName?: string }): DuckDBResource;
+  /**
+   * Adds a DuckDB resource to the application builder.
+   */
+
+  addDuckDB(name: string, databasePath?: string, databaseFileName?: string): DuckDBResource;
   /**
    * Adds a flagd container to the application model.
    */
@@ -12730,6 +14679,21 @@ export interface IDistributedApplicationBuilder {
 
   addTurborepoApp(name: string, workingDirectory?: string): TurborepoResource;
   /**
+   * Adds a k3s Kubernetes cluster to the distributed application.
+   */
+
+  addK3sCluster(name: string, options?: { apiServerPort?: number; agentCount?: number }): K3sClusterResource;
+  /**
+   * Adds a k3s Kubernetes cluster to the distributed application.
+   */
+
+  addK3sCluster(name: string, apiServerPort?: number, agentCount?: number): K3sClusterResource;
+  /**
+   * Adds a Kind cluster resource to the application model.
+   */
+
+  addKindCluster(name: string): KindClusterResource;
+  /**
    * Adds a KurrentDB resource to the application model. A container is used for local development. The default image is and the tag is .
    */
 
@@ -12749,6 +14713,26 @@ export interface IDistributedApplicationBuilder {
    */
 
   addLavinMQ(name: string, amqpPort?: number, managementPort?: number): LavinMQContainerResource;
+  /**
+   * Adds a listmonk container resource to the application model. The default image is and the tag is .
+   */
+
+  addListmonk(name: string, options?: { port?: number }): ListmonkResource;
+  /**
+   * Adds a listmonk container resource to the application model. The default image is and the tag is .
+   */
+
+  addListmonk(name: string, port?: number): ListmonkResource;
+  /**
+   * Adds a Logto resource to the Aspire distributed application by configuring it with the specified name, associated PostgreSQL server resource, and database name.
+   */
+
+  addLogto(name: string, postgres: PostgresServerResource, options?: { databaseName?: string; port?: number; adminPort?: number }): LogtoResource;
+  /**
+   * Adds a Logto resource to the Aspire distributed application by configuring it with the specified name, associated PostgreSQL server resource, and database name.
+   */
+
+  addLogto(name: string, postgres: PostgresServerResource, databaseName?: string, port?: number, adminPort?: number): LogtoResource;
   /**
    * Adds a MailPit container resource
    */
@@ -12889,6 +14873,21 @@ export interface IDistributedApplicationBuilder {
 
   addRustApp(name: string, workingDirectory: string, args?: string[]): RustAppExecutableResource;
   /**
+   * Adds a RustFs container to the application model. The default image is "rustfs/rustfs".
+   */
+
+  addRustFs(name: string, options?: { accessKey?: string | ParameterResource; secretKey?: string | ParameterResource; port?: number; consolePort?: number }): RustFsResource;
+  /**
+   * Adds a RustFs container to the application model. The default image is "rustfs/rustfs".
+   */
+
+  addRustFs(name: string, accessKey?: string | ParameterResource, secretKey?: string | ParameterResource, port?: number, consolePort?: number): RustFsResource;
+  /**
+   * Adds a base SeaweedFS container (Master and Volume APIs) to the application model. Chain with .WithS3() or .WithFiler() to enable additional APIs.
+   */
+
+  addSeaweedFS(name: string): SeaweedFSContainerResource;
+  /**
    * Adds atmoz SFTP to the application model.
    */
 
@@ -12923,6 +14922,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addSqlite(name: string, databasePath?: string, databaseFileName?: string): SqliteResource;
+  /**
+   * Adds a Squad AI-agent team to the distributed application. The lifecycle hook discovers agents from `.squad/team.md` (or the default roster when the file does not exist), publishes `Spawning` to `Active` state transitions visible in the Aspire dashboard, and injects a custom `squad://` descriptor that downstream services can consume as metadata. The Squad resource is a logical dashboard/resource-graph entry; it does not start a server process by itself.
+   */
+
+  addSquad(name: string, options?: { teamRoot?: string }): SquadResource;
+  /**
+   * Adds a Squad AI-agent team to the distributed application. The lifecycle hook discovers agents from `.squad/team.md` (or the default roster when the file does not exist), publishes `Spawning` to `Active` state transitions visible in the Aspire dashboard, and injects a custom `squad://` descriptor that downstream services can consume as metadata. The Squad resource is a logical dashboard/resource-graph entry; it does not start a server process by itself.
+   */
+
+  addSquad(name: string, teamRoot?: string): SquadResource;
   /**
    * Adds the Stripe CLI to the application model for local webhook forwarding.
    */
@@ -13128,6 +15137,14 @@ export interface ActiveMQServerResource {
   withDataVolume(name?: string, isReadOnly?: boolean): this;
 }
 
+// augments handle type APIGatewayEmulatorResource with extension methods
+export interface APIGatewayEmulatorResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
+}
+
 // augments handle type AzureAISearchToolResource with extension methods
 export interface AzureAISearchToolResource {
   /**
@@ -13172,6 +15189,21 @@ export interface AzureBicepResource {
 
   asExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription in both run and publish modes.
+   */
+
+  asExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInTenant(name: string | ParameterResource): IAzureResource;
+  /**
    * Clears all default role assignments for the specified Azure resource.
    */
 
@@ -13202,10 +15234,40 @@ export interface AzureBicepResource {
 
   publishAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): this;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is deployed.
+   */
+
+  publishAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInTenant(name: string | ParameterResource): this;
+  /**
    * Marks the resource as an existing resource when the application is running.
    */
 
   runAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is running.
+   */
+
+  runAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInTenant(name: string | ParameterResource): IAzureResource;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
@@ -13394,10 +15456,15 @@ export interface AzureCosmosDBDatabaseResource {
 // augments handle type AzureCosmosDBEmulatorResource with extension methods
 export interface AzureCosmosDBEmulatorResource {
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -13408,10 +15475,15 @@ export interface AzureCosmosDBEmulatorResource {
 // augments handle type AzureCosmosDBResource with extension methods
 export interface AzureCosmosDBResource {
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -13589,10 +15661,15 @@ export interface AzureKeyVaultResource {
 
   withKeyVaultRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): this;
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -13714,6 +15791,21 @@ export interface AzureProvisioningResource {
 
   asExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription in both run and publish modes.
+   */
+
+  asExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInTenant(name: string | ParameterResource): IAzureResource;
+  /**
    * Clears all default role assignments for the specified Azure resource.
    */
 
@@ -13749,20 +15841,50 @@ export interface AzureProvisioningResource {
 
   publishAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): this;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is deployed.
+   */
+
+  publishAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInTenant(name: string | ParameterResource): this;
+  /**
    * Marks the resource as an existing resource when the application is running.
    */
 
   runAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
   /**
-   * Adds a Bicep parameter
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is running.
    */
 
-  withParameter(name: string, options?: { value?: EndpointReference }): this;
+  runAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInTenant(name: string | ParameterResource): IAzureResource;
   /**
    * Adds a Bicep parameter
    */
 
-  withParameter(name: string, value?: EndpointReference): this;
+  withParameter(name: string, options?: { value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference }): this;
+  /**
+   * Adds a Bicep parameter
+   */
+
+  withParameter(name: string, value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
@@ -13992,10 +16114,15 @@ export interface AzureStorageEmulatorResource {
 
   withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -14016,10 +16143,15 @@ export interface AzureStorageResource {
 
   withStorageRoleAssignments(target: AzureStorageResource, roles: AzureStorageRole[]): this;
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -14078,6 +16210,21 @@ export interface AzureUserAssignedIdentityResource {
 
   asExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription in both run and publish modes.
+   */
+
+  asExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource in both run and publish modes.
+   */
+
+  asExistingInTenant(name: string | ParameterResource): IAzureResource;
+  /**
    * Clears all default role assignments for the specified Azure resource.
    */
 
@@ -14118,20 +16265,50 @@ export interface AzureUserAssignedIdentityResource {
 
   publishAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): this;
   /**
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is deployed.
+   */
+
+  publishAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): this;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is deployed.
+   */
+
+  publishAsExistingInTenant(name: string | ParameterResource): this;
+  /**
    * Marks the resource as an existing resource when the application is running.
    */
 
   runAsExisting(name: string | ParameterResource, resourceGroup?: string | ParameterResource): IAzureResource;
   /**
-   * Adds a Bicep parameter
+   * Marks the resource as an existing resource in a specific resource group and subscription when the application is running.
    */
 
-  withParameter(name: string, options?: { value?: EndpointReference }): this;
+  runAsExistingInResourceGroup(name: string | ParameterResource, resourceGroup: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the subscription-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInSubscription(name: string | ParameterResource, subscription: string | ParameterResource): IAzureResource;
+  /**
+   * Marks the current-tenant-scoped resource as an existing resource when the application is running.
+   */
+
+  runAsExistingInTenant(name: string | ParameterResource): IAzureResource;
   /**
    * Adds a Bicep parameter
    */
 
-  withParameter(name: string, value?: EndpointReference): this;
+  withParameter(name: string, options?: { value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference }): this;
+  /**
+   * Adds a Bicep parameter
+   */
+
+  withParameter(name: string, value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
@@ -14362,6 +16539,11 @@ export interface BunAppResource {
 
   withYarn(install?: boolean, installArgs?: string[]): this;
   /**
+   * Ensures the Bun packages are installed before the application starts using Bun as the package manager.
+   */
+
+  withBunPackageInstallation(): this;
+  /**
    * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
    */
 
@@ -14465,6 +16647,11 @@ export interface ContainerRegistryResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Sets a child relationship
    */
 
@@ -14479,6 +16666,11 @@ export interface ContainerRegistryResource {
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -14573,11 +16765,6 @@ export interface ContainerRegistryResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a relationship to another resource using its builder.
@@ -14595,10 +16782,25 @@ export interface ContainerRegistryResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -14759,6 +16961,11 @@ export interface ContainerResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Waits for another resource to be ready
    */
 
@@ -14808,6 +17015,11 @@ export interface ContainerResource {
    */
 
   withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -14897,11 +17109,6 @@ export interface ContainerResource {
    * Adds an HTTP resource command
    */
 
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
    * Adds an HTTP endpoint
@@ -14943,6 +17150,11 @@ export interface ContainerResource {
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
+  /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
   /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
@@ -15057,11 +17269,6 @@ export interface ContainerResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a reference to another resource
@@ -15104,10 +17311,25 @@ export interface ContainerResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -15128,6 +17350,10 @@ export interface ContainerResource {
    */
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Associates an Azure user-assigned identity with a compute resource
    */
@@ -15259,10 +17485,15 @@ export interface ContainerResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -15273,6 +17504,21 @@ export interface ContainerResource {
    */
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -15289,6 +17535,41 @@ export interface ContainerResource {
 
   withOrleansReference(orleansService: OrleansService): this;
   /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -15303,6 +17584,21 @@ export interface ContainerResource {
    */
 
   withOtelAgent(agentPath?: string): this;
+  /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
+  /**
+   * Configures a container resource to reference the Kind cluster by bind-mounting the container-compatible kubeconfig, injecting environment variables, and connecting to the Kind container network.
+   */
+
+  withKindContainerReference(kind: KindClusterResource): this;
+  /**
+   * Connects a container resource to the Kind container network, enabling it to communicate with the Kind cluster's API server and nodes.
+   */
+
+  withKindNetwork(): this;
   /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */
@@ -15398,6 +17694,11 @@ export interface CSharpAppResource {
 
   publishWithContainerFiles(source: IResourceWithContainerFiles, destinationPath: string): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Waits for another resource to be ready
    */
 
@@ -15448,6 +17749,11 @@ export interface CSharpAppResource {
 
   withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
   /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
+  /**
    * Configures the resource to use the specified container registry for container image operations.
    */
 
@@ -15493,6 +17799,11 @@ export interface CSharpAppResource {
 
   withEndpointProxySupport(proxyEnabled: boolean): this;
   /**
+   * Includes only the specified project endpoint names in environment-variable injection.
+   */
+
+  withEndpointsInEnvironment(endpointNames: string[]): this;
+  /**
    * Sets an environment variable
    */
 
@@ -15532,11 +17843,6 @@ export interface CSharpAppResource {
    */
 
   withHiddenOnCompletion(exitCode?: number, exitCodes?: number[]): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
   /**
    * Adds an HTTP resource command
    */
@@ -15582,6 +17888,11 @@ export interface CSharpAppResource {
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
+  /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
   /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
@@ -15696,11 +18007,6 @@ export interface CSharpAppResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a reference to another resource
@@ -15748,10 +18054,25 @@ export interface CSharpAppResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -15772,6 +18093,10 @@ export interface CSharpAppResource {
    */
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Associates an Azure user-assigned identity with a compute resource
    */
@@ -15913,20 +18238,25 @@ export interface CSharpAppResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -15937,6 +18267,21 @@ export interface CSharpAppResource {
    */
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -15953,6 +18298,46 @@ export interface CSharpAppResource {
 
   withOrleansReference(orleansService: OrleansService): this;
   /**
+   * Associates a pre-built container image reference with a project resource so the Aspire.Hosting.Radius publisher can emit a valid Radius container manifest for it.
+   */
+
+  withContainerImage(image: string): this;
+  /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -15967,6 +18352,11 @@ export interface CSharpAppResource {
    */
 
   withOtelAgent(agentPath?: string): this;
+  /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
   /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */
@@ -16056,6 +18446,11 @@ export interface DotnetToolResource {
 
   publishAsDockerFile(configure: (obj: ContainerResource) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Waits for another resource to be ready
    */
 
@@ -16105,6 +18500,11 @@ export interface DotnetToolResource {
    */
 
   withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -16199,11 +18599,6 @@ export interface DotnetToolResource {
    * Adds an HTTP resource command
    */
 
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
    * Adds an HTTP endpoint
@@ -16245,6 +18640,11 @@ export interface DotnetToolResource {
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
+  /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
   /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
@@ -16359,11 +18759,6 @@ export interface DotnetToolResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a reference to another resource
@@ -16406,10 +18801,25 @@ export interface DotnetToolResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -16435,6 +18845,10 @@ export interface DotnetToolResource {
    */
 
   withWorkingDirectory(workingDirectory: string): this;
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Associates an Azure user-assigned identity with a compute resource
    */
@@ -16566,10 +18980,15 @@ export interface DotnetToolResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -16580,6 +18999,21 @@ export interface DotnetToolResource {
    */
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -16596,6 +19030,41 @@ export interface DotnetToolResource {
 
   withOrleansReference(orleansService: OrleansService): this;
   /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -16611,6 +19080,11 @@ export interface DotnetToolResource {
 
   withOtelAgent(agentPath?: string): this;
   /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
+  /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */
 
@@ -16625,6 +19099,14 @@ export interface DotnetToolResource {
    */
 
   withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
+}
+
+// augments handle type DynamoDBLocalResource with extension methods
+export interface DynamoDBLocalResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
 }
 
 export interface ElasticsearchResource {
@@ -16698,6 +19180,11 @@ export interface ExecutableResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Waits for another resource to be ready
    */
 
@@ -16747,6 +19234,11 @@ export interface ExecutableResource {
    */
 
   withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -16836,11 +19328,6 @@ export interface ExecutableResource {
    * Adds an HTTP resource command
    */
 
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
    * Adds an HTTP endpoint
@@ -16882,6 +19369,11 @@ export interface ExecutableResource {
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
+  /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
   /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
@@ -16996,11 +19488,6 @@ export interface ExecutableResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a reference to another resource
@@ -17043,10 +19530,25 @@ export interface ExecutableResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -17067,6 +19569,10 @@ export interface ExecutableResource {
    */
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Associates an Azure user-assigned identity with a compute resource
    */
@@ -17198,10 +19704,15 @@ export interface ExecutableResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -17212,6 +19723,21 @@ export interface ExecutableResource {
    */
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -17228,6 +19754,41 @@ export interface ExecutableResource {
 
   withOrleansReference(orleansService: OrleansService): this;
   /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -17242,6 +19803,11 @@ export interface ExecutableResource {
    */
 
   withOtelAgent(agentPath?: string): this;
+  /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
   /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */
@@ -17302,6 +19868,11 @@ export interface ExternalServiceResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Sets a child relationship
    */
 
@@ -17316,6 +19887,11 @@ export interface ExternalServiceResource {
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -17410,11 +19986,6 @@ export interface ExternalServiceResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a relationship to another resource using its builder.
@@ -17432,10 +20003,25 @@ export interface ExternalServiceResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -17568,10 +20154,15 @@ export interface FoundryDeploymentResource {
 // augments handle type FoundryResource with extension methods
 export interface FoundryResource {
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -17676,6 +20267,21 @@ export interface IComputeResource {
    */
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
 }
 
 export interface IConfiguration {
@@ -17737,6 +20343,24 @@ export interface IHostEnvironment {
   isStaging(): boolean;
 }
 
+export interface IKindResource {
+  /**
+   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted when the AppHost shuts down. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
+   */
+
+  withClusterLifetime(lifetime: ClusterLifetime): this;
+  /**
+   * Sets the Kubernetes version for the Kind cluster.
+   */
+
+  withKubernetesVersion(version: string): this;
+  /**
+   * Sets the number of worker nodes for the Kind cluster.
+   */
+
+  withWorkerNodes(count: number): this;
+}
+
 export interface ILogger {
   /**
    * Logs a message with a specified log level.
@@ -17790,6 +20414,15 @@ export interface IMauiPlatformResource {
   withOtlpDevTunnel(): this;
 }
 
+// augments handle type IResourceWithConnectionString with extension methods
+export interface IResourceWithConnectionString {
+  /**
+   * Configures a resource to use the specified Orleans provider type.
+   */
+
+  withOrleansProviderType(providerType: string): this;
+}
+
 // augments handle type IResourceWithEndpoints with extension methods
 export interface IResourceWithEndpoints {
   /**
@@ -17803,14 +20436,23 @@ export interface IResourceWithEndpoints {
 
   withBrowserLogs(browser?: string, profile?: string, userDataMode?: BrowserUserDataMode): this;
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
 }
 
 // augments handle type IResourceWithEnvironment with extension methods
 export interface IResourceWithEnvironment {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Adds an Orleans client to the resource.
    */
@@ -17821,6 +20463,41 @@ export interface IResourceWithEnvironment {
    */
 
   withOrleansReference(orleansService: OrleansService): this;
+  /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
   /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
@@ -17836,6 +20513,11 @@ export interface IResourceWithEnvironment {
    */
 
   withOtelAgent(agentPath?: string): this;
+  /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
   /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */
@@ -17869,6 +20551,11 @@ export interface IServiceProvider {
    */
 
   getEventing(): IDistributedApplicationEventing;
+  /**
+   * Gets the interaction service from the service provider.
+   */
+
+  getInteractionService(): IInteractionService;
   /**
    * Gets the logger factory from the service provider.
    */
@@ -17956,6 +20643,53 @@ export interface KeycloakResource {
   withPostgres(database: PostgresDatabaseResource, username?: string | ParameterResource, password?: string | ParameterResource, xaEnabled?: boolean): this;
 }
 
+// augments handle type KindClusterResource with extension methods
+export interface KindClusterResource {
+  /**
+   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted when the AppHost shuts down. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
+   */
+
+  withClusterLifetime(lifetime: ClusterLifetime): this;
+  /**
+   * Sets the Kubernetes version for the Kind cluster.
+   */
+
+  withKubernetesVersion(version: string): this;
+  /**
+   * Sets the number of worker nodes for the Kind cluster.
+   */
+
+  withWorkerNodes(count: number): this;
+}
+
+// augments handle type KindEnvironmentResource with extension methods
+export interface KindEnvironmentResource {
+  /**
+   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted when the AppHost shuts down. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
+   */
+
+  withClusterLifetime(lifetime: ClusterLifetime): this;
+  /**
+   * Sets the Kubernetes version for the Kind cluster.
+   */
+
+  withKubernetesVersion(version: string): this;
+  /**
+   * Sets the number of worker nodes for the Kind cluster.
+   */
+
+  withWorkerNodes(count: number): this;
+}
+
+// augments handle type KindHelmChartResource with extension methods
+export interface KindHelmChartResource {
+  /**
+   * Sets the Kubernetes namespace for the deployment.
+   */
+
+  withNamespace(namespace: string): this;
+}
+
 // augments handle type KubernetesAspireDashboardResource with extension methods
 export interface KubernetesAspireDashboardResource {
   /**
@@ -17964,10 +20698,40 @@ export interface KubernetesAspireDashboardResource {
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
   /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
 
   withNodePool(nodePool: KubernetesNodePoolResource): this;
+  /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
+  /**
+   * Configures a container resource to reference the Kind cluster by bind-mounting the container-compatible kubeconfig, injecting environment variables, and connecting to the Kind container network.
+   */
+
+  withKindContainerReference(kind: KindClusterResource): this;
+  /**
+   * Connects a container resource to the Kind container network, enabling it to communicate with the Kind cluster's API server and nodes.
+   */
+
+  withKindNetwork(): this;
 }
 
 // augments handle type KubernetesEnvironmentResource with extension methods
@@ -17977,6 +20741,11 @@ export interface KubernetesEnvironmentResource {
    */
 
   withNodePool(nodePool: KubernetesNodePoolResource): this;
+  /**
+   * Configures the Kubernetes environment to create and deploy to a local Kind cluster. Enables `aspire deploy` to provision the cluster, load container images, and install the generated Helm chart.
+   */
+
+  withKind(): this;
 }
 
 // augments handle type KubernetesGatewayResource with extension methods
@@ -18025,6 +20794,15 @@ export interface KubernetesNodePoolResource {
   withNodePool(nodePool: KubernetesNodePoolResource): this;
 }
 
+// augments handle type KubernetesPersistentVolumeResource with extension methods
+export interface KubernetesPersistentVolumeResource {
+  /**
+   * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
+   */
+
+  withNodePool(nodePool: KubernetesNodePoolResource): this;
+}
+
 // augments handle type KubernetesResource with extension methods
 export interface KubernetesResource {
   /**
@@ -18032,6 +20810,22 @@ export interface KubernetesResource {
    */
 
   withNodePool(nodePool: KubernetesNodePoolResource): this;
+}
+
+// augments handle type LambdaEmulatorResource with extension methods
+export interface LambdaEmulatorResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
+}
+
+// augments handle type LambdaProjectResource with extension methods
+export interface LambdaProjectResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
 }
 
 // augments handle type MauiAndroidDeviceResource with extension methods
@@ -18478,6 +21272,11 @@ export interface ParameterResource {
 
   onResourceStopped(callback: (arg: ResourceStoppedEvent) => Promise<void>): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Sets a child relationship
    */
 
@@ -18492,6 +21291,11 @@ export interface ParameterResource {
    */
 
   withCommand(name: string, displayName: string, executeCommand: (arg: ExecuteCommandContext) => Promise<ExecuteCommandResult>, commandOptions?: CommandOptions): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -18586,11 +21390,6 @@ export interface ParameterResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a relationship to another resource using its builder.
@@ -18608,10 +21407,25 @@ export interface ParameterResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -18802,6 +21616,11 @@ export interface ProjectResource {
 
   publishWithContainerFiles(source: IResourceWithContainerFiles, destinationPath: string): this;
   /**
+   * Subscribes to the `BeforeStartEvent` and invokes the specified callback when an HTTPS certificate is determined to be available for the resource. This is used to conditionally update endpoint URI schemes or perform other HTTPS-related configuration at startup.
+   */
+
+  subscribeHttpsEndpointsUpdate(callback: (obj: HttpsEndpointUpdateCallbackContext) => Promise<void>): IResource;
+  /**
    * Waits for another resource to be ready
    */
 
@@ -18851,6 +21670,11 @@ export interface ProjectResource {
    */
 
   withComputeEnvironment(computeEnvironmentResource: IComputeEnvironmentResource): this;
+  /**
+   * Configures container build options for a compute resource using an async callback.
+   */
+
+  withContainerBuildOptions(callback: (arg: ContainerBuildOptionsCallbackContext) => Promise<void>): this;
   /**
    * Configures the resource to use the specified container registry for container image operations.
    */
@@ -18940,11 +21764,6 @@ export interface ProjectResource {
    * Adds an HTTP resource command
    */
 
-  withHttpCommand(path: string, displayName: string, options?: { options?: HttpCommandExportOptions }): this;
-  /**
-   * Adds an HTTP resource command
-   */
-
   withHttpCommand(path: string, displayName: string, options?: HttpCommandExportOptions): this;
   /**
    * Adds an HTTP endpoint
@@ -18986,6 +21805,11 @@ export interface ProjectResource {
    */
 
   withHttpProbe(probeType: ProbeType, path?: string, initialDelaySeconds?: number, periodSeconds?: number, timeoutSeconds?: number, failureThreshold?: number, successThreshold?: number, endpointName?: string): this;
+  /**
+   * Adds a callback that allows configuring the resource to use a specific HTTPS/TLS certificate key pair for server authentication.
+   */
+
+  withHttpsCertificateConfiguration(callback: (arg: HttpsCertificateConfigurationCallbackAnnotationContext) => Promise<void>): this;
   /**
    * Indicates that a resource should use the developer certificate key pair for HTTPS endpoints at run time. Currently this indicates use of the ASP.NET Core developer certificate. The developer certificate will only be used when running in local development scenarios; in publish mode resources will use their default certificate configuration.
    */
@@ -19100,11 +21924,6 @@ export interface ProjectResource {
    * Adds a command to the resource that starts a local process created by a callback when invoked.
    */
 
-  withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: { options?: ProcessCommandResultExportOptions }): this;
-  /**
-   * Adds a command to the resource that starts a local process created by a callback when invoked.
-   */
-
   withProcessCommandFactory(commandName: string, displayName: string, createProcessSpec: (arg: ExecuteCommandContext) => Promise<ProcessCommandSpecExportData>, options?: ProcessCommandResultExportOptions): this;
   /**
    * Adds a reference to another resource
@@ -19147,10 +21966,25 @@ export interface ProjectResource {
 
   withRequiredCommand(command: string, helpLink?: string): this;
   /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, options?: { helpLink?: string }): this;
+  /**
+   * Declares that a resource requires a specific command/executable to be available on the local machine PATH before it can start, with custom validation logic.
+   */
+
+  withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
+  /**
+   * Adds an interactive terminal session to a resource using the default terminal options.
+   */
+
+  withTerminal(): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -19171,6 +22005,10 @@ export interface ProjectResource {
    */
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Associates an Azure user-assigned identity with a compute resource
    */
@@ -19312,20 +22150,25 @@ export interface ProjectResource {
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
   /**
-   * Adds EF Core migration management for polyglot app hosts.
+   * Adds EF Core migration management for polyglot AppHosts.
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
   /**
-   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry, targeting the specified Foundry project.
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using the Responses protocol version 2.0.0.
    */
 
   asHostedAgent(project: AzureCognitiveServicesProjectResource, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource to run and publish as a hosted agent in Microsoft Foundry using an explicit protocol and version.
+   */
+
+  asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
    */
@@ -19336,6 +22179,21 @@ export interface ProjectResource {
    */
 
   publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume by matching volume name
+   */
+
+  withKubernetesPersistentVolume(volume: KubernetesPersistentVolumeResource): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Binds a workload to a Kubernetes persistent volume and mounts it at a path
+   */
+
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -19352,6 +22210,46 @@ export interface ProjectResource {
 
   withOrleansReference(orleansService: OrleansService): this;
   /**
+   * Associates a pre-built container image reference with a project resource so the Aspire.Hosting.Radius publisher can emit a valid Radius container manifest for it.
+   */
+
+  withContainerImage(image: string): this;
+  /**
+   * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
+   */
+
+  withBitwardenReferenceAccessToken(source: BitwardenSecretManagerResource, accessToken: string | ParameterResource): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectory(source: BitwardenSecretManagerResource, authCacheDirectory: string): this;
+  /**
+   * Configures the directory where the Bitwarden SDK stores its auth cache inside the resource, using a parameter, for the connection associated with `source`.
+   */
+
+  withBitwardenReferenceAuthCacheDirectoryFromParameter(source: BitwardenSecretManagerResource, authCacheDirectory: string | ParameterResource): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, options?: { volumeName?: string; containerDirectory?: string }): this;
+  /**
+   * Mounts a named volume and configures the Bitwarden SDK to store its auth cache there, for the connection associated with `source`. Use this for container resources. For process resources or when the container path is already known, use `WithBitwardenAuthCacheDirectory``1` instead.
+   */
+
+  withBitwardenReferenceAuthCacheVolume(source: BitwardenSecretManagerResource, volumeName?: string, containerDirectory?: string): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, options?: { connectionName?: string }): this;
+  /**
+   * Injects structured Bitwarden client configuration into the destination resource.
+   */
+
+  withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -19366,6 +22264,11 @@ export interface ProjectResource {
    */
 
   withOtelAgent(agentPath?: string): this;
+  /**
+   * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
+   */
+
+  withKindClusterReference(kind: KindClusterResource): this;
   /**
    * Routes telemetry for the resource through the specified OpenTelemetry Collector.
    */
@@ -19383,8 +22286,28 @@ export interface ProjectResource {
   withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
 }
 
+// augments handle type RedisCommanderResource with extension methods
+export interface RedisCommanderResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
+}
+
+// augments handle type RedisInsightResource with extension methods
+export interface RedisInsightResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
+}
+
 // augments handle type RedisResource with extension methods
 export interface RedisResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
    * Adds an administration and development platform for Redis to the application model using DbGate.
    */
@@ -19500,6 +22423,14 @@ export interface UvicornAppResource {
    */
 
   withVirtualEnvironment(virtualEnvironmentPath: string, createIfNotExists?: boolean): this;
+}
+
+// augments handle type ValkeyResource with extension methods
+export interface ValkeyResource {
+
+  withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
+
+  withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
 }
 
 // augments handle type ViteAppResource with extension methods
@@ -19740,6 +22671,7 @@ export interface IConfigurationSection {}
 export interface IContainerRegistry {}
 export interface IConvertible {}
 export interface IDisposable {}
+export interface IDynamoDBLocalResource {}
 export interface IEnumerable {}
 export interface IFormattable {}
 export interface IFoundryTool {}
@@ -19754,7 +22686,7 @@ export interface IResourceWithServiceDiscovery extends IResource {}
 export interface ISpanFormattable {}
 export interface IValueProvider {}
 export interface IValueWithReferences {}
-export interface InputLoadOptions {}
+export interface KeyValuePair<T = unknown, T1 = unknown> {}
 export interface List<T = unknown> {}
 export interface NetworkSecurityPerimeterAccessRuleDirection {}
 export interface NetworkSecurityPerimeterAssociationAccessMode {}
@@ -19766,13 +22698,13 @@ export interface SameSiteMode {}
 export interface SecurityRuleAccess {}
 export interface SecurityRuleDirection {}
 export interface SecurityRuleProtocol {}
-export interface String {}
 export interface UnixFileMode {}
 export interface arg {}
 export interface arg1 {}
 export interface arg2 {}
 export interface callback {}
 export interface cancellationToken {}
+export interface guid {}
 export interface obj {}
 export interface timespan {}
 export interface uri {}

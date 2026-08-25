@@ -398,6 +398,9 @@ internal sealed class TsHandleTypeModel
     [JsonPropertyName("implementedInterfaces")]
     public List<string> ImplementedInterfaces { get; init; } = [];
 
+    [JsonPropertyName("baseTypeHierarchy")]
+    public List<string> BaseTypeHierarchy { get; init; } = [];
+
     /// <summary>
     /// Capabilities that target this handle type.
     /// </summary>

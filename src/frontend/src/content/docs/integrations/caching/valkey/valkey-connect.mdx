@@ -85,7 +85,7 @@ Install the [📦 Aspire.StackExchange.Redis](https://www.nuget.org/packages/Asp
 
 In _Program.cs_, call `AddRedisClient` on your `IHostApplicationBuilder` to register an `IConnectionMultiplexer`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisClient(connectionName: "cache");
 ```
 
@@ -95,7 +95,7 @@ The `connectionName` must match the Valkey resource name from the AppHost. For m
 
 Resolve the connection multiplexer through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IConnectionMultiplexer connectionMux)
 {
     // Use connection multiplexer...
@@ -106,14 +106,14 @@ public class ExampleService(IConnectionMultiplexer connectionMux)
 
 To register multiple `IConnectionMultiplexer` instances with different connection names, use `AddKeyedRedisClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedRedisClient(name: "chat");
 builder.AddKeyedRedisClient(name: "queue");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("chat")] IConnectionMultiplexer chatMux,
     [FromKeyedServices("queue")] IConnectionMultiplexer queueMux)
@@ -128,13 +128,13 @@ The Aspire Redis client integration offers multiple ways to provide configuratio
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddRedisClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisClient("cache");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "cache": "localhost:6379"
@@ -146,7 +146,7 @@ For more information, see [Stack Exchange Redis configuration](https://stackexch
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `StackExchangeRedisSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:StackExchange:Redis` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "StackExchange": {
@@ -162,7 +162,7 @@ For more information, see [Stack Exchange Redis configuration](https://stackexch
 
 **Inline delegates.** Pass an `Action<StackExchangeRedisSettings>` to configure settings inline, for example to disable tracing:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddRedisClient(
     "cache",
      static settings => settings.DisableTracing = true);
@@ -197,7 +197,7 @@ Valkey also works with the Aspire distributed-caching and output-caching client 
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to [📦 StackExchange.Redis](https://www.nuget.org/packages/StackExchange.Redis/) directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using StackExchange.Redis;
 
 var connectionString = Environment.GetEnvironmentVariable("CACHE_URI");
@@ -218,7 +218,7 @@ go get github.com/redis/go-redis/v9
 
 Read the injected environment variable and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -252,7 +252,7 @@ pip install redis
 
 Read the injected environment variable and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import redis
 
@@ -274,7 +274,7 @@ npm install ioredis
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import Redis from 'ioredis';
 
 // Read Aspire-injected connection properties
@@ -289,7 +289,7 @@ await client.ping();
 
 Or use the connection URI directly:
 
-```typescript title="TypeScript — Connect with URI"
+```typescript title="Connect with URI"
 import Redis from 'ioredis';
 
 const client = new Redis(process.env.CACHE_URI!);
