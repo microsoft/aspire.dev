@@ -306,11 +306,8 @@ test('uses deliberate landing-page tracking across responsive layouts', async ({
       await page.reload();
 
       const metrics = await readTracking();
-      expect(metrics.heroHeading.em).toBeCloseTo(
-        viewport.width === 440 ? -0.02 : -0.025,
-        3
-      );
-      expect(metrics.sectionHeading.em).toBeCloseTo(-0.025, 3);
+      expect(metrics.heroHeading.em).toBeCloseTo(0.01, 3);
+      expect(metrics.sectionHeading.em).toBeCloseTo(0.01, 3);
       expect(metrics.heroSummary.px).toBeGreaterThan(0);
       expect(metrics.sectionSummary.px).toBeGreaterThan(0);
       expect(metrics.heroCode.px).toBe(0);

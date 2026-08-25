@@ -7,8 +7,6 @@ import {
   waitForTopicSidebarReady,
 } from '@tests/e2e/helpers';
 
-const isSiteTourEnabled = process.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
-
 async function hasCollapsedSidebar(page: Page): Promise<boolean | null> {
   try {
     return await page.evaluate(() =>
@@ -95,43 +93,23 @@ test('install CLI entry adapts to viewport and remembers the selected channel', 
   await expect(channelTrigger).toContainText('Dev');
 });
 
-test('homepage header actions stay reachable at zoomed and reflow widths', async ({ page }) => {
+test('homepage header matches the compact mobile action geometry at reflow widths', async ({
+  page,
+}) => {
   test.skip(
     page.viewportSize()?.width !== 1440,
     'This regression is covered once from the desktop project with explicit narrow widths.'
   );
 
-  // This test loops over narrow widths and, at each one, clicks the install
-  // button — which navigates to /get-started/install-cli/ — before looping
-  // back to the homepage. Starlight's view transitions animate each of those
-  // navigations, and in headless Chromium a transition kicked off on the
-  // second homepage visit can stall the compositor (requestAnimationFrame
-  // stops firing), leaving the whole page frozen and unclickable. Disabling
-  // motion makes Starlight skip the view-transition animations, which keeps
-  // the page interactive across the repeated navigations.
   await page.emulateMedia({ reducedMotion: 'reduce' });
 
-  // The "Manage cookies" button is region-gated: once WCP resolves the
-  // visitor's region it hides the button where consent isn't required (which
-  // is how most CI runner IPs resolve). Block the WCP CDN so this layout test
-  // always sees the failsafe default — every header control present — keeping
-  // the expected order deterministic regardless of where the runner lives.
+  // Keep the region-gated preference action eligible so this verifies the
+  // compact header hides it rather than relying on WCP to do so.
   await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
 
-  const expectedCompactHeaderOrder = [
-    'Aspire',
-    'Search',
-    'Open cookie preferences dialog',
-    'Open install Aspire CLI dialog',
-    'Docs',
-    'Try',
-  ];
+  const expectedCompactHeaderOrder = ['Aspire', 'Search', 'Docs', 'Try'];
 
-  if (isSiteTourEnabled) {
-    expectedCompactHeaderOrder.splice(2, 0, 'Start site tour');
-  }
-
-  for (const width of [640, 320]) {
+  for (const width of [640, 440, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await resetCookieConsentState(page);
     await page.goto('/');
@@ -209,32 +187,33 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
     await expect(banner.getByRole('link', { name: 'Docs', exact: true })).toBeVisible();
     await expect(banner.getByRole('link', { name: 'Try Aspire', exact: true })).toBeVisible();
 
-    if (!isSiteTourEnabled) {
-      await expect(banner.locator('[data-tour-trigger]')).toHaveCount(0);
-    }
+    await expect(banner.locator('.right-group-mobile .install-cli-btn')).toBeHidden();
+    await expect(banner.locator('.right-group-mobile .cookie-consent-btn')).toBeHidden();
+    await expect(banner.locator('.right-group-mobile .tour-help-btn')).toBeHidden();
 
-    await expect(
-      banner.getByRole('button', { name: /open cookie preferences dialog/i }).first()
-    ).toBeVisible();
+    const controls = [
+      banner.getByRole('button', { name: 'Search' }),
+      banner.getByRole('link', { name: 'Docs', exact: true }),
+      banner.getByRole('link', { name: 'Try Aspire', exact: true }),
+    ];
+    const controlBoxes = await Promise.all(controls.map((control) => control.boundingBox()));
+    expect(controlBoxes.every((box) => box !== null)).toBe(true);
+    expect(controlBoxes.every((box) => Math.abs((box?.height ?? 0) - 32) <= 0.5)).toBe(true);
+    expect(
+      Math.max(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2)) -
+        Math.min(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2))
+    ).toBeLessThanOrEqual(1);
 
-    const installButton = banner
-      .getByRole('button', {
-        name: /open install aspire cli dialog/i,
-      })
-      .first();
-    await expect(installButton).toBeVisible();
-    await installButton.click();
-
-    if (isNarrowViewport(page)) {
-      await expect(page).toHaveURL(/\/get-started\/install-cli\/?$/);
-      await expect(page.getByRole('heading', { name: /install aspire cli/i })).toBeVisible();
-      continue;
-    }
-
-    const installModal = page.locator('#install-cli-modal').first();
-    await expect(installModal).toBeVisible();
-    await installModal.getByRole('button', { name: /close modal/i }).click();
-    await expect(installModal).not.toBeVisible();
+    const sortedControlBoxes = controlBoxes
+      .filter((box): box is NonNullable<typeof box> => box !== null)
+      .sort((a, b) => a.x - b.x);
+    const controlGaps = sortedControlBoxes
+      .slice(1)
+      .map((box, index) => box.x - (sortedControlBoxes[index].x + sortedControlBoxes[index].width));
+    expect(controlGaps.every((gap) => gap >= 7 && gap <= 9)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width
+    );
   }
 });
 
@@ -353,11 +332,51 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
       )
       .toBe(2);
 
-    for (const control of [topics.locator('a').first(), filter, groupSummary, nestedLink]) {
+    for (const control of [topics.locator('a').first(), filter]) {
       const box = await control.boundingBox();
       expect(box).not.toBeNull();
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     }
+
+    for (const control of [groupSummary, nestedLink]) {
+      const box = await control.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(40);
+      expect(box?.height ?? Infinity).toBeLessThan(44);
+    }
+
+    const nestedLabelInsets = await nestedLink.evaluate((element) => {
+      const label = element.querySelector(':scope > span:first-child');
+      if (!label) return null;
+
+      const controlBounds = element.getBoundingClientRect();
+      const labelRange = document.createRange();
+      labelRange.selectNodeContents(label);
+      const labelBounds = labelRange.getBoundingClientRect();
+
+      return {
+        top: labelBounds.top - controlBounds.top,
+        bottom: controlBounds.bottom - labelBounds.bottom,
+      };
+    });
+    expect(nestedLabelInsets).not.toBeNull();
+    expect(
+      Math.abs((nestedLabelInsets?.top ?? 0) - (nestedLabelInsets?.bottom ?? 0))
+    ).toBeLessThanOrEqual(0.75);
+
+    const topLevelItems = page.locator('#starlight__sidebar .top-level > li');
+    const firstTopLevelItemBox = await topLevelItems.nth(0).boundingBox();
+    const secondTopLevelItemBox = await topLevelItems.nth(1).boundingBox();
+    expect(firstTopLevelItemBox).not.toBeNull();
+    expect(secondTopLevelItemBox).not.toBeNull();
+    expect(
+      (secondTopLevelItemBox?.y ?? 0) -
+        ((firstTopLevelItemBox?.y ?? 0) + (firstTopLevelItemBox?.height ?? 0))
+    ).toBeGreaterThanOrEqual(7);
+    expect(
+      (secondTopLevelItemBox?.y ?? 0) -
+        ((firstTopLevelItemBox?.y ?? 0) + (firstTopLevelItemBox?.height ?? 0))
+    ).toBeLessThanOrEqual(9);
 
     await sidebar.evaluate((element) => element.scrollTo(0, element.scrollHeight));
     const bottomClearance = await sidebar.evaluate((element) => {
