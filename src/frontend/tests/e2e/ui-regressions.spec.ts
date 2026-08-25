@@ -1102,17 +1102,29 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
         const paragraph = root.querySelector<HTMLElement>(':scope > p');
         const inlineCode = root.querySelector<HTMLElement>('p code');
         const strong = root.querySelector<HTMLElement>('strong');
-        const codeFrame = root.querySelector<HTMLElement>('.expressive-code');
+        const asideCode = root.querySelector<HTMLElement>('.starlight-aside code');
+        const codeAside = asideCode?.closest<HTMLElement>('.starlight-aside');
+        const asideLink = root.querySelector<HTMLElement>(
+          '.starlight-aside__content a:not([role="tab"])'
+        );
         const codeTitleIcon = root.querySelector<HTMLElement>('.code-block-icon');
         const paragraphStyle = paragraph ? getComputedStyle(paragraph) : null;
         const inlineCodeStyle = inlineCode ? getComputedStyle(inlineCode) : null;
+        const asideCodeStyle = asideCode ? getComputedStyle(asideCode) : null;
+        const codeAsideStyle = codeAside ? getComputedStyle(codeAside) : null;
+        const asideLinkStyle = asideLink ? getComputedStyle(asideLink) : null;
 
         const spacing = (value: string | undefined) =>
           value === undefined || value === 'normal' ? 0 : Number.parseFloat(value);
 
         return {
           bodyFontSize: spacing(paragraphStyle?.fontSize),
-          codeFrameWidth: codeFrame?.getBoundingClientRect().width ?? 0,
+          asideCodeBackgroundDiffers:
+            asideCodeStyle?.backgroundColor !== codeAsideStyle?.backgroundColor,
+          asideCodeUsesBodyText: asideCodeStyle?.color === codeAsideStyle?.color,
+          asideLinkBackground: asideLinkStyle?.backgroundColor,
+          asideLinkDecoration: asideLinkStyle?.textDecorationLine,
+          asideLinkPadding: asideLinkStyle?.padding,
           codeTitleIconDisplay: codeTitleIcon ? getComputedStyle(codeTitleIcon).display : null,
           contentWidth: root.getBoundingClientRect().width,
           documentOverflows:
@@ -1130,6 +1142,11 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
       expect(metrics.inlineCodeFontSize).toBeLessThan(metrics.bodyFontSize);
       expect(metrics.inlineCodeBorderWidth).toBe(0);
       expect(metrics.strongWeight).toBe(600);
+      expect(metrics.asideCodeBackgroundDiffers).toBe(true);
+      expect(metrics.asideCodeUsesBodyText).toBe(true);
+      expect(metrics.asideLinkBackground).toBe('rgba(0, 0, 0, 0)');
+      expect(metrics.asideLinkDecoration).toContain('underline');
+      expect(metrics.asideLinkPadding).toBe('0px');
       expect(metrics.documentOverflows).toBe(false);
 
       if (viewport.width < 800) {
@@ -1164,8 +1181,7 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
       }
 
       if (viewport.width === 1920) {
-        expect(metrics.paragraphWidth).toBeLessThan(metrics.contentWidth * 0.75);
-        expect(metrics.codeFrameWidth).toBeGreaterThan(metrics.paragraphWidth * 1.4);
+        expect(Math.abs(metrics.paragraphWidth - metrics.contentWidth)).toBeLessThanOrEqual(1);
       }
     }
   }
