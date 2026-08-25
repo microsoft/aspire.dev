@@ -6,13 +6,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StaticHost.AgentReadiness;
+using StaticHost.Routing;
 
 namespace StaticHost.Tests;
 
 /// <summary>
 /// Builds an in-process ASP.NET Core test server that mirrors the production
-/// pipeline order for the agent-readiness middlewares (markdown negotiation
-/// and Link headers) without depending on the frontend build.
+/// pipeline order for path canonicalization and the agent-readiness middlewares
+/// without depending on the frontend build.
 /// </summary>
 internal sealed class AgentReadinessTestServer : IAsyncDisposable
 {
@@ -47,8 +48,9 @@ internal sealed class AgentReadinessTestServer : IAsyncDisposable
                     web.UseWebRoot(wwwroot.Path);
                     web.Configure(app =>
                     {
-                        // Match production order: agent-readiness BEFORE
-                        // UseDefaultFiles + UseRouting (see Program.cs).
+                        // Match production order: canonical redirects and
+                        // agent-readiness BEFORE default files (see Program.cs).
+                        app.UseCanonicalPathRedirects();
                         app.UseAgentReadiness();
                         app.UseDefaultFiles();
                         app.UseStaticFiles();
