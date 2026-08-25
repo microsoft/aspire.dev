@@ -238,7 +238,7 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
   }
 });
 
-test('mobile docs chrome prioritizes reading and provides consistent touch targets', async ({
+test('mobile docs chrome prioritizes reading and keeps navigation geometry consistent', async ({
   page,
 }) => {
   test.skip(
@@ -269,59 +269,82 @@ test('mobile docs chrome prioritizes reading and provides consistent touch targe
     await expect(banner.locator('.right-group-mobile .cookie-consent-btn')).toBeHidden();
     await expect(banner.locator('.right-group-mobile .tour-help-btn')).toBeHidden();
 
-    for (const control of [searchButton, tryLink, menuButton]) {
-      const box = await control.boundingBox();
-      expect(box).not.toBeNull();
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-      expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-    }
-
-    await searchButton.click();
-    const cancelSearchButton = page.locator('site-search button[data-close-modal]');
-    await expect(cancelSearchButton).toBeVisible();
-    const cancelSearchBox = await cancelSearchButton.boundingBox();
-    expect(cancelSearchBox?.height ?? 0).toBeGreaterThanOrEqual(44);
-    await cancelSearchButton.click();
-
-    const mobileToc = page.locator('mobile-starlight-toc summary');
-    const mobileTocToggle = mobileToc.locator('.toggle');
-    await expect(mobileToc).toBeVisible();
-    await expect(mobileTocToggle).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-    await expect(mobileTocToggle).toHaveCSS('border-top-width', '0px');
-
-    const pageActions = page.locator('.actions-container');
-    const actionButtons = pageActions.locator(
-      ':scope > .action-button, .dropdown-container > .dropdown > .action-button'
+    const headerBox = await banner.boundingBox();
+    const controlBoxes = await Promise.all(
+      [searchButton, tryLink, menuButton].map((control) => control.boundingBox())
     );
-    await expect(actionButtons).toHaveCount(3);
+    const menuButtonBox = controlBoxes[2];
+    expect(headerBox).not.toBeNull();
+    expect(controlBoxes.every((box) => box !== null)).toBe(true);
+    expect(
+      Math.max(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2)) -
+        Math.min(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2))
+    ).toBeLessThanOrEqual(1);
+    expect(controlBoxes.every((box) => (box?.y ?? 0) - (headerBox?.y ?? 0) >= 8)).toBe(true);
+    expect(
+      controlBoxes.every(
+        (box) =>
+          (headerBox?.y ?? 0) + (headerBox?.height ?? 0) - ((box?.y ?? 0) + (box?.height ?? 0)) >= 8
+      )
+    ).toBe(true);
+    const sortedControlBoxes = controlBoxes
+      .filter((box): box is NonNullable<typeof box> => box !== null)
+      .sort((a, b) => a.x - b.x);
+    const controlGaps = sortedControlBoxes
+      .slice(1)
+      .map((box, index) => box.x - (sortedControlBoxes[index].x + sortedControlBoxes[index].width));
+    expect(controlGaps.every((gap) => gap >= 7 && gap <= 9)).toBe(true);
+    await expect(searchButton).toHaveCSS('border-top-width', '1px');
+    await expect(menuButton).toHaveCSS('border-top-width', '1px');
+    await expect(searchButton).toHaveCSS('border-radius', '6px');
+    await expect(menuButton).toHaveCSS('border-radius', '6px');
+    const searchIconBox = await searchButton.locator('svg').boundingBox();
+    const menuIconBox = await menuButton.locator('.open-menu').boundingBox();
+    expect(searchIconBox).not.toBeNull();
+    expect(menuIconBox).not.toBeNull();
+    expect(menuIconBox?.width).toBe(searchIconBox?.width);
+    expect(menuIconBox?.height).toBe(searchIconBox?.height);
+    expect(
+      Math.abs(
+        (menuIconBox?.x ?? 0) +
+          (menuIconBox?.width ?? 0) / 2 -
+          ((menuButtonBox?.x ?? 0) + (menuButtonBox?.width ?? 0) / 2)
+      )
+    ).toBeLessThanOrEqual(0.5);
+    expect(
+      Math.abs(
+        (menuIconBox?.y ?? 0) +
+          (menuIconBox?.height ?? 0) / 2 -
+          ((menuButtonBox?.y ?? 0) + (menuButtonBox?.height ?? 0) / 2)
+      )
+    ).toBeLessThanOrEqual(0.5);
 
+    const mobileTocToggle = page.locator('mobile-starlight-toc summary .toggle');
+    await expect(mobileTocToggle).toBeVisible();
+    await expect(mobileTocToggle).toHaveCSS('border-top-width', '1px');
+
+    const actionButtons = page.locator('.actions-container .action-button');
+    await expect(actionButtons).toHaveCount(3);
     const actionBoxes = await actionButtons.evaluateAll((controls) =>
       controls.map((control) => {
         const bounds = control.getBoundingClientRect();
-        return {
-          contentFits: control.scrollWidth <= control.clientWidth,
-          height: bounds.height,
-          y: bounds.y,
-        };
+        return { y: bounds.y };
       })
     );
-    expect(actionBoxes.every(({ height }) => height >= 44)).toBe(true);
-    expect(actionBoxes.every(({ contentFits }) => contentFits)).toBe(true);
-    expect(
-      Math.max(...actionBoxes.map(({ y }) => y)) - Math.min(...actionBoxes.map(({ y }) => y))
-    ).toBeLessThanOrEqual(1);
+    expect(actionBoxes[0].y).toBeLessThan(actionBoxes[1].y);
+    expect(Math.abs(actionBoxes[1].y - actionBoxes[2].y)).toBeLessThanOrEqual(1);
 
     await menuButton.click();
 
+    const sidebar = page.locator('#starlight__sidebar');
     const topics = page.locator('#starlight__sidebar .starlight-sidebar-topics').first();
     const filter = page.locator('#starlight__sidebar .sidebar-filter-input').first();
-    const preferences = page.locator('#starlight__sidebar .mobile-menu-preferences');
     const groupSummary = page
       .locator('#starlight__sidebar .top-level > li > details > summary')
       .first();
     const nestedLink = page.locator('#starlight__sidebar .top-level li li a').first();
 
-    await expect(preferences).toBeVisible();
+    await expect(sidebar.locator('starlight-theme-select, starlight-lang-select')).toHaveCount(0);
     await expect
       .poll(() =>
         topics.evaluate(
@@ -333,14 +356,16 @@ test('mobile docs chrome prioritizes reading and provides consistent touch targe
     for (const control of [topics.locator('a').first(), filter, groupSummary, nestedLink]) {
       const box = await control.boundingBox();
       expect(box).not.toBeNull();
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(control === nestedLink ? 40 : 44);
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     }
 
-    const preferenceBounds = await preferences.boundingBox();
-    expect(preferenceBounds).not.toBeNull();
-    expect((preferenceBounds?.y ?? Infinity) + (preferenceBounds?.height ?? 0)).toBeLessThanOrEqual(
-      844
-    );
+    await sidebar.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    const bottomClearance = await sidebar.evaluate((element) => {
+      const footer = element.querySelector('.sidebar-bottom');
+      if (!footer) return -1;
+      return element.getBoundingClientRect().bottom - footer.getBoundingClientRect().bottom;
+    });
+    expect(bottomClearance).toBeGreaterThanOrEqual(15);
 
     await menuButton.click();
   }
@@ -349,26 +374,39 @@ test('mobile docs chrome prioritizes reading and provides consistent touch targe
   await page.reload();
   await dismissCookieConsentIfVisible(page);
 
-  const compactActions = page.locator('.actions-container');
-  const compactActionBox = await compactActions.boundingBox();
-  expect(compactActionBox).not.toBeNull();
-  expect(compactActionBox?.height ?? Infinity).toBeLessThanOrEqual(44);
-  await expect(compactActions.getByRole('button', { name: 'Copy Markdown' })).toBeVisible();
+  const compactMenuButton = page
+    .locator('starlight-menu-button')
+    .getByRole('button', { name: 'Menu' });
+  await compactMenuButton.click();
 
-  for (const dropdownId of ['dropdown-0', 'dropdown-1']) {
-    const dropdown = compactActions.locator(`#${dropdownId}`);
-    const trigger = dropdown.locator('.action-button');
-    await trigger.click();
-
-    const menu = dropdown.locator('#dropdown-menu');
-    await expect(menu).toBeVisible();
-    const menuBox = await menu.boundingBox();
-    expect(menuBox).not.toBeNull();
-    expect(menuBox?.x ?? -1).toBeGreaterThanOrEqual(0);
-    expect((menuBox?.x ?? Infinity) + (menuBox?.width ?? Infinity)).toBeLessThanOrEqual(320);
-
-    await trigger.click();
-  }
+  const compactTopicMetrics = await page
+    .locator('#starlight__sidebar .starlight-sidebar-topics a')
+    .evaluateAll((links) =>
+      links.map((link) => {
+        const label = link.querySelector(':scope > div:not(.starlight-sidebar-topics-icon)');
+        const linkBounds = link.getBoundingClientRect();
+        const labelBounds = label?.getBoundingClientRect();
+        const labelStyles = label ? getComputedStyle(label) : null;
+        return {
+          height: linkBounds.height,
+          labelOffset: labelBounds ? labelBounds.x - linkBounds.x : -1,
+          labelHeight: labelBounds?.height ?? Infinity,
+          lineHeight: labelStyles ? Number.parseFloat(labelStyles.lineHeight) : 0,
+        };
+      })
+    );
+  expect(compactTopicMetrics.every(({ height }) => height >= 48)).toBe(true);
+  expect(
+    Math.max(...compactTopicMetrics.map(({ height }) => height)) -
+      Math.min(...compactTopicMetrics.map(({ height }) => height))
+  ).toBeLessThanOrEqual(1);
+  expect(
+    compactTopicMetrics.every(({ labelHeight, lineHeight }) => labelHeight <= lineHeight + 1)
+  ).toBe(true);
+  expect(
+    Math.max(...compactTopicMetrics.map(({ labelOffset }) => labelOffset)) -
+      Math.min(...compactTopicMetrics.map(({ labelOffset }) => labelOffset))
+  ).toBeLessThanOrEqual(1);
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 });
