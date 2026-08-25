@@ -265,6 +265,51 @@ test('uses lavender canvases, theme-matched product surfaces, and an inverted ba
   await expect(page.locator('.sl-banner')).toHaveCSS('color', 'rgb(32, 30, 49)');
 });
 
+test('adds modest tracking to landing-page copy only on mobile', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium');
+
+  const readTracking = () =>
+    page.evaluate(() => {
+      const letterSpacing = (selector: string) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element) throw new Error(`Missing landing-page typography role: ${selector}`);
+
+        const value = getComputedStyle(element).letterSpacing;
+        return value === 'normal' ? 0 : Number.parseFloat(value);
+      };
+
+      return {
+        heroHeading: letterSpacing('.home-hero-copy h1'),
+        heroSummary: letterSpacing('.home-hero-summary'),
+        sectionSummary: letterSpacing('.language-heading > div > p'),
+        heroCode: letterSpacing('.home-hero-product pre'),
+        sectionCode: letterSpacing('.aspire-home pre'),
+      };
+    });
+
+  await page.setViewportSize({ width: 440, height: 956 });
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => localStorage.setItem('starlight-theme', value), theme);
+    await page.reload();
+
+    const mobile = await readTracking();
+    expect(mobile.heroHeading).toBeLessThan(0);
+    expect(mobile.heroSummary).toBeGreaterThan(0);
+    expect(mobile.sectionSummary).toBeGreaterThan(0);
+    expect(mobile.heroCode).toBe(0);
+    expect(mobile.sectionCode).toBe(0);
+  }
+
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.reload();
+
+  const desktop = await readTracking();
+  expect(desktop.heroSummary).toBe(0);
+  expect(desktop.sectionSummary).toBe(0);
+  expect(desktop.heroCode).toBe(0);
+  expect(desktop.sectionCode).toBe(0);
+});
+
 test('serves every internal homepage link successfully', async ({ page, request }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium');
 
