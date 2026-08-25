@@ -36,6 +36,12 @@ internal sealed class OneDSTelemetryService(
     public void TrackDownload(HttpContext context, string scriptName)
     {
         var origin = $"{context.Request.Scheme}://{context.Request.Host}";
+        var platform = scriptName switch
+        {
+            "install.ps1" => TelemetryConstants.Funnel.Windows,
+            "install.sh" => TelemetryConstants.Funnel.Unix,
+            _ => TelemetryConstants.Funnel.Unknown,
+        };
 
         // Skip tracking for non-production origins (matching 1ds.js behavior)
         if (_environment is not "PROD" ||
@@ -57,11 +63,16 @@ internal sealed class OneDSTelemetryService(
                 activity.AddTag(TelemetryConstants.Tags.ClientIp, context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
                 activity.AddTag(TelemetryConstants.Tags.Environment, _environment);
                 activity.AddTag(TelemetryConstants.Tags.Origin, origin);
-                activity.AddTag(TelemetryConstants.Tags.Referer, context.Request.Headers.Referer.ToString());
                 activity.AddTag(TelemetryConstants.Tags.ScriptName, scriptName);
                 activity.AddTag(TelemetryConstants.Tags.UserAgent, context.Request.Headers.UserAgent.ToString());
-            
-            
+                activity.AddTag(TelemetryConstants.Tags.SchemaVersion, TelemetryConstants.Funnel.SchemaVersion);
+                activity.AddTag(TelemetryConstants.Tags.Funnel, TelemetryConstants.Funnel.CliInstall);
+                activity.AddTag(TelemetryConstants.Tags.FunnelStep, TelemetryConstants.Funnel.ScriptRequested);
+                activity.AddTag(TelemetryConstants.Tags.FunnelStepIndex, TelemetryConstants.Funnel.ScriptRequestedStepIndex);
+                activity.AddTag(TelemetryConstants.Tags.Correlation, TelemetryConstants.Funnel.Aggregate);
+                activity.AddTag(TelemetryConstants.Tags.Method, TelemetryConstants.Funnel.Script);
+                activity.AddTag(TelemetryConstants.Tags.Platform, platform);
+
                 _logger.LogTrackedEvent(TelemetryConstants.Activities.InstallScriptDownload);
             }
             else

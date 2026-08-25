@@ -50,11 +50,6 @@ internal static class TelemetryConstants
         public const string UserAgent = "request_user_agent";
 
         /// <summary>
-        /// Tag indicating the referer of the request.
-        /// </summary>
-        public const string Referer = "request_referer";
-
-        /// <summary>
         /// Tag indicating the origin of the request.
         /// </summary>
         public const string Origin = "request_origin";
@@ -63,6 +58,41 @@ internal static class TelemetryConstants
         /// Tag indicating the client IP address of the request.
         /// </summary>
         public const string ClientIp = "request_client_ip";
+
+        /// <summary>
+        /// Tag indicating the version of the funnel event schema.
+        /// </summary>
+        public const string SchemaVersion = "schema_version";
+
+        /// <summary>
+        /// Tag identifying the funnel.
+        /// </summary>
+        public const string Funnel = "funnel";
+
+        /// <summary>
+        /// Tag identifying the current funnel step.
+        /// </summary>
+        public const string FunnelStep = "funnel_step";
+
+        /// <summary>
+        /// Tag indicating the one-based position of the current funnel step.
+        /// </summary>
+        public const string FunnelStepIndex = "funnel_step_index";
+
+        /// <summary>
+        /// Tag indicating whether an event is correlated to a client or reported in aggregate.
+        /// </summary>
+        public const string Correlation = "correlation";
+
+        /// <summary>
+        /// Tag indicating the installation method.
+        /// </summary>
+        public const string Method = "method";
+
+        /// <summary>
+        /// Tag indicating the target platform.
+        /// </summary>
+        public const string Platform = "platform";
     }
 
     /// <summary>
@@ -74,5 +104,21 @@ internal static class TelemetryConstants
         /// Activity name for the install script download.
         /// </summary>
         public const string InstallScriptDownload = "aspire.dev/install_script/download";
+    }
+
+    /// <summary>
+    /// Stable values used by funnel telemetry.
+    /// </summary>
+    internal static class Funnel
+    {
+        public const int SchemaVersion = 1;
+        public const string CliInstall = "cli_install";
+        public const string ScriptRequested = "script_requested";
+        public const int ScriptRequestedStepIndex = 4;
+        public const string Aggregate = "aggregate";
+        public const string Script = "script";
+        public const string Windows = "windows";
+        public const string Unix = "unix";
+        public const string Unknown = "unknown";
     }
 }
