@@ -1066,3 +1066,137 @@ test('sidebar collapse toggle stays visible without overlapping the H1 on no-TOC
     `Toggle (${JSON.stringify(collapseBox)}) overlaps H1 (${JSON.stringify(h1Box)}); expected toggle to be above or left of H1.`
   ).toBe(true);
 });
+
+test('docs reading hierarchy adapts across themes and responsive widths', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'The responsive matrix is covered once from the desktop project with explicit viewport sizes.'
+  );
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/whats-new/aspire-13-5/');
+  await dismissCookieConsentIfVisible(page);
+
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => localStorage.setItem('starlight-theme', value), theme);
+    await page.reload();
+    await dismissCookieConsentIfVisible(page);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+
+    for (const viewport of [
+      { width: 320, height: 568 },
+      { width: 390, height: 844 },
+      { width: 834, height: 1112 },
+      { width: 1440, height: 900 },
+      { width: 1920, height: 1080 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.evaluate(() => window.scrollTo(0, 0));
+
+      const content = page.locator('.sl-markdown-content');
+      const copyButton = content.locator('figure.frame .copy button').first();
+      await expect(content).toBeVisible();
+      await expect(copyButton).toBeVisible();
+
+      const metrics = await content.evaluate((root) => {
+        const paragraph = root.querySelector<HTMLElement>(':scope > p');
+        const inlineCode = root.querySelector<HTMLElement>('p code');
+        const strong = root.querySelector<HTMLElement>('strong');
+        const codeFrame = root.querySelector<HTMLElement>('.expressive-code');
+        const codeTitleIcon = root.querySelector<HTMLElement>('.code-block-icon');
+        const paragraphStyle = paragraph ? getComputedStyle(paragraph) : null;
+        const inlineCodeStyle = inlineCode ? getComputedStyle(inlineCode) : null;
+
+        const spacing = (value: string | undefined) =>
+          value === undefined || value === 'normal' ? 0 : Number.parseFloat(value);
+
+        return {
+          bodyFontSize: spacing(paragraphStyle?.fontSize),
+          codeFrameWidth: codeFrame?.getBoundingClientRect().width ?? 0,
+          codeTitleIconDisplay: codeTitleIcon ? getComputedStyle(codeTitleIcon).display : null,
+          contentWidth: root.getBoundingClientRect().width,
+          documentOverflows:
+            document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          inlineCodeBorderWidth: spacing(inlineCodeStyle?.borderTopWidth),
+          inlineCodeFontSize: spacing(inlineCodeStyle?.fontSize),
+          letterSpacing: spacing(paragraphStyle?.letterSpacing),
+          paragraphWidth: paragraph?.getBoundingClientRect().width ?? 0,
+          strongWeight: strong ? Number.parseInt(getComputedStyle(strong).fontWeight, 10) : 0,
+          wordSpacing: spacing(paragraphStyle?.wordSpacing),
+        };
+      });
+
+      expect(metrics.bodyFontSize).toBeGreaterThanOrEqual(16);
+      expect(metrics.inlineCodeFontSize).toBeLessThan(metrics.bodyFontSize);
+      expect(metrics.inlineCodeBorderWidth).toBe(0);
+      expect(metrics.strongWeight).toBe(600);
+      expect(metrics.documentOverflows).toBe(false);
+
+      if (viewport.width < 800) {
+        expect(metrics.letterSpacing).toBeGreaterThan(0);
+        expect(metrics.wordSpacing).toBeGreaterThan(0);
+        expect(metrics.codeTitleIconDisplay).toBe('none');
+      } else {
+        expect(metrics.letterSpacing).toBe(0);
+        expect(metrics.wordSpacing).toBe(0);
+        expect(metrics.codeTitleIconDisplay).not.toBe('none');
+      }
+
+      if (viewport.width === 390) {
+        const tabs = content.locator('starlight-tabs[data-sync-key="aspire-lang"]').first();
+        const typeScriptTab = tabs.getByRole('tab', { name: 'TypeScript' });
+        await typeScriptTab.click();
+        await expect(typeScriptTab).toHaveAttribute('aria-selected', 'true');
+
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        const scrollToTop = page.locator('#scroll-to-top-button');
+        await expect(scrollToTop).toBeVisible();
+        await expect
+          .poll(() =>
+            scrollToTop.evaluate((button) => {
+              const bounds = button.getBoundingClientRect();
+              return [Math.round(bounds.width), Math.round(bounds.height)];
+            })
+          )
+          .toEqual([48, 48]);
+        await scrollToTop.click();
+        await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(0);
+      }
+
+      if (viewport.width === 1920) {
+        expect(metrics.paragraphWidth).toBeLessThan(metrics.contentWidth * 0.75);
+        expect(metrics.codeFrameWidth).toBeGreaterThan(metrics.paragraphWidth * 1.4);
+      }
+    }
+  }
+});
+
+test('docs reading hierarchy leaves the API reference canvas unconstrained', async ({ page }) => {
+  test.slow();
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'The API reference guard is covered once from the desktop project.'
+  );
+
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/reference/api/csharp/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForApiSidebarReady(page);
+
+  const layout = await page.locator('.api-ref-landing').evaluate((landing) => {
+    const content = landing.closest<HTMLElement>('.sl-markdown-content');
+    const landingWidth = landing.getBoundingClientRect().width;
+    const contentWidth = content?.getBoundingClientRect().width ?? 0;
+
+    return {
+      documentOverflows:
+        document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      fillsTechnicalCanvas: Math.abs(landingWidth - contentWidth) <= 1,
+    };
+  });
+
+  expect(layout).toEqual({
+    documentOverflows: false,
+    fillsTechnicalCanvas: true,
+  });
+});
