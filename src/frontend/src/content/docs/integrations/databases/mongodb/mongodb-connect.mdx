@@ -93,7 +93,7 @@ or
 
 In _Program.cs_, call `AddMongoDBClient` on your `IHostApplicationBuilder` to register an `IMongoClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMongoDBClient(connectionName: "mongodb");
 ```
 
@@ -103,7 +103,7 @@ The `connectionName` parameter must match the MongoDB database resource name fro
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IMongoClient client)
 {
     // Use client...
@@ -112,7 +112,7 @@ public class ExampleService(IMongoClient client)
 
 When you define a MongoDB database resource in your AppHost, you can instead require an `IMongoDatabase` instance:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IMongoDatabase database)
 {
     // Use database...
@@ -123,7 +123,7 @@ public class ExampleService(IMongoDatabase database)
 
 To register multiple `IMongoDatabase` instances with different connection names, use `AddKeyedMongoDBClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedMongoDBClient(name: "mainDb");
 builder.AddKeyedMongoDBClient(name: "loggingDb");
 ```
@@ -134,7 +134,7 @@ When using keyed services, it's expected that your MongoDB resource configured t
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("mainDb")] IMongoDatabase mainDatabase,
     [FromKeyedServices("loggingDb")] IMongoDatabase loggingDatabase)
@@ -151,13 +151,13 @@ The Aspire MongoDB client integration offers multiple ways to provide configurat
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddMongoDBClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMongoDBClient("mongodb");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "mongodb": "mongodb://server:port/test"
@@ -167,7 +167,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 MongoDB Atlas connection strings are also supported:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "mongodb": "mongodb+srv://username:password@server.mongodb.net/"
@@ -179,7 +179,7 @@ For more information, see [MongoDB: ConnectionString documentation](https://www.
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `MongoDBSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:MongoDB:Driver` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "MongoDB": {
@@ -196,7 +196,7 @@ For more information, see [MongoDB: ConnectionString documentation](https://www.
 
 Named configuration is also supported, which allows you to configure multiple instances with different settings:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "MongoDB": {
@@ -221,7 +221,7 @@ Named configuration takes precedence over top-level configuration.
 
 **Inline delegates.** Pass an `Action<MongoDBSettings>` delegate to configure settings inline:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMongoDBClient(
     "mongodb",
     static settings => settings.ConnectionString = "mongodb://server:port/test");
@@ -261,7 +261,7 @@ The Aspire MongoDB client integration automatically configures logging and traci
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to the [📦 MongoDB.Driver](https://www.nuget.org/packages/MongoDB.Driver/) NuGet package directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using MongoDB.Driver;
 
 var connectionUri = Environment.GetEnvironmentVariable("MONGODB_URI");
@@ -284,7 +284,7 @@ go get go.mongodb.org/mongo-driver/v2/mongo
 
 Read the injected environment variable and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -320,7 +320,7 @@ pip install pymongo
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from pymongo import MongoClient
 
@@ -345,7 +345,7 @@ npm install mongodb
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { MongoClient } from 'mongodb';
 
 // Read the Aspire-injected connection URI
@@ -363,7 +363,7 @@ await client.close();
 
 Or connect using individual properties:
 
-```typescript title="TypeScript — Connect with properties"
+```typescript title="Connect with properties"
 const client = new MongoClient(
     `mongodb://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}` +
     `@${process.env.MONGODB_HOST}:${process.env.MONGODB_PORT}/` +

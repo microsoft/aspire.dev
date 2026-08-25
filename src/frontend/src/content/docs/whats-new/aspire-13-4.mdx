@@ -7,18 +7,20 @@ sidebar:
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 2
+publishDate: 2026-06-01
 ---
 
 import {
   Steps,
   Aside,
-  FileTree,
   Icon,
   Tabs,
   TabItem,
 } from '@astrojs/starlight/components';
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
+import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 
 Aspire 13.4 is here, with a release focused on broadening the app model and smoothing day-to-day operations — led by **TypeScript AppHost support reaching general availability** alongside first-class C# AppHosts, new **Go**, **Blazor WebAssembly**, and **Bun** hosting integrations, a new set of **TypeScript samples**, **TypeScript documentation parity with C#**, expanded **Kubernetes and AKS deployment APIs**, **AI agent readiness** through the Aspire skills bundle, **process-backed resource commands**, **integration discovery** from the CLI, server-side **log and telemetry search**, a dashboard **AI Agents** entry point, and a more capable Aspire extension for Visual Studio Code.
 
@@ -398,6 +400,8 @@ Aspire 13.4 includes a set of smaller CLI improvements and fixes:
 - `aspire update` now requires `--yes` in non-interactive mode, matching `aspire destroy`.
 - `aspire stop --all` output includes the AppHost name and, when needed, the PID for clearer multi-instance shutdown output.
 - `aspire new`, `aspire init`, `aspire run`, and `aspire update` include fixes for NuGet feed errors, output paths, generated files, disabled dashboards, detached shutdown, and AppHost package-reference cleanup.
+- The C# empty AppHost template (`aspire new aspire-empty`) no longer emits a duplicate `profiles` block in `aspire.config.json`. The template now writes launch profiles only to `apphost.run.json`, so newly scaffolded projects have a minimal `aspire.config.json` that only identifies the AppHost entry point. This was a regression introduced in 13.4 when `apphost.run.json` was added alongside `aspire.config.json`; it is now corrected.
+- `aspire run` now handles AppHost shutdown more gracefully: backchannel log, resource-state, and publishing-activity streams complete immediately when a shutdown is already in progress, and a warning is shown if log capture is interrupted rather than surfacing an unhandled error.
 
 ## 🧩 App model and AppHost
 
@@ -472,11 +476,13 @@ Persistent lifetimes now extend beyond containers to executables and projects. C
 
 <Aside type="caution">
   The shared persistent and session lifetime APIs are experimental and emit
-  the `ASPIREPERSISTENCE001` diagnostic, which C# callers must suppress to use
-  them. Persistent resources default to proxyless endpoints, must use concrete
-  ports for executables, don't support replicas, and aren't compatible with
-  Aspire IDE debugging sessions. The existing container-specific
-  `WithLifetime(ContainerLifetime.Persistent)` API is unchanged.
+  the [`ASPIREPERSISTENCE001`](/diagnostics/aspirepersistence001/) diagnostic,
+  which C# callers must suppress to use
+  them. Persistent executables and projects default to proxyless endpoints,
+  must use concrete ports for executables, don't support replicas, and aren't
+  compatible with Aspire IDE debugging sessions. Persistent containers use
+  proxied endpoints by default, the same as session containers. The existing
+  container-specific `WithLifetime(ContainerLifetime.Persistent)` API is unchanged.
 </Aside>
 
 <LearnMore>
@@ -650,13 +656,19 @@ The default RabbitMQ container image has been bumped from 4.2 to 4.3. Existing A
   For RabbitMQ hosting setup, see the [RabbitMQ integration](/integrations/messaging/rabbitmq/rabbitmq-host/).
 </LearnMore>
 
-## 🐛 Bug fixes and full changelog
+### PostgreSQL default image
 
-For the complete list of bug fixes and smaller changes in this release, see the [Aspire 13.4 release notes on GitHub](https://github.com/microsoft/aspire/releases/tag/v13.4.0).
+The default PostgreSQL container image has been bumped from 17.6 to 18.3. PostgreSQL 18 changed the on-disk data layout, so an existing `WithDataVolume()` data volume created on PostgreSQL 17 (Aspire 13.3 or earlier) is incompatible after upgrading and the container fails to start. Pin the image back to `17.6` with `WithImageTag("17.6")` before `WithDataVolume()` to keep using the existing volume with no migration. See [Breaking changes](#breaking-changes) for recovery options.
 
-## 🙏 Community contributions
+<LearnMore>
+  For PostgreSQL hosting setup and data volume guidance, see the [PostgreSQL integration](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
+</LearnMore>
 
-Aspire is built in the open, and this release wouldn't be what it is without you. A huge thank you to all community contributors who helped make Aspire 13.4 possible — including [@edmondshtogu](https://github.com/edmondshtogu) for the work behind the Go hosting integration, [@javiercn](https://github.com/javiercn) for Blazor WebAssembly hosting, [@afscrome](https://github.com/afscrome) for `WithHidden()`, dynamically assigned dashboard endpoint ports, and an `aspire ps` hang fix, [@mtmk](https://github.com/mtmk) for the NATS client update, [@ellahathaway](https://github.com/ellahathaway) for friendlier `aspire new` NuGet feed errors, [@nightt5879](https://github.com/nightt5879) for the console logs empty state, [@vsantele](https://github.com/vsantele) for pnpm workspace Dockerfile support, [@sliekens](https://github.com/sliekens) for Docker Compose `.env` improvements, [@Bertolossi](https://github.com/Bertolossi) for fixing an `aspire run` watch-mode hang, and [@arpitjain099](https://github.com/arpitjain099) for CI permission hardening. We're always excited to [see community contributions](/community/contributors/)! If you'd like to get involved, check out our [contributing guide](/community/contributor-guide/).
+## 🙏 Community
+
+Aspire is built in the open, and this release wouldn't be what it is without you. A huge thank you to all community contributors who helped make Aspire 13.4 possible — including [@edmondshtogu](https://github.com/edmondshtogu) for the work behind the Go hosting integration, [@javiercn](https://github.com/javiercn) for Blazor WebAssembly hosting, [@afscrome](https://github.com/afscrome) for `WithHidden()`, dynamically assigned dashboard endpoint ports, and an `aspire ps` hang fix, [@mtmk](https://github.com/mtmk) for the NATS client update, [@ellahathaway](https://github.com/ellahathaway) for friendlier `aspire new` NuGet feed errors, [@nightt5879](https://github.com/nightt5879) for the console logs empty state, [@vsantele](https://github.com/vsantele) for pnpm workspace Dockerfile support, [@sliekens](https://github.com/sliekens) for Docker Compose `.env` improvements, [@Bertolossi](https://github.com/Bertolossi) for fixing an `aspire run` watch-mode hang, and [@arpitjain099](https://github.com/arpitjain099) for CI permission hardening.
+
+<ReleaseCommunity version="13.4" />
 
 ## Legacy `apphost.ts` projects (pre-13.4)
 
@@ -779,7 +791,7 @@ Re-run `aspire run` (or your code-generation step) to regenerate references, and
 
 #### Persistent executable and project lifetimes
 
-Support for persistent lifetimes on executables and projects updates the underlying DCP executable model (new `persistent`, `start`, and `stop` fields). Persistent resources default to proxyless endpoints, require concrete ports for executables, don't support replicas, and aren't compatible with Aspire IDE debugging sessions.
+Support for persistent lifetimes on executables and projects updates the underlying DCP executable model (new `persistent`, `start`, and `stop` fields). Persistent executables and projects default to proxyless endpoints, require concrete ports for executables, don't support replicas, and aren't compatible with Aspire IDE debugging sessions. Persistent containers use proxied endpoints by default, matching session container behavior, so integrations that depend on endpoint allocation before startup work correctly without changes.
 
 If you adopt `WithPersistentLifetime()`, review endpoint and port configuration. Tooling pinned to the previous DCP executable schema may need to be updated. See [Configure resource lifetimes](/app-host/resource-lifetimes/).
 
@@ -825,6 +837,28 @@ The primary Keycloak endpoint is now HTTPS when the developer certificate is ena
 
 Update references that assumed an HTTP primary endpoint to use the HTTPS endpoint.
 
+#### PostgreSQL default image bumped to 18.3, breaking existing data volumes
+
+The default PostgreSQL container image used by `AddPostgres` moved from 17.6 to 18.3. PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`.
+
+As a result, existing PostgreSQL data persisted with `WithDataVolume()` (a Docker volume) or `WithDataBindMount()` (a host bind mount) on PostgreSQL 17 (Aspire 13.3 or earlier) is incompatible with PostgreSQL 18 after upgrading to 13.4. The container fails to start with an error similar to:
+
+```text
+Error: in 18+, these Docker images are configured to store database data in a format which is compatible with "pg_ctlcluster" ... Counter to that, there appears to be PostgreSQL data in: /var/lib/postgresql
+```
+
+You have two ways to recover:
+
+- **Stay on PostgreSQL 17 (recommended, no migration).** Pin the image back to a 17 tag with `WithImageTag("17.6")` **before** calling `WithDataVolume()`. The data directory is selected from the configured tag at the time `WithDataVolume()` runs, so the tag must be set first. Aspire then chooses the legacy `/var/lib/postgresql/data` path and your existing volume keeps working:
+
+  ```csharp
+  var db = builder.AddPostgres("pgsql").WithImageTag("17.6").WithDataVolume();
+  ```
+
+- **Upgrade the persisted data to PostgreSQL 18.** Follow the official [PostgreSQL upgrade documentation](https://www.postgresql.org/docs/current/upgrading.html) using `pg_dumpall`/restore or `pg_upgrade`, and always back up the data first. If the data is disposable, stop the app, remove any container still referencing it, then remove the volume or bind mount data so Aspire creates fresh PostgreSQL 18 data on the next run.
+
+For full guidance and the container path mapping, see [PostgreSQL 18 data directory change](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
+
 #### Behavior changes to audit
 
 - `aspire update` now requires `--yes` in non-interactive mode, matching `aspire destroy`.
@@ -832,6 +866,7 @@ Update references that assumed an HTTP primary endpoint to use the HTTPS endpoin
 - TypeScript AppHosts are validated before startup, so invalid TypeScript fails earlier.
 - `CreateHttpClient` and `GetEndpointUriString` in `Aspire.Hosting.Testing` now prefer the `https` endpoint when no endpoint name is given; pass an explicit endpoint name if your tests relied on the previous `http`-first behavior.
 - The default RabbitMQ container image moved from 4.2 to 4.3, which rejects transient non-exclusive queue declarations by default.
+- The default PostgreSQL container image moved from 17.6 to 18.3, which changes the on-disk data layout and breaks PostgreSQL 17 data persisted with `WithDataVolume()` or `WithDataBindMount()`.
 - `AddNatsClient` now also registers `INatsClient` and a default serializer registry; user-provided registries still take precedence.
 
 #### Migration from Aspire 13.3 to 13.4
@@ -846,6 +881,7 @@ Update references that assumed an HTTP primary endpoint to use the HTTPS endpoin
 6. **Update renamed APIs** — `PublishAsNpmPackageScript` → `PublishAsPackageScript`, and Foundry hosted agents `PublishAsHostedAgent` → `WithComputeEnvironment` (with the new `AddPromptAgent` parameter order).
 7. **Review Keycloak references** for the HTTPS primary endpoint, and **review Azure Front Door deployments**, setting explicit names if existing resources conflict with Azure.Provisioning name generation.
 8. **Review RabbitMQ queue declarations** if your app creates transient, non-exclusive queues. The default RabbitMQ image is now 4.3, which rejects that deprecated queue pattern by default. For migration guidance, see [RabbitMQ 4.3 queue declaration requirements](/integrations/messaging/rabbitmq/rabbitmq-host/#rabbitmq-4-3-queue-declaration-requirements).
+9. **Review PostgreSQL data persistence** if your app uses `WithDataVolume()` or `WithDataBindMount()`. The default PostgreSQL image is now 18.3, which changes the on-disk data layout and breaks PostgreSQL 17 data persisted by either API. Pin `WithImageTag("17.6")` before `WithDataVolume()` to keep using the existing volume, or migrate the data. See [PostgreSQL 18 data directory change](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
 
 </Steps>
 

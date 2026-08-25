@@ -140,7 +140,7 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'Kubernetes clusters',
-          slug: 'deployment/kubernetes/kubernetes',
+          slug: 'deployment/kubernetes/clusters',
         },
         {
           label: 'Azure Kubernetes Service (AKS)',
@@ -149,6 +149,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
         {
           label: 'External Helm charts',
           slug: 'deployment/kubernetes/helm-charts',
+        },
+        {
+          label: 'Persistent volumes',
+          slug: 'deployment/kubernetes/persistent-volumes',
         },
         {
           label: 'Ingress & Gateway API',

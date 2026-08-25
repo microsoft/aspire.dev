@@ -73,7 +73,7 @@ Install the [📦 Aspire.Milvus.Client](https://www.nuget.org/packages/Aspire.Mi
 
 In _Program.cs_, call `AddMilvusClient` on your `IHostApplicationBuilder` to register a `MilvusClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMilvusClient(connectionName: "milvusdb");
 ```
 
@@ -83,7 +83,7 @@ The `connectionName` must match the Milvus database resource name from the AppHo
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(MilvusClient client)
 {
     // Use client...
@@ -94,14 +94,14 @@ public class ExampleService(MilvusClient client)
 
 To register multiple `MilvusClient` instances with different connection names, use `AddKeyedMilvusClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedMilvusClient(name: "mainDb");
 builder.AddKeyedMilvusClient(name: "loggingDb");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("mainDb")] MilvusClient mainDbClient,
     [FromKeyedServices("loggingDb")] MilvusClient loggingDbClient)
@@ -118,13 +118,13 @@ The Aspire Milvus client integration offers multiple ways to provide configurati
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddMilvusClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMilvusClient("milvusdb");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "milvusdb": "Endpoint=http://localhost:19530/;Key=root:Non-default-P@ssw0rd"
@@ -134,7 +134,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `MilvusSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Milvus:Client` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Milvus": {
@@ -151,7 +151,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Inline delegates.** Pass an `Action<MilvusSettings>` to configure settings inline, for example to set the API key from code:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMilvusClient(
     "milvusdb",
     static settings => settings.Key = "root:Non-default-P@ssw0rd");
@@ -184,7 +184,7 @@ The Milvus integration doesn't currently emit tracing activities or metrics beca
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection properties from the environment and create a `MilvusClient` directly using the [📦 Milvus.Client](https://www.nuget.org/packages/Milvus.Client/) NuGet package:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Milvus.Client;
 
 var host = Environment.GetEnvironmentVariable("MILVUSDB_HOST")!;
@@ -206,7 +206,7 @@ go get github.com/milvus-io/milvus-sdk-go/v2
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -253,7 +253,7 @@ pip install pymilvus
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from pymilvus import MilvusClient
 
@@ -274,7 +274,7 @@ client = MilvusClient(
 
 Or use the connection URI directly:
 
-```python title="Python — Connect with URI"
+```python title="Connect with URI"
 import os
 from pymilvus import MilvusClient
 
@@ -295,7 +295,7 @@ npm install @zilliz/milvus2-sdk-node
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { MilvusClient } from '@zilliz/milvus2-sdk-node';
 
 // Read Aspire-injected connection properties
@@ -310,7 +310,7 @@ const client = new MilvusClient({
 
 Or use the connection URI directly:
 
-```typescript title="TypeScript — Connect with URI"
+```typescript title="Connect with URI"
 import { MilvusClient } from '@zilliz/milvus2-sdk-node';
 
 const client = new MilvusClient({

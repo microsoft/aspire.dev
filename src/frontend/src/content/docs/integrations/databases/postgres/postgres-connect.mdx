@@ -82,7 +82,7 @@ Install the [📦 Aspire.Npgsql](https://www.nuget.org/packages/Aspire.Npgsql) N
 
 In _Program.cs_, call `AddNpgsqlDataSource` on your `IHostApplicationBuilder` to register an `NpgsqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDataSource(connectionName: "postgresdb");
 ```
 
@@ -92,7 +92,7 @@ The `connectionName` must match the PostgreSQL database resource name from the A
 
 Resolve the data source through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(NpgsqlDataSource dataSource)
 {
     // Use dataSource...
@@ -103,14 +103,14 @@ public class ExampleService(NpgsqlDataSource dataSource)
 
 To register multiple `NpgsqlDataSource` instances with different connection names, use `AddKeyedNpgsqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedNpgsqlDataSource(name: "chat");
 builder.AddKeyedNpgsqlDataSource(name: "queue");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("chat")] NpgsqlDataSource chatDataSource,
     [FromKeyedServices("queue")] NpgsqlDataSource queueDataSource)
@@ -125,13 +125,13 @@ The Aspire PostgreSQL client integration offers multiple ways to provide configu
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddNpgsqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDataSource("postgresdb");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "postgresdb": "Host=myserver;Database=postgresdb"
@@ -143,7 +143,7 @@ For more information, see [Npgsql connection string parameters](https://www.npgs
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `NpgsqlSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Npgsql` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Npgsql": {
@@ -160,7 +160,7 @@ For the complete PostgreSQL client integration JSON schema, see [Aspire.Npgsql/C
 
 **Inline delegates.** Pass an `Action<NpgsqlSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDataSource(
     "postgresdb",
      static settings => settings.DisableHealthChecks = true);
@@ -209,7 +209,7 @@ Any of these telemetry features can be disabled through the configuration option
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to the [📦 Npgsql](https://www.nuget.org/packages/Npgsql/) NuGet package to create an `NpgsqlDataSource` and open a connection:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Npgsql;
 
 var connectionString = Environment.GetEnvironmentVariable(
@@ -236,7 +236,7 @@ go get github.com/jackc/pgx/v5
 
 Read the injected environment variable and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -268,7 +268,7 @@ pip install psycopg[binary]
 
 Read the injected environment variable and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import psycopg
 
@@ -294,7 +294,7 @@ npm install --save-dev @types/pg
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { Client } from 'pg';
 
 // Read Aspire-injected connection properties
@@ -311,7 +311,7 @@ await client.connect();
 
 Or use the connection URI directly:
 
-```typescript title="TypeScript — Connect with URI"
+```typescript title="Connect with URI"
 const client = new Client({
     connectionString: process.env.POSTGRESDB_URI,
 });

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>OpenGraph Preview</title>
+        <link rel="stylesheet" href="./styles.css" />
+    </head>
+    <body>
+        <header class="toolbar">
+            <form id="url-form" class="url-form" autocomplete="off">
+                <div class="input-wrap">
+                    <svg class="input-icon" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+                        <path
+                            fill="currentColor"
+                            d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM2.5 8c0-.42.05-.83.14-1.22l.86.86.5.5v1l1 1 1 .5v1.36A5.5 5.5 0 0 1 2.5 8Zm6 5.46V12l-1-1v-1l-1-1H5l-1-1V6.5l1-1h2l1-1V3.2A5.5 5.5 0 0 1 13.5 8a5.5 5.5 0 0 1-5 5.46Z"
+                        />
+                    </svg>
+                    <input
+                        id="url-input"
+                        class="url-input"
+                        type="text"
+                        spellcheck="false"
+                        value="https://"
+                        placeholder="https://example.com   ·   localhost:3000"
+                        aria-label="URL to preview"
+                    />
+                </div>
+                <button id="go" class="btn btn-primary" type="submit">Preview</button>
+                <button id="refresh" class="btn btn-ghost btn-icon" type="button" title="Reload" aria-label="Reload">
+                    <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+                        <path
+                            fill="currentColor"
+                            d="M8 2.5a5.5 5.5 0 1 0 5.39 6.6.75.75 0 0 1 1.47.3A7 7 0 1 1 8 1c1.74 0 3.32.64 4.53 1.69V1.75a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-.75.75h-3a.75.75 0 0 1 0-1.5h1.36A5.48 5.48 0 0 0 8 2.5Z"
+                        />
+                    </svg>
+                </button>
+                <button id="browse-open" class="btn btn-ghost btn-icon" type="button" title="Open page in browser" aria-label="Open page in browser">
+                    <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+                        <path
+                            fill="currentColor"
+                            d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5C2 13.216 2.784 14 3.75 14h8.5A1.75 1.75 0 0 0 14 12.25v-3.5a.75.75 0 0 0-1.5 0v3.5a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5a.25.25 0 0 1 .25-.25h3.5a.75.75 0 0 0 0-1.5h-3.5Z"
+                        />
+                        <path
+                            fill="currentColor"
+                            d="M9.75 2a.75.75 0 0 0 0 1.5h1.69L7.22 7.72a.75.75 0 1 0 1.06 1.06l4.22-4.22v1.69a.75.75 0 0 0 1.5 0v-3.5a.75.75 0 0 0-.75-.75h-3.5Z"
+                        />
+                    </svg>
+                </button>
+            </form>
+            <div class="toolbar-row">
+                <nav class="tabs" role="tablist" aria-label="Preview views">
+                    <button class="tab active" data-tab="browse" id="tab-browse" role="tab" aria-selected="true" aria-controls="panel-browse" tabindex="0">Browse</button>
+                    <button class="tab" data-tab="previews" id="tab-previews" role="tab" aria-selected="false" aria-controls="panel-previews" tabindex="-1">Previews</button>
+                    <button class="tab" data-tab="raw" id="tab-raw" role="tab" aria-selected="false" aria-controls="panel-raw" tabindex="-1">Raw metadata</button>
+                    <button class="tab" data-tab="diagnostics" id="tab-diagnostics" role="tab" aria-selected="false" aria-controls="panel-diagnostics" tabindex="-1">Diagnostics</button>
+                </nav>
+                <div class="lucky" role="group" aria-label="Try a random site">
+                    <button class="lucky-btn" id="lucky-go" type="button" title="Preview a random site">
+                        <span class="lucky-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M7.53 1.282a.5.5 0 0 1 .94 0l.478 1.306a7.492 7.492 0 0 0 4.464 4.464l1.305.478a.5.5 0 0 1 0 .94l-1.305.478a7.492 7.492 0 0 0-4.464 4.464l-.478 1.305a.5.5 0 0 1-.94 0l-.478-1.305a7.492 7.492 0 0 0-4.464-4.464L1.282 8.47a.5.5 0 0 1 0-.94l1.306-.478a7.492 7.492 0 0 0 4.464-4.464Z"/></svg></span>
+                        <span class="lucky-label">I'm feeling lucky</span>
+                        <span class="lucky-host" id="lucky-host"></span>
+                    </button>
+                    <button class="lucky-shuffle" id="lucky-shuffle" type="button" title="Shuffle to a different site" aria-label="Shuffle to a different site">
+                        <span class="lucky-shuffle-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z"/></svg></span>
+                    </button>
+                </div>
+            </div>
+            <div id="progress" class="progress" aria-hidden="true">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+        </header>
+
+        <div id="status" class="status" hidden></div>
+
+        <main class="content">
+            <section id="panel-previews" class="panel" role="tabpanel" aria-labelledby="tab-previews" tabindex="0">
+                <div class="previews-toolbar">
+                    <h2 class="previews-title">Link previews</h2>
+                    <div class="layout-toggle" role="group" aria-label="Preview layout">
+                        <button id="layout-list" class="layout-btn active" type="button" title="List view (larger)" aria-label="List view" aria-pressed="true"></button>
+                        <button id="layout-grid" class="layout-btn" type="button" title="Grid view (compact)" aria-label="Grid view" aria-pressed="false"></button>
+                    </div>
+                </div>
+                <div id="previews" class="previews-grid layout-list"></div>
+            </section>
+            <section id="panel-raw" class="panel" role="tabpanel" aria-labelledby="tab-raw" tabindex="0">
+                <div class="raw-actions">
+                    <span id="raw-summary" class="muted"></span>
+                    <button id="copy-json" class="btn btn-ghost btn-sm" type="button">Copy JSON</button>
+                </div>
+                <div id="raw"></div>
+            </section>
+            <section id="panel-diagnostics" class="panel" role="tabpanel" aria-labelledby="tab-diagnostics" tabindex="0">
+                <div id="diagnostics"></div>
+            </section>
+            <section id="panel-browse" class="panel browse-panel active" role="tabpanel" aria-labelledby="tab-browse" tabindex="0">
+                <div class="browse-stage">
+                    <iframe
+                        id="browse-frame"
+                        class="browse-frame"
+                        title="Live page preview"
+                        sandbox="allow-scripts allow-forms"
+                        referrerpolicy="no-referrer"
+                    ></iframe>
+                    <div id="browse-empty" class="browse-empty">
+                        <p class="muted">
+                            Load a URL to browse the live page here. Click links in the
+                            page or edit the address bar above and the previews update
+                            automatically.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <div id="empty" class="empty">
+                <div class="empty-icon" aria-hidden="true">
+                    <svg width="40" height="40" viewBox="0 0 16 16">
+                        <path
+                            fill="currentColor"
+                            d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM2.5 8c0-.42.05-.83.14-1.22l.86.86.5.5v1l1 1 1 .5v1.36A5.5 5.5 0 0 1 2.5 8Zm6 5.46V12l-1-1v-1l-1-1H5l-1-1V6.5l1-1h2l1-1V3.2A5.5 5.5 0 0 1 13.5 8a5.5 5.5 0 0 1-5 5.46Z"
+                        />
+                    </svg>
+                </div>
+                <p class="empty-title">Preview OpenGraph metadata</p>
+                <p class="muted">
+                    Enter a URL above to see how it unfurls on social platforms.
+                    Local dev servers like <code>localhost:3000</code> work too.
+                </p>
+                <div class="empty-actions">
+                    <button class="lucky-btn lucky-btn-lg" id="lucky-empty" type="button" title="Preview a random site">
+                        <span class="lucky-ico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 16 16"><path fill="currentColor" d="M7.53 1.282a.5.5 0 0 1 .94 0l.478 1.306a7.492 7.492 0 0 0 4.464 4.464l1.305.478a.5.5 0 0 1 0 .94l-1.305.478a7.492 7.492 0 0 0-4.464 4.464l-.478 1.305a.5.5 0 0 1-.94 0l-.478-1.305a7.492 7.492 0 0 0-4.464-4.464L1.282 8.47a.5.5 0 0 1 0-.94l1.306-.478a7.492 7.492 0 0 0 4.464-4.464Z"/></svg></span>
+                        <span class="lucky-label">I'm feeling lucky</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <footer id="footer" class="footer" data-collapsed="true">
+            <button
+                id="footer-toggle"
+                class="footer-bar"
+                type="button"
+                aria-expanded="false"
+                aria-controls="footer-body"
+            >
+                <svg class="footer-chevron" width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span id="footer-summary" class="footer-summary muted">No page loaded</span>
+                <span class="footer-hint muted">Page info</span>
+            </button>
+            <div id="footer-body" class="footer-body" hidden></div>
+        </footer>
+
+        <script src="./app.js"></script>
+    </body>
+</html>

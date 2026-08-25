@@ -10,7 +10,7 @@ Use this skill to keep aspire.dev from shipping rendered two-slash error UI. Any
 ## When to use this skill
 
 - Adding or editing a TypeScript code fence with the `twoslash` meta flag
-- Updating TypeScript AppHost examples that import `./.modules/aspire.js`
+- Updating TypeScript AppHost examples that import `'./.aspire/modules/aspire.mjs'`
 - Refreshing `src/frontend/src/data/ts-modules/` or `src/frontend/src/data/twoslash/aspire.d.ts`
 - Investigating failures from `pnpm test:unit:twoslash-blocks`
 - Reviewing docs changes that affect TypeScript sample rendering

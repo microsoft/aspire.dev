@@ -5,6 +5,7 @@ description: Learn how to use the Aspire Azure Cosmos DB hosting integration to 
 
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import cosmosDbIcon from '@assets/icons/azure-cosmosdb-icon.png';
@@ -41,11 +42,11 @@ aspire add azure-cosmosdb
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.Azure.CosmosDB@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.Azure.CosmosDB" Version="*" />
 ```
 
@@ -65,7 +66,7 @@ This updates your `aspire.config.json` with the Azure Cosmos DB hosting integrat
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.Azure.CosmosDB": "13.3.0"
+    "Aspire.Hosting.Azure.CosmosDB": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -79,7 +80,7 @@ Once you've installed the hosting integration in your AppHost project, you can a
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos-db");
@@ -91,7 +92,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -120,7 +121,7 @@ For local development, use the Azure Cosmos DB Emulator instead of a live Azure 
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos-db")
@@ -130,7 +131,7 @@ var cosmos = builder.AddAzureCosmosDB("cosmos-db")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -143,7 +144,9 @@ await cosmos.runAsEmulator();
 </TabItem>
 </Tabs>
 
-When you call `RunAsEmulator`, it configures the Cosmos DB resource to run locally using the [Azure Cosmos DB Emulator](https://learn.microsoft.com/azure/cosmos-db/local-emulator). The emulator is accessible to Aspire as a container image (`mcr.microsoft.com/cosmosdb/emulator`). Aspire creates and starts the container when the AppHost starts.
+When you call `RunAsEmulator`, it configures the Cosmos DB resource to run locally using the [Azure Cosmos DB Emulator](https://learn.microsoft.com/azure/cosmos-db/local-emulator). The emulator is accessible to Aspire as a container image (`mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator`). Aspire creates and starts the container when the AppHost starts.
+
+<ContainerImages package="Aspire.Hosting.Azure.CosmosDB" />
 
 ### Configure emulator gateway port
 
@@ -157,7 +160,7 @@ To configure a fixed host port, call `WithGatewayPort` (or `withGatewayPort`) in
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos-db")
@@ -170,7 +173,7 @@ var cosmos = builder.AddAzureCosmosDB("cosmos-db")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -199,7 +202,7 @@ To configure the partition count for the Cosmos DB emulator container, call `Wit
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos-db")
@@ -212,7 +215,7 @@ var cosmos = builder.AddAzureCosmosDB("cosmos-db")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -237,7 +240,7 @@ To persist the emulator data across container restarts, attach a named volume:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos-db")
@@ -250,7 +253,7 @@ var cosmos = builder.AddAzureCosmosDB("cosmos-db")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -273,7 +276,7 @@ The data volume is mounted at `/tmp/cosmos/appdata` in the emulator container. W
 
 To configure the Cosmos DB emulator container with a persistent lifetime, call the `WithLifetime` method with `ContainerLifetime.Persistent`:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos-db")
@@ -298,7 +301,7 @@ The [next generation of the Azure Cosmos DB emulator](https://learn.microsoft.co
 
 Since the preview emulator is an experimental feature, you must suppress the `ASPIRECOSMOSDB001` diagnostic to opt in:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #pragma warning disable ASPIRECOSMOSDB001
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -315,7 +318,7 @@ var cosmos = builder.AddAzureCosmosDB("cosmos-db")
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -341,7 +344,7 @@ You might have an existing Azure Cosmos DB account you want to connect to. Chain
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var existingCosmosName = builder.AddParameter("existingCosmosName");
@@ -357,7 +360,7 @@ builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -392,7 +395,7 @@ To add an Azure Cosmos DB database resource, call `AddCosmosDatabase` (or `addCo
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos-db");
@@ -402,7 +405,7 @@ var db = cosmos.AddCosmosDatabase("db");
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -423,7 +426,7 @@ An Azure Cosmos DB container is where data is stored. When you create a containe
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos-db");
@@ -434,7 +437,7 @@ var container = db.AddContainer("entries", "/id");
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -456,7 +459,7 @@ The following example demonstrates a full parent-child hierarchy — a single Co
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos");
@@ -477,7 +480,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -520,7 +523,7 @@ By default, the Azure Cosmos DB hosting integration uses Microsoft Entra ID (rol
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos-db")
@@ -530,7 +533,7 @@ var cosmos = builder.AddAzureCosmosDB("cosmos-db")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -623,7 +626,7 @@ All Aspire Azure resources are subclasses of the `AzureProvisioningResource` typ
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureCosmosDB("cosmos-db")
@@ -643,7 +646,7 @@ builder.AddAzureCosmosDB("cosmos-db")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();

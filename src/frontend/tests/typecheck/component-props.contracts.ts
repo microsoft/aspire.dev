@@ -6,6 +6,7 @@ import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
 import CapabilityGrid from '@components/CapabilityGrid.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
+import ContainerImages from '@components/ContainerImages.astro';
 import Expand from '@components/Expand.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
@@ -36,7 +37,6 @@ import SampleGrid from '@components/SampleGrid.astro';
 import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
-import SimpleCard from '@components/SimpleCard.astro';
 import SiteTour from '@components/SiteTour.astro';
 import StreamCard from '@components/StreamCard.astro';
 import TerminalShowcase from '@components/TerminalShowcase.astro';
@@ -228,6 +228,17 @@ const validCodespacesButtonProps = {
 const invalidCodespacesButtonProps: PropsOf<typeof CodespacesButton> = {
   owner: 42,
   repo: 'aspire',
+};
+
+const validContainerImagesProps = {
+  package: 'Aspire.Hosting.PostgreSQL',
+  only: ['PostgreSQL', 'pgAdmin'],
+  title: 'Container images',
+} satisfies PropsOf<typeof ContainerImages>;
+// @ts-expect-error ContainerImages should reject unknown props.
+const invalidContainerImagesProps: PropsOf<typeof ContainerImages> = {
+  package: 'Aspire.Hosting.PostgreSQL',
+  unexpected: true,
 };
 
 const validExpandProps = {
@@ -577,18 +588,6 @@ const invalidSimpleAppHostCodeProps: PropsOf<typeof SimpleAppHostCode> = {
   lang: 'ruby',
 };
 
-const validSimpleCardProps = {
-  icon: 'open-book',
-  title: 'Docs card',
-  link: '/docs/',
-} satisfies PropsOf<typeof SimpleCard>;
-// @ts-expect-error SimpleCard should reject unknown props.
-const invalidSimpleCardProps: PropsOf<typeof SimpleCard> = {
-  icon: 'open-book',
-  title: 'Docs card',
-  unexpected: true,
-};
-
 const validStreamCardProps = {
   platform: 'YouTube',
   icon: 'play',
@@ -743,6 +742,8 @@ void [
   invalidCapabilityGridProps,
   validCodespacesButtonProps,
   invalidCodespacesButtonProps,
+  validContainerImagesProps,
+  invalidContainerImagesProps,
   validExpandProps,
   invalidExpandProps,
   validFeatureShowcaseProps,
@@ -805,8 +806,6 @@ void [
   invalidSessionGridProps,
   validSimpleAppHostCodeProps,
   invalidSimpleAppHostCodeProps,
-  validSimpleCardProps,
-  invalidSimpleCardProps,
   validStreamCardProps,
   invalidStreamCardProps,
   validTerminalShowcaseProps,
