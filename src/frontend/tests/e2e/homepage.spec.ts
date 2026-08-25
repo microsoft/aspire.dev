@@ -265,7 +265,9 @@ test('uses lavender canvases, theme-matched product surfaces, and an inverted ba
   await expect(page.locator('.sl-banner')).toHaveCSS('color', 'rgb(32, 30, 49)');
 });
 
-test('adds modest tracking to landing-page copy only on mobile', async ({ page }, testInfo) => {
+test('adds modest tracking to landing-page copy across responsive layouts', async ({
+  page,
+}, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium');
 
   const readTracking = () =>
@@ -287,27 +289,25 @@ test('adds modest tracking to landing-page copy only on mobile', async ({ page }
       };
     });
 
-  await page.setViewportSize({ width: 440, height: 956 });
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => localStorage.setItem('starlight-theme', value), theme);
-    await page.reload();
+  for (const viewport of [
+    { width: 440, height: 956 },
+    { width: 1024, height: 768 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
 
-    const mobile = await readTracking();
-    expect(mobile.heroHeading).toBeLessThan(0);
-    expect(mobile.heroSummary).toBeGreaterThan(0);
-    expect(mobile.sectionSummary).toBeGreaterThan(0);
-    expect(mobile.heroCode).toBe(0);
-    expect(mobile.sectionCode).toBe(0);
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => localStorage.setItem('starlight-theme', value), theme);
+      await page.reload();
+
+      const metrics = await readTracking();
+      expect(metrics.heroHeading).toBeLessThan(0);
+      expect(metrics.heroSummary).toBeGreaterThan(0);
+      expect(metrics.sectionSummary).toBeGreaterThan(0);
+      expect(metrics.heroCode).toBe(0);
+      expect(metrics.sectionCode).toBe(0);
+    }
   }
-
-  await page.setViewportSize({ width: 1024, height: 768 });
-  await page.reload();
-
-  const desktop = await readTracking();
-  expect(desktop.heroSummary).toBe(0);
-  expect(desktop.sectionSummary).toBe(0);
-  expect(desktop.heroCode).toBe(0);
-  expect(desktop.sectionCode).toBe(0);
 });
 
 test('serves every internal homepage link successfully', async ({ page, request }, testInfo) => {
