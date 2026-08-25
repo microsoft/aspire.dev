@@ -265,7 +265,7 @@ test('uses lavender canvases, theme-matched product surfaces, and an inverted ba
   await expect(page.locator('.sl-banner')).toHaveCSS('color', 'rgb(32, 30, 49)');
 });
 
-test('adds modest tracking to landing-page copy across responsive layouts', async ({
+test('uses deliberate landing-page tracking across responsive layouts', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium');
@@ -276,12 +276,17 @@ test('adds modest tracking to landing-page copy across responsive layouts', asyn
         const element = document.querySelector<HTMLElement>(selector);
         if (!element) throw new Error(`Missing landing-page typography role: ${selector}`);
 
-        const value = getComputedStyle(element).letterSpacing;
-        return value === 'normal' ? 0 : Number.parseFloat(value);
+        const style = getComputedStyle(element);
+        const px = style.letterSpacing === 'normal' ? 0 : Number.parseFloat(style.letterSpacing);
+        return {
+          px,
+          em: px / Number.parseFloat(style.fontSize),
+        };
       };
 
       return {
         heroHeading: letterSpacing('.home-hero-copy h1'),
+        sectionHeading: letterSpacing('.language-heading h2'),
         heroSummary: letterSpacing('.home-hero-summary'),
         sectionSummary: letterSpacing('.language-heading > div > p'),
         heroCode: letterSpacing('.home-hero-product pre'),
@@ -301,11 +306,15 @@ test('adds modest tracking to landing-page copy across responsive layouts', asyn
       await page.reload();
 
       const metrics = await readTracking();
-      expect(metrics.heroHeading).toBeLessThan(0);
-      expect(metrics.heroSummary).toBeGreaterThan(0);
-      expect(metrics.sectionSummary).toBeGreaterThan(0);
-      expect(metrics.heroCode).toBe(0);
-      expect(metrics.sectionCode).toBe(0);
+      expect(metrics.heroHeading.em).toBeCloseTo(
+        viewport.width === 440 ? -0.02 : -0.025,
+        3
+      );
+      expect(metrics.sectionHeading.em).toBeCloseTo(-0.025, 3);
+      expect(metrics.heroSummary.px).toBeGreaterThan(0);
+      expect(metrics.sectionSummary.px).toBeGreaterThan(0);
+      expect(metrics.heroCode.px).toBe(0);
+      expect(metrics.sectionCode.px).toBe(0);
     }
   }
 });
