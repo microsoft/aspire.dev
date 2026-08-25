@@ -74,10 +74,23 @@ const supportsLangTabs = !!pkg.docs && pkg.docs.startsWith('/');
 // a new tab to mirror the package link footer.
 const titleHref = pkg.docs;
 const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
+const integrationId = pkg.title.toLowerCase();
+const publisher = integrationId.startsWith('aspire.') ? 'official' : 'community';
+const integrationKind =
+  (pkg.tags ?? []).includes('hosting') ||
+  /\.aspire\.hosting\./i.test(pkg.title) ||
+  integrationId.startsWith('aspire.hosting.')
+    ? 'hosting'
+    : 'client';
 ---
 
 <article
   class="card"
+  data-funnel="integration_adoption"
+  data-funnel-surface="integrations_gallery"
+  data-funnel-integration={integrationId}
+  data-funnel-publisher={publisher}
+  data-funnel-integration-kind={integrationKind}
   data-tags={(pkg.tags ?? []).join(',')}
   data-title={pkg.title.toLowerCase()}
   data-downloads={pkg.downloads}
@@ -104,6 +117,7 @@ const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
           set:html={pkg.title}
           title={pkg.title}
           data-tooltip-placement="top"
+          data-funnel-step="integration_selected"
           aria-label={Astro.locals.t('integrations.visitDocs', { title: pkg.title })}
           {...(titleIsExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
         />
@@ -157,18 +171,32 @@ const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
     }
     {
       shortName && (
-        <div class="install-block" aria-label={Astro.locals.t('integrations.addCommand', { title: pkg.title })}>
-          <div class="install-command not-content">
+        <div
+          class="install-block"
+          aria-label={Astro.locals.t('integrations.addCommand', { title: pkg.title })}
+        >
+          <div
+            class="install-command not-content"
+            data-funnel-step="install_command_copied"
+            data-funnel-trigger="copy"
+            data-funnel-method="aspire_cli"
+          >
             <Code lang="bash" code={addCommand} frame="none" />
           </div>
           {supportsLangTabs ? (
-            <div class="lang-buttons" role="group" aria-label={Astro.locals.t('integrations.viewLanguageDocs', { title: pkg.title })}>
+            <div
+              class="lang-buttons"
+              role="group"
+              aria-label={Astro.locals.t('integrations.viewLanguageDocs', { title: pkg.title })}
+            >
               <a
                 class="lang-button"
                 href={withLang(pkg.docs!, 'csharp')}
                 aria-label={Astro.locals.t('integrations.viewCsharpDocs', { title: pkg.title })}
                 data-tooltip-placement="top"
                 title={Astro.locals.t('integrations.viewCsharpDocs', { title: pkg.title })}
+                data-funnel-step="integration_selected"
+                data-funnel-language="csharp"
               >
                 <Image src={csharpIcon} alt="" width={22} height={22} aria-hidden="true" />
               </a>
@@ -178,6 +206,8 @@ const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
                 aria-label={Astro.locals.t('integrations.viewTypescriptDocs', { title: pkg.title })}
                 data-tooltip-placement="top"
                 title={Astro.locals.t('integrations.viewTypescriptDocs', { title: pkg.title })}
+                data-funnel-step="integration_selected"
+                data-funnel-language="typescript"
               >
                 <Image src={typescriptIcon} alt="" width={22} height={22} aria-hidden="true" />
               </a>
@@ -191,6 +221,7 @@ const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
                   aria-label={Astro.locals.t('integrations.viewDocs', { title: pkg.title })}
                   data-tooltip-placement="top"
                   title={Astro.locals.t('integrations.viewDocs', { title: pkg.title })}
+                  data-funnel-step="integration_selected"
                 >
                   <Icon name="open-book" size="1.25rem" />
                   <span>{Astro.locals.t('integrations.viewDocsLabel')}</span>
@@ -429,7 +460,9 @@ const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
       background: var(--sl-color-gray-6);
       border: 1px solid var(--sl-color-gray-5);
       color: var(--sl-color-text);
-      transition: background-color 0.15s ease, transform 0.15s ease;
+      transition:
+        background-color 0.15s ease,
+        transform 0.15s ease;
       text-decoration: none;
       min-width: 0;
     }
@@ -478,4 +511,3 @@ const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
     }
   </style>
 </article>
-

@@ -406,13 +406,25 @@ const basicRenderCases: BasicRenderCase[] = [
     name: 'InstallDotNetPackage renders CLI and project snippets',
     Component: InstallDotNetPackage,
     props: { packageName: 'Aspire.Hosting.Redis' },
-    includes: ['dotnet add package Aspire.Hosting.Redis', '#:package Aspire.Hosting.Redis@*'],
+    includes: [
+      'dotnet add package Aspire.Hosting.Redis',
+      '#:package Aspire.Hosting.Redis@*',
+      'data-funnel="integration_adoption"',
+      'data-funnel-integration="aspire.hosting.redis"',
+      'data-funnel-step="install_command_copied"',
+    ],
   },
   {
     name: 'InstallPackage renders CLI and package reference snippets',
     Component: InstallPackage,
     props: { packageName: 'Aspire.Hosting.Redis' },
-    includes: ['aspire add', 'Aspire.Hosting.Redis', 'PackageReference (*.csproj)'],
+    includes: [
+      'aspire add',
+      'Aspire.Hosting.Redis',
+      'PackageReference (*.csproj)',
+      'data-integration-context',
+      'data-funnel-step="install_command_copied"',
+    ],
   },
   {
     name: 'InstallAspireCLI renders both shell variants',
@@ -594,6 +606,9 @@ const basicRenderCases: BasicRenderCase[] = [
       'id="install-cli-modal"',
       'id="version-select"',
       'data-version="staging"',
+      'data-funnel="cli_install"',
+      'data-funnel-step="command_copied"',
+      'data-funnel-channel="dev"',
       'More installation options',
     ],
   },
@@ -1326,6 +1341,9 @@ describe('custom Astro component render coverage', () => {
     expect(lowerIndex).toBeGreaterThanOrEqual(0);
     expect(higherIndex).toBeLessThan(lowerIndex);
     expect(html).toContain('/integrations/higher/docs/');
+    expect(html).toContain('data-funnel="integration_adoption"');
+    expect(html).toContain('data-funnel-step="integration_selected"');
+    expect(html).toContain('data-funnel-step="install_command_copied"');
   });
 
   it('renders current sample metadata from repository data without throwing', async () => {
