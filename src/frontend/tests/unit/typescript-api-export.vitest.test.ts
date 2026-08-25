@@ -80,7 +80,7 @@ function validDocumentForPackage(packageName: string): TypeScriptApiExport {
 
 function integrationWithDataVolumeOptions(
   packageName: string,
-  propertyName: string,
+  volumePath: string,
 ): TypeScriptApiExport {
   const document = validDocumentForPackage(packageName);
   const typeId = `${packageName}/${packageName}.WithDataVolumeOptions`;
@@ -95,7 +95,9 @@ function integrationWithDataVolumeOptions(
   };
   document.declarations[0] = {
     id: 'interface:WithDataVolumeOptions',
-    content: `export interface WithDataVolumeOptions { ${propertyName}?: string; }`,
+    // The shared property has incompatible literal types so these declarations only compile when
+    // each package export remains a separate module.
+    content: `export interface WithDataVolumeOptions { volumePath: '${volumePath}'; }`,
     owningAssembly: packageName,
   };
 
@@ -303,15 +305,19 @@ describe('two-package manifests', () => {
     expect(redis.modules[0].items[0].typeId).not.toBe(mongo.modules[0].items[0].typeId);
     expect(redis.declarations[0].id).toBe(mongo.declarations[0].id);
     expect(redis.declarations[0].content).not.toBe(mongo.declarations[0].content);
-    expect(() => concatenateDeclarations([redis, mongo])).not.toThrow();
+    expect(() => concatenateDeclarations(redis)).not.toThrow();
+    expect(() => concatenateDeclarations(mongo)).not.toThrow();
   });
 
-  it('resolves every declaration ID referenced across the manifest exactly once', () => {
-    const combined = concatenateDeclarations([core, integration]);
-    const ids = combined.declarations.map((declaration) => declaration.id);
+  it('deduplicates and orders declaration IDs within each package export', () => {
+    for (const document of [core, integration]) {
+      const ids = concatenateDeclarations(document).declarations.map(
+        (declaration) => declaration.id,
+      );
 
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual([...ids].sort());
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(ids).toEqual([...ids].sort());
+    }
   });
 });
 
@@ -323,12 +329,19 @@ afterAll(() => {
 
 describe('combined declaration fragments', () => {
   it('type-checks with noEmit and skipLibCheck disabled', () => {
-    const { text } = concatenateDeclarations([core, integration]);
-
-    const entry = join(typecheckDir, 'declarations.ts');
+    const documents = [
+      core,
+      integration,
+      integrationWithDataVolumeOptions('Aspire.Hosting.Redis.Options', 'redisPath'),
+      integrationWithDataVolumeOptions('Aspire.Hosting.MongoDB.Options', 'mongoPath'),
+    ];
+    const files = documents.map((document, index) => {
+      const fileName = `declarations-${index}.ts`;
+      writeFileSync(join(typecheckDir, fileName), concatenateDeclarations(document).text, 'utf8');
+      return fileName;
+    });
     const tsconfig = join(typecheckDir, 'tsconfig.json');
 
-    writeFileSync(entry, text, 'utf8');
     writeFileSync(
       tsconfig,
       JSON.stringify({
@@ -340,7 +353,7 @@ describe('combined declaration fragments', () => {
           lib: ['ES2022'],
           types: [],
         },
-        files: ['declarations.ts'],
+        files,
       }),
       'utf8',
     );
@@ -358,13 +371,20 @@ describe('combined declaration fragments', () => {
   });
 
   it('writes fragments the site can consume without authoring shims', () => {
-    const { text } = concatenateDeclarations([core, integration]);
+    const documents = [
+      core,
+      integration,
+      integrationWithDataVolumeOptions('Aspire.Hosting.Redis.Options', 'redisPath'),
+      integrationWithDataVolumeOptions('Aspire.Hosting.MongoDB.Options', 'mongoPath'),
+    ];
 
     // A shim would show up as a declaration the export never produced, so the concatenation must be
     // byte-identical to the fragments themselves.
-    const fragments = [...core.declarations, ...integration.declarations];
-    for (const fragment of fragments) {
-      expect(text).toContain(fragment.content);
+    for (const document of documents) {
+      const { text } = concatenateDeclarations(document);
+      for (const fragment of document.declarations) {
+        expect(text).toContain(fragment.content);
+      }
     }
   });
 });

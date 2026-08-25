@@ -321,75 +321,17 @@ export interface ConcatenatedDeclarations {
 }
 
 /**
- * Validates stable identities across every package in a complete manifest.
- */
-export function validateTypeScriptApiManifest(
-  documents: readonly TypeScriptApiExport[],
-): void {
-  const itemsById = new Map<string, string>();
-  const declarationsById = new Map<
-    string,
-    { declaration: TypeScriptApiDeclaration; packageName: string }
-  >();
-
-  for (const document of documents) {
-    for (const module of document.modules) {
-      for (const item of module.items) {
-        const firstPackage = itemsById.get(item.id);
-        if (firstPackage !== undefined) {
-          fail(
-            document.package.name,
-            `item ID '${item.id}' conflicts with the item already contributed by package '${firstPackage}'.`,
-          );
-        }
-
-        itemsById.set(item.id, document.package.name);
-      }
-    }
-
-    for (const declaration of document.declarations) {
-      const existing = declarationsById.get(declaration.id);
-      if (existing === undefined) {
-        declarationsById.set(declaration.id, {
-          declaration,
-          packageName: document.package.name,
-        });
-        continue;
-      }
-
-      if (existing.declaration.content !== declaration.content) {
-        fail(
-          document.package.name,
-          `declaration ID '${declaration.id}' conflicts with content contributed by package '${existing.packageName}'.`,
-        );
-      }
-
-      if (existing.declaration.owningAssembly !== declaration.owningAssembly) {
-        fail(
-          document.package.name,
-          `declaration ID '${declaration.id}' has conflicting ownership: package '${existing.packageName}' contributed owner '${existing.declaration.owningAssembly}', but package '${document.package.name}' contributed owner '${declaration.owningAssembly}'.`,
-        );
-      }
-    }
-  }
-}
-
-/**
- * Merges the declaration fragments of a complete manifest: deduplicate by stable ID, order by that
- * same ID, and join. This is mechanical on purpose — the fragments are already final TypeScript, so
- * anything beyond sorting and deduplication would be the site reshaping the producer's contract.
+ * Deduplicates and orders the declaration fragments of one package export by stable ID, then joins
+ * them. This is mechanical on purpose — the fragments are already final TypeScript, so anything
+ * beyond sorting and deduplication would be the site reshaping the producer's contract.
  */
 export function concatenateDeclarations(
-  documents: readonly TypeScriptApiExport[],
+  document: TypeScriptApiExport,
 ): ConcatenatedDeclarations {
-  validateTypeScriptApiManifest(documents);
-
   const byId = new Map<string, TypeScriptApiDeclaration>();
 
-  for (const document of documents) {
-    for (const declaration of document.declarations) {
-      byId.set(declaration.id, declaration);
-    }
+  for (const declaration of document.declarations) {
+    byId.set(declaration.id, declaration);
   }
 
   const declarations = [...byId.values()].sort((left, right) =>
