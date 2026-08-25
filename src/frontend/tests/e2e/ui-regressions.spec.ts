@@ -238,6 +238,141 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
   }
 });
 
+test('mobile docs chrome prioritizes reading and provides consistent touch targets', async ({
+  page,
+}) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'The mobile chrome matrix is covered once from the desktop project with explicit widths.'
+  );
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/whats-new/aspire-13-5/');
+  await dismissCookieConsentIfVisible(page);
+
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => localStorage.setItem('starlight-theme', value), theme);
+    await page.reload();
+    await dismissCookieConsentIfVisible(page);
+
+    const banner = page.getByRole('banner');
+    const searchButton = banner.getByRole('button', { name: 'Search' });
+    const tryLink = banner.locator('.try-aspire-btn-mobile');
+    const menuButton = page.locator('starlight-menu-button').getByRole('button', { name: 'Menu' });
+
+    await expect(searchButton).toBeVisible();
+    await expect(tryLink).toBeVisible();
+    await expect(menuButton).toBeVisible();
+    await expect(banner.locator('.right-group-mobile .docs-btn-mobile')).toBeHidden();
+    await expect(banner.locator('.right-group-mobile .install-cli-btn')).toBeHidden();
+    await expect(banner.locator('.right-group-mobile .cookie-consent-btn')).toBeHidden();
+    await expect(banner.locator('.right-group-mobile .tour-help-btn')).toBeHidden();
+
+    for (const control of [searchButton, tryLink, menuButton]) {
+      const box = await control.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+    }
+
+    await searchButton.click();
+    const cancelSearchButton = page.locator('site-search button[data-close-modal]');
+    await expect(cancelSearchButton).toBeVisible();
+    const cancelSearchBox = await cancelSearchButton.boundingBox();
+    expect(cancelSearchBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+    await cancelSearchButton.click();
+
+    const mobileToc = page.locator('mobile-starlight-toc summary');
+    const mobileTocToggle = mobileToc.locator('.toggle');
+    await expect(mobileToc).toBeVisible();
+    await expect(mobileTocToggle).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(mobileTocToggle).toHaveCSS('border-top-width', '0px');
+
+    const pageActions = page.locator('.actions-container');
+    const actionButtons = pageActions.locator(
+      ':scope > .action-button, .dropdown-container > .dropdown > .action-button'
+    );
+    await expect(actionButtons).toHaveCount(3);
+
+    const actionBoxes = await actionButtons.evaluateAll((controls) =>
+      controls.map((control) => {
+        const bounds = control.getBoundingClientRect();
+        return {
+          contentFits: control.scrollWidth <= control.clientWidth,
+          height: bounds.height,
+          y: bounds.y,
+        };
+      })
+    );
+    expect(actionBoxes.every(({ height }) => height >= 44)).toBe(true);
+    expect(actionBoxes.every(({ contentFits }) => contentFits)).toBe(true);
+    expect(
+      Math.max(...actionBoxes.map(({ y }) => y)) - Math.min(...actionBoxes.map(({ y }) => y))
+    ).toBeLessThanOrEqual(1);
+
+    await menuButton.click();
+
+    const topics = page.locator('#starlight__sidebar .starlight-sidebar-topics').first();
+    const filter = page.locator('#starlight__sidebar .sidebar-filter-input').first();
+    const preferences = page.locator('#starlight__sidebar .mobile-menu-preferences');
+    const groupSummary = page
+      .locator('#starlight__sidebar .top-level > li > details > summary')
+      .first();
+    const nestedLink = page.locator('#starlight__sidebar .top-level li li a').first();
+
+    await expect(preferences).toBeVisible();
+    await expect
+      .poll(() =>
+        topics.evaluate(
+          (element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
+        )
+      )
+      .toBe(2);
+
+    for (const control of [topics.locator('a').first(), filter, groupSummary, nestedLink]) {
+      const box = await control.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(control === nestedLink ? 40 : 44);
+    }
+
+    const preferenceBounds = await preferences.boundingBox();
+    expect(preferenceBounds).not.toBeNull();
+    expect((preferenceBounds?.y ?? Infinity) + (preferenceBounds?.height ?? 0)).toBeLessThanOrEqual(
+      844
+    );
+
+    await menuButton.click();
+  }
+
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.reload();
+  await dismissCookieConsentIfVisible(page);
+
+  const compactActions = page.locator('.actions-container');
+  const compactActionBox = await compactActions.boundingBox();
+  expect(compactActionBox).not.toBeNull();
+  expect(compactActionBox?.height ?? Infinity).toBeLessThanOrEqual(44);
+  await expect(compactActions.getByRole('button', { name: 'Copy Markdown' })).toBeVisible();
+
+  for (const dropdownId of ['dropdown-0', 'dropdown-1']) {
+    const dropdown = compactActions.locator(`#${dropdownId}`);
+    const trigger = dropdown.locator('.action-button');
+    await trigger.click();
+
+    const menu = dropdown.locator('#dropdown-menu');
+    await expect(menu).toBeVisible();
+    const menuBox = await menu.boundingBox();
+    expect(menuBox).not.toBeNull();
+    expect(menuBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+    expect((menuBox?.x ?? Infinity) + (menuBox?.width ?? Infinity)).toBeLessThanOrEqual(320);
+
+    await trigger.click();
+  }
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+});
+
 test('localizes the shared header Docs and Try Aspire actions', async ({ page }) => {
   test.skip(
     page.viewportSize()?.width !== 1440,
