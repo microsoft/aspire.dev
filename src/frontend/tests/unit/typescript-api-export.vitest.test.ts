@@ -141,6 +141,26 @@ function getProcessErrorOutput(error: unknown): string {
   return output || String(error);
 }
 
+function expectedDeclarationText(document: TypeScriptApiExport): string {
+  const declarationsById = new Map<string, TypeScriptApiExport['declarations'][number]>();
+
+  for (const declaration of document.declarations) {
+    const existing = declarationsById.get(declaration.id);
+    if (existing !== undefined) {
+      expect(declaration).toEqual(existing);
+      continue;
+    }
+
+    declarationsById.set(declaration.id, declaration);
+  }
+
+  const declarations = [...declarationsById.values()].sort((left, right) =>
+    left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
+  );
+
+  return `${declarations.map((declaration) => declaration.content).join('\n')}\n`;
+}
+
 describe('process error output', () => {
   it('uses stderr when stdout is empty', () => {
     expect(getProcessErrorOutput({ stdout: '', stderr: 'compiler error' })).toBe('compiler error');
@@ -370,10 +390,14 @@ describe('combined declaration fragments', () => {
     expect(output).toBe('');
   });
 
-  it('writes fragments the site can consume without authoring shims', () => {
+  it('deduplicates exact repeats without authoring shims', () => {
+    const integrationWithExactRepeat = {
+      ...integration,
+      declarations: [...integration.declarations, { ...integration.declarations[0] }],
+    };
     const documents = [
       core,
-      integration,
+      integrationWithExactRepeat,
       integrationWithDataVolumeOptions('Aspire.Hosting.Redis.Options', 'redisPath'),
       integrationWithDataVolumeOptions('Aspire.Hosting.MongoDB.Options', 'mongoPath'),
     ];
@@ -381,10 +405,7 @@ describe('combined declaration fragments', () => {
     // A shim would show up as a declaration the export never produced, so the concatenation must be
     // byte-identical to the fragments themselves.
     for (const document of documents) {
-      const { text } = concatenateDeclarations(document);
-      for (const fragment of document.declarations) {
-        expect(text).toContain(fragment.content);
-      }
+      expect(concatenateDeclarations(document).text).toBe(expectedDeclarationText(document));
     }
   });
 });
