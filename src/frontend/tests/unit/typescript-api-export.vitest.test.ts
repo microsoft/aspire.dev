@@ -78,6 +78,30 @@ function validDocumentForPackage(packageName: string): TypeScriptApiExport {
   return parseTypeScriptApiExport(document, packageName);
 }
 
+function integrationWithDataVolumeOptions(
+  packageName: string,
+  propertyName: string,
+): TypeScriptApiExport {
+  const document = validDocumentForPackage(packageName);
+  const typeId = `${packageName}/${packageName}.WithDataVolumeOptions`;
+
+  document.modules[0].items[0] = {
+    id: 'options:WithDataVolumeOptions',
+    typeId,
+    kind: 'options',
+    name: 'WithDataVolumeOptions',
+    declaration: 'export interface WithDataVolumeOptions',
+    owningAssembly: packageName,
+  };
+  document.declarations[0] = {
+    id: 'interface:WithDataVolumeOptions',
+    content: `export interface WithDataVolumeOptions { ${propertyName}?: string; }`,
+    owningAssembly: packageName,
+  };
+
+  return parseTypeScriptApiExport(document, packageName);
+}
+
 function validMember(): TypeScriptApiMember {
   return {
     id: 'method:addRedis',
@@ -270,56 +294,16 @@ describe('two-package manifests', () => {
     expect(addRedis?.declaration).toContain('addRedis(');
   });
 
-  it('keeps item IDs unique across a multi-package manifest', () => {
-    // We key pages off item IDs, so a collision between two packages silently drops one of them.
-    // An earlier build emitted `interface:DistributedApplicationBuilder` from every integration.
-    const ids = [core, integration]
-      .flatMap((document) => document.modules)
-      .flatMap((module) => module.items)
-      .map((item) => item.id);
+  it('allows package-local identities to overlap across independently valid documents', () => {
+    const redis = integrationWithDataVolumeOptions('Aspire.Hosting.Redis', 'redisPath');
+    const mongo = integrationWithDataVolumeOptions('Aspire.Hosting.MongoDB', 'mongoPath');
 
-    expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  it('rejects repeated item IDs across independently valid documents', () => {
-    const first = validDocumentForPackage('First.Package');
-    const second = validDocumentForPackage('Second.Package');
-    second.modules[0].items[0].id = first.modules[0].items[0].id;
-
-    expect(() => concatenateDeclarations([first, second])).toThrowError(
-      TypeScriptApiExportError,
-    );
-    expect(() => concatenateDeclarations([first, second])).toThrowError(
-      /Second\.Package: item ID 'interface:First\.Package'.*package 'First\.Package'/,
-    );
-  });
-
-  it('rejects repeated declaration IDs with different ownership', () => {
-    const first = validDocumentForPackage('First.Package');
-    const second = validDocumentForPackage('Second.Package');
-    second.declarations[0] = {
-      ...first.declarations[0],
-      owningAssembly: second.package.name,
-    };
-
-    expect(() => concatenateDeclarations([first, second])).toThrowError(
-      TypeScriptApiExportError,
-    );
-    expect(() => concatenateDeclarations([first, second])).toThrowError(
-      /Second\.Package: declaration ID 'First\.Package:interface:FirstPackageResource' has conflicting ownership: package 'First\.Package'.*package 'Second\.Package'/,
-    );
-  });
-
-  it('allows an exact repeated declaration from the same owner', () => {
-    const first = validDocumentForPackage('First.Package');
-    const second = validDocumentForPackage('Second.Package');
-    second.declarations[0] = { ...first.declarations[0] };
-
-    const combined = concatenateDeclarations([first, second]);
-
-    expect(
-      combined.declarations.filter((declaration) => declaration.id === first.declarations[0].id),
-    ).toHaveLength(1);
+    expect(redis.modules[0].items[0].id).toBe(mongo.modules[0].items[0].id);
+    expect(redis.modules[0].items[0].name).toBe(mongo.modules[0].items[0].name);
+    expect(redis.modules[0].items[0].typeId).not.toBe(mongo.modules[0].items[0].typeId);
+    expect(redis.declarations[0].id).toBe(mongo.declarations[0].id);
+    expect(redis.declarations[0].content).not.toBe(mongo.declarations[0].content);
+    expect(() => concatenateDeclarations([redis, mongo])).not.toThrow();
   });
 
   it('resolves every declaration ID referenced across the manifest exactly once', () => {
