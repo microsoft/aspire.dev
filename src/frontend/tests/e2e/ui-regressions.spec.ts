@@ -1255,6 +1255,7 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
     await page.reload();
     await dismissCookieConsentIfVisible(page);
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    let expectedAsideBackground: string | undefined;
 
     for (const viewport of [
       { width: 320, height: 568 },
@@ -1295,6 +1296,7 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
           asideCodeBackgroundDiffers:
             asideCodeStyle?.backgroundColor !== codeAsideStyle?.backgroundColor,
           asideCodeUsesBodyText: asideCodeStyle?.color === codeAsideStyle?.color,
+          asideBackground: codeAsideStyle?.backgroundColor,
           asideLinkBackground: asideLinkStyle?.backgroundColor,
           asideLinkDecoration: asideLinkStyle?.textDecorationLine,
           asideLinkPadding: asideLinkStyle?.padding,
@@ -1317,6 +1319,8 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
       expect(metrics.strongWeight).toBe(600);
       expect(metrics.asideCodeBackgroundDiffers).toBe(true);
       expect(metrics.asideCodeUsesBodyText).toBe(true);
+      expectedAsideBackground ??= metrics.asideBackground;
+      expect(metrics.asideBackground).toBe(expectedAsideBackground);
       expect(metrics.asideLinkBackground).toBe('rgba(0, 0, 0, 0)');
       expect(metrics.asideLinkDecoration).toContain('underline');
       expect(metrics.asideLinkPadding).toBe('0px');
