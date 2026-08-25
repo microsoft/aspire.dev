@@ -213,7 +213,9 @@
 
     try {
       var destination = new URL(href, location.href);
-      return destination.origin === location.origin ? destination.pathname : null;
+      return destination.origin === location.origin
+        ? normalizePathname(destination.pathname)
+        : null;
     } catch (err) {
       console.debug('[track] Failed to parse funnel destination:', err);
       return null;
@@ -671,7 +673,7 @@
 
   function trackSearchDestinationAction(clickedElement) {
     var marker = readContinuationMarker(SEARCH_DESTINATION_MARKER_KEY, false);
-    if (!marker || marker.destinationPath !== location.pathname) return;
+    if (!marker || marker.destinationPath !== normalizePath()) return;
 
     var actionKind = getActionKind(clickedElement);
     if (!actionKind) return;
@@ -769,7 +771,7 @@
 
   function trackNotFoundRecovery() {
     var marker = readContinuationMarker(NOT_FOUND_DESTINATION_MARKER_KEY, false);
-    if (!marker || marker.destinationPath !== location.pathname) return;
+    if (!marker || marker.destinationPath !== normalizePath()) return;
     if (document.querySelector('[data-funnel="not_found_recovery"][data-funnel-view]')) return;
 
     var details = Object.assign(

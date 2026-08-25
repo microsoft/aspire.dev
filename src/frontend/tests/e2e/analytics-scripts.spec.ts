@@ -296,7 +296,7 @@ test('custom funnel events keep bounded dimensions and omit raw search text', as
 });
 
 test('search selection continues to the first meaningful destination action', async ({ page }) => {
-  await page.goto('/get-started/first-app/');
+  await page.goto('/ja/get-started/first-app/');
   await dismissCookieConsentIfVisible(page);
   await installTracker(page);
 
@@ -312,12 +312,19 @@ test('search selection continues to the first meaningful destination action', as
           resultCount: 'one_to_five',
           selectedRank: 'first',
           searchTarget: 'docs',
-          destinationHref: window.location.href,
+          destinationHref: '/ja/get-started/first-app',
           actionType: 'CL',
         },
       })
     );
   });
+
+  expect(
+   await page.evaluate(() => {
+     const marker = sessionStorage.getItem('aspire-search-destination');
+     return marker ? JSON.parse(marker).destinationPath : null;
+   })
+  ).toBe('/get-started/first-app/');
 
   const destinationLink = page.locator('main a[href]:visible').first();
   await destinationLink.evaluate((link) => {
@@ -363,9 +370,12 @@ test('site search emits bounded open, result, and selection stages', async ({ pa
     const dialog = document.querySelector('site-search dialog');
     if (!dialog) throw new Error('Search dialog not found');
 
+    dialog.querySelector('.pagefind-ui')?.remove();
+    dialog.querySelectorAll('.pagefind-ui__search-input').forEach((element) => element.remove());
     const input = document.createElement('input');
     input.className = 'pagefind-ui__search-input';
     dialog.append(input);
+    document.dispatchEvent(new Event('astro:after-swap'));
   });
 
   const input = page.locator('site-search dialog .pagefind-ui__search-input');
@@ -691,12 +701,20 @@ test('404 page records recovery actions without exposing the requested path', as
 
   const home = page.locator('[data-funnel-recovery-action="homepage"]');
   await home.evaluate((link) => {
+    document.documentElement.lang = 'ja';
+    link.setAttribute('href', '/ja');
     link.addEventListener('click', (event) => event.preventDefault(), { once: true });
   });
   await home.click();
+  expect(
+    await page.evaluate(() => {
+      const marker = sessionStorage.getItem('aspire-not-found-destination');
+      return marker ? JSON.parse(marker).destinationPath : null;
+    })
+  ).toBe('/');
   await page.evaluate(() => {
     document.querySelector('[data-funnel-view]')?.remove();
-    history.pushState({}, '', '/');
+    history.pushState({}, '', '/ja/');
     document.dispatchEvent(new Event('astro:page-load'));
   });
 
