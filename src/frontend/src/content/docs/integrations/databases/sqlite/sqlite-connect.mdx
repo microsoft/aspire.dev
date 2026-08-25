@@ -16,11 +16,12 @@ import sqliteIcon from '@assets/icons/sqlite-icon.png';
   alt="SQLite logo"
   width={100}
   height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-This page describes how consuming apps connect to a SQLite resource that's already modeled in your AppHost. For the AppHost API surface — adding a SQLite resource, setting a custom database file path, the SQLiteWeb UI, SQLite extensions, and more — see [SQLite Hosting integration](../sqlite-host/).
+This page describes how consuming apps connect to a SQLite resource that's already modeled in your AppHost. For the AppHost API surface — adding a SQLite resource, setting a custom database file path, the SQLiteWeb UI, and more — see [SQLite Hosting integration](../sqlite-host/).
 
 When you reference a SQLite resource from your AppHost, Aspire injects the database file path into the consuming app as an environment variable. Your app can either read that environment variable directly — the pattern works the same from any language — or, in C#, use the Aspire SQLite client integration for automatic dependency injection, health checks, and telemetry.
 
@@ -59,7 +60,7 @@ Install the [📦 CommunityToolkit.Aspire.Microsoft.Data.Sqlite](https://www.nug
 
 In _Program.cs_, call `AddSqliteConnection` on your `IHostApplicationBuilder` to register a `SqliteConnection`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSqliteConnection(connectionName: "sqlite");
 ```
 
@@ -69,7 +70,7 @@ The `connectionName` must match the SQLite resource name from the AppHost. For m
 
 Resolve the connection through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(SqliteConnection connection)
 {
     // Use connection to query the database...
@@ -80,7 +81,7 @@ public class ExampleService(SqliteConnection connection)
 
 To register multiple `SqliteConnection` instances with different connection names, use `AddKeyedSqliteConnection`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedSqliteConnection(name: "chat");
 builder.AddKeyedSqliteConnection(name: "queue");
 ```
@@ -91,7 +92,7 @@ builder.AddKeyedSqliteConnection(name: "queue");
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("chat")] SqliteConnection chatConnection,
     [FromKeyedServices("queue")] SqliteConnection queueConnection)
@@ -106,13 +107,13 @@ The Aspire SQLite client integration offers multiple ways to provide configurati
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddSqliteConnection`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSqliteConnection("sqlite");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "sqlite": "Data Source=C:\\Database\\Location\\my-database.db"
@@ -124,13 +125,13 @@ For more information, see [Microsoft.Data.Sqlite connection strings](https://lea
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads settings from the `Aspire:Sqlite:Client` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Sqlite": {
       "Client": {
         "ConnectionString": "Data Source=C:\\Database\\Location\\my-database.db",
-        "DisableHealthCheck": true
+        "DisableHealthChecks": true
       }
     }
   }
@@ -139,17 +140,17 @@ For more information, see [Microsoft.Data.Sqlite connection strings](https://lea
 
 **Inline delegates.** Pass an `Action<SqliteConnectionSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSqliteConnection(
     "sqlite",
-    static settings => settings.DisableHealthCheck = true);
+    static settings => settings.DisableHealthChecks = true);
 ```
 
 #### Client integration health checks
 
 Aspire client integrations enable health checks by default. The SQLite client integration adds:
 
-- A health check that attempts to open a connection to the database file when `SqliteConnectionSettings.DisableHealthCheck` is `false`.
+- A health check that attempts to open a connection to the database file when `SqliteConnectionSettings.DisableHealthChecks` is `false`.
 - Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
 
 #### Observability and telemetry
@@ -168,7 +169,7 @@ Any of these telemetry features can be disabled through the [configuration optio
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected data source path from the environment and open a connection directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Microsoft.Data.Sqlite;
 
 var dataSource = Environment.GetEnvironmentVariable("SQLITE_DATASOURCE");
@@ -194,7 +195,7 @@ go get modernc.org/sqlite
 
 Read the injected environment variable and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -228,7 +229,7 @@ func main() {
 
 Python ships with a built-in `sqlite3` module — no additional installation is required:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import sqlite3
 
@@ -258,7 +259,7 @@ npm install --save-dev @types/better-sqlite3
 
 Read the injected environment variable and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import Database from 'better-sqlite3';
 
 // Read the Aspire-injected data source path

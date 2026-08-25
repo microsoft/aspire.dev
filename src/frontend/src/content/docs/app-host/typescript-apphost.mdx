@@ -4,7 +4,8 @@ seoTitle: Aspire TypeScript AppHost project structure overview
 description: Learn the files and configuration that make up a TypeScript AppHost project — entry point, package manifest, dependencies, and how the AppHost runs Aspire resources.
 ---
 
-import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 When you create a TypeScript AppHost with `aspire new`, the CLI scaffolds a project with the following structure:
@@ -52,7 +53,7 @@ The `aspire.config.json` file is the central configuration for your AppHost. It 
     "language": "typescript/nodejs"
   },
   "packages": {
-    "Aspire.Hosting.JavaScript": "13.3.0"
+    "Aspire.Hosting.JavaScript": "%ASPIRE_VERSION%"
   },
   "profiles": {
     "https": {
@@ -88,8 +89,8 @@ This updates `aspire.config.json` so the package is restored the next time the A
 ```json title="aspire.config.json" ins={4}
 {
   "packages": {
-    "Aspire.Hosting.JavaScript": "13.3.0",
-    "Aspire.Hosting.Redis": "13.3.0"
+    "Aspire.Hosting.JavaScript": "%ASPIRE_VERSION%",
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -414,6 +415,12 @@ aspire certs trust
   aspire certs trust
   ```
 </Aside>
+
+### Trusting the certificate for outbound TLS connections
+
+When your AppHost code opens TLS connections to Aspire-managed resources at runtime (for example, connecting directly to the dashboard's OTLP endpoint from custom AppHost logic), the Aspire CLI ensures Node.js trusts the same development certificate that the Developer Control Plane (DCP) uses. The CLI exports the trusted development certificate into a content-addressed PEM cache under the Aspire home directory (`ASPIRE_HOME`), and Node.js is configured to trust that bundle through the `NODE_EXTRA_CA_CERTS` environment variable.
+
+If you've already set `NODE_EXTRA_CA_CERTS` for your own certificates, the CLI preserves your value by generating a combined bundle that includes both your certificates and the Aspire development certificate, rather than overwriting your setting.
 
 <LearnMore>
   See [Certificate configuration](/app-host/certificate-configuration/) for details

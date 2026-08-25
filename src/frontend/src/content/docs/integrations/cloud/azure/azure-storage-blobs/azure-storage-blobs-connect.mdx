@@ -75,7 +75,7 @@ Install the [📦 Aspire.Azure.Storage.Blobs](https://www.nuget.org/packages/Asp
 
 In _Program.cs_, call `AddAzureBlobServiceClient` on your `IHostApplicationBuilder` to register a `BlobServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureBlobServiceClient(connectionName: "blobs");
 ```
 
@@ -85,7 +85,7 @@ The `connectionName` must match the blob resource name from the AppHost. For mor
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(BlobServiceClient client)
 {
     // Use client...
@@ -96,14 +96,14 @@ public class ExampleService(BlobServiceClient client)
 
 To register multiple `BlobServiceClient` instances with different connection names, use `AddKeyedAzureBlobServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedAzureBlobServiceClient(name: "images");
 builder.AddKeyedAzureBlobServiceClient(name: "documents");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("images")] BlobServiceClient imagesClient,
     [FromKeyedServices("documents")] BlobServiceClient documentsClient)
@@ -120,7 +120,7 @@ The Aspire Azure Blob Storage client integration offers multiple ways to provide
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureBlobServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureBlobServiceClient("blobs");
 ```
 
@@ -128,7 +128,7 @@ Two connection formats are supported:
 
 _Service URI_ (recommended for production with managed identity or default credentials):
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "blobs": "https://{account_name}.blob.core.windows.net/"
@@ -138,7 +138,7 @@ _Service URI_ (recommended for production with managed identity or default crede
 
 _Connection string_ (useful for local development with Azurite):
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "blobs": "AccountName=devstoreaccount1;AccountKey=...;BlobEndpoint=http://localhost:10000/devstoreaccount1"
@@ -148,7 +148,7 @@ _Connection string_ (useful for local development with Azurite):
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureStorageBlobsSettings` from _appsettings.json_ using the `Aspire:Azure:Storage:Blobs` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Azure": {
@@ -170,7 +170,7 @@ _Connection string_ (useful for local development with Azurite):
 
 **Inline delegates.** Pass an `Action<AzureStorageBlobsSettings>` to configure settings inline:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureBlobServiceClient(
     "blobs",
     settings => settings.DisableHealthChecks = true);
@@ -178,7 +178,7 @@ builder.AddAzureBlobServiceClient(
 
 You can also configure `BlobClientOptions`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureBlobServiceClient(
     "blobs",
     configureClientBuilder: clientBuilder =>
@@ -212,7 +212,7 @@ The Aspire Azure Blob Storage client integration automatically configures loggin
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected blob endpoint from the environment and create a `BlobServiceClient` directly using the [📦 Azure.Storage.Blobs](https://www.nuget.org/packages/Azure.Storage.Blobs/) NuGet package:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Azure.Identity;
 using Azure.Storage.Blobs;
 
@@ -237,7 +237,7 @@ go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
 
 Read the injected environment variable and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -267,7 +267,7 @@ func main() {
 
 When running against the Azurite emulator, use the `ConnectionString` environment variable instead:
 
-```go title="Go — main.go (Azurite)"
+```go title="main.go (Azurite)"
 package main
 
 import (
@@ -298,7 +298,7 @@ pip install azure-storage-blob azure-identity
 
 Read the injected environment variable and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
@@ -314,7 +314,7 @@ client = BlobServiceClient(account_url=blob_endpoint, credential=credential)
 
 When running against the Azurite emulator, use the `ConnectionString` environment variable instead:
 
-```python title="Python — app.py (Azurite)"
+```python title="app.py (Azurite)"
 import os
 from azure.storage.blob import BlobServiceClient
 
@@ -335,7 +335,7 @@ npm install @azure/storage-blob @azure/identity
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { BlobServiceClient } from '@azure/storage-blob';
 import { DefaultAzureCredential } from '@azure/identity';
 
@@ -350,7 +350,7 @@ const client = new BlobServiceClient(blobEndpoint, credential);
 
 When running against the Azurite emulator, use the `ConnectionString` environment variable instead:
 
-```typescript title="TypeScript — index.ts (Azurite)"
+```typescript title="index.ts (Azurite)"
 import { BlobServiceClient } from '@azure/storage-blob';
 
 const connStr = process.env.BLOBS_CONNECTIONSTRING!;

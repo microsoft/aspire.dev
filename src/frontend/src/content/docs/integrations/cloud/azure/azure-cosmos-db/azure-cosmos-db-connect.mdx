@@ -102,7 +102,7 @@ Install the [📦 Aspire.Microsoft.Azure.Cosmos](https://www.nuget.org/packages/
 
 In _Program.cs_, call `AddAzureCosmosClient` on your `IHostApplicationBuilder` to register a `CosmosClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureCosmosClient(connectionName: "cosmosdb");
 ```
 
@@ -112,7 +112,7 @@ The `connectionName` must match the Azure Cosmos DB resource name from the AppHo
 
 Resolve the `CosmosClient` through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(CosmosClient cosmosClient)
 {
     // Use cosmosClient...
@@ -123,14 +123,14 @@ public class ExampleService(CosmosClient cosmosClient)
 
 To register multiple `CosmosClient` instances with different connection names, use `AddKeyedAzureCosmosClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedAzureCosmosClient(name: "catalog");
 builder.AddKeyedAzureCosmosClient(name: "orders");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("catalog")] CosmosClient catalogClient,
     [FromKeyedServices("orders")] CosmosClient ordersClient)
@@ -145,13 +145,13 @@ The Aspire Azure Cosmos DB client integration offers multiple ways to provide co
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureCosmosClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureCosmosClient("cosmosdb");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "cosmosdb": "AccountEndpoint=https://{account}.documents.azure.com:443/;AccountKey={key};"
@@ -163,7 +163,7 @@ For more information, see the [ConnectionString documentation](https://learn.mic
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `MicrosoftAzureCosmosSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Microsoft:Azure:Cosmos` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Microsoft": {
@@ -181,7 +181,7 @@ For the complete Azure Cosmos DB client integration JSON schema, see [Aspire.Mic
 
 **Inline delegates.** Pass an `Action<MicrosoftAzureCosmosSettings>` to configure settings inline, for example to disable tracing:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureCosmosClient(
     "cosmosdb",
     static settings => settings.DisableTracing = true);
@@ -213,7 +213,7 @@ If you prefer Entity Framework Core over the direct `CosmosClient`, install the 
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection string from the environment and construct a `CosmosClient` directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Microsoft.Azure.Cosmos;
 
 var connectionString = Environment.GetEnvironmentVariable("COSMOSDB_CONNECTIONSTRING");
@@ -234,7 +234,7 @@ go get github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -278,7 +278,7 @@ pip install azure-cosmos
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from azure.cosmos import CosmosClient
 
@@ -295,7 +295,7 @@ database = client.get_database_client(database_name)
 <Aside type="note">
     When using Microsoft Entra ID authentication (role-based access, the default), the connection string does not include an account key. Use the [`azure-identity`](https://pypi.org/project/azure-identity/) package and pass a `DefaultAzureCredential` to `CosmosClient` instead:
 
-    ```python title="Python — app.py (Entra ID)"
+    ```python title="app.py (Entra ID)"
     import os
     from azure.cosmos import CosmosClient
     from azure.identity import DefaultAzureCredential
@@ -320,7 +320,7 @@ npm install @azure/cosmos
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { CosmosClient } from '@azure/cosmos';
 
 // Read Aspire-injected connection string
@@ -336,7 +336,7 @@ const database = client.database(databaseName!);
 <Aside type="note">
     When using Microsoft Entra ID authentication (role-based access, the default), the connection string contains only the endpoint with no account key. Use the [`@azure/identity`](https://www.npmjs.com/package/@azure/identity) package and pass a `DefaultAzureCredential`:
 
-    ```typescript title="TypeScript — index.ts (Entra ID)"
+    ```typescript title="index.ts (Entra ID)"
     import { CosmosClient } from '@azure/cosmos';
     import { DefaultAzureCredential } from '@azure/identity';
 

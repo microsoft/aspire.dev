@@ -88,7 +88,7 @@ Install the [📦 Aspire.Npgsql](https://www.nuget.org/packages/Aspire.Npgsql) N
 
 In _Program.cs_, call `AddNpgsqlDataSource` on your `IHostApplicationBuilder` to register an `NpgsqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDataSource(connectionName: "postgresdb");
 ```
 
@@ -98,7 +98,7 @@ The `connectionName` must match the Azure PostgreSQL database resource name from
 
 Resolve the data source through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(NpgsqlDataSource dataSource)
 {
     // Use dataSource...
@@ -109,14 +109,14 @@ public class ExampleService(NpgsqlDataSource dataSource)
 
 To register multiple `NpgsqlDataSource` instances with different connection names, use `AddKeyedNpgsqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedNpgsqlDataSource(name: "catalogdb");
 builder.AddKeyedNpgsqlDataSource(name: "ordersdb");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("catalogdb")] NpgsqlDataSource catalogDataSource,
     [FromKeyedServices("ordersdb")] NpgsqlDataSource ordersDataSource)
@@ -131,13 +131,13 @@ The Aspire PostgreSQL client integration offers multiple ways to provide configu
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddNpgsqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDataSource("postgresdb");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "postgresdb": "Host=myserver.postgres.database.azure.com;Database=postgresdb"
@@ -147,7 +147,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `NpgsqlSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Npgsql` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Npgsql": {
@@ -162,7 +162,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Inline delegates.** Pass an `Action<NpgsqlSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDataSource(
     "postgresdb",
      static settings => settings.DisableHealthChecks = true);
@@ -213,7 +213,7 @@ When your app targets Azure and you want to use Entra ID (managed identity) auth
 
 <InstallDotNetPackage packageName="Aspire.Azure.Npgsql" />
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureNpgsqlDataSource(connectionName: "postgresdb");
 ```
 
@@ -225,7 +225,7 @@ For more information, see [PostgreSQL Entity Framework Core integrations](/integ
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to the [📦 Npgsql](https://www.nuget.org/packages/Npgsql/) NuGet package directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Npgsql;
 
 var connectionString = Environment.GetEnvironmentVariable("POSTGRESDB_URI");
@@ -251,7 +251,7 @@ go get github.com/jackc/pgx/v5
 
 Read the injected environment variable and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -287,7 +287,7 @@ pip install psycopg[binary]
 
 Read the injected environment variable and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import psycopg
 
@@ -307,7 +307,7 @@ You can also install `psycopg2-binary` if you prefer the psycopg2 API:
 pip install psycopg2-binary
 ```
 
-```python title="Python — app.py (psycopg2)"
+```python title="app.py (psycopg2)"
 import os
 import psycopg2
 
@@ -331,7 +331,7 @@ npm install --save-dev @types/pg
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { Client } from 'pg';
 
 // Read Aspire-injected connection properties
@@ -349,7 +349,7 @@ await client.connect();
 
 Or use the connection URI directly:
 
-```typescript title="TypeScript — Connect with URI"
+```typescript title="Connect with URI"
 import { Client } from 'pg';
 
 const client = new Client({

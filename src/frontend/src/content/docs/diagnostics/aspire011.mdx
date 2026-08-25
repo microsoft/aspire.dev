@@ -1,0 +1,58 @@
+---
+title: Compiler Error ASPIRE011
+seoTitle: 'ASPIRE011: DNX command not found on PATH · Aspire'
+description: Learn what causes Aspire compiler error ASPIRE011 when Dnx or DnxPinned mode can't find the dnx command, and how to correct it.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> '[ProjectName]' is configured to invoke the Aspire CLI through DNX, but the dnx command could not be found on PATH.
+
+This diagnostic error is reported during run preflight when an AppHost project sets `AspireCliInvocationMode` to `Dnx` or `DnxPinned` but a usable `dnx` command can't be resolved on `PATH`. The emitted error identifies the configured mode. A regular build doesn't emit `ASPIRE011` because the SDK checks forced DNX availability when it prepares the run command.
+
+## Example
+
+The following configuration produces `ASPIRE011` when `dnx` isn't installed or isn't on `PATH`. Using `DnxPinned` instead produces the same diagnostic:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+  <AspireCliInvocationMode>Dnx</AspireCliInvocationMode>
+</PropertyGroup>
+```
+
+## To correct this error
+
+Use one of the following remedies:
+
+1. Install or use .NET SDK 10.0 or later, which provides `dnx`.
+2. Set `AspireCliInvocationMode` to `Path` to use a global `aspire` command:
+
+   ```xml title="MyApp.AppHost.csproj"
+   <PropertyGroup>
+     <AspireUseCliBundle>true</AspireUseCliBundle>
+     <AspireCliInvocationMode>Path</AspireCliInvocationMode>
+   </PropertyGroup>
+   ```
+
+3. Set `AspireCliPath` to an explicit Aspire CLI executable:
+
+   ```xml title="MyApp.AppHost.csproj"
+   <PropertyGroup>
+     <AspireUseCliBundle>true</AspireUseCliBundle>
+     <AspireCliPath>/usr/local/bin/aspire</AspireCliPath>
+   </PropertyGroup>
+   ```
+
+Removing `AspireCliInvocationMode` is equivalent to the default `Path` behavior. An explicit `AspireCliPath` remains authoritative even when `AspireCliInvocationMode` is set to `Dnx` or `DnxPinned`.
+
+Both modes invoke DNX noninteractively. `Dnx` uses `dnx --yes aspire.cli -- ...`, allowing an in-scope tool manifest to select the package or DNX to use the latest package when no manifest applies. `DnxPinned` uses `dnx --yes aspire.cli@$(AspireHostingSDKVersion) -- ...` to select the version paired with the AppHost SDK. If DNX is found but can't restore, probe, or run the selected package, the launch fails with a separate error; `ASPIRE011` only indicates that a forced DNX mode couldn't find a usable `dnx` command.
+
+For more information, see [Use the Aspire CLI bundle for orchestration dependencies](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies).

@@ -43,26 +43,32 @@ Documentation should match the style and format of existing documentation in the
 - Should no integration be provided, do not continue, instead request the user to provide one.
 - The Community Toolkit is found at https://github.com/CommunityToolkit/Aspire
 - README files for integrations are in the `src` folder of the Community Toolkit repo, under the relevant integration subfolder (using the name of the integration, such as `CommunityToolkit.Aspire.Hosting.Ollama`, `CommunityToolkit.Aspire.Hosting.Rust`, `CommunityToolkit.Aspire.SurrealDB`, etc.).
-- The README file of the integration should be used as the primary source of information for generating the documentation.
+- Use the integration README as the starting point. Treat the extension methods,
+  resource types, settings classes, generated `api/*.cs` export artifact, and
+  tests as the authoritative sources for API and connection behavior.
 
 ## Creating a plan
 
-1. Review the README file of the provided Community Toolkit integration.
+1. Review the README and authoritative source files for the provided Community Toolkit integration.
 2. Identify the correct subfolder in the `src/frontend/src/content/docs/integrations` folder based on the integration's category.
 3. Review existing integration documentation from this repo such as:
-   - `src/frontend/src/content/docs/integrations/ai/ollama.mdx`
-   - `src/frontend/src/content/docs/integrations/databases/kurrentdb.mdx`
-   - `src/frontend/src/content/docs/integrations/frameworks/python.mdx`
+   - `src/frontend/src/content/docs/integrations/ai/ollama/ollama-get-started.mdx`
+   - `src/frontend/src/content/docs/integrations/ai/ollama/ollama-host.mdx`
+   - `src/frontend/src/content/docs/integrations/ai/ollama/ollama-connect.mdx`
    - `src/frontend/src/content/docs/integrations/frameworks/rust.mdx`
 4. Create a plan for generating the documentation that includes:
    - The target subfolder for the documentation.
-   - The filename for the documentation file (should be the name of the integration in lowercase, with spaces replaced by hyphens, and a `.mdx` extension).
+   - The page shape:
+     - `get-started`, `host`, and `connect` for integrations with a meaningful consuming-app connection flow.
+     - `get-started` and `host` for host-only frameworks and tools.
+     - A focused single page for add-on extensions that decorate an official Aspire resource.
+   - The filenames and routes for every page in the selected shape.
    - A breakdown of sections to include in the documentation, based on the README content and existing documentation style.
 5. Implement the plan by creating the necessary directories and files, and writing the documentation content in Astro format.
 
 ## Update the sidebar navigation
 
-After creating the documentation file, update `src/frontend/config/sidebar/sidebar.topics.ts` to add the new integration to the appropriate category section:
+After creating the documentation, update `src/frontend/config/sidebar/integrations.topics.ts` to add the integration to the appropriate category section:
 
 1. Locate the relevant integration category section in the sidebar (e.g., "Frameworks & runtimes", "Data & databases", "Caching & state", etc.)
 2. Add a new entry to the `items` array for that category:
@@ -81,11 +87,9 @@ Example entry:
 
 After completing all documentation writing and sidebar updates:
 
-1. Execute the "Update Integration Documentation Links" prompt located at `.github/prompts/update-integrations.prompt.md`
-2. This prompt will:
-   - Synchronize package names from the NuGet catalog with their corresponding documentation URLs
-   - Update `src/frontend/src/data/integration-docs.json` with mappings for the newly created documentation
-   - Ensure the new integration is discoverable through the integration gallery and search
+1. Run `pnpm --dir ./src/frontend update:integrations` if the NuGet package catalog needs to be refreshed.
+2. Reconcile each exact package ID with its canonical page in `src/frontend/src/data/integration-docs.json`.
+3. Run `pnpm --dir ./src/frontend test:unit:structured-data`.
 
 This step ensures that the documentation you've created is properly indexed and linked in the Aspire documentation site.
 
@@ -94,7 +98,7 @@ This step ensures that the documentation you've created is properly indexed and 
 ### Frontmatter
 
 - **Title**: Should be concise and include "integration" (e.g., "Python integration", "Ollama integration")
-- **Description**: A brief summary of what the integration does and its purpose. Required for all docs except framework integrations.
+- **Description**: A brief summary of what the integration does and its purpose. Required for every English documentation page.
   - For hosting integrations: Describe what the integration orchestrates/configures
   - For client integrations: Describe what the client connects to and its purpose
   - For combined integrations: Describe both aspects
@@ -119,26 +123,23 @@ This step ensures that the documentation you've created is properly indexed and 
 
 ### Structure and sections
 
-#### For hosting-only integrations (e.g., Rust, Python):
+#### For host-only integrations:
 
-1. **Introduction paragraph**: Brief description of what the integration is and what it enables
-2. **Prerequisites** (if any): Use an `Aside` with type="note" for requirements like installed tools
-3. **Hosting integration section**:
-   - Package installation with `InstallPackage`
-   - "Add [Technology] resource" subsection with basic example
-   - Configuration subsections (endpoints, arguments, volumes, bind mounts, etc.)
-   - Working directory explanation if relevant
-4. **See also section**: Links to official docs, Community Toolkit repo, and related Aspire resources
+1. Create a **get-started page** with the introduction, benefits, architecture, prerequisites, a short AppHost setup flow, and related links.
+2. Create a **host page** with package installation, the basic resource example, configuration options, health behavior, and the complete exported AppHost API surface.
+3. Do not create an empty or "not applicable" connect page.
 
-#### For hosting + client integrations (e.g., Ollama, KurrentDB):
+#### For connection-capable integrations:
 
-1. **Introduction paragraph**: Brief description with link to the technology's website
-2. **Hosting integration section**:
+1. Create a **get-started page** with the introduction, benefits, architecture, and links to the host and connect flows.
+2. Create a **host page** with:
    - Package installation with `InstallPackage`
    - "Add [Technology] resource" subsection
    - Configuration subsections (volumes, bind mounts, parameters, etc.)
    - "Hosting integration health checks" subsection (if applicable)
-3. **Client integration section**:
+   - A connection-property summary that links to the connect page
+3. Create a **connect page** with:
+   - The exact connection string and connection properties exposed by the resource
    - Package installation with `InstallDotNetPackage`
    - "Add [Technology] client" subsection
    - "Add keyed [Technology] client" subsection (if supported)
@@ -149,12 +150,20 @@ This step ensures that the documentation you've created is properly indexed and 
      - Inline delegates
    - "Client integration health checks" subsection (if applicable)
    - "Observability and telemetry" subsection (if applicable) with logging and tracing details
-4. **See also section**
+   - C#, TypeScript, Python, and Go examples when stable clients exist
+4. Add a **See also** section to each page where it helps navigation.
+
+#### For add-on extensions:
+
+Keep a focused single page adjacent to the official integration it extends.
+Document the official base resource, package installation, the added
+`With...` APIs, C# and TypeScript examples when exported, and any tool-specific
+prerequisites. Do not present the add-on as a standalone service.
 
 ### Code blocks
 
 - Use proper syntax highlighting: `csharp`, `json`, `sql`, etc.
-- Include descriptive titles: `title="C# — AppHost.cs"`, `title="JSON — appsettings.json"`
+- Include descriptive titles: `title="AppHost.cs"`, `title="apphost.mts"`, `title="appsettings.json"`
 - For C# code in AppHost, always end with `// After adding all resources, run the app...` comment
 - Show complete, runnable examples
 - Use proper formatting and indentation

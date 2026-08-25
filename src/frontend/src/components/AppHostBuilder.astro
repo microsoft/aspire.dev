@@ -1,6 +1,19 @@
 ---
 import { Code, Icon } from '@astrojs/starlight/components';
 
+interface Props {
+  headingLevel?: 'h2' | 'h3';
+  heading?: string;
+  description?: string | null;
+}
+
+const {
+  headingLevel = 'h3',
+  heading = Astro.locals.t('appHostBuilder.heading', { appHost: 'AppHost' }),
+  description = Astro.locals.t('appHostBuilder.description'),
+} = Astro.props as Props;
+const Heading = headingLevel;
+
 // Define all possible code combinations — C#
 const codes = {
   empty: `var builder = DistributedApplication.CreateBuilder(args);
@@ -206,7 +219,6 @@ builder.Build().Run();`,
 // Add frontend service
 var frontend = builder.AddViteApp("frontend", "../frontend")
     .WithHttpEndpoint(env: "PORT")
-    .WithNpmPackageInstallation()
     .PublishAsDockerFile();
 
 builder.Build().Run();`,
@@ -216,7 +228,6 @@ builder.Build().Run();`,
 // Add frontend service
 var frontend = builder.AddViteApp("frontend", "../frontend")
     .WithHttpEndpoint(env: "PORT")
-    .WithNpmPackageInstallation()
     .PublishAsDockerFile();
 
 // Add custom container
@@ -237,7 +248,6 @@ var postgres = builder.AddAzurePostgresFlexibleServer("db")
 // Add frontend service
 var frontend = builder.AddViteApp("frontend", "../frontend")
     .WithHttpEndpoint(env: "PORT")
-    .WithNpmPackageInstallation()
     .PublishAsDockerFile();
 
 builder.Build().Run();`,
@@ -253,7 +263,6 @@ var postgres = builder.AddAzurePostgresFlexibleServer("db")
 // Add frontend service
 var frontend = builder.AddViteApp("frontend", "../frontend")
     .WithHttpEndpoint(env: "PORT")
-    .WithNpmPackageInstallation()
     .PublishAsDockerFile();
 
 // Add custom container
@@ -273,7 +282,6 @@ var api = builder.AddProject("api", "../api/ApiService.csproj")
 var frontend = builder.AddViteApp("frontend", "../frontend")
     .WithHttpEndpoint(env: "PORT")
     .WithReference(api)
-    .WithNpmPackageInstallation()
     .PublishAsDockerFile();
 
 builder.Build().Run();`,
@@ -288,7 +296,6 @@ var api = builder.AddProject("api", "../api/ApiService.csproj")
 var frontend = builder.AddViteApp("frontend", "../frontend")
     .WithHttpEndpoint(env: "PORT")
     .WithReference(api)
-    .WithNpmPackageInstallation()
     .PublishAsDockerFile();
 
 // Add custom container
@@ -316,7 +323,6 @@ var api = builder.AddProject("api", "../api/ApiService.csproj")
 var frontend = builder.AddViteApp("frontend", "../frontend")
     .WithHttpEndpoint(env: "PORT")
     .WithReference(api)
-    .WithNpmPackageInstallation()
     .PublishAsDockerFile();
 
 builder.Build().Run();`,
@@ -339,7 +345,6 @@ var api = builder.AddProject("api", "../api/ApiService.csproj")
 var frontend = builder.AddViteApp("frontend", "../frontend")
     .WithHttpEndpoint(env: "PORT")
     .WithReference(api)
-    .WithNpmPackageInstallation()
     .PublishAsDockerFile();
 
 // Add custom container
@@ -721,7 +726,6 @@ const builder = await createBuilder();
 const frontend = await builder
     .addViteApp("frontend", "./frontend")
     .withHttpEndpoint({ env: "PORT" })
-    .withNpmPackageInstallation()
     .publishAsDockerFile();
 
 await builder.build().run();`,
@@ -734,7 +738,6 @@ const builder = await createBuilder();
 const frontend = await builder
     .addViteApp("frontend", "./frontend")
     .withHttpEndpoint({ env: "PORT" })
-    .withNpmPackageInstallation()
     .publishAsDockerFile();
 
 // Add custom container
@@ -760,7 +763,6 @@ const postgres = await builder
 const frontend = await builder
     .addViteApp("frontend", "./frontend")
     .withHttpEndpoint({ env: "PORT" })
-    .withNpmPackageInstallation()
     .publishAsDockerFile();
 
 await builder.build().run();`,
@@ -780,7 +782,6 @@ const postgres = await builder
 const frontend = await builder
     .addViteApp("frontend", "./frontend")
     .withHttpEndpoint({ env: "PORT" })
-    .withNpmPackageInstallation()
     .publishAsDockerFile();
 
 // Add custom container
@@ -806,7 +807,6 @@ const frontend = await builder
     .addViteApp("frontend", "./frontend")
     .withHttpEndpoint({ env: "PORT" })
     .withReference(api)
-    .withNpmPackageInstallation()
     .publishAsDockerFile();
 
 await builder.build().run();`,
@@ -826,7 +826,6 @@ const frontend = await builder
     .addViteApp("frontend", "./frontend")
     .withHttpEndpoint({ env: "PORT" })
     .withReference(api)
-    .withNpmPackageInstallation()
     .publishAsDockerFile();
 
 // Add custom container
@@ -861,7 +860,6 @@ const frontend = await builder
     .addViteApp("frontend", "./frontend")
     .withHttpEndpoint({ env: "PORT" })
     .withReference(api)
-    .withNpmPackageInstallation()
     .publishAsDockerFile();
 
 await builder.build().run();`,
@@ -890,7 +888,6 @@ const frontend = await builder
     .addViteApp("frontend", "./frontend")
     .withHttpEndpoint({ env: "PORT" })
     .withReference(api)
-    .withNpmPackageInstallation()
     .publishAsDockerFile();
 
 // Add custom container
@@ -1025,14 +1022,16 @@ await builder.build().run();`,
 };
 ---
 
-<div class="container">
+<div class="container" data-apphost-builder data-editor-motion-enabled="true">
   <div class="header" dir={Astro.locals.t.dir()}>
-    <h3>{Astro.locals.t('appHostBuilder.heading', { appHost: 'AppHost' })}</h3>
-    <p>{Astro.locals.t('appHostBuilder.description')}</p>
+    <Heading>{heading}</Heading>
+    {description && <p>{description}</p>}
 
     <div class="lang-toggles">
-      <button class="lang-toggle active" data-lang="csharp">C#</button>
-      <button class="lang-toggle" data-lang="typescript">TypeScript</button>
+      <button class="lang-toggle active" data-lang="typescript" aria-pressed="true">
+        TypeScript
+      </button>
+      <button class="lang-toggle" data-lang="csharp" aria-pressed="false">C#</button>
     </div>
 
     <div class="toggles">
@@ -1093,9 +1092,15 @@ await builder.build().run();`,
     </div>
   </div>
 
-  <div class="code-display not-content" data-disable-copy>
+  <div class="code-display not-content" data-apphost-code-display data-disable-copy>
+    <div class="code-stage" data-code-stage hidden>
+      <span class="editor-caret" data-editor-caret aria-hidden="true"></span>
+    </div>
+    <p class="sr-only" data-code-status aria-live="polite" aria-atomic="true">
+      TypeScript AppHost code showing Front end.
+    </p>
     <!-- C# variants -->
-    <div class="code-lang-group" data-code-lang="csharp">
+    <div class="code-lang-group" data-code-lang="csharp" style="display: none;">
       <div class="code-variant" data-variant="empty" style="display: none;">
         <Code code={codes.empty} lang="cs" title="AppHost.cs" />
       </div>
@@ -1207,7 +1212,7 @@ await builder.build().run();`,
       </div>
     </div>
     <!-- TypeScript variants -->
-    <div class="code-lang-group" data-code-lang="typescript" style="display: none;">
+    <div class="code-lang-group" data-code-lang="typescript">
       {
         Object.entries(tsCodes).map(([key, code]) => (
           <div
@@ -1220,6 +1225,11 @@ await builder.build().run();`,
         ))
       }
     </div>
+
+    <label class="editor-motion-option">
+      <input type="checkbox" checked data-editor-motion-toggle />
+      <span>Typing animation</span>
+    </label>
   </div>
 </div>
 
@@ -1241,7 +1251,7 @@ await builder.build().run();`,
     border-top-right-radius: 0.75rem;
   }
 
-  .header h3 {
+  .header :is(h2, h3) {
     margin: 0 0 0.5rem 0;
     color: var(--sl-color-text);
     font-size: 1.25rem;
@@ -1268,7 +1278,6 @@ await builder.build().run();`,
     cursor: pointer;
     font-size: 0.85rem;
     font-weight: 500;
-    transition: all 0.2s ease;
     margin-top: 0;
   }
 
@@ -1277,8 +1286,13 @@ await builder.build().run();`,
   }
 
   .lang-toggle.active {
-    background: var(--aspire-color-secondary);
-    color: var(--aspire-color-black);
+    background: var(--aspire-action-selected, var(--sl-color-accent-low));
+    color: var(--aspire-action-selected-text, var(--sl-color-accent-high));
+    box-shadow: inset 0 0 0 1px var(--aspire-action-selected-border, var(--sl-color-accent));
+  }
+
+  .lang-toggle.active:hover {
+    background: var(--aspire-action-selected-hover, var(--sl-color-accent-low));
   }
 
   .header p {
@@ -1290,6 +1304,32 @@ await builder.build().run();`,
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 0.75rem;
+  }
+
+  .editor-motion-option {
+    width: fit-content;
+    min-height: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 1.25rem 0 0;
+    color: var(--sl-color-gray-2);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .editor-motion-option input {
+    width: 0.9rem;
+    height: 0.9rem;
+    margin: 0;
+    accent-color: var(--aspire-action-focus, var(--sl-color-accent));
+  }
+
+  .editor-motion-option input:focus-visible {
+    outline: 0.1875rem solid var(--aspire-action-focus, var(--sl-color-accent));
+    outline-offset: 0.18rem;
   }
 
   .toggle {
@@ -1314,13 +1354,22 @@ await builder.build().run();`,
   .toggle:hover {
     border-color: var(--sl-color-gray-4);
     background: var(--sl-color-bg-nav);
-    transform: translateY(-1px);
   }
 
   .toggle.active {
-    background: var(--aspire-color-primary);
-    border-color: var(--sl-color-gray-4);
-    color: var(--aspire-color-white);
+    background: var(--aspire-action-selected, var(--sl-color-accent-low));
+    border-color: var(--aspire-action-selected-border, var(--sl-color-accent));
+    color: var(--aspire-action-selected-text, var(--sl-color-accent-high));
+  }
+
+  .toggle.active:hover {
+    background: var(--aspire-action-selected-hover, var(--sl-color-accent-low));
+    border-color: var(--aspire-action-selected-border, var(--sl-color-accent));
+  }
+
+  :is(.lang-toggle, .toggle):focus-visible {
+    outline: 0.1875rem solid var(--aspire-action-focus, var(--sl-color-accent));
+    outline-offset: 0.125rem;
   }
 
   .code-display {
@@ -1333,8 +1382,77 @@ await builder.build().run();`,
     margin-top: 0;
   }
 
+  .code-stage {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .editor-caret {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    width: 0.125rem;
+    border-radius: 1px;
+    background: var(--aspire-action-focus, var(--sl-color-accent));
+    box-shadow: 0 0 0.5rem
+      color-mix(in srgb, var(--aspire-action-focus, var(--sl-color-accent)) 45%, transparent);
+    opacity: 1;
+    pointer-events: none;
+    transform: translate3d(0, 0, 0);
+  }
+
+  [data-apphost-builder][data-editor-motion-enabled='false'] .editor-caret {
+    display: none;
+  }
+
+  .code-stage[data-editor-state='switching'] .editor-caret {
+    opacity: 0;
+  }
+
+  .code-stage :global(.ec-line[data-editor-selection]) {
+    background: color-mix(in srgb, var(--sl-color-accent) 24%, transparent) !important;
+    box-shadow: inset 0.125rem 0 var(--sl-color-accent);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @keyframes apphost-caret-blink {
+    0%,
+    48% {
+      opacity: 1;
+    }
+
+    49%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes apphost-line-enter {
+    from {
+      opacity: 0;
+      transform: translateY(0.2rem);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   html[data-theme='dark'] .toggle.active {
-    color: var(--aspire-color-white);
+    color: var(--aspire-action-selected-text, var(--sl-color-accent-high));
   }
 
   @media (max-width: 768px) {
@@ -1365,7 +1483,7 @@ await builder.build().run();`,
       padding: 0.75rem;
     }
 
-    .header h3 {
+    .header :is(h2, h3) {
       font-size: 1.1rem;
     }
 
@@ -1386,109 +1504,75 @@ await builder.build().run();`,
       word-break: break-word;
     }
   }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .lang-toggle {
+      transition:
+        color 200ms ease,
+        background-color 200ms ease,
+        box-shadow 200ms ease;
+    }
+
+    .toggle:hover {
+      transform: translateY(-1px);
+    }
+
+    .editor-caret {
+      transition-property: transform;
+      transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+      animation: apphost-caret-blink 1.05s steps(1, end) infinite;
+    }
+
+    .code-stage[data-editor-state='typing'] .editor-caret,
+    .code-stage[data-editor-state='navigating'] .editor-caret,
+    .code-stage[data-editor-state='selecting'] .editor-caret {
+      animation: none;
+    }
+
+    .code-stage :global(.ec-line[data-editor-inserting]) {
+      animation: apphost-line-enter 140ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    [data-apphost-builder][data-editor-motion-enabled='false']
+      .code-stage
+      :global(.ec-line[data-editor-inserting]) {
+      animation: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .editor-caret,
+    .code-stage :global(.ec-line[data-editor-inserting]) {
+      transition: none;
+      animation: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .editor-caret {
+      background: CanvasText;
+      box-shadow: none;
+    }
+
+    .code-stage :global(.ec-line[data-editor-selection]) {
+      color: HighlightText;
+      background: Highlight !important;
+      box-shadow: none;
+      forced-color-adjust: none;
+    }
+  }
 </style>
 
-<script type="module" is:inline>
-  document.addEventListener('DOMContentLoaded', () => {
-    const toggleButtons = document.querySelectorAll('.toggle');
-    const langButtons = document.querySelectorAll('.lang-toggle');
-    let currentLang = 'csharp';
+<script>
+  import { initializeAppHostBuilders } from './AppHostBuilder.client';
 
-    // Language toggle handling
-    langButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        langButtons.forEach((b) => b.classList.remove('active'));
-        button.classList.add('active');
-        currentLang = button.dataset.lang;
+  const initialize = () => initializeAppHostBuilders();
 
-        // Show/hide language groups
-        document.querySelectorAll('.code-lang-group').forEach((group) => {
-          group.style.display = group.dataset.codeLang === currentLang ? '' : 'none';
-        });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize, { once: true });
+  } else {
+    initialize();
+  }
 
-        updateCodeDisplay();
-      });
-    });
-
-    toggleButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        button.classList.toggle('active');
-        button.setAttribute('aria-pressed', button.classList.contains('active').toString());
-        updateCodeDisplay();
-      });
-    });
-
-    function getVariantKey() {
-      const hasFrontend = document
-        .querySelector('.toggle[data-toggle="frontend"]')
-        .classList.contains('active');
-      const hasDatabase = document
-        .querySelector('.toggle[data-toggle="database"]')
-        .classList.contains('active');
-      const hasApi = document
-        .querySelector('.toggle[data-toggle="api"]')
-        .classList.contains('active');
-      const hasContainer = document
-        .querySelector('.toggle[data-toggle="container"]')
-        .classList.contains('active');
-      const hasDeployment = document
-        .querySelector('.toggle[data-toggle="deployment"]')
-        .classList.contains('active');
-
-      // If nothing is selected, show empty state
-      if (!hasFrontend && !hasDatabase && !hasApi && !hasContainer) {
-        return 'empty';
-      }
-
-      let variant = '';
-
-      // Build variant key based on database, API, and frontend
-      if (hasDatabase && hasApi && hasFrontend) {
-        variant = 'databaseApiFrontend';
-      } else if (hasDatabase && hasApi && !hasFrontend) {
-        variant = 'databaseApi';
-      } else if (hasDatabase && !hasApi && hasFrontend) {
-        variant = 'databaseFrontend';
-      } else if (hasDatabase && !hasApi && !hasFrontend) {
-        variant = 'database';
-      } else if (!hasDatabase && hasApi && hasFrontend) {
-        variant = 'apiFrontend';
-      } else if (!hasDatabase && hasApi && !hasFrontend) {
-        variant = 'api';
-      } else if (!hasDatabase && !hasApi && hasFrontend) {
-        variant = 'frontend';
-      } else if (!hasDatabase && !hasApi && !hasFrontend && hasContainer) {
-        variant = 'container';
-      }
-
-      // Add container suffix if present (and we already have a base variant)
-      if (hasContainer && variant && variant !== 'container') {
-        variant += 'Container';
-      }
-
-      // Add deployment suffix if present
-      if (hasDeployment) {
-        variant += 'Deployment';
-      }
-
-      return variant;
-    }
-
-    function updateCodeDisplay() {
-      const targetVariant = getVariantKey();
-      const activeGroup = document.querySelector(
-        `.code-lang-group[data-code-lang="${currentLang}"]`
-      );
-      if (!activeGroup) return;
-
-      activeGroup.querySelectorAll('.code-variant').forEach((variant) => {
-        variant.style.display = 'none';
-      });
-
-      const targetElement = activeGroup.querySelector(`[data-variant="${targetVariant}"]`);
-      if (targetElement) {
-        targetElement.style.display = 'block';
-      }
-    }
-  });
+  document.addEventListener('astro:page-load', initialize);
 </script>

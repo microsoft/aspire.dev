@@ -568,11 +568,15 @@ See [Install external Helm charts](/deployment/kubernetes/helm-charts/) for a fu
 
 ### AKS cluster not reachable after deploy
 
-After `aspire deploy` provisions the AKS cluster, your local `kubectl` context is configured automatically. If you can't reach the cluster, ensure your Azure CLI session is active and fetch credentials:
+After `aspire deploy` provisions the AKS cluster, your local `kubectl` context is configured automatically. If you can't reach the cluster, ensure your Azure CLI session is active and then manually fetch the right credentials, pinning the request to the subscription you deployed to:
 
 ```bash title="Get AKS credentials"
-az aks get-credentials --resource-group <resource-group> --name <cluster-name>
+az aks get-credentials --resource-group <resource-group> --name <cluster-name> --subscription <subscription-id>
 ```
+
+<Aside type="tip">
+Always pass `--subscription` explicitly when fetching credentials manually. In multi-subscription tenants or CI agents, your Azure CLI's default subscription often differs from the one Aspire deployed to. For this reason, running `az aks get-credentials` without `--subscription` can fail with a confusing "cluster not found" error. Alternatively, it can silently fetch credentials for a same-named cluster in a different subscription, which can be even more difficult to troubleshoot. You can check your default subscription by running `az account show`. The exact reconnect command, including the `--subscription` option, is printed in the deploy summary output under **🔑 Connect to cluster**.
+</Aside>
 
 ### Image pull failures
 

@@ -79,7 +79,7 @@ Install the [📦 Aspire.Oracle.EntityFrameworkCore](https://www.nuget.org/packa
 
 In `Program.cs`, call `AddOracleDatabaseDbContext` on your `IHostApplicationBuilder` to register a `DbContext` for use via the dependency injection container:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddOracleDatabaseDbContext<ExampleDbContext>(connectionName: "oracledb");
 ```
 
@@ -89,7 +89,7 @@ The `connectionName` parameter must match the name used when adding the Oracle d
 
 Resolve the `DbContext` instance through dependency injection. For example, to retrieve the context from an example service:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(ExampleDbContext context)
 {
     // Use database context...
@@ -102,7 +102,7 @@ For more information on dependency injection, see [.NET dependency injection](ht
 
 You may prefer to use the standard Entity Framework Core method to register a database context and then enhance it with Aspire features. Register the context first:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddDbContext<ExampleDbContext>(options =>
     options.UseOracle(builder.Configuration.GetConnectionString("oracledb")
         ?? throw new InvalidOperationException("Connection string 'oracledb' not found.")));
@@ -120,7 +120,7 @@ Using this approach, you have more flexibility:
 
 Then call `EnrichOracleDatabaseDbContext` to add Aspire-style retries, health checks, logging, and telemetry:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.EnrichOracleDatabaseDbContext<ExampleDbContext>(
     configureSettings: settings =>
     {
@@ -139,13 +139,13 @@ The Aspire Oracle Entity Framework Core integration provides multiple configurat
 
 When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddOracleDatabaseDbContext`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddOracleDatabaseDbContext<ExampleDbContext>("oracleConnection");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "oracleConnection": "Data Source=TORCL;User Id=OracleUser;Password=Non-default-P@ssw0rd;"
@@ -161,7 +161,7 @@ For more information, see the [ODP.NET documentation](https://www.oracle.com/dat
 
 The integration supports `Microsoft.Extensions.Configuration` from configuration files such as `appsettings.json` by using the `Aspire:Oracle:EntityFrameworkCore` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Oracle": {
@@ -184,7 +184,7 @@ The `CommandTimeout` property is in seconds. When set as shown in the preceding 
 
 Pass an `Action<OracleEntityFrameworkCoreSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddOracleDatabaseDbContext<ExampleDbContext>(
     "oracle",
     static settings => settings.DisableHealthChecks = true);
@@ -192,7 +192,7 @@ builder.AddOracleDatabaseDbContext<ExampleDbContext>(
 
 or
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.EnrichOracleDatabaseDbContext<ExampleDbContext>(
     static settings => settings.DisableHealthChecks = true);
 ```
