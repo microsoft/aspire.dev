@@ -1,6 +1,6 @@
 namespace StaticHost.Routing;
 
-internal sealed class CanonicalPathResolver
+internal sealed class CanonicalPathResolver(IEnumerable<string> canonicalPaths)
 {
     private static readonly HashSet<string> DefaultFileNames =
     [
@@ -16,29 +16,11 @@ internal sealed class CanonicalPathResolver
         RecurseSubdirectories = true,
     };
 
-    private readonly Dictionary<string, string?> _canonicalPaths;
+    private readonly Dictionary<string, string?> _canonicalPaths = CreateLookup(canonicalPaths);
 
     public CanonicalPathResolver(string webRootPath)
         : this(EnumerateCanonicalPaths(webRootPath))
     {
-    }
-
-    internal CanonicalPathResolver(IEnumerable<string> canonicalPaths)
-    {
-        ArgumentNullException.ThrowIfNull(canonicalPaths);
-
-        _canonicalPaths = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        foreach (var canonicalPath in canonicalPaths)
-        {
-            if (string.IsNullOrEmpty(canonicalPath) || canonicalPath[0] != '/')
-            {
-                throw new ArgumentException(
-                    "Canonical paths must be non-empty and start with '/'.",
-                    nameof(canonicalPaths));
-            }
-
-            Add(canonicalPath);
-        }
     }
 
     public bool TryResolve(PathString requestPath, out PathString canonicalPath)
@@ -58,20 +40,34 @@ internal sealed class CanonicalPathResolver
         return true;
     }
 
-    private void Add(string canonicalPath)
+    private static Dictionary<string, string?> CreateLookup(
+        IEnumerable<string> canonicalPaths)
     {
-        if (!_canonicalPaths.TryGetValue(canonicalPath, out var existingPath))
+        ArgumentNullException.ThrowIfNull(canonicalPaths);
+
+        var lookup = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var canonicalPath in canonicalPaths)
         {
-            _canonicalPaths.Add(canonicalPath, canonicalPath);
-            return;
+            if (string.IsNullOrEmpty(canonicalPath) || canonicalPath[0] != '/')
+            {
+                throw new ArgumentException(
+                    "Canonical paths must be non-empty and start with '/'.",
+                    nameof(canonicalPaths));
+            }
+
+            if (!lookup.TryGetValue(canonicalPath, out var existingPath))
+            {
+                lookup.Add(canonicalPath, canonicalPath);
+            }
+            else if (existingPath is not null &&
+                     !string.Equals(existingPath, canonicalPath, StringComparison.Ordinal))
+            {
+                // A case-insensitive request cannot uniquely identify either path.
+                lookup[canonicalPath] = null;
+            }
         }
 
-        if (existingPath is not null &&
-            !string.Equals(existingPath, canonicalPath, StringComparison.Ordinal))
-        {
-            // A case-insensitive request cannot uniquely identify either path.
-            _canonicalPaths[canonicalPath] = null;
-        }
+        return lookup;
     }
 
     private static IEnumerable<string> EnumerateCanonicalPaths(string webRootPath)

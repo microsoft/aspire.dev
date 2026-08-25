@@ -25,6 +25,22 @@ public sealed class CanonicalPathRedirectTests
     }
 
     [Fact]
+    public async Task Redirect_preserves_path_base_and_query_string()
+    {
+        await using var server = await AgentReadinessTestServer.StartAsync(
+            root => root.WriteFile("diagnostics/aspire001/index.html", SamplePages.Html),
+            pathBase: new PathString("/docs"));
+
+        using var response = await server.Client.GetAsync(
+            "/docs/DIAGNOSTICS/ASPIRE001/?source=compiler");
+
+        Assert.Equal(HttpStatusCode.PermanentRedirect, response.StatusCode);
+        Assert.Equal(
+            "/docs/diagnostics/aspire001/?source=compiler",
+            response.Headers.Location?.OriginalString);
+    }
+
+    [Fact]
     public async Task Case_mismatched_static_file_redirects_to_canonical_path()
     {
         await using var server = await AgentReadinessTestServer.StartAsync(

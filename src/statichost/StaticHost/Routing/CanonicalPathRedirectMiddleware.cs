@@ -1,32 +1,29 @@
+using Microsoft.AspNetCore.Http.Extensions;
+
 namespace StaticHost.Routing;
 
-internal sealed class CanonicalPathRedirectMiddleware
+internal sealed class CanonicalPathRedirectMiddleware(
+    RequestDelegate next,
+    IWebHostEnvironment environment)
 {
-    private readonly RequestDelegate _next;
-    private readonly CanonicalPathResolver _resolver;
-
-    public CanonicalPathRedirectMiddleware(
-        RequestDelegate next,
-        IWebHostEnvironment environment)
-    {
-        _next = next;
-        _resolver = new CanonicalPathResolver(
-            environment.WebRootPath ??
-            throw new InvalidOperationException("The static web root is not configured."));
-    }
+    private readonly CanonicalPathResolver _resolver = new(
+        environment.WebRootPath ??
+        throw new InvalidOperationException("The static web root is not configured."));
 
     public Task InvokeAsync(HttpContext context)
     {
         if (!_resolver.TryResolve(context.Request.Path, out var canonicalPath))
         {
-            return _next(context);
+            return next(context);
         }
 
-        var location =
-            context.Request.PathBase.Add(canonicalPath).ToUriComponent() +
-            context.Request.QueryString.ToUriComponent();
-
-        context.Response.Redirect(location, permanent: true, preserveMethod: true);
+        context.Response.Redirect(
+            UriHelper.BuildRelative(
+                context.Request.PathBase,
+                canonicalPath,
+                context.Request.QueryString),
+            permanent: true,
+            preserveMethod: true);
         return Task.CompletedTask;
     }
 }

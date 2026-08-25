@@ -33,7 +33,9 @@ internal sealed class AgentReadinessTestServer : IAsyncDisposable
         Client = testServer.CreateClient();
     }
 
-    public static async Task<AgentReadinessTestServer> StartAsync(Action<TempWebRoot>? seed = null)
+    public static async Task<AgentReadinessTestServer> StartAsync(
+        Action<TempWebRoot>? seed = null,
+        PathString pathBase = default)
     {
         var wwwroot = new TempWebRoot();
         try
@@ -48,6 +50,11 @@ internal sealed class AgentReadinessTestServer : IAsyncDisposable
                     web.UseWebRoot(wwwroot.Path);
                     web.Configure(app =>
                     {
+                        if (pathBase.HasValue)
+                        {
+                            app.UsePathBase(pathBase);
+                        }
+
                         // Match production order: canonical redirects and
                         // agent-readiness BEFORE default files (see Program.cs).
                         app.UseCanonicalPathRedirects();
