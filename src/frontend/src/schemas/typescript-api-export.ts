@@ -18,16 +18,25 @@ export interface TypeScriptApiPackageIdentity {
   version: string;
 }
 
+export interface TypeScriptApiParameter {
+  name: string;
+  type: string;
+  optional: boolean;
+  summary?: string;
+}
+
 export interface TypeScriptApiMember {
   id: string;
   kind: string;
   name: string;
   /** The final TypeScript text, for example `addRedis(name: string): RedisResourcePromise`. */
   declaration: string;
+  capabilityId?: string;
   summary?: string;
   remarks?: string;
   deprecated?: string;
   returnType?: string;
+  parameters?: TypeScriptApiParameter[];
 }
 
 export interface TypeScriptApiItem {
@@ -100,6 +109,14 @@ function requireNonEmptyString(source: string, value: unknown, path: string): st
   return value;
 }
 
+function requireBoolean(source: string, value: unknown, path: string): boolean {
+  if (typeof value !== 'boolean') {
+    fail(source, `${path} must be a boolean.`);
+  }
+
+  return value;
+}
+
 function optionalString(source: string, value: unknown, path: string): string | undefined {
   if (value === undefined || value === null) {
     return undefined;
@@ -122,8 +139,25 @@ function optionalStringArray(source: string, value: unknown, path: string): stri
   );
 }
 
+function parseParameter(source: string, value: unknown, path: string): TypeScriptApiParameter {
+  const record = requireRecord(source, value, path);
+
+  return {
+    name: requireNonEmptyString(source, record.name, `${path}.name`),
+    type: requireNonEmptyString(source, record.type, `${path}.type`),
+    optional: requireBoolean(source, record.optional, `${path}.optional`),
+    summary: optionalString(source, record.summary, `${path}.summary`),
+  };
+}
+
 function parseMember(source: string, value: unknown, path: string): TypeScriptApiMember {
   const record = requireRecord(source, value, path);
+
+  const parameters = record.parameters === undefined || record.parameters === null
+    ? undefined
+    : requireArray(source, record.parameters, `${path}.parameters`).map((parameter, index) =>
+        parseParameter(source, parameter, `${path}.parameters[${index}]`),
+      );
 
   return {
     id: requireNonEmptyString(source, record.id, `${path}.id`),
@@ -132,10 +166,12 @@ function parseMember(source: string, value: unknown, path: string): TypeScriptAp
     // A blank declaration means the producer failed to resolve a signature, which would otherwise
     // surface as an empty code block on a published page.
     declaration: requireNonEmptyString(source, record.declaration, `${path}.declaration`),
+    capabilityId: optionalString(source, record.capabilityId, `${path}.capabilityId`),
     summary: optionalString(source, record.summary, `${path}.summary`),
     remarks: optionalString(source, record.remarks, `${path}.remarks`),
     deprecated: optionalString(source, record.deprecated, `${path}.deprecated`),
     returnType: optionalString(source, record.returnType, `${path}.returnType`),
+    parameters,
   };
 }
 
@@ -285,6 +321,60 @@ export interface ConcatenatedDeclarations {
 }
 
 /**
+ * Validates stable identities across every package in a complete manifest.
+ */
+export function validateTypeScriptApiManifest(
+  documents: readonly TypeScriptApiExport[],
+): void {
+  const itemsById = new Map<string, string>();
+  const declarationsById = new Map<
+    string,
+    { declaration: TypeScriptApiDeclaration; packageName: string }
+  >();
+
+  for (const document of documents) {
+    for (const module of document.modules) {
+      for (const item of module.items) {
+        const firstPackage = itemsById.get(item.id);
+        if (firstPackage !== undefined) {
+          fail(
+            document.package.name,
+            `item ID '${item.id}' conflicts with the item already contributed by package '${firstPackage}'.`,
+          );
+        }
+
+        itemsById.set(item.id, document.package.name);
+      }
+    }
+
+    for (const declaration of document.declarations) {
+      const existing = declarationsById.get(declaration.id);
+      if (existing === undefined) {
+        declarationsById.set(declaration.id, {
+          declaration,
+          packageName: document.package.name,
+        });
+        continue;
+      }
+
+      if (existing.declaration.content !== declaration.content) {
+        fail(
+          document.package.name,
+          `declaration ID '${declaration.id}' conflicts with content contributed by package '${existing.packageName}'.`,
+        );
+      }
+
+      if (existing.declaration.owningAssembly !== declaration.owningAssembly) {
+        fail(
+          document.package.name,
+          `declaration ID '${declaration.id}' has conflicting ownership: package '${existing.packageName}' contributed owner '${existing.declaration.owningAssembly}', but package '${document.package.name}' contributed owner '${declaration.owningAssembly}'.`,
+        );
+      }
+    }
+  }
+}
+
+/**
  * Merges the declaration fragments of a complete manifest: deduplicate by stable ID, order by that
  * same ID, and join. This is mechanical on purpose — the fragments are already final TypeScript, so
  * anything beyond sorting and deduplication would be the site reshaping the producer's contract.
@@ -292,19 +382,12 @@ export interface ConcatenatedDeclarations {
 export function concatenateDeclarations(
   documents: readonly TypeScriptApiExport[],
 ): ConcatenatedDeclarations {
+  validateTypeScriptApiManifest(documents);
+
   const byId = new Map<string, TypeScriptApiDeclaration>();
 
   for (const document of documents) {
     for (const declaration of document.declarations) {
-      const existing = byId.get(declaration.id);
-
-      if (existing !== undefined && existing.content !== declaration.content) {
-        throw new TypeScriptApiExportError(
-          document.package.name,
-          `declaration '${declaration.id}' conflicts with the fragment already contributed by another package.`,
-        );
-      }
-
       byId.set(declaration.id, declaration);
     }
   }

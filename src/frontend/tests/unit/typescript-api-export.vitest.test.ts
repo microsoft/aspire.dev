@@ -11,6 +11,7 @@ import {
   concatenateDeclarations,
   TypeScriptApiExportError,
   type TypeScriptApiExport,
+  type TypeScriptApiMember,
 } from '../../src/schemas/typescript-api-export';
 
 const fixtureDir = fileURLToPath(new URL('../fixtures/typescript-api-export/', import.meta.url));
@@ -56,6 +57,45 @@ function validDocument(): TypeScriptApiExport {
   };
 }
 
+function validDocumentForPackage(packageName: string): TypeScriptApiExport {
+  const document = validDocument();
+  const typeName = packageName.replaceAll('.', '');
+  document.package.name = packageName;
+  document.modules[0].name = packageName;
+  document.modules[0].items[0] = {
+    ...document.modules[0].items[0],
+    id: `interface:${packageName}`,
+    name: `${typeName}Resource`,
+    declaration: `export interface ${typeName}Resource`,
+    owningAssembly: packageName,
+  };
+  document.declarations[0] = {
+    id: `${packageName}:interface:${typeName}Resource`,
+    content: `export interface ${typeName}Resource {}`,
+    owningAssembly: packageName,
+  };
+
+  return parseTypeScriptApiExport(document, packageName);
+}
+
+function validMember(): TypeScriptApiMember {
+  return {
+    id: 'method:addRedis',
+    kind: 'method',
+    name: 'addRedis',
+    declaration: 'addRedis(name: string): RedisResource',
+    capabilityId: 'Aspire.Hosting.Redis/addRedis',
+    parameters: [
+      {
+        name: 'name',
+        type: 'string',
+        optional: false,
+        summary: 'The resource name.',
+      },
+    ],
+  };
+}
+
 function expectRejected(mutate: (document: TypeScriptApiExport) => void, message: RegExp) {
   const document = validDocument();
   mutate(document);
@@ -65,6 +105,25 @@ function expectRejected(mutate: (document: TypeScriptApiExport) => void, message
   );
   expect(() => parseTypeScriptApiExport(document, 'test-document')).toThrowError(message);
 }
+
+function getProcessErrorOutput(error: unknown): string {
+  const processError = error as { stdout?: string; stderr?: string };
+  const output = [processError.stdout, processError.stderr]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .join('\n');
+
+  return output || String(error);
+}
+
+describe('process error output', () => {
+  it('uses stderr when stdout is empty', () => {
+    expect(getProcessErrorOutput({ stdout: '', stderr: 'compiler error' })).toBe('compiler error');
+  });
+
+  it('falls back to the error text when the process has no output streams', () => {
+    expect(getProcessErrorOutput(new Error('process failed'))).toContain('process failed');
+  });
+});
 
 describe('typescript-api-export schema version 1', () => {
   it('accepts the canonical fixtures produced by aspire sdk export', () => {
@@ -119,6 +178,47 @@ describe('typescript-api-export schema version 1', () => {
     expectRejected((document) => {
       document.modules[0].items[0].members = [{ id: 'method:withHostPort', kind: 'method', name: 'withHostPort', declaration: '' }];
     }, /declaration/i);
+  });
+
+  it('preserves producer-owned member metadata', () => {
+    const document = validDocument();
+    const member = validMember();
+    document.modules[0].items[0].members = [member];
+
+    const parsed = parseTypeScriptApiExport(document, 'test-document');
+    const parsedMember = parsed.modules[0].items[0].members?.[0];
+
+    expect(parsedMember?.capabilityId).toBe(member.capabilityId);
+    expect(parsedMember?.parameters).toEqual(member.parameters);
+    expect(parsedMember?.remarks).toBeUndefined();
+  });
+
+  it('rejects a member parameter whose optional flag is not boolean', () => {
+    const document = validDocument();
+    const member = validMember();
+    (member.parameters?.[0] as { optional: unknown }).optional = 'false';
+    document.modules[0].items[0].members = [member];
+
+    expect(() => parseTypeScriptApiExport(document, 'test-document')).toThrowError(
+      TypeScriptApiExportError,
+    );
+    expect(() => parseTypeScriptApiExport(document, 'test-document')).toThrowError(
+      /\.parameters\[0\]\.optional/,
+    );
+  });
+
+  it('rejects a member parameter with an empty type', () => {
+    const document = validDocument();
+    const member = validMember();
+    member.parameters![0].type = '';
+    document.modules[0].items[0].members = [member];
+
+    expect(() => parseTypeScriptApiExport(document, 'test-document')).toThrowError(
+      TypeScriptApiExportError,
+    );
+    expect(() => parseTypeScriptApiExport(document, 'test-document')).toThrowError(
+      /\.parameters\[0\]\.type/,
+    );
   });
 });
 
@@ -181,6 +281,47 @@ describe('two-package manifests', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it('rejects repeated item IDs across independently valid documents', () => {
+    const first = validDocumentForPackage('First.Package');
+    const second = validDocumentForPackage('Second.Package');
+    second.modules[0].items[0].id = first.modules[0].items[0].id;
+
+    expect(() => concatenateDeclarations([first, second])).toThrowError(
+      TypeScriptApiExportError,
+    );
+    expect(() => concatenateDeclarations([first, second])).toThrowError(
+      /Second\.Package: item ID 'interface:First\.Package'.*package 'First\.Package'/,
+    );
+  });
+
+  it('rejects repeated declaration IDs with different ownership', () => {
+    const first = validDocumentForPackage('First.Package');
+    const second = validDocumentForPackage('Second.Package');
+    second.declarations[0] = {
+      ...first.declarations[0],
+      owningAssembly: second.package.name,
+    };
+
+    expect(() => concatenateDeclarations([first, second])).toThrowError(
+      TypeScriptApiExportError,
+    );
+    expect(() => concatenateDeclarations([first, second])).toThrowError(
+      /Second\.Package: declaration ID 'First\.Package:interface:FirstPackageResource' has conflicting ownership: package 'First\.Package'.*package 'Second\.Package'/,
+    );
+  });
+
+  it('allows an exact repeated declaration from the same owner', () => {
+    const first = validDocumentForPackage('First.Package');
+    const second = validDocumentForPackage('Second.Package');
+    second.declarations[0] = { ...first.declarations[0] };
+
+    const combined = concatenateDeclarations([first, second]);
+
+    expect(
+      combined.declarations.filter((declaration) => declaration.id === first.declarations[0].id),
+    ).toHaveLength(1);
+  });
+
   it('resolves every declaration ID referenced across the manifest exactly once', () => {
     const combined = concatenateDeclarations([core, integration]);
     const ids = combined.declarations.map((declaration) => declaration.id);
@@ -226,7 +367,7 @@ describe('combined declaration fragments', () => {
     try {
       execFileSync(process.execPath, [tsc, '--project', tsconfig], { encoding: 'utf8' });
     } catch (error) {
-      output = (error as { stdout?: string }).stdout ?? String(error);
+      output = getProcessErrorOutput(error);
     }
 
     expect(output).toBe('');
