@@ -51,7 +51,7 @@
     },
     troubleshooting_recovery: {
       troubleshooting_viewed: 1,
-      issue_selected: 2,
+      issue_viewed: 2,
       remediation_copied: 3,
       return_to_task: 4,
       file_issue: 4,
@@ -63,7 +63,7 @@
     },
     existing_app_adoption: {
       guide_viewed: 1,
-      approach_selected: 2,
+      approach_viewed: 2,
       setup_command_copied: 3,
       run_command_copied: 4,
       next_step_clicked: 5,
@@ -447,10 +447,7 @@
     var codeText = code && code.textContent ? code.textContent : '';
     var install = classifyIntegrationInstall(codeText);
     var extractedIntegration = extractIntegrationId(codeText);
-    if (
-      inferredIntegrationContext &&
-      inferredIntegrationContext.path !== normalizePath()
-    ) {
+    if (inferredIntegrationContext && inferredIntegrationContext.path !== normalizePath()) {
       inferredIntegrationContext = null;
     }
     var integration =
@@ -610,7 +607,8 @@
       rememberCliEntry();
     }
 
-    if (details.funnel === 'not_found_recovery' && details.step === 'recovery_action') {
+    var tracked = trackFunnelStep(details);
+    if (tracked && details.funnel === 'not_found_recovery' && details.step === 'recovery_action') {
       var recoveryLink = clickedElement.closest('a[href]');
       writeContinuationMarker(
         NOT_FOUND_DESTINATION_MARKER_KEY,
@@ -621,7 +619,6 @@
       );
     }
 
-    var tracked = trackFunnelStep(details);
     if (
       tracked &&
       details.funnel === 'troubleshooting_recovery' &&
@@ -643,7 +640,8 @@
       clearCliEntryMarker();
     }
 
-    if (details && details.funnel === 'search_success' && details.step === 'result_selected') {
+    var tracked = trackFunnelStep(details);
+    if (tracked && details.funnel === 'search_success' && details.step === 'result_selected') {
       writeContinuationMarker(
         SEARCH_DESTINATION_MARKER_KEY,
         getInternalDestinationPath(details.destinationHref),
@@ -656,8 +654,6 @@
         }
       );
     }
-
-    trackFunnelStep(details);
   }
 
   function getActionKind(clickedElement) {

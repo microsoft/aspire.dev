@@ -157,6 +157,9 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       this.dialogObserver = new MutationObserver(() => {
         if (this.dialog.open && !this.wasOpen) {
           emitSearchStep('search_opened');
+        } else if (!this.dialog.open && this.wasOpen) {
+          window.clearTimeout(this.resultTimer);
+          this.resultTimer = undefined;
         }
         this.wasOpen = this.dialog.open;
       });
@@ -183,7 +186,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       window.clearTimeout(this.resultTimer);
       const revision = this.queryRevision;
       this.resultTimer = window.setTimeout(() => {
-        if (revision !== this.queryRevision) return;
+        if (!this.dialog.open || revision !== this.queryRevision) return;
         const query = this.input?.value.trim() ?? '';
         if (!query) return;
 

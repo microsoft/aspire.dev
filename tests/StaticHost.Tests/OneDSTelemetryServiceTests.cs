@@ -36,6 +36,8 @@ public sealed class OneDSTelemetryServiceTests
         Assert.Equal(platform, tags[TelemetryConstants.Tags.Platform]);
         Assert.Equal(scriptName, tags[TelemetryConstants.Tags.ScriptName]);
         Assert.DoesNotContain("request_referer", tags.Keys);
+        Assert.DoesNotContain(TelemetryConstants.Tags.ClientIp, tags.Keys);
+        Assert.DoesNotContain(TelemetryConstants.Tags.UserAgent, tags.Keys);
     }
 
     [Fact]

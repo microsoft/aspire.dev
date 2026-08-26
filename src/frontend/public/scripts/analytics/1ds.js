@@ -1,21 +1,47 @@
 /* global document, location, oneDS, window */
 
 (function () {
+  const NOT_FOUND_REFERRER_MARKER_KEY = 'aspire-last-route-not-found';
+
   function isNotFoundPage() {
-    return Boolean(
-      document.querySelector('[data-funnel="not_found_recovery"][data-funnel-view]')
-    );
+    return Boolean(document.querySelector('[data-funnel="not_found_recovery"][data-funnel-view]'));
   }
 
-  function sanitizeTelemetryUrl(value) {
+  function consumeNotFoundReferrerMarker() {
+    try {
+      const wasNotFound = window.sessionStorage.getItem(NOT_FOUND_REFERRER_MARKER_KEY) === 'true';
+      window.sessionStorage.removeItem(NOT_FOUND_REFERRER_MARKER_KEY);
+      return wasNotFound;
+    } catch (err) {
+      console.debug('[1ds] Failed to read the 404 referrer marker:', err);
+      return false;
+    }
+  }
+
+  function rememberNotFoundRoute(notFound) {
+    try {
+      if (notFound) {
+        window.sessionStorage.setItem(NOT_FOUND_REFERRER_MARKER_KEY, 'true');
+      } else {
+        window.sessionStorage.removeItem(NOT_FOUND_REFERRER_MARKER_KEY);
+      }
+    } catch (err) {
+      console.debug('[1ds] Failed to update the 404 referrer marker:', err);
+    }
+  }
+
+  let previousRouteWasNotFound = consumeNotFoundReferrerMarker();
+  let currentRouteIsNotFound = isNotFoundPage();
+
+  function sanitizeTelemetryUrl(value, isReferrer) {
     if (typeof value !== 'string' || !value) return value;
 
     try {
       const url = new URL(value, location.origin);
       if (
-        isNotFoundPage() &&
         url.origin === location.origin &&
-        url.pathname === location.pathname
+        ((isReferrer && previousRouteWasNotFound) ||
+          (currentRouteIsNotFound && url.pathname === location.pathname))
       ) {
         url.pathname = '/404/';
       }
@@ -34,17 +60,24 @@
 
       ['uri', 'targetUri', 'refUri', 'referrerUri'].forEach(function (property) {
         if (property in properties) {
-          properties[property] = sanitizeTelemetryUrl(properties[property]);
+          properties[property] = sanitizeTelemetryUrl(
+            properties[property],
+            property === 'refUri' || property === 'referrerUri'
+          );
         }
       });
     });
   }
 
   function getTelemetryPageName() {
-    if (isNotFoundPage()) return '404';
+    if (currentRouteIsNotFound) return '404';
 
     const segments = location.pathname.split('/').filter(Boolean);
     return segments.length ? segments[segments.length - 1] : 'Home';
+  }
+
+  function getTelemetryRouteKey(notFound) {
+    return location.origin + (notFound ? '/404/' : location.pathname);
   }
 
   if (typeof location !== 'undefined' && location.origin !== 'https://aspire.dev') {
@@ -87,7 +120,31 @@
     );
 
     analytics.addTelemetryInitializer(sanitizeTelemetryUrls);
-    analytics.capturePageView({ isAuto: true });
+
+    let lastPageViewKey = '';
+    let hasCapturedRoute = false;
+    const captureRouteView = function () {
+      const nextRouteIsNotFound = isNotFoundPage();
+      const routeKey = getTelemetryRouteKey(nextRouteIsNotFound);
+      if (routeKey === lastPageViewKey) return;
+
+      if (hasCapturedRoute) {
+        previousRouteWasNotFound = currentRouteIsNotFound;
+      }
+      currentRouteIsNotFound = nextRouteIsNotFound;
+      lastPageViewKey = routeKey;
+
+      analytics.capturePageView({ isAuto: true });
+      if (hasCapturedRoute) {
+        analytics.captureContentUpdate({ isAuto: true, isDomComplete: true });
+      }
+
+      rememberNotFoundRoute(currentRouteIsNotFound);
+      hasCapturedRoute = true;
+    };
+
+    document.addEventListener('astro:page-load', captureRouteView);
+    captureRouteView();
 
     const captureLoadEvents = function () {
       analytics.capturePageViewPerformance({ isAuto: true });
