@@ -1259,6 +1259,24 @@ test('sidebar collapse toggle stays visible without overlapping the H1 on no-TOC
   ).toBe(true);
 });
 
+test('Aspire 13.5 preserves published section anchors', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'The release-note anchor contract only needs one browser project.'
+  );
+
+  await page.goto('/whats-new/aspire-13-5/');
+
+  for (const anchor of [
+    'deployment-and-integrations',
+    'new-and-updated-integrations',
+    'breaking-changes',
+    'known-issues',
+  ]) {
+    await expect(page.locator(`#${anchor}`), `Expected one #${anchor} target`).toHaveCount(1);
+  }
+});
+
 test('docs reading hierarchy adapts across themes and responsive widths', async ({ page }) => {
   test.skip(
     page.viewportSize()?.width !== 1440,
