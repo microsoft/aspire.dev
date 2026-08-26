@@ -60,11 +60,9 @@ internal sealed class OneDSTelemetryService(
             if (activity is not null)
             {
                 activity.AddTag(TelemetryConstants.Tags.Behavior, "DOWNLOAD");
-                activity.AddTag(TelemetryConstants.Tags.ClientIp, context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
                 activity.AddTag(TelemetryConstants.Tags.Environment, _environment);
                 activity.AddTag(TelemetryConstants.Tags.Origin, origin);
                 activity.AddTag(TelemetryConstants.Tags.ScriptName, scriptName);
-                activity.AddTag(TelemetryConstants.Tags.UserAgent, context.Request.Headers.UserAgent.ToString());
                 activity.AddTag(TelemetryConstants.Tags.SchemaVersion, TelemetryConstants.Funnel.SchemaVersion);
                 activity.AddTag(TelemetryConstants.Tags.Funnel, TelemetryConstants.Funnel.CliInstall);
                 activity.AddTag(TelemetryConstants.Tags.FunnelStep, TelemetryConstants.Funnel.ScriptRequested);

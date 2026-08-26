@@ -320,10 +320,10 @@ test('search selection continues to the first meaningful destination action', as
   });
 
   expect(
-   await page.evaluate(() => {
-     const marker = sessionStorage.getItem('aspire-search-destination');
-     return marker ? JSON.parse(marker).destinationPath : null;
-   })
+    await page.evaluate(() => {
+      const marker = sessionStorage.getItem('aspire-search-destination');
+      return marker ? JSON.parse(marker).destinationPath : null;
+    })
   ).toBe('/get-started/first-app/');
 
   const destinationLink = page.locator('main a[href]:visible').first();
@@ -380,6 +380,27 @@ test('site search emits bounded open, result, and selection stages', async ({ pa
 
   const input = page.locator('site-search dialog .pagefind-ui__search-input');
   await expect(input).toHaveAttribute('role', 'combobox');
+  await input.fill('abandoned');
+  await page.evaluate(() => {
+    const dialog = document.querySelector('site-search dialog');
+    if (!(dialog instanceof HTMLDialogElement)) throw new Error('Search dialog not found');
+
+    const results = document.createElement('div');
+    results.className = 'pagefind-ui__results';
+    results.innerHTML = '<a class="pagefind-ui__result-link" href="/get-started/">Get started</a>';
+    dialog.append(results);
+    dialog.close();
+  });
+  await page.waitForTimeout(600);
+  let events = await readFunnelEvents(page, 'search_success');
+  expect(
+    events.some((event) => ['results_shown', 'no_results'].includes(String(event.properties.step)))
+  ).toBe(false);
+
+  await page
+    .locator('site-search dialog .pagefind-ui__results')
+    .evaluate((results) => results.remove());
+  await page.locator('site-search button[data-open-modal]').click();
   await input.fill('aspire setup');
   await page.evaluate(() => {
     const dialog = document.querySelector('site-search dialog');
@@ -391,7 +412,7 @@ test('site search emits bounded open, result, and selection stages', async ({ pa
     dialog.append(results);
   });
   await page.waitForTimeout(600);
-  let events = await readFunnelEvents(page, 'search_success');
+  events = await readFunnelEvents(page, 'search_success');
   expect(
     events.some((event) => ['results_shown', 'no_results'].includes(String(event.properties.step)))
   ).toBe(false);
@@ -403,8 +424,12 @@ test('site search emits bounded open, result, and selection stages', async ({ pa
       '<a class="pagefind-ui__result-link" href="/get-started/first-app/">Build your first app</a>';
   });
   await expect
-    .poll(async () => (await readFunnelEvents(page, 'search_success')).length)
-    .toBeGreaterThanOrEqual(2);
+    .poll(async () =>
+      (await readFunnelEvents(page, 'search_success')).some(
+        (event) => event.properties.step === 'results_shown'
+      )
+    )
+    .toBe(true);
 
   const result = page.locator('site-search dialog .pagefind-ui__result-link');
   await result.evaluate((link) => {
@@ -425,15 +450,16 @@ test('site search emits bounded open, result, and selection stages', async ({ pa
   });
   expect(events.every((event) => !('query' in event.properties))).toBe(true);
 
-  await page.locator('site-search dialog .pagefind-ui__results').evaluate((results) => results.remove());
+  await page
+    .locator('site-search dialog .pagefind-ui__results')
+    .evaluate((results) => results.remove());
   await page.locator('site-search button[data-open-modal]').click();
   await input.fill('missing');
   await page.waitForTimeout(600);
   expect(
     (await readFunnelEvents(page, 'search_success')).some(
       (event) =>
-        event.properties.step === 'no_results' &&
-        event.properties.queryLength === 'four_to_ten'
+        event.properties.step === 'no_results' && event.properties.queryLength === 'four_to_ten'
     )
   ).toBe(false);
   await page.evaluate(() => {
@@ -448,8 +474,7 @@ test('site search emits bounded open, result, and selection stages', async ({ pa
     .poll(async () =>
       (await readFunnelEvents(page, 'search_success')).some(
         (event) =>
-          event.properties.step === 'no_results' &&
-          event.properties.queryLength === 'four_to_ten'
+          event.properties.step === 'no_results' && event.properties.queryLength === 'four_to_ten'
       )
     )
     .toBe(true);
@@ -608,7 +633,7 @@ test('troubleshooting guide records issue discovery and remediation copies', asy
   expect(events).toContainEqual(
     expect.objectContaining({
       properties: expect.objectContaining({
-        step: 'issue_selected',
+        step: 'issue_viewed',
         issue: 'port_conflict',
       }),
     })
@@ -661,7 +686,7 @@ test('existing-app guide records approach, setup, run, and continuation intent',
   expect(events).toContainEqual(
     expect.objectContaining({
       properties: expect.objectContaining({
-        step: 'approach_selected',
+        step: 'approach_viewed',
         approach: 'ai_agent',
       }),
     })
@@ -726,4 +751,41 @@ test('404 page records recovery actions without exposing the requested path', as
     'valid_destination_loaded',
   ]);
   expect(events.at(-1)?.properties.recoveryAction).toBe('homepage');
+});
+
+test('failed initiating steps do not persist continuation markers', async ({ page }) => {
+  await page.goto('/this-page-does-not-exist/');
+  await dismissCookieConsentIfVisible(page);
+  await installTracker(page);
+
+  await page.evaluate(() => {
+    sessionStorage.removeItem('aspire-search-destination');
+    sessionStorage.removeItem('aspire-not-found-destination');
+    window.analytics.trackPageAction = () => {
+      throw new Error('Telemetry unavailable');
+    };
+    document.dispatchEvent(
+      new CustomEvent('aspire:funnel-step', {
+        detail: {
+          funnel: 'search_success',
+          step: 'result_selected',
+          surface: 'site_search',
+          destinationHref: '/get-started/',
+        },
+      })
+    );
+  });
+
+  const home = page.locator('[data-funnel-recovery-action="homepage"]');
+  await home.evaluate((link) => {
+    link.addEventListener('click', (event) => event.preventDefault(), { once: true });
+  });
+  await home.click();
+
+  expect(
+    await page.evaluate(() => ({
+      search: sessionStorage.getItem('aspire-search-destination'),
+      notFound: sessionStorage.getItem('aspire-not-found-destination'),
+    }))
+  ).toEqual({ search: null, notFound: null });
 });

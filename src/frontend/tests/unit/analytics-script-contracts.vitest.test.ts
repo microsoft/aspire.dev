@@ -73,6 +73,13 @@ test('OneDS automatic events use the same query-free canonical URL contract', ()
   let initializedConfig: AnalyticsConfig | undefined;
   let initializer: ((item: TelemetryItem) => void) | undefined;
   const captureCalls: string[] = [];
+  const documentListeners = new Map<string, () => void>();
+  const storage = new Map<string, string>();
+  let notFoundPage = true;
+  const locationStub = {
+    origin: 'https://aspire.dev',
+    pathname: '/private-missing-path/',
+  };
 
   class ApplicationInsightsStub {
     initialize(config: AnalyticsConfig): void {
@@ -98,17 +105,28 @@ test('OneDS automatic events use the same query-free canonical URL contract', ()
 
   const windowStub: Record<string, unknown> = {
     addEventListener() {},
+    sessionStorage: {
+      getItem(key: string) {
+        return storage.get(key) ?? null;
+      },
+      removeItem(key: string) {
+        storage.delete(key);
+      },
+      setItem(key: string, value: string) {
+        storage.set(key, value);
+      },
+    },
   };
   runInNewContext(read('public/scripts/analytics/1ds.js'), {
     console: { debug() {} },
     document: {
-      querySelector: () => ({}),
+      addEventListener(name: string, listener: () => void) {
+        documentListeners.set(name, listener);
+      },
+      querySelector: () => (notFoundPage ? {} : null),
       readyState: 'complete',
     },
-    location: {
-      origin: 'https://aspire.dev',
-      pathname: '/private-missing-path/',
-    },
+    location: locationStub,
     oneDS: { ApplicationInsights: ApplicationInsightsStub },
     URL,
     window: windowStub,
@@ -123,27 +141,43 @@ test('OneDS automatic events use the same query-free canonical URL contract', ()
   expect(initializedConfig?.webAnalyticsConfiguration.callback.pageName()).toBe('404');
   expect(captureCalls).toEqual(['pageView', 'pageViewPerformance', 'contentUpdate']);
   expect(initializer).toBeTypeOf('function');
+  expect(storage.get('aspire-last-route-not-found')).toBe('true');
+
+  notFoundPage = false;
+  locationStub.pathname = '/get-started/';
+  documentListeners.get('astro:page-load')?.();
+  documentListeners.get('astro:page-load')?.();
+
+  expect(initializedConfig?.webAnalyticsConfiguration.callback.pageName()).toBe('get-started');
+  expect(captureCalls).toEqual([
+    'pageView',
+    'pageViewPerformance',
+    'contentUpdate',
+    'pageView',
+    'contentUpdate',
+  ]);
+  expect(storage.has('aspire-last-route-not-found')).toBe(false);
 
   const item: TelemetryItem = {
     baseData: {
-      uri: 'https://aspire.dev/private-missing-path/?q=private',
+      uri: 'https://aspire.dev/get-started/?q=private',
       targetUri: 'https://aspire.dev/reference/api/csharp/?q=private',
-      refUri: 'https://search.example/results/?q=private',
+      refUri: 'https://aspire.dev/private-missing-path/?q=private',
     },
     data: {
-      referrerUri: 'https://aspire.dev/private-missing-path/?from=private',
+      referrerUri: 'https://search.example/results/?q=private',
     },
   };
   initializer!(item);
 
   expect(item).toEqual({
     baseData: {
-      uri: 'https://aspire.dev/404/',
+      uri: 'https://aspire.dev/get-started/',
       targetUri: 'https://aspire.dev/reference/api/csharp/',
-      refUri: 'https://search.example/results/',
+      refUri: 'https://aspire.dev/404/',
     },
     data: {
-      referrerUri: 'https://aspire.dev/404/',
+      referrerUri: 'https://search.example/results/',
     },
   });
 });
@@ -209,12 +243,12 @@ test('additional funnel surfaces declare their milestones without raw search dim
     read('src/content/docs/ja/get-started/troubleshooting.mdx'),
   ];
   for (const guide of troubleshootingGuides) {
-    expect(guide).toContain('data-funnel-step="issue_selected"');
+    expect(guide).toContain('data-funnel-step="issue_viewed"');
     expect(guide).toContain('data-funnel-step="remediation_copied"');
   }
 
   const existingAppGuide = read('src/content/docs/get-started/add-aspire-existing-app.mdx');
-  expect(existingAppGuide).toContain('data-funnel-step="approach_selected"');
+  expect(existingAppGuide).toContain('data-funnel-step="approach_viewed"');
   expect(existingAppGuide).toContain('data-funnel-step="setup_command_copied"');
   expect(existingAppGuide).toContain('data-funnel-step="run_command_copied"');
 
