@@ -1333,7 +1333,7 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
       });
 
       expect(metrics.bodyFontSize).toBeGreaterThanOrEqual(16);
-      expect(metrics.inlineCodeFontSize).toBeLessThan(metrics.bodyFontSize);
+      expect(metrics.inlineCodeFontSize).toBe(metrics.bodyFontSize);
       expect(metrics.inlineCodeBorderWidth).toBe(0);
       expect(metrics.strongWeight).toBe(600);
       expect(metrics.asideCodeBackgroundDiffers).toBe(true);
