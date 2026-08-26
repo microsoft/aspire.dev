@@ -50,6 +50,7 @@ test('analytics asset files contain javascript bootstrap code', () => {
   expect(trackScript).toContain('troubleshooting_recovery');
   expect(trackScript).toContain('not_found_recovery');
   expect(trackScript).toContain('existing_app_adoption');
+  expect(trackScript).not.toContain('script_requested');
   expect(trackScript).not.toMatch(/\bquery:\s*\[/);
   expect(trackScript).not.toMatch(/capturePageAction/);
   expect(oneDsScript.trimStart().startsWith('<')).toBe(false);

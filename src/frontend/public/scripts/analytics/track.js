@@ -20,7 +20,6 @@
       entry: 1,
       options_viewed: 2,
       command_copied: 3,
-      script_requested: 4,
     },
     getting_started: {
       first_app_viewed: 1,
