@@ -97,6 +97,34 @@ describe('getStructuredData', () => {
       expect(website?.inLanguage).toBe('en');
     });
 
+    it('includes a SoftwareApplication + SoftwareSourceCode wired to the organization', () => {
+      const route = createRoute({
+        entryId: 'index.mdx',
+        title: 'Aspire',
+        description: 'Your stack, streamlined.',
+      });
+
+      const json = parse(getStructuredData(route, new URL('https://aspire.dev/'), site));
+      const graph = json['@graph'] as Array<Record<string, unknown>>;
+
+      const app = graph.find((node) => node['@type'] === 'SoftwareApplication');
+      expect(app).toBeDefined();
+      expect(app?.['@id']).toBe('https://aspire.dev/#app');
+      expect(app?.applicationCategory).toBe('DeveloperApplication');
+      expect(app?.isAccessibleForFree).toBe(true);
+      expect(app?.offers).toEqual({ '@type': 'Offer', price: '0', priceCurrency: 'USD' });
+      expect(app?.author).toEqual({ '@id': 'https://aspire.dev/#org' });
+      expect(app?.publisher).toEqual({ '@id': 'https://aspire.dev/#org' });
+      expect(app?.sameAs).toBe('https://github.com/microsoft/aspire');
+
+      const source = graph.find((node) => node['@type'] === 'SoftwareSourceCode');
+      expect(source).toBeDefined();
+      expect(source?.['@id']).toBe('https://aspire.dev/#source');
+      expect(source?.codeRepository).toBe('https://github.com/microsoft/aspire');
+      expect(source?.author).toEqual({ '@id': 'https://aspire.dev/#org' });
+      expect(source?.targetProduct).toEqual({ '@id': 'https://aspire.dev/#app' });
+    });
+
     it('detects localized home pages', () => {
       const route = createRoute({
         entryId: 'de/index.mdx',
