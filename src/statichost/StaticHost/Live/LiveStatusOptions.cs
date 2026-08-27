@@ -109,6 +109,14 @@ public sealed class YouTubeOptions
     public int PollingIntervalSeconds { get; set; } = 120;
 
     /// <summary>
+    /// How often to run the quota-expensive <c>search.list</c> discovery request
+    /// while offline. Defaults to 30 minutes, which stays below the standard
+    /// YouTube Data API daily quota.
+    /// </summary>
+    [Range(30 * 60, 24 * 60 * 60)]
+    public int DiscoveryPollingIntervalSeconds { get; set; } = 30 * 60;
+
+    /// <summary>
     /// Number of consecutive offline polls required before flipping the
     /// YouTube live flag from true to false. Avoids one-off poll glitches
     /// killing the live indicator during a stable stream. Defaults to 2.

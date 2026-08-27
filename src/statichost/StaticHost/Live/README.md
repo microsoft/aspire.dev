@@ -67,15 +67,23 @@ is provided.
     "ChannelHandle": "@aspiredotdev",
     "ChannelId": "",
     "PollingIntervalSeconds": 120,
+    "DiscoveryPollingIntervalSeconds": 1800,
     "OfflineConfirmationCount": 2
   }
 }
 ```
 
-In development, prefer `dotnet user-secrets`. In production, env vars
-or Key Vault. `EnableDevEndpoint` defaults to `false`; the AppHost turns
-it on only for local dashboard-command testing and also injects
-`DevCommandSecret`.
+In publish mode, the AppHost provisions the `liveconfig` Azure Key Vault,
+writes every production `Live` value from deployment parameters, and injects
+Key Vault secret references into StaticHost. Provider credentials and webhook
+secrets are secret parameters. The Twitch and YouTube channel IDs are required
+deployment parameters; the remaining non-sensitive settings have the defaults
+shown above. The generated App Service site is limited to one worker because
+live snapshots and webhook subscription state are coordinated in memory.
+
+`EnableDevEndpoint` and `DevCommandSecret` are intentionally excluded from the
+vault. The AppHost creates those values only for local dashboard-command
+testing, and the production host never enables the dev endpoint.
 
 ## Endpoints
 

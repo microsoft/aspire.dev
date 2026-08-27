@@ -5,8 +5,8 @@ import { dismissCookieConsentIfVisible, isNarrowViewport } from '@tests/e2e/help
 /**
  * E2E coverage for the live-status feature.
  *
- * The frontend always points at `/api/live` (JSON seed) and
- * `/api/live/stream` (SSE). In the e2e environment there is no StaticHost
+ * The frontend always points at `/api/live/` (JSON seed) and
+ * `/api/live/stream/` (SSE). In the e2e environment there is no StaticHost
  * backend, so we mock both — the JSON for the initial seed and a long-lived
  * streaming response for SSE. The streaming body is split into chunks the
  * test can flush at will, so we can assert the icon transitions deterministic-
@@ -30,6 +30,8 @@ test.describe('live status', () => {
     liveSessionId: null,
     updatedAt: new Date(0).toISOString(),
   };
+  const snapshotEndpoint = /\/api\/live\/?$/;
+  const streamEndpoint = /\/api\/live\/stream\/?$/;
 
   function visibleLiveButton(page: Page) {
     return page.locator('.live-btn:visible').first();
@@ -95,7 +97,7 @@ test.describe('live status', () => {
       });
     });
 
-    await page.route('**/api/live', (route) =>
+    await page.route(snapshotEndpoint, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -113,13 +115,16 @@ test.describe('live status', () => {
     const liveDialog = page.getByRole('dialog', { name: 'Watch Aspire live' });
     await expect(liveDialog).toBeVisible();
     await expect(liveDialog.getByText('Choose how to watch')).toBeVisible();
-    await expect(liveDialog.getByRole('button', { name: /Open YouTube Picture-in-Picture/ }))
-      .toBeVisible();
-    await expect(liveDialog.getByRole('button', { name: /Open Twitch Picture-in-Picture/ }))
-      .toBeVisible();
+    await expect(
+      liveDialog.getByRole('button', { name: /Open YouTube Picture-in-Picture/ })
+    ).toBeVisible();
+    await expect(
+      liveDialog.getByRole('button', { name: /Open Twitch Picture-in-Picture/ })
+    ).toBeVisible();
     await expect(liveDialog.getByRole('button', { name: 'Dismiss notification' })).toBeInViewport();
-    await expect(liveDialog.getByRole('button', { name: 'Dismiss live notification' }))
-      .toBeVisible();
+    await expect(
+      liveDialog.getByRole('button', { name: 'Dismiss live notification' })
+    ).toBeVisible();
 
     const box = await liveDialog.boundingBox();
     const headerBox = await page.getByRole('banner').boundingBox();
@@ -198,7 +203,7 @@ test.describe('live status', () => {
       });
     });
 
-    await page.route('**/api/live', (route) =>
+    await page.route(snapshotEndpoint, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -291,7 +296,7 @@ test.describe('live status', () => {
       });
     });
 
-    await page.route('**/api/live', async (route) => {
+    await page.route(snapshotEndpoint, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -365,7 +370,7 @@ test.describe('live status', () => {
       });
     });
 
-    await page.route('**/api/live', (route) =>
+    await page.route(snapshotEndpoint, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -422,11 +427,14 @@ test.describe('live status', () => {
     }, idleSnapshot);
     await expect(liveBtn).toHaveAttribute('data-live-dismissed', 'false');
 
-    await page.evaluate((snapshot) => {
-      (
-        window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
-      ).__aspireLiveSseEmit?.(snapshot);
-    }, { ...firstProviderLive, liveSessionId: 'live-session-2' });
+    await page.evaluate(
+      (snapshot) => {
+        (
+          window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
+        ).__aspireLiveSseEmit?.(snapshot);
+      },
+      { ...firstProviderLive, liveSessionId: 'live-session-2' }
+    );
     await expect(liveBtn).toHaveAttribute('data-live', 'true');
   });
 
@@ -439,7 +447,7 @@ test.describe('live status', () => {
       updatedAt: new Date().toISOString(),
     };
 
-    await page.route('**/api/live', (r) =>
+    await page.route(snapshotEndpoint, (r) =>
       r.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -447,7 +455,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route('**/api/live/stream', (route) => fulfillSseState(route, liveSnapshot));
+    await page.route(streamEndpoint, (route) => fulfillSseState(route, liveSnapshot));
 
     await page.goto('/community/videos/');
     await dismissCookieConsentIfVisible(page);
@@ -503,7 +511,7 @@ test.describe('live status', () => {
       });
     });
 
-    await page.route('**/api/live', (r) =>
+    await page.route(snapshotEndpoint, (r) =>
       r.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -511,7 +519,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route('**/api/live/stream', (route) => fulfillSseState(route, liveSnapshot));
+    await page.route(streamEndpoint, (route) => fulfillSseState(route, liveSnapshot));
 
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
@@ -632,7 +640,7 @@ test.describe('live status', () => {
       });
     });
 
-    await page.route('**/api/live', (r) =>
+    await page.route(snapshotEndpoint, (r) =>
       r.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -640,7 +648,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route('**/api/live/stream', (route) => fulfillSseState(route, liveSnapshot));
+    await page.route(streamEndpoint, (route) => fulfillSseState(route, liveSnapshot));
 
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
@@ -653,8 +661,9 @@ test.describe('live status', () => {
     await expect(sourceMenu).toBeVisible();
     await expect(sourceMenu.getByText('Embedded players')).toBeVisible();
     await expect(sourceMenu.locator('.live-source-menu__external-icon')).toHaveCount(2);
-    await expect(sourceMenu.getByRole('button', { name: 'Dismiss live notification' }))
-      .toBeVisible();
+    await expect(
+      sourceMenu.getByRole('button', { name: 'Dismiss live notification' })
+    ).toBeVisible();
     await expect(sourceMenu.getByText('aspiredotdev')).toHaveCount(0);
     await expect(sourceMenu.getByRole('link', { name: /Open live streams page/ })).toHaveAttribute(
       'href',
@@ -726,7 +735,7 @@ test.describe('live status', () => {
   });
 
   test('videos page loads channel embeds while idle', async ({ page }) => {
-    await page.route('**/api/live', (r) =>
+    await page.route(snapshotEndpoint, (r) =>
       r.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -734,7 +743,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route('**/api/live/stream', (route) => fulfillSseState(route, idleSnapshot));
+    await page.route(streamEndpoint, (route) => fulfillSseState(route, idleSnapshot));
 
     await page.goto('/community/videos/');
     await dismissCookieConsentIfVisible(page);
@@ -750,5 +759,32 @@ test.describe('live status', () => {
     await expect(twitchFrame).not.toHaveAttribute('title');
     await expect(youtubeFrame).toHaveAttribute('aria-label', 'Aspire on YouTube');
     await expect(twitchFrame).toHaveAttribute('aria-label', 'Aspire on Twitch');
+  });
+
+  test('videos page refreshes and mutes the active live embed for autoplay', async ({ page }) => {
+    const liveSnapshot: LiveSnapshot = {
+      isLive: true,
+      primarySource: 'youtube',
+      twitch: { live: false, channel: null },
+      youtube: { live: true, videoId: 'video-123' },
+      updatedAt: new Date().toISOString(),
+    };
+
+    await page.route(snapshotEndpoint, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(liveSnapshot),
+      })
+    );
+    await page.route(streamEndpoint, (route) => fulfillSseState(route, liveSnapshot));
+
+    await page.goto('/community/videos/');
+    await dismissCookieConsentIfVisible(page);
+
+    const youtubeFrame = page.locator('.live-embed-wrapper[data-source="youtube"] iframe');
+    await expect(youtubeFrame).toHaveAttribute('src', /[?&]autoplay=1(?:&|$)/);
+    await expect(youtubeFrame).toHaveAttribute('src', /[?&]mute=1(?:&|$)/);
+    await expect(page.locator('[role="tab"][aria-selected="true"]')).toContainText('YouTube');
   });
 });

@@ -58,6 +58,7 @@ const height = src.height;
 
 <script>
   // @ts-nocheck -- Client-side DOM manipulation with runtime casts; suppress to avoid implicit any noise.
+  let themeObserver;
 
   function getCurrentTheme() {
     const html = document.documentElement;
@@ -95,6 +96,8 @@ const height = src.height;
     const prefersNoHover = window.matchMedia && window.matchMedia('(hover: none)').matches;
 
     document.querySelectorAll('.looping-image-wrapper').forEach((wrapper) => {
+      if (wrapper.dataset.loopingImageInitialized === 'true') return;
+
       const img = wrapper.querySelector('img.looping-image');
       const placeholder = wrapper.querySelector('.looping-image-placeholder');
       const canvas = wrapper.querySelector('canvas.looping-image-canvas');
@@ -107,6 +110,8 @@ const height = src.height;
         !(btn instanceof HTMLButtonElement)
       )
         return;
+
+      wrapper.dataset.loopingImageInitialized = 'true';
 
       // Set initial placeholder URL based on current theme
       updatePlaceholderForTheme(placeholder);
@@ -237,10 +242,14 @@ const height = src.height;
 
   function initLoopingImages() {
     try {
+      themeObserver?.disconnect();
+      themeObserver = undefined;
+      if (!document.querySelector('.looping-image-wrapper')) return;
+
       initButtons();
 
       // Watch for theme changes
-      const observer = new MutationObserver((mutations) => {
+      themeObserver = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           if (
             mutation.type === 'attributes' &&
@@ -254,7 +263,7 @@ const height = src.height;
           }
         }
       });
-      observer.observe(document.documentElement, {
+      themeObserver.observe(document.documentElement, {
         attributes: true,
         attributeFilter: ['data-theme'],
       });
@@ -263,11 +272,8 @@ const height = src.height;
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initLoopingImages);
-  } else {
-    initLoopingImages();
-  }
+  document.addEventListener('astro:page-load', initLoopingImages);
+  if (document.readyState !== 'loading') initLoopingImages();
 </script>
 
 <style>

@@ -247,12 +247,12 @@ export default defineConfig({
         vite: {
           server: {
             proxy: {
-              // Prefix match: covers both the JSON snapshot (/api/live) and the
-              // SSE stream (/api/live/stream). changeOrigin so StaticHost sees its
-              // own host header.
-              '/api/live': {
+              // A regular-expression context bypasses Astro's trailing-slash
+              // routing for both the JSON snapshot and SSE stream.
+              '^/api/live(?:/.*)?$': {
                 target: staticHostUrl,
                 changeOrigin: true,
+                secure: false,
               },
             },
           },

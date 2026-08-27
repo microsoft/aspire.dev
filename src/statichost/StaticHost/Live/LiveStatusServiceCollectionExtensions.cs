@@ -49,6 +49,7 @@ public static class LiveStatusServiceCollectionExtensions
         builder.Services.AddSingleton<ITwitchClient, TwitchClient>();
         builder.Services.AddSingleton<IYouTubeClient, YouTubeClient>();
 
+        builder.Services.AddSingleton<YouTubeWebSubSubscriptionState>();
         builder.Services.AddSingleton<YouTubeLiveConfirmationQueue>();
         builder.Services.AddHostedService(static sp => sp.GetRequiredService<YouTubeLiveConfirmationQueue>());
 

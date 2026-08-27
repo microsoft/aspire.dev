@@ -70,7 +70,46 @@ public sealed class YouTubeClient(
     }
 
     /// <inheritdoc/>
-    public async Task SubscribeAsync(string channelId, string callbackUrl, string secret, TimeSpan lease, CancellationToken cancellationToken)
+    public async Task<YouTubeLiveResult> GetVideoLiveStatusAsync(string videoId, CancellationToken cancellationToken)
+    {
+        var apiKey = options.CurrentValue.YouTube.ApiKey;
+        if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(videoId))
+        {
+            return new YouTubeLiveResult(false, null);
+        }
+
+        var url = $"videos?part=liveStreamingDetails&id={Uri.EscapeDataString(videoId)}&key={Uri.EscapeDataString(apiKey)}";
+        using var response = await ApiClient().GetAsync(url, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        var items = doc.RootElement.GetProperty("items");
+        if (items.GetArrayLength() == 0 ||
+            !items[0].TryGetProperty("liveStreamingDetails", out var details))
+        {
+            return new YouTubeLiveResult(false, null);
+        }
+
+        var hasStarted = details.TryGetProperty("actualStartTime", out var started) &&
+            started.ValueKind == JsonValueKind.String;
+        var hasEnded = details.TryGetProperty("actualEndTime", out var ended) &&
+            ended.ValueKind == JsonValueKind.String;
+
+        return hasStarted && !hasEnded
+            ? new YouTubeLiveResult(true, videoId)
+            : new YouTubeLiveResult(false, null);
+    }
+
+    /// <inheritdoc/>
+    public async Task SubscribeAsync(
+        string channelId,
+        string callbackUrl,
+        string secret,
+        string verifyToken,
+        TimeSpan lease,
+        CancellationToken cancellationToken)
     {
         var c = httpFactory.CreateClient(PubSubHttpClientName);
         c.BaseAddress ??= new Uri("https://pubsubhubbub.appspot.com/");
@@ -81,6 +120,7 @@ public sealed class YouTubeClient(
             new KeyValuePair<string,string>("hub.callback", callbackUrl),
             new KeyValuePair<string,string>("hub.topic", topic),
             new KeyValuePair<string,string>("hub.verify", "async"),
+            new KeyValuePair<string,string>("hub.verify_token", verifyToken),
             new KeyValuePair<string,string>("hub.mode", "subscribe"),
             new KeyValuePair<string,string>("hub.lease_seconds", ((int)lease.TotalSeconds).ToString(CultureInfo.InvariantCulture)),
             new KeyValuePair<string,string>("hub.secret", secret),

@@ -18,9 +18,13 @@ if (builder.ExecutionContext.IsRunMode)
     // Without this, /api/live 404s against the Vite origin under `aspire run`.
     builder.AddViteApp("frontend", "../../frontend")
            .WithPnpm()
-           .WithEnvironment("ASPIRE_STATICHOST_URL", staticHostWebsite.GetEndpoint("http"))
+           .WithEnvironment("ASPIRE_STATICHOST_URL", staticHostWebsite.GetEndpoint("https"))
            .WithUrlForEndpoint("http", static url => url.DisplayText = "aspire.dev (Local)")
            .WithExternalHttpEndpoints();
+}
+else
+{
+    staticHostWebsite.WithProductionLiveStatus(builder);
 }
 
 builder.Build().Run();

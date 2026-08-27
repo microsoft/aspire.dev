@@ -60,6 +60,39 @@ public sealed class YouTubeClientTests
             request.RequestUri?.ToString());
     }
 
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, "2026-08-27T15:00:00Z")]
+    public async Task GetVideoLiveStatusAsync_UsesLowCostVideoLookup(
+        bool ended,
+        string? actualEndTime)
+    {
+        var endProperty = ended ? $""","actualEndTime":"{actualEndTime}" """ : "";
+        var apiHandler = new RecordingHttpMessageHandler(_ =>
+            LiveTestHelpers.JsonResponse($$"""
+            {
+              "items": [
+                {
+                  "liveStreamingDetails": {
+                    "actualStartTime": "2026-08-27T14:00:00Z"
+                    {{endProperty}}
+                  }
+                }
+              ]
+            }
+            """));
+        var client = CreateClient(apiHandler: apiHandler, apiKey: "api-key");
+
+        var live = await client.GetVideoLiveStatusAsync("video-123", CancellationToken.None);
+
+        Assert.Equal(!ended, live.Live);
+        Assert.Equal(ended ? null : "video-123", live.VideoId);
+        var request = Assert.Single(apiHandler.Requests);
+        Assert.Equal(
+            "https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=video-123&key=api-key",
+            request.RequestUri?.ToString());
+    }
+
     [Fact]
     public async Task SubscribeAsync_PostsExpectedHubForm()
     {
@@ -71,6 +104,7 @@ public sealed class YouTubeClientTests
             "channel-123",
             "https://example.com/api/live/youtube/webhook",
             "webhook-secret",
+            "verify-token",
             TimeSpan.FromDays(5),
             CancellationToken.None);
 
@@ -79,6 +113,7 @@ public sealed class YouTubeClientTests
         Assert.Equal("https://pubsubhubbub.appspot.com/subscribe", request.RequestUri?.ToString());
         Assert.Contains("hub.mode=subscribe", request.Content, StringComparison.Ordinal);
         Assert.Contains("hub.verify=async", request.Content, StringComparison.Ordinal);
+        Assert.Contains("hub.verify_token=verify-token", request.Content, StringComparison.Ordinal);
         Assert.Contains("hub.secret=webhook-secret", request.Content, StringComparison.Ordinal);
         Assert.Contains("hub.lease_seconds=432000", request.Content, StringComparison.Ordinal);
         Assert.Contains("hub.callback=https%3A%2F%2Fexample.com%2Fapi%2Flive%2Fyoutube%2Fwebhook", request.Content, StringComparison.Ordinal);

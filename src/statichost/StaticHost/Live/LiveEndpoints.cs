@@ -218,7 +218,11 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
     // --- YouTube WebSub -----------------------------------------------------
 
-    private static IResult YouTubeVerify(HttpContext context, IOptions<LiveStatusOptions> options)
+    private static IResult YouTubeVerify(
+        HttpContext context,
+        YouTubeWebSubSubscriptionState subscriptions,
+        TimeProvider time,
+        ILoggerFactory loggerFactory)
     {
         var query = context.Request.Query;
         if (!query.ContainsKey("hub.mode"))
@@ -226,20 +230,30 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             return Results.Text("YouTube WebSub webhook endpoint. The hub verifies with GET + hub.* query parameters and sends signed notifications with POST.", "text/plain");
         }
 
-        if (query["hub.mode"] != "subscribe" && query["hub.mode"] != "unsubscribe")
+        var mode = query["hub.mode"].ToString();
+        var topic = query["hub.topic"].ToString();
+        var challenge = query["hub.challenge"].ToString();
+        var verifyToken = query["hub.verify_token"].ToString();
+        var logger = loggerFactory.CreateLogger("StaticHost.Live.YouTube.WebSub");
+
+        if (!int.TryParse(query["hub.lease_seconds"], out var leaseSeconds) ||
+            string.IsNullOrEmpty(challenge))
         {
-            return Results.BadRequest("Unexpected hub.mode.");
+            logger.LogWarning("YouTube WebSub verification omitted the challenge or a valid lease.");
+            return Results.BadRequest("Invalid WebSub verification request.");
         }
 
-        var topic = query["hub.topic"].ToString();
-        var expected = $"https://www.youtube.com/xml/feeds/videos.xml?channel_id={options.Value.YouTube.ChannelId}";
-        if (!string.IsNullOrEmpty(options.Value.YouTube.ChannelId) &&
-            !string.Equals(topic, expected, StringComparison.OrdinalIgnoreCase))
+        if (!subscriptions.TryConfirmSubscription(
+            mode,
+            topic,
+            verifyToken,
+            leaseSeconds,
+            time.GetUtcNow()))
         {
+            logger.LogWarning("Rejected unexpected YouTube WebSub {Mode} verification for {Topic}.", mode, topic);
             return Results.NotFound();
         }
 
-        var challenge = query["hub.challenge"].ToString();
         return Results.Text(challenge, "text/plain");
     }
 

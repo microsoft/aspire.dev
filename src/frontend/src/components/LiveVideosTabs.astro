@@ -17,13 +17,21 @@ const { youtubeChannelId, twitchChannel } = Astro.props;
       <div class="live-embed-wrapper" data-source="youtube" data-live="false">
         <YouTubeEmbed channelId={youtubeChannelId} title="Aspire on YouTube" />
       </div>
-      <p class="muted">When we&rsquo;re not live, this shows the channel placeholder. Browse all past streams on <a href="https://youtube.com/@aspiredotdev">youtube.com/@aspiredotdev</a>.</p>
+      <p class="muted">
+        When we&rsquo;re not live, this shows the channel placeholder. Browse all past streams on <a
+          href="https://youtube.com/@aspiredotdev">youtube.com/@aspiredotdev</a
+        >.
+      </p>
     </TabItem>
     <TabItem label="Twitch" icon="twitch">
       <div class="live-embed-wrapper" data-source="twitch" data-live="false">
         <TwitchEmbed channel={twitchChannel} title="Aspire on Twitch" />
       </div>
-      <p class="muted">When we&rsquo;re not live, the Twitch player shows the offline screen. Follow <a href={`https://twitch.tv/${twitchChannel}`}>twitch.tv/{twitchChannel}</a> to get notified.</p>
+      <p class="muted">
+        When we&rsquo;re not live, the Twitch player shows the offline screen. Follow <a
+          href={`https://twitch.tv/${twitchChannel}`}>twitch.tv/{twitchChannel}</a
+        > to get notified.
+      </p>
     </TabItem>
   </Tabs>
 </div>
@@ -42,26 +50,48 @@ const { youtubeChannelId, twitchChannel } = Astro.props;
   function activateTab(label: 'YouTube' | 'Twitch'): void {
     const root = findTabRoot();
     if (!root) return;
-    const tabBtn = Array.from(
-      root.querySelectorAll<HTMLElement>('[role="tab"]'),
-    ).find((b) => b.textContent?.trim() === label);
+    const tabBtn = Array.from(root.querySelectorAll<HTMLElement>('[role="tab"]')).find(
+      (b) => b.textContent?.trim() === label
+    );
     tabBtn?.click();
   }
 
-  function setEmbedLive(source: 'youtube' | 'twitch', live: boolean): void {
+  function refreshEmbed(wrapper: HTMLElement, source: 'youtube' | 'twitch', live: boolean): void {
+    const iframe = wrapper.querySelector<HTMLIFrameElement>('iframe');
+    if (!iframe) return;
+
+    const url = new URL(iframe.src);
+    if (source === 'youtube') {
+      url.searchParams.set('autoplay', live ? '1' : '0');
+      url.searchParams.set('mute', live ? '1' : '0');
+    } else {
+      url.searchParams.set('autoplay', live ? 'true' : 'false');
+      url.searchParams.set('muted', live ? 'true' : 'false');
+    }
+    iframe.src = url.toString();
+  }
+
+  function setEmbedLive(
+    source: 'youtube' | 'twitch',
+    live: boolean,
+    streamId: string | null
+  ): void {
     const root = findTabRoot();
     if (!root) return;
-    const wrapper = root.querySelector<HTMLElement>(
-      `.live-embed-wrapper[data-source="${source}"]`,
-    );
+    const wrapper = root.querySelector<HTMLElement>(`.live-embed-wrapper[data-source="${source}"]`);
     if (!wrapper) return;
-    if (wrapper.dataset.live === (live ? 'true' : 'false')) return;
+    const nextLive = live ? 'true' : 'false';
+    const nextStreamId = streamId ?? '';
+    if (wrapper.dataset.live === nextLive && wrapper.dataset.streamId === nextStreamId) return;
+
     wrapper.dataset.live = live ? 'true' : 'false';
+    wrapper.dataset.streamId = nextStreamId;
+    refreshEmbed(wrapper, source, live);
   }
 
   function applySnapshot(snap: LiveSnapshot): void {
-    setEmbedLive('youtube', snap.youtube.live);
-    setEmbedLive('twitch', snap.twitch.live);
+    setEmbedLive('youtube', snap.youtube.live, snap.youtube.videoId);
+    setEmbedLive('twitch', snap.twitch.live, snap.twitch.channel);
     const root = findTabRoot();
     if (root) root.dataset.activeSource = snap.primarySource ?? 'none';
 

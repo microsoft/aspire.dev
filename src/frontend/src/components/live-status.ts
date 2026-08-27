@@ -116,7 +116,7 @@ function onLivePipChange(evt: CustomEvent<{ open: boolean }>): void {
 
 async function seed(): Promise<void> {
   try {
-    const res = await fetch('/api/live', { headers: { Accept: 'application/json' } });
+    const res = await fetch('/api/live/', { headers: { Accept: 'application/json' } });
     if (res.ok) {
       const json = (await res.json()) as LiveSnapshot;
       // A `state` SSE event can arrive while this request is in flight. Only apply
@@ -144,7 +144,7 @@ function scheduleReconnect(): void {
 function connect(): void {
   closeSource();
   try {
-    source = new EventSource('/api/live/stream');
+    source = new EventSource('/api/live/stream/');
   } catch (err) {
     console.warn('[live-status] EventSource unavailable', err);
     scheduleReconnect();

@@ -35,8 +35,16 @@ app.UseCanonicalPathRedirects();
 // LinkHeaderMiddleware attaches a Link header on HTML 2xx responses via OnStarting.
 app.UseAgentReadiness();
 
+var staticAssetsManifest = Path.Combine(
+    AppContext.BaseDirectory,
+    $"{app.Environment.ApplicationName}.staticwebassets.endpoints.json");
+var hasStaticAssetsManifest = File.Exists(staticAssetsManifest);
+
 app.UseDefaultFiles();
-app.UseStaticFiles();
+if (!hasStaticAssetsManifest)
+{
+    app.UseStaticFiles();
+}
 
 // add routing after default files, so the default file middleware can modify the path first
 app.UseRouting();
@@ -115,8 +123,7 @@ app.MapGet("/install.sh", (HttpContext context, OneDSTelemetryService telemetry)
     return Results.Redirect("https://aka.ms/aspire/get/install.sh");
 });
 
-var staticAssetsManifest = Path.Combine(AppContext.BaseDirectory, $"{app.Environment.ApplicationName}.staticwebassets.endpoints.json");
-if (File.Exists(staticAssetsManifest))
+if (hasStaticAssetsManifest)
 {
     app.MapStaticAssets();
 }

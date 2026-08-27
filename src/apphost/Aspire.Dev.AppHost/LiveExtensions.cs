@@ -1,8 +1,104 @@
 using System.Security.Cryptography;
 using System.Text;
 
+using Azure.Provisioning.KeyVault;
+
 internal static class LiveExtensions
 {
+    public static IResourceBuilder<ProjectResource> WithProductionLiveStatus(
+        this IResourceBuilder<ProjectResource> staticHostWebsite,
+        IDistributedApplicationBuilder builder)
+    {
+        var liveConfig = builder.AddAzureKeyVault("liveconfig");
+
+        var publicBaseUrl = liveConfig.AddSecret(
+            "live-public-base-url-secret",
+            "live-public-base-url",
+            builder.AddParameter("live-public-base-url", "https://aspire.dev", publishValueAsDefault: true));
+        var coalesceWindow = liveConfig.AddSecret(
+            "live-coalesce-window-ms-secret",
+            "live-coalesce-window-ms",
+            builder.AddParameter("live-coalesce-window-ms", "750", publishValueAsDefault: true));
+
+        var twitchClientId = liveConfig.AddSecret(
+            "live-twitch-client-id-secret",
+            "live-twitch-client-id",
+            builder.AddParameter("live-twitch-client-id", secret: true));
+        var twitchClientSecret = liveConfig.AddSecret(
+            "live-twitch-client-secret-secret",
+            "live-twitch-client-secret",
+            builder.AddParameter("live-twitch-client-secret", secret: true));
+        var twitchWebhookSecret = liveConfig.AddSecret(
+            "live-twitch-webhook-secret-secret",
+            "live-twitch-webhook-secret",
+            builder.AddParameter("live-twitch-webhook-secret", secret: true));
+        var twitchChannelLogin = liveConfig.AddSecret(
+            "live-twitch-channel-login-secret",
+            "live-twitch-channel-login",
+            builder.AddParameter("live-twitch-channel-login", "aspiredotdev", publishValueAsDefault: true));
+        var twitchChannelId = liveConfig.AddSecret(
+            "live-twitch-channel-id-secret",
+            "live-twitch-channel-id",
+            builder.AddParameter("live-twitch-channel-id"));
+        var twitchReconcileInterval = liveConfig.AddSecret(
+            "live-twitch-reconcile-interval-seconds-secret",
+            "live-twitch-reconcile-interval-seconds",
+            builder.AddParameter("live-twitch-reconcile-interval-seconds", "1800", publishValueAsDefault: true));
+
+        var youtubeApiKey = liveConfig.AddSecret(
+            "live-youtube-api-key-secret",
+            "live-youtube-api-key",
+            builder.AddParameter("live-youtube-api-key", secret: true));
+        var youtubeWebhookSecret = liveConfig.AddSecret(
+            "live-youtube-webhook-secret-secret",
+            "live-youtube-webhook-secret",
+            builder.AddParameter("live-youtube-webhook-secret", secret: true));
+        var youtubeChannelHandle = liveConfig.AddSecret(
+            "live-youtube-channel-handle-secret",
+            "live-youtube-channel-handle",
+            builder.AddParameter("live-youtube-channel-handle", "@aspiredotdev", publishValueAsDefault: true));
+        var youtubeChannelId = liveConfig.AddSecret(
+            "live-youtube-channel-id-secret",
+            "live-youtube-channel-id",
+            builder.AddParameter("live-youtube-channel-id"));
+        var youtubePollingInterval = liveConfig.AddSecret(
+            "live-youtube-polling-interval-seconds-secret",
+            "live-youtube-polling-interval-seconds",
+            builder.AddParameter("live-youtube-polling-interval-seconds", "120", publishValueAsDefault: true));
+        var youtubeDiscoveryPollingInterval = liveConfig.AddSecret(
+            "live-youtube-discovery-polling-interval-seconds-secret",
+            "live-youtube-discovery-polling-interval-seconds",
+            builder.AddParameter("live-youtube-discovery-polling-interval-seconds", "1800", publishValueAsDefault: true));
+        var youtubeOfflineConfirmationCount = liveConfig.AddSecret(
+            "live-youtube-offline-confirmation-count-secret",
+            "live-youtube-offline-confirmation-count",
+            builder.AddParameter("live-youtube-offline-confirmation-count", "2", publishValueAsDefault: true));
+
+        return staticHostWebsite
+            .WithRoleAssignments(liveConfig, KeyVaultBuiltInRole.KeyVaultSecretsUser)
+            .WithReference(liveConfig)
+            .WithEnvironment("Live__PublicBaseUrl", publicBaseUrl.Resource)
+            .WithEnvironment("Live__CoalesceWindowMs", coalesceWindow.Resource)
+            .WithEnvironment("Live__Twitch__ClientId", twitchClientId.Resource)
+            .WithEnvironment("Live__Twitch__ClientSecret", twitchClientSecret.Resource)
+            .WithEnvironment("Live__Twitch__WebhookSecret", twitchWebhookSecret.Resource)
+            .WithEnvironment("Live__Twitch__ChannelLogin", twitchChannelLogin.Resource)
+            .WithEnvironment("Live__Twitch__ChannelId", twitchChannelId.Resource)
+            .WithEnvironment("Live__Twitch__ReconcileIntervalSeconds", twitchReconcileInterval.Resource)
+            .WithEnvironment("Live__YouTube__ApiKey", youtubeApiKey.Resource)
+            .WithEnvironment("Live__YouTube__WebhookSecret", youtubeWebhookSecret.Resource)
+            .WithEnvironment("Live__YouTube__ChannelHandle", youtubeChannelHandle.Resource)
+            .WithEnvironment("Live__YouTube__ChannelId", youtubeChannelId.Resource)
+            .WithEnvironment("Live__YouTube__PollingIntervalSeconds", youtubePollingInterval.Resource)
+            .WithEnvironment("Live__YouTube__DiscoveryPollingIntervalSeconds", youtubeDiscoveryPollingInterval.Resource)
+            .WithEnvironment("Live__YouTube__OfflineConfirmationCount", youtubeOfflineConfirmationCount.Resource)
+            .PublishAsAzureAppServiceWebsite((_, website) =>
+            {
+                // Live state and WebSub verification are coordinated in memory.
+                website.SiteConfig.NumberOfWorkers = 1;
+            });
+    }
+
     public static IResourceBuilder<ProjectResource> WithLocalLiveStatusDevCommands(this IResourceBuilder<ProjectResource> staticHostWebsite)
     {
         var liveDevCommandSecret = LiveDevCommands.NewSecret();
