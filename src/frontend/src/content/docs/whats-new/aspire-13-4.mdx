@@ -140,12 +140,12 @@ Aspire 13.4 validates TypeScript AppHosts before startup, so type-checking and c
 
 Docs now include TypeScript examples alongside C# where the API is available, and the release adds TypeScript samples you can start from.
 
-The [Aspire Type System (ATS)](/extensibility/multi-language-integration-authoring/) APIs that power polyglot AppHost authoring are now generally available, so projects can remove `ASPIREATS001` suppressions. The generated TypeScript SDK also adds C# XML-doc JSDoc, fluent async method chaining, `ExternalServiceResource` support in `withEnvironment`, and fixes for generated names and exports.
+The [Aspire Type System (ATS)](/extensibility/multi-language-integration-authoring/) APIs that power non-C# AppHost authoring are now generally available, so projects can remove `ASPIREATS001` suppressions. The generated TypeScript SDK also adds C# XML-doc JSDoc, fluent async method chaining, `ExternalServiceResource` support in `withEnvironment`, and fixes for generated names and exports.
 
 Existing TypeScript AppHosts scaffolded by earlier CLI versions continue to work on 13.4 without changes. If your project uses `apphost.ts` and `./.modules/aspire.js`, see [Legacy `apphost.ts` projects (pre-13.4)](#legacy-apphostts-projects-pre-134) for compatibility details and an opt-in migration to the new `apphost.mts` layout.
 
 <LearnMore>
-  For preview polyglot AppHosts behind feature flags, see [`aspire config set`](/reference/cli/commands/aspire-config-set/).
+  For preview non-C# AppHosts behind feature flags, see [`aspire config set`](/reference/cli/commands/aspire-config-set/).
   For setup details, see [TypeScript AppHosts](/app-host/typescript-apphost/).
   To explore working examples, browse the [Aspire samples](/reference/samples/).
 </LearnMore>
@@ -770,7 +770,7 @@ After migrating, `aspire run` behaves exactly the same as before — the CLI now
 
 <span id="breaking-changes"></span>
 
-Aspire 13.4 includes several breaking changes. Most are small renames or configuration moves, but a few affect deployment and the polyglot AppHost SDK layout. Review the subsections that apply to your app before upgrading.
+Aspire 13.4 includes several breaking changes. Most are small renames or configuration moves, but a few affect deployment and the non-C# AppHost SDK layout. Review the subsections that apply to your app before upgrading.
 
 #### `aspire exec` command removed
 
@@ -780,7 +780,7 @@ Remove scripts or workflows that call `aspire exec`. For resource-specific actio
 
 #### Generated TypeScript modules consolidated under `.aspire/modules/`
 
-Generated polyglot SDK modules now live under a single `.aspire/modules/` directory instead of being split across `.modules/` and `.aspire/`. Generated language references — TypeScript imports, Go replace directives, Python editable paths, Java source lists, and Rust module paths — are updated automatically to point at the new location.
+Generated non-C# SDK modules now live under a single `.aspire/modules/` directory instead of being split across `.modules/` and `.aspire/`. Generated language references — TypeScript imports, Go replace directives, Python editable paths, Java source lists, and Rust module paths — are updated automatically to point at the new location.
 
 Re-run `aspire run` (or your code-generation step) to regenerate references, and update any custom tooling or `.gitignore` entries that referenced the old `.modules/` path.
 
@@ -874,7 +874,7 @@ For full guidance and the container path mapping, see [PostgreSQL 18 data direct
 <Steps>
 
 1. **Update the CLI** — run `aspire update --self`. This step is **required** for TypeScript AppHosts; running `aspire update` against a 13.3.x TypeScript project before updating the CLI fails with `No code generator found for language: TypeScript` and leaves the project in a partially-upgraded, unrunnable state (see [microsoft/aspire#17077](https://github.com/microsoft/aspire/issues/17077)).
-2. **Update your projects** — run `aspire update` from the root of your repository. For polyglot AppHosts, this regenerates SDK modules under `.aspire/modules/`.
+2. **Update your projects** — run `aspire update` from the root of your repository. For non-C# AppHosts, this regenerates SDK modules under `.aspire/modules/`.
 3. **Run `aspire doctor`** to check your environment setup and spot conflicting CLI installs.
 4. **Audit scripts and CI** for removed/changed commands — `aspire exec` and non-interactive `aspire update` calls.
 5. **Update Kubernetes deployment code** — move Helm chart properties into `WithHelm(...)`, rename `ingress.WithRoute(...)` to `ingress.WithPath(...)`, and mark routed endpoints external with `WithExternalHttpEndpoints()`.

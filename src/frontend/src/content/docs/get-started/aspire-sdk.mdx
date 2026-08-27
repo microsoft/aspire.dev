@@ -100,15 +100,11 @@ When the AppHost project runs, the orchestrator relies on these dependencies to 
 
 ### Use the Aspire CLI bundle for orchestration dependencies
 
-:::caution[Preview feature]
-`AspireUseCliBundle` is a preview opt-in that smooths the transition to CLI-bundle-based orchestration dependencies before they become the default.
-:::
+The Aspire SDK can source the binaries for these dependencies from platform-specific NuGet packages or from the installed **Aspire CLI bundle**. When it uses NuGet packages, the versions that run with your AppHost are tied to package restore.
 
-Today, the Aspire SDK restores the binaries for these dependencies from platform-specific NuGet packages, so the versions that run with your AppHost are tied to package restore.
+When it uses the Aspire CLI bundle, those binaries update when you update the Aspire CLI through [`aspire update --self`](/reference/cli/commands/aspire-update/). Without the bundle, the Aspire SDK version used by the AppHost determines the binaries by adding implicit references to the RID-specific `Aspire.Hosting.Orchestration.*` and `Aspire.Dashboard.Sdk.*` packages.
 
-Aspire is moving toward using the installed **Aspire CLI bundle** as the source for those orchestration dependencies. With this model, those binaries update when you update the Aspire CLI through [`aspire update --self`](/reference/cli/commands/aspire-update/) instead of being tied to RID-specific `Aspire.Hosting.Orchestration.*` and `Aspire.Dashboard.Sdk.*` package references in each AppHost project.
-
-New C# AppHost projects created with `aspire new` or `dotnet new`, and new single-file AppHosts created with `aspire init`, set `AspireUseCliBundle` to `true` automatically. For existing AppHosts, set `AspireUseCliBundle` to `true` to opt in during the transition before this behavior becomes the SDK default. The SDK default remains `false`, so launching a C# AppHost with `dotnet run` or an IDE continues to work without requiring the Aspire CLI. Leaving it unset (or explicitly `false`) reports warning [`ASPIRE010`](/diagnostics/aspire010/) as a reminder that some Aspire features require the bundle; suppress it if you intend to keep using NuGet-restored orchestration dependencies.
+New C# AppHost projects created with `aspire new` or `dotnet new`, and new single-file AppHosts created with `aspire init`, set `AspireUseCliBundle` to `true` automatically. For existing AppHosts, set `AspireUseCliBundle` to `true` to enable the CLI bundle. We recommend enabling it now because the CLI bundle will become the only supported source for orchestration dependencies in an upcoming Aspire release. The SDK property currently defaults to `false`, so launching a C# AppHost with `dotnet run` or an IDE continues to work without requiring the Aspire CLI. Leaving it unset (or explicitly `false`) reports warning [`ASPIRE010`](/diagnostics/aspire010/) as a reminder that some Aspire features require the bundle; suppress it if you intend to keep using NuGet-restored orchestration dependencies.
 
 When `AspireUseCliBundle` is `true`:
 
@@ -123,7 +119,7 @@ When `AspireUseCliBundle` is `true`:
 - If a required bundle layout can't be resolved, the build emits error [`ASPIRE009`](/diagnostics/aspire009/). Invalid explicit `AspireCliPath` and `AspireCliBundlePath` values remain authoritative and can produce this error.
 - If `Dnx` or `DnxPinned` mode can't find `dnx`, the run preflight emits error [`ASPIRE011`](/diagnostics/aspire011/) when it prepares the launch command. A regular build doesn't emit this diagnostic.
 
-#### Enable the opt-in
+#### Enable the CLI bundle
 
 Set `AspireUseCliBundle` in your AppHost `.csproj`:
 
