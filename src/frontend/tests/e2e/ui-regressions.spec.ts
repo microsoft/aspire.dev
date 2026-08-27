@@ -1286,8 +1286,9 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/whats-new/aspire-13-5/');
   await dismissCookieConsentIfVisible(page);
+  const mobileWordSpacingByTheme = new Map<'light' | 'dark', number>();
 
-  for (const theme of ['light', 'dark']) {
+  for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('starlight-theme', value), theme);
     await page.reload();
     await dismissCookieConsentIfVisible(page);
@@ -1367,6 +1368,9 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
         expect(metrics.letterSpacing).toBeGreaterThan(0);
         expect(metrics.wordSpacing).toBeGreaterThan(0);
         expect(metrics.codeTitleIconDisplay).toBe('none');
+        if (viewport.width === 390) {
+          mobileWordSpacingByTheme.set(theme, metrics.wordSpacing);
+        }
       } else {
         expect(metrics.letterSpacing).toBe(0);
         expect(metrics.wordSpacing).toBe(0);
@@ -1399,6 +1403,13 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
       }
     }
   }
+
+  const lightWordSpacing = mobileWordSpacingByTheme.get('light');
+  const darkWordSpacing = mobileWordSpacingByTheme.get('dark');
+  if (lightWordSpacing === undefined || darkWordSpacing === undefined) {
+    throw new Error('Missing mobile word-spacing metrics for one or more themes.');
+  }
+  expect(darkWordSpacing).toBeCloseTo(lightWordSpacing, 3);
 });
 
 test('docs reading hierarchy leaves the API reference canvas unconstrained', async ({ page }) => {

@@ -284,6 +284,14 @@ test('uses deliberate landing-page tracking across responsive layouts', async ({
         };
       };
 
+      const wordSpacing = (selector: string) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element) throw new Error(`Missing landing-page typography role: ${selector}`);
+
+        const value = getComputedStyle(element).wordSpacing;
+        return value === 'normal' ? 0 : Number.parseFloat(value);
+      };
+
       return {
         heroHeading: letterSpacing('.home-hero-copy h1'),
         sectionHeading: letterSpacing('.language-heading h2'),
@@ -291,6 +299,8 @@ test('uses deliberate landing-page tracking across responsive layouts', async ({
         sectionSummary: letterSpacing('.language-heading > div > p'),
         heroCode: letterSpacing('.home-hero-product pre'),
         sectionCode: letterSpacing('.aspire-home pre'),
+        heroCodeWordSpacing: wordSpacing('.home-hero-product pre'),
+        sectionCodeWordSpacing: wordSpacing('.aspire-home pre'),
       };
     });
 
@@ -312,6 +322,8 @@ test('uses deliberate landing-page tracking across responsive layouts', async ({
       expect(metrics.sectionSummary.px).toBeGreaterThan(0);
       expect(metrics.heroCode.px).toBe(0);
       expect(metrics.sectionCode.px).toBe(0);
+      expect(metrics.heroCodeWordSpacing).toBe(0);
+      expect(metrics.sectionCodeWordSpacing).toBe(0);
     }
   }
 });
