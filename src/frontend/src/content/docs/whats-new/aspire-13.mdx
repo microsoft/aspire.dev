@@ -27,23 +27,21 @@ import genaiVisualizerTooldefinitions from '@assets/whats-new/genai-visualizer-t
 
 📢 Aspire 13 represents a major milestone in the Aspire product line.
 
-Aspire is no longer ".NET Aspire" - it's now simply **Aspire**, a full **multi-language application platform**. While Aspire continues to provide best-in-class support for .NET applications, version 13.0 elevates **Python and JavaScript to first-class citizens**, with comprehensive support for running, debugging, and deploying applications written in these languages.
+The product is now called Aspire, dropping its previous .NET prefix. Aspire is a multi-language application platform that continues to provide best-in-class support for .NET applications while making Python and JavaScript first-class citizens, with comprehensive support for running, debugging, and deploying applications.
 
 This release introduces:
 
-- **First-class Python support**: Support for Python modules, deploy with uvicorn, flexible package management (uv, pip, or venv), and generate production Dockerfiles automatically.
-- **First-class JavaScript support**: Vite and npm-based apps with package manager auto-detection, debugging support, and container-based build pipelines.
-- **Multi-language infrastructure**: Connection properties work in any language (URI, JDBC, individual properties), certificate trust across languages and containers.
-- **Container files as build artifacts**: A new paradigm where build outputs are containers, not folders - enabling reproducible, isolated, and portable builds.
-- **aspire do: a new platform for build, publish and deployment pipelines**: enabling parallel execution, dependency tracking, and extensible workflows for building, publishing, and deploying applications.
-- **Modern CLI**: `aspire init` to add Aspire to existing apps, and improved deployment state management that remembers your configuration across runs.
-- **VS Code extension**: Streamlined Aspire development with commands for project creation, integration management, multi-language debugging, and deployment.
+- Python support includes modules, Uvicorn deployment, flexible package management with uv, pip, or venv, and automatic production Dockerfile generation.
+- JavaScript support includes Vite and npm-based apps, package manager auto-detection, debugging, and container-based build pipelines.
+- Multi-language infrastructure provides URI, JDBC, and individual connection properties, plus certificate trust across languages and containers.
+- Container files can serve as build artifacts, so build outputs are containers rather than folders for reproducible, isolated, and portable builds.
+- `aspire do` provides build, publish, and deployment pipelines with parallel execution, dependency tracking, and extensible workflows.
+- The modern CLI adds `aspire init` for existing apps and deployment state management that remembers configuration across runs.
+- The VS Code extension streamlines project creation, integration management, multi-language debugging, and deployment.
 
-Along with the rebranding, Aspire now has a new home at **[aspire.dev](https://aspire.dev)** — your central hub for documentation, getting started guides, and community resources.
+Along with the rebranding, Aspire now has a new home at [aspire.dev](https://aspire.dev), the central hub for documentation, getting started guides, and community resources.
 
-**Requirements:**
-
-- .NET 10 SDK or later.
+Aspire 13 requires the .NET 10 SDK or later.
 
 import { Aside, Icon } from '@astrojs/starlight/components';
 
@@ -154,12 +152,12 @@ Aspire 13.0 introduces a simplified AppHost project template structure. The SDK 
 </Project>
 ```
 
-**Key changes:**
+Key changes include:
 
-- **Simplified SDK declaration**: The SDK is now specified directly in the `<Project>` tag with its version: `Sdk="Aspire.AppHost.Sdk/13.0.0"`.
-- **No explicit `Aspire.Hosting.AppHost` reference**: The SDK now automatically includes this package, reducing boilerplate.
-- **Cleaner structure**: Removed the separate `<Sdk Name="..." />` element and the `Microsoft.NET.Sdk` base SDK.
-- **Target framework**: Updated from `net9.0` to `net10.0`.
+- The SDK is specified directly in the `<Project>` tag with its version: `Sdk="Aspire.AppHost.Sdk/13.0.0"`.
+- The SDK automatically includes `Aspire.Hosting.AppHost`, so an explicit package reference is no longer needed.
+- The separate `<Sdk Name="..." />` element and the `Microsoft.NET.Sdk` base SDK are removed.
+- The target framework is updated from `net9.0` to `net10.0`.
 
 The `aspire update` command automatically handles this migration when upgrading from 9.x to 13.0.
 
@@ -186,7 +184,7 @@ The `aspire update` command automatically handles this migration when upgrading 
 
 ## 🌐 Aspire as a multi-language platform
 
-Aspire 13.0 marks a transformative shift from a .NET-centric orchestration tool to a truly **multi-language application platform**. Python and JavaScript are now first-class citizens alongside .NET, with comprehensive support for development, debugging, and deployment workflows.
+Aspire 13.0 marks a shift from a .NET-centric orchestration tool to a multi-language application platform. Python and JavaScript are now first-class citizens alongside .NET, with comprehensive support for development, debugging, and deployment workflows.
 
 ### Python as a first-class citizen
 
@@ -232,8 +230,6 @@ The `AddUvicornApp` method automatically:
 
 Aspire 13.0 provides flexible Python package management with automatic detection.
 
-**Automatic package manager detection:**
-
 When you add a Python app, Aspire automatically detects and configures package management:
 
 ```csharp title="Automatic package detection"
@@ -242,11 +238,9 @@ When you add a Python app, Aspire automatically detects and configures package m
 var api = builder.AddUvicornApp("api", "./api", "main:app");
 ```
 
-**In most cases, you don't need to explicitly configure package management**—Aspire detects it automatically.
+In most cases, you don't need to configure package management explicitly because Aspire detects it automatically.
 
-**Using uv (recommended for new projects):**
-
-For modern Python projects using [uv](https://github.com/astral-sh/uv), explicitly opt-in with `WithUv()`:
+For modern Python projects using [uv](https://github.com/astral-sh/uv), explicitly opt in with `WithUv()`:
 
 ```csharp title="Using uv for package management"
 builder.AddUvicornApp("api", "./api", "main:app")
@@ -260,9 +254,7 @@ When using `WithUv()`, Aspire:
 - Leverages uv's performance benefits (10-100x faster than pip).
 - Auto-detects Python version from project configuration.
 
-**Explicit pip configuration:**
-
-To explicitly configure pip behavior, use `WithPip()`:
+To configure pip behavior explicitly, use `WithPip()`:
 
 ```csharp title="Using pip for package management"
 builder.AddUvicornApp("api", "./api", "main:app")
@@ -274,8 +266,6 @@ When using `WithPip()`, Aspire:
 - Automatically installs dependencies from `requirements.txt` or `pyproject.toml` (pip supports both).
 - Detects virtual environments (`.venv`) by walking up parent directories.
 - Creates a virtual environment if one doesn't exist.
-
-**Configuring virtual environment path:**
 
 By default, Aspire uses `.venv` in the app directory as the virtual environment path. Use `WithVirtualEnvironment()` to specify a custom path or control automatic creation:
 
@@ -295,15 +285,14 @@ By default, `createIfNotExists` is `true`, so Aspire will create the virtual env
 
 Python applications can be debugged directly in VS Code with full breakpoint support. Aspire 13.0 automatically enables debugging infrastructure for all Python resources - no additional configuration required. See [Visual Studio Code extension](#visual-studio-code-extension) for more.
 
-**Supported debugging scenarios:**
+Supported debugging scenarios include:
 
-- **Python scripts**: Debug `AddPythonApp` with breakpoints and variable inspection.
-- **Python modules**: Debug `AddPythonModule` with module resolution.
-- **Flask applications**: Debug Flask apps with auto-reload.
-- **Uvicorn/FastAPI**: Debug ASGI applications with async/await support.
+- Debug Python scripts added with `AddPythonApp`, including breakpoints and variable inspection.
+- Debug Python modules added with `AddPythonModule`, including module resolution.
+- Debug Flask apps with auto-reload.
+- Debug Uvicorn and FastAPI ASGI applications with async and await support.
 
-> [!NOTE]
-> Debugging is automatically enabled for Python resources. The Aspire VS Code extension generates VS Code launch configurations automatically.
+Debugging is automatically enabled for Python resources, and the Aspire VS Code extension generates VS Code launch configurations automatically.
 
 #### Automatic Dockerfile generation
 
@@ -321,8 +310,8 @@ builder.AddUvicornApp("api", "./api", "main:app")
 
 The generated Dockerfile automatically adapts based on your package manager choice:
 
-- **With uv**: Uses uv for fast dependency installation from `pyproject.toml`.
-- **With pip**: Uses pip to install dependencies from `requirements.txt`.
+- With uv, the Dockerfile uses uv for fast dependency installation from `pyproject.toml`.
+- With pip, it installs dependencies from `requirements.txt`.
 
 Both approaches use appropriate Python base images and follow container best practices.
 
@@ -332,9 +321,9 @@ Aspire automatically detects the Python version for Dockerfile generation from m
 
 <Steps>
 
-1. **`.python-version` file** (highest priority).
-2. **`pyproject.toml`** - `requires-python` field.
-3. **Virtual environment** - `python --version` as fallback.
+1. A `.python-version` file has the highest priority.
+2. The `requires-python` field in `pyproject.toml` is next.
+3. The virtual environment's `python --version` provides the fallback.
 
 </Steps>
 
@@ -352,11 +341,11 @@ aspire new aspire-py-starter
 
 This template includes:
 
-- **FastAPI backend**: Python ASGI application using Uvicorn.
-- **Vite + React frontend**: Modern JavaScript frontend with TypeScript.
-- **OpenTelemetry integration**: Distributed tracing, logs, and metrics.
-- **Redis caching** (optional): A distributed cache across requests.
-- **Container files**: Frontend static files served by the Python backend.
+- A FastAPI backend runs as a Python ASGI application using Uvicorn.
+- A Vite and React frontend uses TypeScript.
+- OpenTelemetry integration provides distributed tracing, logs, and metrics.
+- Optional Redis caching provides a distributed cache across requests.
+- Container files let the Python backend serve the frontend's static files.
 
 Build a full-stack multi-language app—Python backend + JavaScript frontend—fast. Use `aspire new aspire-py-starter` to generate it, then explore the [Python integration](/integrations/frameworks/python/) and [JavaScript integration](/integrations/frameworks/javascript/) guides.
 
@@ -401,23 +390,17 @@ By default, `AddJavaScriptApp`:
 
 Aspire automatically detects and supports multiple JavaScript package managers with intelligent defaults for both development and production scenarios.
 
-**Auto-install by default:**
-
-Starting in Aspire 13.0, package managers automatically install dependencies by default (`install = true`). This ensures dependencies are always up-to-date during development and publishing.
-
-**Smart defaults for deterministic builds:**
+Starting in Aspire 13.0, package managers install dependencies by default (`install = true`). This keeps dependencies up to date during development and publishing.
 
 When publishing (production mode), Aspire automatically uses deterministic install commands based on the presence of lockfiles:
 
-- **npm**: Uses `npm ci` if `package-lock.json` exists, otherwise `npm install`.
-- **yarn**:
-  - Uses `yarn install --immutable` if `yarn.lock` exists and yarn v2+ is detected, otherwise.
-  - Uses `yarn install --frozen-lockfile` if `yarn.lock` exists, otherwise `yarn install`.
-- **pnpm**: Uses `pnpm install --frozen-lockfile` if `pnpm-lock.yaml` exists, otherwise `pnpm install`.
+- npm uses `npm ci` if `package-lock.json` exists; otherwise, it uses `npm install`.
+- Yarn uses `yarn install --immutable` when `yarn.lock` exists and Yarn 2 or later is detected. Otherwise, it uses `yarn install --frozen-lockfile` when `yarn.lock` exists or `yarn install` when no lockfile exists.
+- pnpm uses `pnpm install --frozen-lockfile` if `pnpm-lock.yaml` exists; otherwise, it uses `pnpm install`.
 
 This ensures reproducible builds in CI/CD and production environments while remaining flexible during development.
 
-**Customizing package managers:**
+You can also customize package manager behavior:
 
 ```csharp title="Customizing package managers"
 // Customize npm with additional flags
@@ -444,7 +427,7 @@ var app = builder.AddJavaScriptApp("app", "./app")
 
 Unlike the deprecated `AddNpmApp` API, `AddJavaScriptApp` does not support an `args` constructor parameter for passing command-line arguments directly to scripts. You have two options to pass arguments:
 
-**Option 1: Use `WithArgs` to pass arguments directly**
+Option 1 uses `WithArgs` to pass arguments directly:
 
 ```csharp title="Pass arguments using WithArgs"
 // Before (Aspire 9.x with AddNpmApp)
@@ -458,7 +441,7 @@ builder.AddJavaScriptApp("hasura-console", "../Web/ClientApp")
     .WithArgs("--no-browser");
 ```
 
-**Option 2: Define custom scripts in `package.json` with arguments**
+Option 2 defines custom scripts with arguments in `package.json`:
 
 ```json title="package.json — Define custom scripts with arguments"
 {
@@ -585,10 +568,10 @@ var container = builder.AddContainer("service", "myimage");
 
 Aspire automatically:
 
-- **Python**: Configures `SSL_CERT_FILE` and `REQUESTS_CA_BUNDLE` environment variables.
-- **Node.js**: Configures `NODE_EXTRA_CA_CERTS` environment variable.
-- **Containers**: Mounts certificate bundles and configures appropriate environment variables.
-- **All platforms**: Generates and manages development certificates without manual intervention.
+- Python resources receive the `SSL_CERT_FILE` and `REQUESTS_CA_BUNDLE` environment variables.
+- Node.js resources receive the `NODE_EXTRA_CA_CERTS` environment variable.
+- Containers mount certificate bundles and receive the appropriate environment variables.
+- Aspire generates and manages development certificates without manual intervention on all platforms.
 
 This enables secure HTTPS communication during local development across all languages and containerized services.
 
@@ -634,12 +617,12 @@ aspire init
 
 When you run `aspire init`, the CLI will:
 
-- **Discover existing solutions**: Automatically finds and updates solution files in the current directory.
-- **Create single-file AppHost**: If no solution exists, creates a single-file AppHost for quick starts.
-- **Add projects intelligently**: Prompts to add projects to your app host.
-- **Configure service defaults**: Sets up service defaults referencing automatically.
-- **Setup NuGet.config**: Creates package source mappings for Aspire packages.
-- **Manage template versions**: Interactively selects the appropriate template version.
+- Find and update existing solution files in the current directory.
+- Create a single-file AppHost for quick starts when no solution exists.
+- Prompt you to add projects to your AppHost.
+- Configure references to service defaults automatically.
+- Create package source mappings for Aspire packages in `NuGet.config`.
+- Prompt you to select the appropriate template version.
 
 The init command simplifies the initial project setup through an interactive workflow that ensures consistent configuration across team members.
 
@@ -666,11 +649,11 @@ Select a template:
 (Type to search)
 ```
 
-**Available starter templates:**
+Available starter templates include:
 
-- [**Blazor & Minimal API starter**](/get-started/first-app/?lang=csharp): Full-stack .NET application with Blazor frontend and ASP.NET Core API.
-- [**React (Vite) & FastAPI starter**](#starter-template-vite--fastapi): Multi-language starter template demonstrating Python and JavaScript integration.
-- **Empty AppHost**: Minimal single-file AppHost for custom applications.
+- The [Blazor and Minimal API starter](/get-started/first-app/?lang=csharp) is a full-stack .NET application with a Blazor frontend and ASP.NET Core API.
+- The [React (Vite) and FastAPI starter](#starter-template-vite--fastapi) demonstrates Python and JavaScript integration.
+- The Empty AppHost is a minimal single-file AppHost for custom applications.
 
 The starter template collection is designed to be extensible and will grow over time to showcase different architectural patterns and technology combinations. This approach makes it easier to explore Aspire's capabilities and learn from working examples.
 
@@ -693,11 +676,12 @@ aspire update --self
 aspire update --project ./src/MyApp.AppHost
 ```
 
-**New in Aspire 13.0:**
-- **CLI self-update**: The `--self` flag allows you to update the Aspire CLI without reinstalling.
-- **Improved reliability**: Numerous bug fixes for edge cases in dependency resolution.
-- **Better error handling**: Clearer error messages when updates fail.
-- **Performance improvements**: Faster package detection and update operations.
+Aspire 13.0 adds:
+
+- A `--self` flag that updates the Aspire CLI without reinstalling it.
+- Reliability fixes for edge cases in dependency resolution.
+- Clearer error messages when updates fail.
+- Faster package detection and update operations.
 
 The `aspire update` command continues to support:
 - Central package management (CPM) solutions.
@@ -718,16 +702,16 @@ Aspire 13.0 includes a new Aspire VS Code extension which brings Aspire CLI feat
 > [!NOTE]
 > To use most extension features, the Aspire 13.0 CLI must be installed and available on the user `PATH`. You can verify this by running `aspire --version` in a VS Code terminal. For installation steps, see [Upgrade to Aspire 13.0](#-upgrade-to-aspire-130).
 
-**Key features:**
+Key features include:
 
-- **Debug Python and C# projects inside VS Code**: Launch your apphost using the Aspire debugger to launch and debug any C# and Python resources in your app.
-- **Project creation**: Use `Aspire: New Aspire project` to create new Aspire projects from templates.
-- **Integration management**: Use `Aspire: Add an integration` to add Aspire integrations to your AppHost.
-- **Launch configuration**: Use `Aspire: Configure launch.json` to automatically set up a VS Code launch configuration.
-- **Configuration management**: Use `Aspire: Manage configuration settings` to configure Aspire CLI settings.
-- **Publish and deployment**: Use `Aspire: Publish deployment artifacts` and `Aspire: Deploy app` commands (preview).
+- Launch and debug Python and C# resources in VS Code with the Aspire debugger.
+- Use `Aspire: New Aspire project` to create projects from templates.
+- Use `Aspire: Add an integration` to add Aspire integrations to your AppHost.
+- Use `Aspire: Configure launch.json` to set up a VS Code launch configuration automatically.
+- Use `Aspire: Manage configuration settings` to configure Aspire CLI settings.
+- Use the preview `Aspire: Publish deployment artifacts` and `Aspire: Deploy app` commands for publishing and deployment.
 
-**Getting started:**
+To get started:
 
 <Steps>
 
@@ -738,7 +722,7 @@ Aspire 13.0 includes a new Aspire VS Code extension which brings Aspire CLI feat
 
 </Steps>
 
-The extension requires the Aspire CLI to be installed and available on your PATH. All commands are grouped under the **Aspire** category in the Command Palette for easy discovery.
+The extension requires the Aspire CLI to be installed and available on your PATH. All commands are grouped under the Aspire category in the Command Palette for easy discovery.
 
 ### Single-file AppHost support
 
@@ -761,9 +745,9 @@ await builder.Build().RunAsync();
 
 Single-file app host support includes:
 
-- **Template support**: Use the `aspire-apphost-singlefile` template via `aspire new`.
-- **Full CLI integration**: Works seamlessly with `aspire run`, `aspire deploy`, `aspire publish`, `aspire add`, `aspire update`.
-- **Launch profile support**: Full debugging and launch configuration support.
+- The `aspire-apphost-singlefile` template, available through `aspire new`.
+- Integration with `aspire run`, `aspire deploy`, `aspire publish`, `aspire add`, and `aspire update`.
+- Full debugging and launch configuration support.
 
 > [!NOTE]
 > Single-file app hosts require .NET 10.0 SDK or later.
@@ -791,9 +775,9 @@ aspire run
 
 The automatic SDK installation feature provides:
 
-- **Cross-platform support**: Works on Windows, macOS, and Linux.
-- **Version detection**: Automatically detects required SDK versions.
-- **Fallback support**: Provides alternative installation options if automatic installation fails.
+- Support for Windows, macOS, and Linux.
+- Automatic detection of required SDK versions.
+- Alternative installation options if automatic installation fails.
 
 When enabled, this preview feature can improve the onboarding experience for new team members and CI/CD environments.
 
@@ -806,7 +790,7 @@ The `--non-interactive` flag disables prompts and interactive progress indicator
 
 ---
 
-**For advanced deployment workflows**, see [aspire do](#aspire-do), which introduces a comprehensive pipeline system for coordinating build, deployment, and publishing operations.
+For advanced deployment workflows, see [aspire do](#aspire-do), which introduces a comprehensive pipeline system for coordinating build, deployment, and publishing operations.
 
 ## ⭐ Major new features
 
@@ -821,7 +805,7 @@ The `aspire do` system replaces the previous publishing infrastructure with a mo
 
 For basic CLI commands and tooling, see [CLI and tooling](#cli-and-tooling), which covers [aspire init](#aspire-init-command), [aspire update](#aspire-update-improvements), and [non-interactive mode](#non-interactive-mode-for-cicd).
 
-**Example: Custom pipeline step**
+The following example adds a custom pipeline step:
 
 The Aspire AppHost defines a global `DistributedApplicationPipeline` instance on the `DistributedApplicationBuilder` that can be used to register steps in the pipeline at the top-level.
 
@@ -857,7 +841,7 @@ aspire do deploy --pipeline-log-level debug            # Verbose logging for tro
 
 ### Container files as build artifacts
 
-Aspire 13.0 introduces the ability to **extract files from one resource's container and copy them into another resource's container** during the build process. This enables powerful patterns like building a frontend in one container and serving it from a backend in another container.
+Aspire 13.0 can extract files from one resource's container and copy them into another resource's container during the build process. This enables patterns such as building a frontend in one container and serving it from a backend in another.
 
 ```csharp title="Container files as build artifacts"
 var frontend = builder.AddViteApp("frontend", "./frontend");
@@ -868,16 +852,14 @@ var api = builder.AddUvicornApp("api", "./api", "main:app");
 api.PublishWithContainerFiles(frontend, "./static");
 ```
 
-**How it works:**
+The process has four steps:
 
 1. The `frontend` resource builds inside its container, producing output files.
 2. Aspire extracts those files from the `frontend` container.
 3. The files are copied into the `api` container at `./static`.
 4. The final `api` container contains both the API code and the frontend static files.
 
-**Example: Serving frontend from backend**
-
-The FastAPI app can serve the static files:
+For example, the FastAPI app can serve the static files:
 
 ```python title="Serving frontend from backend"
 from fastapi import FastAPI
@@ -989,10 +971,10 @@ builder.Build().Run();
 
 MAUI integration features:
 
-- **Platform support**: Windows, Mac Catalyst, Android, and iOS
-- **Device registration**: Register multiple device instances for testing
-- **Platform validation**: Automatically detects host OS compatibility and marks resources as unsupported when needed
-- **Full orchestration**: MAUI apps participate in service discovery and can reference backend services
+- The integration supports Windows, Mac Catalyst, Android, and iOS.
+- You can register multiple device instances for testing.
+- Aspire detects host OS compatibility and marks resources as unsupported when needed.
+- MAUI apps participate in service discovery and can reference backend services.
 
 This enables a complete mobile + cloud development experience where you can run and debug your mobile app alongside your backend services in a single Aspire project.
 
@@ -1002,7 +984,7 @@ This enables a complete mobile + cloud development experience where you can run 
 
 [The Dashboard now includes an MCP server](/get-started/aspire-mcp-server/) that integrates Aspire into your AI development ecosystem. The MCP server enables AI assistants to query resources, access telemetry data, and execute commands directly from your development environment.
 
-**Getting started:**
+To get started:
 
 1. Run your Aspire app and open the dashboard.
 2. Click the MCP button in the top right corner.
@@ -1013,7 +995,7 @@ The MCP server uses streamable HTTP with API key authentication for secure acces
 - `type`: Set to "http" for the streamable-HTTP MCP server.
 - `x-mcp-api-key`: HTTP header for authentication.
 
-**Available tools:**
+Available tools include:
 
 - `list_resources`—Retrieve all resources with state, endpoints, environment variables, and metadata.
 - `list_console_logs`—Access resource console output.
@@ -1103,10 +1085,10 @@ await builder.Build().RunAsync();
 
 Network identifier features:
 
-- **Context-aware endpoint resolution**: Resolve endpoints based on the network context (host, container network, etc.)
-- **Known network identifiers**: Predefined identifiers for common scenarios (`LocalhostNetwork`, `DefaultAspireContainerNetwork`, `PublicInternet`)
-- **AllocatedEndpoint changes**: Endpoints now include their `NetworkID` instead of a container host address
-- **Better container networking**: Improved support for container-to-container communication scenarios
+- Resolve endpoints based on the network context, such as the host or container network.
+- Use predefined identifiers for common scenarios: `LocalhostNetwork`, `DefaultAspireContainerNetwork`, and `PublicInternet`.
+- Endpoints now include their `NetworkID` instead of a container host address.
+- Container-to-container communication is improved.
 
 ### Interaction service dynamic inputs
 
@@ -1192,7 +1174,7 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithReference(replicaDb, "replica");
 ```
 
-**Environment variables injected into `api`:**
+The following environment variables are injected into `api`:
 ```bash
 # From primaryDb with "primary" name
 ConnectionStrings__primary=Host=postgres-primary;...
@@ -1221,7 +1203,7 @@ var worker = builder.AddProject<Projects.Worker>("worker")
     .WithEnvironment("CACHE_PORT", redis.Resource.GetConnectionProperty("Port"));
 ```
 
-**Environment variables injected into `worker`:**
+The following environment variables are injected into `worker`:
 ```bash
 DB_HOST=postgres
 DB_PORT=5432
@@ -1246,7 +1228,7 @@ var frontend = builder.AddJavaScriptApp("frontend", "./frontend")
     .WithEnvironment("API_URL", api.GetEndpoint("https"));
 ```
 
-**Environment variables injected into `frontend`:**
+The following environment variables are injected into `frontend`:
 ```bash
 # Default behavior - uses the external endpoint URL
 API_URL=https://localhost:7123
@@ -1261,7 +1243,7 @@ var worker = builder.AddProject<Projects.Worker>("worker")
             KnownNetworkIdentifiers.DefaultAspireContainerNetwork));
 ```
 
-**Environment variables injected into `worker`:**
+The following environment variables are injected into `worker`:
 ```bash
 # Container network context - uses internal container address
 API_URL=http://api:8080
@@ -1271,21 +1253,10 @@ This enables proper service-to-service communication whether the consumer is run
 
 ### Other app model improvements
 
-**Compute environment support (graduated from experimental)**:
-- `WithComputeEnvironment` API is now stable (no longer marked as experimental)
-- Deploy resources to specific compute environments without experimental warnings
-
-**Resource exclusion from MCP**:
-- `ExcludeFromMcp` extension to exclude specific resources from Model Context Protocol exposure
-- Control which resources are visible to AI assistants and MCP clients
-
-**Reference environment injection control**:
-- `WithReferenceEnvironment` to control how environment variables are injected from references
-- `ReferenceEnvironmentInjectionFlags` for fine-grained control over environment variable behavior
-
-**Helper methods**:
-- `TryCreateResourceBuilder` for safely attempting resource builder creation with failure handling
-- Returns false instead of throwing when resource builder creation fails
+- The `WithComputeEnvironment` API is now **stable**, so you can deploy resources to specific compute environments without experimental warnings.
+- The `ExcludeFromMcp` extension controls which resources are visible to AI assistants and MCP clients.
+- `WithReferenceEnvironment` and `ReferenceEnvironmentInjectionFlags` provide fine-grained control over how references inject environment variables.
+- `TryCreateResourceBuilder` safely attempts resource builder creation and returns `false` instead of throwing when creation fails.
 
 ## 🚀 Deployment improvements
 
@@ -1295,9 +1266,7 @@ Aspire 13.0 completely reimplements the deployment workflow on top of [aspire do
 
 The new deployment pipeline automatically parallelizes independent operations, dramatically reducing deployment time. Steps like prerequisites, builds, and provisioning run concurrently when dependencies allow.
 
-**Granular step control:**
-
-Execute individual deployment phases using `aspire do`:
+Use `aspire do` to execute individual deployment phases:
 
 ```bash
 aspire do build                           # Build all containers
@@ -1307,11 +1276,7 @@ aspire do deploy --pipeline-log-level debug        # Deploy with verbose logging
 
 This enables incremental deployments, debugging specific steps, and CI/CD pipeline splitting. Use `--pipeline-log-level debug` for detailed troubleshooting output.
 
-**Pipeline diagnostics:**
-
 Use the `--list-steps` flag (available on `aspire deploy`, `aspire publish`, `aspire destroy`, and `aspire do`) to inspect the pipeline that would run for a given command — including step order, dependencies, and the resources each step targets — without actually executing it.
-
-**Benefits:**
 
 The pipeline-based deployment provides dependency tracking, real-time progress reporting, failure isolation, selective execution, extensibility, and built-in diagnostics.
 
@@ -1321,13 +1286,11 @@ For more details, see [aspire do](#aspire-do).
 
 Aspire 13.0 introduces deployment state management that automatically persists deployment information locally across runs. When you deploy to Azure, Aspire now remembers your choices and deployment state between sessions.
 
-**What persists locally:**
+Aspire stores the following information locally:
 
-- **Azure configuration**: Subscription, resource group, location, and tenant selections
-- **Parameter values**: Input values from previous deployments
-- **Deployed resources**: Track what's been deployed and where
-
-**User experience:**
+- Azure subscription, resource group, location, and tenant selections.
+- Parameter values from previous deployments.
+- Records of deployed resources and their locations.
 
 ```bash
 # First deployment - you're prompted for configuration, assumes "Production" environment
@@ -1344,7 +1307,7 @@ aspire deploy --environment staging
 
 This eliminates repetitive prompts and makes iterative deployments faster. Your deployment configuration is stored locally (not in source control), so each developer can have their own Azure configuration without conflicts.
 
-**Example workflow:**
+For example:
 
 <Steps>
 
@@ -1356,18 +1319,14 @@ This eliminates repetitive prompts and makes iterative deployments faster. Your 
 
 </Steps>
 
-**Storage location:**
-
 The state is stored in your local user profile at:
 
-- **Windows**: `%USERPROFILE%\.aspire\deployments\<project-hash>\<environment>.json`
-- **macOS/Linux**: `$HOME/.aspire/deployments/<project-hash>/<environment>.json`
+- On Windows: `%USERPROFILE%\.aspire\deployments\<project-hash>\<environment>.json`
+- On macOS and Linux: `$HOME/.aspire/deployments/<project-hash>/<environment>.json`
 
 The `<project-hash>` is a SHA256 hash of your AppHost project path, allowing different projects to maintain separate state. The `<environment>` corresponds to the deployment environment (e.g., `production`, `development`).
 
 This location is excluded from source control by design, so each developer can have their own Azure configuration without conflicts.
-
-**Resetting deployment state:**
 
 If you need to reset your deployment state (for example, to change subscriptions or start fresh), use the `--clear-cache` flag:
 
@@ -1449,9 +1408,7 @@ builder.AddAzureAppServiceEnvironment("env")
 
 ### Package renames
 
-**Aspire.Hosting.NodeJs → Aspire.Hosting.JavaScript**
-
-The `Aspire.Hosting.NodeJs` package has been renamed to `Aspire.Hosting.JavaScript` to better reflect its broader support for JavaScript applications (Node.js, Vite, etc.).
+The `Aspire.Hosting.NodeJs` package has been renamed to `Aspire.Hosting.JavaScript` to reflect its broader support for JavaScript applications such as Node.js and Vite.
 
 Update your package references:
 
@@ -1477,7 +1434,7 @@ aspire add javaScript
 
 The following APIs have been removed in Aspire 13.0:
 
-**Publishing infrastructure** (replaced by `aspire do`):
+Removed publishing infrastructure, replaced by `aspire do`, includes:
 - `PublishingContext` and `PublishingCallbackAnnotation`
 - `DeployingContext` and `DeployingCallbackAnnotation`
 - `WithPublishingCallback` extension method
@@ -1488,35 +1445,35 @@ The following APIs have been removed in Aspire 13.0:
 - `PublishingOptions` class
 - `CompletionState` enum
 
-**Debugging APIs** (replaced with new flexible API):
+Removed debugging APIs, replaced with the new flexible API, include:
 - Old `WithDebugSupport` overload with `debugAdapterId` and `requiredExtensionId` parameters
 - `SupportsDebuggingAnnotation` (replaced with new debug support annotation)
 
-**Diagnostic codes**:
+Removed or renamed diagnostic codes include:
 - `ASPIRECOMPUTE001` diagnostics (removed - API graduated from experimental)
 - `ASPIREPUBLISHERS001` (renamed to `ASPIREPIPELINES001-003`)
 
-**CLI commands**:
+The removed CLI option is:
 - `--watch` flag removed from `aspire run` (replaced by `features.defaultWatchEnabled` feature flag)
 
 ### Obsolete APIs
 
 The following APIs are marked as obsolete in Aspire 13.0 and will be removed in a future release:
 
-**Lifecycle hooks**:
+Obsolete lifecycle hooks include:
 - `IDistributedApplicationLifecycleHook` interface - Use `IDistributedApplicationEventingSubscriber` instead
 
-**Lifecycle hook extension methods** (use eventing subscriber extensions instead):
+Use eventing subscriber extensions instead of these obsolete lifecycle hook extension methods:
 - `AddLifecycleHook<T>()` - Use `AddEventingSubscriber<T>()` instead
 - `AddLifecycleHook<T>(Func<IServiceProvider, T>)` - Use `AddEventingSubscriber<T>(Func<IServiceProvider, T>)` instead
 - `TryAddLifecycleHook<T>()` - Use `TryAddEventingSubscriber<T>()` instead
 - `TryAddLifecycleHook<T>(Func<IServiceProvider, T>)` - Use `TryAddEventingSubscriber<T>(Func<IServiceProvider, T>)` instead
 
-**Publishing interfaces** (use `aspire do` instead):
+Use `aspire do` instead of these obsolete publishing interfaces:
 - `IDistributedApplicationPublisher` - Use `PipelineStep` instead
 - `PublishingOptions` - Use `PipelineOptions` instead
 
-**Node.js/JavaScript APIs** (use new JavaScript hosting instead):
+Use the new JavaScript hosting APIs instead of:
 - `AddNpmApp()` - Use `AddJavaScriptApp()` instead for general npm-based apps, or `AddViteApp()` for Vite projects
 
 :::note[Migrating from AddNpmApp]
@@ -1527,7 +1484,7 @@ While the obsoleted APIs still work in 13.0, they will be removed in the next ma
 
 ### Changed signatures
 
-**AllocatedEndpoint constructor**:
+The `AllocatedEndpoint` constructor changed:
 ```csharp {5,9,12}
 // Before (9.x)
 var endpoint = new AllocatedEndpoint(
@@ -1543,7 +1500,7 @@ var endpoint = new AllocatedEndpoint(
     networkIdentifier: KnownNetworkIdentifiers.LocalhostNetwork);
 ```
 
-**ParameterProcessor constructor**:
+The `ParameterProcessor` constructor changed:
 ```csharp {8,17}
 // Before (9.x)
 var processor = new ParameterProcessor(
@@ -1564,16 +1521,16 @@ var processor = new ParameterProcessor(
     deploymentStateManager);
 ```
 
-**InteractionInput property changes**:
+The `InteractionInput` properties changed:
 - `MaxLength`: Changed from settable to init-only.
 - `Options`: Changed from init-only to settable.
 - `Placeholder`: Changed from settable to init-only.
 
-**WithReference for IResourceWithServiceDiscovery**:
+`WithReference` for `IResourceWithServiceDiscovery` changed:
 - Added new overload with `name` parameter for named references.
 - Existing overload still available for compatibility.
 
-**ProcessArgumentValuesAsync and ProcessEnvironmentVariableValuesAsync**:
+`ProcessArgumentValuesAsync` and `ProcessEnvironmentVariableValuesAsync` changed:
 ```csharp
 // Before (9.x)
 await resource.ProcessArgumentValuesAsync(
@@ -1587,7 +1544,7 @@ await resource.ProcessArgumentValuesAsync(
 
 The `containerHostName` parameter has been removed. Network context is now handled through `NetworkIdentifier`.
 
-**EndpointReference.GetValueAsync behavior change**:
+`EndpointReference.GetValueAsync` behavior changed:
 ```csharp
 // Before (9.x) - would throw immediately if not allocated
 var value = await endpointRef.GetValueAsync(cancellationToken);
@@ -1606,20 +1563,18 @@ var value = await endpointRef.GetValueAsync(cancellationToken);
 
 Aspire 13.0 introduces a major architectural change to enable universal container-to-host communication, independent of container orchestrator support.
 
-**What changed:**
+The architecture now:
 - Leverages DCP's container tunnel capability for container-to-host connectivity.
 - `EndpointReference` resolution is now context-aware (uses `NetworkIdentifier`).
 - Endpoint references are tracked by their `EndpointAnnotation`.
 - `AllocatedEndpoint` constructor signature changed.
 
-**Impact:**
+As a result:
 - Enables containers to communicate with host-based services reliably across all deployment scenarios.
 - Code that directly constructs `AllocatedEndpoint` objects will need updates.
 - Extension methods that process endpoint references may need Network Identifier context.
 
-**Migration:**
-
-The universal container-to-host communication is currently an experimental feature and needs to be enabled via environment variable. Set `ASPIRE_ENABLE_CONTAINER_TUNNEL` to `true` to opt in.
+To migrate, enable the currently experimental universal container-to-host communication feature by setting `ASPIRE_ENABLE_CONTAINER_TUNNEL` to `true`.
 
 This change fixes long-standing issues with container-to-host communication (issue #6547).
 
@@ -1627,7 +1582,7 @@ This change fixes long-standing issues with container-to-host communication (iss
 
 The `AddNodeApp` API has been refactored with breaking changes to how Node.js applications are configured.
 
-**Signature changes:**
+The signature changed:
 
 ```csharp
 // Before (9.x) - absolute scriptPath with optional workingDirectory
@@ -1644,17 +1599,17 @@ builder.AddNodeApp(
     scriptPath: "app.js");
 ```
 
-**Behavioral changes:**
+Behavior also changed:
 
 <Steps>
 
-1. **Automatic npm integration**: If `package.json` exists in `appDirectory`, npm is automatically configured with auto-install enabled
-2. **Automatic Dockerfile generation**: Includes Docker publishing support with multi-stage builds by default
-3. **Package manager flexibility**: Use `WithNpm()`, `WithYarn()`, or `WithPnpm()` with `WithRunScript()` to execute package.json scripts
+1. If `package.json` exists in `appDirectory`, npm is configured automatically with auto-install enabled.
+2. Docker publishing support generates multi-stage builds by default.
+3. Use `WithNpm()`, `WithYarn()`, or `WithPnpm()` with `WithRunScript()` to execute `package.json` scripts.
 
 </Steps>
 
-**Migration:**
+To migrate:
 
 ```csharp
 // Before (9.x)
@@ -1673,15 +1628,9 @@ var app = builder.AddNodeApp("frontend", "../frontend", "server.js")
 
 Aspire 13.0 changes the default behavior of `DefaultAzureCredential` when deploying to Azure Container Apps and Azure App Service to use only `ManagedIdentityCredential`.
 
-**What changed:**
-
 When you deploy to Azure Container Apps or Azure App Service, Aspire now automatically sets the `AZURE_TOKEN_CREDENTIALS` environment variable to `ManagedIdentityCredential`. This configures `DefaultAzureCredential` to behave deterministically by only using `ManagedIdentityCredential`, instead of attempting other credential types like `EnvironmentCredential` or `WorkloadIdentityCredential` first.
 
-**Why this change:**
-
-- **Deterministic behavior**: Ensures `DefaultAzureCredential` always uses `ManagedIdentityCredential` in production.
-- **Optimized resilience**: Enables retry logic and disables probe requests for improved performance.
-- **Best practices**: Aligns with [Azure SDK authentication best practices](https://learn.microsoft.com/dotnet/azure/sdk/authentication/best-practices?tabs=aspdotnet#use-deterministic-credentials-in-production-environments).
+This change ensures `DefaultAzureCredential` always uses `ManagedIdentityCredential` in production, enables retry logic, disables probe requests for improved performance, and aligns with [Azure SDK authentication best practices](https://learn.microsoft.com/dotnet/azure/sdk/authentication/best-practices?tabs=aspdotnet#use-deterministic-credentials-in-production-environments).
 
 **Previous behavior (9.x):**
 
@@ -1691,18 +1640,16 @@ When you deploy to Azure Container Apps or Azure App Service, Aspire now automat
 
 `DefaultAzureCredential` only uses `ManagedIdentityCredential` when the `AZURE_TOKEN_CREDENTIALS` environment variable is set to `ManagedIdentityCredential`.
 
-**Affected APIs:**
+The affected APIs are:
 
 - `AddAzureContainerAppEnvironment`
 - `AddAzureAppServiceEnvironment`
 
-**Migration:**
-
 If you were relying on `EnvironmentCredential` or `WorkloadIdentityCredential` in your application, choose one of the following options:
 
-1. **Use explicit credentials**: Do not use `DefaultAzureCredential` in your application. Instead, explicitly use the specific credential type you need (e.g., `EnvironmentCredential` or `WorkloadIdentityCredential`).
+1. Use explicit credentials instead of `DefaultAzureCredential` in your application, such as `EnvironmentCredential` or `WorkloadIdentityCredential`.
 
-2. **Remove the environment variable**: Implement a callback to remove the `AZURE_TOKEN_CREDENTIALS` environment variable from the deployment:
+2. Remove the environment variable by implementing a callback that removes `AZURE_TOKEN_CREDENTIALS` from the deployment:
 
    ```csharp
    // For Azure Container Apps
@@ -1802,10 +1749,10 @@ builder.Services.TryAddEventingSubscriber<MyEventSubscriber>();
 
 The following features are marked as `[Experimental]` and may change in future releases:
 
-- **Dockerfile builder API**: `WithDockerfileBuilder`, `AddDockerfileBuilder`, `WithDockerfileBaseImage`.
-- **C# file-based app support**: `AddCSharpApp`.
-- **Dynamic inputs**: `InputLoadOptions`, dynamic input loading.
-- **Pipeline features**: `IDistributedApplicationPipeline` and related APIs.
+- The Dockerfile builder APIs: `WithDockerfileBuilder`, `AddDockerfileBuilder`, and `WithDockerfileBaseImage`.
+- C# file-based app support through `AddCSharpApp`.
+- Dynamic inputs through `InputLoadOptions` and dynamic input loading.
+- Pipeline features through `IDistributedApplicationPipeline` and related APIs.
 
 To use experimental features, you must enable them explicitly and acknowledge they may change:
 
@@ -1817,7 +1764,7 @@ var app = builder.AddCSharpApp("myapp", "./app.cs");
 
 ---
 
-**Feedback and contributions**: We'd love to hear about your experience with Aspire 13.0! Share feedback on [GitHub](https://github.com/microsoft/aspire/issues) or join the conversation on [Discord](https://aka.ms/aspire-discord).
+We'd love to hear about your experience with Aspire 13.0. Share feedback on [GitHub](https://github.com/microsoft/aspire/issues) or join the conversation on [Discord](https://aka.ms/aspire-discord).
 
 ## 🙏 Community
 

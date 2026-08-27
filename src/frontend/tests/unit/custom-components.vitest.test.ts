@@ -874,6 +874,13 @@ describe('custom Astro component render coverage', () => {
     });
   }
 
+  it('pairs Aspire map palette variants with their matching themes', async () => {
+    const html = normalizeHtml(await renderComponent(AspireMap));
+
+    expect(html).toMatch(/data-light="[^"]*map-lightdots\.svg/);
+    expect(html).toMatch(/data-dark="[^"]*map-darkdots\.svg/);
+  });
+
   it('AppHostBuilder omits invalid npm package installation APIs from every code variant', async () => {
     const html = normalizeHtml(await renderComponent(AppHostBuilder));
 

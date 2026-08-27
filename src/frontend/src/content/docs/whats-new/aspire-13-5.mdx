@@ -1,6 +1,7 @@
 ---
 title: "What's new in Aspire 13.5"
-description: "Explore Aspire 13.5, a developer-experience release: interactive terminal sessions, the Interaction Service across C# and TypeScript AppHosts with file uploads and progress dialogs, user-defined resource command arguments, generally available TypeScript AppHosts with health checks and container files, HTTPS certificates for projects, Kubernetes and AKS persistent volumes, a refreshed dashboard, and a rebranded VS Code extension."
+seoTitle: "Aspire 13.5: AppHost interactivity and TypeScript GA"
+description: "Explore Aspire 13.5 updates for interactive AppHosts, TypeScript GA, the CLI, dashboard, Visual Studio Code, and cloud deployment."
 sidebar:
   label: Aspire 13.5
   order: 0
@@ -26,21 +27,18 @@ import dashboardResources from '@assets/dashboard/explore/projects.png';
 import dashboardStructuredLogsFiltered from '@assets/dashboard/explore/structured-logs-filtered.png';
 import dashboardTracesFiltering from '@assets/dashboard/explore/traces-filtering.png';
 
-Aspire 13.5 is here, and it's a **developer-experience** release through and through — sharper tooling, **closer C# and TypeScript parity**, and a batch of runtime-stability fixes. The headline is a richer, more interactive AppHost: resources can host **interactive terminal sessions** with `WithTerminal()`, the **Interaction Service** now works across both **C#** and **TypeScript** AppHosts — with **file uploads** and **progress dialogs** — and resource commands can **prompt for user-defined arguments** before they run. **TypeScript AppHosts are now generally available**, gaining **custom health checks** and **container file copying** to close the gap with C#. Projects can request **HTTPS developer certificates**, and deployment picks up **persistent volumes for Kubernetes and AKS**. The dashboard gets an officially branded visual refresh and sharper telemetry filtering, and the Visual Studio Code extension is rebranded to **Aspire** with dashboard, debugging, and discovery improvements.
+Aspire 13.5 makes AppHosts more interactive with terminal sessions, an Interaction Service shared by C# and TypeScript, and user-defined resource command arguments. It also brings TypeScript AppHosts to **general availability**, adds HTTPS developer certificates and persistent Kubernetes volumes, and refreshes the CLI, dashboard, and Aspire extension for Visual Studio Code.
 
 We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and the community, or file feedback and issues on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/microsoft/aspire/issues).
 
 This release introduces:
 
-- **Interactive terminal sessions** with the experimental `WithTerminal()` API, so you can attach to REPLs, shells, and other terminal programs running as Aspire resources from the dashboard — with an opt-in `aspire terminal` CLI command.
-- **The Interaction Service across C# and TypeScript AppHosts** — prompts, message boxes, notifications, and dynamic inputs, now with **file uploads** and **progress dialogs**. The core `PromptInput`/`PromptInputs` surface is stable and no longer requires suppressing `ASPIREINTERACTION001`.
-- **User-defined resource command arguments**, so the dashboard can prompt for input before invoking a command — the CLI exposes them as `--<name>` options — with full C# and TypeScript parity.
-- **HTTPS certificates for project resources** through a new experimental configuration API.
-- **Generally available TypeScript AppHosts**, adding **custom health checks** and **container file copying** at parity with C#, plus faster startup and a batch of reliability fixes.
-- **The Aspire CLI on npm and Nix**, with the CLI bundle enabled by default in new C# projects — acquired on the fly via `dnx`.
-- **A refreshed, officially branded dashboard** with timestamp filtering, numeric operators, and console-log text search.
-- **A rebranded Visual Studio Code extension** with a dashboard side panel, Bun and MAUI debugging, and resource commands in the tree view.
-- **Cross-scope Azure resource references** with the `AsExisting*` family, and **persistent volumes for Kubernetes and AKS**.
+- More interactive AppHosts with terminal sessions, richer user interactions, command arguments, HTTPS certificates, and cross-scope Azure references.
+- Generally available TypeScript AppHosts with custom health checks, container file copying, faster startup, and reliability fixes.
+- A smoother toolchain across the Aspire CLI, dashboard, and Visual Studio Code extension, with easier installation, sharper telemetry filtering, debugging, discovery, and resource commands.
+- Persistent storage for Kubernetes and AKS and more predictable Azure hosting.
+- A preview Radius deployment target through the new `Aspire.Hosting.Radius` package, plus updates to Foundry Local, Redis modules, dev tunnels, and Blazor gateway publishing.
+- Updated project templates, including .NET 11 preview support.
 - …and much more.
 
 ## 🆙 Upgrade to Aspire 13.5
@@ -52,11 +50,7 @@ This release introduces:
 Aspire 13.5 includes breaking changes. Please review the [Breaking changes](#breaking-changes) section before upgrading.
 </Aside>
 
-<Aside type="note">
-  If you are on a version of the Aspire CLI less than 13, please use the
-  [installation instructions](/get-started/install-cli/) to install the latest
-  stable version.
-</Aside>
+If your Aspire CLI version is earlier than 13, first [install the latest stable version](/get-started/install-cli/).
 
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
 
@@ -206,7 +200,7 @@ await builder.build().run();
 
 ### 💬 Interaction Service for C# and TypeScript AppHosts
 
-The Interaction Service and all of its related types — prompts, message boxes, notifications, and dynamic inputs — now work the same way from **C#** and **TypeScript** AppHosts, so the examples below come in both languages. The core prompt and input APIs (`PromptInputAsync`, `PromptInputsAsync`, and the supporting `InteractionInput`, `InputType`, and `InteractionInputCollection` types) are now **stable**, so you no longer have to suppress `ASPIREINTERACTION001` to use them from production code.
+The Interaction Service and its related types now work the same way from C# and TypeScript AppHosts, including prompts, message boxes, notifications, and dynamic inputs. The core prompt and input APIs (`PromptInputAsync`, `PromptInputsAsync`, `InteractionInput`, `InputType`, and `InteractionInputCollection`) are now **stable**, so you no longer have to suppress `ASPIREINTERACTION001` in production code.
 
 The example below adds a resource command that prompts the user to choose a region, then acts on the selection.
 
@@ -315,7 +309,7 @@ await builder.build().run();
 
 ### 📤 File uploads and progress dialogs
 
-The Interaction Service can now ask users to **upload a file**. Add an `InteractionInput` with `InputType.File`, and the dashboard renders a file picker constrained by an optional `FileFilter` and `MaxFileSize`. After submission, C# AppHosts read the uploaded content through `InteractionFile` (via `ReadAllBytesAsync()` or `OpenRead()`), while TypeScript AppHosts receive the upload as an on-disk path (`file.filePath`) to read with Node's `fs` APIs. The file-upload input is **stable**. Long-running commands can also show a **progress dialog** with `PromptProgressAsync`.
+The Interaction Service can now request a file upload. Add an `InteractionInput` with `InputType.File`, and the dashboard renders a file picker constrained by an optional `FileFilter` and `MaxFileSize`. C# AppHosts read the uploaded content through `InteractionFile` with `ReadAllBytesAsync()` or `OpenRead()`. TypeScript AppHosts receive an on-disk path in `file.filePath` to read with Node's `fs` APIs. File input is **stable**, and long-running commands can show a progress dialog with `PromptProgressAsync`.
 
 <Aside type="caution">
   `PromptProgressAsync`, `ProgressInteractionOptions`, and `ProgressContext` are experimental. C# callers must suppress [`ASPIREINTERACTION001`](/diagnostics/aspireinteraction001/) to use the progress-dialog APIs. The file-upload input (`InputType.File`) is stable and needs no suppression.
@@ -468,7 +462,7 @@ await builder.build().run();
 
 ### ⚙️ Resource commands with user-defined arguments
 
-Resource commands can now declare **named arguments**. In the dashboard, users are prompted for these arguments before the command runs; from the CLI, each argument is surfaced as a `--<name>` option, and the command errors when a required option is missing. Populate `CommandOptions.Arguments` with `InteractionInput` descriptors, and read the collected values from `ExecuteCommandContext.Arguments` inside the command callback. TypeScript AppHosts get full parity through Aspire Type System (ATS) exports. This mechanism is stable and works for interactive workflows such as custom deployment or setup procedures.
+Resource commands can now declare named arguments. The dashboard prompts for them before the command runs, while the CLI exposes each argument as a `--<name>` option and reports an error when a required option is missing. Populate `CommandOptions.Arguments` with `InteractionInput` descriptors, then read the values from `ExecuteCommandContext.Arguments` in the command callback. TypeScript AppHosts get the same capability through Aspire Type System (ATS) exports. The mechanism is **stable** and supports interactive deployment or setup workflows.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -741,10 +735,10 @@ The dashboard adopts official Aspire branding and a refreshed visual design buil
 
 ### 🔎 Sharper telemetry filtering
 
-- **Timestamp filter for telemetry** — filter logs and traces by timestamp using a dedicated search qualifier in the filter dialog.
-- **Numeric equality operators** — the telemetry filter dialog adds `==` and `!=` for exact numeric matching.
-- **Console logs text filter** — filter console-log output by text.
-- **Reconnect modal** — a clearer modal appears when the dashboard loses its connection to the AppHost.
+- Filter logs and traces by timestamp with a dedicated search qualifier.
+- Match exact numeric values with the new `==` and `!=` operators.
+- Filter console-log output by text.
+- See a clearer reconnect dialog when the dashboard loses its AppHost connection.
 
 <Image src={dashboardStructuredLogsFiltered} alt="The Aspire dashboard structured logs page with a filter applied to narrow the displayed log entries." />
 
@@ -754,23 +748,21 @@ The dashboard adopts official Aspire branding and a refreshed visual design buil
 
 Running resources configured with `WithTerminal()` open in a terminal view in the dashboard by default, so you can interact with the live session immediately. Resources that are waiting, starting, exited, or failed fall back to the console-logs view until they reach the running state.
 
-<Aside type="note">
-  The dashboard's AI Assistant chat has been removed in Aspire 13.5.
-</Aside>
+The dashboard's AI Assistant chat has been removed in Aspire 13.5.
 
 Additional dashboard fixes include friendlier health-check error messages (in place of raw exception stacks), deduplicated replica display names, and correct telemetry streaming when resource filters are applied.
 
-## 🧩 Visual Studio Code extension
+## 🧰 Visual Studio Code extension
 
 The Aspire extension for Visual Studio Code is rebranded to **Aspire** (with an updated icon and display name) and gains a batch of new capabilities:
 
-- **Open the dashboard in a side panel** instead of an external browser.
-- **Bun debugging** (via the WebKit Inspector Protocol) and **MAUI debugging** support.
-- **Resource commands in the tree view** — Start, Stop, and custom commands appear as child items under each resource.
-- **Discovered AppHosts** — idle AppHosts found in the workspace appear in the Aspire pane with context-menu actions, and `launchUrl` from `launchSettings.json` is honored.
-- **Improved parameter display** — consistent secret masking, missing-value warnings, and truncation across panels.
-- **More efficient discovery** — respects workspace exclusion settings and debounces file changes, and terminal commands now use structured shell arguments to prevent command injection.
-- **A richer extension API surface** for integration with the C# Dev Kit.
+- Open the dashboard in a side panel instead of an external browser.
+- Debug Bun through the WebKit Inspector Protocol and debug MAUI projects.
+- Run Start, Stop, and custom resource commands from the tree view.
+- Work with idle AppHosts discovered in the workspace through context-menu actions, including `launchUrl` from `launchSettings.json`.
+- See consistent secret masking, missing-value warnings, and parameter truncation across panels.
+- Respect workspace exclusions, debounce file changes during discovery, and pass terminal commands as structured shell arguments to prevent command injection.
+- Use a richer extension API surface for C# Dev Kit integration.
 
 <Aside type="caution">
   The extension no longer opens the dashboard automatically. Opt in with the **Aspire: Dashboard Browser** setting or a `dashboardBrowser` value in `launch.json`.
@@ -780,9 +772,11 @@ The Aspire extension for Visual Studio Code is rebranded to **Aspire** (with an 
   For setup and usage, see [Aspire Visual Studio Code extension](/get-started/aspire-vscode-extension/).
 </LearnMore>
 
-## 🚀 Deployment and integrations
+## 🚀 Deployment
 
-Getting from local development to a deployed environment keeps getting smoother. This release adds first-class Kubernetes and AKS storage, more predictable Azure Container Apps naming and networking, and a batch of new and updated hosting integrations.
+<span id="deployment-and-integrations"></span>
+
+Getting from local development to a deployed environment keeps getting smoother. This release adds first-class Kubernetes and AKS storage, plus more predictable Azure Container Apps naming and networking.
 
 ### 📦 Persistent volumes for Kubernetes and AKS
 
@@ -898,14 +892,18 @@ Azure Container Apps and Azure App Service environments can now be placed into a
   For App Service hosting, see [Azure App Service hosting integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/).
 </LearnMore>
 
-### ✨ New and updated integrations
+## ✨ New integrations
 
-The integrations ecosystem keeps growing. Aspire 13.5 opens a preview path to a new deployment platform, sharpens the AI hosting story, and folds in a batch of community-driven improvements. Here are the highlights:
+<span id="new-and-updated-integrations"></span>
 
-- **Radius (preview).** The new `Aspire.Hosting.Radius` integration adds `AddRadiusEnvironment(name)` (with `WithNamespace(...)`) so you can publish your app to a [Radius](https://radapp.io/) environment. Publish-time infrastructure configuration (`ConfigureRadiusInfrastructure`) and project container-image overrides are gated behind experimental diagnostics.
+Aspire 13.5 adds a preview [Radius](https://radapp.io/) deployment target through the new `Aspire.Hosting.Radius` package. Use `AddRadiusEnvironment(name)` with `WithNamespace(...)` to publish your app to a Radius environment. Publish-time infrastructure configuration (`ConfigureRadiusInfrastructure`) and project container-image overrides are gated behind experimental diagnostics.
+
+## 📦 Integration updates
+
+Existing integrations pick up new capabilities:
+
 - **Foundry Local.** `AddFoundry(name).RunAsFoundryLocal()` now drives the installed **foundry CLI** for lifecycle management, and resources can be exposed as hosted agents with `AsHostedAgent(...)`, where `HostedAgentProtocol` is `Responses` or `Invocations`.
 - **Redis modules.** `AddRedis(...).WithModule(path)` loads a Redis module into the container, with `RedisModules` constants (`Json`, `Search`, `BloomFilter`, `TimeSeries`) pointing at the modules shipped in Redis 8+ images — see the sample below.
-- **.NET projects by path.** The new `Aspire.Hosting.Dotnet` package provides the experimental `AddDotnetProject` API for modeling .NET projects by path.
 - **Dev tunnels regions.** `DevTunnelOptions.Region` (a `DevTunnelRegion?` enum) lets you pin the region a tunnel is created in.
 - **Blazor gateway on Docker Compose.** Blazor gateway resources now support Docker Compose publishing.
 
@@ -944,11 +942,13 @@ await builder.build().run();
   For Redis hosting, see [Redis hosting integration](/integrations/caching/redis/redis-host/); for tunnels, see [Dev tunnels](/integrations/devtools/dev-tunnels/); for Foundry, see [Azure AI Foundry](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/).
 </LearnMore>
 
-## 🧰 Templates
+## 🏗️ Templates
 
 New project templates target **.NET 11 preview** in addition to the current LTS, and C# AppHost templates set `AspireUseCliBundle=true` by default so freshly scaffolded projects resolve the CLI bundle out of the box.
 
-## Breaking changes
+## ⚠️ Breaking changes
+
+<span id="breaking-changes"></span>
 
 The following breaking changes are included in Aspire 13.5:
 
@@ -974,13 +974,15 @@ The following breaking changes are included in Aspire 13.5:
 
 11. **Orleans provider annotation is internal.** `OrleansProviderTypeAnnotation` and `ProviderConfiguration` are now internal.
 
-12. **`DotnetProjectResource` moved to `Aspire.Hosting.Dotnet` and made experimental.** It now lives in the `Aspire.Hosting.Dotnet` namespace and emits the `ASPIREDOTNETPROJECT001` diagnostic.
+12. **`DotnetProjectResource` moved to `Aspire.Hosting.Dotnet` and made experimental.** It now lives in the `Aspire.Hosting.Dotnet` namespace and emits the `ASPIREDOTNETPROJECT001` diagnostic. The related `AddDotnetProject` API for modeling .NET projects by path is covered by the same diagnostic.
 
 <Aside type="caution" title="Review deprecated APIs">
   Review your code for uses of `ServiceProvider` on hosting context types and `PublishAsConnectionString` extension methods. These generate compiler warnings in Aspire 13.5 and may become harder errors in future releases. If you use the `Aspire.Hosting.GitHub.Models` integration, plan to migrate off it before the package is removed.
 </Aside>
 
-## Known issues
+## 🚧 Known issues
+
+<span id="known-issues"></span>
 
 ### Mixed Aspire 13.4 and 13.5 packages can fail at runtime
 

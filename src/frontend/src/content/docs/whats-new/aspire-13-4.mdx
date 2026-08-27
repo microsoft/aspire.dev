@@ -22,20 +22,20 @@ import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 
-Aspire 13.4 is here, with a release focused on broadening the app model and smoothing day-to-day operations — led by **TypeScript AppHost support reaching general availability** alongside first-class C# AppHosts, new **Go**, **Blazor WebAssembly**, and **Bun** hosting integrations, a new set of **TypeScript samples**, **TypeScript documentation parity with C#**, expanded **Kubernetes and AKS deployment APIs**, **AI agent readiness** through the Aspire skills bundle, **process-backed resource commands**, **integration discovery** from the CLI, server-side **log and telemetry search**, a dashboard **AI Agents** entry point, and a more capable Aspire extension for Visual Studio Code.
+Aspire 13.4 broadens the app model and streamlines daily operations. TypeScript AppHosts reach **general availability** alongside C#, with new Go, Blazor WebAssembly, and Bun hosting integrations. The release also expands Kubernetes and AKS deployment APIs, AI agent support, resource commands, CLI discovery and diagnostics, the dashboard, and Visual Studio Code tooling.
 
 We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and the community, or file feedback and issues on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/microsoft/aspire/issues).
 
 This release introduces:
 
-- **C# and TypeScript AppHosts are first class and supported** with stronger TypeScript startup validation, more complete SDK generation, new TypeScript samples, and documentation parity with C# AppHost examples.
-- **Go and Bun hosting integrations** with new AppHost APIs for [Go](/integrations/frameworks/go/go-get-started/) (`AddGoApp`) and first-party Bun support in `Aspire.Hosting.JavaScript` for [Bun](/integrations/frameworks/bun-apps/) (`AddBunApp`).
-- **Kubernetes and AKS deployment improvements** including [cert-manager integration, Gateway API and Azure Application Gateway for Containers (AGC) support](/deployment/kubernetes/aks/#expose-your-app-to-the-internet), Kubernetes manifest resources, external Helm charts, and consolidated Helm chart configuration.
-- **AI agent readiness** with Aspire workflow skills moving into the new [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) bundle, clearer separation between first-run setup, lifecycle orchestration, monitoring, AppHost wiring, and deployment guidance, and eval-driven iteration on agent routing.
-- **Richer resource commands** with typed arguments, visibility controls, immediate result display, named CLI options, resource-scoped help, built-in parameter command options, and the experimental `WithProcessCommand` API.
-- **CLI discoverability and diagnostics** with `aspire integration list`, `aspire integration search`, `--search` for logs and telemetry, version checks in `aspire doctor`, better logs output, and more consistent command error handling.
-- **Dashboard and editor updates** including the AI Agents dialog, resource state fixes, CodeLens actions that appear without opening the Aspire panel, and improved VS Code terminal/debug output integration.
-- **Integration updates** for NATS, Azure Front Door, Foundry hosted agents, and more.
+- C# and TypeScript AppHosts are both supported as first-class options, with stronger TypeScript startup validation, more complete SDK generation, new TypeScript samples, and documentation parity with C# AppHost examples.
+- New hosting integrations provide AppHost APIs for [Go](/integrations/frameworks/go/go-get-started/) (`AddGoApp`) and first-party Bun support in `Aspire.Hosting.JavaScript` for [Bun](/integrations/frameworks/bun-apps/) (`AddBunApp`).
+- Kubernetes and AKS deployment improvements include [cert-manager integration, Gateway API and Azure Application Gateway for Containers (AGC) support](/deployment/kubernetes/aks/#expose-your-app-to-the-internet), Kubernetes manifest resources, external Helm charts, and consolidated Helm chart configuration.
+- Aspire workflow skills move into the new [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) bundle, with clearer separation between first-run setup, lifecycle orchestration, monitoring, AppHost wiring, and deployment guidance, plus eval-driven iteration on agent routing.
+- Resource commands gain typed arguments, visibility controls, immediate result display, named CLI options, resource-scoped help, built-in parameter command options, and the experimental `WithProcessCommand` API.
+- CLI discovery and diagnostics add `aspire integration list`, `aspire integration search`, `--search` for logs and telemetry, version checks in `aspire doctor`, better logs output, and more consistent command error handling.
+- Dashboard and editor updates include the AI Agents dialog, resource state fixes, CodeLens actions that appear without opening the Aspire panel, and improved VS Code terminal and debug output integration.
+- NATS, Azure Front Door, Foundry hosted agents, and other integrations are updated.
 - …and much more.
 
 ## 🆙 Upgrade to Aspire 13.4
@@ -47,14 +47,10 @@ This release introduces:
 Aspire 13.4 includes breaking changes. Please review the [Breaking changes](#breaking-changes) section before upgrading.
 </Aside>
 
-<Aside type="note">
-  If you are on a version of the Aspire CLI less than 13, please use the
-  [installation instructions](/get-started/install-cli/) to install the latest
-  stable version.
-</Aside>
+If your Aspire CLI version is earlier than 13, first [install the latest stable version](/get-started/install-cli/).
 
 <Aside type="caution" title="TypeScript AppHost users: run aspire update --self first">
-  If you have a **TypeScript AppHost on Aspire 13.3.x**, you must update the
+  If you have a TypeScript AppHost on Aspire 13.3.x, you must update the
   Aspire CLI itself **before** running `aspire update` on your project. Running
   `aspire update` first will fail mid-update with an error like:
 
@@ -291,7 +287,7 @@ builder.Build().Run();
 - For structured logs, Aspire searches the message, attributes, scope name, event name, trace and span IDs, severity, and resource name.
 - For spans and traces, Aspire searches span names, trace and span IDs, attributes, status, kind, scope, events, resource names, and trace names.
 
-Search, tail, and resource filters are applied **before** data is streamed back to the CLI, which keeps large log streams responsive. It also means your coding agent no longer has to load all the output into context and `grep`, speeding up the diagnostic process while using less tokens.
+Search, tail, and resource filters are applied before data is streamed back to the CLI, which keeps large log streams responsive. It also means your coding agent no longer has to load all the output into context and `grep`, speeding up the diagnostic process while using fewer tokens.
 
 ```bash title="Aspire CLI — Search logs"
 aspire logs --search "failed"
@@ -556,7 +552,7 @@ The Azure Container Apps jobs APIs — `PublishAsAzureContainerAppJob` and `Publ
 
 ### 🤖 AI Agents dialog
 
-The dashboard header now includes an **AI Agents** dialog with guidance for connecting AI coding agents to your Aspire app. This builds on the Aspire CLI and MCP server workflow where agents can query resource status, structured logs, console logs, traces, and other dashboard data while they work in your codebase.
+The dashboard header now includes an AI Agents dialog with guidance for connecting AI coding agents to your Aspire app. This builds on the Aspire CLI and MCP server workflow where agents can query resource status, structured logs, console logs, traces, and other dashboard data while they work in your codebase.
 
 Administrators can hide the header button with the `Dashboard:UI:DisableAgentHelp` setting.
 
@@ -568,7 +564,7 @@ The MCP AI tools also return more telemetry context this release — trace and s
 
 ### Structured search and trace filtering
 
-The dashboard search experience is more powerful in 13.4. Text filters now support structured field qualifiers — for example `status:error`, `@attr:value`, negation, and numeric comparisons — so you can narrow logs and telemetry without leaving the search box. The **Traces** page adds a duration filter, and trace detail views support a structured filter dialog and minimum span-duration filtering, making it easier to focus on the slowest operations in a request.
+The dashboard search experience is more powerful in 13.4. Text filters now support structured field qualifiers — for example `status:error`, `@attr:value`, negation, and numeric comparisons — so you can narrow logs and telemetry without leaving the search box. The Traces page adds a duration filter, and trace detail views support a structured filter dialog and minimum span-duration filtering, making it easier to focus on the slowest operations in a request.
 
 ### Clearer resource dependencies
 
@@ -586,9 +582,9 @@ Dashboard fixes in this release include:
 
 ## 🧰 VS Code extension
 
-The Aspire extension for Visual Studio Code now shows AppHost CodeLens actions directly in the editor without requiring the Aspire panel to be open. In addition to **Run**, **Stop**, and **Restart**, new **Open Dashboard** and **View Logs** CodeLens actions make common AppHost operations available where you're editing code.
+The Aspire extension for Visual Studio Code now shows AppHost CodeLens actions directly in the editor without requiring the Aspire panel to be open. Run, Stop, Restart, Open Dashboard, and View Logs actions make common AppHost operations available where you're editing code.
 
-The extension also uses VS Code terminal shell integration when sending Aspire CLI commands to the Aspire terminal, forwards debug adapter output to dashboard logs, shows AppHost errors in the debug console, reduces TypeScript and C# AppHost debug-console noise, disables automatic `dotnet restore` on startup by default, and fixes a sticky **Finding apphosts** notification.
+The extension also uses VS Code terminal shell integration when sending Aspire CLI commands to the Aspire terminal, forwards debug adapter output to dashboard logs, shows AppHost errors in the debug console, reduces TypeScript and C# AppHost debug-console noise, disables automatic `dotnet restore` on startup by default, and fixes a sticky Finding apphosts notification.
 
 The [Go hosting integration](#go-hosting-integration) section covers the new Go debugging flow. This release also expands what the extension can do across workspaces: it adds live support for workspaces that contain multiple AppHosts, an AppHost logs viewer, resource command argument inputs collected through QuickInput, and faster, parser-backed AppHost and resource detection.
 
@@ -714,20 +710,20 @@ If you'd like to move an existing project to the new default layout, the migrati
 
 <Steps>
 
-1. **Rename the entry point file.**
+1. Rename the entry point file.
 
    ```bash title="Rename the AppHost entry point"
    git mv apphost.ts apphost.mts
    ```
 
-2. **Update the SDK import** in `apphost.mts` to use the new folder and the `.mjs` extension:
+2. Update the SDK import in `apphost.mts` to use the new folder and the `.mjs` extension:
 
    ```typescript title="apphost.mts" del={1} ins={2}
    import { createBuilder } from './.modules/aspire.js';
    import { createBuilder } from './.aspire/modules/aspire.mjs';
    ```
 
-3. **Update `appHost.path`** in `aspire.config.json`:
+3. Update `appHost.path` in `aspire.config.json`:
 
    ```json title="aspire.config.json" del={3} ins={4}
    {
@@ -739,7 +735,7 @@ If you'd like to move an existing project to the new default layout, the migrati
    }
    ```
 
-4. **Update `tsconfig.apphost.json`** so its `include` (and any related glob) entries point at the new file and folder. Replace references to `apphost.ts` with `apphost.mts`, and references to `.modules/` with `.aspire/modules/`. For example:
+4. Update `tsconfig.apphost.json` so its `include` (and any related glob) entries point at the new file and folder. Replace references to `apphost.ts` with `apphost.mts`, and references to `.modules/` with `.aspire/modules/`. For example:
 
    ```json title="tsconfig.apphost.json" del={4,5} ins={6,7}
    {
@@ -753,7 +749,7 @@ If you'd like to move an existing project to the new default layout, the migrati
    }
    ```
 
-5. **Delete the old generated SDK folder and regenerate.** The CLI now writes the SDK under `./.aspire/modules/`, so the old folder is no longer used:
+5. Delete the old generated SDK folder and regenerate. The CLI now writes the SDK under `./.aspire/modules/`, so the old folder is no longer used:
 
    ```bash title="Regenerate the TypeScript SDK"
    rm -rf .modules
@@ -873,16 +869,16 @@ For full guidance and the container path mapping, see [PostgreSQL 18 data direct
 
 <Steps>
 
-1. **Update the CLI** — run `aspire update --self`. This step is **required** for TypeScript AppHosts; running `aspire update` against a 13.3.x TypeScript project before updating the CLI fails with `No code generator found for language: TypeScript` and leaves the project in a partially-upgraded, unrunnable state (see [microsoft/aspire#17077](https://github.com/microsoft/aspire/issues/17077)).
-2. **Update your projects** — run `aspire update` from the root of your repository. For non-C# AppHosts, this regenerates SDK modules under `.aspire/modules/`.
-3. **Run `aspire doctor`** to check your environment setup and spot conflicting CLI installs.
-4. **Audit scripts and CI** for removed/changed commands — `aspire exec` and non-interactive `aspire update` calls.
-5. **Update Kubernetes deployment code** — move Helm chart properties into `WithHelm(...)`, rename `ingress.WithRoute(...)` to `ingress.WithPath(...)`, and mark routed endpoints external with `WithExternalHttpEndpoints()`.
-6. **Update renamed APIs** — `PublishAsNpmPackageScript` → `PublishAsPackageScript`, and Foundry hosted agents `PublishAsHostedAgent` → `WithComputeEnvironment` (with the new `AddPromptAgent` parameter order).
-7. **Review Keycloak references** for the HTTPS primary endpoint, and **review Azure Front Door deployments**, setting explicit names if existing resources conflict with Azure.Provisioning name generation.
-8. **Review RabbitMQ queue declarations** if your app creates transient, non-exclusive queues. The default RabbitMQ image is now 4.3, which rejects that deprecated queue pattern by default. For migration guidance, see [RabbitMQ 4.3 queue declaration requirements](/integrations/messaging/rabbitmq/rabbitmq-host/#rabbitmq-4-3-queue-declaration-requirements).
-9. **Review PostgreSQL data persistence** if your app uses `WithDataVolume()` or `WithDataBindMount()`. The default PostgreSQL image is now 18.3, which changes the on-disk data layout and breaks PostgreSQL 17 data persisted by either API. Pin `WithImageTag("17.6")` before `WithDataVolume()` to keep using the existing volume, or migrate the data. See [PostgreSQL 18 data directory change](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
+1. Update the CLI by running `aspire update --self`. This step is **required** for TypeScript AppHosts; running `aspire update` against a 13.3.x TypeScript project before updating the CLI fails with `No code generator found for language: TypeScript` and leaves the project in a partially-upgraded, unrunnable state (see [microsoft/aspire#17077](https://github.com/microsoft/aspire/issues/17077)).
+2. Update your projects by running `aspire update` from the root of your repository. For non-C# AppHosts, this regenerates SDK modules under `.aspire/modules/`.
+3. Run `aspire doctor` to check your environment setup and spot conflicting CLI installs.
+4. Audit scripts and CI for removed or changed commands, including `aspire exec` and non-interactive `aspire update` calls.
+5. Update Kubernetes deployment code by moving Helm chart properties into `WithHelm(...)`, renaming `ingress.WithRoute(...)` to `ingress.WithPath(...)`, and marking routed endpoints external with `WithExternalHttpEndpoints()`.
+6. Update renamed APIs: `PublishAsNpmPackageScript` became `PublishAsPackageScript`, and Foundry hosted agents use `WithComputeEnvironment` instead of `PublishAsHostedAgent`, with the new `AddPromptAgent` parameter order.
+7. Review Keycloak references for the HTTPS primary endpoint and Azure Front Door deployments for naming conflicts with Azure.Provisioning. Set explicit names if needed.
+8. Review RabbitMQ queue declarations if your app creates transient, non-exclusive queues. The default RabbitMQ image is now 4.3, which rejects that deprecated queue pattern by default. For migration guidance, see [RabbitMQ 4.3 queue declaration requirements](/integrations/messaging/rabbitmq/rabbitmq-host/#rabbitmq-4-3-queue-declaration-requirements).
+9. Review PostgreSQL data persistence if your app uses `WithDataVolume()` or `WithDataBindMount()`. The default PostgreSQL image is now 18.3, which changes the on-disk data layout and breaks PostgreSQL 17 data persisted by either API. Pin `WithImageTag("17.6")` before `WithDataVolume()` to keep using the existing volume, or migrate the data. See [PostgreSQL 18 data directory change](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
 
 </Steps>
 
-**Build something amazing.** We'd love to hear about your experience with Aspire 13.4 — share what you're building on [GitHub](https://github.com/microsoft/aspire/issues) or come hang out with us on [Discord](https://aka.ms/aspire-discord).
+We'd love to hear about your experience with Aspire 13.4. Share what you're building on [GitHub](https://github.com/microsoft/aspire/issues) or join us on [Discord](https://aka.ms/aspire-discord).
