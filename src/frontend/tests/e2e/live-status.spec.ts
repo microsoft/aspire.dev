@@ -37,6 +37,10 @@ test.describe('live status', () => {
     return page.locator('.live-btn:visible').first();
   }
 
+  function prefersProviderHandoff(page: Page): Promise<boolean> {
+    return page.evaluate(() => window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+  }
+
   // Playwright's route.fulfill cannot stream a live connection: the body must be a
   // complete string/Buffer (a ReadableStream silently serialises to garbage). Fulfil
   // the SSE endpoint with one complete `state` frame so the real EventSource fires
@@ -54,8 +58,11 @@ test.describe('live status', () => {
     });
   }
 
-  test('live action dialog stays within the mobile viewport when live', async ({ page }) => {
-    test.skip(!isNarrowViewport(page), 'This regression only applies to narrow/mobile viewports.');
+  test('touch-first live action prioritizes provider handoff', async ({ page }) => {
+    test.skip(
+      !(await prefersProviderHandoff(page)),
+      'This behavior applies to touch-first devices.'
+    );
 
     const liveSnapshot: LiveSnapshot = {
       isLive: true,
@@ -86,15 +93,6 @@ test.describe('live status', () => {
         configurable: true,
         value: MockEventSource,
       });
-      Object.defineProperty(window, 'documentPictureInPicture', {
-        configurable: true,
-        value: {
-          window: null,
-          async requestWindow() {
-            throw new Error('Picture-in-Picture should not be opened in this layout test.');
-          },
-        },
-      });
     });
 
     await page.route(snapshotEndpoint, (route) =>
@@ -112,19 +110,19 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('data-source', 'both');
     await liveBtn.click();
 
-    const liveDialog = page.getByRole('dialog', { name: 'Watch Aspire live' });
+    const liveDialog = page.getByRole('dialog', { name: 'Choose how to watch' });
     await expect(liveDialog).toBeVisible();
     await expect(liveDialog.getByText('Choose how to watch')).toBeVisible();
     await expect(
       liveDialog.getByRole('button', { name: /Open YouTube Picture-in-Picture/ })
-    ).toBeVisible();
+    ).toBeHidden();
     await expect(
       liveDialog.getByRole('button', { name: /Open Twitch Picture-in-Picture/ })
-    ).toBeVisible();
+    ).toBeHidden();
+    await expect(liveDialog.getByText('Provider apps and sites')).toBeVisible();
+    await expect(liveDialog.getByRole('link', { name: /Watch on Twitch/ })).toBeFocused();
     await expect(liveDialog.getByRole('button', { name: 'Dismiss notification' })).toBeInViewport();
-    await expect(
-      liveDialog.getByRole('button', { name: 'Dismiss live notification' })
-    ).toBeVisible();
+    await expect(liveDialog.getByRole('button', { name: 'Close watch options' })).toBeVisible();
 
     const box = await liveDialog.boundingBox();
     const headerBox = await page.getByRole('banner').boundingBox();
@@ -133,14 +131,23 @@ test.describe('live status', () => {
       throw new Error('Unable to measure the live dialog, header, and viewport.');
     }
 
-    expect(Math.round(box.x)).toBe(0);
-    expect(Math.round(box.width)).toBe(viewport.width);
-    expect(Math.abs(box.y - (headerBox.y + headerBox.height))).toBeLessThanOrEqual(1);
+    if (isNarrowViewport(page)) {
+      expect(Math.round(box.x)).toBe(0);
+      expect(Math.round(box.width)).toBe(viewport.width);
+      expect(Math.abs(box.y - (headerBox.y + headerBox.height))).toBeLessThanOrEqual(1);
+    }
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
 
-    await liveBtn.click();
+    await liveDialog.getByRole('button', { name: 'Close watch options' }).click();
     await expect(liveDialog).toBeHidden();
+    await expect(liveBtn).toBeFocused();
+    await expect(liveBtn).toHaveAttribute('data-live-dismissed', 'false');
+
+    const searchButton = page.getByRole('button', { name: 'Search' });
+    await searchButton.focus();
+    await page.keyboard.press('Escape');
+    await expect(searchButton).toBeFocused();
 
     await liveBtn.click();
     await expect(liveDialog).toBeVisible();
@@ -149,19 +156,19 @@ test.describe('live status', () => {
       throw new Error('Unable to measure the reopened live dialog.');
     }
 
-    expect(Math.round(reopenedBox.x)).toBe(0);
-    expect(Math.round(reopenedBox.width)).toBe(viewport.width);
+    expect(Math.abs(reopenedBox.x - box.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(reopenedBox.width - box.width)).toBeLessThanOrEqual(1);
     expect(Math.abs(reopenedBox.y - box.y)).toBeLessThanOrEqual(1);
     expect(Math.abs(reopenedBox.height - box.height)).toBeLessThanOrEqual(1);
     await expect(liveDialog.getByRole('button', { name: 'Dismiss notification' })).toBeInViewport();
 
-    await liveDialog.getByRole('button', { name: 'Dismiss live notification' }).click();
+    await liveDialog.getByRole('button', { name: 'Dismiss notification' }).click();
     await expect(liveDialog).toBeHidden();
     await expect(liveBtn).toHaveAttribute('data-live-dismissed', 'true');
   });
 
   test('live action dialog toggles and keeps desktop labels on one line', async ({ page }) => {
-    test.skip(isNarrowViewport(page), 'Desktop layout is covered by the desktop project.');
+    test.skip(await prefersProviderHandoff(page), 'Document Picture-in-Picture is desktop-only.');
 
     const liveSnapshot: LiveSnapshot = {
       isLive: true,
@@ -218,7 +225,7 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('data-source', 'both');
     await liveBtn.click();
 
-    const liveDialog = page.getByRole('dialog', { name: 'Watch Aspire live' });
+    const liveDialog = page.getByRole('dialog', { name: 'Choose how to watch' });
     await expect(liveDialog).toBeVisible();
 
     const firstBox = await liveDialog.boundingBox();
@@ -259,6 +266,17 @@ test.describe('live status', () => {
     expect(Math.abs(reopenedBox.y - firstBox.y)).toBeLessThanOrEqual(1);
     expect(Math.abs(reopenedBox.width - firstBox.width)).toBeLessThanOrEqual(1);
     expect(Math.abs(reopenedBox.height - firstBox.height)).toBeLessThanOrEqual(1);
+
+    await liveDialog.getByRole('button', { name: /Open YouTube Picture-in-Picture/ }).click();
+    await expect(liveDialog).toBeVisible();
+    await expect(liveDialog.getByRole('status')).toHaveText(
+      'Picture-in-picture is not available. Choose another watch option.'
+    );
+    await expect(liveDialog.getByRole('link', { name: /Watch on Twitch/ })).toBeVisible();
+    await expect(liveDialog.locator('[data-live-source-link]:visible').first()).toContainText(
+      'Watch on Twitch'
+    );
+    await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/);
   });
 
   test('header icon strobes when an SSE state event flips to live', async ({ page }) => {
@@ -329,7 +347,7 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('aria-label', /live/i);
 
     await liveBtn.click();
-    const liveDialog = page.getByRole('dialog', { name: 'Watch Aspire live' });
+    const liveDialog = page.getByRole('dialog', { name: 'Choose how to watch' });
     await expect(liveDialog).toBeVisible();
     await liveDialog.getByRole('button', { name: 'Dismiss notification' }).click();
     await expect(liveBtn).toHaveAttribute('data-live', 'false');
@@ -401,7 +419,7 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('data-live', 'true');
     await liveBtn.click();
     await page
-      .getByRole('dialog', { name: 'Watch Aspire live' })
+      .getByRole('dialog', { name: 'Choose how to watch' })
       .getByRole('button', { name: 'Dismiss notification' })
       .click();
     await expect(liveBtn).toHaveAttribute('data-live-dismissed', 'true');
@@ -468,6 +486,8 @@ test.describe('live status', () => {
   test('live header dialog opens site-global native picture-in-picture and suppresses strobe', async ({
     page,
   }) => {
+    test.skip(await prefersProviderHandoff(page), 'Document Picture-in-Picture is desktop-only.');
+
     const liveSnapshot: LiveSnapshot = {
       isLive: true,
       primarySource: 'twitch',
@@ -528,9 +548,9 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('data-live', 'true');
     await liveBtn.click();
 
-    const liveDialog = page.getByRole('dialog', { name: 'Watch Aspire live' });
+    const liveDialog = page.getByRole('dialog', { name: 'Choose how to watch' });
     await expect(liveDialog).toBeVisible();
-    await expect(liveDialog.getByRole('link', { name: /Open live streams page/ })).toHaveAttribute(
+    await expect(liveDialog.getByRole('link', { name: /Open embedded players/ })).toHaveAttribute(
       'href',
       /\/community\/videos\/$/
     );
@@ -597,6 +617,8 @@ test.describe('live status', () => {
   });
 
   test('live header offers a provider choice when both streams are live', async ({ page }) => {
+    test.skip(await prefersProviderHandoff(page), 'Document Picture-in-Picture is desktop-only.');
+
     const liveSnapshot: LiveSnapshot = {
       isLive: true,
       primarySource: 'twitch',
@@ -657,15 +679,13 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('data-source', 'both');
     await liveBtn.click();
 
-    const sourceMenu = page.getByRole('dialog', { name: 'Watch Aspire live' });
+    const sourceMenu = page.getByRole('dialog', { name: 'Choose how to watch' });
     await expect(sourceMenu).toBeVisible();
-    await expect(sourceMenu.getByText('Embedded players')).toBeVisible();
+    await expect(sourceMenu.getByText('Watch on aspire.dev')).toBeVisible();
     await expect(sourceMenu.locator('.live-source-menu__external-icon')).toHaveCount(2);
-    await expect(
-      sourceMenu.getByRole('button', { name: 'Dismiss live notification' })
-    ).toBeVisible();
+    await expect(sourceMenu.getByRole('button', { name: 'Close watch options' })).toBeVisible();
     await expect(sourceMenu.getByText('aspiredotdev')).toHaveCount(0);
-    await expect(sourceMenu.getByRole('link', { name: /Open live streams page/ })).toHaveAttribute(
+    await expect(sourceMenu.getByRole('link', { name: /Open embedded players/ })).toHaveAttribute(
       'href',
       /\/community\/videos\/$/
     );
@@ -676,6 +696,9 @@ test.describe('live status', () => {
     await expect(sourceMenu.getByRole('link', { name: /Watch on Twitch/ })).toHaveAttribute(
       'href',
       'https://www.twitch.tv/aspiredotdev'
+    );
+    await expect(sourceMenu.locator('[data-live-source-link]:visible').first()).toContainText(
+      'Watch on Twitch'
     );
     await expect
       .poll(() =>

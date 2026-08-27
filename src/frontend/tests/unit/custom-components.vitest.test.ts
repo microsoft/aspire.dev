@@ -385,6 +385,7 @@ const basicRenderCases: BasicRenderCase[] = [
       'parent=aspire.dev',
       'autoplay=true',
       'muted=true',
+      'picture-in-picture',
       'Twitch stream',
     ],
   },
