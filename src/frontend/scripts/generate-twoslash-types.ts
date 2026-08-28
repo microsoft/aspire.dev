@@ -341,6 +341,7 @@ console.log(`📚 Loaded ${modules.length} module JSON files`);
 // Load class-inheritance metadata from the richer pkgs/*.json dumps. Older
 // ts-modules snapshots omitted BaseTypeHierarchy, so this remains the fallback.
 // Key by full type name: short names are not unique across integration packages.
+const classBaseCandidatesByFullName = new Map<string, Set<string>>();
 const classBaseByFullName = new Map<string, string>();
 if (existsSync(PKGS_DIR)) {
   const pkgFiles = readdirSync(PKGS_DIR).filter((f) => f.endsWith('.json'));
@@ -348,13 +349,19 @@ if (existsSync(PKGS_DIR)) {
     const pkg = JSON.parse(readFileSync(resolve(PKGS_DIR, f), 'utf8')) as PkgJson;
     for (const t of pkg.types ?? []) {
       if (t.kind !== 'class' || !t.baseType) continue;
-      const existing = classBaseByFullName.get(t.fullName);
-      if (existing && existing !== t.baseType) {
-        throw new Error(
-          `Conflicting base types for ${t.fullName}: ${existing} and ${t.baseType}`
-        );
-      }
-      classBaseByFullName.set(t.fullName, t.baseType);
+      const candidates = classBaseCandidatesByFullName.get(t.fullName) ?? new Set<string>();
+      candidates.add(t.baseType);
+      classBaseCandidatesByFullName.set(t.fullName, candidates);
+    }
+  }
+
+  for (const [fullName, candidates] of classBaseCandidatesByFullName) {
+    if (candidates.size === 1) {
+      classBaseByFullName.set(fullName, candidates.values().next().value!);
+    } else {
+      console.warn(
+        `   ! Ignoring ambiguous fallback inheritance for ${fullName}: ${[...candidates].join(', ')}`
+      );
     }
   }
   console.log(`   + ${classBaseByFullName.size} class-inheritance links from pkgs/`);
