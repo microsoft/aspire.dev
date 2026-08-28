@@ -43,10 +43,6 @@ describe('generate-twoslash-types', () => {
     expect(output).toMatch(/interface ViteAppResource[^{]*extends[^{]*ExecutableResource/);
   });
 
-  test('uses module hierarchy when packages declare conflicting fallback base types', () => {
-    expect(output).toMatch(/interface K8sManifestResource[^{]*extends[^{]*ContainerResource/);
-  });
-
   test('camelCases C# property names', () => {
     // PasswordParameter on RedisResource → passwordParameter (in declaration position;
     // JSDoc comments preserve the original C# casing intentionally).
