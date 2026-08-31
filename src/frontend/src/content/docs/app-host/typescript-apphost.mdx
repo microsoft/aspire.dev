@@ -167,6 +167,44 @@ Projects created with Aspire CLI versions earlier than 13.4 used `apphost.ts` an
 For compatibility details and optional migration steps, see [Legacy `apphost.ts` projects in the Aspire 13.4 release notes](/whats-new/aspire-13-4/#legacy-apphostts-projects-pre-134).
 </Aside>
 
+## Configuration with appsettings.json
+
+TypeScript AppHosts support the standard .NET configuration stack. Place `appsettings.json` and `appsettings.{Environment}.json` files next to `apphost.mts`, and Aspire loads them into the AppHost's configuration alongside environment variables and command-line arguments:
+
+<FileTree>
+
+- my-apphost/
+  - .aspire/modules/
+  - apphost.mts
+  - aspire.config.json
+  - appsettings.json  Base application settings
+  - appsettings.Development.json  Environment-specific overrides
+  - package.json
+
+</FileTree>
+
+```json title="appsettings.json"
+{
+  "Deployment": {
+    "Region": "westus"
+  }
+}
+```
+
+Read configuration values from `apphost.mts` through the builder's configuration accessor:
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const configuration = await builder.getConfiguration();
+const region = await configuration.getConfigValue("Deployment:Region");
+```
+
+<Aside type="note">
+Configuration is resolved relative to the guest AppHost directory (where `apphost.mts` lives), not the CLI-owned directory that runs the managed Aspire server process. This lets `appsettings.json` sit next to `apphost.mts` the same way it would for a .NET AppHost. The managed server's own logging defaults are preserved, but application settings can still override them.
+</Aside>
+
 ## Package managers
 
 The Aspire CLI supports the following package managers at the **AppHost root** — the directory that contains your `apphost.mts` and `aspire.config.json`. The CLI selects between them by inspecting package manager signals, including the `packageManager` field in `package.json`, lock files, and package manager configuration in the AppHost root.
