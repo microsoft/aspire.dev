@@ -181,6 +181,41 @@ await api.withKubernetesPersistentVolumeMount(media, '/srv/media');
 </TabItem>
 </Tabs>
 
+### Bind with a portable path environment variable
+
+Add the `env` parameter to expose the volume's effective storage path through an environment variable instead of hardcoding the mount path in your application:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var data = k8s.AddPersistentVolume("data")
+    .WithCapacity("20Gi");
+
+builder.AddProject<Projects.Api>("api")
+    .WithPersistentVolume(data, "/data", env: "DATA_PATH");
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const data = await k8s.addPersistentVolume('data');
+await data.withCapacity('20Gi');
+
+const api = await builder.addProject('api');
+await api.withKubernetesPersistentVolumeMount(data, '/data', { env: 'DATA_PATH' });
+```
+
+</TabItem>
+</Tabs>
+
+When a project or executable runs locally, `DATA_PATH` points to a persistent directory in the AppHost's local store — normally under the AppHost's intermediate-output directory, so cleaning build outputs can remove the local data. In publish and deploy modes, `DATA_PATH` contains the mount path (`/data` above), so the application reads the same environment variable in both environments.
+
+Local containers use a worktree-scoped container volume instead when the mount names an environment variable; mounts that don't name one keep the persistent volume's own name for the local container volume, so data written by an earlier version of the AppHost stays attached. A single persistent-volume resource can't be shared between local containers and local projects or executables, because those execution types can't reliably share one backing store.
+
+The `isReadOnly` mount option is enforced after deployment, but Aspire can't make a directory read-only for a process running directly on the host.
+
 <Aside type="caution" title="Workloads are promoted to StatefulSet">
   Any workload bound to a persistent volume is rendered as a `StatefulSet` instead of a `Deployment`, regardless of its default workload kind. There is no opt-out. A `Deployment` with a `ReadWriteOnce` claim and more than one replica is broken by design because the second pod can't mount the same volume. Therefore, binding to a durable volume automatically selects the `StatefulSet` path, which gives pods stable identity and ordered rollout.
 </Aside>

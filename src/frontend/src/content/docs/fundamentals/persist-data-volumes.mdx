@@ -126,6 +126,42 @@ With the AppHost project being named `VolumeMount.AppHost`, the `WithDataVolume`
 
 - `{appHostProjectName}-{resourceName}-data`: The volume name is derived from the AppHost project name and the resource name.
 
+## Use a portable volume path environment variable
+
+Volume mount paths often differ between local process execution and deployed containers: projects and executables need a host filesystem path during the inner loop, while Docker Compose, Kubernetes, and Azure Container Apps need the in-container mount path. `WithVolume` accepts an optional `env` parameter so an application can read one environment variable in both modes instead of branching on how it's running:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Api>("api")
+       .WithVolume("data", "/data", env: "DATA_PATH");
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const api = await builder.addProject("api");
+await api.withVolume("/data", "data", "DATA_PATH");
+```
+
+</TabItem>
+</Tabs>
+
+In this example:
+
+- In run mode, the project or executable receives a deterministic, workload-scoped directory under the AppHost's local store as the value of `DATA_PATH`.
+- Containers, and every workload in publish or deploy mode (Docker Compose, Kubernetes, and Azure Container Apps), receive `/data` — the configured `target` path — as the value of `DATA_PATH`.
+
+<Aside type="note">
+  The `env` parameter is only available on projects and executables. Container
+  resources always mount the volume at `target`, so an equivalent environment
+  variable for a container is just `.WithEnvironment("DATA_PATH", "/data")`.
+</Aside>
+
+This convention also applies to Kubernetes persistent volumes bound with `WithPersistentVolume(..., env: ...)`. For details, see [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/#bind-with-a-portable-path-environment-variable).
+
 ## Use bind mounts
 
 Bind mounts enable access to the data from both within the container and from processes on the host machine. For example, once a bind mount is established, you can copy a file into it on your host computer. The file is then available at the bound path within the container for your resource. With Aspire, you configure a bind mount for each resource container using the `WithBindMount` method, which accepts three parameters:
