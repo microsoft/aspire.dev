@@ -12,6 +12,8 @@ Aspire の導入で問題が発生していますか? このページでは、�
 
 ## Docker Desktop が起動していない
 
+<span aria-hidden="true" data-troubleshooting-issue data-funnel="troubleshooting_recovery" data-funnel-step="issue_viewed" data-funnel-trigger="view" data-funnel-surface="troubleshooting_page" data-funnel-issue="docker_runtime" />
+
 **症状**: `aspire run` が停止したままになる、または「container runtime を待機中」のメッセージが表示されます。
 
 **解決策**: `aspire run` を実行する前に Docker Desktop (または Podman) を起動してください。システムトレイで Docker が緑色のステータス表示で動作していることを確認します。
@@ -22,6 +24,8 @@ Aspire の導入で問題が発生していますか? このページでは、�
 </Aside>
 
 ## ポートが既に使用中
+
+<span aria-hidden="true" data-troubleshooting-issue data-funnel="troubleshooting_recovery" data-funnel-step="issue_viewed" data-funnel-trigger="view" data-funnel-surface="troubleshooting_page" data-funnel-issue="port_conflict" />
 
 **症状**: 「Address already in use」や「Port 5000 is already bound.」のようなエラー メッセージが表示されます。
 
@@ -35,7 +39,7 @@ Aspire の導入で問題が発生していますか? このページでは、�
 <OsAwareTabs syncKey="terminal">
     <div slot="windows">
     
-    ```powershell
+    ```powershell data-funnel="troubleshooting_recovery" data-funnel-step="remediation_copied" data-funnel-trigger="copy" data-funnel-surface="troubleshooting_page" data-funnel-issue="port_conflict"
     netstat -ano | findstr :5000
     # 最後の列で PID を確認してから:
     taskkill /PID <pid> /F
@@ -44,7 +48,7 @@ Aspire の導入で問題が発生していますか? このページでは、�
     </div>
     <div slot="unix">
 
-    ```bash
+    ```bash data-funnel="troubleshooting_recovery" data-funnel-step="remediation_copied" data-funnel-trigger="copy" data-funnel-surface="troubleshooting_page" data-funnel-issue="port_conflict"
     lsof -i :5000
     # 次にプロセスを終了:
     kill -9 <pid>
@@ -54,6 +58,8 @@ Aspire の導入で問題が発生していますか? このページでは、�
 </OsAwareTabs>
 
 ## ダッシュボードでサービスが "Unhealthy" と表示される
+
+<span aria-hidden="true" data-troubleshooting-issue data-funnel="troubleshooting_recovery" data-funnel-step="issue_viewed" data-funnel-trigger="view" data-funnel-surface="troubleshooting_page" data-funnel-issue="unhealthy_service" />
 
 **症状**: Aspire ダッシュボードでサービスが赤い状態、または「Unhealthy」と表示されます。
 
@@ -70,17 +76,21 @@ Aspire の導入で問題が発生していますか? このページでは、�
 
 ## "Connection refused" エラー
 
+<span aria-hidden="true" data-troubleshooting-issue data-funnel="troubleshooting_recovery" data-funnel-step="issue_viewed" data-funnel-trigger="view" data-funnel-surface="troubleshooting_page" data-funnel-issue="connection_refused" />
+
 **症状**: フロントエンドが API に接続できず、connection refused エラーが表示されます。
 
 **解決策**: AppHost で `WaitFor()` を使用していることを確認してください:
 
-```csharp title="AppHost.cs"
+```csharp title="AppHost.cs" data-funnel="troubleshooting_recovery" data-funnel-step="remediation_copied" data-funnel-trigger="copy" data-funnel-surface="troubleshooting_page" data-funnel-issue="connection_refused"
 builder.AddProject<Projects.WebFrontend>("frontend")
     .WithReference(apiService)
     .WaitFor(apiService);  // この行を追加!
 ```
 
 ## 環境変数が利用できない
+
+<span aria-hidden="true" data-troubleshooting-issue data-funnel="troubleshooting_recovery" data-funnel-step="issue_viewed" data-funnel-trigger="view" data-funnel-surface="troubleshooting_page" data-funnel-issue="missing_configuration" />
 
 **症状**: サービスで、注入されるはずの接続文字列や構成を見つけられません。
 
@@ -90,7 +100,7 @@ builder.AddProject<Projects.WebFrontend>("frontend")
 
 AppHost 側:
 
-```csharp title="AppHost.cs"
+```csharp title="AppHost.cs" data-funnel="troubleshooting_recovery" data-funnel-step="remediation_copied" data-funnel-trigger="copy" data-funnel-surface="troubleshooting_page" data-funnel-issue="missing_configuration"
 var db = builder.AddPostgres("db");
 var api = builder.AddProject<Projects.Api>("api")
     .WithReference(db);  // これにより接続文字列が注入されます
@@ -98,13 +108,15 @@ var api = builder.AddProject<Projects.Api>("api")
 
 サービス コード側では、構成から接続文字列を取得します:
 
-```csharp title="Program.cs"
+```csharp title="Program.cs" data-funnel="troubleshooting_recovery" data-funnel-step="remediation_copied" data-funnel-trigger="copy" data-funnel-surface="troubleshooting_page" data-funnel-issue="missing_configuration"
 var connectionString = builder.Configuration.GetConnectionString("db");
 ```
 
 接続文字列は `ConnectionStrings__db` という名前の環境変数として注入されます。
 
 ## コンテナー イメージの pull 失敗
+
+<span aria-hidden="true" data-troubleshooting-issue data-funnel="troubleshooting_recovery" data-funnel-step="issue_viewed" data-funnel-trigger="view" data-funnel-surface="troubleshooting_page" data-funnel-issue="image_pull" />
 
 **症状**: コンテナー イメージの pull 失敗、または「image not found」エラーが表示されます。
 
@@ -116,7 +128,7 @@ var connectionString = builder.Configuration.GetConnectionString("db");
 
 ### イメージを手動で pull して確認する方法
 
-```bash
+```bash data-funnel="troubleshooting_recovery" data-funnel-step="remediation_copied" data-funnel-trigger="copy" data-funnel-surface="troubleshooting_page" data-funnel-issue="image_pull"
 # まずイメージを手動で pull して確認
 docker pull redis:latest
 
@@ -125,6 +137,8 @@ docker pull redis:latest
 ```
 
 ## ダッシュボードが読み込まれない
+
+<span aria-hidden="true" data-troubleshooting-issue data-funnel="troubleshooting_recovery" data-funnel-step="issue_viewed" data-funnel-trigger="view" data-funnel-surface="troubleshooting_page" data-funnel-issue="dashboard_loading" />
 
 **症状**: Aspire ダッシュボードの URL に応答がない、または空白ページが表示されます。
 
@@ -141,18 +155,20 @@ docker pull redis:latest
 
 ## サービス検出が機能しない
 
+<span aria-hidden="true" data-troubleshooting-issue data-funnel="troubleshooting_recovery" data-funnel-step="issue_viewed" data-funnel-trigger="view" data-funnel-surface="troubleshooting_page" data-funnel-issue="service_discovery" />
+
 **症状**: サービス同士が名前で見つけられません (例: `http://apiservice` が解決されない)。
 
 **解決策**: AppHost で定義したサービス名を、完全に同じ文字列で使用していることを確認してください。
 
 ### 例: 正しいサービス検出の設定
 
-```csharp title="AppHost.cs"
+```csharp title="AppHost.cs" data-funnel="troubleshooting_recovery" data-funnel-step="remediation_copied" data-funnel-trigger="copy" data-funnel-surface="troubleshooting_page" data-funnel-issue="service_discovery"
 // AppHost 側
 var api = builder.AddProject<Projects.Api>("apiservice");  // 名前は "apiservice"
 ```
 
-```csharp title="Program.cs"
+```csharp title="Program.cs" data-funnel="troubleshooting_recovery" data-funnel-step="remediation_copied" data-funnel-trigger="copy" data-funnel-surface="troubleshooting_page" data-funnel-issue="service_discovery"
 // 利用側サービスではこの名前を正確に使用
 var client = new HttpClient { BaseAddress = new Uri("http://apiservice") };
 ```
@@ -169,11 +185,13 @@ var client = new HttpClient { BaseAddress = new Uri("http://apiservice") };
 
 ## TypeScript AppHost の問題
 
+<span aria-hidden="true" data-troubleshooting-issue data-funnel="troubleshooting_recovery" data-funnel-step="issue_viewed" data-funnel-trigger="view" data-funnel-surface="troubleshooting_page" data-funnel-issue="typescript_apphost" />
+
 ### "Command not found" エラー
 
 Node.js がインストールされ、`PATH` で利用可能であることを確認してください:
 
-```bash title="Node.js のインストールを確認"
+```bash title="Node.js のインストールを確認" data-funnel="troubleshooting_recovery" data-funnel-step="remediation_copied" data-funnel-trigger="copy" data-funnel-surface="troubleshooting_page" data-funnel-issue="typescript_apphost"
 node --version
 npm --version
 ```
@@ -190,7 +208,7 @@ npm --version
 
 問題を診断するには、デバッグ出力で実行します:
 
-```bash title="デバッグ出力で実行"
+```bash title="デバッグ出力で実行" data-funnel="troubleshooting_recovery" data-funnel-step="remediation_copied" data-funnel-trigger="copy" data-funnel-surface="troubleshooting_page" data-funnel-issue="typescript_apphost"
 aspire run --log-level Debug
 ```
 
