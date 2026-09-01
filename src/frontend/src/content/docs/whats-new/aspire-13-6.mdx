@@ -1,7 +1,7 @@
 ---
 title: "What's new in Aspire 13.6"
-seoTitle: "TODO(polish): What's new in Aspire 13.6 highlights"
-description: 'TODO(draft): one-sentence, SEO-friendly summary of the headline features in Aspire 13.6. Trimmed to 200 chars for OG.'
+seoTitle: 'Aspire 13.6: persistent telemetry, Java, and Rust apps'
+description: 'Explore Aspire 13.6 dashboard run history, first-party Java and Rust hosting, portable volume paths, CLI workflows, deployment, and integration updates.'
 sidebar:
   label: Aspire 13.6
   order: 0
@@ -11,31 +11,30 @@ tableOfContents:
 ---
 
 import {
-  Steps,
   Aside,
   Icon,
-  Tabs,
+  Steps,
   TabItem,
+  Tabs,
 } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
-import OsAwareTabs from '@components/OsAwareTabs.astro';
-{/* import { Image } from 'astro:assets'; — add when the first screenshot lands */}
 
-{/_ The "Released {date}" badge and the GitHub release-notes link render automatically
-from the `publishDate` frontmatter + the page slug (MarkdownContent.astro override + utils/whats-new.ts). Do NOT hand-place a badge or release-tag link here. _/}
-
-Aspire 13.6 is here. TODO(draft): 2–4 sentence lede — lead with
-the single biggest customer-facing win, then name the other headline themes.
-Impact-first, positive, KISS. No marketing fluff.
+Aspire 13.6 makes the dashboard a durable place to investigate applications with **SQLite-backed telemetry and run history**. It also adds **first-party Java and Rust hosting**, an experimental **Azure Container Apps Sandboxes** deployment target, portable volume paths, and more direct workflows across the Aspire CLI and Visual Studio Code.
 
 We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and the community, or file feedback and issues on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/microsoft/aspire/issues).
 
 This release introduces:
 
-{/* One bullet per top-level section below, in the SAME order. 1:1 mapping. */}
-
-- **TODO headline 1** — one-line impact statement.
-- **TODO headline 2** — one-line impact statement.
+- **Dashboard persistence and run history** — revisit completed application runs and compare telemetry across restarts.
+- **Three new first-party integrations** — orchestrate Java and Rust apps or deploy container-backed compute to Azure Container Apps Sandboxes.
+- **More flexible AppHosts** — pass portable volume paths, load TypeScript AppHost settings from `appsettings.json`, and use resolved environment values in custom debug launch producers.
+- **Sharper CLI workflows** — select launch profiles, export canonical TypeScript API data, preserve acquisition channels, and observe resources more reliably.
+- **A more capable Visual Studio Code extension** — drive AppHosts from coding agents, run deployment actions from the Aspire pane, and work cleanly across multiple roots and git worktrees.
+- **More predictable deployment** — isolate deployment state and preserve Kubernetes hostnames and embedded parameter values.
+- **Integration improvements** — debug Blazor WebAssembly apps, discover Dev Tunnel URLs, customize Radius recipes, and protect destructive Azure location changes.
+- **Updated emulator images** — move Azure App Configuration to `1.2.0` and make the Linux-based vNext Cosmos DB emulator the default.
+- **Community contributions** — 13 pull requests from eight contributors span major features, integration improvements, reliability fixes, and project tooling.
+- **One breaking change** — `RunAsEmulator` now selects the Linux-based vNext Cosmos DB emulator.
 - …and much more.
 
 ## 🆙 Upgrade to Aspire 13.6
@@ -43,19 +42,14 @@ This release introduces:
 <span id="upgrade-to-aspire-13-6"></span>
 <br />
 
-{/_ BREAKING CHANGES ARE CONDITIONAL. If this release ships NO breaking changes,
-DELETE this caution <Aside> — and the "⚠️ Breaking changes" section below, plus any
-breaking-changes "This release introduces" bullet. Keep them ONLY when the release
-actually has breaking changes, and keep the Aside and the section in sync. _/}
-
 <Aside type="caution">
-  Aspire 13.6 includes breaking changes. Please review the [Breaking
+  Aspire 13.6 changes the default Azure Cosmos DB emulator. Review the [Breaking
   changes](#breaking-changes) section before upgrading.
 </Aside>
 
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
 
-The easiest way to upgrade to Aspire 13.6 is using the [`aspire update` command](/reference/cli/commands/aspire-update/):
+To upgrade to Aspire 13.6, use the [`aspire update` command](/reference/cli/commands/aspire-update/):
 
 <Steps>
 
@@ -65,7 +59,7 @@ The easiest way to upgrade to Aspire 13.6 is using the [`aspire update` command]
    aspire update --self
    ```
 
-1. Update your projects (run from the root of your repository):
+1. Update your projects from the repository root:
 
    ```bash title="Aspire CLI — Update all Aspire packages"
    aspire update
@@ -78,76 +72,318 @@ The easiest way to upgrade to Aspire 13.6 is using the [`aspire update` command]
   CLI](/get-started/install-cli/).
 </LearnMore>
 
-{/_ ─────────────────────────────────────────────────────────────────────────
-FEATURE SECTIONS
-Keep sections focused — do NOT merge themes (e.g. no "Deployment and
-integrations"). Integrations and Deployment are SEPARATE top-level
-sections. Order sections by customer impact / DX. Add feature-specific
-sections (e.g. "🌐 TypeScript AppHost", "🧱 Go and Bun") near the top when
-they are the headline. Remove any standard section that doesn't apply.
-Use <Tabs syncKey='aspire-lang'> for C#/TypeScript parity, `LearnMore` to
-deep-link, and <Aside> sparingly for genuinely important call-outs.
-───────────────────────────────────────────────────────────────────────── _/}
+## 📊 Dashboard persistence and run history
 
-## 🛠️ CLI enhancements
+The Aspire dashboard now stores resource snapshots and telemetry in a versioned SQLite database. The dashboard started by an AppHost uses **Run** persistence by default, retains up to ten runs per application, and adds a header selector for switching between the live run and completed runs. Historical runs are read-only, so you can compare resources, logs, traces, and metrics without changing the earlier application state.
 
-TODO(research): what changed, why it matters to the developer.
+The standalone dashboard still defaults to temporary **None** persistence. To keep one standalone dashboard database across restarts, give it a stable application name and select **Resume**:
 
-## 🧩 App model and AppHost
+```bash title="Aspire CLI — Resume a standalone dashboard"
+aspire dashboard run --application-name my-app --persistence Resume
+```
 
-TODO(research).
+When you run the dashboard in a container, mount `ASPIRE_DASHBOARD_DATA_DIRECTORY` from persistent storage and reuse the same application name, directory, and persistence mode.
 
-## 📊 Dashboard improvements
+Filtering, searching, paging, and aggregation now use the same SQLite query path as the running dashboard. This removes differences between production queries and the former in-memory test implementation, while preserving trace-tree expansion and rendered-summary searches.
 
-TODO(research).
+<Aside type="caution" title="Protect persisted telemetry">
+  The SQLite database can contain sensitive resource and telemetry values. It
+  has no independent encryption or authorization layer. Aspire restricts the
+  application data directory to its owner on Unix, but doesn't set or validate
+  Windows ACLs. Protect the data directory, backups, and copies accordingly.
+</Aside>
 
-## 🚢 Deployment
+Other dashboard improvements include:
 
-{/* STANDALONE — never merged with Integrations. Kubernetes/AKS/Azure/Compose. */}
-TODO(research).
+- Cross-origin or malformed `/_blazor` WebSocket upgrades are rejected before a dashboard circuit is allocated.
+- Pausing telemetry displays a consistent warning across telemetry pages.
+- Dashboard Markdown links use stricter URL validation.
+- Database spans resolve to the correct database resource, and multi-path icons no longer break the graph view.
+- Filter controls disable browser autocomplete.
 
-## 🧰 VS Code extension
-
-TODO(research).
+<LearnMore>
+  Read the [Dashboard persistence
+  specification](https://github.com/microsoft/aspire/blob/1cdf7d17248ae78ee018abbc314f772ace5e624d/docs/specs/dashboard-persistence.md)
+  and [dashboard security considerations](/dashboard/security-considerations/).
+</LearnMore>
 
 ## ✨ New integrations
 
-{/_ Brand-new integrations get called out here, distinct from "Integration
-updates" below. One subsection per new integration with a LearnMore link.
-SCOPE: first-party microsoft/aspire integrations ONLY. Community Toolkit
-(CommunityToolkit/Aspire) integrations ship on their own cadence with their own
-release notes — do NOT list them here. Only mention the Toolkit when a core
-integration migrates to/from it, or is deprecated in favor of it. _/}
-TODO(research): list brand-new (first-party) integrations shipped this release.
+Aspire 13.6 adds three first-party hosting packages. Java and Rust build on implementations that originated in the Aspire Community Toolkit, while Azure Container Apps Sandboxes introduces an experimental deployment target for isolated container-backed compute.
+
+### ☕ Java
+
+The new `Aspire.Hosting.Java` package supports executable JARs, Maven and Gradle wrappers, Spring Boot, Quarkus, and prebuilt Java container images. It can detect the target Java release from Maven or Gradle, generate a multi-stage Dockerfile for publishing, attach the OpenTelemetry Java agent, and run both Java resources and Java AppHosts under the Visual Studio Code debugger.
+
+The generated container path uses the repository's Maven or Gradle wrapper rather than a machine-global tool, rejects paths outside the build context, and runs the application as a non-root user.
+
+### 🦀 Rust
+
+The new `Aspire.Hosting.Rust` package models Cargo applications through `AddRustApp` / `addRustApp`. Configure the Cargo binary target, arguments, and features independently from application arguments, then let Aspire generate a multi-stage Dockerfile for publish and deploy. Visual Studio Code can discover, run, and debug both Rust resources and `apphost.rs` AppHosts.
+
+The first-party package doesn't yet include the Community Toolkit integration's Bacon support. Custom build and runtime images also remain responsible for ABI and linker compatibility.
+
+### ☁️ Azure Container Apps Sandboxes
+
+The experimental `Aspire.Hosting.Azure.Sandboxes` package can provision a sandbox group and Azure Container Registry, then publish project, container, and Dockerfile resources as sandbox containers. Aspire resolves images to immutable Linux/AMD64 digests, supports deploy, redeploy, stale-generation pruning, and destroy, and requires an explicit opt-in before an HTTP endpoint allows anonymous access.
+
+<Aside type="caution" title="Experimental deployment target">
+  Azure Container Apps Sandboxes support is intentionally narrow and may change.
+  The initial package doesn't include Connector Gateway, MCP, triggers, OAuth,
+  or broad workload-role APIs from the earlier prototype. A formal threat model
+  and security review are also follow-up work.
+</Aside>
+
+<LearnMore>
+  Review the source changes for
+  [Java](https://github.com/microsoft/aspire/pull/18033),
+  [Rust](https://github.com/microsoft/aspire/pull/18906), and [Azure Container
+  Apps Sandboxes](https://github.com/microsoft/aspire/pull/19008).
+</LearnMore>
+
+## 🧩 App model and AppHost
+
+### Portable volume paths
+
+Applications often need a host filesystem path during local process execution and an in-container mount path after deployment. The new `env` argument on project and executable volume mounts lets the application consume one environment variable in both modes:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.Api>("api")
+    .WithVolume("data", "/data", env: "DATA_PATH");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withVolume('/data', 'data', 'DATA_PATH');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+In run mode, `DATA_PATH` contains a deterministic, workload-scoped directory in the AppHost's local store. Docker Compose, Kubernetes, Azure Container Apps, and other published workloads receive `/data`, so application code doesn't need separate local and deployment path logic.
+
+This convention also applies to Kubernetes persistent volumes through `WithPersistentVolume(..., env: ...)` and `withKubernetesPersistentVolumeMount(..., { env })`.
+
+<LearnMore>
+  See [Persist data with volume resources](/fundamentals/persist-data-volumes/).
+</LearnMore>
+
+### TypeScript AppHost configuration
+
+TypeScript AppHosts now load the standard configuration stack from the directory that contains `apphost.mts`. Place `appsettings.json` and environment-specific files beside the AppHost:
+
+```json title="appsettings.json"
+{
+  "Deployment": {
+    "Region": "westus"
+  }
+}
+```
+
+Read the value through the generated builder API:
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const configuration = await builder.getConfiguration();
+const region = await configuration.getConfigValue('Deployment:Region');
+```
+
+The managed server keeps its logging defaults, while application settings can override them. Environment variables and command-line arguments remain part of the configuration stack.
+
+### Testing, interactions, and extension points
+
+- **Dashboard-enabled integration tests.** Set `DistributedApplicationTestingBuilderOptions.EnableDashboard` and call `GetDashboardUrlAsync()` to start a dashboard on dynamic loopback endpoints and obtain an authenticated URL without writing its browser token to logs.
+- **Consistent file upload limits.** The Interaction Service now enforces one file for single-file prompts and 100 files for multi-file prompts across dashboard, CLI, and custom clients. Server-generated temporary names and deterministic cleanup protect uploaded content.
+- **Resolved debug environments.** Extension authors can opt into the new experimental `WithDebugSupport` overload that receives `LaunchConfigurationCallbackContext`, including the resource's resolved environment variables. Existing mode-based overloads keep their signatures; recompile and confirm binding because the synchronous overload now has `OverloadResolutionPriority(-1)`.
+- **More reliable local orchestration.** DCP startup gets a readiness-aware timeout on contended hosts, terminal hosts clean up orphaned sockets, and proxied executable target ports use Aspire's non-ephemeral range to avoid bind races.
+
+<LearnMore>
+  See [Interaction Service file uploads](/extensibility/interaction-service/)
+  and the [`ASPIREEXTENSION001` diagnostic](/diagnostics/aspireextension001/).
+</LearnMore>
+
+## 🛠️ Aspire CLI enhancements
+
+### Select an AppHost launch profile
+
+`aspire run` and `aspire start` now accept `--launch-profile` with the `-lp` alias:
+
+```bash title="Aspire CLI — Select a launch profile"
+aspire run --launch-profile Development
+aspire start -lp Development
+```
+
+The selected profile flows through direct AppHost launches, detached child processes, and Visual Studio Code delegation. When the CLI can't safely reproduce a .NET profile, it delegates to `dotnet run` so the .NET SDK retains responsibility for validation and diagnostics.
+
+### Export canonical TypeScript API data
+
+The new `aspire sdk export` command emits a deterministic TypeScript API reference as JSON. It exports `Aspire.Hosting` at the running CLI SDK version by default, or an exact `PackageName@Version` supplied through `--package`. The exporter and generated TypeScript SDK now share one projector, preventing optional parameters, promise wrappers, DTOs, and enums from drifting between the two representations.
+
+```bash title="Aspire CLI — Export TypeScript API data"
+aspire sdk export
+```
+
+### More predictable updates and resource observation
+
+- **Channel-aware self-update.** A CLI installed or updated from a nonstable channel preserves that acquisition channel for later self-updates.
+- **Complete `describe --follow` startup.** The current state of every resource is emitted immediately, even when no later update occurs, before subsequent state changes stream.
+- **Stricter `wait` failures.** `aspire wait` exits with code `18` as soon as a resource reaches `FailedToStart`, including when the requested target status is `down`.
+- **Safer resource descriptions.** `aspire describe` redacts a resource's own secret environment-variable values as well as secrets passed to dependents. Secrets embedded inside larger connection strings aren't automatically detected.
+- **Clearer terminal output.** `aspire ps` colorizes statuses, and progress rendering is suppressed when console logging is enabled.
+
+<LearnMore>
+  See the [`aspire run`](/reference/cli/commands/aspire-run/), [`aspire
+  describe`](/reference/cli/commands/aspire-describe/), and [`aspire
+  wait`](/reference/cli/commands/aspire-wait/) command references.
+</LearnMore>
+
+## 🧰 Visual Studio Code extension
+
+The Aspire extension brings more of the development lifecycle into the Aspire pane and makes complex workspaces more predictable:
+
+- **Agent-driven AppHosts.** Coding agents can start and stop AppHosts through the extension's lifecycle tools instead of spawning an unrelated CLI process.
+- **Deployment actions where you work.** AppHost items expose **Deploy**, **Publish**, **Run pipeline step**, and **Debug pipeline step** alongside run actions. The pane also adds **Create with Aspire...** for creating an app or adding Aspire to the current workspace.
+- **Multi-root and worktree awareness.** The Aspire pane discovers AppHosts from every workspace root. AppHost lifecycle operations are scoped to the current git worktree, and launch arguments survive extension delegation.
+- **Cleaner debugging.** AppHost logs appear once in the debug console with log-level color, and resources show setup guidance when their Visual Studio Code debugger extension is missing.
+- **Fewer disruptive prompts.** The C# Dev Kit Hot Reload advisory appears at most once per workspace and can be disabled. Reloading Visual Studio Code no longer forces the Aspire view into focus or restores a hidden Activity Bar entry.
+- **More reliable sessions.** Closing the window stops extension-owned CLI processes, browser launch no longer blocks startup completion, and Azure Functions and browser-debugging lifecycles report exits accurately.
+
+<LearnMore>
+  See [Aspire Visual Studio Code
+  extension](/get-started/aspire-vscode-extension/) and [AI coding
+  agents](/get-started/ai-coding-agents/).
+</LearnMore>
+
+## 🚢 Deployment
+
+Deployment state and Kubernetes output are more portable and predictable:
+
+- **Isolated state under `ASPIRE_HOME`.** Deployment state now lives under `<ASPIRE_HOME>/deployments/<AppHostSha>/<environment>.json`, keeping side-by-side CLI and CI runs out of the shared user profile. Sibling single-file AppHosts in one directory also receive distinct state identities.
+- **Correct hostname inheritance.** Kubernetes Ingress paths and Gateway routes without an explicit host inherit `WithHostname(...)`; explicit path hosts still win, and default backends remain catch-all.
+- **Complete Helm values.** Parameters embedded in environment expressions are emitted as their own values and resolved during deployment instead of producing incomplete strings such as `http:///`.
+- **Portable volume paths.** The AppHost volume convention described earlier publishes the same environment-variable contract through Docker Compose, Kubernetes, and Azure Container Apps.
+
+<LearnMore>
+  See [Deployment state caching](/deployment/deployment-state-caching/),
+  [Kubernetes ingress](/deployment/kubernetes-ingress/), and [Kubernetes
+  clusters](/deployment/kubernetes/clusters/).
+</LearnMore>
 
 ## 📦 Integration updates
 
-{/* Changes to EXISTING integrations (APIs, defaults, behavior). */}
-TODO(research).
+Existing integrations add new workflows and safer defaults:
+
+- **Blazor WebAssembly debugging.** Standalone and hosted WebAssembly apps can expose dashboard commands for starting and stopping an Edge or Chrome debugging session. The related Dotnet project gateway APIs are also available to polyglot AppHosts, but remain experimental and run-only.
+- **Dev Tunnel URL discovery.** Tunnel, inspect, and local endpoint URLs appear as highlighted resource properties, and a **Show tunnel URLs** command surfaces them through the dashboard Interaction Service.
+- **Radius recipe configuration.** Experimental APIs configure recipe parameters and required secrets globally or per resource from the AppHost.
+- **Safer Azure location changes.** Changing a location-immutable Azure resource requires an explicit confirmation before Aspire deletes and recreates it. The CLI projects that confirmation as `--confirm-delete`.
+- **Azure identity reliability.** Role-assignment Bicep detects service principal and federated workload identity credentials more accurately, and the experimental Sandboxes integration now binds its deployment principal to the scoped data-owner role correctly.
+- **Cosmos DB client health.** `AddAzureCosmosClient` and `AddKeyedAzureCosmosClient` register default-on health checks that probe account reachability. Set `DisableHealthChecks` to opt out.
+- **Foundry model refreshes.** Generated Foundry model constants were refreshed throughout the release cycle without changing the hosting API shape.
+
+<Aside type="note">
+  Radius recipe APIs, the Dotnet project Blazor gateway, and Azure Container
+  Apps Sandboxes remain experimental.
+</Aside>
+
+<LearnMore>
+  See [Blazor hosting](/integrations/dotnet/blazor-hosting/), [Dev
+  tunnels](/integrations/devtools/dev-tunnels/), and
+  [Radius](https://docs.radapp.io/).
+</LearnMore>
 
 ## 🐳 Default container image updates
 
-{/_ Call out default container image TAG bumps (source of truth:
-src/frontend/src/data/container-images.json — diff prior vs this release).
-We historically under-report these; include the old → new tag and any
-data-volume / migration caveat. _/}
-TODO(research): list default container image tag bumps (old → new).
+Two emulator defaults changed:
+
+| Integration             | Image                                                                  | Aspire 13.5 | Aspire 13.6    |
+| ----------------------- | ---------------------------------------------------------------------- | ----------- | -------------- |
+| Azure App Configuration | `mcr.microsoft.com/azure-app-configuration/app-configuration-emulator` | `1.0.2`     | `1.2.0`        |
+| Azure Cosmos DB         | `mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator`               | `stable`    | `vnext-latest` |
+
+Aspire's App Configuration emulator now checks the `/health` endpoint on the `1.2.0` image, so `OnResourceReady` runs only after the emulator accepts requests. The Cosmos DB change also affects runtime behavior and persisted data; review the [breaking-change guidance](#breaking-changes) before upgrading.
 
 ## 🙏 Community contributions
 
-Aspire is built in the open. TODO(research): thank community contributors by
-`@handle` with a one-line note on what they contributed. We're always excited to
-[see community contributions](/community/contributors/)! If you'd like to get
-involved, check out our [contributing guide](/community/contributor-guide/).
+Thirteen pull requests from eight community contributors helped shape Aspire 13.6:
 
-{/_ CONDITIONAL SECTION — delete this entire section (and the caution <Aside> in the
-Upgrade section above) when the release has NO breaking changes. Not every release
-does. Keep it only when there are real breaking changes to document. _/}
+- [@marshalhayes](https://github.com/marshalhayes) brought the [first-party Java hosting integration](https://github.com/microsoft/aspire/pull/18033) from the Community Toolkit into Aspire and expanded it with framework, AppHost, publishing, and debugger support.
+- [@afscrome](https://github.com/afscrome) added [first-party Rust hosting and debugging](https://github.com/microsoft/aspire/pull/18906), enabled [Cosmos DB emulator OpenTelemetry](https://github.com/microsoft/aspire/pull/15671), and made pasted `aspire doctor` output render readably in the repository's issue template.
+- [@prom3theu5](https://github.com/prom3theu5) added [`--launch-profile` support](https://github.com/microsoft/aspire/pull/19494) across the CLI and Visual Studio Code.
+- [@Shaurya2k06](https://github.com/Shaurya2k06) made [AppHost lifecycle operations git-worktree aware](https://github.com/microsoft/aspire/pull/19384) and preserved delegated launch arguments.
+- [@SankeerthNara](https://github.com/SankeerthNara) surfaced [deploy, publish, and pipeline actions](https://github.com/microsoft/aspire/pull/19466), added project-creation workflows and AppHost selection prompts, and hardened extension release automation.
+- [@thomhurst](https://github.com/thomhurst) added [Cosmos DB client health checks](https://github.com/microsoft/aspire/pull/18554).
+- [@vivekjm](https://github.com/vivekjm) disabled browser autocomplete for dashboard filter controls.
+- [@flojon](https://github.com/flojon) fixed TypeScript code generation so zero-capability resource builders keep their required Promise wrappers.
+
+We're always excited to [see community contributions](/community/contributors/)! If you'd like to get involved, check out our [contributing guide](/community/contributor-guide/).
 
 ## ⚠️ Breaking changes
 
 <span id="breaking-changes"></span>
 
-Aspire 13.6 includes breaking changes. TODO(research): one
-subsection (`#### Title`) per breaking change — what changed, who's affected,
-and the exact remediation.
+### Azure Cosmos DB now defaults to the Linux-based vNext emulator
+
+`RunAsEmulator` / `runAsEmulator` now selects the `vnext-latest` Linux-based emulator instead of the `stable` classic emulator. To keep the previous behavior, switch to `RunAsClassicEmulator` / `runAsClassicEmulator`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db")
+    .RunAsClassicEmulator();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB('cosmos-db');
+await cosmos.runAsClassicEmulator();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+If you adopt the new default:
+
+- Re-seed persisted emulator data. The vNext emulator stores data under `/data`, while the classic emulator uses `/tmp/cosmos/appdata`; existing classic data doesn't carry over.
+- Remove `WithPartitionCount` / `withPartitionCount`. Partition count isn't supported by the vNext emulator and now throws `NotSupportedException`.
+- Call `WithDataExplorer` / `withDataExplorer` if you need the Data Explorer. Aspire disables it by default for vNext, and the API isn't supported with the classic emulator.
+- Update experimental calls from `RunAsPreviewEmulator` / `runAsPreviewEmulator` to `RunAsEmulator` / `runAsEmulator`. The preview methods remain as obsolete compatibility aliases, and `ASPIRECOSMOSDB001` is retired.
+- Revalidate emulator-dependent tests and startup expectations. The classic emulator requires its TLS certificate, while the vNext emulator uses a different startup and health model.
+
+<LearnMore>
+  Review the [Cosmos DB emulator default
+  change](https://github.com/microsoft/aspire/pull/19510) and [Azure Cosmos DB
+  Linux emulator
+  documentation](https://learn.microsoft.com/azure/cosmos-db/emulator-linux).
+</LearnMore>
