@@ -1,10 +1,10 @@
 /* ------------------------------------------------------------------ */
 /*  Canonical TypeScript API export, schema version 1.                 */
 /*                                                                     */
-/*  Produced by `aspire sdk export --language typescript`. The CLI     */
-/*  owns every signature and declaration in this document; the site    */
-/*  validates and renders it and never reconstructs TypeScript from    */
-/*  the underlying capability model.                                   */
+/*  The TypeScript language exporter owns this schema and every final   */
+/*  signature and declaration. `aspire sdk export --language           */
+/*  typescript` passes the document through without reconstructing it   */
+/*  from the underlying capability model.                              */
 /* ------------------------------------------------------------------ */
 
 import { readFileSync } from 'node:fs';
@@ -13,7 +13,26 @@ export const TYPESCRIPT_API_EXPORT_SCHEMA_VERSION = 1;
 
 export const TYPESCRIPT_API_EXPORT_LANGUAGE = 'typescript';
 
+export const TYPESCRIPT_API_EXPORT_V1_KINDS = [
+  'interface',
+  'enum',
+  'dto',
+  'options',
+  'namespace',
+  'constant',
+  'augmentation',
+  'method',
+  'property',
+] as const;
+
+export type TypeScriptApiExportV1Kind = (typeof TYPESCRIPT_API_EXPORT_V1_KINDS)[number];
+
 export interface TypeScriptApiPackageIdentity {
+  name: string;
+  version: string;
+}
+
+export interface TypeScriptApiGeneratorIdentity {
   name: string;
   version: string;
 }
@@ -27,7 +46,7 @@ export interface TypeScriptApiParameter {
 
 export interface TypeScriptApiMember {
   id: string;
-  kind: string;
+  kind: TypeScriptApiExportV1Kind;
   name: string;
   /** The final TypeScript text, for example `addRedis(name: string): RedisResourcePromise`. */
   declaration: string;
@@ -36,13 +55,14 @@ export interface TypeScriptApiMember {
   remarks?: string;
   deprecated?: string;
   returnType?: string;
+  examples?: string[];
   parameters?: TypeScriptApiParameter[];
 }
 
 export interface TypeScriptApiItem {
   id: string;
-  typeId?: string;
-  kind: string;
+  typeId: string;
+  kind: TypeScriptApiExportV1Kind;
   name: string;
   /** The final TypeScript declaration header, for example `export interface RedisResource`. */
   declaration: string;
@@ -69,6 +89,7 @@ export interface TypeScriptApiDeclaration {
 export interface TypeScriptApiExport {
   schemaVersion: number;
   language: string;
+  generator: TypeScriptApiGeneratorIdentity;
   package: TypeScriptApiPackageIdentity;
   modules: TypeScriptApiModule[];
   declarations: TypeScriptApiDeclaration[];
@@ -107,6 +128,30 @@ function requireNonEmptyString(source: string, value: unknown, path: string): st
   }
 
   return value;
+}
+
+const TYPESCRIPT_API_EXPORT_V1_KIND_SET: ReadonlySet<string> = new Set(
+  TYPESCRIPT_API_EXPORT_V1_KINDS,
+);
+
+function isTypeScriptApiExportV1Kind(value: string): value is TypeScriptApiExportV1Kind {
+  return TYPESCRIPT_API_EXPORT_V1_KIND_SET.has(value);
+}
+
+function requireTypeScriptApiExportV1Kind(
+  source: string,
+  value: unknown,
+  path: string,
+): TypeScriptApiExportV1Kind {
+  const kind = requireNonEmptyString(source, value, path);
+  if (!isTypeScriptApiExportV1Kind(kind)) {
+    fail(
+      source,
+      `${path} must be one of ${TYPESCRIPT_API_EXPORT_V1_KINDS.join(', ')}; received ${JSON.stringify(kind)}.`,
+    );
+  }
+
+  return kind;
 }
 
 function requireBoolean(source: string, value: unknown, path: string): boolean {
@@ -161,7 +206,7 @@ function parseMember(source: string, value: unknown, path: string): TypeScriptAp
 
   return {
     id: requireNonEmptyString(source, record.id, `${path}.id`),
-    kind: requireNonEmptyString(source, record.kind, `${path}.kind`),
+    kind: requireTypeScriptApiExportV1Kind(source, record.kind, `${path}.kind`),
     name: requireNonEmptyString(source, record.name, `${path}.name`),
     // A blank declaration means the producer failed to resolve a signature, which would otherwise
     // surface as an empty code block on a published page.
@@ -171,6 +216,7 @@ function parseMember(source: string, value: unknown, path: string): TypeScriptAp
     remarks: optionalString(source, record.remarks, `${path}.remarks`),
     deprecated: optionalString(source, record.deprecated, `${path}.deprecated`),
     returnType: optionalString(source, record.returnType, `${path}.returnType`),
+    examples: optionalStringArray(source, record.examples, `${path}.examples`),
     parameters,
   };
 }
@@ -186,8 +232,8 @@ function parseItem(source: string, value: unknown, path: string): TypeScriptApiI
 
   return {
     id: requireNonEmptyString(source, record.id, `${path}.id`),
-    typeId: optionalString(source, record.typeId, `${path}.typeId`),
-    kind: requireNonEmptyString(source, record.kind, `${path}.kind`),
+    typeId: requireNonEmptyString(source, record.typeId, `${path}.typeId`),
+    kind: requireTypeScriptApiExportV1Kind(source, record.kind, `${path}.kind`),
     name: requireNonEmptyString(source, record.name, `${path}.name`),
     declaration: requireNonEmptyString(source, record.declaration, `${path}.declaration`),
     owningAssembly: requireNonEmptyString(source, record.owningAssembly, `${path}.owningAssembly`),
@@ -242,6 +288,12 @@ export function parseTypeScriptApiExport(value: unknown, source: string): TypeSc
     );
   }
 
+  const generatorRecord = requireRecord(source, record.generator, 'generator');
+  const generator: TypeScriptApiGeneratorIdentity = {
+    name: requireNonEmptyString(source, generatorRecord.name, 'generator.name'),
+    version: requireNonEmptyString(source, generatorRecord.version, 'generator.version'),
+  };
+
   const packageRecord = requireRecord(source, record.package, 'package');
   const identity: TypeScriptApiPackageIdentity = {
     name: requireNonEmptyString(source, packageRecord.name, 'package.name'),
@@ -290,6 +342,7 @@ export function parseTypeScriptApiExport(value: unknown, source: string): TypeSc
   return {
     schemaVersion: TYPESCRIPT_API_EXPORT_SCHEMA_VERSION,
     language: TYPESCRIPT_API_EXPORT_LANGUAGE,
+    generator,
     package: identity,
     modules,
     declarations,

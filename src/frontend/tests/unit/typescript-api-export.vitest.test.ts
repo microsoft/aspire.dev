@@ -11,6 +11,7 @@ import {
   concatenateDeclarations,
   TypeScriptApiExportError,
   type TypeScriptApiExport,
+  type TypeScriptApiItem,
   type TypeScriptApiMember,
 } from '../../src/schemas/typescript-api-export';
 
@@ -31,6 +32,10 @@ function validDocument(): TypeScriptApiExport {
   return {
     schemaVersion: 1,
     language: 'typescript',
+    generator: {
+      name: 'Aspire.Hosting.CodeGeneration.TypeScript',
+      version: '13.5.0-dev',
+    },
     package: { name: 'Aspire.Hosting.Redis', version: '13.5.0' },
     modules: [
       {
@@ -83,7 +88,7 @@ function integrationWithDataVolumeOptions(
   volumePath: string,
 ): TypeScriptApiExport {
   const document = validDocumentForPackage(packageName);
-  const typeId = `${packageName}/${packageName}.WithDataVolumeOptions`;
+  const typeId = `${packageName}/WithDataVolumeOptions`;
 
   document.modules[0].items[0] = {
     id: 'options:WithDataVolumeOptions',
@@ -111,6 +116,7 @@ function validMember(): TypeScriptApiMember {
     name: 'addRedis',
     declaration: 'addRedis(name: string): RedisResource',
     capabilityId: 'Aspire.Hosting.Redis/addRedis',
+    examples: ['const redis = await builder.addRedis("cache");'],
     parameters: [
       {
         name: 'name',
@@ -194,6 +200,20 @@ describe('typescript-api-export schema version 1', () => {
     }, /language/i);
   });
 
+  it('preserves the producer generator identity', () => {
+    const document = validDocument();
+
+    const parsed = parseTypeScriptApiExport(document, 'test-document');
+
+    expect(parsed.generator).toEqual(document.generator);
+  });
+
+  it('rejects missing generator identity', () => {
+    expectRejected((document) => {
+      delete (document as Partial<TypeScriptApiExport>).generator;
+    }, /generator/i);
+  });
+
   it('rejects missing package identity', () => {
     expectRejected((document) => {
       document.package.version = '';
@@ -205,6 +225,26 @@ describe('typescript-api-export schema version 1', () => {
       const [item] = document.modules[0].items;
       document.modules[0].items.push({ ...item });
     }, /duplicate/i);
+  });
+
+  it('rejects an item without a typeId', () => {
+    expectRejected((document) => {
+      delete (document.modules[0].items[0] as Partial<TypeScriptApiItem>).typeId;
+    }, /typeId/i);
+  });
+
+  it('rejects an unknown item kind', () => {
+    expectRejected((document) => {
+      (document.modules[0].items[0] as { kind: string }).kind = 'class';
+    }, /modules\[0\]\.items\[0\]\.kind/);
+  });
+
+  it('rejects an unknown member kind', () => {
+    expectRejected((document) => {
+      const member = validMember();
+      (member as { kind: string }).kind = 'event';
+      document.modules[0].items[0].members = [member];
+    }, /modules\[0\]\.items\[0\]\.members\[0\]\.kind/);
   });
 
   it('rejects duplicate declaration IDs that disagree on content', () => {
@@ -235,6 +275,7 @@ describe('typescript-api-export schema version 1', () => {
     const parsedMember = parsed.modules[0].items[0].members?.[0];
 
     expect(parsedMember?.capabilityId).toBe(member.capabilityId);
+    expect(parsedMember?.examples).toEqual(member.examples);
     expect(parsedMember?.parameters).toEqual(member.parameters);
     expect(parsedMember?.remarks).toBeUndefined();
   });
@@ -270,11 +311,17 @@ describe('typescript-api-export schema version 1', () => {
 
 describe('two-package manifests', () => {
   it('does not duplicate core-owned documentation pages in the integration package', () => {
-    const coreItemIds = new Set(core.modules.flatMap((module) => module.items.map((item) => item.id)));
-    const integrationItemIds = integration.modules.flatMap((module) => module.items.map((item) => item.id));
+    const coreTypeIds = new Set(
+      core.modules.flatMap((module) =>
+        module.items.filter((item) => item.kind !== 'augmentation').map((item) => item.typeId),
+      ),
+    );
+    const integrationTypeIds = integration.modules.flatMap((module) =>
+      module.items.filter((item) => item.kind !== 'augmentation').map((item) => item.typeId),
+    );
 
-    expect(integrationItemIds.length).toBeGreaterThan(0);
-    expect(integrationItemIds.filter((id) => coreItemIds.has(id))).toEqual([]);
+    expect(integrationTypeIds.length).toBeGreaterThan(0);
+    expect(integrationTypeIds.filter((typeId) => coreTypeIds.has(typeId))).toEqual([]);
   });
 
   it('documents only package-owned symbols while referenced types stay in declarations', () => {
@@ -316,7 +363,7 @@ describe('two-package manifests', () => {
     expect(addRedis?.declaration).toContain('addRedis(');
   });
 
-  it('allows package-local identities to overlap across independently valid documents', () => {
+  it('allows Redis and Mongo exports to share item and declaration IDs', () => {
     const redis = integrationWithDataVolumeOptions('Aspire.Hosting.Redis', 'redisPath');
     const mongo = integrationWithDataVolumeOptions('Aspire.Hosting.MongoDB', 'mongoPath');
 
