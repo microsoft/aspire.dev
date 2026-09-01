@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { remarkTypeScriptFirstAppHostTabs } from '../../config/remark-typescript-first-apphost-tabs.mjs';
+import {
+  orderTypeScriptFirstAppHostTabsInMarkdown,
+  remarkTypeScriptFirstAppHostTabs,
+} from '../../config/remark-typescript-first-apphost-tabs.mjs';
 
 function tabItem(id: string, label: string) {
   return {
@@ -47,5 +50,35 @@ describe('TypeScript-first AppHost tabs', () => {
     });
 
     expect(unrelatedTabs.children).toEqual([csharp, typescript]);
+  });
+
+  test('moves the TypeScript block first without reformatting copied Markdown', () => {
+    const csharp = `<TabItem id='csharp' label='C#'>
+C# content
+</TabItem>
+`;
+    const typescript = `<TabItem id='typescript' label='TypeScript'>
+TypeScript content
+</TabItem>
+`;
+    const markdown = `<Tabs syncKey='aspire-lang'>
+${csharp}${typescript}</Tabs>
+`;
+
+    expect(orderTypeScriptFirstAppHostTabsInMarkdown(markdown)).toBe(
+      `<Tabs syncKey='aspire-lang'>
+${typescript}${csharp}</Tabs>
+`
+    );
+  });
+
+  test('preserves copied Markdown for unrelated tab groups', () => {
+    const markdown = `<Tabs syncKey='api-language'>
+<TabItem id='csharp' label='C#'>C# content</TabItem>
+<TabItem id='typescript' label='TypeScript'>TypeScript content</TabItem>
+</Tabs>
+`;
+
+    expect(orderTypeScriptFirstAppHostTabsInMarkdown(markdown)).toBe(markdown);
   });
 });

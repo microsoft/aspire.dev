@@ -2,12 +2,14 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { replaceAspireVersionPlaceholders } from './remark-aspire-version-placeholders.mjs';
+import { orderTypeScriptFirstAppHostTabsInMarkdown } from './remark-typescript-first-apphost-tabs.mjs';
 
-// Per-page Markdown copies emitted by `starlight-page-actions` are the only
-// generated artifacts that still contain raw Aspire version placeholders:
+// Per-page Markdown copies emitted by `starlight-page-actions` bypass the
+// remark transforms that replace Aspire version placeholders and order AppHost
+// language tabs:
 // that plugin `viteStaticCopy`s `src/content/docs/**/*.{md,mdx}` straight to
 // `dist/**/*.md` through a regex-only transform, so it never runs through the
-// `remarkAspireVersionPlaceholders` remark plugin.
+// configured remark pipeline.
 //
 // Everything else is already handled before it reaches `dist`:
 //   - `.html` pages   -> rendered via the remark pipeline (placeholders replaced
@@ -19,7 +21,7 @@ import { replaceAspireVersionPlaceholders } from './remark-aspire-version-placeh
 // (instead of walking every `.html`/`.txt` in `dist`) avoids re-reading the bulk
 // of the output — including the large `llms-full.txt` assets — which is what
 // previously exhausted the Node heap.
-const placeholderCopyExtensions = new Set(['.md']);
+const markdownCopyExtensions = new Set(['.md']);
 
 // Process the Markdown copies through a small worker pool rather than a single
 // recursive `Promise.all` over the whole tree, so peak memory stays proportional
@@ -57,7 +59,7 @@ export async function replaceAspireVersionPlaceholdersInDirectory(
   const runWorker = async () => {
     while (cursor < files.length) {
       const filePath = files[cursor++];
-      await replaceAspireVersionPlaceholdersInFile(filePath);
+      await processMarkdownCopy(filePath);
     }
   };
 
@@ -75,15 +77,16 @@ async function collectMarkdownCopies(directory, files) {
       continue;
     }
 
-    if (entry.isFile() && placeholderCopyExtensions.has(path.extname(entry.name))) {
+    if (entry.isFile() && markdownCopyExtensions.has(path.extname(entry.name))) {
       files.push(resolvedPath);
     }
   }
 }
 
-async function replaceAspireVersionPlaceholdersInFile(filePath) {
+async function processMarkdownCopy(filePath) {
   const content = await readFile(filePath, 'utf8');
-  const updated = replaceAspireVersionPlaceholders(content);
+  const ordered = orderTypeScriptFirstAppHostTabsInMarkdown(content);
+  const updated = replaceAspireVersionPlaceholders(ordered);
 
   if (updated !== content) {
     await writeFile(filePath, updated);

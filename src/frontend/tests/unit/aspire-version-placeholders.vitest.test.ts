@@ -32,6 +32,53 @@ const excludedCurrentDocsDirectories = new Set([
 const aspirePrereleaseVersionPattern =
   /(?:\b\d+\.\d+\.\d+|%ASPIRE_VERSION%)-(?:preview|alpha|beta|rc)(?:\.[0-9A-Za-z-]+)+/gi;
 
+function hasAspireVersionContext(
+  content: string,
+  lines: string[],
+  lineIndex: number,
+  index: number
+) {
+  if (/Aspire/i.test(lines[lineIndex])) {
+    return true;
+  }
+
+  const packageReferenceStart = content.lastIndexOf('<PackageReference', index);
+  const previousTagEnd = content.lastIndexOf('>', index);
+  if (packageReferenceStart > previousTagEnd) {
+    const packageReferenceEnd = content.indexOf('>', index);
+    const packageReference = content.slice(
+      packageReferenceStart,
+      packageReferenceEnd === -1 ? content.length : packageReferenceEnd + 1
+    );
+    if (/\bInclude\s*=\s*(['"])[^'"]*Aspire[^'"]*\1/i.test(packageReference)) {
+      return true;
+    }
+  }
+
+  let commandStartLine = lineIndex;
+  while (commandStartLine > 0 && /[\\`^]\s*$/.test(lines[commandStartLine - 1])) {
+    commandStartLine--;
+  }
+
+  return (
+    commandStartLine < lineIndex &&
+    /Aspire/i.test(lines.slice(commandStartLine, lineIndex + 1).join('\n'))
+  );
+}
+
+function findAspirePrereleaseVersions(content: string) {
+  const lines = content.split(/\r?\n/);
+
+  return [...content.matchAll(aspirePrereleaseVersionPattern)].flatMap((match) => {
+    const index = match.index;
+    const lineIndex = (content.slice(0, index).match(/\n/g) ?? []).length;
+
+    return hasAspireVersionContext(content, lines, lineIndex, index)
+      ? [{ line: lineIndex + 1, value: match[0] }]
+      : [];
+  });
+}
+
 async function collectMarkdownFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = await Promise.all(
@@ -111,22 +158,33 @@ describe('Aspire version placeholders', () => {
     expect(previewVersion).toBe(currentAspirePreviewVersion);
   });
 
+  test('finds hard-coded previews in multiline Aspire package examples', () => {
+    const content = [
+      '<PackageReference Include="Aspire.Hosting.Xml"',
+      '                  Version="13.5.3-preview.1.123" />',
+      '',
+      'dotnet add package Aspire.Hosting.Command \\',
+      '  --version 13.5.3-preview.2.456',
+      '',
+      '<PackageReference Include="Contoso.Hosting.Xml"',
+      '                  Version="13.5.3-preview.3.789" />',
+    ].join('\n');
+
+    expect(findAspirePrereleaseVersions(content)).toEqual([
+      { line: 2, value: '13.5.3-preview.1.123' },
+      { line: 5, value: '13.5.3-preview.2.456' },
+    ]);
+  });
+
   test('requires the full preview placeholder in current English Aspire examples', async () => {
     const files = await collectCurrentEnglishMarkdownFiles();
     const findings = (
       await Promise.all(
         files.map(async (filePath) => {
           const content = await readFile(filePath, 'utf8');
-          return content.split(/\r?\n/).flatMap((line, index) => {
-            if (!/Aspire/i.test(line)) {
-              return [];
-            }
-
-            return [...line.matchAll(aspirePrereleaseVersionPattern)].map(
-              (match) =>
-                `${path.relative(docsRoot, filePath)}:${index + 1}: ${match[0]}`
-            );
-          });
+          return findAspirePrereleaseVersions(content).map(
+            ({ line, value }) => `${path.relative(docsRoot, filePath)}:${line}: ${value}`
+          );
         })
       )
     ).flat();
@@ -171,6 +229,38 @@ describe('Aspire version placeholders', () => {
       await expect(readFile(textPath, 'utf8')).resolves.toBe(placeholderContent);
       await expect(readFile(mdxPath, 'utf8')).resolves.toBe(placeholderContent);
       await expect(readFile(jsonPath, 'utf8')).resolves.toBe('{"version":"%ASPIRE_VERSION%"}');
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('orders C#-first AppHost tabs in generated Markdown copies', async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'aspire-version-placeholders-'));
+
+    try {
+      const markdownPath = path.join(tempDir, 'example.md');
+      const csharp = `<TabItem id='csharp' label='C#'>
+Aspire %ASPIRE_VERSION%
+</TabItem>
+`;
+      const typescript = `<TabItem id='typescript' label='TypeScript'>
+TypeScript content
+</TabItem>
+`;
+      await writeFile(
+        markdownPath,
+        `<Tabs syncKey='aspire-lang'>
+${csharp}${typescript}</Tabs>
+`
+      );
+
+      await replaceAspireVersionPlaceholdersInDirectory(tempDir);
+
+      await expect(readFile(markdownPath, 'utf8')).resolves.toBe(
+        `<Tabs syncKey='aspire-lang'>
+${typescript}${csharp.replace('%ASPIRE_VERSION%', currentAspireVersion)}</Tabs>
+`
+      );
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

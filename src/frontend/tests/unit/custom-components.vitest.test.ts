@@ -565,7 +565,7 @@ const basicRenderCases: BasicRenderCase[] = [
     name: 'SimpleAppHostCode renders both AppHost tabs',
     Component: SimpleAppHostCode,
     props: { lang: 'nodejs', mark: '3-5', collapse: '7-8' },
-    includes: ['C# AppHost', 'TypeScript AppHost', 'builder.Build().Run'],
+    includes: ['C#', 'TypeScript', 'builder.Build().Run'],
   },
   {
     name: 'CustomSelect renders a themed combobox and listbox',
@@ -905,22 +905,27 @@ describe('custom Astro component render coverage', () => {
       })
     );
 
-    expect(appHostHtml.indexOf('data-pivot-option="typescript"')).toBeLessThan(
-      appHostHtml.indexOf('data-pivot-option="csharp"')
-    );
-    expect(genericHtml.indexOf('data-pivot-option="csharp"')).toBeLessThan(
-      genericHtml.indexOf('data-pivot-option="typescript"')
-    );
+    const typeScriptOption = 'data-pivot-option="typescript"';
+    const csharpOption = 'data-pivot-option="csharp"';
+
+    expect(appHostHtml).toContain(typeScriptOption);
+    expect(appHostHtml).toContain(csharpOption);
+    expect(genericHtml).toContain(csharpOption);
+    expect(genericHtml).toContain(typeScriptOption);
+    expect(appHostHtml.indexOf(typeScriptOption)).toBeLessThan(appHostHtml.indexOf(csharpOption));
+    expect(genericHtml.indexOf(csharpOption)).toBeLessThan(genericHtml.indexOf(typeScriptOption));
   });
 
-  it('renders the TypeScript AppHost tab and apphost.mts before C#', async () => {
+  it('renders the canonical TypeScript tab and apphost.mts before C#', async () => {
     const html = normalizeHtml(
       await renderComponent(SimpleAppHostCode, {
         props: { lang: 'nodejs' },
       })
     );
 
-    expect(html.indexOf('TypeScript AppHost')).toBeLessThan(html.indexOf('C# AppHost'));
+    expect(html).toContain('TypeScript');
+    expect(html).toContain('C#');
+    expect(html.indexOf('TypeScript')).toBeLessThan(html.indexOf('C#'));
     expect(html).toContain('apphost.mts');
   });
 
