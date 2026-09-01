@@ -219,7 +219,7 @@ const aws = await builder.addFlociAws('floci-aws', {
 
 **GCP** accepts the following customizable properties:
 
-- **Port**: The host port Floci listens on (default: 4566)
+- **Port**: The host port Floci listens on (default: 4588)
 - **Default Project ID**: GCP project ID for the emulator (default: `floci-local`)
 
 <Tabs syncKey='aspire-lang'>
@@ -377,7 +377,25 @@ Either approach persists resource state across container restarts and allows loc
 
 ### Use the cloud SDKs to interact with Floci
 
-Once a Floci resource is running and referenced by your service, use the matching cloud SDK as you normally would. `WithReference` in C# or the cloud-specific `withFloci*Reference` method in TypeScript injects the environment variables each SDK reads by convention. For example, against the AWS emulator:
+Once a Floci resource is running and referenced by your service, use the matching cloud SDK as you normally would. `WithReference` in C# or the cloud-specific `withFloci*Reference` method in TypeScript injects provider-specific settings into the dependent resource.
+
+AWS and GCP SDKs read their emulator endpoint and region or project settings from the injected environment variables. Azure Storage clients don't automatically read `AZURE_STORAGE_CONNECTION_STRING`; construct the client from the injected value:
+
+```csharp title="Program.cs"
+using Azure.Storage.Blobs;
+
+var builder = WebApplication.CreateBuilder(args);
+
+var azureStorageConnectionString =
+    builder.Configuration["AZURE_STORAGE_CONNECTION_STRING"]
+    ?? throw new InvalidOperationException(
+        "AZURE_STORAGE_CONNECTION_STRING is not configured.");
+
+builder.Services.AddSingleton(
+    new BlobServiceClient(azureStorageConnectionString));
+```
+
+After configuring the provider's SDK client, interact with Floci as you would with the corresponding cloud service. For example, against the AWS emulator:
 
 ```csharp title="Service.cs"
 using Amazon.S3;
@@ -642,7 +660,7 @@ const connectionString = await floci.connectionStringExpression();
 
 ### Endpoint resolution
 
-Every environment variable injected by the integration carries an Aspire endpoint expression rather than a hard-coded address:
+Every endpoint-bearing environment variable injected by the integration carries an Aspire endpoint expression rather than a hard-coded address:
 
 | Dependent resource    | Resolved address                                            |
 | --------------------- | ----------------------------------------------------------- |
