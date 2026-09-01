@@ -91,6 +91,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       collapsed: true,
       items: [
         {
+          label: 'Aspire 13.6',
+          slug: 'whats-new/aspire-13-6',
+        },
+        {
           label: 'Aspire 13.5',
           slug: 'whats-new/aspire-13-5',
         },
