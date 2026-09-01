@@ -169,7 +169,7 @@ For compatibility details and optional migration steps, see [Legacy `apphost.ts`
 
 ## Configuration with appsettings.json
 
-TypeScript AppHosts read configuration from JSON files that live next to `apphost.mts`. Add an `appsettings.json` file to your AppHost and Aspire loads it into the AppHost's configuration at startup. You read those values back in `apphost.mts` through the builder's configuration accessor.
+TypeScript AppHosts read configuration from JSON files that live next to `apphost.mts`. Add an `appsettings.json` file to your AppHost and Aspire loads it into the AppHost's configuration at startup. You read the effective values in `apphost.mts` through the builder's configuration accessor.
 
 <FileTree>
 
@@ -179,38 +179,99 @@ TypeScript AppHosts read configuration from JSON files that live next to `apphos
   - aspire.config.json
   - appsettings.json  Base configuration
   - appsettings.Development.json  Environment-specific overrides
+  - appsettings.Production.json  Environment-specific overrides
   - package.json
 
 </FileTree>
 
-Define settings as plain JSON. Group related values with nested objects, and name keys however reads best — keys are matched case-insensitively, so camelCase fits naturally in a TypeScript project:
+Start with base settings as plain JSON. Settings can be flat, like `message`, or grouped in nested objects, like `deployment.region`. Keys are matched case-insensitively, so camelCase fits naturally in a TypeScript project:
 
 ```json title="appsettings.json"
 {
+  "message": "From appsettings.json",
   "deployment": {
     "region": "westus"
   }
 }
 ```
 
-Read a value in `apphost.mts` by awaiting `getConfiguration()`, then `getConfigValue()` (returns `null` if the key isn't found). Address a nested key with a colon-separated path:
+With only `appsettings.json` present, read a flat value by its key. For a nested value, use `:` to separate each level of the JSON path. The `getConfigValue()` method returns `null` if the key isn't found:
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 const configuration = await builder.getConfiguration();
-const region = await configuration.getConfigValue("deployment:region");
+
+const message = await configuration.getConfigValue('message');
+// message === 'From appsettings.json';
+
+const region = await configuration.getConfigValue('deployment:region');
+// region === 'westus';
 ```
 
 ### Environment-specific settings
 
-Aspire always loads `appsettings.json` first, then layers `appsettings.{environment}.json` on top when its name matches the active environment. Values in the environment file override the base file, so you can keep shared defaults in `appsettings.json` and change only what differs per environment in files such as `appsettings.Development.json` or `appsettings.Production.json`.
+Aspire always loads `appsettings.json` first, then layers `appsettings.{Environment}.json` on top. The value passed to `--environment` replaces `{Environment}` in the filename. For example, `--environment Development` loads `appsettings.Development.json`, while `--environment Production` loads `appsettings.Production.json`.
 
-The active environment is passed to the AppHost with the `--environment` switch on the Aspire CLI. For example, use `Development` to load `appsettings.Development.json` over the base file:
+The environment-specific file overrides matching values from `appsettings.json`. The merged configuration is available through `getConfiguration()` when the AppHost starts.
 
-```bash
+#### Development
+
+Add the Development overrides:
+
+```json title="appsettings.Development.json"
+{
+  "message": "From appsettings.Development.json",
+  "deployment": {
+    "region": "westus2"
+  }
+}
+```
+
+Start the AppHost with the `Development` environment:
+
+```bash title="Start with Development settings"
 aspire start --environment Development
+```
+
+The lookups in `apphost.mts` now return the Development values:
+
+```typescript title="apphost.mts — Development values"
+const message = await configuration.getConfigValue('message');
+// message === 'From appsettings.Development.json';
+
+const region = await configuration.getConfigValue('deployment:region');
+// region === 'westus2';
+```
+
+#### Production
+
+Add the Production overrides:
+
+```json title="appsettings.Production.json"
+{
+  "message": "From appsettings.Production.json",
+  "deployment": {
+    "region": "eastus2"
+  }
+}
+```
+
+Start the AppHost with the `Production` environment:
+
+```bash title="Start with Production settings"
+aspire start --environment Production
+```
+
+The same lookups now return the Production values:
+
+```typescript title="apphost.mts — Production values"
+const message = await configuration.getConfigValue('message');
+// message === 'From appsettings.Production.json';
+
+const region = await configuration.getConfigValue('deployment:region');
+// region === 'eastus2';
 ```
 
 <LearnMore>
@@ -218,7 +279,7 @@ aspire start --environment Development
 </LearnMore>
 
 <Aside type="note">
-Aspire looks for `appsettings.json` and `appsettings.{environment}.json` in the same directory as `apphost.mts`. Command-line arguments take precedence over both files, so you can override any setting at run time without editing JSON.
+Aspire looks for `appsettings.json` and `appsettings.{Environment}.json` in the same directory as `apphost.mts`. If more than one mechanism sets the active environment, `--environment` takes precedence over `DOTNET_ENVIRONMENT` and `ASPIRE_ENVIRONMENT`. Environment variables and command-line arguments take precedence over both JSON files, so you can override settings at run time without editing JSON.
 </Aside>
 
 ## Package managers
