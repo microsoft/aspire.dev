@@ -881,6 +881,49 @@ describe('custom Astro component render coverage', () => {
     expect(html).toMatch(/data-dark="[^"]*map-darkdots\.svg/);
   });
 
+  it('renders TypeScript first for Aspire language pivots only', async () => {
+    const appHostHtml = normalizeHtml(
+      await renderComponent(PivotSelector, {
+        props: {
+          key: 'aspire-lang',
+          options: [
+            { id: 'csharp', title: 'C#' },
+            { id: 'typescript', title: 'TypeScript' },
+          ],
+        },
+      })
+    );
+    const genericHtml = normalizeHtml(
+      await renderComponent(PivotSelector, {
+        props: {
+          key: 'language',
+          options: [
+            { id: 'csharp', title: 'C#' },
+            { id: 'typescript', title: 'TypeScript' },
+          ],
+        },
+      })
+    );
+
+    expect(appHostHtml.indexOf('data-pivot-option="typescript"')).toBeLessThan(
+      appHostHtml.indexOf('data-pivot-option="csharp"')
+    );
+    expect(genericHtml.indexOf('data-pivot-option="csharp"')).toBeLessThan(
+      genericHtml.indexOf('data-pivot-option="typescript"')
+    );
+  });
+
+  it('renders the TypeScript AppHost tab and apphost.mts before C#', async () => {
+    const html = normalizeHtml(
+      await renderComponent(SimpleAppHostCode, {
+        props: { lang: 'nodejs' },
+      })
+    );
+
+    expect(html.indexOf('TypeScript AppHost')).toBeLessThan(html.indexOf('C# AppHost'));
+    expect(html).toContain('apphost.mts');
+  });
+
   it('AppHostBuilder omits invalid npm package installation APIs from every code variant', async () => {
     const html = normalizeHtml(await renderComponent(AppHostBuilder));
 

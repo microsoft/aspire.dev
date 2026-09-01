@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { replaceAspireVersionPlaceholders } from './remark-aspire-version-placeholders.mjs';
 
 // Per-page Markdown copies emitted by `starlight-page-actions` are the only
-// generated artifacts that still contain raw `%ASPIRE_VERSION%` placeholders:
+// generated artifacts that still contain raw Aspire version placeholders:
 // that plugin `viteStaticCopy`s `src/content/docs/**/*.{md,mdx}` straight to
 // `dist/**/*.md` through a regex-only transform, so it never runs through the
 // `remarkAspireVersionPlaceholders` remark plugin.

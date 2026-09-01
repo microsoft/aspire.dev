@@ -1,10 +1,13 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
+import { locales } from '../../config/locales.ts';
 import { replaceAspireVersionPlaceholdersInDirectory } from '../../config/aspire-version-placeholders-integration.mjs';
 import {
   currentAspireMajorMinorVersion,
+  currentAspirePreviewVersion,
   currentAspireVersion,
 } from '../../config/aspire-versions.mjs';
 import {
@@ -12,13 +15,62 @@ import {
   replaceAspireVersionPlaceholders,
 } from '../../config/remark-aspire-version-placeholders.mjs';
 
+const testsDir = path.dirname(fileURLToPath(import.meta.url));
+const frontendRoot = path.resolve(testsDir, '..', '..');
+const docsRoot = path.join(frontendRoot, 'src', 'content', 'docs');
+const appHostProjectPath = path.resolve(
+  frontendRoot,
+  '..',
+  'apphost',
+  'Aspire.Dev.AppHost',
+  'Aspire.Dev.AppHost.csproj'
+);
+const excludedCurrentDocsDirectories = new Set([
+  ...Object.keys(locales).filter((locale) => locale !== 'root'),
+  'whats-new',
+]);
+const aspirePrereleaseVersionPattern =
+  /(?:\b\d+\.\d+\.\d+|%ASPIRE_VERSION%)-(?:preview|alpha|beta|rc)(?:\.[0-9A-Za-z-]+)+/gi;
+
+async function collectMarkdownFiles(directory: string): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const resolvedPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        return collectMarkdownFiles(resolvedPath);
+      }
+      return entry.isFile() && /\.mdx?$/i.test(entry.name) ? [resolvedPath] : [];
+    })
+  );
+  return files.flat();
+}
+
+async function collectCurrentEnglishMarkdownFiles(): Promise<string[]> {
+  const entries = await readdir(docsRoot, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const resolvedPath = path.join(docsRoot, entry.name);
+      if (entry.isDirectory()) {
+        return excludedCurrentDocsDirectories.has(entry.name)
+          ? []
+          : collectMarkdownFiles(resolvedPath);
+      }
+      return entry.isFile() && /\.mdx?$/i.test(entry.name) ? [resolvedPath] : [];
+    })
+  );
+  return files.flat();
+}
+
 describe('Aspire version placeholders', () => {
-  test('replaces current Aspire major.minor and patch placeholders', () => {
+  test('replaces current Aspire major.minor, stable, and preview placeholders', () => {
     expect(
       replaceAspireVersionPlaceholders(
-        'Aspire %ASPIRE_VERSION_MAJOR_MINOR% ships as %ASPIRE_VERSION%.'
+        'Aspire %ASPIRE_VERSION_MAJOR_MINOR% ships as %ASPIRE_VERSION%; preview packages use %ASPIRE_VERSION_PREVIEW%.'
       )
-    ).toBe(`Aspire ${currentAspireMajorMinorVersion} ships as ${currentAspireVersion}.`);
+    ).toBe(
+      `Aspire ${currentAspireMajorMinorVersion} ships as ${currentAspireVersion}; preview packages use ${currentAspirePreviewVersion}.`
+    );
   });
 
   test('replaces placeholders in markdown text, code fences, and MDX attributes', () => {
@@ -29,7 +81,7 @@ describe('Aspire version placeholders', () => {
           type: 'paragraph',
           children: [{ type: 'text', value: 'Aspire %ASPIRE_VERSION_MAJOR_MINOR%' }],
         },
-        { type: 'code', lang: 'bash', value: 'aspire %ASPIRE_VERSION%' },
+        { type: 'code', lang: 'bash', value: 'aspire %ASPIRE_VERSION_PREVIEW%' },
         {
           type: 'mdxJsxFlowElement',
           name: 'Code',
@@ -44,8 +96,42 @@ describe('Aspire version placeholders', () => {
     expect(tree.children[0].children[0].value).toBe(
       `Aspire ${currentAspireMajorMinorVersion}`
     );
-    expect(tree.children[1].value).toBe(`aspire ${currentAspireVersion}`);
+    expect(tree.children[1].value).toBe(`aspire ${currentAspirePreviewVersion}`);
     expect(tree.children[2].attributes[0].value).toBe(currentAspireVersion);
+  });
+
+  test('matches the stable and preview versions used by the site AppHost', async () => {
+    const project = await readFile(appHostProjectPath, 'utf8');
+    const sdkVersion = project.match(/<Project Sdk="Aspire\.AppHost\.Sdk\/([^"]+)">/)?.[1];
+    const previewVersion = project.match(
+      /<PackageReference Include="Aspire\.Hosting\.Azure\.FrontDoor" Version="([^"]+)" \/>/
+    )?.[1];
+
+    expect(sdkVersion).toBe(currentAspireVersion);
+    expect(previewVersion).toBe(currentAspirePreviewVersion);
+  });
+
+  test('requires the full preview placeholder in current English Aspire examples', async () => {
+    const files = await collectCurrentEnglishMarkdownFiles();
+    const findings = (
+      await Promise.all(
+        files.map(async (filePath) => {
+          const content = await readFile(filePath, 'utf8');
+          return content.split(/\r?\n/).flatMap((line, index) => {
+            if (!/Aspire/i.test(line)) {
+              return [];
+            }
+
+            return [...line.matchAll(aspirePrereleaseVersionPattern)].map(
+              (match) =>
+                `${path.relative(docsRoot, filePath)}:${index + 1}: ${match[0]}`
+            );
+          });
+        })
+      )
+    ).flat();
+
+    expect(findings).toEqual([]);
   });
 
   test('replaces placeholders only in Markdown copies, leaving other assets untouched', async () => {
@@ -58,7 +144,8 @@ describe('Aspire version placeholders', () => {
       const mdxPath = path.join(tempDir, 'example.mdx');
       const jsonPath = path.join(tempDir, 'example.json');
 
-      const placeholderContent = 'Aspire %ASPIRE_VERSION_MAJOR_MINOR%: %ASPIRE_VERSION%';
+      const placeholderContent =
+        'Aspire %ASPIRE_VERSION_MAJOR_MINOR%: %ASPIRE_VERSION% (%ASPIRE_VERSION_PREVIEW%)';
 
       await Promise.all([
         writeFile(markdownPath, placeholderContent),
@@ -72,7 +159,7 @@ describe('Aspire version placeholders', () => {
 
       // Only the `.md` copy (which bypasses the remark pipeline) is rewritten.
       await expect(readFile(markdownPath, 'utf8')).resolves.toBe(
-        `Aspire ${currentAspireMajorMinorVersion}: ${currentAspireVersion}`
+        `Aspire ${currentAspireMajorMinorVersion}: ${currentAspireVersion} (${currentAspirePreviewVersion})`
       );
 
       // The post-build pass intentionally rewrites only `.md` files. In the real

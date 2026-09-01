@@ -94,8 +94,9 @@ These are the specific quality gates critique/validate enforce:
   Go) rather than defining any of them in opposition to another.
 - **Second person, active voice, imperative mood.** Concise, professional-approachable.
 - **Dates spelled out:** "August 18, 2025" — never "8/18/25".
-- **C#/TypeScript parity:** when a feature spans AppHost languages, show both with
+- **TypeScript/C# parity:** when a feature spans AppHost languages, show both with
   `<Tabs syncKey='aspire-lang'>` / `<TabItem>` so the tab choice syncs page-wide.
+  Put TypeScript first so `apphost.mts` is the default for readers without a saved preference.
 - **Version tokens:** in prose for the *current* release you may use the build-time
   placeholders `%ASPIRE_VERSION%` / `%ASPIRE_VERSION_MAJOR_MINOR%` (replaced by the
   remark plugin). The article slug, sidebar, and header use the literal version.
