@@ -7,6 +7,7 @@ description: Learn the files and configuration that make up a TypeScript AppHost
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 When you create a TypeScript AppHost with `aspire new`, the CLI scaffolds a project with the following structure:
 
@@ -169,7 +170,7 @@ For compatibility details and optional migration steps, see [Legacy `apphost.ts`
 
 ## Configuration with appsettings.json
 
-TypeScript AppHosts support the standard .NET configuration stack. Place `appsettings.json` and `appsettings.{Environment}.json` files next to `apphost.mts`, and Aspire loads them into the AppHost's configuration alongside environment variables and command-line arguments:
+TypeScript AppHosts read configuration from JSON files that live next to `apphost.mts`. Add an `appsettings.json` file to your AppHost and Aspire loads it into the AppHost's configuration at startup. You read those values back in `apphost.mts` through the builder's configuration accessor.
 
 <FileTree>
 
@@ -177,32 +178,57 @@ TypeScript AppHosts support the standard .NET configuration stack. Place `appset
   - .aspire/modules/
   - apphost.mts
   - aspire.config.json
-  - appsettings.json  Base application settings
+  - appsettings.json  Base configuration
   - appsettings.Development.json  Environment-specific overrides
   - package.json
 
 </FileTree>
 
+Define settings as plain JSON. Group related values with nested objects, and name keys however reads best — keys are matched case-insensitively, so camelCase fits naturally in a TypeScript project:
+
 ```json title="appsettings.json"
 {
-  "Deployment": {
-    "Region": "westus"
+  "deployment": {
+    "region": "westus"
   }
 }
 ```
 
-Read configuration values from `apphost.mts` through the builder's configuration accessor:
+Read a value in `apphost.mts` by awaiting `getConfiguration()`, then `getConfigValue()`. Address a nested key with a colon-separated path:
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 const configuration = await builder.getConfiguration();
-const region = await configuration.getConfigValue("Deployment:Region");
+const region = await configuration.getConfigValue("deployment:region");
 ```
 
+### Environment-specific settings
+
+Aspire always loads `appsettings.json` first, then layers `appsettings.{environment}.json` on top when its name matches the active environment. Values in the environment file override the base file, so you can keep shared defaults in `appsettings.json` and change only what differs per environment in files such as `appsettings.Development.json` or `appsettings.Production.json`.
+
+The active environment is selected by the `ASPIRE_ENVIRONMENT` environment variable. For example, set it to `Development` to load `appsettings.Development.json` over the base file when you run the AppHost:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash
+ASPIRE_ENVIRONMENT=Development aspire run
+```
+
+</div>
+<div slot="windows">
+
+```powershell
+$env:ASPIRE_ENVIRONMENT="Development"; aspire run
+```
+
+</div>
+</OsAwareTabs>
+
 <Aside type="note">
-Configuration is resolved relative to the guest AppHost directory (where `apphost.mts` lives), not the CLI-owned directory that runs the managed Aspire server process. This lets `appsettings.json` sit next to `apphost.mts` the same way it would for a .NET AppHost. The managed server's own logging defaults are preserved, but application settings can still override them.
+Aspire looks for `appsettings.json` and `appsettings.{environment}.json` in the same directory as `apphost.mts`. Environment variables and command-line arguments take precedence over both files, so you can override any setting at run time without editing JSON.
 </Aside>
 
 ## Package managers
