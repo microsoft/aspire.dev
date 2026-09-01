@@ -76,7 +76,7 @@ public sealed class LiveDevCommandsTests
     private static HttpCommandRequestContext CreateContext() =>
         new()
         {
-            ServiceProvider = new ServiceCollection().BuildServiceProvider(),
+            Services = new ServiceCollection().BuildServiceProvider(),
             ResourceName = "aspiredev",
             Endpoint = null!,
             CancellationToken = CancellationToken.None,
