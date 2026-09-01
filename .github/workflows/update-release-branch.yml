@@ -77,12 +77,29 @@ jobs:
         if: ${{ steps.find-branch.outputs.branch != '' }}
         shell: bash
         run: |
+          branch="${{ steps.find-branch.outputs.branch }}"
           git fetch origin main
+
+          # Nothing to integrate: main is already contained in the release branch.
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "$branch already contains origin/main. Nothing to merge."
+            exit 0
+          fi
+
+          # Prefer a fast-forward when the release branch has not diverged from
+          # main, so no merge commit is created.
+          if git merge --ff-only origin/main; then
+            echo "Fast-forwarded $branch to origin/main."
+            git push
+            exit 0
+          fi
+
+          # The branches have genuinely diverged; create a merge commit.
           if git merge origin/main --no-edit; then
-            echo "Merged main into ${{ steps.find-branch.outputs.branch }} successfully."
+            echo "Merged main into $branch successfully."
             git push
           else
-            echo "::error::Merge conflict detected between main and ${{ steps.find-branch.outputs.branch }}. Manual intervention required."
+            echo "::error::Merge conflict detected between main and $branch. Manual intervention required."
             git merge --abort
             exit 1
           fi
