@@ -177,20 +177,34 @@ version constants match the release being verified:
 | Export | Expected value |
 |--------|----------------|
 | `currentAspireMajorMinorVersion` | `{VERSION}` (for example, `13.2`) |
-| `currentAspireVersion` | `{NUGET_VERSION}` (for example, `13.2.0`) |
+| `currentAspireVersion` | Latest stable `{VERSION}.PATCH` package version |
+| `currentAspirePreviewVersion` | Matching full `{VERSION}.PATCH-preview.*` package version |
 
-These constants drive the `%ASPIRE_VERSION_MAJOR_MINOR%` and
-`%ASPIRE_VERSION%` documentation placeholders. If either value is stale, flag it
-as a **critical** failure because generated docs can show the wrong current
-release version.
+These constants drive the `%ASPIRE_VERSION_MAJOR_MINOR%`, `%ASPIRE_VERSION%`,
+and `%ASPIRE_VERSION_PREVIEW%` documentation placeholders. Verify the stable
+and preview values against published NuGet packages and the versions pinned by
+`src/apphost/Aspire.Dev.AppHost/Aspire.Dev.AppHost.csproj`. If any value is
+stale, flag it as a **critical** failure because generated docs can show a
+nonexistent or outdated current release version.
 
 #### 4c. Scan for stale version references
 
-Search the docs content tree for references to the prior NuGet version that appear **outside** of intentional historical context (e.g., upgrade-from examples that deliberately show the old version).
+Search the docs content tree for every full version-shaped reference outside
+intentional historical context, not only the immediately prior version. A stale
+reference can skip one or more releases, and prerelease package versions include
+additional build segments such as `13.3.0-preview.1.26256.5`.
 
 ```bash
-# Search for prior version references
-grep -rn "{PRIOR_NUGET_VERSION}" src/frontend/src/content/docs/ \
+# Search all stable and prerelease version-shaped references
+grep -rnE '[0-9]+\.[0-9]+\.[0-9]+(-(preview|alpha|beta|rc)(\.[0-9A-Za-z-]+)+)?' src/frontend/src/content/docs/ \
+  --include="*.md" \
+  --include="*.mdx" \
+  --exclude-dir="whats-new"
+
+# A full prerelease must use %ASPIRE_VERSION_PREVIEW%; retaining an old suffix
+# after the stable placeholder can produce a package version that never existed.
+grep -rnE '%ASPIRE_VERSION%-(preview|alpha|beta|rc)(\.[0-9A-Za-z-]+)+' src/frontend/src/content/docs/ \
+  --include="*.md" \
   --include="*.mdx" \
   --exclude-dir="whats-new"
 ```
@@ -199,6 +213,7 @@ Also search for stale SDK version references:
 
 ```bash
 grep -rn 'Aspire.AppHost.Sdk.*Version="{PRIOR_NUGET_VERSION}"' src/frontend/src/content/docs/ \
+  --include="*.md" \
   --include="*.mdx"
 ```
 
@@ -208,8 +223,8 @@ For every match found:
 
 1. **Read the surrounding context** (at least 10 lines before and after).
 2. **Classify the reference**:
-   - **Intentional (old-version example)**: The reference is inside a "before" / upgrade-from code block that deliberately shows the old version to contrast with the new version. These are acceptable — do **not** flag them.
-   - **Stale (should be updated)**: The reference is in current guidance, installation instructions, or sample code that a user would copy today. Flag these for update.
+   - **Intentional fixed version**: The reference is historical, an upgrade-from example, a diagnostic minimum, a versioned schema URL, or an explicit pin where the fixed version is the point of the example. These are acceptable — do **not** flag them.
+   - **Current context**: The reference is in current guidance, installation instructions, output, or sample code that a user would copy today. It should use `%ASPIRE_VERSION_MAJOR_MINOR%`, `%ASPIRE_VERSION%`, or `%ASPIRE_VERSION_PREVIEW%` as appropriate. Flag raw or partially constructed versions for update.
 3. Log each stale reference with file path, line number, and surrounding context.
 
 #### 4e. Verify new version references

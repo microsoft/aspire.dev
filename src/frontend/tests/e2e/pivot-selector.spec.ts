@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
-test('prerequisites apphost tabs switch visible content and persist selection', async ({
+test('prerequisites apphost tabs default to TypeScript and persist selection', async ({
   page,
 }) => {
   await page.goto('/get-started/prerequisites/');
@@ -15,27 +15,29 @@ test('prerequisites apphost tabs switch visible content and persist selection', 
   });
   const typeScriptContent = page.getByRole('link', { name: 'Node.js installation instructions' });
 
-  await expect(csharpTab).toHaveAttribute('aria-selected', 'true');
-  await expect(csharpContent).toBeVisible();
-  await expect(typeScriptContent).toBeHidden();
-
-  await typeScriptTab.click();
-
+  await expect(appHostTabs.getByRole('tab').first()).toHaveText('TypeScript');
   await expect(typeScriptTab).toHaveAttribute('aria-selected', 'true');
   await expect(csharpTab).toHaveAttribute('aria-selected', 'false');
   await expect(typeScriptContent).toBeVisible();
   await expect(csharpContent).toBeHidden();
 
+  await csharpTab.click();
+
+  await expect(csharpTab).toHaveAttribute('aria-selected', 'true');
+  await expect(typeScriptTab).toHaveAttribute('aria-selected', 'false');
+  await expect(csharpContent).toBeVisible();
+  await expect(typeScriptContent).toBeHidden();
+
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('starlight-synced-tabs__aspire-lang')))
-    .toBe('TypeScript');
+    .toBe('C#');
 
   await page.reload();
   await dismissCookieConsentIfVisible(page);
 
-  await expect(typeScriptTab).toHaveAttribute('aria-selected', 'true');
-  await expect(typeScriptContent).toBeVisible();
-  await expect(csharpContent).toBeHidden();
+  await expect(csharpTab).toHaveAttribute('aria-selected', 'true');
+  await expect(csharpContent).toBeVisible();
+  await expect(typeScriptContent).toBeHidden();
 });
 
 test('apphost tabs restore and sync the aspire-lang query string', async ({ page }) => {
@@ -89,8 +91,8 @@ test('postgres apphost tabs use the shared aspire-lang query string', async ({ p
   const appHostTabs = page.locator('starlight-tabs[data-sync-key="aspire-lang"]').first();
   const csharpTab = appHostTabs.getByRole('tab', { name: 'C#' });
   const typeScriptTab = appHostTabs.getByRole('tab', { name: 'TypeScript' });
-  const csharpPanel = appHostTabs.locator(':scope > [role="tabpanel"]').nth(0);
-  const typeScriptPanel = appHostTabs.locator(':scope > [role="tabpanel"]').nth(1);
+  const typeScriptPanel = appHostTabs.locator(':scope > [role="tabpanel"]').nth(0);
+  const csharpPanel = appHostTabs.locator(':scope > [role="tabpanel"]').nth(1);
 
   await expect(typeScriptTab).toHaveAttribute('aria-selected', 'true');
   await expect(csharpTab).toHaveAttribute('aria-selected', 'false');

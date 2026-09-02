@@ -47,8 +47,8 @@ This is the phase that turns the skeleton into a real, reviewable page.
    the section (next step).
 7. **Author the draft.** Populate the scaffolded MDX from the dossier: write the lede,
    the "This release introduces" bullets (1:1 with the `##` sections, same order), and
-   each section body with impact-first prose, `LearnMore` deep-links, and C#/TypeScript
-   `<Tabs syncKey='aspire-lang'>` where a feature spans AppHost languages. Credit each
+   each section body with impact-first prose, `LearnMore` deep-links, and TypeScript/C#
+   `<Tabs syncKey='aspire-lang'>` with TypeScript first where a feature spans AppHost languages. Credit each
    merged community PR by `@handle`. **Only include sections that apply** — delete any
    standard section with no content. In particular, when the release has **no breaking
    changes**, remove the "⚠️ Breaking changes" section *and* the breaking-changes

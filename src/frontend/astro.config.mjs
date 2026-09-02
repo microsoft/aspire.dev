@@ -9,6 +9,7 @@ import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
 import { aspireVersionPlaceholdersIntegration } from './config/aspire-version-placeholders-integration.mjs';
 import { remarkAspireVersionPlaceholders } from './config/remark-aspire-version-placeholders.mjs';
+import { remarkTypeScriptFirstAppHostTabs } from './config/remark-typescript-first-apphost-tabs.mjs';
 import catppuccin from '@catppuccin/starlight';
 import lunaria from './config/lunaria-starlight.mjs';
 import mermaid from 'astro-mermaid';
@@ -49,7 +50,7 @@ export default defineConfig({
   trailingSlash: 'always',
   markdown: {
     processor: unified({
-      remarkPlugins: [remarkAspireVersionPlaceholders],
+      remarkPlugins: [remarkTypeScriptFirstAppHostTabs, remarkAspireVersionPlaceholders],
     }),
   },
   redirects: redirects,

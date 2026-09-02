@@ -565,7 +565,7 @@ const basicRenderCases: BasicRenderCase[] = [
     name: 'SimpleAppHostCode renders both AppHost tabs',
     Component: SimpleAppHostCode,
     props: { lang: 'nodejs', mark: '3-5', collapse: '7-8' },
-    includes: ['C# AppHost', 'TypeScript AppHost', 'builder.Build().Run'],
+    includes: ['C#', 'TypeScript', 'builder.Build().Run'],
   },
   {
     name: 'CustomSelect renders a themed combobox and listbox',
@@ -879,6 +879,54 @@ describe('custom Astro component render coverage', () => {
 
     expect(html).toMatch(/data-light="[^"]*map-lightdots\.svg/);
     expect(html).toMatch(/data-dark="[^"]*map-darkdots\.svg/);
+  });
+
+  it('renders TypeScript first for Aspire language pivots only', async () => {
+    const appHostHtml = normalizeHtml(
+      await renderComponent(PivotSelector, {
+        props: {
+          key: 'aspire-lang',
+          options: [
+            { id: 'csharp', title: 'C#' },
+            { id: 'typescript', title: 'TypeScript' },
+          ],
+        },
+      })
+    );
+    const genericHtml = normalizeHtml(
+      await renderComponent(PivotSelector, {
+        props: {
+          key: 'language',
+          options: [
+            { id: 'csharp', title: 'C#' },
+            { id: 'typescript', title: 'TypeScript' },
+          ],
+        },
+      })
+    );
+
+    const typeScriptOption = 'data-pivot-option="typescript"';
+    const csharpOption = 'data-pivot-option="csharp"';
+
+    expect(appHostHtml).toContain(typeScriptOption);
+    expect(appHostHtml).toContain(csharpOption);
+    expect(genericHtml).toContain(csharpOption);
+    expect(genericHtml).toContain(typeScriptOption);
+    expect(appHostHtml.indexOf(typeScriptOption)).toBeLessThan(appHostHtml.indexOf(csharpOption));
+    expect(genericHtml.indexOf(csharpOption)).toBeLessThan(genericHtml.indexOf(typeScriptOption));
+  });
+
+  it('renders the canonical TypeScript tab and apphost.mts before C#', async () => {
+    const html = normalizeHtml(
+      await renderComponent(SimpleAppHostCode, {
+        props: { lang: 'nodejs' },
+      })
+    );
+
+    expect(html).toContain('TypeScript');
+    expect(html).toContain('C#');
+    expect(html.indexOf('TypeScript')).toBeLessThan(html.indexOf('C#'));
+    expect(html).toContain('apphost.mts');
   });
 
   it('AppHostBuilder omits invalid npm package installation APIs from every code variant', async () => {
