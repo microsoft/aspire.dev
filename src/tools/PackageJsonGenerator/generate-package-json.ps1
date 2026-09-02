@@ -62,6 +62,12 @@ $AspireRepoCandidates = @(
     $env:ASPIRE_GITHUB_REPO_URL,
     "https://github.com/microsoft/aspire"
 ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+$ExternalPackageSources = @{
+    "Aspire.Hosting.AWS" = [PSCustomObject]@{
+        Repository = "https://github.com/aws/integrations-on-dotnet-aspire-for-aws"
+        ReleasesApi = "https://api.github.com/repos/aws/integrations-on-dotnet-aspire-for-aws/releases?per_page=100"
+    }
+}
 $script:NuGetSourceMetadataCache = @{}
 
 # ── Resolve paths ──────────────────────────────────────────────────────────────
@@ -330,6 +336,100 @@ function Resolve-OfficialAspireFeed {
         DisplayName     = $feedName
         SourceCommit    = $branchCommit.Commit
         SourceRepository = $branchCommit.Repository
+    }
+}
+
+function Resolve-GitTagCommit {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Repository,
+
+        [Parameter(Mandatory)]
+        [string]$TagName
+    )
+
+    $escapedTag = [regex]::Escape($TagName)
+    $output = @(& git ls-remote --tags $Repository "refs/tags/$TagName" "refs/tags/$TagName^{}" 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to resolve tag '$TagName' from '$Repository': $(($output | ForEach-Object { [string]$_ }) -join "`n")"
+    }
+
+    $directCommit = $null
+    foreach ($line in $output) {
+        $text = [string]$line
+        if ($text -match "^([0-9a-f]{40})\s+refs/tags/$escapedTag\^\{\}$") {
+            return $Matches[1]
+        }
+        if ($text -match "^([0-9a-f]{40})\s+refs/tags/$escapedTag$") {
+            $directCommit = $Matches[1]
+        }
+    }
+
+    if ($directCommit) {
+        return $directCommit
+    }
+
+    throw "Tag '$TagName' was not found in '$Repository'."
+}
+
+function Resolve-ExternalPackageSource {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$PackageId,
+
+        [Parameter(Mandatory)]
+        [string]$Version
+    )
+
+    if (-not $ExternalPackageSources.ContainsKey($PackageId)) {
+        return $null
+    }
+
+    $source = $ExternalPackageSources[$PackageId]
+    $headers = @{
+        Accept = "application/vnd.github+json"
+        "User-Agent" = "aspire.dev-package-json-generator"
+        "X-GitHub-Api-Version" = "2022-11-28"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) {
+        $headers.Authorization = "Bearer $($env:GITHUB_TOKEN)"
+    }
+
+    $releases = $null
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        try {
+            $releases = Invoke-RestMethod -Uri $source.ReleasesApi -Headers $headers
+            break
+        }
+        catch {
+            if ($attempt -eq 3) {
+                throw
+            }
+            Start-Sleep -Seconds ([Math]::Pow(2, $attempt - 1))
+        }
+    }
+
+    $headingPattern = "(?m)^###\s+$([regex]::Escape($PackageId))\s+\($([regex]::Escape($Version))\)\s*$"
+    $matchingReleases = @($releases | Where-Object {
+        -not [string]::IsNullOrWhiteSpace($_.body) -and $_.body -match $headingPattern
+    })
+
+    if ($matchingReleases.Count -ne 1) {
+        throw "Expected one GitHub release for $PackageId $Version in '$($source.Repository)', but found $($matchingReleases.Count)."
+    }
+
+    $tagName = [string]$matchingReleases[0].tag_name
+    if ([string]::IsNullOrWhiteSpace($tagName)) {
+        throw "The GitHub release for $PackageId $Version has no tag."
+    }
+
+    $commit = Resolve-GitTagCommit -Repository $source.Repository -TagName $tagName
+    return [PSCustomObject]@{
+        Repository = $source.Repository
+        Commit     = $commit
+        Tag        = $tagName
     }
 }
 
@@ -845,6 +945,20 @@ foreach ($info in $packageInfos) {
     $packageId = $info.PackageId
     $version = $info.Version
     $sourceInfo = $packageSourceMetadata[$packageId]
+    $externalSource = $null
+
+    try {
+        $externalSource = Resolve-ExternalPackageSource -PackageId $packageId -Version $version
+        if ($externalSource) {
+            Write-Host "  Source: $packageId $version -> $($externalSource.Tag) ($($externalSource.Commit.Substring(0, 12)))"
+        }
+    }
+    catch {
+        Write-Warning "Failed to resolve source provenance for $packageId $version`: $_"
+        $failCount++
+        [void]$failedPackageNames.Add($packageId)
+        continue
+    }
 
     try {
         Write-Host "  Restoring: $packageId $version from $($sourceInfo.DisplaySource)" -ForegroundColor Yellow
@@ -883,8 +997,8 @@ foreach ($info in $packageInfos) {
         output         = $outputFile
         packageVersion = $version
         packageName    = $packageId
-        sourceRepo     = $null
-        sourceCommit   = $null
+        sourceRepo     = if ($externalSource) { $externalSource.Repository } else { $null }
+        sourceCommit   = if ($externalSource) { $externalSource.Commit } else { $null }
         targetFramework = $restoreGraph.TargetFramework
     }
 }
