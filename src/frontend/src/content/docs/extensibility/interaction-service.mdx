@@ -901,11 +901,13 @@ if (result.Canceled)
     return CommandResults.Failure("Canceled");
 }
 
-var file = result.Data.Files?[0];
-if (file is null)
+using var files = result.Data.GetFiles();
+if (files.Count == 0)
 {
     return CommandResults.Failure("No file uploaded");
 }
+
+var file = files[0];
 
 // Read all file content as bytes
 var content = await file.ReadAllBytesAsync(cancellationToken);
@@ -913,6 +915,8 @@ var content = await file.ReadAllBytesAsync(cancellationToken);
 // Or open as a stream for large files
 await using var stream = file.OpenRead();
 ```
+
+The uploaded files are temporary files on the AppHost. `GetFiles()` returns a disposable `InteractionFileCollection`, and the caller owns it: dispose the collection when the files are no longer needed to delete them from disk before AppHost shutdown. Files that are never disposed are deleted when the AppHost shuts down. After disposal, `InteractionFile.OpenRead()` and `ReadAllBytesAsync()` throw `ObjectDisposedException`, but any stream already opened before disposal remains usable until that stream is disposed.
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
@@ -943,10 +947,17 @@ if (files.length === 0) {
   return { success: false, message: 'No file uploaded' };
 }
 
-const file = files[0];
-// file.name - original filename
-// file.filePath - path to uploaded file on disk
+try {
+  const file = files[0];
+  // file.name - original filename
+  // file.filePath - path to uploaded file on disk
+} finally {
+  // Delete the uploaded temporary files from the AppHost.
+  await fileInput.releaseFiles();
+}
 ```
+
+Call `releaseFiles()` after the uploaded files have been processed to delete the temporary files on the AppHost. The call is idempotent, so a `finally` block is a good place for it. Files that are never released are deleted when the AppHost shuts down.
 
 </TabItem>
 </Tabs>
