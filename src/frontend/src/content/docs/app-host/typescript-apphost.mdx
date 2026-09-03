@@ -169,7 +169,7 @@ For compatibility details and optional migration steps, see [Legacy `apphost.ts`
 
 ## Configuration with appsettings.json
 
-TypeScript AppHosts read configuration from JSON files that live next to `apphost.mts`. Add an `appsettings.json` file to your AppHost and Aspire loads it into the AppHost's configuration at startup. You read the effective values in `apphost.mts` through the builder's configuration accessor.
+TypeScript AppHosts read configuration from JSON files next to `apphost.mts`. Add an `appsettings.json` file to your AppHost, and Aspire loads it into the AppHost's configuration at startup. In `apphost.mts`, use the builder's configuration accessor to read the effective values.
 
 <FileTree>
 
@@ -218,7 +218,7 @@ The environment-specific file overrides matching values from `appsettings.json`.
 
 #### Development
 
-Add the Development overrides:
+Add settings that override the base configuration in the `Development` environment:
 
 ```json title="appsettings.Development.json"
 {
@@ -229,7 +229,7 @@ Add the Development overrides:
 }
 ```
 
-Start the AppHost with the `Development` environment:
+Apply these overrides by starting the AppHost with the `Development` environment:
 
 ```bash title="Start with Development settings"
 aspire start --environment Development
@@ -247,7 +247,7 @@ const region = await configuration.getConfigValue('deployment:region');
 
 #### Production
 
-Add the Production overrides:
+Add settings that override the base configuration in the `Production` environment:
 
 ```json title="appsettings.Production.json"
 {
@@ -258,7 +258,7 @@ Add the Production overrides:
 }
 ```
 
-Start the AppHost with the `Production` environment:
+Apply these overrides by starting the AppHost with the `Production` environment:
 
 ```bash title="Start with Production settings"
 aspire start --environment Production
@@ -279,7 +279,9 @@ const region = await configuration.getConfigValue('deployment:region');
 </LearnMore>
 
 <Aside type="note">
-Aspire looks for `appsettings.json` and `appsettings.{Environment}.json` in the same directory as `apphost.mts`. If more than one mechanism sets the active environment, `--environment` takes precedence over `DOTNET_ENVIRONMENT` and `ASPIRE_ENVIRONMENT`. Environment variables and command-line arguments take precedence over both JSON files, so you can override settings at run time without editing JSON.
+Aspire looks for `appsettings.json` and `appsettings.{Environment}.json` in the same directory as `apphost.mts`. If more than one mechanism sets the active environment, Aspire applies this precedence: `--environment`, `DOTNET_ENVIRONMENT`, then `ASPIRE_ENVIRONMENT`. Environment variables and command-line arguments take precedence over both JSON files, so you can override settings at run time without editing JSON.
+
+These files configure the inner AppHost, not the CLI-managed JSON-RPC server. They don't replace the server's private ATS assembly discovery or logging configuration. The inner AppHost separately retains the managed server's logging defaults as fallbacks, which the AppHost configuration can override.
 </Aside>
 
 ## Package managers
