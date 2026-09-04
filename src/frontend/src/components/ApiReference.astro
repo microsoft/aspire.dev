@@ -1,0 +1,221 @@
+---
+/**
+ * ApiReference — renders a single Aspire API as inline, linked code that
+ * pivots between its C# and TypeScript forms with the site's canonical C#/TS
+ * language preference: the `data-apphost-lang` attribute that
+ * src/components/starlight/Head.astro sets on `<html>` before paint and keeps
+ * current (query string, localStorage, Starlight `<Tabs syncKey="aspire-lang">`
+ * pointer clicks and keyboard nav). This component binds to that attribute
+ * via CSS only — it must not track its own copy of the language state, which
+ * would drift out of sync with any update path Head.astro handles.
+ *
+ * Renders a plain `<code>` (optionally wrapped in `<a>`) rather than
+ * Starlight's `<Code>` component: `<Code>` emits block-level Expressive Code
+ * markup (`<div><figure><pre>...`), which is invalid inside the `<p>`/`<li>`
+ * phrasing content this component is used from — browsers reparent that
+ * block content out of its containing paragraph/list item, leaving an empty
+ * `.api-reference` behind and a detached code block elsewhere on the page.
+ * Mirrors the same plain-`<code>` approach ContainerImages.astro uses for
+ * its inline API label.
+ *
+ * Accepts only a canonical, fully qualified C# name (declaring type + member,
+ * e.g. `Aspire.Hosting.PostgresBuilderExtensions.AddPostgres`) — never a
+ * free-form label or an example call expression. The FQN is resolved against
+ * the generated package reference data (`@utils/packages`) to find the real
+ * member; the build fails if it doesn't resolve, so a broken or renamed API
+ * can't silently ship as unlinked text.
+ *
+ * From that resolved member this derives, for each language:
+ *  - the display name in that language's casing (C# PascalCase / TypeScript
+ *    camelCase), with a trailing `()` when the member is callable
+ *  - the canonical href into `/reference/api/csharp/...` (always present)
+ *    and `/reference/api/typescript/...` (present only when the API is
+ *    exported to TypeScript — see `AspireExportAttribute` — otherwise the
+ *    TypeScript form renders as plain, unlinked code)
+ */
+import {
+  genericArity,
+  getPackages,
+  memberKindSlugs,
+  memberNameSlug,
+  typeHref,
+  type PackageMember,
+  type PackageType,
+} from '@utils/packages';
+import { getTsModules, tsModuleSlug } from '@utils/ts-modules';
+import {
+  getTsItemSlug,
+  getTsMethodSlug,
+  getTsStandaloneFunctions,
+  getTsTopLevelRouteItems,
+} from '@utils/ts-api-routes';
+
+interface Props {
+  /**
+   * Canonical fully qualified C# API name: the declaring type's full name
+   * plus the member name, dot-separated, e.g.
+   * `Aspire.Hosting.PostgresBuilderExtensions.AddPostgres` or
+   * `Aspire.Hosting.ApplicationModel.IResourceBuilder.WithAnnotation`.
+   */
+  name: string;
+}
+
+const { name } = Astro.props;
+
+const FQN_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/;
+
+if (!FQN_PATTERN.test(name)) {
+  throw new Error(
+    `ApiReference: "${name}" is not a canonical fully qualified name. Expected a ` +
+      `dot-separated declaring-type + member name, e.g. "Aspire.Hosting.PostgresBuilderExtensions.AddPostgres".`
+  );
+}
+
+const lastDot = name.lastIndexOf('.');
+const declaringTypeFqn = name.slice(0, lastDot);
+const memberName = name.slice(lastDot + 1);
+
+/** Strip generic arity (`` `1 `` or `<T>`) so callers can name generic types without it. */
+function stripGenericArity(fullName: string): string {
+  return fullName.replace(/`\d+$/, '').replace(/<.*>$/, '');
+}
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const packages = await getPackages();
+
+let resolvedType: PackageType | undefined;
+let resolvedMember: PackageMember | undefined;
+let resolvedPackageName: string | undefined;
+
+for (const pkg of packages) {
+  const type = pkg.data.types.find(
+    (t) => t.fullName === declaringTypeFqn || stripGenericArity(t.fullName ?? '') === declaringTypeFqn
+  );
+  if (!type) continue;
+
+  const member = type.members?.find((m) => m.name === memberName);
+  if (!member) continue;
+
+  resolvedType = type;
+  resolvedMember = member;
+  resolvedPackageName = pkg.data.package.name;
+  break;
+}
+
+if (!resolvedType || !resolvedMember || !resolvedPackageName) {
+  throw new Error(
+    `ApiReference: could not resolve "${name}" to a known API member in the generated package ` +
+      `reference data (looked for member "${memberName}" on type "${declaringTypeFqn}").`
+  );
+}
+
+const isCallable = resolvedMember.kind === 'method' || resolvedMember.kind === 'constructor';
+const csharp = resolvedMember.name + (isCallable ? '()' : '');
+
+const csharpHref = `${typeHref(base, resolvedPackageName, resolvedType.name, genericArity(resolvedType))}${
+  memberKindSlugs[resolvedMember.kind ?? 'method']
+}/#${memberNameSlug(resolvedMember)}`;
+
+const camelLeaf = memberName.charAt(0).toLowerCase() + memberName.slice(1);
+
+let typescriptName: string | undefined;
+let typescriptHref: string | undefined;
+
+const tsModules = await getTsModules();
+const tsModule = tsModules.find((m) => m.data.package.name === resolvedPackageName);
+
+if (tsModule) {
+  const standaloneFn = getTsStandaloneFunctions(tsModule.data).find(
+    (fn) => fn.name.toLowerCase() === camelLeaf.toLowerCase()
+  );
+
+  if (standaloneFn) {
+    const topLevelItems = getTsTopLevelRouteItems(tsModule.data);
+    const itemSlug = getTsItemSlug(standaloneFn, topLevelItems);
+    typescriptName = standaloneFn.name;
+    typescriptHref = `${base}/reference/api/typescript/${tsModuleSlug(tsModule.data.package.name)}/${itemSlug}/`;
+  } else {
+    for (const handle of tsModule.data.handleTypes ?? []) {
+      const methods = (handle.capabilities ?? []).filter(
+        (c) => c.kind === 'Method' || c.kind === 'InstanceMethod'
+      );
+      const method = methods.find((m) => m.name.toLowerCase() === camelLeaf.toLowerCase());
+      if (!method) continue;
+
+      const topLevelItems = getTsTopLevelRouteItems(tsModule.data);
+      const itemSlug = getTsItemSlug(handle, topLevelItems);
+      const methodSlug = getTsMethodSlug(method, methods, handle.name);
+      typescriptName = method.name;
+      typescriptHref = `${base}/reference/api/typescript/${tsModuleSlug(tsModule.data.package.name)}/${itemSlug}/${methodSlug}/`;
+      break;
+    }
+  }
+}
+
+const typescript = (typescriptName ?? camelLeaf) + (isCallable ? '()' : '');
+---
+
+<span class="api-reference not-content">
+  <a class="ar-lang" data-lang="csharp" href={csharpHref}>
+    <code>{csharp}</code>
+  </a>
+  {typescriptHref ? (
+    <a class="ar-lang" data-lang="typescript" href={typescriptHref}>
+      <code>{typescript}</code>
+    </a>
+  ) : (
+    <span class="ar-lang" data-lang="typescript">
+      <code>{typescript}</code>
+    </span>
+  )}
+</span>
+
+<style>
+  .api-reference {
+    display: inline-flex;
+    vertical-align: middle;
+  }
+
+  /* Language pivot: default to the C# name; swap to the TypeScript name only
+     when TS is selected. `data-apphost-lang` is the site's single canonical
+     C#/TS preference attribute, set on <html> by src/components/starlight/Head.astro
+     before paint and kept current there (query string, localStorage, Starlight
+     `<Tabs syncKey="aspire-lang">` pointer clicks and keyboard navigation). This
+     component only reads it — it must not maintain its own copy of that state. */
+  .ar-lang {
+    display: none;
+  }
+
+  :global(html[data-apphost-lang='typescript']) .ar-lang[data-lang='typescript'] {
+    display: inline-flex;
+  }
+
+  :global(html:not([data-apphost-lang='typescript'])) .ar-lang[data-lang='csharp'] {
+    display: inline-flex;
+  }
+
+  a.ar-lang {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  /* Plain inline `<code>` styled to match prose code spans — mirrors
+     ContainerImages.astro's `.ci-api`. Deliberately not Starlight's `<Code>`
+     component: that emits block-level markup that isn't valid inside the
+     `<p>`/`<li>` phrasing content this component renders from. */
+  .ar-lang code {
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: var(--sl-text-body);
+    font-weight: 400;
+    color: var(--aspire-inline-code-text);
+    background-color: var(--aspire-inline-code-bg);
+    border: 1px solid var(--aspire-inline-code-border);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+  }
+
+  a.ar-lang:hover code {
+    border-color: var(--sl-color-text-accent);
+  }
+</style>
