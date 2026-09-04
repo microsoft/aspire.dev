@@ -57,6 +57,8 @@ const uid = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slic
 
 <script>
   // @ts-nocheck -- Client-side DOM manipulation with runtime casts; suppress to avoid implicit any noise.
+  let themeObserver;
+
   function getCurrentTheme() {
     const html = document.documentElement;
     return html.getAttribute('data-theme') || 'light';
@@ -115,9 +117,12 @@ const uid = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slic
   function initButtons() {
     const prefersNoHover = window.matchMedia && window.matchMedia('(hover: none)').matches;
     document.querySelectorAll('.looping-video-wrapper').forEach((wrapper) => {
+      if (wrapper.dataset.loopingVideoInitialized === 'true') return;
+
       const video = wrapper.querySelector('video.looping-video');
       const btn = wrapper.querySelector('.looping-video-toggle');
       if (!(video instanceof HTMLVideoElement) || !(btn instanceof HTMLButtonElement)) return;
+      wrapper.dataset.loopingVideoInitialized = 'true';
       const srOnly = btn.querySelector('.sr-only');
 
       function syncButton() {
@@ -192,10 +197,14 @@ const uid = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slic
 
   function initLoopingVideos() {
     try {
+      themeObserver?.disconnect();
+      themeObserver = undefined;
+      if (!document.querySelector('.looping-video-wrapper')) return;
+
       updateAllLoopingVideos();
       initButtons();
 
-      const observer = new MutationObserver((mutations) => {
+      themeObserver = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           if (
             mutation.type === 'attributes' &&
@@ -206,7 +215,7 @@ const uid = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slic
           }
         }
       });
-      observer.observe(document.documentElement, {
+      themeObserver.observe(document.documentElement, {
         attributes: true,
         attributeFilter: ['data-theme'],
       });
@@ -215,11 +224,8 @@ const uid = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slic
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initLoopingVideos);
-  } else {
-    initLoopingVideos();
-  }
+  document.addEventListener('astro:page-load', initLoopingVideos);
+  if (document.readyState !== 'loading') initLoopingVideos();
 </script>
 
 <style>

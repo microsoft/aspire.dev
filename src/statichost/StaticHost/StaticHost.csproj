@@ -20,6 +20,9 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.17.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.5.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.10.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,6 +40,16 @@
       be found` unless the frontend has already been built.
     -->
     <ProjectReference Include="../../frontend/frontend.esproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <!--
+      Local StaticHost builds serve the generated Astro output directly from
+      wwwroot via UseStaticFiles(). Keep those files out of MSBuild's default
+      content/static-web-asset item graph so AppHost starts don't crawl ~20k
+      generated files every time.
+    -->
+    <Content Remove="wwwroot\**" />
   </ItemGroup>
 
   <Import Project="Caching.targets" />

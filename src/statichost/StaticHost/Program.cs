@@ -1,6 +1,9 @@
+using Scalar.AspNetCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddLiveStatus();
 
 builder.Services.AddHsts(options =>
 {
@@ -8,6 +11,8 @@ builder.Services.AddHsts(options =>
     options.IncludeSubDomains = true;
     options.MaxAge = TimeSpan.FromDays(180);
 });
+
+builder.Services.AddOpenApi("v1");
 
 await using var app = builder.Build();
 
@@ -30,7 +35,16 @@ app.UseCanonicalPathRedirects();
 // LinkHeaderMiddleware attaches a Link header on HTML 2xx responses via OnStarting.
 app.UseAgentReadiness();
 
+var staticAssetsManifest = Path.Combine(
+    AppContext.BaseDirectory,
+    $"{app.Environment.ApplicationName}.staticwebassets.endpoints.json");
+var hasStaticAssetsManifest = File.Exists(staticAssetsManifest);
+
 app.UseDefaultFiles();
+if (!hasStaticAssetsManifest)
+{
+    app.UseStaticFiles();
+}
 
 // add routing after default files, so the default file middleware can modify the path first
 app.UseRouting();
@@ -75,6 +89,26 @@ app.Use(async (context, next) =>
 
 app.MapGet("/healthz", () => Results.Ok());
 
+// Live-status API + SSE + webhooks.
+app.MapLiveStatus();
+
+// OpenAPI + Scalar API reference (with custom Aspire-brand theme) in dev.
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference("/scalar/v1", options =>
+    {
+        options.WithTitle("aspire.dev API")
+               .WithTheme(ScalarTheme.None);
+
+        var themePath = Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "scalar", "aspire-theme.css");
+        if (File.Exists(themePath))
+        {
+            options.WithCustomCss(File.ReadAllText(themePath));
+        }
+    });
+}
+
 app.MapGet("/install.ps1", (HttpContext context, OneDSTelemetryService telemetry) =>
 {
     telemetry.TrackDownload(context, "install.ps1");
@@ -89,6 +123,15 @@ app.MapGet("/install.sh", (HttpContext context, OneDSTelemetryService telemetry)
     return Results.Redirect("https://aka.ms/aspire/get/install.sh");
 });
 
-app.MapStaticAssets();
+if (hasStaticAssetsManifest)
+{
+    app.MapStaticAssets();
+}
+else
+{
+    app.Logger.LogInformation(
+        "Static web assets manifest '{StaticAssetsManifest}' was not found; serving physical wwwroot files only.",
+        staticAssetsManifest);
+}
 
 await app.RunAsync();

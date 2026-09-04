@@ -23,7 +23,11 @@ const renderedOptions =
     : options;
 ---
 
-<div class="pivot-container not-content" data-tour-target="pivot-selector" data-tour-step="pivot-selector">
+<div
+  class="pivot-container not-content"
+  data-tour-target="pivot-selector"
+  data-tour-step="pivot-selector"
+>
   {title && <div class="pivot-title">{title}</div>}
   <div class="pivot-selector" id=`pivot-selector-${key}`>
     {
@@ -71,7 +75,11 @@ const renderedOptions =
   </button>
 </div>
 
-<style define:vars={{ marginTop: marginTop !== null && marginTop !== undefined ? `${marginTop}rem` : '0rem' }}>
+<style
+  define:vars={{
+    marginTop: marginTop !== null && marginTop !== undefined ? `${marginTop}rem` : '0rem',
+  }}
+>
   .pivot-container {
     background: var(--sl-color-bg-nav);
     border: 1px solid var(--sl-color-gray-5);
@@ -345,6 +353,8 @@ const renderedOptions =
       console.warn('Pivot selector not found!');
       return;
     }
+    if (selector.dataset.pivotInitialized === 'true') return;
+    selector.dataset.pivotInitialized = 'true';
 
     const container = selector.closest('.pivot-container');
     if (!container) {
@@ -735,16 +745,17 @@ const renderedOptions =
     }
   }
 
-  // Run when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      initPivotSelector();
-      updateTitles();
-    });
-  } else {
+  const initializePivotSelector = () => {
     initPivotSelector();
     updateTitles();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializePivotSelector);
+  } else {
+    initializePivotSelector();
   }
+  document.addEventListener('astro:page-load', initializePivotSelector);
 
   // Update titles on resize
   window.addEventListener('resize', updateTitles);
