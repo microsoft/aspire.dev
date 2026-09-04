@@ -62,14 +62,16 @@ Pressing <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> while `aspire start
 
 ### Configuring the startup timeout
 
-`aspire start` waits up to 120 seconds by default for the AppHost to reach a stable running state. If the AppHost build or startup takes longer than that—for example on a slow machine or in a CI environment—set the `ASPIRE_CLI_START_TIMEOUT` environment variable to a higher number of seconds:
+`aspire start` waits up to 120 seconds by default for the AppHost to reach a stable running state. If the AppHost startup takes longer than that—for example on a slow machine or in a CI environment—set the `ASPIRE_CLI_START_TIMEOUT` environment variable to a higher number of seconds:
 
-```bash title="Aspire CLI"
-export ASPIRE_CLI_START_TIMEOUT=300
-aspire start
+```powershell title="Aspire CLI"
+$env:ASPIRE_CLI_START_TIMEOUT = "15"
+aspire start --no-build
 ```
 
 If `ASPIRE_CLI_START_TIMEOUT` is set to a value that isn't a positive whole number of seconds, `aspire start` displays an error and exits without starting the AppHost. This behavior also applies to `aspire run`, including `aspire run --detach`.
+
+`ASPIRE_CLI_START_TIMEOUT` only bounds the time the AppHost takes to reach a stable running state after it starts executing. The detached launcher doesn't consume this budget while its child process restores and builds, and a required safety build performed for an explicit `--no-build` runs before the budget begins. A required safety build can take longer than the configured timeout; once it completes, the AppHost receives the full startup budget.
 
 ## Hot Reload and watch behavior
 
