@@ -90,6 +90,7 @@ export default defineConfig({
           PageTitle: './src/components/starlight/PageTitle.astro',
           Search: './src/components/starlight/Search.astro',
           Sidebar: './src/components/starlight/Sidebar.astro',
+          SkipLink: './src/components/starlight/SkipLink.astro',
           SocialIcons: './src/components/starlight/SocialIcons.astro',
         },
         plugins: [

@@ -2,13 +2,26 @@
 interface Props {
   minColumnWidth?: string;
   gap?: string;
+  /** Set to 'ul' when every child is an <li> (e.g. MediaCard), so the
+   * listitem role has a list-role parent (WCAG 1.3.1). Defaults to 'div'
+   * for grids of non-list content (cards, links). */
+  as?: 'div' | 'ul';
 }
-const { minColumnWidth, gap } = Astro.props;
+const { minColumnWidth, gap, as = 'div' } = Astro.props;
+const Tag = as;
+// `define:vars` can't target a dynamically-named tag, so set the custom
+// properties directly instead.
+const style = [
+  minColumnWidth ? `--minColumnWidth: ${minColumnWidth}` : '',
+  gap ? `--gap: ${gap}` : '',
+]
+  .filter(Boolean)
+  .join('; ');
 ---
 
-<div class="fluid-grid"><slot /></div>
+<Tag class="fluid-grid" style={style}><slot /></Tag>
 
-<style define:vars={{ minColumnWidth, gap }}>
+<style>
   .fluid-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--minColumnWidth, 11rem)), 1fr));
