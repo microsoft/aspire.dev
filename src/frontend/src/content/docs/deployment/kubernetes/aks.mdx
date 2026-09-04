@@ -506,6 +506,32 @@ aspire publish -o aks-artifacts
 
 This generates Helm charts and Bicep infrastructure templates that you can review, customize, and deploy using your own CI/CD pipeline or GitOps workflow.
 
+## Clean up resources
+
+To tear down a deployed AKS environment, use `aspire destroy`:
+
+```bash title="Destroy an AKS deployment"
+aspire destroy
+```
+
+`aspire destroy` acquires AKS credentials for the target cluster itself, so it doesn't depend on the cluster already being selected in your ambient `kubectl` context. It uninstalls the main Helm release along with any opted-in external charts and cert-manager resources, then deletes the Azure resource group — including the AKS cluster, ACR, and every other Azure resource that was provisioned. This action cannot be undone.
+
+```bash title="Non-interactive destroy in CI/CD"
+KUBECONFIG="$(mktemp)" aspire destroy \
+  --apphost MyApp.AppHost/MyApp.AppHost.csproj \
+  --environment my-environment \
+  --non-interactive \
+  --yes
+```
+
+<Aside type="tip">
+Point `KUBECONFIG` at an empty file (or unset it) in automation so `aspire destroy` always resolves the AKS cluster from the deployment state instead of whatever context happens to be active on the runner.
+</Aside>
+
+<LearnMore>
+See the [`aspire destroy` command reference](/reference/cli/commands/aspire-destroy/) for the full set of options.
+</LearnMore>
+
 ## Azure-specific considerations
 
 ### Authentication
