@@ -106,8 +106,12 @@ internal sealed class PdbSourceReader : IDisposable
 
             if (minLine < int.MaxValue)
             {
-                var rowId = MetadataTokens.GetRowNumber(handle);
-                _methodSources[rowId] = new MethodSourceInfo(CleanPath(docName), minLine, maxLine);
+                var sourcePath = NormalizeSourcePath(docName);
+                if (sourcePath is not null)
+                {
+                    var rowId = MetadataTokens.GetRowNumber(handle);
+                    _methodSources[rowId] = new MethodSourceInfo(sourcePath, minLine, maxLine);
+                }
             }
         }
     }
@@ -509,14 +513,43 @@ internal sealed class PdbSourceReader : IDisposable
     }
 
     /// <summary>
-    /// Strips the deterministic build path prefix (e.g. "/_/") from source paths.
+    /// Converts PDB document names to repository-relative paths.
     /// </summary>
-    private static string CleanPath(string path)
+    internal static string? NormalizeSourcePath(string path)
     {
-        if (path.StartsWith("/_/"))
-            return path[3..];
-        return path;
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+
+        var normalized = path.Replace('\\', '/');
+        if (normalized.StartsWith("/_/", StringComparison.Ordinal))
+        {
+            normalized = normalized[3..];
+        }
+        else if (IsAbsoluteSourcePath(normalized))
+        {
+            var sourceRoot = normalized.IndexOf("/src/", StringComparison.OrdinalIgnoreCase);
+            if (sourceRoot < 0)
+            {
+                throw new InvalidDataException(
+                    $"PDB source path '{path}' is absolute and cannot be mapped to the repository.");
+            }
+
+            normalized = normalized[(sourceRoot + 1)..];
+        }
+
+        var segments = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0 || segments.Any(segment => segment is "." or ".."))
+        {
+            throw new InvalidDataException(
+                $"PDB source path '{path}' is not a safe repository-relative path.");
+        }
+
+        return string.Join('/', segments);
     }
+
+    private static bool IsAbsoluteSourcePath(string path) =>
+        path.StartsWith("/", StringComparison.Ordinal) ||
+        (path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':');
 
     public void Dispose()
     {

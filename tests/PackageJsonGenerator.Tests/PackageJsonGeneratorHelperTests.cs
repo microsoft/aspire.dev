@@ -1,3 +1,5 @@
+using PackageJsonGenerator.Helpers;
+
 namespace PackageJsonGenerator.Tests;
 
 public sealed class PackageJsonGeneratorHelperTests
@@ -56,5 +58,35 @@ public sealed class PackageJsonGeneratorHelperTests
     public void ParseStartLine_ParsesExpectedValue(string? sourceLines, int expected)
     {
         Assert.Equal(expected, PackageJsonGenerator.ParseStartLine(sourceLines));
+    }
+
+    [Theory]
+    [InlineData("/_/src/Aspire.Hosting/Foo.cs", "src/Aspire.Hosting/Foo.cs")]
+    [InlineData(
+        @"C:\build\src\Aspire.Hosting.AWS\Lambda\LambdaExtensions.cs",
+        "src/Aspire.Hosting.AWS/Lambda/LambdaExtensions.cs")]
+    [InlineData(
+        "/home/runner/work/repo/repo/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
+        "src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs")]
+    [InlineData(@"src\Aspire.Hosting\Foo.cs", "src/Aspire.Hosting/Foo.cs")]
+    public void NormalizeSourcePath_ReturnsRepositoryRelativePath(string path, string expected)
+    {
+        Assert.Equal(expected, PdbSourceReader.NormalizeSourcePath(path));
+    }
+
+    [Theory]
+    [InlineData(@"C:\build\generated\Foo.cs")]
+    [InlineData(@"C:generated\Foo.cs")]
+    [InlineData("/home/runner/work/repo/generated/Foo.cs")]
+    [InlineData("../src/Foo.cs")]
+    public void NormalizeSourcePath_RejectsUnsafePath(string path)
+    {
+        Assert.Throws<InvalidDataException>(() => PdbSourceReader.NormalizeSourcePath(path));
+    }
+
+    [Fact]
+    public void NormalizeSourcePath_IgnoresEmptyDocumentName()
+    {
+        Assert.Null(PdbSourceReader.NormalizeSourcePath(""));
     }
 }

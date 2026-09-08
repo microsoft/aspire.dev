@@ -549,6 +549,18 @@ public static class PackageJsonGenerator
                 continue;
             }
 
+            if (lines.Length == 0)
+            {
+                // A 404 confirms that an inferred filename does not exist at this
+                // revision. Fall back to the repository instead of emitting a broken link.
+                foreach (var typeModel in group)
+                {
+                    typeModel.SourceFile = null;
+                    typeModel.SourceLines = null;
+                }
+                continue;
+            }
+
             foreach (var typeModel in group)
             {
                 var simpleName = PdbSourceReader.NormalizeGenericName(typeModel.Name);
@@ -595,6 +607,12 @@ public static class PackageJsonGenerator
             {
                 var text = http.GetStringAsync(rawUrl).GetAwaiter().GetResult();
                 lines = text.Split('\n');
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                // An empty array is cached as a confirmed missing file, distinct from
+                // a transient request failure represented by null.
+                lines = [];
             }
             catch
             {
