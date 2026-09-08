@@ -1,23 +1,23 @@
 ---
 title: Dev Containers in Visual Studio Code
-seoTitle: Aspire dev containers for Visual Studio Code overview
-description: Use Aspire with Dev Containers in Visual Studio Code to get reproducible, containerized development environments with the Aspire CLI, dashboard, and tooling preinstalled.
+seoTitle: Build polyglot Aspire apps in VS Code Dev Containers
+description: Use Aspire with Visual Studio Code Dev Containers to build and run multi-language apps in a reproducible environment with the CLI and dashboard ready.
 ---
 
 import { Image } from 'astro:assets';
 import { Steps } from '@astrojs/starlight/components';
 import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
-import { Kbd } from 'starlight-kbd/components';
 import ThemeImage from '@components/ThemeImage.astro';
 import newRepoFromTemplateDark from '@assets/get-started/new-repository-from-template-dark.png';
 import newRepoFromTemplateLight from '@assets/get-started/new-repository-from-template-light.png';
 import reopenInContainer from '@assets/get-started/reopen-in-container.png';
-import devcontainerBuildCompleted from '@assets/get-started/devcontainer-build-completed.png';
-import vscodeRunButton from '@assets/get-started/vscode-run-button.png';
 import browserCertError from '@assets/get-started/browser-certificate-error.png';
-import aspireDashboard from '@assets/get-started/aspire-dashboard-in-devcontainer.png';
 
-The [Dev Containers Visual Studio Code extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) provides a way for development teams to work inside a containerized environment where dependencies are defined as part of the repository. Aspire automatically configures forwarded ports in Dev Containers so the dashboard and resource endpoints are easier to open from Visual Studio Code.
+The [Dev Containers Visual Studio Code extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) lets your team define SDKs, command-line tools, editor extensions, and supporting services as part of a repository.
+
+The maintained Aspire template starts from Ubuntu and installs Aspire, Docker-in-Docker, Node.js, Python and uv, .NET, and PowerShell as peer [Dev Container Features](https://containers.dev/features). The template is intentionally broad, so you can remove or replace any runtime your app doesn't need. Aspire can run a TypeScript AppHost and orchestrate app resources without a separately installed .NET SDK.
+
+Aspire also configures forwarded ports so the dashboard and resource endpoints are easier to open from Visual Studio Code.
 
 ## Dev Containers vs. GitHub Codespaces
 
@@ -25,70 +25,63 @@ Using Dev Containers in Visual Studio Code is similar to using GitHub Codespaces
 
 ## Quick start using template repository
 
-To configure Dev Containers in Visual Studio Code, use the `.devcontainer/devcontainer.json` file in your repository. The simplest way to get started is by creating a new repository from the [Aspire Dev Container template](https://github.com/microsoft/aspire-devcontainer). Consider the following steps:
+To configure Dev Containers in Visual Studio Code, use the `.devcontainer/devcontainer.json` file in your repository. The simplest way to get started is by creating a new repository from the [Aspire Dev Container template](https://github.com/microsoft/aspire-devcontainer). Follow these steps:
 
 <Steps>
 
 1. [Create a new repository](https://github.com/new?template_name=aspire-devcontainer&template_owner=microsoft) using our template.
 
-    <ThemeImage
-      dark={newRepoFromTemplateDark}
-      light={newRepoFromTemplateLight}
-      alt="Screenshot showing how to create a new repository from the Aspire devcontainer template on GitHub."
-    />
+   <ThemeImage
+     dark={newRepoFromTemplateDark}
+     light={newRepoFromTemplateLight}
+     alt="Screenshot showing how to create a new repository from the Aspire devcontainer template on GitHub."
+   />
 
-    Once you provide the details and select **Create repository**, the repository is created and shown in GitHub.
+   Once you provide the details and select **Create repository**, the repository is created and shown in GitHub.
 
 1. Clone the repository to your local developer workstation using the following command:
 
-   ```bash
-   git clone https://github.com/<org>/<username>/<repository>
+   ```bash title="Clone the repository"
+   git clone https://github.com/<org>/<repository>.git
+   cd <repository>
    ```
 
-1. Open the repository in Visual Studio Code. After a few moments Visual Studio Code detects the `.devcontainer/devcontainer.json` file and prompts to open the repository inside a container. Select whichever option is most appropriate for your workflow.
+1. Open the repository in Visual Studio Code. After a few moments, Visual Studio Code detects the `.devcontainer/devcontainer.json` file and prompts to open the repository inside a container. Select whichever option is most appropriate for your workflow.
 
    <Image
      src={reopenInContainer}
      alt="Screenshot showing VS Code prompt to open the repository inside a container."
    />
 
-    After a few moments, the files become visible and the Dev Container finishes setting up. The template installs the Aspire CLI during setup, so you can create an app immediately without manually installing `Aspire.ProjectTemplates`.
+   After a few moments, the files become visible and the Dev Container finishes setting up. The template installs the Aspire CLI and several language runtimes, but it doesn't choose an application language or restore app-specific dependencies for you.
 
-   <Image
-     src={devcontainerBuildCompleted}
-     alt="Screenshot showing the dev container build completed notification in VS Code."
-   />
+1. Open a terminal in Visual Studio Code and start the interactive project creator:
 
-1. Open a new terminal window in Visual Studio Code (<Kbd windows='Ctrl+Shift+\\' mac='Command+Shift+\\' />) and create a new Aspire project using the Aspire CLI.
+   ```bash title="Choose an Aspire starter"
+   aspire new
+   ```
 
-    ```bash title="Aspire CLI — Create an Aspire starter app"
-    aspire new aspire-starter --name HelloAspire
-    ```
+   Choose the TypeScript, Python, C#, or mixed-language starter that fits your app, then provide a name when prompted. For this walkthrough, use `aspire-app` as the output directory.
 
-   After a few moments, the project will be created and initial dependencies restored.
+1. Change to the generated app directory and start dev-time orchestration:
 
-1. Open the `HelloAspire.AppHost/AppHost.cs` file in the editor and select the run button on the top right corner of the editor window. This run button is provided by the [Aspire VS Code extension](/get-started/aspire-vscode-extension/) or [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit).
+   ```bash title="Run the Aspire app"
+   cd ./aspire-app
+   aspire run
+   ```
 
-   <Image
-     src={vscodeRunButton}
-     alt="Screenshot showing the run button in the VS Code editor toolbar."
-   />
+   The Aspire CLI finds the AppHost, starts its resources, and prints a dashboard URL. Open that URL from the terminal to inspect your running app.
 
-   Visual Studio Code builds and starts the Aspire AppHost and automatically opens the Aspire Dashboard. Because the endpoints hosted in the container are using a self-signed certificate the first time, you access an endpoint for a specific Dev Container you're presented with a certificate error.
+   Visual Studio Code forwards the dashboard and resource ports from processes and nested containers. Links in the dashboard open the corresponding forwarded endpoints on your host.
+
+   The template runs `aspire certs trust --non-interactive` when the container starts and exposes Aspire's certificate directory to OpenSSL-based tools inside the container. Your host browser has a separate trust store, so it might display a certificate warning the first time you open a forwarded HTTPS endpoint.
 
    <Image
      src={browserCertError}
-     alt="Screenshot showing the browser certificate error when accessing the dashboard."
+     alt="Screenshot showing the browser certificate warning for a forwarded HTTPS endpoint."
    />
 
-   The certificate error is expected. Once you've confirmed that the URL being requested corresponds to the dashboard in the Dev Container you can ignore this warning.
-
-   <Image
-     src={aspireDashboard}
-     alt="Screenshot of the Aspire dashboard running successfully in the Dev Container."
-   />
-
-    Aspire automatically configures forwarded ports so that when you select the endpoints in the Aspire dashboard they're tunneled to processes and nested containers within the Dev Container.
+   Confirm that the URL belongs to the local forwarded endpoint before you continue past the warning.
 
 1. Commit changes to the GitHub repository.
 
@@ -96,207 +89,65 @@ To configure Dev Containers in Visual Studio Code, use the `.devcontainer/devcon
 
 </Steps>
 
-## Manually configuring devcontainer.json
+## Use Aspire in an existing Dev Container
 
-The preceding walkthrough demonstrates the streamlined process of creating a Dev Container using the Aspire Dev Container template. If you already have an existing repository and want to use Dev Containers with Aspire, add a `devcontainer.json` file to the `.devcontainer` folder within your repository:
+If your repository already exists, add a `devcontainer.json` file to its `.devcontainer` folder:
 
 <FileTree>
+
 - .devcontainer
   - devcontainer.json
+
 </FileTree>
 
-The [template repository](https://github.com/microsoft/aspire-devcontainer) contains a copy of the `devcontainer.json` file that you can use as a starting point, which should be sufficient for Aspire.
+Use the maintained [Aspire template configuration](https://github.com/microsoft/aspire-devcontainer/blob/main/.devcontainer/devcontainer.json) as your starting point. Linking to the source file keeps your setup aligned with the tested template as its feature versions and lifecycle settings change.
+
+The template keeps Aspire and each language runtime separate:
+
+| Tooling                          | Purpose                                                                |
+| -------------------------------- | ---------------------------------------------------------------------- |
+| Aspire CLI and VS Code extension | Create, run, debug, and observe distributed apps                       |
+| Docker-in-Docker                 | Run container resources such as databases, caches, and message brokers |
+| Node.js LTS                      | Develop JavaScript and TypeScript apps                                 |
+| Python and uv                    | Develop Python apps and manage packages and virtual environments       |
+| .NET SDK and C# Dev Kit          | Develop .NET apps                                                      |
+| PowerShell                       | Run cross-platform automation                                          |
+
+Remove language features and matching editor extensions that your repository doesn't need, or change their versions to match your app. The [Aspire Dev Container Feature](https://github.com/microsoft/aspire-devcontainer-feature) installs the Aspire CLI and shared editor and port-forwarding settings; language SDKs remain a choice made by the consuming configuration.
 
 :::note
-Install the Aspire CLI during container creation so `aspire new` is ready to use as soon as the container finishes building.
+The template doesn't run an application-specific restore command. Restore dependencies with the package manager your app uses, such as `npm install`, `uv sync`, or `dotnet restore`.
 :::
 
-## Dev Container scenarios
+## Customize the environment
 
-The basic Aspire Dev Container template works well for simple scenarios, but you might need additional configuration depending on your specific requirements. The following sections provide examples for various common scenarios.
+### Choose language tooling
 
-### Stateless .NET apps only
+Treat the template as a polyglot preset rather than a required tool list. Keep only the runtimes, package managers, and editor extensions used by your repository. You can also add Dev Container Features for Java, Go, Rust, or other ecosystems that your Aspire app orchestrates.
 
-For simple Aspire projects that only use .NET project resources without external containers or complex orchestration, you can use a minimal Dev Container configuration:
+Aspire's orchestration model doesn't require every resource to use the same language as the AppHost. A TypeScript AppHost can coordinate Python, JavaScript, .NET, executable, and container resources in one app.
 
-```json title=".devcontainer/devcontainer.json"
-{
-  "name": "Aspire - Simple",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble",
-  "onCreateCommand": "curl -sSL https://aspire.dev/install.sh | bash",
-  "postStartCommand": "dotnet dev-certs https --trust",
-  "customizations": {
-    "vscode": {
-      "extensions": ["ms-dotnettools.csdevkit"]
-    }
-  }
-}
+### Run container resources
+
+Keep Docker-in-Docker when your AppHost starts container resources. It gives Aspire an isolated Docker daemon inside the Dev Container, which avoids depending on host-specific socket mounting but requires additional CPU, memory, storage, and privileges.
+
+The maintained template requests 8 CPUs, 32 GB of memory, and 64 GB of storage because it includes several language toolchains and supports nested containers. Reduce those values only after testing the resources your app starts.
+
+For advanced networking or IPv6 requirements, add the necessary `runArgs` to your copy of the template and verify them with the container runtime used by your team.
+
+### Configure HTTPS certificates
+
+The template trusts Aspire's development certificate every time the container starts:
+
+```bash title="Trust Aspire development certificates"
+aspire certs trust --non-interactive
 ```
 
-This minimal configuration is suitable for Aspire apps that orchestrate only .NET services without external dependencies.
+It also adds Aspire's certificate directory to `SSL_CERT_DIR`, so OpenSSL-based tools such as `curl` can verify HTTPS endpoints inside the container. This trust doesn't automatically extend to browsers or tools running on the host.
 
-### Adding Node.js resources
+### Add scenario-specific tools
 
-If your Aspire app includes Node.js resources, add the Node.js feature to your Dev Container:
-
-```json title=".devcontainer/devcontainer.json"
-{
-  "name": "Aspire with Node.js",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble",
-  "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "lts"
-    }
-  },
-  "onCreateCommand": "curl -sSL https://aspire.dev/install.sh | bash",
-  "postStartCommand": "dotnet dev-certs https --trust",
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-dotnettools.csdevkit",
-        "ms-vscode.vscode-typescript-next"
-      ]
-    }
-  }
-}
-```
-
-This configuration provides both .NET and Node.js development capabilities within the same container environment.
-
-### Container orchestration with Docker-in-Docker
-
-When your Aspire app orchestrates container resources, you need Docker-in-Docker (DinD) support. Here's a basic configuration:
-
-```json title=".devcontainer/devcontainer.json"
-{
-  "name": "Aspire with Containers",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "version": "latest",
-      "enableNonRootDocker": true,
-      "moby": true
-    }
-  },
-  "hostRequirements": {
-    "cpus": 4,
-    "memory": "16gb",
-    "storage": "32gb"
-  },
-  "onCreateCommand": "curl -sSL https://aspire.dev/install.sh | bash",
-  "postStartCommand": "dotnet dev-certs https --trust",
-  "customizations": {
-    "vscode": {
-      "extensions": ["ms-dotnettools.csdevkit", "ms-azuretools.vscode-docker"]
-    }
-  }
-}
-```
-
-#### Advanced container networking
-
-If you encounter networking issues between containers or need IPv6 support, you can add additional network configuration:
-
-```json title=".devcontainer/devcontainer.json"
-{
-  "name": "Aspire with Advanced Networking",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "version": "latest",
-      "enableNonRootDocker": true,
-      "moby": true
-    }
-  },
-  "runArgs": [
-    "--sysctl",
-    "net.ipv6.conf.all.disable_ipv6=0",
-    "--sysctl",
-    "net.ipv6.conf.default.forwarding=1",
-    "--sysctl",
-    "net.ipv6.conf.all.forwarding=1"
-  ],
-  "hostRequirements": {
-    "cpus": 8,
-    "memory": "32gb",
-    "storage": "64gb"
-  },
-  "onCreateCommand": "curl -sSL https://aspire.dev/install.sh | bash",
-  "postStartCommand": "dotnet dev-certs https --trust",
-  "customizations": {
-    "vscode": {
-      "extensions": ["ms-dotnettools.csdevkit", "ms-azuretools.vscode-docker"]
-    }
-  }
-}
-```
-
-:::caution[Docker-in-Docker considerations]
-
-- Docker-in-Docker requires higher resource allocation including increased CPU, memory, and storage.
-- The advanced networking configuration above includes IPv6 forwarding settings that may be needed for complex container-to-container communication scenarios.
-- This configuration works with Docker Desktop but may have limitations with Rancher Desktop.
-- Network connectivity between containers might require additional configuration depending on your specific use case.
-  :::
-
-### Dapr integration examples
-
-For Aspire apps that integrate with Dapr, you can set up Dapr components in your Dev Container. For more information, see [Aspire Dapr integration](/integrations/frameworks/dapr/dapr-get-started/).
-
-#### Basic Dapr setup
-
-```json title=".devcontainer/devcontainer.json"
-{
-  "name": "Aspire with Dapr",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "enableNonRootDocker": true
-    },
-    "ghcr.io/dapr/cli/dapr-cli:0": {}
-  },
-  "onCreateCommand": "curl -sSL https://aspire.dev/install.sh | bash",
-  "postCreateCommand": "dotnet dev-certs https --trust && dapr init",
-  "customizations": {
-    "vscode": {
-      "extensions": ["ms-dotnettools.csdevkit", "ms-azuretools.vscode-dapr"]
-    }
-  }
-}
-```
-
-#### Dapr with external backends
-
-For more complex Dapr scenarios that use external backends (Redis, PostgreSQL), you can use Docker Compose:
-
-```json title=".devcontainer/devcontainer.json"
-{
-  "name": "Aspire with Dapr and Backends",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "enableNonRootDocker": true
-    },
-    "ghcr.io/dapr/cli/dapr-cli:0": {}
-  },
-  "runArgs": ["--sysctl", "net.ipv6.conf.all.disable_ipv6=0"],
-  "onCreateCommand": "curl -sSL https://aspire.dev/install.sh | bash",
-  "postCreateCommand": [
-    "dotnet dev-certs https --trust",
-    "docker compose up -d",
-    "dapr init"
-  ],
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-dotnettools.csdevkit",
-        "ms-azuretools.vscode-dapr",
-        "ms-azuretools.vscode-docker"
-      ]
-    }
-  }
-}
-```
+Add only the tools required by your workflow. For example, a Dapr-based app can add the Dapr CLI feature and initialize Dapr during container creation. For Aspire-specific setup, see [Aspire Dapr integration](/integrations/frameworks/dapr/dapr-get-started/).
 
 ## Common considerations
 
@@ -304,24 +155,24 @@ When using Dev Containers with Aspire, keep the following considerations in mind
 
 **Resource requirements**
 
-- **Basic .NET apps**: Standard Dev Container resources are sufficient for simple scenarios.
-- **Container orchestration**: A minimum of 8 CPUs, 32GB memory, and 64GB storage is recommended.
-- **Complex scenarios with Dapr/Kubernetes**: Higher resource allocation is recommended for optimal performance.
+- Apps that run only host processes need fewer resources than apps that start nested containers.
+- Multi-language repositories need enough storage for every selected runtime and package cache.
+- Dapr, Kubernetes, and larger container topologies might require more resources than the template defaults.
 
 **Networking**
 
-- IPv6 configuration may be required for container-to-container communication.
-- Port forwarding is automatically handled by Aspire.
-- External service connectivity depends on your container runtime configuration.
+- Aspire and Visual Studio Code automatically forward dashboard and resource ports.
+- Nested container networking depends on the Docker-in-Docker configuration.
+- IPv6 and external service access might require additional container runtime settings.
 
 **Performance**
 
-- Docker-in-Docker scenarios incur performance overhead compared to native Docker.
-- Consider using Docker outside of Docker (DooD) for production workflows.
-- Local development and deployment scenarios may require different configurations.
+- Docker-in-Docker adds startup and I/O overhead.
+- Codespaces prebuilds can reduce environment creation time for cloud-hosted development.
+- Remove unused runtimes and extensions to reduce image size and rebuild time.
 
 **Security**
 
 - Dev Containers run with elevated privileges when using Docker-in-Docker.
-- The development certificate is created and trusted in the container, but your browser might still show a warning the first time you open a forwarded HTTPS endpoint from the host.
+- Certificate trust inside the container doesn't automatically trust the same endpoint on the host.
 - Consider security implications when exposing ports in cloud environments.
