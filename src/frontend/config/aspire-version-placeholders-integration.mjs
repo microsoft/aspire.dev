@@ -44,9 +44,10 @@ export function aspireVersionPlaceholdersIntegration() {
 
 export async function replaceAspireVersionPlaceholdersInDirectory(
   directory,
-  concurrency = DEFAULT_CONCURRENCY
+  concurrency = DEFAULT_CONCURRENCY,
+  languageConfig = appHostLanguageConfig
 ) {
-  await removeDisabledAppHostMarkdownCopies(directory);
+  await removeDisabledAppHostMarkdownCopies(directory, languageConfig);
 
   const files = [];
   await collectMarkdownCopies(directory, files);
@@ -71,9 +72,9 @@ export async function replaceAspireVersionPlaceholdersInDirectory(
   await Promise.all(Array.from({ length: workerCount }, runWorker));
 }
 
-async function removeDisabledAppHostMarkdownCopies(directory) {
+async function removeDisabledAppHostMarkdownCopies(directory, languageConfig) {
   await Promise.all(
-    getDisabledAppHostProjectPageIds().map((id) =>
+    getDisabledAppHostProjectPageIds(languageConfig).map((id) =>
       rm(path.join(directory, `${id}.md`), { force: true })
     )
   );

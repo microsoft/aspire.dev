@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { locales } from '../../config/locales.ts';
 import { replaceAspireVersionPlaceholdersInDirectory } from '../../config/aspire-version-placeholders-integration.mjs';
+import appHostLanguageConfig from '../../src/data/apphost-languages.json';
 import {
   currentAspireMajorMinorVersion,
   currentAspirePreviewVersion,
@@ -242,24 +243,37 @@ describe('Aspire version placeholders', () => {
       await mkdir(appHostDirectory, { recursive: true });
 
       const enabledPath = path.join(appHostDirectory, 'typescript-apphost.md');
-      const disabledPaths = [
-        'python-apphost.md',
+      const pythonPath = path.join(appHostDirectory, 'python-apphost.md');
+      const otherLanguagePaths = [
         'go-apphost.md',
         'java-apphost.md',
         'rust-apphost.md',
       ].map((fileName) => path.join(appHostDirectory, fileName));
+      const languageConfig = {
+        ...appHostLanguageConfig,
+        languages: appHostLanguageConfig.languages.map((language) => ({
+          ...language,
+          enabled: language.id !== 'python',
+        })),
+      };
 
       await Promise.all([
         writeFile(enabledPath, 'TypeScript AppHost'),
-        ...disabledPaths.map((filePath) => writeFile(filePath, 'Disabled AppHost')),
+        writeFile(pythonPath, 'Disabled AppHost'),
+        ...otherLanguagePaths.map((filePath) => writeFile(filePath, 'Enabled AppHost')),
       ]);
 
-      await replaceAspireVersionPlaceholdersInDirectory(tempDir);
+      await replaceAspireVersionPlaceholdersInDirectory(
+        tempDir,
+        Number.NaN,
+        languageConfig
+      );
 
       await expect(readFile(enabledPath, 'utf8')).resolves.toBe('TypeScript AppHost');
+      await expect(readFile(pythonPath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
       await Promise.all(
-        disabledPaths.map((filePath) =>
-          expect(readFile(filePath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+        otherLanguagePaths.map((filePath) =>
+          expect(readFile(filePath, 'utf8')).resolves.toBe('Enabled AppHost')
         )
       );
     } finally {

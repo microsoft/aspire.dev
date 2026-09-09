@@ -7,12 +7,15 @@ export function getDisabledAppHostProjectPageIds(config = appHostLanguageConfig)
     .map((language) => `app-host/${language.id}-apphost`);
 }
 
-export function appHostLanguageDocsLoader(baseLoader = docsLoader()) {
+export function appHostLanguageDocsLoader(
+  baseLoader = docsLoader(),
+  config = appHostLanguageConfig
+) {
   return {
     ...baseLoader,
     name: 'aspire-apphost-language-docs-loader',
     async load(context) {
-      const disabledIds = new Set(getDisabledAppHostProjectPageIds());
+      const disabledIds = new Set(getDisabledAppHostProjectPageIds(config));
 
       for (const id of disabledIds) {
         context.store.delete(id);
