@@ -9,7 +9,9 @@ const testsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const docsDirectory = path.resolve(testsDirectory, '..', '..', 'src', 'content', 'docs');
 const integrationsDirectory = path.join(docsDirectory, 'integrations');
 const scopedPaths = [
+  'ai',
   'caching',
+  'cloud',
   'compute',
   'custom-integrations',
   'databases',
