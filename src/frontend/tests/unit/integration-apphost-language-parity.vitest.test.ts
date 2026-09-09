@@ -193,7 +193,7 @@ describe('integration AppHost language parity', () => {
         const isProjectFile = language === 'xml' || /\.(?:csproj|fsproj|vbproj)$/i.test(title);
         const isAppHostFence =
           /(?:^|[\\/])apphost\.(?:cs|mts|ts|py|go|java|rs)$/i.test(title) ||
-          /DistributedApplication\.CreateBuilder|createBuilder\(\)|create_builder\(|CreateBuilder\(\)/.test(
+          /\b(?:DistributedApplication\.(?:CreateBuilder|createBuilder)|aspire\.CreateBuilder|createBuilder|create_builder)\s*\(/.test(
             code
           );
 
