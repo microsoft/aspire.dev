@@ -142,7 +142,7 @@ function initializeAppHostBuilder(root: HTMLElement): void {
   const defaultLanguage = root.dataset.defaultLanguage;
   const selectedButton =
     languageButtons.find((button) => button.dataset.lang === persistedLanguage) ??
-    languageButtons.find((button) => button.getAttribute('aria-pressed') === 'true') ??
+    languageButtons.find((button) => button.getAttribute('aria-checked') === 'true') ??
     languageButtons.find((button) => button.dataset.lang === defaultLanguage) ??
     languageButtons[0];
   const selectedLanguage = selectedButton?.dataset.lang;
@@ -151,7 +151,6 @@ function initializeAppHostBuilder(root: HTMLElement): void {
   languageButtons.forEach((button) => {
     const selected = button === selectedButton;
     button.classList.toggle('active', selected);
-    button.setAttribute('aria-pressed', String(selected));
     button.setAttribute('aria-checked', String(selected));
     button.tabIndex = selected ? 0 : -1;
   });
@@ -665,7 +664,6 @@ function initializeAppHostBuilder(root: HTMLElement): void {
     languageButtons.forEach((candidate) => {
       const isSelected = candidate === selected;
       candidate.classList.toggle('active', isSelected);
-      candidate.setAttribute('aria-pressed', String(isSelected));
       candidate.setAttribute('aria-checked', String(isSelected));
       candidate.tabIndex = isSelected ? 0 : -1;
     });

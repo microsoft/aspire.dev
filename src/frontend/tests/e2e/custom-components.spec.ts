@@ -40,10 +40,11 @@ test('app host builder swaps visible code when toggles and language change', asy
       0
     );
   }
-  await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'true');
   await expect(typeScriptToggle).toHaveAttribute('aria-checked', 'true');
+  await expect(typeScriptToggle).not.toHaveAttribute('aria-pressed');
   await expect(typeScriptToggle).toHaveAttribute('tabindex', '0');
-  await expect(csharpToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(csharpToggle).toHaveAttribute('aria-checked', 'false');
+  await expect(csharpToggle).not.toHaveAttribute('aria-pressed');
   await expect(codeStage).toBeVisible();
   await expect(codeStage).toHaveAttribute('data-code-lang', 'typescript');
   await expect(codeStage).toHaveAttribute('data-code-variant', 'frontend');
@@ -58,9 +59,10 @@ test('app host builder swaps visible code when toggles and language change', asy
 
   await csharpToggle.click();
 
-  await expect(csharpToggle).toHaveAttribute('aria-pressed', 'true');
   await expect(csharpToggle).toHaveAttribute('aria-checked', 'true');
-  await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(csharpToggle).not.toHaveAttribute('aria-pressed');
+  await expect(typeScriptToggle).toHaveAttribute('aria-checked', 'false');
+  await expect(typeScriptToggle).not.toHaveAttribute('aria-pressed');
   await expect(codeStage).toHaveAttribute('data-code-lang', 'csharp');
   await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
   await expect(codeStage).toContainText('AddPostgres("db")');

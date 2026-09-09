@@ -1041,8 +1041,15 @@ describe('custom Astro component render coverage', () => {
       html.matchAll(/class="lang-toggle[^"]*"[^>]*data-lang="([^"]+)"/g),
       (match) => match[1]
     );
+    const renderedLanguageButtons = html.match(/<button[^>]*class="lang-toggle[^>]*>/g) ?? [];
 
     expect(renderedLanguageIds).toEqual(enabledLanguages.map((language) => language.id));
+    expect(renderedLanguageButtons).toHaveLength(enabledLanguages.length);
+    for (const button of renderedLanguageButtons) {
+      expect(button).toContain('role="radio"');
+      expect(button).toContain('aria-checked=');
+      expect(button).not.toContain('aria-pressed=');
+    }
     expect(html.match(/data-variant="/g)).toHaveLength(enabledLanguages.length * 31);
 
     for (const language of enabledLanguages) {
