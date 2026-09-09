@@ -84,7 +84,7 @@ test('apphost tabs restore and sync the aspire-lang query string', async ({ page
     .toBe('csharp');
 });
 
-test('disabled and ambiguous AppHost language values fall back to TypeScript', async ({
+test('disabled languages fall back while unknown values preserve saved preferences', async ({
   page,
 }) => {
   await page.goto('/get-started/prerequisites/?aspire-lang=python');
@@ -100,13 +100,17 @@ test('disabled and ambiguous AppHost language values fall back to TypeScript', a
     .poll(() => page.evaluate(() => localStorage.getItem('aspire-lang')))
     .toBe('typescript');
 
+  await page.evaluate(() => {
+    localStorage.setItem('aspire-lang', 'csharp');
+    localStorage.setItem('starlight-synced-tabs__aspire-lang', 'C#');
+  });
   await page.goto('/get-started/prerequisites/?aspire-lang=javascript');
   await dismissCookieConsentIfVisible(page);
 
-  await expect(page).toHaveURL(/\?aspire-lang=typescript$/);
+  await expect(page).toHaveURL(/\?aspire-lang=javascript$/);
   await expect
     .poll(() => page.evaluate(() => document.documentElement.dataset.apphostLang))
-    .toBe('typescript');
+    .toBe('csharp');
 });
 
 test('postgres apphost tabs use the shared aspire-lang query string', async ({ page }) => {
