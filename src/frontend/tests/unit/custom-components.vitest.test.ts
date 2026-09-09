@@ -925,27 +925,36 @@ describe('custom Astro component render coverage', () => {
   });
 
   it('renders enabled AppHost languages from the shared registry', async () => {
+    const enabledLanguages = getEnabledAppHostLanguages();
     const selectorHtml = normalizeHtml(await renderComponent(AppHostLanguageSelector));
     const tabsHtml = normalizeHtml(
       await renderComponent(AppHostTabs, {
-        slots: {
-          typescript: '<p>TypeScript AppHost content</p>',
-          csharp: '<p>C# AppHost content</p>',
-        },
+        slots: Object.fromEntries(
+          enabledLanguages.map((language) => [
+            language.id,
+            `<p>${language.label} AppHost content</p>`,
+          ])
+        ),
       })
     );
 
-    expect(selectorHtml).toContain('data-pivot-option="typescript"');
-    expect(selectorHtml).toContain('data-pivot-option="csharp"');
-    expect(selectorHtml).not.toContain('data-pivot-option="python"');
     expect(tabsHtml).toContain('data-apphost-tabs');
-    expect(tabsHtml).toContain('data-supports-typescript');
-    expect(tabsHtml).toContain('data-supports-csharp');
-    expect(tabsHtml).toContain('TypeScript AppHost content');
-    expect(tabsHtml).toContain('C# AppHost content');
+    for (const language of appHostLanguageConfig.languages) {
+      if (language.enabled) {
+        expect(selectorHtml).toContain(`data-pivot-option="${language.id}"`);
+        expect(tabsHtml).toContain(`data-supports-${language.id}`);
+        expect(tabsHtml).toContain(`${language.label} AppHost content`);
+      } else {
+        expect(selectorHtml).not.toContain(`data-pivot-option="${language.id}"`);
+        expect(tabsHtml).not.toContain(`data-supports-${language.id}`);
+      }
+    }
   });
 
-  it('removes disabled AppHost language pivots from rendered output', async () => {
+  it('renders AppHost language pivots according to the registry bit', async () => {
+    const pythonEnabled = appHostLanguageConfig.languages.find(
+      (language) => language.id === 'python'
+    )?.enabled;
     const enabledHtml = normalizeHtml(
       await renderComponent(AppHostLanguagePivot, {
         props: { id: 'typescript' },
@@ -960,10 +969,17 @@ describe('custom Astro component render coverage', () => {
     );
 
     expect(enabledHtml).toContain('Enabled language content');
-    expect(disabledHtml).not.toContain('Disabled language content');
+    if (pythonEnabled) {
+      expect(disabledHtml).toContain('Disabled language content');
+    } else {
+      expect(disabledHtml).not.toContain('Disabled language content');
+    }
   });
 
   it('renders project links only for enabled AppHost languages', async () => {
+    const pythonEnabled = appHostLanguageConfig.languages.find(
+      (language) => language.id === 'python'
+    )?.enabled;
     const enabledHtml = normalizeHtml(
       await renderComponent(AppHostProjectLink, {
         props: { id: 'typescript' },
@@ -979,7 +995,11 @@ describe('custom Astro component render coverage', () => {
 
     expect(enabledHtml).toContain('href="/app-host/typescript-apphost/"');
     expect(enabledHtml).toContain('TypeScript project structure');
-    expect(disabledHtml).not.toContain('href=');
+    if (pythonEnabled) {
+      expect(disabledHtml).toContain('href="/app-host/python-apphost/"');
+    } else {
+      expect(disabledHtml).not.toContain('href=');
+    }
     expect(disabledHtml).toContain('Python project structure');
   });
 
@@ -996,13 +1016,17 @@ describe('custom Astro component render coverage', () => {
   });
 
   it('renders an explicit limitation when an enabled language has no slot', async () => {
+    const limitations = Object.fromEntries(
+      getEnabledAppHostLanguages()
+        .filter((language) => language.id !== 'typescript')
+        .map((language) => [
+          language.id,
+          'This example is available only in the TypeScript AppHost SDK.',
+        ])
+    );
     const html = normalizeHtml(
       await renderComponent(AppHostTabs, {
-        props: {
-          limitations: {
-            csharp: 'This example is available only in generated AppHost SDKs.',
-          },
-        },
+        props: { limitations },
         slots: {
           typescript: '<p>TypeScript AppHost content</p>',
         },
@@ -1011,7 +1035,7 @@ describe('custom Astro component render coverage', () => {
 
     expect(html).toContain('data-apphost-limitation="csharp"');
     expect(html).toContain('C# AppHost limitation');
-    expect(html).toContain('This example is available only in generated AppHost SDKs.');
+    expect(html).toContain('This example is available only in the TypeScript AppHost SDK.');
   });
 
   it('renders the canonical TypeScript tab and apphost.mts before C#', async () => {
@@ -1368,7 +1392,10 @@ describe('custom Astro component render coverage', () => {
     expect(ctaIconIndex).toBeLessThan(ctaLabelIndex);
   });
 
-  it('keeps disabled AppHost languages out of authored sample UI', async () => {
+  it('renders authored sample AppHost metadata according to the registry bit', async () => {
+    const pythonEnabled = appHostLanguageConfig.languages.find(
+      (language) => language.id === 'python'
+    )?.enabled;
     const disabledLanguageSample = {
       ...sampleDetailFixture,
       appHost: 'python' as const,
@@ -1394,11 +1421,19 @@ describe('custom Astro component render coverage', () => {
       }).then(normalizeHtml),
     ]);
 
-    expect(cardHtml).not.toContain('data-apphost="python"');
-    expect(cardHtml).not.toContain('Python AppHost');
-    expect(detailHtml).not.toContain('data-apphost="python"');
-    expect(detailHtml).not.toContain('Python AppHost');
-    expect(detailHtml).not.toContain('disabled AppHost metadata remains ingestible');
+    if (pythonEnabled) {
+      expect(cardHtml).toContain('data-apphost="python"');
+      expect(cardHtml).toContain('Python AppHost');
+      expect(detailHtml).toContain('data-apphost="python"');
+      expect(detailHtml).toContain('Python AppHost');
+      expect(detailHtml).toContain('disabled AppHost metadata remains ingestible');
+    } else {
+      expect(cardHtml).not.toContain('data-apphost="python"');
+      expect(cardHtml).not.toContain('Python AppHost');
+      expect(detailHtml).not.toContain('data-apphost="python"');
+      expect(detailHtml).not.toContain('Python AppHost');
+      expect(detailHtml).not.toContain('disabled AppHost metadata remains ingestible');
+    }
   });
 
   it('strips emphasized first paragraphs and long emphasized labels (paragraphPlainText doubling regression)', async () => {
@@ -1510,7 +1545,16 @@ describe('custom Astro component render coverage', () => {
       { appHostLabel }
     );
 
-    expect(disabledAppHostMarkdown).not.toContain('**AppHost:**');
+    const pythonEnabled = appHostLanguageConfig.languages.find(
+      (language) => language.id === 'python'
+    )?.enabled;
+    if (pythonEnabled) {
+      expect(disabledAppHostMarkdown).toContain(
+        '**AppHost:** Python AppHost (Experimental)'
+      );
+    } else {
+      expect(disabledAppHostMarkdown).not.toContain('**AppHost:**');
+    }
     expect(disabledAppHostMarkdown).toContain('**Tags:** python');
   });
 

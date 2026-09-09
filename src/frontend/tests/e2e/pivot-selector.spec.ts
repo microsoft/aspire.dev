@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import appHostLanguageConfig from '../../src/data/apphost-languages.json' with { type: 'json' };
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 test('prerequisites apphost tabs default to TypeScript and persist selection', async ({
@@ -84,21 +85,34 @@ test('apphost tabs restore and sync the aspire-lang query string', async ({ page
     .toBe('csharp');
 });
 
-test('disabled languages fall back while unknown values preserve saved preferences', async ({
+test('configured languages follow the registry while unknown values preserve saved preferences', async ({
   page,
 }) => {
+  const python = appHostLanguageConfig.languages.find(
+    (language) => language.id === 'python'
+  )!;
   await page.goto('/get-started/prerequisites/?aspire-lang=python');
   await dismissCookieConsentIfVisible(page);
 
   const appHostTabs = page.locator('starlight-tabs[data-sync-key="aspire-lang"]').first();
-  await expect(page).toHaveURL(/\?aspire-lang=typescript$/);
-  await expect(appHostTabs.getByRole('tab', { name: 'TypeScript' })).toHaveAttribute(
-    'aria-selected',
-    'true'
-  );
-  await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('aspire-lang')))
-    .toBe('typescript');
+  if (python.enabled) {
+    await expect(page).toHaveURL(/\?aspire-lang=python$/);
+    await expect(
+      appHostTabs.getByRole('tab').filter({ hasText: /^Python$/ })
+    ).toHaveAttribute('aria-selected', 'true');
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('aspire-lang')))
+      .toBe('python');
+  } else {
+    await expect(page).toHaveURL(/\?aspire-lang=typescript$/);
+    await expect(appHostTabs.getByRole('tab', { name: 'TypeScript' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('aspire-lang')))
+      .toBe('typescript');
+  }
 
   await page.evaluate(() => {
     localStorage.setItem('aspire-lang', 'csharp');
@@ -167,19 +181,23 @@ test('AppHost page restores the shared AppHost language query string', async ({ 
   await expect(csharpContent).toBeHidden();
 });
 
-test('disabled AppHost language pivots and media are absent from rendered pages', async ({
+test('AppHost language pivots and media follow the registry bits', async ({
   page,
 }) => {
   await page.goto('/get-started/first-app/');
   await dismissCookieConsentIfVisible(page);
 
-  await expect(page.locator('[data-pivot-block="typescript"]').first()).toBeAttached();
-  await expect(page.locator('[data-pivot-block="csharp"]').first()).toBeAttached();
-  await expect(page.locator('[data-pivot-block="python"]')).toHaveCount(0);
-  await expect(page.locator('[data-pivot-block="go"]')).toHaveCount(0);
-  await expect(page.locator('[data-pivot-block="java"]')).toHaveCount(0);
-  await expect(page.locator('[data-pivot-block="rust"]')).toHaveCount(0);
-  await expect(
-    page.locator('.asciinema-player-container[data-src="/casts/apphost-python.cast"]')
-  ).toHaveCount(0);
+  for (const language of appHostLanguageConfig.languages) {
+    const pivot = page.locator(`[data-pivot-block="${language.id}"]`);
+    const cast = page.locator(
+      `.asciinema-player-container[data-src="/casts/apphost-${language.id}.cast"]`
+    );
+    if (language.enabled) {
+      await expect(pivot.first()).toBeAttached();
+      await expect(cast).toHaveCount(1);
+    } else {
+      await expect(pivot).toHaveCount(0);
+      await expect(cast).toHaveCount(0);
+    }
+  }
 });

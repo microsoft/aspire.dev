@@ -2,6 +2,10 @@
 import { Code } from '@astrojs/starlight/components';
 import AppHostTabs from './AppHostTabs.astro';
 import {
+  appHostLanguageConfig,
+  type AppHostLanguageId,
+} from '@utils/apphost-languages';
+import {
   getSimpleAppHostCode,
   shiftCollapseValue,
   shiftMarkerValue,
@@ -21,11 +25,22 @@ const { lang = 'csharp', mark, collapse }: Props = Astro.props;
 const { csharpCode, typescriptCode } = getSimpleAppHostCode(lang);
 const typescriptMark = shiftMarkerValue(mark, typescriptLineOffset);
 const typescriptCollapse = shiftCollapseValue(collapse, typescriptLineOffset);
+const limitations = Object.fromEntries(
+  appHostLanguageConfig.languages
+    .filter(
+      (language) =>
+        language.id !== 'csharp' && (language.id !== 'typescript' || !typescriptCode)
+    )
+    .map((language) => [
+      language.id,
+      `This example does not include a ${language.label} AppHost variant.`,
+    ])
+) as Partial<Record<AppHostLanguageId, string>>;
 ---
 
-{
-  typescriptCode ? (
-    <AppHostTabs>
+<AppHostTabs {limitations}>
+  {
+    typescriptCode && (
       <Fragment slot="typescript">
         <Code
           code={typescriptCode}
@@ -37,31 +52,19 @@ const typescriptCollapse = shiftCollapseValue(collapse, typescriptLineOffset);
         />
         <slot name="typescript-content" />
       </Fragment>
-      <Fragment slot="csharp">
-        <Code
-          code={csharpCode}
-          lang="cs"
-          title="AppHost.cs"
-          mark={mark}
-          collapse={collapse}
-          collapseStyle={'collapsible-auto'}
-        />
-        <slot name="csharp-content" />
-      </Fragment>
-    </AppHostTabs>
-  ) : (
-    <>
-      <Code
-        code={csharpCode}
-        lang="cs"
-        title="AppHost.cs"
-        mark={mark}
-        collapse={collapse}
-        collapseStyle={'collapsible-auto'}
-      />
-      <slot />
-    </>
-  )
-}
+    )
+  }
+  <Fragment slot="csharp">
+    <Code
+      code={csharpCode}
+      lang="cs"
+      title="AppHost.cs"
+      mark={mark}
+      collapse={collapse}
+      collapseStyle={'collapsible-auto'}
+    />
+    {typescriptCode ? <slot name="csharp-content" /> : <slot />}
+  </Fragment>
+</AppHostTabs>
 
 {typescriptCode && <slot />}

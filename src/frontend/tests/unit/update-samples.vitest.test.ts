@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import samples from '@data/samples.json';
+import { appHostLanguageConfig } from '@utils/apphost-languages';
 import {
   appHostBrandColor,
   appHostCodeLang,
@@ -142,14 +143,18 @@ describe('sample AppHost presentation metadata', () => {
   });
 
   test.each([
-    ['typescript', true],
-    ['csproj', true],
-    ['file-based', true],
-    ['python', false],
-    ['go', false],
-    ['java', false],
-    ['rust', false],
-  ] as const)('reflects registry activation for %s', (kind, enabled) => {
+    'typescript',
+    'csproj',
+    'file-based',
+    'python',
+    'go',
+    'java',
+    'rust',
+  ] as const)('reflects registry activation for %s', (kind) => {
+    const languageId = kind === 'csproj' || kind === 'file-based' ? 'csharp' : kind;
+    const enabled = appHostLanguageConfig.languages.find(
+      (language) => language.id === languageId
+    )?.enabled;
     expect(isAppHostEnabled(kind as AppHostKind)).toBe(enabled);
   });
 });
