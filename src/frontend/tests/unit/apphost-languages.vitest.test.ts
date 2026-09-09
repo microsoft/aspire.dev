@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   appHostLanguageConfig,
+  getAppHostLanguage,
   getAppHostLanguageProjectHref,
   getEnabledAppHostLanguages,
   normalizeAppHostLanguage,
@@ -106,18 +107,14 @@ describe('AppHost language registry', () => {
     expect(normalizeAppHostLanguage('javascript')).toBeUndefined();
     expect(normalizeAppHostLanguage('mongo')).toBeUndefined();
     expect(normalizeAppHostLanguage('python')).toBe(
-      appHostLanguageConfig.languages.find((language) => language.id === 'python')?.enabled
-        ? 'python'
-        : undefined
+      getAppHostLanguage('python').enabled ? 'python' : undefined
     );
     expect(normalizeAppHostLanguage('python', false)).toBe('python');
   });
 
   test('publishes project links only for enabled AppHost languages', () => {
     expect(getAppHostLanguageProjectHref('typescript')).toBe('/app-host/typescript-apphost/');
-    const pythonEnabled = appHostLanguageConfig.languages.find(
-      (language) => language.id === 'python'
-    )?.enabled;
+    const pythonEnabled = getAppHostLanguage('python').enabled;
     expect(getAppHostLanguageProjectHref('python')).toBe(
       pythonEnabled ? '/app-host/python-apphost/' : undefined
     );

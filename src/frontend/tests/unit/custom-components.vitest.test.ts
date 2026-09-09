@@ -61,7 +61,11 @@ import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 import samplesData from '@data/samples.json';
-import { appHostLanguageConfig, getEnabledAppHostLanguages } from '@utils/apphost-languages';
+import {
+  appHostLanguageConfig,
+  getAppHostLanguage,
+  getEnabledAppHostLanguages,
+} from '@utils/apphost-languages';
 import daTranslations from '../../src/content/i18n/da.json';
 import deTranslations from '../../src/content/i18n/de.json';
 import enTranslations from '../../src/content/i18n/en.json';
@@ -952,9 +956,7 @@ describe('custom Astro component render coverage', () => {
   });
 
   it('renders AppHost language pivots according to the registry bit', async () => {
-    const pythonEnabled = appHostLanguageConfig.languages.find(
-      (language) => language.id === 'python'
-    )?.enabled;
+    const pythonEnabled = getAppHostLanguage('python').enabled;
     const enabledHtml = normalizeHtml(
       await renderComponent(AppHostLanguagePivot, {
         props: { id: 'typescript' },
@@ -977,9 +979,7 @@ describe('custom Astro component render coverage', () => {
   });
 
   it('renders project links only for enabled AppHost languages', async () => {
-    const pythonEnabled = appHostLanguageConfig.languages.find(
-      (language) => language.id === 'python'
-    )?.enabled;
+    const pythonEnabled = getAppHostLanguage('python').enabled;
     const enabledHtml = normalizeHtml(
       await renderComponent(AppHostProjectLink, {
         props: { id: 'typescript' },
@@ -1393,9 +1393,7 @@ describe('custom Astro component render coverage', () => {
   });
 
   it('renders authored sample AppHost metadata according to the registry bit', async () => {
-    const pythonEnabled = appHostLanguageConfig.languages.find(
-      (language) => language.id === 'python'
-    )?.enabled;
+    const pythonEnabled = getAppHostLanguage('python').enabled;
     const disabledLanguageSample = {
       ...sampleDetailFixture,
       appHost: 'python' as const,
@@ -1545,9 +1543,7 @@ describe('custom Astro component render coverage', () => {
       { appHostLabel }
     );
 
-    const pythonEnabled = appHostLanguageConfig.languages.find(
-      (language) => language.id === 'python'
-    )?.enabled;
+    const pythonEnabled = getAppHostLanguage('python').enabled;
     if (pythonEnabled) {
       expect(disabledAppHostMarkdown).toContain(
         '**AppHost:** Python AppHost (Experimental)'
