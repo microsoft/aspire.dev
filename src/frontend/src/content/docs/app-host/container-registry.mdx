@@ -32,11 +32,7 @@ Use the `AddContainerRegistry` method to configure a generic container registry 
 
 The following example configures a container registry and associates it with a project resource:
 
-<AppHostTabs
-  limitations={{
-    rust: 'The generated Rust SDK exposes with_container_registry only with an IResource marker argument, but does not provide a public conversion from ContainerRegistryResource to that marker type.',
-  }}
->
+<AppHostTabs>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -116,6 +112,24 @@ api.withContainerRegistry(registry);
 ```
 
 </Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let registry = builder.add_container_registry(
+    "myregistry",
+    serde_json::json!("registry.example.com"),
+    None,
+)?;
+let registry_resource = IResource::new(
+    registry.handle().clone(),
+    registry.client().clone(),
+);
+
+let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+api.with_container_registry(&registry_resource)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 The preceding code:
@@ -128,11 +142,7 @@ The preceding code:
 
 To push images to DockerHub, specify `docker.io` as the registry endpoint:
 
-<AppHostTabs
-  limitations={{
-    rust: 'The generated Rust SDK cannot pass a ContainerRegistryResource to the IResource marker parameter required by with_container_registry.',
-  }}
->
+<AppHostTabs>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -184,17 +194,31 @@ api.withContainerRegistry(registry);
 ```
 
 </Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let registry = builder.add_container_registry(
+    "dockerhub",
+    serde_json::json!("docker.io"),
+    None,
+)?;
+let registry_resource = IResource::new(
+    registry.handle().clone(),
+    registry.client().clone(),
+);
+
+let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+api.with_container_registry(&registry_resource)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### GitHub Container Registry example
 
 To push images to GitHub Container Registry (GHCR):
 
-<AppHostTabs
-  limitations={{
-    rust: 'The generated Rust SDK cannot pass a ContainerRegistryResource to the IResource marker parameter required by with_container_registry.',
-  }}
->
+<AppHostTabs>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -246,17 +270,31 @@ api.withContainerRegistry(registry);
 ```
 
 </Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let registry = builder.add_container_registry(
+    "ghcr",
+    serde_json::json!("ghcr.io"),
+    None,
+)?;
+let registry_resource = IResource::new(
+    registry.handle().clone(),
+    registry.client().clone(),
+);
+
+let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+api.with_container_registry(&registry_resource)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Private registry example
 
 For private registries, provide the full registry URL:
 
-<AppHostTabs
-  limitations={{
-    rust: 'The generated Rust SDK cannot pass a ContainerRegistryResource to the IResource marker parameter required by with_container_registry.',
-  }}
->
+<AppHostTabs>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -318,6 +356,24 @@ api.withContainerRegistry(registry);
 ```
 
 </Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let registry = builder.add_container_registry(
+    "private-registry",
+    serde_json::json!("registry.mycompany.com:5000"),
+    None,
+)?;
+let registry_resource = IResource::new(
+    registry.handle().clone(),
+    registry.client().clone(),
+);
+
+let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+api.with_container_registry(&registry_resource)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 ## Authentication and credentials
@@ -328,11 +384,7 @@ Container registries typically require authentication for pushing images. You ca
 
 Parameters allow you to provide registry configuration dynamically:
 
-<AppHostTabs
-  limitations={{
-    rust: 'The generated Rust SDK represents parameter-valued registry arguments as untyped JSON and cannot convert ContainerRegistryResource to the IResource marker required by with_container_registry.',
-  }}
->
+<AppHostTabs>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -412,6 +464,37 @@ var registry = builder.addContainerRegistry(
     "myregistry", registryEndpoint, registryRepository);
 var api = builder.addProject("api", "../Api/Api.csproj");
 api.withContainerRegistry(registry);
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let registry_endpoint = builder.add_parameter(
+    "registry-endpoint",
+    None,
+    None,
+    None,
+)?;
+let registry_repository = builder.add_parameter(
+    "registry-repository",
+    None,
+    None,
+    None,
+)?;
+
+let registry = builder.add_container_registry(
+    "myregistry",
+    serialize_handle(&registry_endpoint),
+    Some(serialize_handle(&registry_repository)),
+)?;
+let registry_resource = IResource::new(
+    registry.handle().clone(),
+    registry.client().clone(),
+);
+
+let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+api.with_container_registry(&registry_resource)?;
 ```
 
 </Fragment>
@@ -635,11 +718,7 @@ The `deploy` step includes building, pushing, and deploying all resources.
 
 You can configure different registries for different resources:
 
-<AppHostTabs
-  limitations={{
-    rust: 'The generated Rust SDK cannot pass a ContainerRegistryResource to the IResource marker parameter required by with_container_registry.',
-  }}
->
+<AppHostTabs>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -730,17 +809,51 @@ internalApi.withContainerRegistry(privateRegistry);
 ```
 
 </Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let public_registry = builder.add_container_registry(
+    "dockerhub",
+    serde_json::json!("docker.io"),
+    None,
+)?;
+let private_registry = builder.add_container_registry(
+    "private",
+    serde_json::json!("registry.company.com"),
+    None,
+)?;
+let public_registry_resource = IResource::new(
+    public_registry.handle().clone(),
+    public_registry.client().clone(),
+);
+let private_registry_resource = IResource::new(
+    private_registry.handle().clone(),
+    private_registry.client().clone(),
+);
+
+let public_api = builder.add_project(
+    "public-api",
+    "../PublicApi/PublicApi.csproj",
+    None,
+)?;
+public_api.with_container_registry(&public_registry_resource)?;
+
+let internal_api = builder.add_project(
+    "internal-api",
+    "../InternalApi/InternalApi.csproj",
+    None,
+)?;
+internal_api.with_container_registry(&private_registry_resource)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Parameterized registry configuration
 
 You can use parameters when you need flexible deployment across environments:
 
-<AppHostTabs
-  limitations={{
-    rust: 'The generated Rust SDK represents parameter-valued registry arguments as untyped JSON and cannot convert ContainerRegistryResource to the IResource marker required by with_container_registry.',
-  }}
->
+<AppHostTabs>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -837,6 +950,42 @@ var api = builder.addProject("api", "../Api/Api.csproj");
 api.withContainerRegistry(registry);
 var worker = builder.addProject("worker", "../Worker/Worker.csproj");
 worker.withContainerRegistry(registry);
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let registry_endpoint = builder.add_parameter(
+    "registry-endpoint",
+    None,
+    None,
+    None,
+)?;
+let registry_repository = builder.add_parameter(
+    "registry-repository",
+    None,
+    None,
+    None,
+)?;
+let registry = builder.add_container_registry(
+    "container-registry",
+    serialize_handle(&registry_endpoint),
+    Some(serialize_handle(&registry_repository)),
+)?;
+let registry_resource = IResource::new(
+    registry.handle().clone(),
+    registry.client().clone(),
+);
+
+let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+api.with_container_registry(&registry_resource)?;
+let worker = builder.add_project(
+    "worker",
+    "../Worker/Worker.csproj",
+    None,
+)?;
+worker.with_container_registry(&registry_resource)?;
 ```
 
 </Fragment>

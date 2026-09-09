@@ -431,9 +431,7 @@ When a resource has health checks configured, the AppHost uses them to determine
 
 For resources that expose HTTP endpoints, you can add health checks that poll specific paths:
 
-<AppHostTabs limitations={{
-  rust: 'The Rust SDK exposes wait_for through an IResource marker type that a concrete generated resource cannot currently satisfy, so this dependency-gated sample is not usable as written.',
-}}>
+<AppHostTabs>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -560,13 +558,57 @@ void main() throws Exception {
 ```
 
 </Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+mod aspire;
+
+use aspire::*;
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let catalog_api = builder.add_container("catalog-api", json!("catalog-api"))?;
+    catalog_api.with_http_endpoint(
+        None,
+        Some(8080.0),
+        None,
+        None,
+        None,
+    )?;
+    catalog_api.with_http_health_check(Some("/health"), None, None)?;
+
+    let webapp = builder.add_executable(
+        "webapp",
+        "node",
+        "./webapp",
+        vec!["index.js".to_string()],
+    )?;
+    webapp.with_reference(
+        serialize_handle(&catalog_api),
+        None,
+        None,
+        None,
+    )?;
+    let catalog_resource = IResource::new(
+        catalog_api.handle().clone(),
+        catalog_api.client().clone(),
+    );
+    webapp.wait_for(&catalog_resource, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 The `WithHttpHealthCheck` method can also be applied to project resources:
 
-<AppHostTabs limitations={{
-  rust: 'The Rust SDK exposes wait_for through an IResource marker type that a concrete generated project resource cannot currently satisfy, so this dependency-gated sample is not usable as written.',
-}}>
+<AppHostTabs>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -671,6 +713,30 @@ void main() throws Exception {
 
     builder.build().run();
 }
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let backend = builder.add_project(
+    "backend",
+    "../Backend/Backend.csproj",
+    None,
+)?;
+backend.with_http_health_check(Some("/health"), None, None)?;
+
+let frontend = builder.add_project(
+    "frontend",
+    "../Frontend/Frontend.csproj",
+    None,
+)?;
+frontend.with_reference(serialize_handle(&backend), None, None, None)?;
+let backend_resource = IResource::new(
+    backend.handle().clone(),
+    backend.client().clone(),
+);
+frontend.wait_for(&backend_resource, None)?;
 ```
 
 </Fragment>

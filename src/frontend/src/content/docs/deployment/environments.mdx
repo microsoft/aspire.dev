@@ -474,9 +474,7 @@ Common environment variable conventions by framework and ecosystem:
 
 Use [parameters](/fundamentals/external-parameters/) to externalize values that change between environments, such as SKU tiers, replica counts, or API endpoints:
 
-<AppHostTabs limitations={{
-  rust: 'The daily Rust generated SDK exposes parameters and environment injection separately, but its marker-type projection cannot pass a ParameterResource to with_environment.',
-}}>
+<AppHostTabs>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -580,6 +578,32 @@ void main(String[] args) throws Exception {
         .withEnvironment("API_KEY", apiKey);
 
     builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+    let api_key = builder.add_parameter(
+        "apiKey",
+        None,
+        None,
+        Some(true),
+    )?;
+
+    let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+    api.with_environment("API_KEY", serialize_handle(&api_key))?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
 }
 ```
 

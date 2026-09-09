@@ -314,12 +314,7 @@ const app = await builder.addExecutable("app", "node", ".", ["app.js"])
 
 Here's a complete example using the [Vercel CLI](https://vercel.com/docs/cli) to host a frontend application with a backend API:
 
-<AppHostTabs
-  limitations={{
-    python: 'The generated Python SDK documents with_environment but does not emit the method on executable resources, so API_URL cannot be assigned from the AppHost.',
-    rust: 'The generated Rust SDK cannot convert an EndpointReference into the untyped Value required by with_environment, so the API_URL assignment is not type-safe.',
-  }}
->
+<AppHostTabs>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -353,6 +348,26 @@ const frontend = await builder.addExecutable("vercel-dev", "vercel", ".", ["dev"
     .withHttpEndpoint({ port: 3000, name: "http" });
 
 await builder.build().run();
+```
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "./Api/Api.csproj")
+    api.with_external_http_endpoints()
+
+    frontend = builder.add_executable(
+        "vercel-dev",
+        "vercel",
+        ".",
+        ["dev", "--listen", "3000"],
+    )
+    frontend.with_env("API_URL", api.get_endpoint("http"))
+    frontend.with_http_endpoint(port=3000, name="http")
+
+    builder.run()
 ```
 </Fragment>
 <Fragment slot="go">
@@ -389,18 +404,50 @@ frontend.withHttpEndpoint(
     new WithHttpEndpointOptions().port(3000.0).name("http"));
 ```
 </Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project("api", "./Api/Api.csproj", None)?;
+    api.with_external_http_endpoints()?;
+
+    let frontend = builder.add_executable(
+        "vercel-dev",
+        "vercel",
+        ".",
+        vec!["dev", "--listen", "3000"]
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+    )?;
+    let api_endpoint = api.get_endpoint("http")?;
+    frontend.with_environment("API_URL", serialize_handle(&api_endpoint))?;
+    frontend.with_http_endpoint(
+        Some(3000.0),
+        None,
+        Some("http"),
+        None,
+        None,
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+</Fragment>
 </AppHostTabs>
 
 ## Configure endpoints
 
 Executable resources can expose HTTP endpoints that other resources can reference:
 
-<AppHostTabs
-  limitations={{
-    python: 'The generated Python SDK documents with_environment but does not emit the method on executable resources, so BASE_URL cannot be assigned from the AppHost.',
-    rust: 'The generated Rust SDK cannot convert an EndpointReference into the untyped Value required by with_environment, so the BASE_URL assignment is not type-safe.',
-  }}
->
+<AppHostTabs>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -426,6 +473,27 @@ const frontend = await builder.addExecutable("webpack-dev", "npx", ".", ["webpac
 // Another service can reference the frontend
 const e2eTests = await builder.addExecutable("playwright", "npx", ".", ["playwright", "test"])
     .withEnvironment("BASE_URL", frontend.getEndpoint("http"));
+```
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    frontend = builder.add_executable(
+        "webpack-dev",
+        "npx",
+        ".",
+        ["webpack", "serve", "--port", "8080", "--host", "0.0.0.0"],
+    )
+    frontend.with_http_endpoint(port=8080, name="http")
+
+    e2e_tests = builder.add_executable(
+        "playwright", "npx", ".", ["playwright", "test"]
+    )
+    e2e_tests.with_env("BASE_URL", frontend.get_endpoint("http"))
+
+    builder.run()
 ```
 </Fragment>
 <Fragment slot="go">
@@ -463,17 +531,67 @@ var e2eTests = builder.addExecutable(
 e2eTests.withEnvironment("BASE_URL", frontend.getEndpoint("http"));
 ```
 </Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let frontend = builder.add_executable(
+        "webpack-dev",
+        "npx",
+        ".",
+        vec![
+            "webpack",
+            "serve",
+            "--port",
+            "8080",
+            "--host",
+            "0.0.0.0",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect(),
+    )?;
+    frontend.with_http_endpoint(
+        Some(8080.0),
+        None,
+        Some("http"),
+        None,
+        None,
+    )?;
+
+    let e2e_tests = builder.add_executable(
+        "playwright",
+        "npx",
+        ".",
+        vec!["playwright", "test"]
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+    )?;
+    let frontend_endpoint = frontend.get_endpoint("http")?;
+    e2e_tests.with_environment(
+        "BASE_URL",
+        serialize_handle(&frontend_endpoint),
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+</Fragment>
 </AppHostTabs>
 
 ## Environment configuration
 
 Configure environment variables for your executable:
 
-<AppHostTabs
-  limitations={{
-    python: 'The generated Python SDK documents with_environment but does not emit the method on executable resources, so this environment assignment example is unavailable.',
-  }}
->
+<AppHostTabs>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -499,6 +617,26 @@ const app = await builder.addExecutable("api", "uvicorn", ".", ["main:app", "--r
     .withEnvironment("DEBUG", "true")
     .withEnvironment("LOG_LEVEL", "info")
     .withEnvironment("START_TIME", new Date().toISOString());
+```
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from datetime import datetime, timezone
+
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    app = builder.add_executable(
+        "api",
+        "uvicorn",
+        ".",
+        ["main:app", "--reload", "--host", "0.0.0.0"],
+    )
+    app.with_env("DEBUG", "true")
+    app.with_env("LOG_LEVEL", "info")
+    app.with_env("START_TIME", datetime.now(timezone.utc).isoformat())
+
+    builder.run()
 ```
 </Fragment>
 <Fragment slot="go">

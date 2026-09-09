@@ -4,6 +4,7 @@ description: "Learn how to create custom resource types for the Aspire AppHost t
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 Creating custom resources allows you to extend Aspire to model components that aren't covered by built-in integrations. This guide covers the patterns and APIs for building your own resource types.
@@ -162,6 +163,15 @@ public static IResourceBuilder<MailDevResource> AddMailDev(
 
 For simpler cases, you can subscribe to events directly on the resource builder:
 
+<AppHostTabs limitations={{
+  typescript: 'Inline event subscriptions that define a custom resource extension run in the C# integration implementation and are not authored from generated AppHost SDKs.',
+  python: 'Inline event subscriptions that define a custom resource extension run in the C# integration implementation and are not authored from generated AppHost SDKs.',
+  go: 'Inline event subscriptions that define a custom resource extension run in the C# integration implementation and are not authored from generated AppHost SDKs.',
+  java: 'Inline event subscriptions that define a custom resource extension run in the C# integration implementation and are not authored from generated AppHost SDKs.',
+  rust: 'Inline event subscriptions that define a custom resource extension run in the C# integration implementation and are not authored from generated AppHost SDKs.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 public static IResourceBuilder<MailDevResource> AddMailDev(
     this IDistributedApplicationBuilder builder,
@@ -177,6 +187,9 @@ public static IResourceBuilder<MailDevResource> AddMailDev(
     return builder.AddResource(resource);
 }
 ```
+
+</Fragment>
+</AppHostTabs>
 
 ## Resource state management
 
@@ -248,15 +261,94 @@ Use relationships to organize how resources appear in the dashboard:
 
 Create custom relationships between resources for visual organization:
 
+<AppHostTabs>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var api = builder.AddProject<Projects.Api>("api");
 var worker = builder.AddProject<Projects.Worker>("worker")
     .WithRelationship(api.Resource, "publishes-to");
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+const worker = await builder.addProject('worker', '../Worker/Worker.csproj');
+await worker.withRelationship(api, 'publishes-to');
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../Api/Api.csproj")
+    worker = builder.add_project("worker", "../Worker/Worker.csproj")
+    worker.with_relationship(api, "publishes-to")
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+api := builder.AddProject("api", "../Api/Api.csproj")
+worker := builder.AddProject("worker", "../Worker/Worker.csproj").
+	WithRelationship(api, "publishes-to")
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var api = builder.addProject("api", "../Api/Api.csproj");
+var worker = builder.addProject("worker", "../Worker/Worker.csproj");
+worker.withRelationship(api, "publishes-to");
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+let worker = builder.add_project(
+    "worker",
+    "../Worker/Worker.csproj",
+    None,
+)?;
+let api_resource = IResource::new(
+    api.handle().clone(),
+    api.client().clone(),
+);
+worker.with_relationship(&api_resource, "publishes-to")?;
+```
+
+</Fragment>
+</AppHostTabs>
+
 ### WithChildRelationship
 
 Group related resources under a parent in the dashboard:
+
+<AppHostTabs limitations={{
+  typescript: 'This example depends on the C#-defined AddMailDev extension and PostgreSQL integration APIs, which are not exported by the generated TypeScript SDK used for this guide.',
+  python: 'This example depends on the C#-defined AddMailDev extension and PostgreSQL integration APIs, which are not exported by the generated Python SDK used for this guide.',
+  go: 'This example depends on the C#-defined AddMailDev extension and PostgreSQL integration APIs, which are not exported by the generated Go SDK used for this guide.',
+  java: 'This example depends on the C#-defined AddMailDev extension and PostgreSQL integration APIs, which are not exported by the generated Java SDK used for this guide.',
+  rust: 'This example depends on the C#-defined AddMailDev extension and PostgreSQL integration APIs, which are not exported by the generated Rust SDK used for this guide.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var postgres = builder.AddPostgres("postgres");
@@ -266,6 +358,9 @@ var catalogDb = postgres.AddDatabase("catalog");
 var mailDev = builder.AddMailDev("mail")
     .WithChildRelationship(catalogDb);
 ```
+
+</Fragment>
+</AppHostTabs>
 
 <LearnMore>
 For more on how the Aspire Dashboard displays resources, see [Dashboard overview](/dashboard/overview/).

@@ -1088,9 +1088,7 @@ If you're connecting to a local database, and want to use Integrated Security or
 
 Consider the following example AppHost _AppHost.cs_ file:
 
-<AppHostTabs limitations={{
-  rust: 'The Rust SDK wait_for signature requires an IResource marker that the generated connection-string handle does not implement, so this dependency-gated form is not currently usable.',
-}}>
+<AppHostTabs>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -1197,6 +1195,36 @@ void main() throws Exception {
 ```
 
 </Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let redis = builder.add_connection_string("redis", None)?;
+    let api = builder.add_project(
+        "api",
+        "../WebApplication/WebApplication.csproj",
+        None,
+    )?;
+    api.with_reference(serialize_handle(&redis), None, None, None)?;
+    let redis_resource = IResource::new(
+        redis.handle().clone(),
+        redis.client().clone(),
+    );
+    api.wait_for(&redis_resource, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 <Aside type="note">
@@ -1222,9 +1250,7 @@ If you want to construct a connection string from parameters and ensure that it'
 
 For example, if you have a secret parameter that stores a small part of a connection string, use this code to insert it:
 
-<AppHostTabs limitations={{
-  rust: 'Rust can construct the reference expression, but the generated wait_for signature requires an IResource marker that the connection-string handle does not implement.',
-}}>
+<AppHostTabs>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -1357,6 +1383,55 @@ void main() throws Exception {
     api.waitFor(connection);
 
     builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let secret_key = builder.add_parameter(
+        "secretkey",
+        None,
+        None,
+        Some(true),
+    )?;
+    let expression = ref_expr(
+        "Endpoint=https://api.contoso.com/v1;Key={0}",
+        vec![serialize_handle(&secret_key)],
+    );
+    let connection = builder.add_connection_string(
+        "composedconnectionstring",
+        Some(serde_json::to_value(expression)?),
+    )?;
+
+    let api = builder.add_project(
+        "catalogapi",
+        "../CatalogApi/CatalogApi.csproj",
+        None,
+    )?;
+    api.with_reference(
+        serialize_handle(&connection),
+        None,
+        None,
+        None,
+    )?;
+    let connection_resource = IResource::new(
+        connection.handle().clone(),
+        connection.client().clone(),
+    );
+    api.wait_for(&connection_resource, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
 }
 ```
 

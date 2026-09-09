@@ -576,11 +576,7 @@ container.with_build_arg(
 
 The value parameter on the `WithBuildArg` method can be a literal value (`boolean`, `string`, `int`) or it can be a resource builder for a [parameter resource](/fundamentals/external-parameters/). The following code replaces the `GO_VERSION` with a parameter value that can be specified at deployment time.
 
-<AppHostTabs
-  limitations={{
-    rust: 'The generated Rust SDK accepts an untyped Value for with_build_arg but does not provide a public conversion from ParameterResource to that Value.',
-  }}
->
+<AppHostTabs>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -626,6 +622,26 @@ var goVersion = builder.addParameter("goversion");
 var container = builder.addDockerfile(
     "mygoapp", "relative/context/path");
 container.withBuildArg("GO_VERSION", goVersion);
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let go_version = builder.add_parameter(
+    "goversion",
+    None,
+    None,
+    None,
+)?;
+let container = builder.add_dockerfile(
+    "mygoapp",
+    "relative/context/path",
+    None,
+    None,
+)?;
+container.with_build_arg(
+    "GO_VERSION",
+    serialize_handle(&go_version),
+)?;
 ```
 </Fragment>
 </AppHostTabs>

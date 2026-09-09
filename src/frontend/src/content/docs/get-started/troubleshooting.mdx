@@ -5,6 +5,7 @@ description: Solutions to common problems when getting started with Aspire — D
 
 import { Aside, Code, Steps } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 
@@ -72,13 +73,93 @@ Having issues getting started with Aspire? This page covers solutions to the mos
 
 **Symptoms**: Your frontend can't connect to the API, showing connection refused errors.
 
-**Solution**: Make sure you're using `WaitFor()` in your AppHost:
+**Solution**: Make sure you're using the generated wait-for API in your AppHost:
+
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 builder.AddProject<Projects.WebFrontend>("frontend")
     .WithReference(apiService)
     .WaitFor(apiService);  // Add this line!
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const apiService = await builder.addProject(
+  'api',
+  '../Api/Api.csproj'
+);
+const frontend = await builder.addProject(
+  'frontend',
+  '../WebFrontend/WebFrontend.csproj'
+);
+await frontend.withReference(apiService);
+await frontend.waitFor(apiService); // Add this line!
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+frontend = builder.add_project(
+    "frontend", "../WebFrontend/WebFrontend.csproj"
+)
+frontend.with_reference(api_service)
+frontend.wait_for(api_service)  # Add this line!
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+frontend := builder.
+	AddProject("frontend", "../WebFrontend/WebFrontend.csproj").
+	WithReference(apiService).
+	WaitFor(apiService) // Add this call!
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var frontend = builder.addProject(
+    "frontend", "../WebFrontend/WebFrontend.csproj");
+frontend.withReference(apiService);
+frontend.waitFor(apiService); // Add this call!
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let frontend = builder.add_project(
+    "frontend",
+    "../WebFrontend/WebFrontend.csproj",
+    None,
+)?;
+frontend.with_reference(
+    serialize_handle(&api_service),
+    None,
+    None,
+    None,
+)?;
+let api_resource = IResource::new(
+    api_service.handle().clone(),
+    api_service.client().clone(),
+);
+frontend.wait_for(&api_resource, None)?; // Add this call!
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## Environment variables not available
 
@@ -90,11 +171,23 @@ builder.AddProject<Projects.WebFrontend>("frontend")
 
 In your AppHost:
 
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK used for this core guide does not include the PostgreSQL integration methods in this example.',
+  python: 'The generated Python SDK used for this core guide does not include the PostgreSQL integration methods in this example.',
+  go: 'The generated Go SDK used for this core guide does not include the PostgreSQL integration methods in this example.',
+  java: 'The generated Java SDK used for this core guide does not include the PostgreSQL integration methods in this example.',
+  rust: 'The generated Rust SDK used for this core guide does not include the PostgreSQL integration methods in this example.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var db = builder.AddPostgres("db");
 var api = builder.AddProject<Projects.Api>("api")
     .WithReference(db);  // This injects the connection string
 ```
+
+</Fragment>
+</AppHostTabs>
 
 In your service code, access the connection string via configuration:
 
@@ -147,10 +240,63 @@ docker pull redis:latest
 
 ### Example: Correct service discovery setup
 
+<AppHostTabs>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 // In AppHost
 var api = builder.AddProject<Projects.Api>("apiservice");  // Name is "apiservice"
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const api = await builder.addProject(
+  'apiservice',
+  '../Api/Api.csproj'
+);
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+api = builder.add_project("apiservice", "../Api/Api.csproj")
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+api := builder.AddProject("apiservice", "../Api/Api.csproj")
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var api = builder.addProject("apiservice", "../Api/Api.csproj");
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let api = builder.add_project(
+    "apiservice",
+    "../Api/Api.csproj",
+    None,
+)?;
+```
+
+</Fragment>
+</AppHostTabs>
 
 ```csharp title="Program.cs"
 // In your consuming service, use exactly this name
