@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler warning ASPIREJAVASCRIPT001 a
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 13.3"
@@ -27,18 +29,342 @@ These APIs enable you to configure how JavaScript applications (Vite, Node.js, N
 
 ## Example
 
-The following code generates `ASPIREJAVASCRIPT001`:
+Install the JavaScript hosting integration:
+
+<InstallPackage packageName="Aspire.Hosting.JavaScript" />
+
+The C# examples generate `ASPIREJAVASCRIPT001`. The generated SDK examples configure the same publishing behavior without emitting this C# compiler diagnostic.
+
+For the daily CLI, matching packages, and feature flags required by Python, Go, Java, and Rust, see [Experimental AppHost examples](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs limitations={{ rust: 'The Rust projection contains these APIs, but the daily SDK generated for the JavaScript hosting package used for this documentation does not compile because of invalid generated argument-map code. A verified Rust example is not available in this build.' }}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const frontend = await builder.addViteApp("frontend", "../MyViteApp");
+await frontend.publishAsStaticWebsite();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var frontend = builder.AddViteApp("frontend", "../MyViteApp")
     .PublishAsStaticWebsite();
+
+builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    frontend = builder.add_vite_app("frontend", "../MyViteApp")
+    frontend.publish_as_static_website()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	frontend := builder.
+		AddViteApp("frontend", "../MyViteApp").
+		PublishAsStaticWebsite()
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addViteApp("frontend", "../MyViteApp")
+        .publishAsStaticWebsite();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+### Node.js and package script publishing
+
+For server applications, choose either a built Node.js entry point or a package script. These examples assume `../NodeServer` builds `dist/server.js` and `../ScriptServer` defines a `start` script.
+
+<AppHostTabs limitations={{ rust: 'The Rust projection contains these APIs, but the daily SDK generated for the JavaScript hosting package used for this documentation does not compile because of invalid generated argument-map code. A verified Rust example is not available in this build.' }}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const nodeServer = await builder.addJavaScriptApp("node-server", "../NodeServer");
+await nodeServer.publishAsNodeServer("dist/server.js", { outputPath: "dist" });
+
+const scriptServer = await builder.addJavaScriptApp("script-server", "../ScriptServer");
+await scriptServer.publishAsPackageScript({ scriptName: "start" });
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddJavaScriptApp("node-server", "../NodeServer")
+    .PublishAsNodeServer("dist/server.js", outputPath: "dist");
+
+builder.AddJavaScriptApp("script-server", "../ScriptServer")
+    .PublishAsPackageScript(scriptName: "start");
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    node_server = builder.add_java_script_app(
+        "node-server",
+        "../NodeServer",
+    )
+    node_server.publish_as_node_server(
+        "dist/server.js",
+        output_path="dist",
+    )
+
+    script_server = builder.add_java_script_app(
+        "script-server",
+        "../ScriptServer",
+    )
+    script_server.publish_as_package_script(script_name="start")
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	nodeServer := builder.
+		AddJavaScriptApp("node-server", "../NodeServer").
+		PublishAsNodeServer(
+			"dist/server.js",
+			&aspire.PublishAsNodeServerOptions{
+				OutputPath: aspire.StringPtr("dist"),
+			},
+		)
+	if err := nodeServer.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	scriptServer := builder.
+		AddJavaScriptApp("script-server", "../ScriptServer").
+		PublishAsPackageScript(&aspire.PublishAsPackageScriptOptions{
+			ScriptName: aspire.StringPtr("start"),
+		})
+	if err := scriptServer.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addJavaScriptApp("node-server", "../NodeServer")
+        .publishAsNodeServer("dist/server.js", "dist");
+
+    builder.addJavaScriptApp("script-server", "../ScriptServer")
+        .publishAsPackageScript(
+            new PublishAsPackageScriptOptions().scriptName("start"));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+### Next.js build validation
+
+The Next.js integration checks its configuration before publishing, including whether `output: "standalone"` is set. Disable those checks only when the configuration is supplied dynamically or by an external mechanism that static file inspection can't detect:
+
+<AppHostTabs limitations={{ rust: 'The Rust projection contains these APIs, but the daily SDK generated for the JavaScript hosting package used for this documentation does not compile because of invalid generated argument-map code. A verified Rust example is not available in this build.' }}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const web = await builder.addNextJsApp("web", "../NextApp");
+await web.disableBuildValidation();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddNextJsApp("web", "../NextApp")
+    .DisableBuildValidation();
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    web = builder.add_next_js_app("web", "../NextApp")
+    web.disable_build_validation()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	web := builder.
+		AddNextJsApp("web", "../NextApp").
+		DisableBuildValidation()
+	if err := web.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addNextJsApp("web", "../NextApp")
+        .disableBuildValidation();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## To correct this warning
 
-Suppress the warning with either of the following methods:
+The following suppression options apply to C# AppHosts. For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
+
+Suppress the warning with one of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 

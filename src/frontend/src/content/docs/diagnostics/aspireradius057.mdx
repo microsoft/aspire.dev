@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler warning ASPIRERADIUS057 and h
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 13.5"
@@ -19,7 +21,29 @@ This diagnostic warning is reported when using the experimental `WithContainerIm
 
 ## Example
 
-The following code generates `ASPIRERADIUS057`:
+Install the Radius hosting integration:
+
+<InstallPackage packageName="Aspire.Hosting.Radius" />
+
+The following examples associate a pre-built image with a project. The C# call generates `ASPIRERADIUS057`; the generated language SDKs expose the same experimental operation without emitting this C# compiler diagnostic. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+await builder.addRadiusEnvironment("radius");
+const api = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+await api.withContainerImage("localhost:5001/apiservice:latest");
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -32,7 +56,102 @@ builder.AddProject<Projects.ApiService>("apiservice")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.add_radius_env("radius")
+    api = builder.add_project("apiservice", "../ApiService/ApiService.csproj")
+    api.with_container_image("localhost:5001/apiservice:latest")
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"apphost/modules/aspire"
+	"log"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	env := builder.AddRadiusEnvironment("radius")
+	if err := env.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	api := builder.AddProject("apiservice", "../ApiService/ApiService.csproj").
+		WithContainerImage("localhost:5001/apiservice:latest")
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addRadiusEnvironment("radius");
+    var api = builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+    api.withContainerImage("localhost:5001/apiservice:latest");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    builder.add_radius_environment("radius")?;
+    let api = builder.add_project("apiservice", "../ApiService/ApiService.csproj", None)?;
+    api.with_container_image("localhost:5001/apiservice:latest")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ## To correct this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost). Suppression is only needed for C#.
 
 Suppress the warning with one of the following methods:
 

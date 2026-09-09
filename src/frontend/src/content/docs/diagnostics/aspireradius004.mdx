@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler warning ASPIRERADIUS004 and h
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 13.5"
@@ -24,7 +26,121 @@ This callback lets you customize the generated Radius infrastructure (its constr
 
 ## Example
 
-The following code generates `ASPIRERADIUS004`:
+Install the Radius hosting integration:
+
+<InstallPackage packageName="Aspire.Hosting.Radius" />
+
+Creating a Radius environment is supported across AppHost languages. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples). Infrastructure customization is a separate, C#-only operation shown after these setup examples.
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+await builder.addRadiusEnvironment("radius");
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRadiusEnvironment("radius");
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.add_radius_env("radius")
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"apphost/modules/aspire"
+	"log"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	env := builder.AddRadiusEnvironment("radius")
+	if err := env.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addRadiusEnvironment("radius");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    builder.add_radius_environment("radius")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+### Customize infrastructure in C#
+
+The `ConfigureRadiusInfrastructure` callback and its construct types are not exported to the TypeScript SDK catalog for `Aspire.Hosting.Radius` or to the daily Python, Go, Java, and Rust SDKs used for this documentation. This customization requires a C# AppHost:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -39,6 +155,8 @@ builder.Build().Run();
 ```
 
 ## To correct this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost). The warning is only emitted by C#; the generated language SDKs do not export the callback or its construct types.
 
 Suppress the warning with one of the following methods:
 

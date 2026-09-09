@@ -5,6 +5,7 @@ description: Learn what causes the Aspire compiler warning ASPIREWATCH001 and ho
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge
   text="Version introduced: 13.5"
@@ -25,7 +26,30 @@ These APIs let integrations vary how their resources are launched based on the k
 
 ## Example
 
-The following code generates `ASPIREWATCH001`:
+The C# example generates `ASPIREWATCH001`. The generated AppHost SDKs can also read the execution context and its run configuration but don't emit this C# compiler diagnostic. These APIs belong to the core `Aspire.Hosting` SDK; no additional integration package is required. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+const executionContext = await builder.executionContext();
+
+if (await executionContext.isRunMode()) {
+  const runConfiguration = await executionContext.runConfiguration();
+
+  if (runConfiguration.watchEnabled) {
+    // Launch resources so source changes are hot-reloaded.
+  }
+}
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="Reading run mode configuration"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -43,6 +67,127 @@ if (builder.ExecutionContext.IsRunMode)
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    execution_context = builder.execution_context
+
+    if execution_context.is_run_mode:
+        run_configuration = execution_context.run_config
+
+        if run_configuration.get("WatchEnabled", False):
+            # Launch resources so source changes are hot-reloaded.
+            pass
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	executionContext := builder.ExecutionContext()
+	if err := executionContext.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	isRunMode, err := executionContext.IsRunMode()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if isRunMode {
+		runConfiguration, err := executionContext.RunConfiguration()
+		if err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+
+		if runConfiguration.WatchEnabled != nil && *runConfiguration.WatchEnabled {
+			// Launch resources so source changes are hot-reloaded.
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+    var executionContext = builder.executionContext();
+
+    if (executionContext.isRunMode()) {
+        var runConfiguration = executionContext.runConfiguration();
+
+        if (Boolean.TRUE.equals(runConfiguration.getWatchEnabled())) {
+            // Launch resources so source changes are hot-reloaded.
+        }
+    }
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+    let execution_context = builder.execution_context()?;
+
+    if execution_context.is_run_mode()? {
+        let run_configuration = execution_context.run_configuration()?;
+
+        if run_configuration.watch_enabled.unwrap_or(false) {
+            // Launch resources so source changes are hot-reloaded.
+        }
+    }
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+Execution-context access follows each SDK's conventions. Python returns a `RunConfiguration` dictionary with wire-format field names, Go uses explicit errors and pointer-valued optional DTO fields, Java exposes bean accessors, and Rust returns `Result` values with optional DTO fields.
+
 ## Understanding run mode configuration
 
 `RunConfiguration` holds settings that only apply when the AppHost is running in [run mode](/app-host/resource-lifetimes/) (as opposed to publish mode). Integrations use it to vary how their resources are launched without changing the core hosting behavior.
@@ -52,6 +197,8 @@ builder.Build().Run();
 Indicates that resources should start in watch mode if able. Integrations that support watch can launch their resources so that source changes are hot-reloaded. This is a hint: integrations that cannot watch their resources should start them in the normal fashion.
 
 ## To suppress this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 Suppress the warning with either of the following methods:
 

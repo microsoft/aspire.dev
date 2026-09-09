@@ -5,6 +5,7 @@ description: Learn what causes the Aspire compiler warning ASPIRETERMINAL001 and
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge
   text="Version introduced: 13.5"
@@ -24,7 +25,24 @@ This diagnostic warning is reported when using experimental terminal configurati
 
 ## Example
 
-The following code generates `ASPIRETERMINAL001`:
+The C# example generates `ASPIRETERMINAL001`. The generated AppHost SDKs support the parameterless terminal method but don't emit this C# compiler diagnostic. This method and the container resource belong to the core `Aspire.Hosting` SDK; no additional integration package is required. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const cache = await builder.addContainer("cache", { image: "redis" });
+await cache.withTerminal();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -35,7 +53,97 @@ builder.AddContainer("cache", "redis")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    cache = builder.add_container("cache", "redis")
+    cache.with_terminal()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cache := builder.AddContainer("cache", "redis").WithTerminal()
+	if err := cache.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addContainer("cache", "redis").withTerminal();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let cache = builder.add_container("cache", json!("redis"))?;
+    cache.with_terminal()?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+The `TerminalOptions` configuration callback isn't exported to the polyglot SDKs; their parameterless terminal method uses the default terminal options.
+
 ## To correct this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 Suppress the warning with one of the following methods:
 

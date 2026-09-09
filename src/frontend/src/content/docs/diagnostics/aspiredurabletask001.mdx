@@ -1,10 +1,12 @@
 ---
 title: Compiler Warning ASPIREDURABLETASK001
-seoTitle: "ASPIREDURABLETASK001: Durable Task scheduler and task hub"
+seoTitle: 'ASPIREDURABLETASK001: Durable Task scheduler and task hub'
 description: Learn what causes the Aspire compiler warning ASPIREDURABLETASK001 and how to fix it so your AppHost builds cleanly.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 13.3"
@@ -30,7 +32,42 @@ These APIs are brand new and may change shape before the feature becomes general
 
 ## Example
 
-The following code generates `ASPIREDURABLETASK001`:
+Install the Azure Functions and Azure Storage hosting integrations:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Functions" />
+<InstallPackage packageName="Aspire.Hosting.Azure.Storage" />
+
+For generated AppHost SDK setup, see [Experimental AppHost examples](/diagnostics/overview/#experimental-apphost-examples).
+
+The following examples run the scheduler and host storage as emulators and connect a Functions project to a task hub. The C# Durable Task calls generate `ASPIREDURABLETASK001`; generated AppHost SDKs expose the same experimental operations without emitting this C# compiler diagnostic.
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage('storage');
+await storage.runAsEmulator();
+
+const scheduler = await builder.addDurableTaskScheduler('scheduler');
+await scheduler.runAsEmulator();
+const hub = await scheduler.addTaskHub('hub');
+
+const functions = await builder.addAzureFunctionsProject(
+  'functions',
+  '../MyFunctions/MyFunctions.csproj'
+);
+await functions.withHostStorage(storage);
+await functions.withReference(hub);
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -49,7 +86,327 @@ builder.AddAzureFunctionsProject<Projects.MyFunctions>("functions")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    storage = builder.add_azure_storage("storage")
+    storage.run_as_emulator()
+
+    scheduler = builder.add_durable_task_scheduler("scheduler")
+    scheduler.run_as_emulator()
+    hub = scheduler.add_task_hub("hub")
+
+    functions = builder.add_azure_functions_project(
+        "functions",
+        "../MyFunctions/MyFunctions.csproj",
+    )
+    functions.with_host_storage(storage)
+    functions.with_reference(hub)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage").RunAsEmulator()
+	scheduler := builder.
+		AddDurableTaskScheduler("scheduler").
+		RunAsEmulator()
+	hub := scheduler.AddTaskHub("hub")
+	functions := builder.
+		AddAzureFunctionsProject(
+			"functions",
+			"../MyFunctions/MyFunctions.csproj").
+		WithHostStorage(storage).
+		WithReference(hub)
+	for _, err := range []error{
+		storage.Err(),
+		scheduler.Err(),
+		hub.Err(),
+		functions.Err(),
+	} {
+		if err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var storage = builder.addAzureStorage("storage");
+    storage.runAsEmulator();
+
+    var scheduler = builder.addDurableTaskScheduler("scheduler");
+    scheduler.runAsEmulator();
+    var hub = scheduler.addTaskHub("hub");
+
+    var functions = builder.addAzureFunctionsProject(
+        "functions",
+        "../MyFunctions/MyFunctions.csproj");
+    functions.withHostStorage(storage);
+    functions.withReference(hub);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+The generated Rust emulator methods require callbacks even when no container
+customization is needed, so pass no-op callbacks:
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::Value;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let storage = builder.add_azure_storage("storage")?;
+    storage.run_as_emulator(|_| Value::Null)?;
+
+    let scheduler = builder.add_durable_task_scheduler("scheduler")?;
+    scheduler.run_as_emulator(|_| Value::Null)?;
+    let hub = scheduler.add_task_hub("hub")?;
+
+    let functions = builder.add_azure_functions_project(
+        "functions",
+        "../MyFunctions/MyFunctions.csproj",
+    )?;
+    functions.with_host_storage(&storage)?;
+    functions.with_reference(
+        hub.handle().to_json(),
+        None,
+        None,
+        None,
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+### Use an existing scheduler and a custom task hub name
+
+To connect to an existing scheduler during local runs, supply its connection string as a secret parameter. You can also configure the task hub name independently of its Aspire resource name:
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const connection = await builder.addParameter('scheduler-connection', {
+  secret: true,
+});
+const hubName = await builder.addParameter('task-hub-name');
+
+const scheduler = await builder.addDurableTaskScheduler('scheduler');
+await scheduler.runAsExisting(connection);
+const hub = await scheduler.addTaskHub('hub');
+await hub.withTaskHubName(hubName);
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var connection = builder.AddParameter("scheduler-connection", secret: true);
+var hubName = builder.AddParameter("task-hub-name");
+
+var scheduler = builder.AddDurableTaskScheduler("scheduler")
+    .RunAsExisting(connection);
+var hub = scheduler.AddTaskHub("hub")
+    .WithTaskHubName(hubName);
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    connection = builder.add_parameter(
+        "scheduler-connection",
+        secret=True,
+    )
+    hub_name = builder.add_parameter("task-hub-name")
+
+    scheduler = builder.add_durable_task_scheduler("scheduler")
+    scheduler.run_as_existing(connection)
+    hub = scheduler.add_task_hub("hub")
+    hub.with_task_hub_name(hub_name)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	connection := builder.AddParameter(
+		"scheduler-connection",
+		&aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+	hubName := builder.AddParameter("task-hub-name")
+	scheduler := builder.
+		AddDurableTaskScheduler("scheduler").
+		RunAsExisting(connection)
+	hub := scheduler.
+		AddTaskHub("hub").
+		WithTaskHubName(hubName)
+	for _, err := range []error{
+		connection.Err(),
+		hubName.Err(),
+		scheduler.Err(),
+		hub.Err(),
+	} {
+		if err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var connection = builder.addParameter(
+        "scheduler-connection",
+        new AddParameterOptions().secret(true));
+    var hubName = builder.addParameter("task-hub-name");
+
+    var scheduler = builder.addDurableTaskScheduler("scheduler");
+    scheduler.runAsExisting(connection);
+    var hub = scheduler.addTaskHub("hub");
+    hub.withTaskHubName(hubName);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let connection = builder.add_parameter(
+        "scheduler-connection",
+        None,
+        None,
+        Some(true),
+    )?;
+    let hub_name = builder.add_parameter(
+        "task-hub-name",
+        None,
+        None,
+        None,
+    )?;
+
+    let scheduler = builder.add_durable_task_scheduler("scheduler")?;
+    scheduler.run_as_existing(connection.handle().to_json())?;
+    let hub = scheduler.add_task_hub("hub")?;
+    hub.with_task_hub_name(hub_name.handle().to_json())?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ## To correct this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost). Suppression is only needed for C#.
 
 Suppress the warning with any of the following methods:
 

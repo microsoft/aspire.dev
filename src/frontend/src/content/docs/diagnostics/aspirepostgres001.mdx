@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler warning ASPIREPOSTGRES001 —
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 13.2"
@@ -24,7 +26,31 @@ The following APIs are protected by this diagnostic:
 
 ## Example
 
-The following code generates `ASPIREPOSTGRES001` when using a PostgreSQL database resource:
+Install the PostgreSQL hosting integration:
+
+<InstallPackage packageName="Aspire.Hosting.PostgreSQL" />
+
+The following examples add an MCP server to a PostgreSQL database. Both `Aspire.Hosting.PostgreSQL` and `Aspire.Hosting.Azure.PostgreSQL` export the MCP operation to generated AppHost SDKs, even though only the C# compiler reports `ASPIREPOSTGRES001`.
+
+For the daily CLI, matching packages, and feature flags required by Python, Go, Java, and Rust, see [Experimental AppHost examples](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres");
+const db = await postgres.addDatabase("mydb");
+await db.withPostgresMcp();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs (PostgreSQL)"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -36,9 +62,125 @@ var db = builder.AddPostgres("postgres")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    postgres = builder.add_postgres("postgres")
+    db = postgres.add_database("mydb")
+    db.with_postgres_mcp()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	db := builder.
+		AddPostgres("postgres").
+		AddDatabase("mydb").
+		WithPostgresMcp()
+	if err := db.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addPostgres("postgres")
+        .addDatabase("mydb")
+        .withPostgresMcp();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::Value;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let postgres = builder.add_postgres("postgres", None, None, None)?;
+    let db = postgres.add_database("mydb", None)?;
+    db.with_postgres_mcp(|_| Value::Null, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 —or—
 
-The following code generates `ASPIREPOSTGRES001` when using an Azure PostgreSQL Flexible Server database resource:
+Install the Azure PostgreSQL hosting integration to use an Azure PostgreSQL Flexible Server database:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.PostgreSQL" />
+
+Run the server as a local container before enabling its MCP server. The C# `WithPostgresMcp` call also generates `ASPIREPOSTGRES001` in this example. The generated SDKs expose the same operation on `AzurePostgresFlexibleServerDatabaseResource`.
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const postgres = await builder.addAzurePostgresFlexibleServer("postgres");
+await postgres.runAsContainer();
+const db = await postgres.addDatabase("mydb");
+await db.withPostgresMcp();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs (Azure PostgreSQL)"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -51,7 +193,106 @@ var db = builder.AddAzurePostgresFlexibleServer("postgres")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    postgres = builder.add_azure_postgres_flexible_server("postgres")
+    postgres.run_as_container()
+    db = postgres.add_database("mydb")
+    db.with_postgres_mcp()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	db := builder.
+		AddAzurePostgresFlexibleServer("postgres").
+		RunAsContainer().
+		AddDatabase("mydb").
+		WithPostgresMcp()
+	if err := db.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addAzurePostgresFlexibleServer("postgres")
+        .runAsContainer()
+        .addDatabase("mydb")
+        .withPostgresMcp();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::Value;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let postgres = builder.add_azure_postgres_flexible_server("postgres")?;
+    postgres.run_as_container(|_| Value::Null)?;
+    let db = postgres.add_database("mydb", None)?;
+    db.with_postgres_mcp(|_| Value::Null, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ## To correct this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost). Suppression is only needed for C#; generated AppHost SDKs use the same API without the compiler warning.
 
 Suppress the warning with either of the following methods:
 

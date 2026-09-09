@@ -4,7 +4,8 @@ seoTitle: "ASPIREDOCKERFILEBUILDER001: Dockerfile builder types and"
 description: Learn what causes the Aspire compiler warning ASPIREDOCKERFILEBUILDER001 and how to fix it so your AppHost builds cleanly.
 ---
 
-import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge
   text="Version introduced: 13.0"
@@ -21,50 +22,16 @@ These APIs enable programmatic creation of Dockerfiles at build time, allowing d
 
 ## Example
 
-The following code generates `ASPIREDOCKERFILEBUILDER001` in a C# AppHost:
+The Dockerfile builder APIs are included in core Aspire hosting; no additional hosting integration is required. These examples assume `./service` contains `package.json`, a lockfile, and `index.js`.
 
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+The C# examples generate `ASPIREDOCKERFILEBUILDER001`. TypeScript, Python, Go, and Java AppHosts can use the same Dockerfile builder callback surface without emitting this C# compiler diagnostic. Python, Go, and Java examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
 
-builder.AddDockerfileBuilder("my-service", "./service", context =>
-{
-    var stage = context.Builder.From("node:22-alpine", "runtime");
-    stage.WorkDir("/app")
-        .Copy("package*.json", "./")
-        .Run("npm ci --omit=dev")
-        .Copy(".", ".")
-        .Cmd(["node", "index.js"]);
+<AppHostTabs limitations={{
+  rust: "The generated Rust SDK exposes Dockerfile builder callbacks as raw `Fn(Vec<Value>) -> Value` callbacks, without converting their arguments to `DockerfileBuilderCallbackContext`. These examples require the typed callback-context API.",
+}}>
+<Fragment slot="typescript">
 
-    return Task.CompletedTask;
-}, stage: "runtime");
-```
-
-## AppHost examples
-
-TypeScript AppHosts can use the same Dockerfile builder callback surface. The warning suppression options below apply to C# compiler diagnostics; TypeScript code doesn't use `#pragma` or `.editorconfig` to suppress `ASPIREDOCKERFILEBUILDER001`.
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-#pragma warning disable ASPIREDOCKERFILEBUILDER001
-builder.AddDockerfileBuilder("my-service", "./service", context =>
-{
-    var stage = context.Builder.From("node:22-alpine", "runtime");
-    stage.WorkDir("/app")
-        .Copy("package*.json", "./")
-        .Run("npm ci --omit=dev")
-        .Copy(".", ".")
-        .Cmd(["node", "index.js"]);
-
-    return Task.CompletedTask;
-}, stage: "runtime");
-#pragma warning restore ASPIREDOCKERFILEBUILDER001
-```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 import type { DockerfileBuilderCallbackContext } from './.aspire/modules/aspire.mjs';
 
@@ -72,30 +39,195 @@ const builder = await createBuilder();
 
 const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
   const dockerfile = await context.builder();
-  await dockerfile
-    .from("node:22-alpine", { stageName: "runtime" })
-    .workDir("/app")
-    .copy("package*.json", "./")
-    .run("npm ci --omit=dev")
-    .copy(".", ".")
-    .cmd(["node", "index.js"]);
+  const stage = await dockerfile.from("node:22-alpine", { stageName: "runtime" });
+  await stage.workDir("/app");
+  await stage.copy("package*.json", "./");
+  await stage.run("npm ci --omit=dev");
+  await stage.copy(".", ".");
+  await stage.cmd(["node", "index.js"]);
 };
 
 await builder.addDockerfileBuilder("my-service", "./service", configureDockerfile, {
   stage: "runtime",
 });
+
+await builder.build().run();
 ```
-</TabItem>
-</Tabs>
 
-The callback can also be applied to an existing container resource with `WithDockerfileBuilder`:
+</Fragment>
+<Fragment slot="csharp">
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddDockerfileBuilder("my-service", "./service", context =>
+{
+    var stage = context.Builder.From("node:22-alpine", "runtime");
+    stage.WorkDir("/app")
+        .Copy("package*.json", "./")
+        .Run("npm ci --omit=dev")
+        .Copy(".", ".")
+        .Cmd(["node", "index.js"]);
+
+    return Task.CompletedTask;
+}, stage: "runtime");
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import DockerfileBuilderCallbackContext, create_builder
+
+
+def configure_dockerfile(context: DockerfileBuilderCallbackContext) -> None:
+    stage = context.builder.from_("node:22-alpine", stage_name="runtime")
+    (
+        stage.work_dir("/app")
+        .copy("package*.json", "./")
+        .run("npm ci --omit=dev")
+        .copy(".", ".")
+        .cmd(["node", "index.js"])
+    )
+
+
+with create_builder() as builder:
+    builder.add_dockerfile_builder(
+        "my-service",
+        "./service",
+        configure_dockerfile,
+        stage="runtime",
+    )
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	service := builder.AddDockerfileBuilder(
+		"my-service",
+		"./service",
+		func(context aspire.DockerfileBuilderCallbackContext) {
+			dockerfile := context.Builder()
+			if err := dockerfile.Err(); err != nil {
+				log.Fatal(aspire.FormatError(err))
+			}
+
+			stage := dockerfile.
+				From("node:22-alpine", &aspire.FromOptions{
+					StageName: aspire.StringPtr("runtime"),
+				}).
+				WorkDir("/app").
+				Copy("package*.json", "./").
+				Run("npm ci --omit=dev").
+				Copy(".", ".").
+				Cmd([]string{"node", "index.js"})
+			if err := stage.Err(); err != nil {
+				log.Fatal(aspire.FormatError(err))
+			}
+		},
+		&aspire.AddDockerfileBuilderOptions{
+			Stage: aspire.StringPtr("runtime"),
+		},
+	)
+	if err := service.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addDockerfileBuilder(
+        "my-service",
+        "./service",
+        context -> {
+            var stage = context.builder().from("node:22-alpine", "runtime");
+            stage.workDir("/app")
+                .copy("package*.json", "./")
+                .run("npm ci --omit=dev")
+                .copy(".", ".")
+                .cmd(new String[] { "node", "index.js" });
+        },
+        "runtime");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+The callback can also be applied to an existing container resource with `WithDockerfileBuilder`:
+
+<AppHostTabs limitations={{
+  rust: "The generated Rust SDK exposes Dockerfile builder callbacks as raw `Fn(Vec<Value>) -> Value` callbacks, without converting their arguments to `DockerfileBuilderCallbackContext`. These examples require the typed callback-context API.",
+}}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import type { DockerfileBuilderCallbackContext } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+  const stage = await dockerfile.from("node:22-alpine", { stageName: "runtime" });
+  await stage.workDir("/app");
+  await stage.copy("package*.json", "./");
+  await stage.run("npm ci --omit=dev");
+  await stage.copy(".", ".");
+  await stage.cmd(["node", "index.js"]);
+};
+
+const service = await builder.addContainer("my-service", { image: "node", tag: "22-alpine" });
+await service.withDockerfileBuilder("./service", configureDockerfile, {
+  stage: "runtime",
+});
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 builder.AddContainer("my-service", "node:22-alpine")
     .WithDockerfileBuilder("./service", context =>
     {
@@ -108,35 +240,127 @@ builder.AddContainer("my-service", "node:22-alpine")
 
         return Task.CompletedTask;
     }, stage: "runtime");
-#pragma warning restore ASPIREDOCKERFILEBUILDER001
+
+builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-import type { DockerfileBuilderCallbackContext } from './.aspire/modules/aspire.mjs';
 
-const builder = await createBuilder();
+</Fragment>
+<Fragment slot="python">
 
-const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
-  const dockerfile = await context.builder();
-  await dockerfile
-    .from("node:22-alpine", { stageName: "runtime" })
-    .workDir("/app")
-    .copy("package*.json", "./")
-    .run("npm ci --omit=dev")
-    .copy(".", ".")
-    .cmd(["node", "index.js"]);
-};
+```python title="apphost.py"
+from aspire_app import AddContainerOptions, DockerfileBuilderCallbackContext, create_builder
 
-await builder
-  .addContainer("my-service", "node:22-alpine")
-  .withDockerfileBuilder("./service", configureDockerfile, {
-    stage: "runtime",
-  });
+
+def configure_dockerfile(context: DockerfileBuilderCallbackContext) -> None:
+    stage = context.builder.from_("node:22-alpine", stage_name="runtime")
+    (
+        stage.work_dir("/app")
+        .copy("package*.json", "./")
+        .run("npm ci --omit=dev")
+        .copy(".", ".")
+        .cmd(["node", "index.js"])
+    )
+
+
+with create_builder() as builder:
+    image: AddContainerOptions = {"Image": "node", "Tag": "22-alpine"}
+    service = builder.add_container("my-service", image)
+    service.with_dockerfile_builder(
+        "./service",
+        configure_dockerfile,
+        stage="runtime",
+    )
+
+    builder.run()
 ```
-</TabItem>
-</Tabs>
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	service := builder.
+		AddContainer("my-service", "node:22-alpine").
+		WithDockerfileBuilder(
+			"./service",
+			func(context aspire.DockerfileBuilderCallbackContext) {
+				dockerfile := context.Builder()
+				if err := dockerfile.Err(); err != nil {
+					log.Fatal(aspire.FormatError(err))
+				}
+
+				stage := dockerfile.
+					From("node:22-alpine", &aspire.FromOptions{
+						StageName: aspire.StringPtr("runtime"),
+					}).
+					WorkDir("/app").
+					Copy("package*.json", "./").
+					Run("npm ci --omit=dev").
+					Copy(".", ".").
+					Cmd([]string{"node", "index.js"})
+				if err := stage.Err(); err != nil {
+					log.Fatal(aspire.FormatError(err))
+				}
+			},
+			&aspire.WithDockerfileBuilderOptions{
+				Stage: aspire.StringPtr("runtime"),
+			},
+		)
+	if err := service.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var service = builder.addContainer("my-service", "node:22-alpine");
+    service.withDockerfileBuilder(
+        "./service",
+        context -> {
+            var stage = context.builder().from("node:22-alpine", "runtime");
+            stage.workDir("/app")
+                .copy("package*.json", "./")
+                .run("npm ci --omit=dev")
+                .copy(".", ".")
+                .cmd(new String[] { "node", "index.js" });
+        },
+        "runtime");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## Understanding Dockerfile builder callbacks
 
@@ -168,11 +392,13 @@ The `DockerfileBuilderCallbackContext` provides context information for Dockerfi
 - Token to observe for cancellation requests
 - Enables cooperative cancellation of long-running operations
 
-In TypeScript AppHosts, callback context values use camelCase names and asynchronous methods. For example, use `await context.builder()` to get the `DockerfileBuilder` instance.
+Callback context and option names follow each SDK's conventions. Python exposes `context.builder` as a property and uses keyword-only options. Go uses option structs and reports fluent-handle errors through `Err`. Java uses typed callback contexts and overloads for optional values.
 
 ## To suppress this warning
 
-Suppress the warning with either of the following methods:
+The following suppression options apply to C# AppHosts. For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
+
+Suppress the warning with one of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 

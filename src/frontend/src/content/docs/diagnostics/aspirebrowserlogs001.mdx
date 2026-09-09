@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler error ASPIREBROWSERLOGS001 an
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 13.3"
@@ -21,11 +23,35 @@ This diagnostic error is reported when using experimental browser logs APIs in A
 - `BrowserUserDataMode` enum
 - Other types and members that configure the tracked browser session
 
-These APIs let you attach a tracked Chromium browser session to any HTTP/HTTPS resource in your AppHost so that browser console output flows into the resource's console log stream in the Aspire dashboard. For more information, see [Browser logs](/integrations/devtools/browser-logs/).
+These APIs let you attach a tracked Chromium browser session to any HTTP/HTTPS resource in your AppHost. Browser console output flows into a child browser resource's console log stream in the Aspire dashboard. For more information, see [Browser logs](/integrations/devtools/browser-logs/).
 
 ## Example
 
-The following code generates `ASPIREBROWSERLOGS001`:
+Install both the browser logs integration and the JavaScript integration used by the Vite resource:
+
+<InstallPackage packageName="Aspire.Hosting.Browsers" />
+<InstallPackage packageName="Aspire.Hosting.JavaScript" />
+
+The C# example generates `ASPIREBROWSERLOGS001`. Generated AppHost SDKs expose the same browser logging operation without emitting this C# compiler diagnostic.
+
+For the daily CLI, matching packages, and feature flags required by Python, Go, Java, and Rust, see [Experimental AppHost examples](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs limitations={{ rust: 'The Rust projection contains these APIs, but the daily SDK generated for the browser logs and JavaScript packages used for this documentation does not compile because of invalid generated argument-map code. A verified Rust example is not available in this build.' }}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const web = await builder.addViteApp("web", "../web");
+await web.withBrowserLogs();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -36,9 +62,77 @@ builder.AddViteApp("web", "../web")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    web = builder.add_vite_app("web", "../web")
+    web.with_browser_logs()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	web := builder.AddViteApp("web", "../web")
+	web.WithBrowserLogs()
+	if err := web.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var web = builder.addViteApp("web", "../web");
+    web.withBrowserLogs();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ## To correct this error
 
-Suppress the error with either of the following methods:
+The following suppression options apply to C# AppHosts. For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
+
+Suppress the error with one of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 

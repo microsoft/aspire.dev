@@ -5,6 +5,7 @@ description: Learn what causes the Aspire compiler warning ASPIREMCP001 and how 
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge
   text="Version introduced: 13.2"
@@ -24,7 +25,26 @@ The following APIs are protected by this diagnostic:
 
 ## Example
 
-The following code generates `ASPIREMCP001`:
+The C# examples generate `ASPIREMCP001`. The generated AppHost SDKs support the same endpoint discovery operation without emitting this C# compiler diagnostic. These APIs and project resources belong to the core `Aspire.Hosting` SDK; no additional integration package is required. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+The referenced API project must expose an HTTP or HTTPS endpoint and implement an MCP server at `/mcp`. Adding the annotation doesn't implement the server.
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../MyApi/MyApi.csproj");
+await api.withMcpServer();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -35,9 +55,113 @@ var api = builder.AddProject<Projects.MyApi>("api")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../MyApi/MyApi.csproj")
+    api.with_mcp_server()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../MyApi/MyApi.csproj").
+		WithMcpServer()
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var api = builder.addProject("api", "../MyApi/MyApi.csproj");
+    api.withMcpServer();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project("api", "../MyApi/MyApi.csproj", None)?;
+    api.with_mcp_server(None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 —or—
 
-The following code uses a custom path and endpoint name:
+The following code uses a custom path and endpoint name. The API project must expose an endpoint named `https` and serve MCP at `/sse`:
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../MyApi/MyApi.csproj");
+await api.withMcpServer({ path: "/sse", endpointName: "https" });
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -48,7 +172,101 @@ var api = builder.AddProject<Projects.MyApi>("api")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../MyApi/MyApi.csproj")
+    api.with_mcp_server(path="/sse", endpoint_name="https")
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../MyApi/MyApi.csproj").
+		WithMcpServer(&aspire.WithMcpServerOptions{
+			Path:         aspire.StringPtr("/sse"),
+			EndpointName: aspire.StringPtr("https"),
+		})
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var api = builder.addProject("api", "../MyApi/MyApi.csproj");
+    api.withMcpServer(new WithMcpServerOptions()
+        .path("/sse")
+        .endpointName("https"));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project("api", "../MyApi/MyApi.csproj", None)?;
+    api.with_mcp_server(Some("/sse"), Some("https"))?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ## To correct this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 Suppress the warning with either of the following methods:
 

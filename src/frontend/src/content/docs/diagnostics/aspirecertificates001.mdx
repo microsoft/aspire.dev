@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler warning ASPIRECERTIFICATES001
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 13.0"
@@ -26,29 +28,169 @@ These APIs enable configuring HTTPS/TLS server certificates for resources in you
 
 ## Example
 
-The following code generates `ASPIRECERTIFICATES001`:
+Install Redis for the shared examples and YARP for the C#-only custom-certificate example:
+
+<InstallPackage packageName="Aspire.Hosting.Redis" />
+<InstallPackage packageName="Aspire.Hosting.Yarp" />
+
+The C# examples generate `ASPIRECERTIFICATES001`. The generated AppHost SDKs can configure a developer certificate or disable certificate configuration without emitting this C# compiler diagnostic. These examples use Redis resources, whose integration supports TLS configuration. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const tlsCache = await builder.addRedis("tls-cache");
+await tlsCache.withHttpsDeveloperCertificate();
+
+const cache = await builder.addRedis("cache");
+await cache.withoutHttpsCertificate();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Using developer certificate
-builder.AddViteApp("frontend")
+builder.AddRedis("tls-cache")
     .WithHttpsDeveloperCertificate();
+
+// Disabling HTTPS certificate configuration
+builder.AddRedis("cache")
+    .WithoutHttpsCertificate();
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    tls_cache = builder.add_redis("tls-cache")
+    tls_cache.with_https_developer_certificate()
+
+    cache = builder.add_redis("cache")
+    cache.without_https_certificate()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	tlsCache := builder.
+		AddRedis("tls-cache").
+		WithHttpsDeveloperCertificate()
+	if err := tlsCache.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cache := builder.
+		AddRedis("cache").
+		WithoutHttpsCertificate()
+	if err := cache.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addRedis("tls-cache")
+        .withHttpsDeveloperCertificate();
+
+    builder.addRedis("cache")
+        .withoutHttpsCertificate();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let tls_cache = builder.add_redis("tls-cache", None, None)?;
+    tls_cache.with_https_developer_certificate(None)?;
+
+    let cache = builder.add_redis("cache", None, None)?;
+    cache.without_https_certificate()?;
+
+    builder.build()?.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+### Custom certificates and .NET services
+
+The `WithHttpsCertificate(X509Certificate2)` overload and `IDeveloperCertificateService` aren't exported to the generated AppHost SDKs. These C#-only operations require .NET certificate objects or access to the .NET service provider:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
 
 // Using a custom certificate
 var certificate = new X509Certificate2("path/to/certificate.pfx", "password");
 builder.AddYarp("gateway")
     .WithHttpsCertificate(certificate);
 
-// Disabling HTTPS certificate configuration
-builder.AddRedis("cache")
-    .WithoutHttpsCertificate();
-
 // Using IDeveloperCertificateService
 var developerCertService = builder.Services
     .BuildServiceProvider()
     .GetRequiredService<IDeveloperCertificateService>();
 ```
+
+The callback-based `withHttpsCertificateConfiguration` and execution-configuration `withHttpsCertificateConfig` APIs are exported to TypeScript. They configure certificate handling and aren't direct replacements for passing a .NET `X509Certificate2` instance. For their configuration model, see [Certificate configuration](/app-host/certificate-configuration/).
 
 ## Understanding certificate configuration
 
@@ -75,7 +217,9 @@ The `IDeveloperCertificateService` provides information about developer certific
 
 ## To suppress this warning
 
-Suppress the warning with either of the following methods:
+The following suppression options apply to C# AppHosts. For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
+
+Suppress the warning with one of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 

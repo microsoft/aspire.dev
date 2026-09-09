@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler error ASPIREHOSTINGPYTHON001 
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 9.0"
@@ -15,22 +17,138 @@ import { Badge } from '@astrojs/starlight/components';
 
 > `AddPythonApp` is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-Aspire provides a way to add Python executables or applications to the Aspire AppHost with the `AddPythonApp` extension. Since the shape of this API is expected to change in the future, it's experimental.
+Aspire provides a way to add Python executables or applications to the Aspire AppHost with the `AddPythonApp` extension. Earlier versions marked this API as experimental. In Aspire 13.5, the three-argument overload shown below is no longer marked experimental, so it doesn't require suppression. This page remains relevant for builds using older package versions.
 
 ## Example
 
-The following code generates `ASPIREHOSTINGPYTHON001`:
+Install the Python hosting integration:
+
+<InstallPackage packageName="Aspire.Hosting.Python" />
+
+The C# example generates `ASPIREHOSTINGPYTHON001` in versions that mark `AddPythonApp` as experimental. The generated SDK examples host the same Python application and configure its HTTP endpoint and OpenTelemetry exporter without emitting a C# compiler diagnostic.
+
+For the daily CLI, matching packages, and feature flags required by Python, Go, Java, and Rust, see [Experimental AppHost examples](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs limitations={{ rust: 'The Rust projection contains these APIs, but the daily SDK generated for the Python hosting package used for this documentation does not compile because of invalid generated argument-map code. A verified Rust example is not available in this build.' }}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const pythonApp = await builder.addPythonApp("hello-python", "../hello-python", "main.py");
+await pythonApp.withHttpEndpoint({ env: "PORT" });
+await pythonApp.withExternalHttpEndpoints();
+await pythonApp.withOtlpExporter();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var pythonApp = builder.AddPythonApp("hello-python", "../hello-python", "main.py")
-       .WithHttpEndpoint(env: "PORT")
-       .WithExternalHttpEndpoints()
-       .WithOtlpExporter();
+    .WithHttpEndpoint(env: "PORT")
+    .WithExternalHttpEndpoints()
+    .WithOtlpExporter();
+
+builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_python_app(
+        "hello-python",
+        "../hello-python",
+        "main.py",
+    )
+    (
+        python_app.with_http_endpoint(env="PORT")
+        .with_external_http_endpoints()
+        .with_otlp_exporter()
+    )
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	pythonApp := builder.
+		AddPythonApp("hello-python", "../hello-python", "main.py").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
+			Env: aspire.StringPtr("PORT"),
+		}).
+		WithExternalHttpEndpoints().
+		WithOtlpExporter()
+	if err := pythonApp.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var pythonApp = builder.addPythonApp(
+        "hello-python",
+        "../hello-python",
+        "main.py");
+    pythonApp.withHttpEndpoint(
+        new WithHttpEndpointOptions().env("PORT"));
+    pythonApp.withExternalHttpEndpoints();
+    pythonApp.withOtlpExporter();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## To correct this error
 
-Suppress the error with either of the following methods:
+The following suppression options apply to C# AppHosts. For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
+
+Suppress the error with one of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 

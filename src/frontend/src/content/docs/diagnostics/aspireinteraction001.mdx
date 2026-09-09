@@ -5,27 +5,216 @@ description: Learn what causes the Aspire compiler warning ASPIREINTERACTION001 
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge text="Version introduced: 13.0" variant="note" size="large" class:list={'mb-1'} />
 
 > Interaction service types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-This diagnostic warns when using the experimental `IInteractionService` interface and related interaction APIs. These APIs provide the ability to prompt users for input, request confirmation, and display messages in the Aspire dashboard or CLI during publish and deploy operations.
+This diagnostic warns when using the experimental `IInteractionService` interface and related interaction APIs. These APIs provide the ability to prompt users for input in the Aspire dashboard or CLI during publish and deploy operations. Confirmation, message box, and notification interactions require the dashboard.
 
 ## Example generating diagnostic
+
+The C# example generates `ASPIREINTERACTION001`. The TypeScript, Python, Go, and Java SDKs expose the interaction service through a service-provider handle without emitting this C# compiler diagnostic. The example registers a dashboard resource command so the service is resolved after the application has started. All APIs used here belong to the core `Aspire.Hosting` SDK; no additional integration package is required. Python, Go, and Java examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs limitations={{
+  rust: "The generated Rust SDK exposes resource-command callbacks as raw `Fn(Vec<Value>) -> Value` callbacks, without converting their arguments to `ExecuteCommandContext`. This example requires that typed context to resolve the interaction service.",
+}}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+const cache = await builder.addContainer("cache", { image: "redis" });
+
+await cache.withCommand("confirm", "Confirm action", async (context) => {
+  const services = await context.services();
+  const interactionService = await services.getInteractionService();
+
+  if (!await interactionService.isAvailable()) {
+    return { success: false, errorMessage: "Interactive confirmation is unavailable." };
+  }
+
+  const result = await interactionService.promptConfirmation(
+    "Confirmation",
+    "Are you sure you want to proceed?"
+  );
+
+  return { success: !result.canceled && result.value === true };
+});
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Using IInteractionService from an IServiceProvider instance
-var interactionService = serviceProvider.GetRequiredService<IInteractionService>();
-if (interactionService.IsAvailable)
-{
-    var result = await interactionService.PromptConfirmationAsync(
-        title: "Confirmation",
-        message: "Are you sure you want to proceed?");
+builder.AddContainer("cache", "redis")
+    .WithCommand("confirm", "Confirm action", async context =>
+    {
+        var interactionService = context.Services
+            .GetRequiredService<IInteractionService>();
+
+        if (!interactionService.IsAvailable)
+        {
+            return new ExecuteCommandResult
+            {
+                Success = false,
+                ErrorMessage = "Interactive confirmation is unavailable."
+            };
+        }
+
+        var result = await interactionService.PromptConfirmationAsync(
+            title: "Confirmation",
+            message: "Are you sure you want to proceed?");
+
+        return new ExecuteCommandResult { Success = !result.Canceled && result.Data };
+    });
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import ExecuteCommandContext, ExecuteCommandResult, create_builder
+
+
+def confirm_action(context: ExecuteCommandContext) -> ExecuteCommandResult:
+    interaction_service = context.services.get_interaction_service()
+    if not interaction_service.is_available():
+        return {
+            "Success": False,
+            "ErrorMessage": "Interactive confirmation is unavailable.",
+        }
+
+    result = interaction_service.prompt_confirmation(
+        "Confirmation",
+        "Are you sure you want to proceed?",
+    )
+    return {
+        "Success": not result["Canceled"] and result.get("Value") is True,
+    }
+
+
+with create_builder() as builder:
+    cache = builder.add_container("cache", "redis")
+    cache.with_command("confirm", "Confirm action", confirm_action)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func commandFailure(message string) *aspire.ExecuteCommandResult {
+	return &aspire.ExecuteCommandResult{
+		Success:      false,
+		ErrorMessage: aspire.StringPtr(message),
+	}
+}
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cache := builder.AddContainer("cache", "redis").
+		WithCommand("confirm", "Confirm action", func(context aspire.ExecuteCommandContext) *aspire.ExecuteCommandResult {
+			services := context.Services()
+			if err := services.Err(); err != nil {
+				return commandFailure(err.Error())
+			}
+
+			interactionService := services.GetInteractionService()
+			if err := interactionService.Err(); err != nil {
+				return commandFailure(err.Error())
+			}
+
+			available, err := interactionService.IsAvailable()
+			if err != nil {
+				return commandFailure(err.Error())
+			}
+			if !available {
+				return commandFailure("Interactive confirmation is unavailable.")
+			}
+
+			result, err := interactionService.PromptConfirmation(
+				"Confirmation",
+				"Are you sure you want to proceed?",
+			)
+			if err != nil {
+				return commandFailure(err.Error())
+			}
+
+			return &aspire.ExecuteCommandResult{
+				Success: !result.Canceled && result.Value != nil && *result.Value,
+			}
+		})
+	if err := cache.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
 }
 ```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var cache = builder.addContainer("cache", "redis");
+    cache.withCommand("confirm", "Confirm action", context -> {
+        var interactionService = context.services().getInteractionService();
+        var commandResult = new ExecuteCommandResult();
+
+        if (!interactionService.isAvailable()) {
+            commandResult.setSuccess(false);
+            commandResult.setErrorMessage(
+                "Interactive confirmation is unavailable.");
+            return commandResult;
+        }
+
+        var result = interactionService.promptConfirmation(
+            "Confirmation",
+            "Are you sure you want to proceed?");
+        commandResult.setSuccess(
+            !result.getCanceled() && Boolean.TRUE.equals(result.getValue()));
+        return commandResult;
+    });
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 The diagnostic is triggered because `IInteractionService` is marked with the `[Experimental("ASPIREINTERACTION001")]` attribute.
 
@@ -54,7 +243,11 @@ This API is experimental because the interaction patterns and API surface may ev
 - **`PromptInputAsync()`**: Prompts for a single input value
 - **`PromptInputsAsync()`**: Prompts for multiple input values
 
+The TypeScript SDK exports `promptMessageBox`, `promptNotification`, `promptConfirmation`, `promptInput`, and `promptInputs` on the interaction-service handle. For input prompts, use its `createTextInput`, `createSecretInput`, `createChoiceInput`, `createBooleanInput`, or `createNumberInput` methods to create `InteractionInputBuilder` handles, rather than constructing C# `InteractionInput` objects. See [Interaction service](/extensibility/interaction-service/) for these workflows.
+
 ## Suppressing the diagnostic
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 The diagnostic can be suppressed using one of several methods:
 
@@ -77,10 +270,7 @@ dotnet_diagnostic.ASPIREINTERACTION001.severity = none
 
 ```csharp title="Suppressing the warning"
 #pragma warning disable ASPIREINTERACTION001
-var interactionService = serviceProvider.GetRequiredService<IInteractionService>();
-var result = await interactionService.PromptConfirmationAsync(
-    title: "Confirmation",
-    message: "Are you sure?");
+// Register the resource command from the example above.
 #pragma warning restore ASPIREINTERACTION001
 ```
 

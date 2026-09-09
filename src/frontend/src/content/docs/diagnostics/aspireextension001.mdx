@@ -25,22 +25,28 @@ This diagnostic warning is reported when using experimental extension debugging 
 
 These APIs are primarily used by integration authors to enable F5 debugging for custom resource types in Visual Studio and other IDEs. 
 
+:::note[Generated AppHost SDK applicability]
+Generic debug launch configuration (`WithDebugSupport`), debug-support inspection, and `WithLaunchToolArgs` aren't exported to the generated AppHost SDKs. These C#-only integration-author APIs use .NET annotations and launch-configuration types; this warning and its suppression apply only to C#.
+:::
+
 `WithLaunchToolArgs` declares the tool-invocation prefix for the tool that hosts a program (for example `run ./cmd/api` for `go` launcher/CLI, or `-m flask` for `python` CLI), separating it from program-specific arguments a caller adds with `WithArgs`. This allows extensions and IDEs to vary host tool arguments as necessary to reach the desired execution mode of the program (e.g. running under debugger vs not, enabling or disabling profiling etc.) without affecting startup arguments the program sees itself.
 
 ## Example
 
-The following code generates `ASPIREEXTENSION001`:
+The following code generates `ASPIREEXTENSION001`. It assumes your integration defines `AddMyResource` and a `MyLaunchConfiguration` derived from `ExecutableLaunchConfiguration`. The callback receives the requested launch mode, not a process ID:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddMyResource("resource")
     .WithDebugSupport(
-        processId => new MyLaunchConfiguration { ProcessId = processId },
+        mode => new MyLaunchConfiguration { Mode = mode },
         "myResourceType");
 ```
 
 ## To correct this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 Suppress the warning with either of the following methods:
 

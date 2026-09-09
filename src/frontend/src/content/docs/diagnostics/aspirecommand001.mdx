@@ -5,6 +5,7 @@ description: Learn what causes the Aspire compiler warning ASPIRECOMMAND001 and 
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge
   text="Version introduced: 13.2"
@@ -28,22 +29,127 @@ The simpler `WithRequiredCommand(command, helpLink)` overload isn't experimental
 
 ## Example
 
-The following code generates `ASPIRECOMMAND001`:
+The C# example generates `ASPIRECOMMAND001`. The TypeScript, Python, Go, and Java SDKs expose the equivalent required-command validation operation without emitting this C# compiler diagnostic. These APIs belong to the core `Aspire.Hosting` SDK, so no additional integration package is required. Python, Go, and Java examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs limitations={{
+  rust: "The generated Rust SDK exposes required-command validation callbacks as raw `Fn(Vec<Value>) -> Value` callbacks, without converting their arguments and results to `RequiredCommandValidationContext` and `RequiredCommandValidationResult`. This example requires the typed callback API.",
+}}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const cache = await builder.addContainer("cache", { image: "redis" });
+await cache.withRequiredCommandValidation("redis-cli", async (context) => {
+  return await context.success();
+});
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddContainer("db", "postgres")
+builder.AddContainer("cache", "redis")
     .WithRequiredCommand(
-        "psql",
+        "redis-cli",
         context => Task.FromResult(context.Success()));
 
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import RequiredCommandValidationContext, create_builder
+
+
+def validate_command(context: RequiredCommandValidationContext):
+    return context.success()
+
+
+with create_builder() as builder:
+    cache = builder.add_container("cache", "redis")
+    cache.with_required_command_validation("redis-cli", validate_command)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cache := builder.AddContainer("cache", "redis").
+		WithRequiredCommandValidation(
+			"redis-cli",
+			func(context aspire.RequiredCommandValidationContext) aspire.RequiredCommandValidationResult {
+				result := context.Success()
+				if err := result.Err(); err != nil {
+					log.Fatal(aspire.FormatError(err))
+				}
+				return result
+			},
+		)
+	if err := cache.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var cache = builder.addContainer("cache", "redis");
+    cache.withRequiredCommandValidation(
+        "redis-cli",
+        RequiredCommandValidationContext::success);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 The diagnostic is triggered because the `WithRequiredCommand` validation-callback overload and the `RequiredCommandValidationContext` type are marked with the `[Experimental("ASPIRECOMMAND001")]` attribute.
 
 ## To correct this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 Suppress the warning with one of the following methods:
 
@@ -68,7 +174,7 @@ Suppress the warning with one of the following methods:
 
   ```csharp title="Suppressing the warning"
   #pragma warning disable ASPIRECOMMAND001
-  builder.AddContainer("db", "postgres")
-      .WithRequiredCommand("psql", context => Task.FromResult(context.Success()));
+  builder.AddContainer("cache", "redis")
+      .WithRequiredCommand("redis-cli", context => Task.FromResult(context.Success()));
   #pragma warning restore ASPIRECOMMAND001
   ```

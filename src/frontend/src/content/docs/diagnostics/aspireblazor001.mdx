@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler warning ASPIREBLAZOR001 and h
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 13.4"
@@ -21,9 +23,35 @@ This diagnostic warning is reported when using experimental Blazor WebAssembly h
 - `BlazorHostedExtensions` — client wiring for a hosted Blazor Web App
 - `BlazorWasmAppResource` — the resource type that represents a Blazor WebAssembly app
 
+The gateway and path-based WebAssembly registration APIs have generated AppHost SDK equivalents, shown below. The `BlazorHostedExtensions` methods `ProxyBlazorService` and `ProxyBlazorTelemetry` are C#-only; they aren't exported to the generated AppHost SDKs.
+
 ## Example
 
-The following code generates `ASPIREBLAZOR001`:
+Install the Blazor hosting integration:
+
+<InstallPackage packageName="Aspire.Hosting.Blazor" />
+
+The C# example generates `ASPIREBLAZOR001`. The generated SDK examples configure the same resources without a C# compiler diagnostic. The path-based C# `AddBlazorWasmApp` method is exported as `addBlazorWasmProject` in TypeScript; the generic `AddBlazorWasmProject<TProject>` overload is C#-only.
+
+For the daily CLI, matching packages, and feature flags required by Python, Go, Java, and Rust, see [Experimental AppHost examples](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const gateway = await builder.addBlazorGateway("gateway");
+const store = await builder.addBlazorWasmProject("store", "../Store/Store.csproj");
+await gateway.withBlazorClientApp(store);
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -37,7 +65,106 @@ gateway.WithBlazorClientApp(store);
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    gateway = builder.add_blazor_gateway("gateway")
+    store = builder.add_blazor_wasm_project("store", "../Store/Store.csproj")
+    gateway.with_blazor_client_app(store)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	gateway := builder.AddBlazorGateway("gateway")
+	store := builder.AddBlazorWasmProject("store", "../Store/Store.csproj")
+	if err := store.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	gateway.WithBlazorClientApp(store)
+	if err := gateway.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var gateway = builder.addBlazorGateway("gateway");
+    var store = builder.addBlazorWasmProject(
+        "store",
+        "../Store/Store.csproj");
+    gateway.withBlazorClientApp(store);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let gateway = builder.add_blazor_gateway("gateway")?;
+    let store =
+        builder.add_blazor_wasm_project("store", "../Store/Store.csproj")?;
+    gateway.with_blazor_client_app(&store, None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ## To correct this warning
+
+The following suppression options apply to C# AppHosts. For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 Suppress the warning with one of the following methods:
 

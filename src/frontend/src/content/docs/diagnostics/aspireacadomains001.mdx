@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler error ASPIREACADOMAINS001 and
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 9.0"
@@ -29,25 +31,219 @@ When you use one of these methods, the Azure Developer CLI (`azd`) can no longer
 
 ## Example
 
-Before Aspire 13.5, the following code generated `ASPIREACADOMAINS001`:
+Install the Azure Container Apps hosting integration:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.AppContainers" />
+
+For generated AppHost SDK setup, see [Experimental AppHost examples](/diagnostics/overview/#experimental-apphost-examples).
+
+The following examples configure a custom domain across supported AppHost languages. Before Aspire 13.5, the C# call generated `ASPIREACADOMAINS001`; generated AppHost SDKs don't emit this C# compiler diagnostic.
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addAzureContainerAppEnvironment('env');
+const customDomain = await builder.addParameter('customDomain');
+const certificateName = await builder.addParameter('certificateName');
+
+const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+await api.withExternalHttpEndpoints();
+await api.publishAsAzureContainerApp(async (infra, app) => {
+  await app.configureCustomDomain(customDomain, certificateName);
+});
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("env");
 var customDomain = builder.AddParameter("customDomain");
 var certificateName = builder.AddParameter("certificateName");
 
 builder.AddProject<Projects.AzureContainerApps_ApiService>("api")
-       .WithExternalHttpEndpoints()
-       .PublishAsAzureContainerApp((infra, app) =>
-       {
-           app.ConfigureCustomDomain(customDomain, certificateName);
-       });
+    .WithExternalHttpEndpoints()
+    .PublishAsAzureContainerApp((infra, app) =>
+    {
+        app.ConfigureCustomDomain(customDomain, certificateName);
+    });
+
+builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+
+with create_builder() as builder:
+    builder.add_azure_container_app_env("env")
+    custom_domain = builder.add_parameter("customDomain")
+    certificate_name = builder.add_parameter("certificateName")
+
+    api = builder.add_project("api", "../ApiService/ApiService.csproj")
+    api.with_external_http_endpoints()
+    api.publish_as_azure_container_app(
+        lambda _infra, app: app.configure_custom_domain(
+            custom_domain,
+            certificate_name,
+        )
+    )
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	env := builder.AddAzureContainerAppEnvironment("env")
+	customDomain := builder.AddParameter("customDomain")
+	certificateName := builder.AddParameter("certificateName")
+	api := builder.
+		AddProject("api", "../ApiService/ApiService.csproj").
+		WithExternalHttpEndpoints().
+		PublishAsAzureContainerApp(
+			func(_ aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {
+				if err := app.ConfigureCustomDomain(customDomain, certificateName); err != nil {
+					log.Fatal(aspire.FormatError(err))
+				}
+			})
+	for _, err := range []error{
+		env.Err(),
+		customDomain.Err(),
+		certificateName.Err(),
+		api.Err(),
+	} {
+		if err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addAzureContainerAppEnvironment("env");
+    var customDomain = builder.addParameter("customDomain");
+    var certificateName = builder.addParameter("certificateName");
+
+    var api = builder.addProject(
+        "api",
+        "../ApiService/ApiService.csproj");
+    api.withExternalHttpEndpoints();
+    api.publishAsAzureContainerApp(
+        (_infra, app) -> app.configureCustomDomain(
+            customDomain,
+            certificateName));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+The generated Rust callback receives raw handle values. Reconstruct the public
+`ContainerApp` wrapper before configuring the custom domain:
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::Value;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    builder.add_azure_container_app_environment("env")?;
+    let custom_domain = builder.add_parameter(
+        "customDomain",
+        None,
+        None,
+        None,
+    )?;
+    let certificate_name = builder.add_parameter(
+        "certificateName",
+        None,
+        None,
+        None,
+    )?;
+
+    let api = builder.add_project(
+        "api",
+        "../ApiService/ApiService.csproj",
+        None,
+    )?;
+    api.with_external_http_endpoints()?;
+
+    let client = api.client().clone();
+    api.publish_as_azure_container_app(move |args| {
+        let handle = serde_json::from_value(args[1].clone())
+            .expect("Container App callback argument");
+        let app = ContainerApp::new(handle, client.clone());
+        app.configure_custom_domain(&custom_domain, &certificate_name)
+            .expect("configure custom domain");
+        Value::Null
+    })?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## To correct this error
 
 If you use Aspire 13.5 or later, you don't need to suppress this diagnostic and can remove any existing `ASPIREACADOMAINS001` suppressions.
 
 If you use an Aspire version earlier than 13.5, suppress the diagnostic with one of the following methods:
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 - Set the severity of the rule in the _.editorconfig_ file.
 

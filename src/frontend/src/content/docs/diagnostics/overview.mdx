@@ -4,7 +4,11 @@ seoTitle: 'Aspire diagnostics overview: ASPIRE compiler diagnostics'
 description: Learn about the diagnostics tools and features available in Aspire — analyzers, compiler errors, the dashboard, structured telemetry, and troubleshooting workflows.
 ---
 
-The following table lists the possible MSBuild and analyzer warnings and errors you might encounter with Aspire:
+The following table lists the possible MSBuild and analyzer warnings and errors you might encounter with Aspire.
+
+These diagnostic IDs describe checks performed by the .NET build tools and C# analyzers. AppHosts written in TypeScript, Python, Go, Java, and Rust can use many of the same hosting APIs without emitting the corresponding C# compiler diagnostic. Diagnostic pages include a language variant only where its generated SDK supports the operation. The examples share your `aspire-lang` selection and default to TypeScript when you haven't selected a language.
+
+MSBuild configuration, C# integration-authoring examples, and C# diagnostic suppressions remain language-specific. An API's experimental status still applies across AppHost languages, even when no compiler suppression is required. Python, Go, Java, and Rust AppHost authoring is also experimental; see [Experimental AppHost examples](#experimental-apphost-examples).
 
 | Diagnostic ID                                                                      | Type                   | Description                                                                                                                                                                                    |
 | ---------------------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -74,22 +78,37 @@ The following table lists the possible MSBuild and analyzer warnings and errors 
 | [ASPIREUSERSECRETS001](/diagnostics/aspireusersecrets001/)                         | (Experimental) Warning | Type is for evaluation purposes only and is subject to change or removal in future updates.                                                                                                    |
 | [ASPIREWATCH001](/diagnostics/aspirewatch001/)                                     | (Experimental) Warning | Run mode configuration types and members are for evaluation purposes only and are subject to change or removal in future updates.                                                              |
 
+## Experimental AppHost examples
+
+The Python, Go, Java, and Rust examples target the dev-channel Aspire CLI and matching prerelease hosting packages, not the Aspire 13.5.3 release. Their signatures match the daily generated SDK used for this documentation. Use the [Aspire CLI installer](/get-started/install-cli/) with the dev channel and regenerate your AppHost SDK after adding the integration packages named on the diagnostic page.
+
+Enable the feature flag for your AppHost language:
+
+```bash title="Enable an experimental AppHost language"
+aspire config set features:experimentalPolyglot:python true --global
+```
+
+Replace `python` with `go`, `java`, or `rust` for those AppHosts. Experimental language availability is separate from an individual API's experimental status: neither flag removes C# compiler diagnostics or makes unexported C# callbacks available in a generated SDK. When an operation isn't available, the example explains the limitation instead of showing a substitute implementation.
+
 ## Suppress diagnostic
 
-You can suppress any diagnostic in this document using one of the following methods:
+For a suppressible C# diagnostic, use a method supported by that diagnostic:
 
 - Add the `System.Diagnostics.CodeAnalysis.SuppressMessageAttribute` at the assembly, class, method, line, etc.
 - Include the diagnostic ID in the `NoWarn` property of your project file.
+- For a C# file-based AppHost, set `NoWarn` with a `#:property` directive.
 - Use preprocessor directives in your code.
 - Configure diagnostic severity in an _.editorconfig_ file.
 
-There are some common patterns for suppressing diagnostics in .NET projects. The best method depends on your context and the specific diagnostic. Here's a quick guide to help you choose:
+These methods apply to C# code and .NET builds, not to `apphost.mts`. Read the diagnostic's guidance before suppressing it: configuration errors and invalid resource names should be corrected, and not every diagnostic supports every suppression method.
 
 :::note[Important]
 The following sections provide examples for suppressing the `ASPIREE000` diagnostic, which is a placeholder for any diagnostic ID you might encounter. Replace `ASPIREE000` with the actual diagnostic ID you want to suppress.
 :::
 
 ### Suppress with the suppress message attribute
+
+This attribute is for analyzer diagnostics that support it. It doesn't suppress C# compiler diagnostics, including diagnostics emitted by `[Experimental]`; use `NoWarn` or `#pragma warning disable` for those instead.
 
 The `System.Diagnostics.CodeAnalysis.SuppressMessageAttribute` is ideal when you need targeted, documented suppression tied directly to a specific code element like a class or method. It shines when you're making a deliberate exception to a rule that is valid in most other places. This attribute keeps the suppression close to the code it affects, which helps reviewers and future maintainers understand the rationale. While it's a clean solution for isolated cases, it can clutter the code if overused, and it's not the best choice for widespread or bulk suppressions.
 
@@ -123,6 +142,20 @@ Adding the diagnostic ID to the `NoWarn` property in your _.csproj_ file is a st
     <NoWarn>$(NoWarn);ASPIREE000</NoWarn>
 </PropertyGroup>
 ```
+
+### Suppress in a file-based AppHost
+
+A C# [file-based AppHost](/get-started/aspire-sdk/) doesn't have a _.csproj_ file to edit. Add a `#:property` directive at the top of _AppHost.cs_, alongside its existing `#:sdk` and `#:package` directives:
+
+```csharp title="AppHost.cs"
+#:property NoWarn=$(NoWarn);ASPIREE000
+```
+
+This sets the `NoWarn` MSBuild property on the project generated for the file-based app. Keep `$(NoWarn)` to preserve existing suppressions, and separate additional diagnostic IDs with semicolons. Replace `ASPIREE000` with the actual suppressible diagnostic ID.
+
+The directive applies to the whole file-based app. To suppress a diagnostic only around a particular API call, use the [preprocessor directives](#suppress-with-preprocessor-directives) below instead; they work in both file-based and project-based C# AppHosts. You don't need to create a project file or convert the app.
+
+For more information, see [File-based app directives](https://learn.microsoft.com/dotnet/core/sdk/file-based-apps#supported-directives).
 
 ### Suppress with preprocessor directives
 

@@ -5,6 +5,7 @@ description: Learn what causes the Aspire compiler error ASPIREPIPELINES003 and 
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge
   text="Version introduced: 13.0"
@@ -31,7 +32,141 @@ This diagnostic applies to the following container image build APIs:
 - Docker and Podman container runtime implementations
 - Related extension methods and implementations
 
+## Configure a container build
+
+The core AppHost SDK exports container build configuration to TypeScript, Python, Go, and Java. The following examples select the Linux AMD64 target platform and OCI image format for a resource built from a Dockerfile. No additional hosting package is required; the `../Api` directory must contain the application's Dockerfile and build context. Python, Go, and Java examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs limitations={{
+  rust: "The generated Rust SDK exposes container build callbacks as raw `Fn(Vec<Value>) -> Value` callbacks, without converting their arguments to `ContainerBuildOptionsCallbackContext`. These examples require the typed callback-context API.",
+}}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import {
+    ContainerImageFormat,
+    ContainerTargetPlatform,
+    createBuilder,
+} from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const api = await builder.addDockerfile("api", "../Api");
+await api.withContainerBuildOptions(async context => {
+    await context.setTargetPlatform(ContainerTargetPlatform.LinuxAmd64);
+    await context.setImageFormat(ContainerImageFormat.Oci);
+});
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Publishing;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerfile("api", "../Api")
+    .WithContainerBuildOptions(context =>
+    {
+        context.TargetPlatform = ContainerTargetPlatform.LinuxAmd64;
+        context.ImageFormat = ContainerImageFormat.Oci;
+        return Task.CompletedTask;
+    });
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import ContainerBuildOptionsCallbackContext, create_builder
+
+
+def configure_build(context: ContainerBuildOptionsCallbackContext) -> None:
+    context.target_platform = "LinuxAmd64"
+    context.image_format = "Oci"
+
+
+with create_builder() as builder:
+    api = builder.add_dockerfile("api", "../Api")
+    api.with_container_build_options(configure_build)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddDockerfile("api", "../Api").
+		WithContainerBuildOptions(func(context aspire.ContainerBuildOptionsCallbackContext) {
+			platform := aspire.ContainerTargetPlatformLinuxAmd64
+			format := aspire.ContainerImageFormatOci
+			context.
+				SetTargetPlatform(&platform).
+				SetImageFormat(&format)
+			if err := context.Err(); err != nil {
+				log.Fatal(aspire.FormatError(err))
+			}
+		})
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var api = builder.addDockerfile("api", "../Api");
+    api.withContainerBuildOptions(context -> {
+        context.setTargetPlatform(ContainerTargetPlatform.LINUX_AMD64);
+        context.setImageFormat(ContainerImageFormat.OCI);
+    });
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+The C# build configuration APIs generate `ASPIREPIPELINES003`; the TypeScript, Python, Go, and Java SDKs expose the same experimental AppHost configuration without emitting this C# compiler diagnostic. Implementing `IResourceContainerImageBuilder` or a container runtime remains .NET extensibility work, not an AppHost operation in these SDKs.
+
 ## To correct this error
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost). Suppression is only needed for C#.
 
 Suppress the error with one of the following methods:
 

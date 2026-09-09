@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler warning ASPIREACANAMING001 an
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 13.2"
@@ -19,7 +21,30 @@ This diagnostic warning is reported when using the experimental `WithCompactReso
 
 ## Example
 
-The following code generates `ASPIREACANAMING001`:
+Install the Azure Container Apps hosting integration:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.AppContainers" />
+
+For generated AppHost SDK setup, see [Experimental AppHost examples](/diagnostics/overview/#experimental-apphost-examples).
+
+The following examples enable compact resource naming. The C# call generates `ASPIREACANAMING001`; generated AppHost SDKs expose the same experimental hosting operation without emitting this C# compiler diagnostic.
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const env = await builder.addAzureContainerAppEnvironment('env');
+await env.withCompactResourceNaming();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -30,7 +55,97 @@ builder.AddAzureContainerAppEnvironment("env")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    env = builder.add_azure_container_app_env("env")
+    env.with_compact_resource_naming()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	env := builder.
+		AddAzureContainerAppEnvironment("env").
+		WithCompactResourceNaming()
+	if err := env.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addAzureContainerAppEnvironment("env")
+        .withCompactResourceNaming();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let env = builder.add_azure_container_app_environment("env")?;
+    env.with_compact_resource_naming()?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ## To correct this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost). Suppression is only needed for C#.
 
 Suppress the warning with one of the following methods:
 
