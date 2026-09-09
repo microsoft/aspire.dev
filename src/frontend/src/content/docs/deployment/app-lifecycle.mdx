@@ -37,12 +37,17 @@ Each phase uses the same `AppHost` configuration, but each phase answers a diffe
 
 ### Example application
 
-The following example uses a C# AppHost, but the same workflow shape applies to TypeScript AppHosts.
+The workflow shape applies to every AppHost language. The complete Docker Compose example is currently available for C# and TypeScript because the daily Python, Go, Java, and Rust generated SDKs don't expose the required Docker Compose and SQL Server integration APIs.
 
 Consider [this example](https://github.com/BethMassi/VolumeMount/). You have a distributed application that consists of a Blazor web project that relies on a SQL Server database with a persistent data volume as well as a persistent writable file volume to capture user file uploads.
 You want to distribute your Blazor app as a Docker container image via the GitHub Container Registry. You need the [Aspire.Hosting.Docker](/integrations/compute/docker/) and [Aspire.Hosting.SqlServer](/integrations/databases/sql-server/sql-server-get-started/) integrations.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose the Docker Compose and SQL Server integration APIs required by this example.',
+  go: 'The daily Go generated SDK does not expose the Docker Compose and SQL Server integration APIs required by this example.',
+  java: 'The daily Java generated SDK does not expose the Docker Compose and SQL Server integration APIs required by this example.',
+  rust: 'The daily Rust generated SDK does not expose the Docker Compose and SQL Server integration APIs required by this example.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -436,9 +441,9 @@ After the workflow completes, you have everything needed for production deployme
 | **Release**      | CI/CD workflow (i.e. GitHub Actions) | Publish to staging/ production | Cloud/Server                                         | Container     | Container |
 
 <Aside type="tip">
-  This example uses a C# AppHost, but the same workflow shape applies to
-  TypeScript AppHosts. Replace `.csproj` references with your `apphost.mts` path
-  as needed.
+  The lifecycle commands and CI/CD phases apply to every AppHost language. Use
+  the AppHost file and runtime setup for your selected language; the deployment
+  target must also be available in that language's generated SDK.
 </Aside>
 
 The AppHost is the **single source of truth** for your application architecture. Each phase above uses the exact same AppHost configuration. This eliminates configuration drift between development and deployment. It defines things your distributed application needs like:

@@ -61,7 +61,12 @@ flowchart LR
     App --> Frontend["Vite build output"]
 ```
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Node.js or Vite resource capabilities.',
+  go: 'The daily Go generated SDK does not expose Node.js or Vite resource capabilities.',
+  java: 'The daily Java generated SDK does not expose Node.js or Vite resource capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Node.js or Vite resource capabilities.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -139,7 +144,12 @@ flowchart LR
     YARP --> Frontend["Frontend routes"]
 ```
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Node.js, Vite, or YARP resource capabilities.',
+  go: 'The daily Go generated SDK does not expose Node.js, Vite, or YARP resource capabilities.',
+  java: 'The daily Java generated SDK does not expose Node.js, Vite, or YARP resource capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Node.js, Vite, or YARP resource capabilities.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -201,7 +211,12 @@ await builder.build().run();
 
 If your gateway or BFF needs to know about the frontend dev server during local development, gate that wiring to run mode only:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python exposes execution-context checks, but the daily generated SDK does not expose Vite or YARP resource capabilities.',
+  go: 'Go exposes execution-context checks, but the daily generated SDK does not expose Vite or YARP resource capabilities.',
+  java: 'Java exposes execution-context checks, but the daily generated SDK does not expose Vite or YARP resource capabilities.',
+  rust: 'Rust exposes execution-context checks, but the daily generated SDK does not expose Vite or YARP resource capabilities.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -274,7 +289,12 @@ Use `PublishAsStaticWebsite` when the framework produces static files and you wa
 
 Choose this shape instead of `PublishWithStaticFiles(...)` when you do not already have a gateway or BFF resource that should own the public route table. If you already have an explicit YARP resource for gateway or BFF behavior, keep using `PublishWithStaticFiles(...)` on that resource.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Docker Compose, Node.js, Vite, or static-website publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Docker Compose, Node.js, Vite, or static-website publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Docker Compose, Node.js, Vite, or static-website publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Docker Compose, Node.js, Vite, or static-website publishing capabilities.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -365,7 +385,12 @@ Use `PublishAsNodeServer` for frameworks that produce a self-contained Node.js s
 
 Choose this method instead of `PublishAsPackageScript` when the build output does not need a production `node_modules` install at runtime. The resulting image can be smaller because it copies the server artifact rather than the full application with production dependencies.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Docker Compose, Node.js, Vite, or Node-server publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Docker Compose, Node.js, Vite, or Node-server publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Docker Compose, Node.js, Vite, or Node-server publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Docker Compose, Node.js, Vite, or Node-server publishing capabilities.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -426,7 +451,12 @@ Use `PublishAsPackageScript` for SSR frameworks that start production by running
 
 Choose this method instead of `PublishAsNodeServer` when the production server imports packages from `node_modules` at runtime or the framework's recommended production command is a package script.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Docker Compose, Node.js, Vite, or package-script publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Docker Compose, Node.js, Vite, or package-script publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Docker Compose, Node.js, Vite, or package-script publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Docker Compose, Node.js, Vite, or package-script publishing capabilities.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -490,6 +520,14 @@ The generated container sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the server
 - **pnpm**: The runtime stage runs `corepack enable pnpm && pnpm --version` before the entrypoint, so pnpm is available when the start script executes. Without this step, the container fails at startup with exit code 127 because pnpm is not included in the base `node:alpine` image.
 - **Bun**: The runtime stage reuses the Bun build image rather than switching to a Node.js image, because `bun run <script>` requires the Bun runtime at startup.
 
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Docker Compose, JavaScript app, pnpm, or package-script publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Docker Compose, JavaScript app, pnpm, or package-script publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Docker Compose, JavaScript app, pnpm, or package-script publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Docker Compose, JavaScript app, pnpm, or package-script publishing capabilities.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs — pnpm package-script publish"
 #pragma warning disable ASPIREJAVASCRIPT001
 
@@ -505,6 +543,27 @@ var frontend = builder
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts — pnpm package-script publish"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addDockerComposeEnvironment('compose');
+
+await builder
+  .addJavaScriptApp('frontend', '../NodeFrontend')
+  .withPnpm()
+  .publishAsPackageScript({ scriptName: 'start' })
+  .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+</Fragment>
+</AppHostTabs>
+
 The generated Dockerfile for the pnpm case includes:
 
 ```dockerfile
@@ -518,7 +577,12 @@ Use `AddNextJsApp` for Next.js apps that use [standalone output](https://nextjs.
 
 Choose this method instead of `AddJavaScriptApp(...).PublishAsPackageScript(...)` for Next.js standalone deployments. Use the more general package-script publish method for frameworks where the production server should be started through the package manager and the framework does not have a dedicated Aspire resource.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Docker Compose, Node.js, or Next.js resource capabilities.',
+  go: 'The daily Go generated SDK does not expose Docker Compose, Node.js, or Next.js resource capabilities.',
+  java: 'The daily Java generated SDK does not expose Docker Compose, Node.js, or Next.js resource capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Docker Compose, Node.js, or Next.js resource capabilities.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -603,7 +667,12 @@ flowchart TD
 
 This is a natural model for many SPA teams, especially when they already think in terms of "static site + API". It can work, but it is not the primary Aspire deployment story for `AddViteApp` and `AddJavaScriptApp`.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Node.js or Vite resource capabilities.',
+  go: 'The daily Go generated SDK does not expose Node.js or Vite resource capabilities.',
+  java: 'The daily Java generated SDK does not expose Node.js or Vite resource capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Node.js or Vite resource capabilities.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -657,7 +726,12 @@ This shape pushes more work onto the browser/frontend boundary:
 
 The following example looks reasonable, but it is a trap in publish/deploy:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Node.js or Vite resource capabilities, so this unsupported deployment shape cannot be reproduced from Python.',
+  go: 'The daily Go generated SDK does not expose Node.js or Vite resource capabilities, so this unsupported deployment shape cannot be reproduced from Go.',
+  java: 'The daily Java generated SDK does not expose Node.js or Vite resource capabilities, so this unsupported deployment shape cannot be reproduced from Java.',
+  rust: 'The daily Rust generated SDK does not expose Node.js or Vite resource capabilities, so this unsupported deployment shape cannot be reproduced from Rust.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -762,6 +836,14 @@ The SSR examples below assume the AppHost captures the backend endpoint with `ap
 
 The AppHost snippets in this section assume this shared setup:
 
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Docker Compose or Node.js resource capabilities.',
+  go: 'The daily Go generated SDK does not expose Docker Compose or Node.js resource capabilities.',
+  java: 'The daily Java generated SDK does not expose Docker Compose or Node.js resource capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Docker Compose or Node.js resource capabilities.',
+}}>
+<Fragment slot="typescript">
+
 ```typescript title="AppHost — apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -776,12 +858,40 @@ const api = await builder
 const apiEndpoint = await api.getEndpoint('http');
 ```
 
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost — AppHost.cs"
+#pragma warning disable ASPIREJAVASCRIPT001
+
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddDockerComposeEnvironment("compose");
+
+var api = builder
+    .AddNodeApp("api", "./frameworks/api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+var apiEndpoint = api.GetEndpoint("http");
+```
+
+</Fragment>
+</AppHostTabs>
+
 #### Nuxt
 
 - **Directory structure**: Nuxt 4 places pages in `app/pages/`, not a root `pages/` directory.
 - **Environment variables**: Nuxt maps [`runtimeConfig`](https://nuxt.com/docs/getting-started/configuration#runtime-config) keys to env vars with a `NUXT_` prefix. To pass the backend URL, set `NUXT_API_URL` on the resource so Nuxt sees it as `runtimeConfig.apiUrl`. You can also set `API_URL` for code that reads `process.env.API_URL` directly.
 - **Server API routes**: The recommended pattern for calling external APIs from Nuxt is a [server API route](https://nuxt.com/docs/guide/directory-structure/server) (`server/api/<name>.ts`) that uses `useRuntimeConfig()`, consumed from a page via [`useAsyncData`](https://nuxt.com/docs/api/composables/use-async-data).
 - **Publish method**: Always use `PublishAsPackageScript` for Nuxt. The Nitro `.output/` looks self-contained, but server-side data fetching via `useAsyncData` / `useFetch` fails without the full `node_modules` available at runtime.
+
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Vite or package-script publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Vite or package-script publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Vite or package-script publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Vite or package-script publishing capabilities.',
+}}>
+<Fragment slot="typescript">
 
 ```typescript title="AppHost — apphost.mts"
 await builder
@@ -791,6 +901,21 @@ await builder
   .withEnvironment('NUXT_API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 ```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost — AppHost.cs"
+builder
+    .AddViteApp("nuxt", "./frameworks/nuxt", runScriptName: "dev")
+    .PublishAsPackageScript(scriptName: "start")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithEnvironment("NUXT_API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+```
+
+</Fragment>
+</AppHostTabs>
 
 ```typescript title="Nuxt — nuxt.config.ts"
 export default defineNuxtConfig({
@@ -823,6 +948,14 @@ export default defineEventHandler(async () => {
 - **Environment variables**: Use `process.env.API_URL`, not `import.meta.env.API_URL`. `import.meta.env` values are resolved at build time and baked into the output.
 - **Runtime dependencies**: The built `entry.mjs` imports unbundled `@astrojs/*` packages, so SSR Astro must use `PublishAsPackageScript`. The [official Docker recipe](https://docs.astro.build/en/recipes/docker/#multi-stage-build-using-ssr) confirms `node_modules` must be copied into the runtime image.
 
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Vite or package-script publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Vite or package-script publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Vite or package-script publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Vite or package-script publishing capabilities.',
+}}>
+<Fragment slot="typescript">
+
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('astro-ssr', './frameworks/astro-ssr', { runScriptName: 'dev' })
@@ -830,6 +963,20 @@ await builder
   .withEnvironment('API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 ```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost — AppHost.cs"
+builder
+    .AddViteApp("astro-ssr", "./frameworks/astro-ssr", runScriptName: "dev")
+    .PublishAsPackageScript(scriptName: "start")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+```
+
+</Fragment>
+</AppHostTabs>
 
 ```javascript title="Astro SSR — astro.config.mjs"
 import { defineConfig } from 'astro/config';
@@ -866,6 +1013,14 @@ const weather = response.ok ? await response.json() : [];
 - **Server-side data**: Use a [`+page.server.ts`](https://svelte.dev/docs/kit/load) `load` function for server-side fetching. `process.env.API_URL` is available inside the load function.
 - **Output shape**: The `build/` directory is fully self-contained, so no `node_modules` are required at runtime. This makes SvelteKit a good fit for `PublishAsNodeServer`.
 
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Vite or Node-server publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Vite or Node-server publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Vite or Node-server publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Vite or Node-server publishing capabilities.',
+}}>
+<Fragment slot="typescript">
+
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('sveltekit', './frameworks/sveltekit', { runScriptName: 'dev' })
@@ -873,6 +1028,20 @@ await builder
   .withEnvironment('API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 ```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost — AppHost.cs"
+builder
+    .AddViteApp("sveltekit", "./frameworks/sveltekit", runScriptName: "dev")
+    .PublishAsNodeServer(entryPoint: "build/index.js", outputPath: "build")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+```
+
+</Fragment>
+</AppHostTabs>
 
 ```javascript title="SvelteKit — svelte.config.js"
 import adapter from '@sveltejs/adapter-node';
@@ -911,12 +1080,33 @@ export const load: PageServerLoad = async ({ fetch }) => {
 - **Copy shape**: The standalone build produces three directories that must be copied separately into the runtime image: `.next/standalone/` (server + bundled deps), `.next/static/` (client assets), and `public/` (static files). `AddNextJsApp` handles this automatically; see the [official with-docker example](https://github.com/vercel/next.js/tree/canary/examples/with-docker) if you need to do it manually.
 - **Server components**: Default App Router components are [server components](https://nextjs.org/docs/app/getting-started/server-and-client-components). Use `async` directly in the component body to fetch data; no special loader pattern is needed.
 
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Next.js resource capabilities.',
+  go: 'The daily Go generated SDK does not expose Next.js resource capabilities.',
+  java: 'The daily Java generated SDK does not expose Next.js resource capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Next.js resource capabilities.',
+}}>
+<Fragment slot="typescript">
+
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addNextJsApp('nextjs', './frameworks/nextjs', { runScriptName: 'dev' })
   .withEnvironment('API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 ```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost — AppHost.cs"
+builder
+    .AddNextJsApp("nextjs", "./frameworks/nextjs", runScriptName: "dev")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+```
+
+</Fragment>
+</AppHostTabs>
 
 ```typescript title="Next.js — next.config.ts"
 import type { NextConfig } from 'next';
@@ -951,6 +1141,14 @@ export default async function Home() {
 - **Server functions**: Use [`createServerFn`](https://tanstack.com/start/latest/docs/framework/react/server-functions) for server-side data loading from route loaders.
 - **Environment variables**: `process.env.API_URL` is available inside server functions at runtime.
 
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Vite or Node-server publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Vite or Node-server publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Vite or Node-server publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Vite or Node-server publishing capabilities.',
+}}>
+<Fragment slot="typescript">
+
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('tanstack-start', './frameworks/tanstack-start', {
@@ -960,6 +1158,25 @@ await builder
   .withEnvironment('API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 ```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost — AppHost.cs"
+builder
+    .AddViteApp(
+        "tanstack-start",
+        "./frameworks/tanstack-start",
+        runScriptName: "dev")
+    .PublishAsNodeServer(
+        entryPoint: ".output/server/index.mjs",
+        outputPath: ".output")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+```
+
+</Fragment>
+</AppHostTabs>
 
 ```tsx title="TanStack Start — src/routes/index.tsx"
 import { createFileRoute } from '@tanstack/react-router';
@@ -987,6 +1204,14 @@ export const Route = createFileRoute('/')({
 - **Server binary**: `react-router-serve` lives in `node_modules`; it's not bundled into the build output. This is why Remix needs `PublishAsPackageScript` rather than `PublishAsNodeServer`. See the [React Router deployment guide](https://reactrouter.com/start/framework/deploying) and the [`node-custom-server` template](https://github.com/remix-run/react-router-templates/tree/main/node-custom-server) for production server patterns.
 - **Port binding**: Pass `-- --port "$PORT"` as `runScriptArguments` so the server listens on Aspire's assigned port.
 
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Vite or package-script publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Vite or package-script publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Vite or package-script publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Vite or package-script publishing capabilities.',
+}}>
+<Fragment slot="typescript">
+
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('remix', './frameworks/remix', { runScriptName: 'dev' })
@@ -997,6 +1222,22 @@ await builder
   .withEnvironment('API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 ```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost — AppHost.cs"
+builder
+    .AddViteApp("remix", "./frameworks/remix", runScriptName: "dev")
+    .PublishAsPackageScript(
+        scriptName: "start",
+        runScriptArguments: "-- --port \"$PORT\"")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+```
+
+</Fragment>
+</AppHostTabs>
 
 ```json title="Remix — package.json"
 {
@@ -1031,6 +1272,14 @@ export async function loader() {
 - **Build steps**: Requires both `npm run build.client` and `npm run build.server`. The default `npm run build` runs both via `qwik build`.
 - **SSR data loading**: Use [`routeLoader$`](https://qwik.dev/docs/route-loader/) for server-side data loading. Read the backend URL via `process.env['API_URL']`.
 
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Vite or package-script publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Vite or package-script publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Vite or package-script publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Vite or package-script publishing capabilities.',
+}}>
+<Fragment slot="typescript">
+
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('qwik', './frameworks/qwik', { runScriptName: 'dev' })
@@ -1038,6 +1287,20 @@ await builder
   .withEnvironment('API_URL', apiEndpoint)
   .withExternalHttpEndpoints();
 ```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost — AppHost.cs"
+builder
+    .AddViteApp("qwik", "./frameworks/qwik", runScriptName: "dev")
+    .PublishAsPackageScript(scriptName: "start")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+```
+
+</Fragment>
+</AppHostTabs>
 
 ```json title="Qwik City — package.json"
 {
@@ -1091,12 +1354,33 @@ export const useWeatherData = routeLoader$(async () => {
 - **Dev proxy**: Angular doesn't expose `vite.config.ts`. Use a [`proxy.conf.js`](https://angular.dev/tools/cli/serve) (not `.json`) that reads `process.env.API_HTTP`, referenced from `angular.json` under `serve.options.proxyConfig`.
 - **Output path**: Set [`outputPath`](https://angular.dev/reference/configs/workspace-config) in `angular.json` to `{ "base": "dist", "browser": "" }` so the production build writes directly to `dist/` for `PublishAsStaticWebsite`.
 
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Vite or static-website publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Vite or static-website publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Vite or static-website publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Vite or static-website publishing capabilities.',
+}}>
+<Fragment slot="typescript">
+
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('angular', './frameworks/angular', { runScriptName: 'dev' })
   .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
   .withExternalHttpEndpoints();
 ```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost — AppHost.cs"
+builder
+    .AddViteApp("angular", "./frameworks/angular", runScriptName: "dev")
+    .PublishAsStaticWebsite(apiPath: "/api", apiTarget: api)
+    .WithExternalHttpEndpoints();
+```
+
+</Fragment>
+</AppHostTabs>
 
 ```javascript title="Angular — proxy.conf.js"
 const target = process.env.API_HTTPS || process.env.API_HTTP;
@@ -1146,12 +1430,33 @@ module.exports = {
 - **API calls**: Use the `apiPath` / `apiTarget` options on `PublishAsStaticWebsite` so the backend is reachable through YARP. Don't use `VITE_*` env vars for runtime API URLs; they're baked at build time.
 - **Dev proxy**: Add [`server.proxy`](https://vite.dev/config/server-options.html#server-proxy) in `vite.config.ts` reading `process.env.API_HTTP` to forward `/api/*` to the backend in dev mode.
 
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Vite or static-website publishing capabilities.',
+  go: 'The daily Go generated SDK does not expose Vite or static-website publishing capabilities.',
+  java: 'The daily Java generated SDK does not expose Vite or static-website publishing capabilities.',
+  rust: 'The daily Rust generated SDK does not expose Vite or static-website publishing capabilities.',
+}}>
+<Fragment slot="typescript">
+
 ```typescript title="AppHost — apphost.mts"
 await builder
   .addViteApp('react', './frameworks/react', { runScriptName: 'dev' })
   .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
   .withExternalHttpEndpoints();
 ```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost — AppHost.cs"
+builder
+    .AddViteApp("react", "./frameworks/react", runScriptName: "dev")
+    .PublishAsStaticWebsite(apiPath: "/api", apiTarget: api)
+    .WithExternalHttpEndpoints();
+```
+
+</Fragment>
+</AppHostTabs>
 
 ```typescript title="Vite / React / Vue — vite.config.ts"
 import { defineConfig } from 'vite';
@@ -1231,15 +1536,103 @@ const builder = await createBuilder();
 
 // Add resources...
 
-builder.pipeline.disableBuildOnlyContainerValidation();
+builder.pipeline().disableBuildOnlyContainerValidation();
 
 await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    # Add resources...
+
+    builder.pipeline.disable_build_only_container_validation()
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add resources...
+
+	pipeline := builder.Pipeline().DisableBuildOnlyContainerValidation()
+	if err := pipeline.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    // Add resources...
+
+    builder.pipeline().disableBuildOnlyContainerValidation();
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    // Add resources...
+
+    builder
+        .pipeline()?
+        .disable_build_only_container_validation()?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
-The `DisableBuildOnlyContainerValidation` method is marked experimental with the `ASPIREPIPELINES001` diagnostic.
+In C#, `DisableBuildOnlyContainerValidation` is marked experimental with the `ASPIREPIPELINES001` diagnostic. The generated AppHost SDKs expose the same pipeline capability without that C# compile-time diagnostic.
 
 `AddNextJsApp` is different because it represents the Next.js standalone-server publish model directly. Use it when the app is a Next.js app with `output: "standalone"` rather than modeling the app with `AddJavaScriptApp` and choosing a generic package-script publish method.
 
@@ -1256,7 +1649,12 @@ To resolve the conflict, choose one of the following options:
 - **Remove or rename the Dockerfile** so Aspire generates a new one that runs your requested script as the container entrypoint.
 - **Override the container entrypoint explicitly** by calling `PublishAsDockerFile(...)` and configuring the entrypoint directly on the container resource. This keeps the existing Dockerfile and gives you full control over what runs:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python exposes generic Dockerfile publishing and entrypoint APIs, but the daily generated SDK does not expose the JavaScript app resource required by this example.',
+  go: 'Go exposes generic Dockerfile publishing and entrypoint APIs, but the daily generated SDK does not expose the JavaScript app resource required by this example.',
+  java: 'Java exposes generic Dockerfile publishing and entrypoint APIs, but the daily generated SDK does not expose the JavaScript app resource required by this example.',
+  rust: 'Rust exposes generic Dockerfile publishing and entrypoint APIs, but the daily generated SDK does not expose the JavaScript app resource required by this example.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"

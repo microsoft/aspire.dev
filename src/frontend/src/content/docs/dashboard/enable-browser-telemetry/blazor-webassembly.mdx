@@ -5,8 +5,6 @@ description: Enable browser telemetry for Blazor WebAssembly apps with Aspire's 
 
 import AppHostTabs from '@components/AppHostTabs.astro';
 
-
-
 Blazor WebAssembly apps run .NET in the browser, so they need a startup path that makes telemetry configuration available before the WebAssembly runtime starts. Starting with Aspire 13.4, you can use the Aspire Blazor hosting integration instead of configuring a Blazor WebAssembly app like a generic JavaScript browser app that sends OTLP directly to the dashboard.
 
 The Blazor hosting integration configures same-origin gateway or host routes for service calls and OTLP telemetry. The browser sends telemetry to a relative `/_otlp` path, or the app-prefixed equivalent such as `/app/_otlp`, and the gateway or host forwards it to the Aspire dashboard. This avoids CORS setup for the dashboard and keeps dashboard OTLP headers on the server-side proxy instead of putting them in browser-visible configuration.
@@ -15,7 +13,12 @@ The Blazor hosting integration configures same-origin gateway or host routes for
 
 For a standalone Blazor WebAssembly project, add the WASM project resource, reference any backend services from it, and bind it to a Blazor Gateway. Configure the gateway with HTTP/protobuf OTLP export because browser-based clients can't use OTLP/gRPC.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export Blazor WebAssembly project, Blazor Gateway, OTLP exporter, or Blazor client attachment APIs.',
+  go: 'The generated Go SDK does not export Blazor WebAssembly project, Blazor Gateway, OTLP exporter, or Blazor client attachment APIs.',
+  java: 'The generated Java SDK does not export Blazor WebAssembly project, Blazor Gateway, OTLP exporter, or Blazor client attachment APIs.',
+  rust: 'The generated Rust SDK does not export Blazor WebAssembly project, Blazor Gateway, OTLP exporter, or Blazor client attachment APIs.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -72,6 +75,17 @@ The gateway exposes browser-safe configuration under the app path, such as `/app
 
 For a Blazor Web App that hosts an Interactive WebAssembly client, configure the host project to proxy API calls and telemetry for the WebAssembly client:
 
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK does not export ProxyBlazorService or ProxyBlazorTelemetry for hosted Blazor WebAssembly projects.',
+    python: 'The generated Python SDK does not export ProxyBlazorService or ProxyBlazorTelemetry for hosted Blazor WebAssembly projects.',
+    go: 'The generated Go SDK does not export ProxyBlazorService or ProxyBlazorTelemetry for hosted Blazor WebAssembly projects.',
+    java: 'The generated Java SDK does not export ProxyBlazorService or ProxyBlazorTelemetry for hosted Blazor WebAssembly projects.',
+    rust: 'The generated Rust SDK does not export ProxyBlazorService or ProxyBlazorTelemetry for hosted Blazor WebAssembly projects.',
+  }}
+>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -84,9 +98,8 @@ builder.AddProject<Projects.BlazorWeb>("blazorapp")
 builder.Build().Run();
 ```
 
-:::note
-`ProxyBlazorService` and `ProxyBlazorTelemetry` are C# AppHost APIs in Aspire 13.4. They aren't exported to TypeScript AppHosts yet.
-:::
+</Fragment>
+</AppHostTabs>
 
 The AppHost emits YARP reverse proxy configuration and a Blazor client configuration response for the host project. In the host app, load the reverse proxy configuration and map the proxy routes:
 

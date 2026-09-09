@@ -5,7 +5,6 @@ description: Learn how session, persistent, resource-scoped, and parent-process 
 
 import AppHostTabs from '@components/AppHostTabs.astro';
 
-
 import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import persistentContainer from '@assets/whats-new/aspire-9/persistent-container.png';
@@ -88,6 +87,16 @@ Starting in Aspire 13.5, `WithExplicitStart()` also affects when execution confi
 
 For session-scoped resources (the default lifetime), Aspire defers Developer Control Plane (DCP) registration until you manually start the resource from the dashboard. This means execution configuration callbacks — such as `WithEnvironment(context => ...)` — are **not** evaluated during AppHost startup. They run only when the resource is manually started.
 
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python environment callback is synchronous, so it cannot express the asynchronous GetApiKeyAsync operation in this example.',
+    go: 'The generated Go environment callback is synchronous, so it cannot express the asynchronous GetApiKeyAsync operation in this example.',
+    java: 'The generated Java environment callback is synchronous, so it cannot express the asynchronous GetApiKeyAsync operation in this example.',
+    rust: 'The generated Rust environment callback is emitted as Fn(Vec<Value>) -> Value instead of a typed EnvironmentCallbackContext callback.',
+  }}
+>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -104,6 +113,33 @@ var job = builder.AddExecutable("batch-job", "dotnet", ".", "run", "--project", 
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+declare function getApiKeyAsync(): Promise<string>;
+
+// The callback below is NOT evaluated during AppHost startup.
+// It runs only when the resource is manually started from the dashboard.
+await builder
+  .addExecutable('batch-job', 'dotnet', '.', ['run', '--project', 'BatchJob'])
+  .withExplicitStart()
+  .withEnvironmentCallback(async (context) => {
+    // Prompt or compute dynamic configuration at start time
+    const environment = await context.environment();
+    await environment.set('API_KEY', await getApiKeyAsync());
+  });
+
+await builder.build().run();
+```
+
+</Fragment>
+</AppHostTabs>
+
 :::note[Placeholder API used for demonstration]
 `GetApiKeyAsync` is a placeholder used to demonstrate deferred, callback-based configuration. Its implementation isn't shown because the relevant behavior is retrieving a value when the callback runs and assigning that value to an environment variable on the target resource.
 :::
@@ -111,6 +147,13 @@ builder.Build().Run();
 ### Persistent explicit-start resources
 
 For persistent resources, Aspire must register the resource with the Developer Control Plane (DCP) immediately at startup so it can discover any existing running instance. However, when you manually start a persistent explicit-start resource, Aspire patches the existing DCP resource to start it rather than deleting and recreating it. This means the execution configuration callbacks run once during startup registration and are **not** re-evaluated when you manually start the resource.
+
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust environment callback is emitted as Fn(Vec<Value>) -> Value instead of a typed EnvironmentCallbackContext callback.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -131,11 +174,129 @@ var cache = builder.AddContainer("long-lived-cache", "my-cache-image")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Persistent explicit-start resources are registered at startup to detect existing instances.
+// The callback runs during startup registration — not again when manually started.
+await builder
+  .addContainer('long-lived-cache', {
+    image: 'my-cache-image',
+    tag: 'latest',
+  })
+  .withPersistentLifetime()
+  .withExplicitStart()
+  .withEnvironmentCallback(async (context) => {
+    const environment = await context.environment();
+    await environment.set('CACHE_SIZE', '512mb');
+  });
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    # Persistent explicit-start resources are registered at startup to detect
+    # existing instances. The callback runs during startup registration.
+    cache = builder.add_container("long-lived-cache", "my-cache-image")
+    cache.with_persistent_lifetime()
+    cache.with_explicit_start()
+    cache.with_environment_callback(
+        lambda context: context.env.set("CACHE_SIZE", "512mb")
+    )
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Persistent explicit-start resources are registered at startup to detect
+	// existing instances. The callback runs during startup registration.
+	cache := builder.
+		AddContainer("long-lived-cache", "my-cache-image").
+		WithPersistentLifetime().
+		WithExplicitStart().
+		WithEnvironmentCallback(func(context aspire.EnvironmentCallbackContext) {
+			if err := context.Environment().Set("CACHE_SIZE", "512mb"); err != nil {
+				log.Fatal(aspire.FormatError(err))
+			}
+		})
+	if err := cache.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    // Persistent explicit-start resources are registered at startup to detect
+    // existing instances. The callback runs during startup registration.
+    var cache = builder.addContainer("long-lived-cache", "my-cache-image");
+    cache.withPersistentLifetime();
+    cache.withExplicitStart();
+    cache.withEnvironmentCallback(
+        context -> context.environment().set("CACHE_SIZE", "512mb"));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ## Configure a persistent container
 
 For new code, configure a persistent container with `WithPersistentLifetime()`:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include the PostgreSQL integration APIs used by this persistent-container example.',
+    go: 'The generated Go SDK does not include the PostgreSQL integration APIs used by this persistent-container example.',
+    java: 'The generated Java SDK does not include the PostgreSQL integration APIs used by this persistent-container example.',
+    rust: 'The generated Rust SDK does not include the PostgreSQL integration APIs used by this persistent-container example.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -216,6 +377,61 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    worker = builder.add_executable("worker", "node", "../worker", ["server.js"])
+    worker.with_http_endpoint(port=5050, target_port=5050)
+    worker.with_persistent_lifetime()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+worker := builder.
+	AddExecutable("worker", "node", "../worker", []string{"server.js"}).
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
+		Port:       aspire.Float64Ptr(5050),
+		TargetPort: aspire.Float64Ptr(5050),
+	}).
+	WithPersistentLifetime()
+if err := worker.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var worker = builder.addExecutable(
+    "worker", "node", "../worker", new String[] { "server.js" });
+worker.withHttpEndpoint(
+    new WithHttpEndpointOptions().port(5050.0).targetPort(5050.0));
+worker.withPersistentLifetime();
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let worker = builder.add_executable(
+    "worker",
+    "node",
+    "../worker",
+    vec!["server.js".to_string()],
+)?;
+worker.with_http_endpoint(Some(5050.0), Some(5050.0), None, None, None)?;
+worker.with_persistent_lifetime()?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 The preceding example configures a concrete `port` so the endpoint address is explicit. If you omit the public `port`, Aspire allocates one before the executable starts and reuses it from user secrets on later AppHost runs when user secrets are available.
@@ -251,6 +467,47 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../ApiService/ApiService.csproj")
+    api.with_persistent_lifetime()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+api := builder.
+	AddProject("api", "../ApiService/ApiService.csproj").
+	WithPersistentLifetime()
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var api = builder.addProject("api", "../ApiService/ApiService.csproj");
+api.withPersistentLifetime();
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let api = builder.add_project("api", "../ApiService/ApiService.csproj", None)?;
+api.with_persistent_lifetime()?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 Persistent project and executable resources are run by Aspire's orchestrator so it can manage their lifecycle consistently. Persistent project and executable resources don't support replicas.
@@ -259,7 +516,14 @@ Persistent project and executable resources are run by Aspire's orchestrator so 
 
 Use `WithLifetimeOf` when a companion resource should follow another resource's lifetime. This is useful when a sidecar, helper process, or supporting service should become persistent only when its source resource is persistent.
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'This WithLifetimeOf example depends on a PostgreSQL integration resource, which is not present in the generated Python SDK.',
+    go: 'This WithLifetimeOf example depends on a PostgreSQL integration resource, which is not present in the generated Go SDK.',
+    java: 'This withLifetimeOf example depends on a PostgreSQL integration resource, which is not present in the generated Java SDK.',
+    rust: 'This with_lifetime_of example depends on a PostgreSQL integration resource, which is not present in the generated Rust SDK.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -343,6 +607,62 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+import os
+
+parent_process_id = int(os.environ["RESOURCE_PARENT_PROCESS_ID"])
+worker = builder.add_executable(
+"scoped-worker", "node", "../worker", ["server.js"]
+)
+worker.with_parent_process_lifetime(parent_process_id)
+
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+parentProcessID, err := strconv.ParseFloat(
+	os.Getenv("RESOURCE_PARENT_PROCESS_ID"),
+	64,
+)
+if err != nil {
+	log.Fatal(err)
+}
+worker := builder.
+	AddExecutable("scoped-worker", "node", "../worker", []string{"server.js"}).
+	WithParentProcessLifetime(parentProcessID)
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var parentProcessId = Double.parseDouble(
+    System.getenv("RESOURCE_PARENT_PROCESS_ID"));
+var worker = builder.addExecutable(
+    "scoped-worker", "node", "../worker", new String[] { "server.js" });
+worker.withParentProcessLifetime(parentProcessId);
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let parent_process_id = std::env::var("RESOURCE_PARENT_PROCESS_ID")?
+    .parse::<f64>()?;
+let worker = builder.add_executable(
+    "scoped-worker",
+    "node",
+    "../worker",
+    vec!["server.js".to_string()],
+)?;
+worker.with_parent_process_lifetime(parent_process_id)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 The parent process ID must be greater than zero and identify a running process.
@@ -353,7 +673,14 @@ The older container-specific lifetime API is still supported. Use `WithLifetime(
 
 For new code, prefer the shared `WithPersistentLifetime()` and `WithSessionLifetime()` APIs because they work consistently across containers, executables, and projects.
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include the PostgreSQL integration APIs used by this container-specific lifetime example.',
+    go: 'The generated Go SDK does not include the PostgreSQL integration APIs used by this container-specific lifetime example.',
+    java: 'The generated Java SDK does not include the PostgreSQL integration APIs used by this container-specific lifetime example.',
+    rust: 'The generated Rust SDK does not include the PostgreSQL integration APIs used by this container-specific lifetime example.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -415,7 +742,14 @@ For example, if you have a service named `"postgres"` in an AppHost project loca
 
 For advanced scenarios, you can set a custom container name using the `WithContainerName` method:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include the PostgreSQL integration APIs used by this custom-container-name example.',
+    go: 'The generated Go SDK does not include the PostgreSQL integration APIs used by this custom-container-name example.',
+    java: 'The generated Java SDK does not include the PostgreSQL integration APIs used by this custom-container-name example.',
+    rust: 'The generated Rust SDK does not include the PostgreSQL integration APIs used by this custom-container-name example.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -483,7 +817,14 @@ For persistent executable and project resources, stop the running process with y
 
 For **databases and other stateful services**, use both APIs together so you get fast startup (the container stays running) _and_ data safety (a volume protects data even if the container is recreated):
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include the PostgreSQL integration APIs used by this persistence and data-volume example.',
+    go: 'The generated Go SDK does not include the PostgreSQL integration APIs used by this persistence and data-volume example.',
+    java: 'The generated Java SDK does not include the PostgreSQL integration APIs used by this persistence and data-volume example.',
+    rust: 'The generated Rust SDK does not include the PostgreSQL integration APIs used by this persistence and data-volume example.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"

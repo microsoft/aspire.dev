@@ -5,6 +5,7 @@ description: Advanced patterns for DistributedApplicationTestingBuilder — sele
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 This article covers advanced patterns for testing Aspire applications, including selectively disabling resources during tests, overriding environment variables, and customizing the AppHost for specific test scenarios.
@@ -19,6 +20,27 @@ The recommended way to make a resource optional is to use `WithExplicitStart` in
 
 In your AppHost, mark the resource as explicitly started:
 
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addProject('api', '../Api/Api.csproj');
+
+// This resource is optional and won't start automatically
+await builder
+  .addContainer('monitoring', { image: 'grafana/grafana' })
+  .withExplicitStart();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -30,6 +52,107 @@ builder.AddContainer("monitoring", "grafana/grafana")
 
 builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.add_project("api", "../Api/Api.csproj")
+
+    # This resource is optional and won't start automatically
+    monitoring = builder.add_container("monitoring", "grafana/grafana")
+    monitoring.with_explicit_start()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	builder.AddProject("api", "../Api/Api.csproj")
+
+	// This resource is optional and won't start automatically
+	monitoring := builder.
+		AddContainer("monitoring", "grafana/grafana").
+		WithExplicitStart()
+	if err := monitoring.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addProject("api", "../Api/Api.csproj");
+
+    // This resource is optional and won't start automatically
+    var monitoring = builder.addContainer("monitoring", "grafana/grafana");
+    monitoring.withExplicitStart();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    builder.add_project("api", "../Api/Api.csproj", None)?;
+
+    // This resource is optional and won't start automatically
+    let monitoring = builder.add_container("monitoring", json!("grafana/grafana"))?;
+    monitoring.with_explicit_start()?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 In your test, you can start the resource manually if needed, or leave it stopped:
 
@@ -57,6 +180,36 @@ public async Task ApiWorksWithoutMonitoring()
 
 Another approach is to use configuration in your AppHost to conditionally add resources. This gives tests control over which resources are included:
 
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the PostgreSQL integration APIs used in this example.',
+  go: 'The verified Go SDK does not include the PostgreSQL integration APIs used in this example.',
+  java: 'The verified Java SDK does not include the PostgreSQL integration APIs used in this example.',
+  rust: 'The verified Rust SDK does not include the PostgreSQL integration APIs used in this example.',
+}}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+
+// Only add the database resource if not explicitly disabled
+const addDatabase =
+  (await builder.getConfiguration().getConfigValue('AddDatabase')) !== 'false';
+if (addDatabase) {
+  const postgres = await builder.addPostgres('postgres');
+  const db = await postgres.addDatabase('mydb');
+  await api.withReference(db);
+}
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -71,6 +224,9 @@ if (builder.Configuration.GetValue("AddDatabase", true))
 
 builder.Build().Run();
 ```
+
+</Fragment>
+</AppHostTabs>
 
 In tests, pass the configuration argument to skip the database:
 

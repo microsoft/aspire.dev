@@ -31,7 +31,7 @@ Commands can also display a [progress dialog](/fundamentals/custom-resource-comm
 
 ## The interaction service API
 
-The `IInteractionService` interface provides methods for prompting users. In C#, it's retrieved from the dependency injection container. In TypeScript, it's resolved from the command context's service provider. Always check if the service is available before use — if you attempt to call a method when it's not available, an exception is thrown. For example, the interaction service isn't available when a command is triggered from the CLI.
+The interaction service provides methods for prompting users. In C#, retrieve `IInteractionService` from the dependency injection container. In TypeScript, Python, Go, Java, and Rust AppHosts, resolve the generated interaction-service wrapper from a callback context's service provider. Always check if the service is available before use — if you attempt to call a method when it isn't available, the SDK reports an error or throws an exception. For example, the interaction service isn't available when a command is triggered from the CLI.
 
 <AppHostTabs>
 <Fragment slot="csharp">
@@ -66,6 +66,81 @@ if (await interactionService.isAvailable()) {
   if (!result.canceled) {
     // Run your resource/command logic.
   }
+}
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+interaction_service = context.services.get_interaction_service()
+
+if interaction_service.is_available():
+    result = interaction_service.prompt_confirmation(
+        "Delete confirmation",
+        "Are you sure you want to delete the data?",
+    )
+    if not result.get("Canceled", False) and result.get("Value", False):
+        # Run your resource or command logic.
+        pass
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+interactionService := context.Services().GetInteractionService()
+available, err := interactionService.IsAvailable()
+if err != nil {
+	return err
+}
+if available {
+	result, err := interactionService.PromptConfirmation(
+		"Delete confirmation",
+		"Are you sure you want to delete the data?",
+	)
+	if err != nil {
+		return err
+	}
+	if !result.Canceled && result.Value != nil && *result.Value {
+		// Run your resource or command logic.
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var interactionService = context.services().getInteractionService();
+
+if (interactionService.isAvailable()) {
+    var result = interactionService.promptConfirmation(
+        "Delete confirmation",
+        "Are you sure you want to delete the data?"
+    );
+    if (!result.getCanceled() && Boolean.TRUE.equals(result.getValue())) {
+        // Run your resource or command logic.
+    }
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let interaction_service = context.services()?.get_interaction_service()?;
+
+if interaction_service.is_available()? {
+    let result = interaction_service.prompt_confirmation(
+        "Delete confirmation",
+        "Are you sure you want to delete the data?",
+        None,
+        None,
+    )?;
+    if !result.canceled && result.value.unwrap_or(false) {
+        // Run your resource or command logic.
+    }
 }
 ```
 
@@ -113,6 +188,17 @@ These approaches help you create interactive, user-friendly experiences for loca
 <Aside type="tip">
 For example, the following code subscribes to the `ResourceStoppedEvent` on a resource and displays a notification if the resource exits with a non-zero exit code:
 
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript ResourceStoppedEvent exposes the resource and services, but not the resource snapshot or exit code required by this notification scenario.',
+    python: 'The generated Python ResourceStoppedEvent exposes the resource and services, but not the resource snapshot or exit code required by this notification scenario.',
+    go: 'The generated Go ResourceStoppedEvent exposes the resource and services, but not the resource snapshot or exit code required by this notification scenario.',
+    java: 'The generated Java ResourceStoppedEvent exposes the resource and services, but not the resource snapshot or exit code required by this notification scenario.',
+    rust: 'The generated Rust resource-stopped callback is untyped and does not provide the typed resource snapshot and exit code required by this notification scenario.',
+  }}
+>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -143,6 +229,9 @@ builder
         }
     });
 ```
+
+</Fragment>
+</AppHostTabs>
 
 For CLI specific contexts, the interaction service is retrieved from either the `PublishingContext` or `PipelineStepContext` depending on the operation being performed.
 
@@ -223,6 +312,96 @@ const result = await interactionService.promptMessageBox(
 if (!result.canceled) {
   // User clicked "Apply"
   // Run migrations.
+}
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+interaction_service = context.services.get_interaction_service()
+result = interaction_service.prompt_message_box(
+    "Apply migrations",
+    "The database schema is out of date.\nWould you like to apply pending migrations now?",
+    options={
+        "EnableMessageMarkdown": True,
+        "PrimaryButtonText": "Apply",
+        "SecondaryButtonText": "Skip",
+        "ShowSecondaryButton": True,
+    },
+)
+
+if not result.get("Canceled", False) and result.get("Value", False):
+    # Run migrations.
+    pass
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+primary, secondary, showSecondary, markdown := "Apply", "Skip", true, true
+result, err := context.Services().GetInteractionService().PromptMessageBox(
+	"Apply migrations",
+	"The database schema is out of date.\nWould you like to apply pending migrations now?",
+	&aspire.PromptMessageBoxOptions{
+		Options: &aspire.InteractionMessageBoxOptions{
+			PrimaryButtonText:    &primary,
+			SecondaryButtonText:  &secondary,
+			ShowSecondaryButton:  &showSecondary,
+			EnableMessageMarkdown: &markdown,
+		},
+	},
+)
+if err != nil {
+	return err
+}
+if !result.Canceled && result.Value != nil && *result.Value {
+	// Run migrations.
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var options = new InteractionMessageBoxOptions();
+options.setEnableMessageMarkdown(true);
+options.setPrimaryButtonText("Apply");
+options.setSecondaryButtonText("Skip");
+options.setShowSecondaryButton(true);
+
+var result = context.services().getInteractionService().promptMessageBox(
+    "Apply migrations",
+    "The database schema is out of date.\nWould you like to apply pending migrations now?",
+    new PromptMessageBoxOptions().options(options)
+);
+
+if (!result.getCanceled() && Boolean.TRUE.equals(result.getValue())) {
+    // Run migrations.
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let options = InteractionMessageBoxOptions {
+    enable_message_markdown: Some(true),
+    primary_button_text: Some("Apply".into()),
+    secondary_button_text: Some("Skip".into()),
+    show_secondary_button: Some(true),
+    ..Default::default()
+};
+let result = context.services()?.get_interaction_service()?.prompt_message_box(
+    "Apply migrations",
+    "The database schema is out of date.\nWould you like to apply pending migrations now?",
+    Some(options),
+    None,
+)?;
+
+if !result.canceled && result.value.unwrap_or(false) {
+    // Run migrations.
 }
 ```
 
@@ -309,6 +488,111 @@ await interactionService.promptNotification(
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+interaction_service = context.services.get_interaction_service()
+
+interaction_service.prompt_notification(
+    "Success",
+    "Your operation completed successfully.",
+    options={
+        "Intent": "Success",
+        "LinkText": "View Details",
+        "LinkUrl": "/",
+    },
+)
+interaction_service.prompt_notification(
+    "Warning",
+    "Your SSL certificate will expire soon.",
+    options={
+        "Intent": "Warning",
+        "LinkText": "Renew Certificate",
+        "LinkUrl": "https://portal.azure.com/certificates",
+    },
+)
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+success, warning := aspire.MessageIntentSuccess, aspire.MessageIntentWarning
+view, root := "View Details", "/"
+renew, portal := "Renew Certificate", "https://portal.azure.com/certificates"
+interactionService := context.Services().GetInteractionService()
+
+if _, err := interactionService.PromptNotification("Success", "Your operation completed successfully.",
+	&aspire.PromptNotificationOptions{Options: &aspire.InteractionNotificationOptions{
+		Intent: &success, LinkText: &view, LinkUrl: &root,
+	}}); err != nil {
+	return err
+}
+if _, err := interactionService.PromptNotification("Warning", "Your SSL certificate will expire soon.",
+	&aspire.PromptNotificationOptions{Options: &aspire.InteractionNotificationOptions{
+		Intent: &warning, LinkText: &renew, LinkUrl: &portal,
+	}}); err != nil {
+	return err
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var success = new InteractionNotificationOptions();
+success.setIntent(MessageIntent.SUCCESS);
+success.setLinkText("View Details");
+success.setLinkUrl("/");
+
+var warning = new InteractionNotificationOptions();
+warning.setIntent(MessageIntent.WARNING);
+warning.setLinkText("Renew Certificate");
+warning.setLinkUrl("https://portal.azure.com/certificates");
+
+var interactionService = context.services().getInteractionService();
+interactionService.promptNotification(
+    "Success",
+    "Your operation completed successfully.",
+    new PromptNotificationOptions().options(success)
+);
+interactionService.promptNotification(
+    "Warning",
+    "Your SSL certificate will expire soon.",
+    new PromptNotificationOptions().options(warning)
+);
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let interaction_service = context.services()?.get_interaction_service()?;
+interaction_service.prompt_notification(
+    "Success",
+    "Your operation completed successfully.",
+    Some(InteractionNotificationOptions {
+        intent: Some(MessageIntent::Success),
+        link_text: Some("View Details".into()),
+        link_url: Some("/".into()),
+        ..Default::default()
+    }),
+    None,
+)?;
+interaction_service.prompt_notification(
+    "Warning",
+    "Your SSL certificate will expire soon.",
+    Some(InteractionNotificationOptions {
+        intent: Some(MessageIntent::Warning),
+        link_text: Some("Renew Certificate".into()),
+        link_url: Some("https://portal.azure.com/certificates".into()),
+        ..Default::default()
+    }),
+    None,
+)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 The previous example demonstrates how to use the notification API with different intents and optional action links.
@@ -376,6 +660,97 @@ const resetConfirmation = await interactionService.promptConfirmation(
 
 if (!resetConfirmation.canceled) {
   // Perform the reset operation...
+}
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+interaction_service = context.services.get_interaction_service()
+reset_confirmation = interaction_service.prompt_confirmation(
+    "Confirm Reset",
+    "Are you sure you want to reset the database? This action cannot be undone.",
+    options={
+        "Intent": "Confirmation",
+        "PrimaryButtonText": "Reset",
+        "SecondaryButtonText": "Cancel",
+        "ShowSecondaryButton": True,
+        "EnableMessageMarkdown": True,
+    },
+)
+
+if not reset_confirmation.get("Canceled", False) and reset_confirmation.get("Value", False):
+    # Perform the reset operation.
+    pass
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+intent := aspire.MessageIntentConfirmation
+primary, secondary := "Reset", "Cancel"
+showSecondary, markdown := true, true
+result, err := context.Services().GetInteractionService().PromptConfirmation(
+	"Confirm Reset",
+	"Are you sure you want to reset the database? This action cannot be undone.",
+	&aspire.PromptConfirmationOptions{Options: &aspire.InteractionMessageBoxOptions{
+		Intent: &intent, PrimaryButtonText: &primary, SecondaryButtonText: &secondary,
+		ShowSecondaryButton: &showSecondary, EnableMessageMarkdown: &markdown,
+	}},
+)
+if err != nil {
+	return err
+}
+if !result.Canceled && result.Value != nil && *result.Value {
+	// Perform the reset operation.
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var options = new InteractionMessageBoxOptions();
+options.setIntent(MessageIntent.CONFIRMATION);
+options.setPrimaryButtonText("Reset");
+options.setSecondaryButtonText("Cancel");
+options.setShowSecondaryButton(true);
+options.setEnableMessageMarkdown(true);
+
+var result = context.services().getInteractionService().promptConfirmation(
+    "Confirm Reset",
+    "Are you sure you want to reset the database? This action cannot be undone.",
+    new PromptConfirmationOptions().options(options)
+);
+
+if (!result.getCanceled() && Boolean.TRUE.equals(result.getValue())) {
+    // Perform the reset operation.
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let options = InteractionMessageBoxOptions {
+    intent: Some(MessageIntent::Confirmation),
+    primary_button_text: Some("Reset".into()),
+    secondary_button_text: Some("Cancel".into()),
+    show_secondary_button: Some(true),
+    enable_message_markdown: Some(true),
+    ..Default::default()
+};
+let result = context.services()?.get_interaction_service()?.prompt_confirmation(
+    "Confirm Reset",
+    "Are you sure you want to reset the database? This action cannot be undone.",
+    Some(options),
+    None,
+)?;
+
+if !result.canceled && result.value.unwrap_or(false) {
+    // Perform the reset operation.
 }
 ```
 
@@ -549,7 +924,191 @@ if (!(await result.canceled())) {
 ```
 
 </Fragment>
-</AppHostTabs>
+  <Fragment slot="python">
+
+```python title="apphost.py"
+interaction_service = context.services.get_interaction_service()
+app_name = interaction_service.create_text_input(
+    "AppName",
+    options={"Label": "Application Name", "Required": True, "Placeholder": "my-app"},
+)
+environment = interaction_service.create_choice_input(
+    "Environment",
+    choices=[
+        {"Value": "dev", "Label": "Development"},
+        {"Value": "staging", "Label": "Staging"},
+        {"Value": "test", "Label": "Testing"},
+    ],
+    options={"Required": True},
+)
+instance_count = interaction_service.create_number_input(
+    "InstanceCount",
+    options={"Label": "Instance Count", "Required": True, "Placeholder": "1"},
+)
+enable_monitoring = interaction_service.create_boolean_input(
+    "EnableMonitoring",
+    options={"Label": "Enable Monitoring"},
+)
+
+result = interaction_service.prompt_inputs(
+    "Application Configuration",
+    "Configure your application deployment settings:",
+    [app_name, environment, instance_count, enable_monitoring],
+)
+if not result.canceled:
+    name = result.inputs.value("AppName")
+    environment_name = result.inputs.value("Environment")
+    count = result.inputs.value("InstanceCount")
+    monitoring = result.inputs.value("EnableMonitoring")
+```
+
+  </Fragment>
+  <Fragment slot="go">
+
+```go title="apphost.go"
+label, placeholder, required := "Application Name", "my-app", true
+interactionService := context.Services().GetInteractionService()
+appName := interactionService.CreateTextInput("AppName", &aspire.CreateInteractionInputOptions{
+    Label: &label, Required: &required, Placeholder: &placeholder,
+})
+environment := interactionService.CreateChoiceInput("Environment", &aspire.CreateChoiceInputOptions{
+    Choices: []*aspire.InteractionChoiceOption{
+        {Value: "dev", Label: "Development"},
+        {Value: "staging", Label: "Staging"},
+        {Value: "test", Label: "Testing"},
+    },
+    Options: &aspire.CreateInteractionInputOptions{Required: &required},
+})
+instanceLabel, one := "Instance Count", "1"
+instanceCount := interactionService.CreateNumberInput("InstanceCount",
+    &aspire.CreateInteractionInputOptions{Label: &instanceLabel, Required: &required, Placeholder: &one})
+monitoringLabel := "Enable Monitoring"
+enableMonitoring := interactionService.CreateBooleanInput("EnableMonitoring",
+    &aspire.CreateInteractionInputOptions{Label: &monitoringLabel})
+
+result := interactionService.PromptInputs(
+    "Application Configuration",
+    "Configure your application deployment settings:",
+    []aspire.InteractionInputBuilder{appName, environment, instanceCount, enableMonitoring},
+)
+canceled, err := result.Canceled()
+if err != nil {
+    return err
+}
+if !canceled {
+    name, err := result.Inputs().Value("AppName")
+    if err != nil {
+        return err
+    }
+    _ = name // Use the collected values as needed.
+}
+```
+
+  </Fragment>
+  <Fragment slot="java">
+
+```java title="AppHost.java"
+var interactionService = context.services().getInteractionService();
+
+var appNameOptions = new CreateInteractionInputOptions();
+appNameOptions.setLabel("Application Name");
+appNameOptions.setRequired(true);
+appNameOptions.setPlaceholder("my-app");
+var appName = interactionService.createTextInput("AppName", appNameOptions);
+
+var development = new InteractionChoiceOption();
+development.setValue("dev");
+development.setLabel("Development");
+var staging = new InteractionChoiceOption();
+staging.setValue("staging");
+staging.setLabel("Staging");
+var testing = new InteractionChoiceOption();
+testing.setValue("test");
+testing.setLabel("Testing");
+var choices = new InteractionChoiceOption[] { development, staging, testing };
+var requiredOptions = new CreateInteractionInputOptions();
+requiredOptions.setRequired(true);
+var environment = interactionService.createChoiceInput(
+    "Environment",
+    new CreateChoiceInputOptions().choices(choices).options(requiredOptions)
+);
+
+var instanceOptions = new CreateInteractionInputOptions();
+instanceOptions.setLabel("Instance Count");
+instanceOptions.setRequired(true);
+instanceOptions.setPlaceholder("1");
+var instanceCount = interactionService.createNumberInput("InstanceCount", instanceOptions);
+
+var monitoringOptions = new CreateInteractionInputOptions();
+monitoringOptions.setLabel("Enable Monitoring");
+var enableMonitoring = interactionService.createBooleanInput("EnableMonitoring", monitoringOptions);
+
+var result = interactionService.promptInputs(
+    "Application Configuration",
+    "Configure your application deployment settings:",
+    new InteractionInputBuilder[] { appName, environment, instanceCount, enableMonitoring }
+);
+if (!result.canceled()) {
+    var name = result.inputs().value("AppName");
+    // Use the collected values as needed.
+}
+```
+
+  </Fragment>
+  <Fragment slot="rust">
+
+```rust title="apphost.rs"
+let interaction_service = context.services()?.get_interaction_service()?;
+let app_name = interaction_service.create_text_input(
+    "AppName",
+    Some(CreateInteractionInputOptions {
+        label: Some("Application Name".into()),
+        required: Some(true),
+        placeholder: Some("my-app".into()),
+        ..Default::default()
+    }),
+)?;
+let environment = interaction_service.create_choice_input(
+    "Environment",
+    Some(vec![
+        InteractionChoiceOption { value: "dev".into(), label: "Development".into() },
+        InteractionChoiceOption { value: "staging".into(), label: "Staging".into() },
+        InteractionChoiceOption { value: "test".into(), label: "Testing".into() },
+    ]),
+    Some(CreateInteractionInputOptions { required: Some(true), ..Default::default() }),
+)?;
+let instance_count = interaction_service.create_number_input(
+    "InstanceCount",
+    Some(CreateInteractionInputOptions {
+        label: Some("Instance Count".into()),
+        required: Some(true),
+        placeholder: Some("1".into()),
+        ..Default::default()
+    }),
+)?;
+let enable_monitoring = interaction_service.create_boolean_input(
+    "EnableMonitoring",
+    Some(CreateInteractionInputOptions {
+        label: Some("Enable Monitoring".into()),
+        ..Default::default()
+    }),
+)?;
+
+let result = interaction_service.prompt_inputs(
+    "Application Configuration",
+    "Configure your application deployment settings:",
+    vec![app_name, environment, instance_count, enable_monitoring],
+    None,
+    None,
+)?;
+if !result.canceled()? {
+    let inputs = result.inputs()?.to_array()?;
+    // Process the collected inputs in declaration order.
+}
+```
+
+  </Fragment>
+  </AppHostTabs>
 
 **Dashboard view:**
 
@@ -615,7 +1174,9 @@ Environment:
 
 The interaction service supports dynamic inputs so you can populate options based on earlier responses. This enables cascading dropdowns and other dependent prompts in both the dashboard and CLI experiences.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK exposes with_dynamic_loading only through an untyped Vec<Value> callback marker, so it cannot express the typed InteractionInputLoadContext workflow shown here.',
+}}>
 <Fragment slot="csharp">
 
 To configure a dynamic input, set the `InteractionInput.DynamicLoading` property to an instance of `InputLoadOptions`. `InputLoadOptions` has a range of properties:
@@ -716,6 +1277,151 @@ if (!(await result.canceled())) {
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+Use `with_dynamic_loading` with an `InteractionInputLoadContext` callback:
+
+```python title="apphost.py"
+interaction_service = context.services.get_interaction_service()
+db_type = interaction_service.create_choice_input(
+    "DatabaseType",
+    choices=[
+        {"Value": "postgres", "Label": "PostgreSQL"},
+        {"Value": "mysql", "Label": "MySQL"},
+        {"Value": "sqlserver", "Label": "SQL Server"},
+    ],
+    options={"Label": "Database Type", "Required": True},
+)
+db_version = interaction_service.create_choice_input(
+    "DatabaseVersion",
+    options={"Label": "Database Version", "Required": True},
+)
+
+def load_versions(load_context):
+    versions = {
+        "postgres": [{"Value": "17", "Label": "PostgreSQL 17"}],
+        "mysql": [{"Value": "9", "Label": "MySQL 9"}],
+        "sqlserver": [{"Value": "2025", "Label": "SQL Server 2025"}],
+    }
+    selected = load_context.inputs.value("DatabaseType")
+    load_context.input().set_choice_options(versions.get(selected, []))
+
+db_version.with_dynamic_loading(
+    load_versions,
+    options={"DependsOnInputs": ["DatabaseType"]},
+)
+result = interaction_service.prompt_inputs(
+    "Database configuration",
+    "Select a database type and version",
+    [db_type, db_version],
+)
+```
+
+</Fragment>
+<Fragment slot="go">
+
+Use `WithDynamicLoading` with a typed `InteractionInputLoadContext` callback:
+
+```go title="apphost.go"
+interactionService := context.Services().GetInteractionService()
+required := true
+dbType := interactionService.CreateChoiceInput("DatabaseType", &aspire.CreateChoiceInputOptions{
+	Choices: []*aspire.InteractionChoiceOption{
+		{Value: "postgres", Label: "PostgreSQL"},
+		{Value: "mysql", Label: "MySQL"},
+		{Value: "sqlserver", Label: "SQL Server"},
+	},
+	Options: &aspire.CreateInteractionInputOptions{Required: &required},
+})
+dbVersion := interactionService.CreateChoiceInput("DatabaseVersion",
+	&aspire.CreateChoiceInputOptions{Options: &aspire.CreateInteractionInputOptions{Required: &required}})
+
+dbVersion.WithDynamicLoading(func(loadContext aspire.InteractionInputLoadContext) {
+	selected, err := loadContext.Inputs().Value("DatabaseType")
+	if err != nil {
+		log.Printf("load database type: %v", err)
+		return
+	}
+	choices := map[string][]*aspire.InteractionChoiceOption{
+		"postgres": {&aspire.InteractionChoiceOption{Value: "17", Label: "PostgreSQL 17"}},
+		"mysql": {&aspire.InteractionChoiceOption{Value: "9", Label: "MySQL 9"}},
+		"sqlserver": {&aspire.InteractionChoiceOption{Value: "2025", Label: "SQL Server 2025"}},
+	}
+	if err := loadContext.Input().SetChoiceOptions(choices[selected]); err != nil {
+		log.Printf("set database versions: %v", err)
+	}
+}, &aspire.DynamicLoadingOptions{DependsOnInputs: []string{"DatabaseType"}})
+if err := dbVersion.Err(); err != nil {
+	return err
+}
+
+result := interactionService.PromptInputs(
+	"Database configuration",
+	"Select a database type and version",
+	[]aspire.InteractionInputBuilder{dbType, dbVersion},
+)
+if err := result.Err(); err != nil {
+	return err
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+Use `withDynamicLoading` with a typed `InteractionInputLoadContext` callback:
+
+```java title="AppHost.java"
+var interactionService = context.services().getInteractionService();
+var required = new CreateInteractionInputOptions();
+required.setRequired(true);
+
+var postgres = new InteractionChoiceOption();
+postgres.setValue("postgres");
+postgres.setLabel("PostgreSQL");
+var mysql = new InteractionChoiceOption();
+mysql.setValue("mysql");
+mysql.setLabel("MySQL");
+var sqlserver = new InteractionChoiceOption();
+sqlserver.setValue("sqlserver");
+sqlserver.setLabel("SQL Server");
+
+var dbType = interactionService.createChoiceInput(
+    "DatabaseType",
+    new CreateChoiceInputOptions()
+        .choices(new InteractionChoiceOption[] { postgres, mysql, sqlserver })
+        .options(required)
+);
+var dbVersion = interactionService.createChoiceInput(
+    "DatabaseVersion",
+    new CreateChoiceInputOptions().options(required)
+);
+
+var dynamicOptions = new DynamicLoadingOptions();
+dynamicOptions.setDependsOnInputs(new String[] { "DatabaseType" });
+dbVersion.withDynamicLoading(loadContext -> {
+    var selected = loadContext.inputs().value("DatabaseType");
+    var version = new InteractionChoiceOption();
+    version.setValue(switch (selected) {
+        case "postgres" -> "17";
+        case "mysql" -> "9";
+        default -> "2025";
+    });
+    version.setLabel(switch (selected) {
+        case "postgres" -> "PostgreSQL 17";
+        case "mysql" -> "MySQL 9";
+        default -> "SQL Server 2025";
+    });
+    loadContext.input().setChoiceOptions(new InteractionChoiceOption[] { version });
+}, dynamicOptions);
+
+var result = interactionService.promptInputs(
+    "Database configuration",
+    "Select a database type and version",
+    new InteractionInputBuilder[] { dbType, dbVersion }
+);
+```
+
+</Fragment>
 </AppHostTabs>
 
 In the preceding example, the database version input is dynamically populated based on the selected database type.
@@ -724,7 +1430,9 @@ In the preceding example, the database version input is dynamically populated ba
 
 Basic input validation is available by configuring inputs with `Required` and `MaxLength` properties. For complex scenarios, you can provide a custom validation callback that runs server-side when the user submits the dialog.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK represents InteractionInputsDialogOptions.validation_callback as an untyped serde_json::Value marker, so it cannot register the typed validation callback used here.',
+}}>
 <Fragment slot="csharp">
 
 Use the `InputsDialogInteractionOptions.ValidationCallback` property:
@@ -856,6 +1564,121 @@ if (!(await result.canceled())) {
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+interaction_service = context.services.get_interaction_service()
+password = interaction_service.create_secret_input(
+    "password",
+    options={"Label": "Password", "Required": True, "Placeholder": "Enter a strong password"},
+)
+confirm_password = interaction_service.create_secret_input(
+    "confirmPassword",
+    options={"Label": "Confirm password", "Required": True, "Placeholder": "Confirm your password"},
+)
+
+def validate(validation_context):
+    password_value = validation_context.inputs.value("password")
+    confirmation = validation_context.inputs.value("confirmPassword")
+    if password_value and len(password_value) < 8:
+        validation_context.add_validation_error(
+            "password",
+            "Password must be at least 8 characters long",
+        )
+    if password_value != confirmation:
+        validation_context.add_validation_error(
+            "confirmPassword",
+            "Passwords do not match",
+        )
+
+result = interaction_service.prompt_inputs(
+    "Database configuration",
+    "Configure your PostgreSQL database connection:",
+    [password, confirm_password],
+    options={"ValidationCallback": validate},
+)
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+interactionService := context.Services().GetInteractionService()
+label, confirmLabel := "Password", "Confirm password"
+required := true
+password := interactionService.CreateSecretInput("password",
+	&aspire.CreateInteractionInputOptions{Label: &label, Required: &required})
+confirmPassword := interactionService.CreateSecretInput("confirmPassword",
+	&aspire.CreateInteractionInputOptions{Label: &confirmLabel, Required: &required})
+
+dialogOptions := &aspire.InteractionInputsDialogOptions{
+	ValidationCallback: func(validationContext aspire.InputsDialogValidationContext) {
+		passwordValue, err := validationContext.Inputs().Value("password")
+		if err != nil {
+			log.Printf("read password input: %v", err)
+			return
+		}
+		confirmation, err := validationContext.Inputs().Value("confirmPassword")
+		if err != nil {
+			log.Printf("read confirmation input: %v", err)
+			return
+		}
+		if len(passwordValue) < 8 {
+			_ = validationContext.AddValidationError(
+				"password",
+				"Password must be at least 8 characters long",
+			)
+		}
+		if passwordValue != confirmation {
+			_ = validationContext.AddValidationError("confirmPassword", "Passwords do not match")
+		}
+	},
+}
+result := interactionService.PromptInputs(
+	"Database configuration",
+	"Configure your PostgreSQL database connection:",
+	[]aspire.InteractionInputBuilder{password, confirmPassword},
+	&aspire.PromptInputsOptions{Options: dialogOptions},
+)
+if err := result.Err(); err != nil {
+	return err
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var interactionService = context.services().getInteractionService();
+var required = new CreateInteractionInputOptions();
+required.setRequired(true);
+var password = interactionService.createSecretInput("password", required);
+var confirmPassword = interactionService.createSecretInput("confirmPassword", required);
+
+var dialogOptions = new InteractionInputsDialogOptions();
+dialogOptions.setValidationCallback(validationContext -> {
+    var passwordValue = validationContext.inputs().value("password");
+    var confirmation = validationContext.inputs().value("confirmPassword");
+    if (!passwordValue.isEmpty() && passwordValue.length() < 8) {
+        validationContext.addValidationError(
+            "password",
+            "Password must be at least 8 characters long"
+        );
+    }
+    if (!passwordValue.equals(confirmation)) {
+        validationContext.addValidationError("confirmPassword", "Passwords do not match");
+    }
+});
+
+var result = interactionService.promptInputs(
+    "Database configuration",
+    "Configure your PostgreSQL database connection:",
+    new InteractionInputBuilder[] { password, confirmPassword },
+    new PromptInputsOptions().options(dialogOptions)
+);
+```
+
+</Fragment>
 </AppHostTabs>
 
 Prompting the user for a password and confirming they match is referred to as "dual independent verification" input. This approach is common in scenarios where you want to ensure the user enters the same password twice to avoid typos or mismatches.
@@ -875,7 +1698,12 @@ File upload functionality is a common source of exploitable vulnerabilities. Use
 
 :::
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The Python SDK exports file-input creation and prompting, but its generated InteractionInput result does not expose uploaded file metadata or paths, so the file-processing workflow cannot be completed.',
+  go: 'The Go SDK exports file-input creation and prompting, but its generated InteractionInput result does not expose uploaded file metadata or paths, so the file-processing workflow cannot be completed.',
+  java: 'The Java SDK exports file-input creation and prompting, but its generated InteractionInput result does not expose uploaded file metadata or paths, so the file-processing workflow cannot be completed.',
+  rust: 'The Rust SDK exports file-input creation and prompting, but its generated InteractionInput result does not expose uploaded file metadata or paths, so the file-processing workflow cannot be completed.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -990,7 +1818,9 @@ The `PromptProgressAsync` method is only available in dashboard contexts. It thr
 
 The simplest approach is to provide a `Work` callback via `ProgressInteractionOptions`. The progress dialog opens when `PromptProgressAsync` is called and closes automatically when the callback completes:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK represents InteractionProgressOptions.work as an untyped serde_json::Value marker, so it cannot register the typed progress work callback used here.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -1041,6 +1871,78 @@ if (result.canceled) {
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+interaction_service = context.services.get_interaction_service()
+
+def download_resources(progress_context):
+    run_download()
+
+result = interaction_service.prompt_progress(
+    "Please wait while resources are being downloaded...",
+    options={
+        "Title": "Downloading resources",
+        "PrimaryButtonText": "Cancel",
+        "Work": download_resources,
+    },
+)
+
+if result.get("Canceled", False):
+    # The user clicked the cancel button.
+    pass
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+title, cancel := "Downloading resources", "Cancel"
+result, err := context.Services().GetInteractionService().PromptProgress(
+	"Please wait while resources are being downloaded...",
+	&aspire.PromptProgressOptions{Options: &aspire.InteractionProgressOptions{
+		Title: &title,
+		PrimaryButtonText: &cancel,
+		Work: func(progressContext aspire.ProgressContext) {
+			token, err := progressContext.CancellationToken()
+			if err != nil {
+				log.Printf("get progress cancellation token: %v", err)
+				return
+			}
+			runDownload(token)
+		},
+	}},
+)
+if err != nil {
+	return err
+}
+if result.Canceled {
+	// The user clicked the cancel button.
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var progressOptions = new InteractionProgressOptions();
+progressOptions.setTitle("Downloading resources");
+progressOptions.setPrimaryButtonText("Cancel");
+progressOptions.setWork(progressContext ->
+    runDownload(progressContext.cancellationToken())
+);
+
+var result = context.services().getInteractionService().promptProgress(
+    "Please wait while resources are being downloaded...",
+    new PromptProgressOptions().options(progressOptions)
+);
+
+if (result.getCanceled()) {
+    // The user clicked the cancel button.
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 When a `Work` callback is provided:
@@ -1052,6 +1954,16 @@ When a `Work` callback is provided:
 ### Display progress without a work callback
 
 If you don't provide a `Work` callback, the progress dialog stays open until the `cancellationToken` passed to `PromptProgressAsync` is canceled, or the user clicks the cancel button (if `PrimaryButtonText` is set). This pattern is useful when you manage the work yourself and want to close the dialog at a specific point:
+
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python prompt_progress API exposes a timeout, but it does not accept a cancellation token that this no-work callback pattern can cancel.',
+    go: 'The generated Go PromptProgress API is synchronous, so it does not return a progress task that the same execution flow can cancel after completing separate work.',
+    java: 'The generated Java promptProgress API is synchronous, so it does not return a progress task that the same execution flow can cancel after completing separate work.',
+    rust: 'The generated Rust prompt_progress API is synchronous, so it does not return a progress task that the same execution flow can cancel after completing separate work.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREINTERACTION001
@@ -1070,6 +1982,29 @@ cts.Cancel();
 
 await progressTask;
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+const interactionService = await context.services().getInteractionService();
+const controller = new AbortController();
+
+const progressTask = interactionService.promptProgress(
+  'Processing data...',
+  { title: 'Processing' },
+  controller.signal
+);
+
+// Do work, then close the dialog by canceling the signal.
+await doWork();
+controller.abort();
+
+await progressTask;
+```
+
+</Fragment>
+</AppHostTabs>
 
 Because no `PrimaryButtonText` is set, the dialog has no cancel button and the user cannot dismiss it.
 

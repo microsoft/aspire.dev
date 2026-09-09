@@ -61,7 +61,12 @@ When Podman is the active runtime, Aspire uses `podman-compose` (or the Docker C
 
 To deploy with Docker Compose, add a Docker Compose environment resource to your AppHost using `AddDockerComposeEnvironment`:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose the Docker Compose environment capability.',
+  go: 'The daily Go generated SDK does not expose the Docker Compose environment capability.',
+  java: 'The daily Java generated SDK does not expose the Docker Compose environment capability.',
+  rust: 'The daily Rust generated SDK does not expose the Docker Compose environment capability.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs" {3}
 var builder = DistributedApplication.CreateBuilder(args);
@@ -227,7 +232,12 @@ Docker Compose deployments can build images from Dockerfiles that are generated 
   [`ASPIREDOCKERFILEBUILDER001`](/diagnostics/aspiredockerfilebuilder001/) when you choose to use them.
 </Aside>
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python generates Dockerfile builder APIs, but the daily SDK does not expose the Docker Compose environment required by this deployment example.',
+  go: 'Go generates Dockerfile builder APIs, but the daily SDK does not expose the Docker Compose environment required by this deployment example.',
+  java: 'Java generates Dockerfile builder APIs, but the daily SDK does not expose the Docker Compose environment required by this deployment example.',
+  rust: 'Rust generates Dockerfile builder APIs, but the daily SDK does not expose the Docker Compose environment required by this deployment example.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.ApplicationModel.Docker;
@@ -305,7 +315,12 @@ The Docker hosting integration captures environment variables from your app mode
 
 For advanced scenarios, use `ConfigureEnvFile` to customize the generated `.env` file:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Docker Compose environment-file customization.',
+  go: 'The daily Go generated SDK does not expose Docker Compose environment-file customization.',
+  java: 'The daily Java generated SDK does not expose Docker Compose environment-file customization.',
+  rust: 'The daily Rust generated SDK does not expose Docker Compose environment-file customization.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Docker;
@@ -350,7 +365,12 @@ This is useful when you need to add custom environment variables to the generate
 
 Use `ConfigureComposeFile` to customize the generated `docker-compose.yml` model before Aspire writes it to disk:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Docker Compose file customization.',
+  go: 'The daily Go generated SDK does not expose Docker Compose file customization.',
+  java: 'The daily Java generated SDK does not expose Docker Compose file customization.',
+  rust: 'The daily Rust generated SDK does not expose Docker Compose file customization.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -394,7 +414,12 @@ await builder.build().run();
 
 To customize the generated Docker Compose service for a specific resource, use the `PublishAsDockerComposeService` method. This is optional — all resources are automatically included in the Docker Compose output. Use this method only when you need to modify the generated service definition:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose Docker Compose service publishing or service-model customization.',
+  go: 'The daily Go generated SDK does not expose Docker Compose service publishing or service-model customization.',
+  java: 'The daily Java generated SDK does not expose Docker Compose service publishing or service-model customization.',
+  rust: 'The daily Rust generated SDK does not expose Docker Compose service publishing or service-model customization.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -445,7 +470,12 @@ The `configure` callback receives the `DockerComposeServiceResource` and the gen
 
 Use `GetHostAddressExpression` when you need the host name that another Docker Compose service should use for an endpoint. In Docker Compose deployments, this expression resolves to the generated service name on the Compose network.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose the Docker Compose host-address expression capability.',
+  go: 'The daily Go generated SDK does not expose the Docker Compose host-address expression capability.',
+  java: 'The daily Java generated SDK does not expose the Docker Compose host-address expression capability.',
+  rust: 'The daily Rust generated SDK does not expose the Docker Compose host-address expression capability.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -499,6 +529,90 @@ const container = await builder.addContainer('mycontainer', { image: 'myimage', 
 await container.withImagePullPolicy(ImagePullPolicy.Always);
 ```
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    container = builder.add_container("mycontainer", "myimage:latest")
+    container.with_image_pull_policy("Always")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	container := builder.AddContainer("mycontainer", "myimage:latest").
+		WithImagePullPolicy(aspire.ImagePullPolicyAlways)
+	if err := container.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addContainer("mycontainer", "myimage:latest")
+        .withImagePullPolicy(ImagePullPolicy.ALWAYS);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let container =
+        builder.add_container("mycontainer", serde_json::json!("myimage:latest"))?;
+    container.with_image_pull_policy(ImagePullPolicy::Always)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 When you publish resources to a Docker Compose environment, the `ImagePullPolicy` is automatically mapped to the Docker Compose [`pull_policy`](https://docs.docker.com/reference/compose-file/services/#pull_policy) field:
@@ -524,7 +638,12 @@ When deploying containers, you can customize how container images are named, tag
 
 Use `WithRemoteImageName` and `WithRemoteImageTag` to customize the image reference:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python generates remote image naming APIs, but the daily SDK does not expose the Docker Compose publishing capability used to make this resource deployable.',
+  go: 'Go generates remote image naming APIs, but the daily SDK does not expose the Docker Compose publishing capability used to make this resource deployable.',
+  java: 'Java generates remote image naming APIs, but the daily SDK does not expose the Docker Compose publishing capability used to make this resource deployable.',
+  rust: 'Rust generates remote image naming APIs, but the daily SDK does not expose the Docker Compose publishing capability used to make this resource deployable.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -560,7 +679,12 @@ await api.withRemoteImageTag('v1.0.0');
 
 For more complex scenarios, use `WithImagePushOptions` to register a callback that dynamically configures push options:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python generates image-push callback APIs, but not the Docker Compose publishing capability required by this example; its generated callback surface also lacks the typed setters shown here.',
+  go: 'Go generates image-push callback APIs, but the daily SDK does not expose the Docker Compose publishing capability required by this example.',
+  java: 'Java generates image-push callback APIs, but the daily SDK does not expose the Docker Compose publishing capability required by this example.',
+  rust: 'Rust generates image-push callback APIs, but the daily SDK does not expose the Docker Compose publishing capability required by this example.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -610,7 +734,12 @@ Multiple callbacks can be registered on the same resource, and they are invoked 
 
 Use the `AddContainerRegistry` method to define a container registry and `WithContainerRegistry` to associate resources with it:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python generates container registry APIs, but the daily SDK does not expose Docker Compose service publishing for the project resource in this example.',
+  go: 'Go generates container registry APIs, but the daily SDK does not expose Docker Compose service publishing for the project resource in this example.',
+  java: 'Java generates container registry APIs, but the daily SDK does not expose Docker Compose service publishing for the project resource in this example.',
+  rust: 'Rust generates container registry APIs, but the daily SDK does not expose Docker Compose service publishing for the project resource in this example.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -662,7 +791,12 @@ await api.withContainerRegistry(registry);
 
 For more flexible configuration in CI/CD pipelines, use parameters with environment variables:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose configuration-backed parameters or Docker Compose service publishing used by this example.',
+  go: 'Go generates configuration-backed parameters, but the daily SDK does not expose Docker Compose service publishing used by this example.',
+  java: 'Java generates configuration-backed parameters, but the daily SDK does not expose Docker Compose service publishing used by this example.',
+  rust: 'Rust generates configuration-backed parameters, but the daily SDK does not expose Docker Compose service publishing used by this example.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);

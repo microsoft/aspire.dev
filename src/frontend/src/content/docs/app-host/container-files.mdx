@@ -25,7 +25,14 @@ The `WithContainerFiles` extension method creates or updates files and directori
 
 Use the inline entries overload to declaratively define files and directories using `ContainerFileSystemItem` objects. This is useful when file contents are known at build time or can be expressed as string literals.
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK exposes only handle-backed ContainerFileSystemItem types, so inline file and directory entries cannot be constructed in a Python AppHost.',
+    go: 'The generated Go SDK does not generate constructible ContainerFile and ContainerDirectory value types, so inline entries cannot be supplied from a Go AppHost.',
+    java: 'The generated Java SDK does not generate constructible ContainerFile and ContainerDirectory value types, so inline entries cannot be supplied from a Java AppHost.',
+    rust: 'The generated Rust SDK represents container file-system items as handle-backed marker types, so inline entries cannot be constructed in a Rust AppHost.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -106,6 +113,38 @@ await api.publishWithContainerFiles(frontend, "./wwwroot");
 await builder.build().run();
 ```
 </Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+container = builder.add_container("myapp", "myapp:latest")
+container.with_container_files("/app/config", "./config-files")
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+container := builder.
+	AddContainer("myapp", "myapp:latest").
+	WithContainerFiles("/app/config", "./config-files")
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var container = builder.addContainer("myapp", "myapp:latest");
+container.withContainerFiles("/app/config", "./config-files");
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let container = builder.add_container(
+    "myapp",
+    serde_json::json!("myapp:latest"),
+)?;
+container.with_container_files(
+    "/app/config",
+    "./config-files",
+    None,
+)?;
+```
+</Fragment>
 </AppHostTabs>
 
 Unless the source path is a rooted (absolute) path, it's interpreted as relative to the AppHost project directory. All files in the source directory are copied to the destination path in the container at startup.
@@ -114,7 +153,14 @@ Unless the source path is a rooted (absolute) path, it's interpreted as relative
 
 Use the callback overload to generate files dynamically when the container starts. The callback receives a `ContainerFileSystemCallbackContext` that provides access to the `IServiceProvider` and the resource's `IResource` model, enabling you to resolve services or inspect the app model.
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The Python callback exists, but its required ContainerFileSystemItem results are handle-backed and cannot be constructed by AppHost code.',
+    go: 'The Go callback exists, but the generated SDK does not provide constructible container file-system item values for its result.',
+    java: 'The Java callback exists, but the generated SDK does not provide constructible container file-system item values for its result.',
+    rust: 'The Rust callback is emitted as an untyped JSON callback and container file-system items remain marker types, so this example is not expressible safely.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -159,6 +205,15 @@ The `WithContainerFiles` API uses a type hierarchy rooted at the abstract `Conta
 
 `ContainerFile` represents a standard file. Set either `Contents` (a string) or `SourcePath` (an absolute path on the host) to provide the file data — the two are mutually exclusive.
 
+<AppHostTabs limitations={{
+  typescript: 'The TypeScript SDK does not expose constructible ContainerFile values; use the supported high-level container-file APIs instead.',
+  python: 'The Python SDK generates ContainerFile as a handle-backed type that cannot be constructed directly.',
+  go: 'The Go SDK does not generate ContainerFile as a constructible value.',
+  java: 'The Java SDK does not generate ContainerFile as a constructible value.',
+  rust: 'The Rust SDK generates ContainerFile as a handle-backed marker that cannot be constructed directly.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 // File with inline contents
 var configYaml = new ContainerFile
@@ -175,7 +230,19 @@ var dataCsv = new ContainerFile
 };
 ```
 
+</Fragment>
+</AppHostTabs>
+
 Set `ContinueOnError` to `true` to allow the container to start even if creating this particular file fails:
+
+<AppHostTabs limitations={{
+  typescript: 'The TypeScript SDK does not expose constructible ContainerFile values or ContinueOnError.',
+  python: 'The Python SDK generates ContainerFile as a handle-backed type that cannot be constructed directly.',
+  go: 'The Go SDK does not generate ContainerFile as a constructible value.',
+  java: 'The Java SDK does not generate ContainerFile as a constructible value.',
+  rust: 'The Rust SDK generates ContainerFile as a handle-backed marker that cannot be constructed directly.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var optionalJson = new ContainerFile
@@ -186,9 +253,21 @@ var optionalJson = new ContainerFile
 };
 ```
 
+</Fragment>
+</AppHostTabs>
+
 ### ContainerDirectory
 
 `ContainerDirectory` represents a directory that can contain nested `ContainerFileSystemItem` entries, allowing you to build arbitrary directory trees.
+
+<AppHostTabs limitations={{
+  typescript: 'The TypeScript SDK does not expose constructible ContainerDirectory or ContainerFile values.',
+  python: 'The Python SDK generates these container-file-system types as handle-backed values that cannot be constructed directly.',
+  go: 'The Go SDK does not generate ContainerDirectory or ContainerFile as constructible values.',
+  java: 'The Java SDK does not generate ContainerDirectory or ContainerFile as constructible values.',
+  rust: 'The Rust SDK generates these container-file-system types as handle-backed markers that cannot be constructed directly.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var certsDir = new ContainerDirectory
@@ -216,7 +295,19 @@ var certsDir = new ContainerDirectory
 };
 ```
 
+</Fragment>
+</AppHostTabs>
+
 You can also populate a `ContainerDirectory` from files on disk using the static `GetFileSystemItemsFromPath` method:
+
+<AppHostTabs limitations={{
+  typescript: 'The TypeScript SDK does not expose ContainerDirectory.GetFileSystemItemsFromPath.',
+  python: 'The Python SDK does not expose a constructible ContainerDirectory or the filesystem enumeration helper.',
+  go: 'The Go SDK does not expose a constructible ContainerDirectory or the filesystem enumeration helper.',
+  java: 'The Java SDK does not expose a constructible ContainerDirectory or the filesystem enumeration helper.',
+  rust: 'The Rust SDK does not expose a constructible ContainerDirectory or the filesystem enumeration helper.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var assetsDir = new ContainerDirectory
@@ -228,11 +319,21 @@ var assetsDir = new ContainerDirectory
 };
 ```
 
+</Fragment>
+</AppHostTabs>
+
 ### ContainerOpenSSLCertificateFile
 
 `ContainerOpenSSLCertificateFile` represents a PEM-encoded public certificate. In addition to placing the certificate file in the container, Aspire automatically creates an OpenSSL-compatible symlink (`[subject hash].[n]`) in the same directory — equivalent to running `openssl rehash`. This enables containers that use OpenSSL for certificate validation to discover the certificate automatically.
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'ContainerOpenSSLCertificateFile is generated as a handle-backed type and cannot be constructed in a Python AppHost.',
+    go: 'ContainerOpenSSLCertificateFile is not generated as a constructible Go value, so this inline certificate entry is unavailable.',
+    java: 'ContainerOpenSSLCertificateFile is not generated as a constructible Java value, so this inline certificate entry is unavailable.',
+    rust: 'ContainerOpenSSLCertificateFile is represented by a marker type and cannot be constructed in a Rust AppHost.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 builder.AddContainer("myapp", "myapp:latest")
@@ -260,7 +361,14 @@ All `WithContainerFiles` overloads accept optional parameters to control file ow
 
 The `defaultOwner` and `defaultGroup` parameters set the default UID and GID applied to all created files and directories. Both default to `0` (root) when not specified. You can override ownership on individual items using the `Owner` and `Group` properties on any `ContainerFileSystemItem`.
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'Per-entry owner and group values require constructible ContainerFile entries, which the generated Python SDK does not provide.',
+    go: 'Per-entry owner and group values require constructible ContainerFile entries, which the generated Go SDK does not provide.',
+    java: 'Per-entry owner and group values require constructible ContainerFile entries, which the generated Java SDK does not provide.',
+    rust: 'Per-entry owner and group values require constructible container file-system items, which are marker types in the generated Rust SDK.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 builder.AddContainer("myapp", "myapp:latest")
@@ -306,7 +414,14 @@ The default umask is `0022`, which results in:
 
 You can set `Mode` directly on individual items to override the umask-based default:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK exposes ContainerFilesOptions, but explicit per-entry modes require ContainerFile values that AppHost code cannot construct.',
+    go: 'The generated Go SDK exposes ContainerFilesOptions, but explicit per-entry modes require ContainerFile values that it does not generate.',
+    java: 'The generated Java SDK exposes ContainerFilesOptions, but explicit per-entry modes require ContainerFile values that it does not generate.',
+    rust: 'The generated Rust SDK exposes ContainerFilesOptions, but explicit per-entry modes require marker-typed file-system items that AppHost code cannot construct.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 builder.AddContainer("myapp", "myapp:latest")
@@ -345,7 +460,14 @@ A key use case is embedding single-page application (SPA) or static JavaScript f
 
 ### Embed a frontend in a backend
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include add_vite_app, so this Vite build-output example cannot be defined from a Python AppHost.',
+    go: 'The generated Go SDK does not include AddViteApp, so this Vite build-output example cannot be defined from a Go AppHost.',
+    java: 'The generated Java SDK does not include addViteApp, so this Vite build-output example cannot be defined from a Java AppHost.',
+    rust: 'The generated Rust SDK does not include add_vite_app, so this Vite build-output example cannot be defined from a Rust AppHost.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -384,7 +506,14 @@ In this example:
 
 You can also embed frontend assets into a dedicated reverse proxy container:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include add_vite_app, add_yarp, or publish_with_static_files.',
+    go: 'The generated Go SDK does not include AddViteApp, AddYarp, or PublishWithStaticFiles.',
+    java: 'The generated Java SDK does not include addViteApp, addYarp, or publishWithStaticFiles.',
+    rust: 'The generated Rust SDK does not include add_vite_app, add_yarp, or publish_with_static_files.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -421,7 +550,14 @@ This produces a self-contained Nginx container that serves the frontend applicat
 
 By default, the source resource exports files from its container based on its configured output paths. Use `WithContainerFilesSource` to specify which path inside the source container to copy from:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK supports with_container_files_source, but it does not include add_vite_app for creating the source resource used here.',
+    go: 'The generated Go SDK supports WithContainerFilesSource, but it does not include AddViteApp for creating the source resource used here.',
+    java: 'The generated Java SDK supports withContainerFilesSource, but it does not include addViteApp for creating the source resource used here.',
+    rust: 'The generated Rust SDK supports with_container_files_source, but it does not include add_vite_app for creating the source resource used here.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var frontend = builder.AddViteApp("frontend", "../frontend")

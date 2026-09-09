@@ -6,6 +6,7 @@ description: Learn how Aspire annotations work, how the AppHost composes built-i
 
 import { Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 Annotations are a key extensibility mechanism in Aspire that allow you to attach metadata and behavior to resources. They provide a way to customize how resources are configured, deployed, and managed throughout the application lifecycle. This article explains how annotations work and how to use them effectively in your Aspire applications.
 
@@ -26,16 +27,28 @@ When you add a resource to your app model, you can attach annotations using vari
 
 Here's a simple example of how annotations are used:
 
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddRedis("cache")
     .WithCommand("clear-cache", "Clear Cache",
         async context => new ExecuteCommandResult { Success = true })
-    .WithUrl("admin", "http://localhost:8080/admin");
+    .WithUrl("http://localhost:8080/admin", "Admin");
 
 builder.Build().Run();
 ```
+
+</Fragment>
+</AppHostTabs>
 
 In this example:
 
@@ -45,6 +58,15 @@ In this example:
 ## Adding and managing annotations
 
 The `WithAnnotation` extension method is the primary way to add annotations to resources. It supports different behaviors when an annotation of the same type already exists:
+
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 // Add only if no annotation of this type exists (default)
@@ -56,9 +78,21 @@ builder.AddContainer("mycontainer", "myimage")
     .WithAnnotation(new MyAnnotation(), ResourceAnnotationMutationBehavior.Replace);
 ```
 
+</Fragment>
+</AppHostTabs>
+
 ### Reading annotations
 
 To read annotations from a resource, use the `Annotations` collection or helper methods:
+
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="Reading annotations"
 // Get all annotations of a type
@@ -74,6 +108,9 @@ if (resource.TryGetLastAnnotation<EndpointAnnotation>(out var endpoint))
 bool hasEndpoints = resource.Annotations.OfType<EndpointAnnotation>().Any();
 ```
 
+</Fragment>
+</AppHostTabs>
+
 ## Built-in annotation types
 
 Aspire includes many built-in annotation types for common scenarios. This section covers _some_ of the more commonly used annotations, but there are many more available for specific use cases.
@@ -81,6 +118,15 @@ Aspire includes many built-in annotation types for common scenarios. This sectio
 ### `EndpointAnnotation`
 
 The `EndpointAnnotation` defines network endpoints for resources. It contains information about ports, protocols, and endpoint configuration.
+
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var api = builder.AddProject<Projects.Api>("api")
@@ -93,18 +139,42 @@ var api = builder.AddProject<Projects.Api>("api")
     });
 ```
 
+</Fragment>
+</AppHostTabs>
+
 ### `ResourceUrlAnnotation`
 
 The `ResourceUrlAnnotation` defines custom URLs that appear in the dashboard, often pointing to management interfaces or documentation.
+
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var database = builder.AddPostgres("postgres")
     .WithUrl("admin", "https://localhost:5050");
 ```
 
+</Fragment>
+</AppHostTabs>
+
 ### `EnvironmentCallbackAnnotation`
 
 The `EnvironmentCallbackAnnotation` allows you to modify environment variables at runtime based on the state of other resources.
+
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 // This is typically used internally by WithReference
@@ -112,23 +182,50 @@ var app = builder.AddProject<Projects.MyApp>("app")
     .WithReference(database);
 ```
 
+</Fragment>
+</AppHostTabs>
+
 ### `ContainerMountAnnotation`
 
 The `ContainerMountAnnotation` defines volume mounts for containerized resources.
+
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var postgres = builder.AddPostgres("postgres")
     .WithDataVolume(); // Adds a ContainerMountAnnotation
 ```
 
+</Fragment>
+</AppHostTabs>
+
 ### `HealthCheckAnnotation`
 
 The `HealthCheckAnnotation` associates health checks with a resource, used by `WaitFor()` to determine when a resource is ready:
+
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var api = builder.AddProject<Projects.Api>("api")
     .WithHttpHealthCheck("/health");  // Adds HealthCheckAnnotation
 ```
+
+</Fragment>
+</AppHostTabs>
 
 <LearnMore>
 Learn more about how Aspire uses health checks for orchestration in the [Health checks guide](/fundamentals/health-checks/).
@@ -138,6 +235,15 @@ Learn more about how Aspire uses health checks for orchestration in the [Health 
 
 The `WaitAnnotation` declares a dependency on another resource and controls startup order. The `WaitFor`, `WaitForStart`, and `WaitForCompletion` methods add this annotation:
 
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var cache = builder.AddRedis("cache");
 
@@ -145,6 +251,9 @@ var cache = builder.AddRedis("cache");
 var web = builder.AddProject<Projects.Web>("web")
     .WaitFor(cache);  // Adds WaitAnnotation with WaitType.WaitForHealthy
 ```
+
+</Fragment>
+</AppHostTabs>
 
 The `WaitType` enum specifies what condition to wait for:
 
@@ -158,19 +267,43 @@ The `WaitType` enum specifies what condition to wait for:
 
 The `ReplicaAnnotation` specifies how many instances of a resource should run:
 
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var api = builder.AddProject<Projects.Api>("api")
     .WithReplicas(3);  // Adds ReplicaAnnotation
 ```
 
+</Fragment>
+</AppHostTabs>
+
 ### `PersistenceAnnotation`
 
 The `PersistenceAnnotation` controls whether a supported resource uses the default session lifetime, persists across AppHost runs, matches another resource's lifetime, or is scoped to a parent process:
+
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var postgres = builder.AddPostgres("postgres")
     .WithPersistentLifetime();  // Resource survives AppHost restarts
 ```
+
+</Fragment>
+</AppHostTabs>
 
 <LearnMore>
 For details on supported lifetime modes and their use cases, see [Resource lifetimes](/app-host/resource-lifetimes/).
@@ -180,10 +313,22 @@ For details on supported lifetime modes and their use cases, see [Resource lifet
 
 The `ExplicitStartupAnnotation` prevents a resource from starting automatically. Users must manually start it from the dashboard:
 
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var worker = builder.AddProject<Projects.BatchJob>("batch")
     .WithExplicitStart();  // Adds ExplicitStartupAnnotation
 ```
+
+</Fragment>
+</AppHostTabs>
 
 ## Creating custom annotations
 
@@ -255,12 +400,24 @@ The extension methods serve as the primary API surface for your annotation. They
 
 Once defined, annotations integrate seamlessly into the AppHost model:
 
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api")
     .WithMetrics("/api/metrics", 9090, "environment:production", "service:api");
 ```
+
+</Fragment>
+</AppHostTabs>
 
 ## Testing with annotations
 
@@ -314,11 +471,23 @@ public sealed class DbAnnotation : IResourceAnnotation
 
 Create fluent extension methods that follow Aspire's builder pattern:
 
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  python: 'The generated Python SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  go: 'The generated Go SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  java: 'The generated Java SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+  rust: 'The generated Rust SDK exposes high-level resource APIs, but not the generic IResourceAnnotation mutation and Annotations collection APIs needed to inspect or extend the annotation represented by this example.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var resource = builder.AddMyResource("name")
     .WithCustomBehavior()
     .WithAnotherFeature();
 ```
+
+</Fragment>
+</AppHostTabs>
 
 ### Document your annotations
 

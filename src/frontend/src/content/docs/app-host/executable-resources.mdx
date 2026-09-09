@@ -59,6 +59,97 @@ const pythonApp = await builder.addExecutable("api", "python", ".", ["-m", "uvic
 await builder.build().run();
 ```
 </Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    node_app = builder.add_executable(
+        "frontend", "node", ".", ["server.js"]
+    )
+
+    python_app = builder.add_executable(
+        "api",
+        "python",
+        ".",
+        [
+            "-m",
+            "uvicorn",
+            "main:app",
+            "--reload",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8000",
+        ],
+    )
+
+    builder.run()
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+nodeApp := builder.AddExecutable(
+	"frontend",
+	"node",
+	".",
+	[]string{"server.js"},
+)
+pythonApp := builder.AddExecutable(
+	"api",
+	"python",
+	".",
+	[]string{
+		"-m", "uvicorn", "main:app", "--reload",
+		"--host", "0.0.0.0", "--port", "8000",
+	},
+)
+if err := nodeApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var nodeApp = builder.addExecutable(
+    "frontend", "node", ".", new String[] { "server.js" });
+
+var pythonApp = builder.addExecutable(
+    "api",
+    "python",
+    ".",
+    new String[] {
+        "-m", "uvicorn", "main:app", "--reload",
+        "--host", "0.0.0.0", "--port", "8000"
+    });
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let node_app = builder.add_executable(
+    "frontend",
+    "node",
+    ".",
+    vec!["server.js".to_string()],
+)?;
+
+let python_app = builder.add_executable(
+    "api",
+    "python",
+    ".",
+    vec![
+        "-m", "uvicorn", "main:app", "--reload",
+        "--host", "0.0.0.0", "--port", "8000",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect(),
+)?;
+```
+</Fragment>
 </AppHostTabs>
 
 This code demonstrates setting up a basic executable resource. The first example runs a Node.js server script, while the second starts a Python application using Uvicorn with specific configuration options passed as arguments directly to the `AddExecutable` method.
@@ -89,13 +180,59 @@ const builder = await createBuilder();
 const app = await builder.addExecutable("vercel-dev", "vercel", ".", ["dev", "--listen", "3000"]);
 ```
 </Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+app = builder.add_executable(
+    "vercel-dev", "vercel", ".", ["dev", "--listen", "3000"]
+)
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+app := builder.AddExecutable(
+	"vercel-dev",
+	"vercel",
+	".",
+	[]string{"dev", "--listen", "3000"},
+)
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var app = builder.addExecutable(
+    "vercel-dev",
+    "vercel",
+    ".",
+    new String[] { "dev", "--listen", "3000" });
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let app = builder.add_executable(
+    "vercel-dev",
+    "vercel",
+    ".",
+    vec!["dev", "--listen", "3000"]
+        .into_iter()
+        .map(str::to_string)
+        .collect(),
+)?;
+```
+</Fragment>
 </AppHostTabs>
 
 ### Resource dependencies with environment variables
 
 For arguments that depend on other resources, use environment variables:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include the Redis and PostgreSQL integration APIs used by this dependency example.',
+    go: 'The generated Go SDK does not include the Redis and PostgreSQL integration APIs used by this dependency example.',
+    java: 'The generated Java SDK does not include the Redis and PostgreSQL integration APIs used by this dependency example.',
+    rust: 'The generated Rust SDK does not include the Redis and PostgreSQL integration APIs used by this dependency example.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -130,7 +267,14 @@ When one resource depends on another, `WithReference` passes along environment v
 
 For more control over how connection information is passed to your executable:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include add_redis, which supplies the endpoint used by this environment example.',
+    go: 'The generated Go SDK does not include AddRedis, which supplies the endpoint used by this environment example.',
+    java: 'The generated Java SDK does not include addRedis, which supplies the endpoint used by this environment example.',
+    rust: 'The generated Rust SDK does not include add_redis, which supplies the endpoint used by this environment example.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -170,7 +314,12 @@ const app = await builder.addExecutable("app", "node", ".", ["app.js"])
 
 Here's a complete example using the [Vercel CLI](https://vercel.com/docs/cli) to host a frontend application with a backend API:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK documents with_environment but does not emit the method on executable resources, so API_URL cannot be assigned from the AppHost.',
+    rust: 'The generated Rust SDK cannot convert an EndpointReference into the untyped Value required by with_environment, so the API_URL assignment is not type-safe.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -206,13 +355,52 @@ const frontend = await builder.addExecutable("vercel-dev", "vercel", ".", ["dev"
 await builder.build().run();
 ```
 </Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+api := builder.
+	AddProject("api", "./Api/Api.csproj").
+	WithExternalHttpEndpoints()
+frontend := builder.
+	AddExecutable(
+		"vercel-dev",
+		"vercel",
+		".",
+		[]string{"dev", "--listen", "3000"},
+	).
+	WithEnvironment("API_URL", api.GetEndpoint("http")).
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
+		Port: aspire.Float64Ptr(3000),
+		Name: aspire.StringPtr("http"),
+	})
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var api = builder.addProject("api", "./Api/Api.csproj");
+api.withExternalHttpEndpoints();
+
+var frontend = builder.addExecutable(
+    "vercel-dev",
+    "vercel",
+    ".",
+    new String[] { "dev", "--listen", "3000" });
+frontend.withEnvironment("API_URL", api.getEndpoint("http"));
+frontend.withHttpEndpoint(
+    new WithHttpEndpointOptions().port(3000.0).name("http"));
+```
+</Fragment>
 </AppHostTabs>
 
 ## Configure endpoints
 
 Executable resources can expose HTTP endpoints that other resources can reference:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK documents with_environment but does not emit the method on executable resources, so BASE_URL cannot be assigned from the AppHost.',
+    rust: 'The generated Rust SDK cannot convert an EndpointReference into the untyped Value required by with_environment, so the BASE_URL assignment is not type-safe.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -240,13 +428,52 @@ const e2eTests = await builder.addExecutable("playwright", "npx", ".", ["playwri
     .withEnvironment("BASE_URL", frontend.getEndpoint("http"));
 ```
 </Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+frontend := builder.
+	AddExecutable(
+		"webpack-dev",
+		"npx",
+		".",
+		[]string{"webpack", "serve", "--port", "8080", "--host", "0.0.0.0"},
+	).
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
+		Port: aspire.Float64Ptr(8080),
+		Name: aspire.StringPtr("http"),
+	})
+e2eTests := builder.
+	AddExecutable("playwright", "npx", ".", []string{"playwright", "test"}).
+	WithEnvironment("BASE_URL", frontend.GetEndpoint("http"))
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var frontend = builder.addExecutable(
+    "webpack-dev",
+    "npx",
+    ".",
+    new String[] {
+        "webpack", "serve", "--port", "8080", "--host", "0.0.0.0"
+    });
+frontend.withHttpEndpoint(
+    new WithHttpEndpointOptions().port(8080.0).name("http"));
+
+var e2eTests = builder.addExecutable(
+    "playwright", "npx", ".", new String[] { "playwright", "test" });
+e2eTests.withEnvironment("BASE_URL", frontend.getEndpoint("http"));
+```
+</Fragment>
 </AppHostTabs>
 
 ## Environment configuration
 
 Configure environment variables for your executable:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK documents with_environment but does not emit the method on executable resources, so this environment assignment example is unavailable.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -274,19 +501,68 @@ const app = await builder.addExecutable("api", "uvicorn", ".", ["main:app", "--r
     .withEnvironment("START_TIME", new Date().toISOString());
 ```
 </Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+app := builder.
+	AddExecutable(
+		"api",
+		"uvicorn",
+		".",
+		[]string{"main:app", "--reload", "--host", "0.0.0.0"},
+	).
+	WithEnvironment("DEBUG", "true").
+	WithEnvironment("LOG_LEVEL", "info").
+	WithEnvironment("START_TIME", time.Now().UTC().Format(time.RFC3339))
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var app = builder.addExecutable(
+    "api",
+    "uvicorn",
+    ".",
+    new String[] { "main:app", "--reload", "--host", "0.0.0.0" });
+app.withEnvironment("DEBUG", "true");
+app.withEnvironment("LOG_LEVEL", "info");
+app.withEnvironment("START_TIME", Instant.now().toString());
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let app = builder.add_executable(
+    "api",
+    "uvicorn",
+    ".",
+    vec!["main:app", "--reload", "--host", "0.0.0.0"]
+        .into_iter()
+        .map(str::to_string)
+        .collect(),
+)?;
+app.with_environment("DEBUG", serde_json::json!("true"))?;
+app.with_environment("LOG_LEVEL", serde_json::json!("info"))?;
+app.with_environment(
+    "START_TIME",
+    serde_json::json!("2026-09-09T14:13:47Z"),
+)?;
+```
+</Fragment>
 </AppHostTabs>
 
-### `withEnvironment` API unification in Aspire 13.3
+### Environment API unification in Aspire 13.3
 
-Aspire 13.3 unified non-C# AppHost environment assignment behind a single `withEnvironment(name, value)` pattern. The public TypeScript API accepts plain strings, reference expressions, endpoint references, parameter resources, supported resources that expose connection strings, expression values, and awaitable forms of supported values.
+Aspire 13.3 unified generated AppHost environment assignment behind one operation, named `withEnvironment` or `WithEnvironment` according to the generated language. Generated SDKs accept the supported string, reference, endpoint, parameter, resource, and expression value forms exposed by each language's type system.
 
-When upgrading to Aspire 13.3, replace every earlier per-kind environment helper call with `withEnvironment(name, value)`. The 13.3 TypeScript SDK doesn't generate compatibility aliases for those helpers.
+When upgrading to Aspire 13.3, replace earlier per-kind environment helper calls with the unified environment method. The generated SDKs don't provide compatibility aliases for those helpers.
 
 ## Publishing with PublishAsDockerFile
 
 For production deployment, executable resources need to be containerized. Use the `PublishAsDockerFile` method to specify how the executable should be packaged:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust SDK emits publish_as_docker_file with an untyped Fn(Vec<Value>) -> Value callback, so a type-safe empty configuration callback is not available.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -304,6 +580,36 @@ const builder = await createBuilder();
 
 const app = await builder.addExecutable("frontend", "npm", ".", ["start", "--port", "3000"])
     .publishAsDockerFile(async () => {});
+```
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+app = builder.add_executable(
+    "frontend", "npm", ".", ["start", "--port", "3000"]
+)
+app.publish_as_docker_file(lambda container: None)
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+app := builder.
+	AddExecutable(
+		"frontend",
+		"npm",
+		".",
+		[]string{"start", "--port", "3000"},
+	).
+	PublishAsDockerFile(func(container aspire.ContainerResource) {})
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var app = builder.addExecutable(
+    "frontend",
+    "npm",
+    ".",
+    new String[] { "start", "--port", "3000" });
+app.publishAsDockerFile(container -> {});
 ```
 </Fragment>
 </AppHostTabs>
@@ -326,7 +632,11 @@ CMD ["npm", "start"]
 
 Then reference it in your AppHost:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust SDK emits publish_as_docker_file with an untyped Fn(Vec<Value>) -> Value callback, so Dockerfile build arguments cannot be configured type-safely.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -343,6 +653,28 @@ const builder = await createBuilder();
 
 const app = await builder.addExecutable("frontend", "npm", ".", ["start"])
     .publishAsDockerFile(async () => {});
+```
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+app = builder.add_executable(
+    "frontend", "npm", ".", ["start"]
+)
+app.publish_as_docker_file(lambda container: None)
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+app := builder.
+	AddExecutable("frontend", "npm", ".", []string{"start"}).
+	PublishAsDockerFile(func(container aspire.ContainerResource) {})
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var app = builder.addExecutable(
+    "frontend", "npm", ".", new String[] { "start" });
+app.publishAsDockerFile(container -> {});
 ```
 </Fragment>
 </AppHostTabs>

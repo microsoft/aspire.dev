@@ -4,9 +4,10 @@ description: Learn how the Aspire SDK simplifies orchestrating Aspire applicatio
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 import LearnMore from '@components/LearnMore.astro';
 
-The Aspire SDK is intended for [AppHost projects](/get-started/app-host/), which serve as the orchestrator for Aspire applications. These projects are designated by their usage of the `Aspire.AppHost.Sdk` in the project file. The SDK provides features that simplify the development of Aspire apps.
+The `Aspire.AppHost.Sdk` is the SDK for C# [AppHost projects](/get-started/app-host/), which serve as the orchestrator for Aspire applications. C# AppHosts are designated by their usage of the SDK in a project file or file-based app directive. TypeScript, Python, Go, Java, and Rust AppHosts instead use generated SDKs managed by the Aspire CLI.
 
 The [📦 Aspire.AppHost.Sdk](https://www.nuget.org/packages/Aspire.AppHost.Sdk) is used for building Aspire apps.
 
@@ -34,6 +35,17 @@ The `Aspire.AppHost.Sdk` is defined in the top-level `Project` node's `Sdk` attr
 
 The `Aspire.AppHost.Sdk` is defined in a file-based app's source file using the `#:sdk` directive:
 
+<AppHostTabs
+  limitations={{
+    typescript: 'TypeScript AppHosts use the generated SDK in .aspire/modules and do not support the C# #:sdk directive.',
+    python: 'Python AppHosts use the generated SDK in .aspire/modules and do not support the C# #:sdk directive.',
+    go: 'Go AppHosts use the generated SDK in .aspire/modules and do not support the C# #:sdk directive.',
+    java: 'Java AppHosts use the generated SDK in .aspire/modules and do not support the C# #:sdk directive.',
+    rust: 'Rust AppHosts use the generated SDK in .aspire/modules and do not support the C# #:sdk directive.',
+  }}
+>
+<Fragment slot="csharp">
+
 ```csharp title='file-based app' {1}
 #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
 
@@ -41,6 +53,9 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 // Omitted for brevity
 ```
+
+</Fragment>
+</AppHostTabs>
 
 </TabItem>
 
@@ -67,7 +82,8 @@ Otherwise, by default, the `ProjectReference` is treated as Aspire project resou
 :::
 
 <LearnMore>
-For the end-to-end `AddProject` workflow, see [Project resources](/integrations/dotnet/project-resources/).
+  For the end-to-end `AddProject` workflow, see [Project
+  resources](/integrations/dotnet/project-resources/).
 </LearnMore>
 
 #### Customizing generated project names
@@ -87,10 +103,24 @@ For example, if you have two microservices with the same project name (like `Pre
 
 This generates `Projects.MicroService1` and `Projects.MicroService2` classes, allowing you to reference each project distinctly in your AppHost:
 
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript AppHost SDK uses project paths with addProject and does not emit C# Projects metadata types.',
+    python: 'The generated Python AppHost SDK uses project paths with add_project and does not emit C# Projects metadata types.',
+    go: 'The generated Go AppHost SDK uses project paths with AddProject and does not emit C# Projects metadata types.',
+    java: 'The generated Java AppHost SDK uses project paths with addProject and does not emit C# Projects metadata types.',
+    rust: 'The generated Rust AppHost SDK uses project paths with add_project and does not emit C# Projects metadata types.',
+  }}
+>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var microservice1 = builder.AddProject<Projects.MicroService1>("micro1");
 var microservice2 = builder.AddProject<Projects.MicroService2>("micro2");
 ```
+
+</Fragment>
+</AppHostTabs>
 
 ### Orchestrator dependencies
 
@@ -147,6 +177,7 @@ Most apps don't need to set either path. `AspireCliPath` selects an explicit `as
   <!-- <AspireCliBundlePath>/path/to/aspire/bundle</AspireCliBundlePath> -->
 </PropertyGroup>
 ```
+
 :::
 
 #### Running with aspire run or aspire start

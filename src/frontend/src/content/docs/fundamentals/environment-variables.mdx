@@ -5,6 +5,7 @@ description: Learn how Aspire generates environment variable names for connectio
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 When you use `WithReference` to connect resources in the AppHost, Aspire automatically injects environment variables into the consuming resource. This process is called _configuration injection_.
 
@@ -24,6 +25,15 @@ ConnectionStrings__{resource-name}
 
 The resource name is used **as-is** (preserving the original casing and hyphens). For example:
 
+<AppHostTabs limitations={{
+  typescript: 'This example uses Redis and PostgreSQL hosting integration APIs that are not emitted in the TypeScript AppHost SDK.',
+  python: 'This example uses Redis and PostgreSQL hosting integration APIs that are not emitted in the Python AppHost SDK.',
+  go: 'This example uses Redis and PostgreSQL hosting integration APIs that are not emitted in the Go AppHost SDK.',
+  java: 'This example uses Redis and PostgreSQL hosting integration APIs that are not emitted in the Java AppHost SDK.',
+  rust: 'This example uses Redis and PostgreSQL hosting integration APIs that are not emitted in the Rust AppHost SDK.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -37,6 +47,9 @@ var api = builder.AddProject<Projects.Api>("api")
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+
+</Fragment>
+</AppHostTabs>
 
 The `api` resource receives the following environment variables:
 
@@ -61,6 +74,9 @@ When you reference a resource that exposes endpoints (such as a project or conta
 
 For example:
 
+<AppHostTabs>
+<Fragment slot="csharp">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -72,6 +88,125 @@ var frontend = builder.AddJavaScriptApp("frontend", "./app")
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('my-api', '../Api/Api.csproj');
+const frontend = await builder.addExecutable(
+  'frontend',
+  'node',
+  './app',
+  ['index.js'],
+);
+await frontend.withReference(api);
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("my-api", "../Api/Api.csproj")
+    frontend = builder.add_executable(
+        "frontend", "node", "./app", ["index.js"]
+    )
+    frontend.with_reference(api)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("my-api", "../Api/Api.csproj")
+	frontend := builder.
+		AddExecutable("frontend", "node", "./app", []string{"index.js"}).
+		WithReference(api)
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var api = builder.addProject("my-api", "../Api/Api.csproj");
+    var frontend = builder.addExecutable(
+        "frontend", "node", "./app", new String[] { "index.js" });
+    frontend.withReference(api);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project("my-api", "../Api/Api.csproj", None)?;
+    let frontend = builder.add_executable(
+        "frontend",
+        "node",
+        "./app",
+        vec!["index.js".to_string()],
+    )?;
+    frontend.with_reference(serialize_handle(&api), None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 The `frontend` resource receives:
 
@@ -187,6 +322,15 @@ In JavaScript, `process.env` is an object. Property names containing hyphens req
 
 If you need different variable names, use `WithEnvironment` to set custom environment variables:
 
+<AppHostTabs limitations={{
+  typescript: 'This example depends on PostgreSQL and Python hosting integration APIs that are not emitted in the TypeScript AppHost SDK.',
+  python: 'This example depends on PostgreSQL and Python hosting integration APIs that are not emitted in the Python AppHost SDK.',
+  go: 'This example depends on PostgreSQL and Python hosting integration APIs that are not emitted in the Go AppHost SDK.',
+  java: 'This example depends on PostgreSQL and Python hosting integration APIs that are not emitted in the Java AppHost SDK.',
+  rust: 'This example depends on PostgreSQL and Python hosting integration APIs that are not emitted in the Rust AppHost SDK.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -200,6 +344,9 @@ var api = builder.AddPythonApp("api", "../api", "main.py")
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+
+</Fragment>
+</AppHostTabs>
 
 This approach lets you define explicit, predictable variable names without relying on the automatic naming conventions.
 

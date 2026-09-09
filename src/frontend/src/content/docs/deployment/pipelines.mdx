@@ -275,7 +275,9 @@ Applications can add custom steps directly through the pipeline API for scenario
 
 **Example: Adding a custom validation step**
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust add_step callback is generated as raw JSON values rather than a typed PipelineStepContext, so this typed validation example is not usable from Rust.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Pipelines;
@@ -296,7 +298,7 @@ await ValidateDatabaseConnection(context);
 var database = builder.AddPostgres("myapp-db");
 var api = builder.AddProject<Api>("api").WithReference(database);
 
-````
+```
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -305,7 +307,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 // Add custom deployment validation
-builder.pipeline.addStep("validate-deployment", async (context) => {
+builder.pipeline().addStep("validate-deployment", async (context) => {
   // Custom validation logic
   await validateApiHealth(context);
   await validateDatabaseConnection(context);
@@ -322,6 +324,107 @@ async function validateApiHealth(_context: unknown) {
 async function validateDatabaseConnection(_context: unknown) {
 }
 ```
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+
+def validate_deployment(_context):
+    # Validate API health and database connectivity.
+    pass
+
+
+with create_builder() as builder:
+    builder.pipeline.add_step(
+        "validate-deployment",
+        validate_deployment,
+        required_by=["deploy"],
+    )
+
+    database = builder.add_container("myapp-db", "postgres:17")
+    api = builder.add_project("api", "../Api/Api.csproj")
+    api.with_reference(database)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	err = builder.Pipeline().AddStep(
+		"validate-deployment",
+		func(_ aspire.PipelineStepContext) {
+			// Validate API health and database connectivity.
+		},
+		&aspire.AddStepOptions{RequiredBy: []string{"deploy"}},
+	)
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	database := builder.AddContainer("myapp-db", "postgres:17")
+	if err := database.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../Api/Api.csproj").
+		WithReference(database)
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.pipeline().addStep(
+        "validate-deployment",
+        context -> {
+            // Validate API health and database connectivity.
+        },
+        new AddStepOptions().requiredBy(new String[] {"deploy"})
+    );
+
+    var database = builder.addContainer("myapp-db", "postgres:17");
+    builder.addProject("api", "../Api/Api.csproj")
+        .withReference(database);
+
+    builder.build().run();
+}
+```
+
 </Fragment>
 </AppHostTabs>
 
@@ -492,6 +595,14 @@ The pipeline system allows you to add custom steps to handle application-specifi
 
 Use `builder.Pipeline.AddStep` to add custom steps that apply to your entire application:
 
+<AppHostTabs limitations={{
+  python: 'Python emits a typed add_step API, but its callback is synchronous and cannot await the asynchronous validation operations in this example.',
+  go: 'Go emits a typed AddStep API, but its callback has no error or asynchronous return shape for the validation operations in this example.',
+  java: 'Java emits a typed addStep API, but its callback is synchronous and cannot await the asynchronous validation operations in this example.',
+  rust: 'Rust emits add_step with a raw Vec<Value> callback instead of a typed PipelineStepContext, so the typed callback and logger operations in this example are not usable.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="Application-level custom step"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -514,6 +625,40 @@ var api = builder.AddProject<Projects.Api>("api").WithReference(database);
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="Application-level custom step — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.pipeline().addStep('validate', async (context) => {
+  await context.logger().logInformation('Running validation checks...');
+
+  await validateApiEndpoints(context);
+  await checkDatabaseConnection(context);
+
+  await context.logger().logInformation('Validation completed successfully');
+}, { requiredBy: ['deploy'] });
+
+const database = await builder.addPostgres('db');
+await builder
+  .addProject('api', '../Api/Api.csproj')
+  .withReference(database);
+
+await builder.build().run();
+
+async function validateApiEndpoints(_context: unknown) {
+}
+
+async function checkDatabaseConnection(_context: unknown) {
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 You can then run this custom step:
 
 ```bash title="Aspire CLI — Run custom step"
@@ -523,6 +668,14 @@ aspire do validate
 ### Resource-level steps
 
 Resources can contribute their own pipeline steps using `WithPipelineStepFactory`:
+
+<AppHostTabs limitations={{
+  python: 'Python emits with_pipeline_step_factory as a step name, typed synchronous callback, and options rather than a factory returning PipelineStep; it cannot await the asynchronous deployment body shown here.',
+  go: 'Go emits WithPipelineStepFactory as a step name, typed callback, and options rather than a factory returning PipelineStep; the callback cannot return an asynchronous operation or error.',
+  java: 'Java emits withPipelineStepFactory as a step name, typed synchronous callback, and options rather than a factory returning PipelineStep; it cannot await the asynchronous deployment body shown here.',
+  rust: 'Rust emits with_pipeline_step_factory with a raw Vec<Value> callback rather than a typed PipelineStepContext, so this typed resource-level deployment callback is not usable.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="Resource-level custom step"
 var api = builder.AddProject<Projects.Api>("api")
@@ -546,9 +699,48 @@ var api = builder.AddProject<Projects.Api>("api")
     });
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="Resource-level custom step — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder
+  .addProject('api', '../Api/Api.csproj')
+  .withPipelineStepFactory('custom-api-deploy', async (context) => {
+    await context.logger().logInformation(
+      'Custom API deployment starting...'
+    );
+
+    await deployApi(context);
+
+    await context.logger().logInformation(
+      'Custom API deployment completed'
+    );
+  }, { requiredBy: ['deploy'] });
+
+await builder.build().run();
+
+async function deployApi(_context: unknown) {
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ### Step dependencies
 
 Control step execution order using dependencies:
+
+<AppHostTabs limitations={{
+  python: 'Python emits a typed add_step API, but its callback is synchronous and cannot await the asynchronous migration operation in this example.',
+  go: 'Go emits a typed AddStep API, but its callback has no error or asynchronous return shape for the migration operation in this example.',
+  java: 'Java emits a typed addStep API, but its callback is synchronous and cannot await the asynchronous migration operation in this example.',
+  rust: 'Rust emits add_step with a raw Vec<Value> callback instead of a typed PipelineStepContext, so the typed callback and logger operations in this example are not usable.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="Step with dependencies"
 // Step that depends on other steps
@@ -560,6 +752,31 @@ builder.Pipeline.AddStep("database-migration", async (context) =>
 dependsOn: ["provision-database"],
 requiredBy: ["deploy-apiservice"]);
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="Step with dependencies — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.pipeline().addStep('database-migration', async (context) => {
+  await context.logger().logInformation('Running database migrations...');
+  await runMigrations(context);
+}, {
+  dependsOn: ['provision-database'],
+  requiredBy: ['deploy-apiservice'],
+});
+
+await builder.build().run();
+
+async function runMigrations(_context: unknown) {
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 You can choose from two dependency types to fix the step order:
 
@@ -581,6 +798,15 @@ To deepen your understanding of pipelines, let's examine scenarios where you mig
 ### Multi-environment deployments
 
 If you're deploying to testing, staging, production, or other environments, you might want to take different deployment actions in each case. You can use the pipeline context to create environment-specific pipeline steps:
+
+<AppHostTabs limitations={{
+  typescript: 'The generated TypeScript PipelineStepContext exposes execution mode but not the deployment environment name represented by context.Environment in this C# example.',
+  python: 'The generated Python PipelineStepContext exposes execution mode but not the deployment environment name represented by context.Environment in this C# example; its callback is also synchronous.',
+  go: 'The generated Go PipelineStepContext exposes execution mode but not the deployment environment name represented by context.Environment in this C# example; its callback also has no asynchronous return shape.',
+  java: 'The generated Java PipelineStepContext exposes execution mode but not the deployment environment name represented by context.Environment in this C# example; its callback is also synchronous.',
+  rust: 'The Rust add_step callback is emitted as raw Vec<Value> values, and the generated context does not provide the context.Environment shape used by this example.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="Multi-environment deployment"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -606,6 +832,9 @@ dependsOn: [WellKnownPipelineSteps.Deploy]);
 builder.Build().Run();
 ```
 
+</Fragment>
+</AppHostTabs>
+
 You can deploy to different environments, and trigger the above environment-specific steps, by using the `--environment` option:
 
 ```bash title="Aspire CLI — Deploy to specific environment"
@@ -619,6 +848,14 @@ aspire do deploy --environment Production
 ### Custom build steps
 
 Add custom build logic that integrates with the pipeline:
+
+<AppHostTabs limitations={{
+  python: 'Python emits a typed add_step API, but its callback is synchronous and cannot await the asynchronous build operations in this example.',
+  go: 'Go emits a typed AddStep API, but its callback has no error or asynchronous return shape for the build operations in this example.',
+  java: 'Java emits a typed addStep API, but its callback is synchronous and cannot await the asynchronous build operations in this example.',
+  rust: 'Rust emits add_step with a raw Vec<Value> callback instead of a typed PipelineStepContext, so the typed callback and logger operations in this example are not usable.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="Custom build step"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -642,9 +879,50 @@ requiredBy: [WellKnownPipelineSteps.Push]);
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="Custom build step — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.pipeline().addStep('generate-assets', async (context) => {
+  await context.logger().logInformation('Generating static assets...');
+  await generateStaticAssets(context);
+}, { requiredBy: ['build'] });
+
+await builder.pipeline().addStep('optimize-images', async (context) => {
+  await context.logger().logInformation('Optimizing container images...');
+  await optimizeImages(context);
+}, {
+  dependsOn: ['build'],
+  requiredBy: ['push'],
+});
+
+await builder.build().run();
+
+async function generateStaticAssets(_context: unknown) {
+}
+
+async function optimizeImages(_context: unknown) {
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ### Database migrations
 
 If you want to ensure a database is populated as part of your deployment, you can create a step that integrates database migrations into the deployment pipeline:
+
+<AppHostTabs limitations={{
+  python: 'Python emits a typed add_step API, but its callback is synchronous and cannot await connection-string lookup or database migration operations in this example.',
+  go: 'Go emits a typed AddStep API, but its callback has no error or asynchronous return shape for connection-string lookup or database migration operations in this example.',
+  java: 'Java emits a typed addStep API, but its callback is synchronous and cannot await connection-string lookup or database migration operations in this example.',
+  rust: 'Rust emits add_step with a raw Vec<Value> callback instead of a typed PipelineStepContext, so the typed callback, logger, and resource access in this example are not usable.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="Database migrations step"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -671,6 +949,50 @@ var api = builder.AddProject<Projects.Api>("api").WithReference(database);
 
 builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="Database migrations step — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const database = await builder.addPostgres('db');
+
+await builder.pipeline().addStep('migrate-database', async (context) => {
+  await context.logger().logInformation('Running database migrations...');
+
+  const connectionString = await getConnectionString(context, database);
+  await runDatabaseMigrations(connectionString, await context.logger());
+
+  await context.logger().logInformation('Database migrations completed');
+}, {
+  dependsOn: ['provision-database'],
+  requiredBy: ['deploy-apiservice'],
+});
+
+await builder
+  .addProject('api', '../Api/Api.csproj')
+  .withReference(database);
+
+await builder.build().run();
+
+async function getConnectionString(
+  _context: unknown,
+  _database: unknown
+): Promise<string> {
+  return 'Host=localhost';
+}
+
+async function runDatabaseMigrations(
+  _connectionString: string,
+  _logger: unknown
+) {
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## Migrating from publishing callbacks
 
@@ -712,6 +1034,15 @@ Here are some code examples that show Aspire 9.x code and the Aspire 13.x equiva
 
 **Before (Aspire 9.x):**
 
+<AppHostTabs limitations={{
+  typescript: 'The removed Aspire 9.x WithPublishingCallback API was C#-specific and is not emitted by the current TypeScript AppHost SDK.',
+  python: 'The removed Aspire 9.x WithPublishingCallback API was C#-specific and is not emitted by the current Python AppHost SDK.',
+  go: 'The removed Aspire 9.x WithPublishingCallback API was C#-specific and is not emitted by the current Go AppHost SDK.',
+  java: 'The removed Aspire 9.x WithPublishingCallback API was C#-specific and is not emitted by the current Java AppHost SDK.',
+  rust: 'The removed Aspire 9.x WithPublishingCallback API was C#-specific and is not emitted by the current Rust AppHost SDK.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="Old publishing callback"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPublishingCallback(async (context, cancellationToken) =>
@@ -721,7 +1052,18 @@ var api = builder.AddProject<Projects.Api>("api")
     });
 ```
 
+</Fragment>
+</AppHostTabs>
+
 **After (Aspire 13.0):**
+
+<AppHostTabs limitations={{
+  python: 'Python emits with_pipeline_step_factory as a step name, typed synchronous callback, and options rather than a factory returning PipelineStep; it cannot await this asynchronous deployment body.',
+  go: 'Go emits WithPipelineStepFactory as a step name, typed callback, and options rather than a factory returning PipelineStep; the callback cannot return this asynchronous operation or an error.',
+  java: 'Java emits withPipelineStepFactory as a step name, typed synchronous callback, and options rather than a factory returning PipelineStep; it cannot await this asynchronous deployment body.',
+  rust: 'Rust emits with_pipeline_step_factory with a raw Vec<Value> callback rather than a typed PipelineStepContext, so this typed resource-level migration is not usable.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="New pipeline step"
 var api = builder.AddProject<Projects.Api>("api")
@@ -740,9 +1082,41 @@ var api = builder.AddProject<Projects.Api>("api")
     });
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="New pipeline step — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder
+  .addProject('api', '../Api/Api.csproj')
+  .withPipelineStepFactory('custom-deploy-api', async (context) => {
+    await customDeploy(context);
+  }, { requiredBy: ['deploy'] });
+
+await builder.build().run();
+
+async function customDeploy(_context: unknown) {
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 #### Application-level callback
 
 **Before (Aspire 9.x):**
+
+<AppHostTabs limitations={{
+  typescript: 'This Aspire 9.x lifecycle-hook publishing pattern depends on C# dependency-injection and lifecycle types and has no generated TypeScript AppHost equivalent.',
+  python: 'This Aspire 9.x lifecycle-hook publishing pattern depends on C# dependency-injection and lifecycle types and has no generated Python AppHost equivalent.',
+  go: 'This Aspire 9.x lifecycle-hook publishing pattern depends on C# dependency-injection and lifecycle types and has no generated Go AppHost equivalent.',
+  java: 'This Aspire 9.x lifecycle-hook publishing pattern depends on C# dependency-injection and lifecycle types and has no generated Java AppHost equivalent.',
+  rust: 'This Aspire 9.x lifecycle-hook publishing pattern depends on C# dependency-injection and lifecycle types and has no generated Rust AppHost equivalent.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="Old application-level callback"
 builder.Services.AddLifecycleHook<CustomPublishingHook>();
@@ -759,7 +1133,18 @@ public class CustomPublishingHook : IDistributedApplicationLifecycleHook
 }
 ```
 
+</Fragment>
+</AppHostTabs>
+
 **After (Aspire 13.0):**
+
+<AppHostTabs limitations={{
+  python: 'Python emits a typed add_step API, but its callback is synchronous and cannot await the asynchronous notification operation in this example.',
+  go: 'Go emits a typed AddStep API, but its callback has no error or asynchronous return shape for the notification operation in this example.',
+  java: 'Java emits a typed addStep API, but its callback is synchronous and cannot await the asynchronous notification operation in this example.',
+  rust: 'Rust emits add_step with a raw Vec<Value> callback instead of a typed PipelineStepContext, so this typed asynchronous notification step is not usable.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="New pipeline step"
 builder.Pipeline.AddStep("notify-deployment", async (context) =>
@@ -770,9 +1155,39 @@ builder.Pipeline.AddStep("notify-deployment", async (context) =>
 dependsOn: [WellKnownPipelineSteps.Deploy]);
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="New pipeline step — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.pipeline().addStep('notify-deployment', async (context) => {
+  await sendDeploymentNotification(context);
+}, { dependsOn: ['deploy'] });
+
+await builder.build().run();
+
+async function sendDeploymentNotification(_context: unknown) {
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 #### Complex deployment workflow
 
 **Before (Aspire 9.x):**
+
+<AppHostTabs limitations={{
+  typescript: 'The removed Aspire 9.x WithPublishingCallback API was C#-specific and is not emitted by the current TypeScript AppHost SDK.',
+  python: 'The removed Aspire 9.x WithPublishingCallback API was C#-specific and is not emitted by the current Python AppHost SDK.',
+  go: 'The removed Aspire 9.x WithPublishingCallback API was C#-specific and is not emitted by the current Go AppHost SDK.',
+  java: 'The removed Aspire 9.x WithPublishingCallback API was C#-specific and is not emitted by the current Java AppHost SDK.',
+  rust: 'The removed Aspire 9.x WithPublishingCallback API was C#-specific and is not emitted by the current Rust AppHost SDK.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="Old complex callback"
 var api = builder.AddProject<Projects.Api>("api")
@@ -787,7 +1202,18 @@ var api = builder.AddProject<Projects.Api>("api")
     });
 ```
 
+</Fragment>
+</AppHostTabs>
+
 **After (Aspire 13.0):**
+
+<AppHostTabs limitations={{
+  python: 'Python emits typed application- and resource-level step callbacks, but both are synchronous and cannot await the asynchronous workflow operations in this example.',
+  go: 'Go emits typed application- and resource-level step callbacks, but they have no error or asynchronous return shape for the workflow operations in this example.',
+  java: 'Java emits typed application- and resource-level step callbacks, but both are synchronous and cannot await the asynchronous workflow operations in this example.',
+  rust: 'Rust emits application- and resource-level callbacks as raw Vec<Value> values rather than typed PipelineStepContext values, so this typed asynchronous workflow is not usable.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="New pipeline steps with dependencies"
 // Break down into discrete steps with dependencies
@@ -819,6 +1245,53 @@ builder.Pipeline.AddStep("smoke-tests", async (context) =>
     await RunSmokeTests(context);
 }, dependsOn: ["deploy-application"]);
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="New pipeline steps with dependencies — apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.pipeline().addStep('provision-infra', async (context) => {
+  await provisionInfrastructure(context);
+}, { requiredBy: ['build'] });
+
+await builder.pipeline().addStep('migrate-database', async (context) => {
+  await runDatabaseMigrations(context);
+}, {
+  dependsOn: ['provision-infra'],
+  requiredBy: ['deploy-application'],
+});
+
+await builder
+  .addProject('api', '../Api/Api.csproj')
+  .withPipelineStepFactory('deploy-application', async (context) => {
+    await deployApplication(context);
+  }, { dependsOn: ['build', 'push'] });
+
+await builder.pipeline().addStep('smoke-tests', async (context) => {
+  await runSmokeTests(context);
+}, { dependsOn: ['deploy-application'] });
+
+await builder.build().run();
+
+async function provisionInfrastructure(_context: unknown) {
+}
+
+async function runDatabaseMigrations(_context: unknown) {
+}
+
+async function deployApplication(_context: unknown) {
+}
+
+async function runSmokeTests(_context: unknown) {
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 ### Benefits of the new system
 

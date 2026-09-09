@@ -48,6 +48,106 @@ await api.withEnvironment('ENVIRONMENT_VARIABLE_NAME', parameter);
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    parameter = builder.add_parameter("example-parameter-name")
+    api = builder.add_project("api", "../ApiService/ApiService.csproj")
+    api.with_env("ENVIRONMENT_VARIABLE_NAME", parameter)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	parameter := builder.AddParameter("example-parameter-name")
+	api := builder.
+		AddProject("api", "../ApiService/ApiService.csproj").
+		WithEnvironment("ENVIRONMENT_VARIABLE_NAME", parameter)
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var parameter = builder.addParameter("example-parameter-name");
+    var api = builder.addProject("api", "../ApiService/ApiService.csproj");
+    api.withEnvironment("ENVIRONMENT_VARIABLE_NAME", parameter);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let parameter = builder.add_parameter(
+        "example-parameter-name",
+        None,
+        None,
+        None,
+    )?;
+    let api = builder.add_project(
+        "api",
+        "../ApiService/ApiService.csproj",
+        None,
+    )?;
+    api.with_environment(
+        "ENVIRONMENT_VARIABLE_NAME",
+        serialize_handle(&parameter),
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 The preceding code adds a parameter named `example-parameter-name` to the AppHost. The parameter is then passed to the `Projects.ApiService` project as an environment variable named `ENVIRONMENT_VARIABLE_NAME`.
@@ -88,6 +188,91 @@ const builder = await createBuilder();
 
 const key = 'Parameters:example-parameter-name';
 const value = builder.getConfiguration().getConfigValue(key); // value = "local-value"
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    key = "Parameters:example-parameter-name"
+    value = builder.get_config().get_config_value(key)  # value = "local-value"
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	value, err := builder.GetConfiguration().
+		GetConfigValue("Parameters:example-parameter-name")
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	log.Print(value)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var key = "Parameters:example-parameter-name";
+    var value = builder.getConfiguration().getConfigValue(key);
+    System.out.println(value);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let key = "Parameters:example-parameter-name";
+    let value = builder.get_configuration()?.get_config_value(key)?;
+    println!("{value}");
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
 ```
 
 </Fragment>
@@ -147,6 +332,108 @@ const repository = await builder.addParameter('registry-repository');
 await builder.addContainerRegistry('container-registry', endpoint, repository);
 
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    endpoint = builder.add_parameter("registry-endpoint")
+    repository = builder.add_parameter("registry-repository")
+    builder.add_container_registry(
+        "container-registry", endpoint, repository=repository
+    )
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	endpoint := builder.AddParameter("registry-endpoint")
+	repository := builder.AddParameter("registry-repository")
+	registry := builder.AddContainerRegistry(
+		"container-registry",
+		endpoint,
+		&aspire.AddContainerRegistryOptions{Repository: repository},
+	)
+	if err := registry.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var endpoint = builder.addParameter("registry-endpoint");
+    var repository = builder.addParameter("registry-repository");
+    builder.addContainerRegistry(
+        "container-registry", endpoint, repository);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let endpoint = builder.add_parameter(
+        "registry-endpoint", None, None, None
+    )?;
+    let repository = builder.add_parameter(
+        "registry-repository", None, None, None
+    )?;
+    builder.add_container_registry(
+        "container-registry",
+        serialize_handle(&endpoint),
+        Some(serialize_handle(&repository)),
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
 ```
 
 </Fragment>
@@ -258,6 +545,137 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    service_url = builder.add_parameter("external-service-url")
+    service_url.with_description(
+        "The URL of the external service. See [example.com](https://example.com) for details.",
+        enable_markdown=True,
+    )
+    service_url.with_custom_input(
+        {
+            "InputType": "Text",
+            "Label": "External service URL",
+            "Placeholder": "Enter value for external-service-url",
+        }
+    )
+    builder.add_external_service("external-service", service_url)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	inputType := aspire.InputTypeText
+	serviceURL := builder.
+		AddParameter("external-service-url").
+		WithDescription(
+			"The URL of the external service. See [example.com](https://example.com) for details.",
+			&aspire.WithDescriptionOptions{EnableMarkdown: aspire.BoolPtr(true)},
+		).
+		WithCustomInput(&aspire.ParameterCustomInputOptions{
+			InputType:   &inputType,
+			Label:       aspire.StringPtr("External service URL"),
+			Placeholder: aspire.StringPtr("Enter value for external-service-url"),
+		})
+	builder.AddExternalService("external-service", serviceURL)
+	if err := serviceURL.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var input = new ParameterCustomInputOptions();
+    input.setInputType(InputType.TEXT);
+    input.setLabel("External service URL");
+    input.setPlaceholder("Enter value for external-service-url");
+
+    var serviceUrl = builder.addParameter("external-service-url");
+    serviceUrl.withDescription(
+        "The URL of the external service. See [example.com](https://example.com) for details.",
+        true);
+    serviceUrl.withCustomInput(input);
+    builder.addExternalService("external-service", serviceUrl);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let service_url = builder.add_parameter(
+        "external-service-url", None, None, None
+    )?;
+    service_url.with_description(
+        "The URL of the external service. See [example.com](https://example.com) for details.",
+        Some(true),
+    )?;
+    service_url.with_custom_input(ParameterCustomInputOptions {
+        input_type: Some(InputType::Text),
+        label: Some("External service URL".to_string()),
+        placeholder: Some(
+            "Enter value for external-service-url".to_string()
+        ),
+        ..Default::default()
+    })?;
+    builder.add_external_service(
+        "external-service",
+        serialize_handle(&service_url),
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 The code renders this control in the dashboard:
@@ -333,6 +751,104 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    secret = builder.add_parameter("secret", secret=True)
+    api = builder.add_project("api", "../ApiService/ApiService.csproj")
+    api.with_env("SECRET", secret)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	secret := builder.AddParameter(
+		"secret",
+		&aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)},
+	)
+	api := builder.
+		AddProject("api", "../ApiService/ApiService.csproj").
+		WithEnvironment("SECRET", secret)
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var secret = builder.addParameter(
+        "secret", new AddParameterOptions().secret(true));
+    var api = builder.addProject("api", "../ApiService/ApiService.csproj");
+    api.withEnvironment("SECRET", secret);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let secret = builder.add_parameter(
+        "secret", None, None, Some(true)
+    )?;
+    let api = builder.add_project(
+        "api",
+        "../ApiService/ApiService.csproj",
+        None,
+    )?;
+    api.with_environment("SECRET", serialize_handle(&secret))?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 Now consider the following AppHost configuration file _appsettings.json_:
@@ -368,9 +884,8 @@ The manifest representation is as follows:
 
 In some scenarios, you might want to read parameter values directly from a specific configuration key rather than following the standard `Parameters:*` pattern. The `AddParameterFromConfiguration` method allows you to specify a custom configuration key for a parameter.
 
-<Aside type="note">
-The `addParameterFromConfiguration` API is not yet available in the TypeScript AppHost SDK.
-</Aside>
+The generated AppHost SDKs expose this capability using each language's naming
+and options conventions.
 
 ### API signature
 
@@ -433,6 +948,113 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    password = builder.add_parameter_from_config(
+        "db-password",
+        "CustomConfig:Database:Password",
+        secret=True,
+    )
+    api = builder.add_project("api", "../ApiService/ApiService.csproj")
+    api.with_env("DB_PASSWORD", password)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	password := builder.AddParameterFromConfiguration(
+		"db-password",
+		"CustomConfig:Database:Password",
+		&aspire.AddParameterFromConfigurationOptions{
+			Secret: aspire.BoolPtr(true),
+		},
+	)
+	api := builder.
+		AddProject("api", "../ApiService/ApiService.csproj").
+		WithEnvironment("DB_PASSWORD", password)
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var password = builder.addParameterFromConfiguration(
+        "db-password", "CustomConfig:Database:Password", true);
+    var api = builder.addProject("api", "../ApiService/ApiService.csproj");
+    api.withEnvironment("DB_PASSWORD", password);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let password = builder.add_parameter_from_configuration(
+        "db-password",
+        "CustomConfig:Database:Password",
+        Some(true),
+    )?;
+    let api = builder.add_project(
+        "api",
+        "../ApiService/ApiService.csproj",
+        None,
+    )?;
+    api.with_environment("DB_PASSWORD", serialize_handle(&password))?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 The corresponding configuration file would look like:
@@ -466,7 +1088,9 @@ If you're connecting to a local database, and want to use Integrated Security or
 
 Consider the following example AppHost _AppHost.cs_ file:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK wait_for signature requires an IResource marker that the generated connection-string handle does not implement, so this dependency-gated form is not currently usable.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -501,6 +1125,78 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    redis = builder.add_connection_string("redis")
+    api = builder.add_project(
+        "api", "../WebApplication/WebApplication.csproj"
+    )
+    api.with_reference(redis)
+    api.wait_for(redis)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	redis := builder.AddConnectionString("redis")
+	api := builder.
+		AddProject("api", "../WebApplication/WebApplication.csproj").
+		WithReference(redis).
+		WaitFor(redis)
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var redis = builder.addConnectionString("redis");
+    var api = builder.addProject(
+        "api", "../WebApplication/WebApplication.csproj");
+    api.withReference(redis);
+    api.waitFor(redis);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 <Aside type="note">
@@ -526,7 +1222,9 @@ If you want to construct a connection string from parameters and ensure that it'
 
 For example, if you have a secret parameter that stores a small part of a connection string, use this code to insert it:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'Rust can construct the reference expression, but the generated wait_for signature requires an IResource marker that the connection-string handle does not implement.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -566,11 +1264,113 @@ await catalogApi.withReference(connectionString).waitFor(connectionString);
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder, string_expr
+
+with create_builder() as builder:
+    secret_key = builder.add_parameter("secretkey", secret=True)
+    expression = string_expr(
+        "Endpoint=https://api.contoso.com/v1;Key={key}",
+        key=secret_key,
+    )
+    connection = builder.add_connection_string(
+        "composedconnectionstring",
+        env_var_name_or_expression=expression,
+    )
+    api = builder.add_project("catalogapi", "../CatalogApi/CatalogApi.csproj")
+    api.with_reference(connection)
+    api.wait_for(connection)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	secretKey := builder.AddParameter(
+		"secretkey",
+		&aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)},
+	)
+	expression := aspire.RefExpr(
+		"Endpoint=https://api.contoso.com/v1;Key={0}",
+		secretKey,
+	)
+	connection := builder.AddConnectionString(
+		"composedconnectionstring",
+		&aspire.AddConnectionStringOptions{
+			EnvironmentVariableNameOrExpression: expression,
+		},
+	)
+	api := builder.
+		AddProject("catalogapi", "../CatalogApi/CatalogApi.csproj").
+		WithReference(connection).
+		WaitFor(connection)
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var secretKey = builder.addParameter(
+        "secretkey", new AddParameterOptions().secret(true));
+    var expression = ReferenceExpression.refExpr(
+        "Endpoint=https://api.contoso.com/v1;Key={0}", secretKey);
+    var connection = builder.addConnectionString(
+        "composedconnectionstring", expression);
+
+    var api = builder.addProject(
+        "catalogapi", "../CatalogApi/CatalogApi.csproj");
+    api.withReference(connection);
+    api.waitFor(connection);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 You can also use reference expressions to append text to connection strings created by Aspire resources. For example, when you add a PostgreSQL resource to your Aspire solution, the database server runs in a container and a connection string is formulated for it. In the following code, the extra property `Include Error Details` is appended to that connection string before it's passed to consuming projects:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the PostgreSQL integration methods used to create the database resource in this example.',
+  go: 'The verified Go SDK does not include the PostgreSQL integration methods used to create the database resource in this example.',
+  java: 'The verified Java SDK does not include the PostgreSQL integration methods used to create the database resource in this example.',
+  rust: 'The verified Rust SDK does not include the PostgreSQL integration methods used to create the database resource in this example.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -615,7 +1415,12 @@ await customerApi.withReference(pgConnectionString).waitFor(pgConnectionString);
 
 To express a parameter, consider the following example code:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The execution-context and parameter APIs are available, but the verified Python SDK does not include the SQL Server integration methods used by the run-mode branch.',
+  go: 'The execution-context and parameter APIs are available, but the verified Go SDK does not include the SQL Server integration methods used by the run-mode branch.',
+  java: 'The execution-context and parameter APIs are available, but the verified Java SDK does not include the SQL Server integration methods used by the run-mode branch.',
+  rust: 'The execution-context and parameter APIs are available, but the verified Rust SDK does not include the SQL Server integration methods used by the run-mode branch.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"

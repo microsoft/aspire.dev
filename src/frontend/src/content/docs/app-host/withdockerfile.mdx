@@ -57,6 +57,37 @@ const container = await builder.addDockerfile(
     "mycontainer", "relative/context/path");
 ```
 </Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+container = builder.add_dockerfile(
+    "mycontainer", "relative/context/path"
+)
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+container := builder.AddDockerfile(
+	"mycontainer",
+	"relative/context/path",
+)
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var container = builder.addDockerfile(
+    "mycontainer", "relative/context/path");
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let container = builder.add_dockerfile(
+    "mycontainer",
+    "relative/context/path",
+    None,
+    None,
+)?;
+```
+</Fragment>
 </AppHostTabs>
 
 Unless the context path argument is a rooted path the context path is interpreted as being relative to the AppHost project directory.
@@ -90,6 +121,65 @@ const container = (await builder.executionContext.isRunMode())
           "mycontainer", "relative/context/path", "Dockerfile.release");
 ```
 </Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+dockerfile_path = (
+    "Dockerfile.debug"
+    if builder.execution_context.is_run_mode
+    else "Dockerfile.release"
+)
+container = builder.add_dockerfile(
+    "mycontainer",
+    "relative/context/path",
+    dockerfile_path=dockerfile_path,
+)
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+isRunMode, err := builder.ExecutionContext().IsRunMode()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+dockerfilePath := "Dockerfile.release"
+if isRunMode {
+	dockerfilePath = "Dockerfile.debug"
+}
+container := builder.AddDockerfile(
+	"mycontainer",
+	"relative/context/path",
+	&aspire.AddDockerfileOptions{
+		DockerfilePath: aspire.StringPtr(dockerfilePath),
+	},
+)
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var dockerfilePath = builder.executionContext().isRunMode()
+    ? "Dockerfile.debug"
+    : "Dockerfile.release";
+var options = new AddDockerfileOptions()
+    .dockerfilePath(dockerfilePath);
+var container = builder.addDockerfile(
+    "mycontainer", "relative/context/path", options);
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let dockerfile_path = if builder.execution_context()?.is_run_mode()? {
+    "Dockerfile.debug"
+} else {
+    "Dockerfile.release"
+};
+let container = builder.add_dockerfile(
+    "mycontainer",
+    "relative/context/path",
+    Some(dockerfile_path),
+    None,
+)?;
+```
+</Fragment>
 </AppHostTabs>
 
 ## Customize existing container resources
@@ -98,7 +188,14 @@ When using `AddDockerfile` the return value is an `IResourceBuilder<ContainerRes
 
 Using the `WithDockerfile` extension method it's possible to take an existing Aspire component (like PostgreSQL, Redis, or SQL Server) and replace its default container image with a custom one built from your own Dockerfile. This allows you to continue using the strongly typed resource types and their specific extension methods while customizing the underlying container.
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include the PostgreSQL integration APIs used by this WithDockerfile example.',
+    go: 'The generated Go SDK does not include the PostgreSQL integration APIs used by this WithDockerfile example.',
+    java: 'The generated Java SDK does not include the PostgreSQL integration APIs used by this WithDockerfile example.',
+    rust: 'The generated Rust SDK does not include the PostgreSQL integration APIs used by this WithDockerfile example.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -197,6 +294,26 @@ await builder.addDockerfileBuilder("frontend", "../frontend", configureDockerfil
 await builder.build().run();
 ```
 </Fragment>
+<Fragment slot="python">
+
+The generated Python SDK exposes this operation as `builder.add_dockerfile_builder(name, context_path, callback, stage="runtime")`, with a typed `DockerfileBuilderCallbackContext`.
+
+</Fragment>
+<Fragment slot="go">
+
+The generated Go SDK exposes this operation as `builder.AddDockerfileBuilder(name, contextPath, callback, &aspire.AddDockerfileBuilderOptions{Stage: aspire.StringPtr("runtime")})`.
+
+</Fragment>
+<Fragment slot="java">
+
+The generated Java SDK exposes this operation as `builder.addDockerfileBuilder(name, contextPath, callback, "runtime")`.
+
+</Fragment>
+<Fragment slot="rust">
+
+The generated Rust SDK includes `add_dockerfile_builder`, but its callback is emitted as `Fn(Vec<Value>) -> Value` rather than a typed `DockerfileBuilderCallbackContext`, so the fluent builder example isn't type-safe in Rust.
+
+</Fragment>
 </AppHostTabs>
 
 `WithDockerfileBuilder` applies a generated Dockerfile to an existing container resource. The image name provided when the resource is created is replaced by the generated Dockerfile build during publish:
@@ -246,6 +363,26 @@ await builder
 
 await builder.build().run();
 ```
+</Fragment>
+<Fragment slot="python">
+
+Use `container.with_dockerfile_builder("../frontend", callback, stage="runtime")`. The callback receives a typed `DockerfileBuilderCallbackContext`.
+
+</Fragment>
+<Fragment slot="go">
+
+Use `container.WithDockerfileBuilder("../frontend", callback, &aspire.WithDockerfileBuilderOptions{Stage: aspire.StringPtr("runtime")})`.
+
+</Fragment>
+<Fragment slot="java">
+
+Use `container.withDockerfileBuilder("../frontend", callback, "runtime")`.
+
+</Fragment>
+<Fragment slot="rust">
+
+The generated Rust SDK includes `with_dockerfile_builder`, but its callback is emitted as `Fn(Vec<Value>) -> Value` rather than a typed `DockerfileBuilderCallbackContext`.
+
 </Fragment>
 </AppHostTabs>
 
@@ -300,6 +437,26 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+Use `builder.add_dockerfile_factory("myapp", "../myapp", callback)`. The Python callback receives `DockerfileFactoryContext` and returns the Dockerfile text as `str`.
+
+</Fragment>
+<Fragment slot="go">
+
+Use `builder.AddDockerfileFactory("myapp", "../myapp", callback)`. The Go callback has the signature `func(aspire.DockerfileFactoryContext) string`.
+
+</Fragment>
+<Fragment slot="java">
+
+Use `builder.addDockerfileFactory("myapp", "../myapp", callback)`. The Java callback receives `DockerfileFactoryContext` and returns `String`.
+
+</Fragment>
+<Fragment slot="rust">
+
+The generated Rust SDK includes `add_dockerfile_factory`, but its callback is emitted as `Fn(Vec<Value>) -> Value` rather than a typed context returning `String`.
+
+</Fragment>
 </AppHostTabs>
 
 `WithDockerfileFactory` applies a factory-generated Dockerfile to an existing container resource:
@@ -342,6 +499,18 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+Use `container.with_dockerfile_factory("../myapp", callback)`. The callback receives `DockerfileFactoryContext` and returns the Dockerfile text as `str`.
+</Fragment>
+<Fragment slot="go">
+Use `container.WithDockerfileFactory("../myapp", callback)`. The callback has the signature `func(aspire.DockerfileFactoryContext) string`.
+</Fragment>
+<Fragment slot="java">
+Use `container.withDockerfileFactory("../myapp", callback)`. The callback receives `DockerfileFactoryContext` and returns `String`.
+</Fragment>
+<Fragment slot="rust">
+The generated Rust SDK includes `with_dockerfile_factory`, but its callback is emitted as `Fn(Vec<Value>) -> Value` rather than a typed context returning `String`.
+</Fragment>
 </AppHostTabs>
 
 ## Pass build arguments
@@ -367,11 +536,51 @@ const container = await builder.addDockerfile("mygoapp", "relative/context/path"
 await container.withBuildArg("GO_VERSION", "1.22");
 ```
 </Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+container = builder.add_dockerfile(
+    "mygoapp", "relative/context/path"
+)
+container.with_build_arg("GO_VERSION", "1.22")
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+container := builder.
+	AddDockerfile("mygoapp", "relative/context/path").
+	WithBuildArg("GO_VERSION", "1.22")
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var container = builder.addDockerfile(
+    "mygoapp", "relative/context/path");
+container.withBuildArg("GO_VERSION", "1.22");
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let container = builder.add_dockerfile(
+    "mygoapp",
+    "relative/context/path",
+    None,
+    None,
+)?;
+container.with_build_arg(
+    "GO_VERSION",
+    serde_json::json!("1.22"),
+)?;
+```
+</Fragment>
 </AppHostTabs>
 
 The value parameter on the `WithBuildArg` method can be a literal value (`boolean`, `string`, `int`) or it can be a resource builder for a [parameter resource](/fundamentals/external-parameters/). The following code replaces the `GO_VERSION` with a parameter value that can be specified at deployment time.
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust SDK accepts an untyped Value for with_build_arg but does not provide a public conversion from ParameterResource to that Value.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -392,6 +601,31 @@ const goVersion = await builder.addParameter("goversion");
 
 const container = await builder.addDockerfile("mygoapp", "relative/context/path");
 await container.withBuildArg("GO_VERSION", goVersion);
+```
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+go_version = builder.add_parameter("goversion")
+container = builder.add_dockerfile(
+    "mygoapp", "relative/context/path"
+)
+container.with_build_arg("GO_VERSION", go_version)
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+goVersion := builder.AddParameter("goversion")
+container := builder.
+	AddDockerfile("mygoapp", "relative/context/path").
+	WithBuildArg("GO_VERSION", goVersion)
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var goVersion = builder.addParameter("goversion");
+var container = builder.addDockerfile(
+    "mygoapp", "relative/context/path");
+container.withBuildArg("GO_VERSION", goVersion);
 ```
 </Fragment>
 </AppHostTabs>
@@ -444,6 +678,55 @@ const accessToken = await builder.addParameter("accesstoken", { secret: true });
 
 const container = await builder.addDockerfile("myapp", "relative/context/path");
 await container.withBuildSecret("ACCESS_TOKEN", accessToken);
+```
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+access_token = builder.add_parameter(
+    "accesstoken", secret=True
+)
+container = builder.add_dockerfile(
+    "myapp", "relative/context/path"
+)
+container.with_build_secret("ACCESS_TOKEN", access_token)
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+accessToken := builder.AddParameter(
+	"accesstoken",
+	&aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)},
+)
+container := builder.
+	AddDockerfile("myapp", "relative/context/path").
+	WithBuildSecret("ACCESS_TOKEN", accessToken)
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var accessToken = builder.addParameter(
+    "accesstoken",
+    new AddParameterOptions().secret(true));
+var container = builder.addDockerfile(
+    "myapp", "relative/context/path");
+container.withBuildSecret("ACCESS_TOKEN", accessToken);
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let access_token = builder.add_parameter(
+    "accesstoken",
+    None,
+    None,
+    Some(true),
+)?;
+let container = builder.add_dockerfile(
+    "myapp",
+    "relative/context/path",
+    None,
+    None,
+)?;
+container.with_build_secret("ACCESS_TOKEN", &access_token)?;
 ```
 </Fragment>
 </AppHostTabs>

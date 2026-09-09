@@ -108,6 +108,120 @@ if (await env.isEnvironment('Testing')) {
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    env = builder.env
+
+    if env.is_development():
+        # Development-specific configuration
+        pass
+
+    # The daily Python SDK exposes Development, Staging, and Production checks,
+    # but not the custom is_environment(name) helper.
+    builder.run()
+```
+
+The daily Python generated SDK exposes `is_development()`, `is_staging()`, and `is_production()`, but it doesn't currently expose the custom `is_environment(name)` check.
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	env := builder.Environment()
+	isDevelopment, err := env.IsDevelopment()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if isDevelopment {
+		// Development-specific configuration
+	}
+
+	isTesting, err := env.IsEnvironment("Testing")
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if isTesting {
+		// Testing-specific configuration
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+    var env = builder.environment();
+
+    if (env.isDevelopment()) {
+        // Development-specific configuration
+    }
+
+    if (env.isEnvironment("Testing")) {
+        // Testing-specific configuration
+    }
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+    let env = builder.environment()?;
+
+    if env.is_development()? {
+        // Development-specific configuration
+    }
+
+    if env.is_environment("Testing")? {
+        // Testing-specific configuration
+    }
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 The following convenience methods are available:
@@ -119,11 +233,13 @@ The following convenience methods are available:
 | `IsProduction()` / `isProduction()`           | `Production`                       |
 | `IsEnvironment(name)` / `isEnvironment(name)` | Any custom name                    |
 
+Go, Java, and Rust expose all four checks using their generated naming conventions. Python currently exposes only the three named-environment checks.
+
 ## Common patterns
 
 ### Set environment variables on child resources
 
-Your services often need to know which environment they're running in. Different frameworks use different environment variables — use `WithEnvironment` to set the appropriate one for each service:
+Your services often need to know which environment they're running in. Different frameworks use different environment variables — use the generated environment-variable method (`WithEnvironment`, `withEnvironment`, `with_env`, or `with_environment`) to set the appropriate one for each service:
 
 <AppHostTabs>
 <Fragment slot="csharp">
@@ -182,6 +298,154 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    is_development = builder.env.is_development()
+    dotnet_environment = "Development" if is_development else "Production"
+    app_environment = "development" if is_development else "production"
+
+    api = builder.add_project("api", "../Api/Api.csproj")
+    api.with_env("DOTNET_ENVIRONMENT", dotnet_environment)
+
+    frontend = builder.add_container("frontend", "node:22-alpine")
+    frontend.with_env("NODE_ENV", app_environment)
+
+    worker = builder.add_container("worker", "myorg/worker:latest")
+    worker.with_env("APP_ENV", app_environment)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	isDevelopment, err := builder.Environment().IsDevelopment()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	dotnetEnvironment := "Production"
+	appEnvironment := "production"
+	if isDevelopment {
+		dotnetEnvironment = "Development"
+		appEnvironment = "development"
+	}
+
+	api := builder.AddProject("api", "../Api/Api.csproj").
+		WithEnvironment("DOTNET_ENVIRONMENT", dotnetEnvironment)
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	frontend := builder.AddContainer("frontend", "node:22-alpine").
+		WithEnvironment("NODE_ENV", appEnvironment)
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	worker := builder.AddContainer("worker", "myorg/worker:latest").
+		WithEnvironment("APP_ENV", appEnvironment)
+	if err := worker.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+    var isDevelopment = builder.environment().isDevelopment();
+    var dotnetEnvironment = isDevelopment ? "Development" : "Production";
+    var appEnvironment = isDevelopment ? "development" : "production";
+
+    builder.addProject("api", "../Api/Api.csproj")
+        .withEnvironment("DOTNET_ENVIRONMENT", dotnetEnvironment);
+
+    builder.addContainer("frontend", "node:22-alpine")
+        .withEnvironment("NODE_ENV", appEnvironment);
+
+    builder.addContainer("worker", "myorg/worker:latest")
+        .withEnvironment("APP_ENV", appEnvironment);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+    let is_development = builder.environment()?.is_development()?;
+    let dotnet_environment = if is_development {
+        "Development"
+    } else {
+        "Production"
+    };
+    let app_environment = if is_development {
+        "development"
+    } else {
+        "production"
+    };
+
+    let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+    api.with_environment(
+        "DOTNET_ENVIRONMENT",
+        serde_json::json!(dotnet_environment),
+    )?;
+
+    let frontend =
+        builder.add_container("frontend", serde_json::json!("node:22-alpine"))?;
+    frontend.with_environment("NODE_ENV", serde_json::json!(app_environment))?;
+
+    let worker =
+        builder.add_container("worker", serde_json::json!("myorg/worker:latest"))?;
+    worker.with_environment("APP_ENV", serde_json::json!(app_environment))?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 Common environment variable conventions by framework and ecosystem:
@@ -199,17 +463,20 @@ Common environment variable conventions by framework and ecosystem:
 | Java (Spring)   | `SPRING_PROFILES_ACTIVE`   | `dev`, `test`, `prod`                  |
 
 <Aside type="tip">
-  `AddNodeApp` automatically sets `NODE_ENV` to `development` or `production`
-  based on whether the AppHost environment is `Development`. If you need a
-  different value (such as `staging`), override it with an explicit
-  `WithEnvironment("NODE_ENV", ...)` call as shown above.
+  In C# and TypeScript AppHosts, the Node.js resource automatically sets
+  `NODE_ENV` to `development` or `production` based on whether the AppHost
+  environment is `Development`. Override it explicitly when you need another
+  value. The daily Python, Go, Java, and Rust SDKs don't expose the Node.js
+  resource, so their examples set `NODE_ENV` on a container.
 </Aside>
 
 ### Use parameters for per-environment values
 
 Use [parameters](/fundamentals/external-parameters/) to externalize values that change between environments, such as SKU tiers, replica counts, or API endpoints:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The daily Rust generated SDK exposes parameters and environment injection separately, but its marker-type projection cannot pass a ParameterResource to with_environment.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -237,6 +504,83 @@ const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withEnvironment('API_KEY', apiKey);
 
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api_key = builder.add_parameter("apiKey", secret=True)
+
+    api = builder.add_project("api", "../Api/Api.csproj")
+    api.with_env("API_KEY", api_key)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	secret := true
+	apiKey := builder.AddParameter("apiKey", &aspire.AddParameterOptions{
+		Secret: &secret,
+	})
+	if err := apiKey.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../Api/Api.csproj").
+		WithEnvironment("API_KEY", apiKey)
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+    var apiKey = builder.addParameter(
+        "apiKey",
+        new AddParameterOptions().secret(true)
+    );
+
+    builder.addProject("api", "../Api/Api.csproj")
+        .withEnvironment("API_KEY", apiKey);
+
+    builder.build().run();
+}
 ```
 
 </Fragment>
@@ -305,7 +649,12 @@ Environment variables take the highest priority, so they override any values fro
 
 Use the [execution context](#environment-vs-execution-context) for choices that differ between local orchestration and publish/deploy workflows. For example, use a local Redis container in run mode and an Azure Managed Redis resource when publishing:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The daily Python generated SDK does not expose the Azure Managed Redis capability required for the publish-mode branch.',
+  go: 'The daily Go generated SDK does not expose Redis or Azure Managed Redis capabilities required by this example.',
+  java: 'The daily Java generated SDK does not expose Redis or Azure Managed Redis capabilities required by this example.',
+  rust: 'The daily Rust generated SDK does not expose Redis or Azure Managed Redis capabilities required by this example.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"

@@ -431,7 +431,9 @@ When a resource has health checks configured, the AppHost uses them to determine
 
 For resources that expose HTTP endpoints, you can add health checks that poll specific paths:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK exposes wait_for through an IResource marker type that a concrete generated resource cannot currently satisfy, so this dependency-gated sample is not usable as written.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -467,11 +469,104 @@ await webapp.waitFor(catalogApi); // Waits for /health to return HTTP 200
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    catalog_api = builder.add_container("catalog-api", "catalog-api")
+    catalog_api.with_http_endpoint(target_port=8080)
+    catalog_api.with_http_health_check(path="/health")
+
+    webapp = builder.add_executable(
+        "webapp", "node", "./webapp", ["index.js"]
+    )
+    webapp.with_reference(catalog_api)
+    webapp.wait_for(catalog_api)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	catalogAPI := builder.
+		AddContainer("catalog-api", "catalog-api").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
+			TargetPort: aspire.Float64Ptr(8080),
+		}).
+		WithHttpHealthCheck(&aspire.WithHttpHealthCheckOptions{
+			Path: aspire.StringPtr("/health"),
+		})
+	if err := catalogAPI.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	webapp := builder.
+		AddExecutable("webapp", "node", "./webapp", []string{"index.js"}).
+		WithReference(catalogAPI).
+		WaitFor(catalogAPI)
+	if err := webapp.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var catalogApi = builder.addContainer("catalog-api", "catalog-api");
+    catalogApi.withHttpEndpoint(
+        new WithHttpEndpointOptions().targetPort(8080));
+    catalogApi.withHttpHealthCheck(
+        new WithHttpHealthCheckOptions().path("/health"));
+
+    var webapp = builder.addExecutable(
+        "webapp", "node", "./webapp", new String[] { "index.js" });
+    webapp.withReference(catalogApi);
+    webapp.waitFor(catalogApi);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 The `WithHttpHealthCheck` method can also be applied to project resources:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK exposes wait_for through an IResource marker type that a concrete generated project resource cannot currently satisfy, so this dependency-gated sample is not usable as written.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -500,6 +595,85 @@ await frontend.waitFor(backend);
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    backend = builder.add_project("backend", "../Backend/Backend.csproj")
+    backend.with_http_health_check(path="/health")
+
+    frontend = builder.add_project("frontend", "../Frontend/Frontend.csproj")
+    frontend.with_reference(backend)
+    frontend.wait_for(backend)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	backend := builder.
+		AddProject("backend", "../Backend/Backend.csproj").
+		WithHttpHealthCheck(&aspire.WithHttpHealthCheckOptions{
+			Path: aspire.StringPtr("/health"),
+		})
+	frontend := builder.
+		AddProject("frontend", "../Frontend/Frontend.csproj").
+		WithReference(backend).
+		WaitFor(backend)
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var backend = builder.addProject("backend", "../Backend/Backend.csproj");
+    backend.withHttpHealthCheck(
+        new WithHttpHealthCheckOptions().path("/health"));
+
+    var frontend = builder.addProject(
+        "frontend", "../Frontend/Frontend.csproj");
+    frontend.withReference(backend);
+    frontend.waitFor(backend);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Custom resource health checks
@@ -508,6 +682,10 @@ You can create custom health checks for more complex readiness scenarios. Start 
 
 <AppHostTabs limitations={{
   typescript: 'The generated TypeScript SDK does not expose the AppHost service-collection API required to register this custom health check.',
+  python: 'The generated Python SDK does not expose the AppHost service-collection API required to register this custom health check.',
+  go: 'The generated Go SDK does not expose the AppHost service-collection API required to register this custom health check.',
+  java: 'The generated Java SDK does not expose the AppHost service-collection API required to register this custom health check.',
+  rust: 'The generated Rust SDK does not expose the AppHost service-collection API required to register this custom health check.',
 }}>
 <Fragment slot="csharp">
 
@@ -536,8 +714,9 @@ builder.AddProject<Projects.MyApp>("myapp")
 </AppHostTabs>
 
 <Aside type="note">
-  TypeScript AppHost support for registering custom health checks with
-  `builder.Services.AddHealthChecks()` is not yet available.
+  Generated TypeScript, Python, Go, Java, and Rust AppHost SDKs don't expose the
+  service-collection API required to register custom health checks with
+  `builder.Services.AddHealthChecks()`.
 </Aside>
 
 The `AddCheck` method registers the health check, and `WithHealthCheck` associates it with specific resources. For more details about creating and registering custom health checks, see [Create health checks](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks#create-health-checks).

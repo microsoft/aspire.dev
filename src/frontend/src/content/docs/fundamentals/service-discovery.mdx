@@ -74,6 +74,123 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    catalog = builder.add_project(
+        "catalog", "../CatalogService/CatalogService.csproj"
+    )
+    basket = builder.add_project(
+        "basket", "../BasketService/BasketService.csproj"
+    )
+    frontend = builder.add_project(
+        "frontend", "../MyFrontend/MyFrontend.csproj"
+    )
+    frontend.with_reference(basket)
+    frontend.with_reference(catalog)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	catalog := builder.AddProject("catalog", "../CatalogService/CatalogService.csproj")
+	basket := builder.AddProject("basket", "../BasketService/BasketService.csproj")
+	frontend := builder.
+		AddProject("frontend", "../MyFrontend/MyFrontend.csproj").
+		WithReference(basket).
+		WithReference(catalog)
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var catalog = builder.addProject(
+        "catalog", "../CatalogService/CatalogService.csproj");
+    var basket = builder.addProject(
+        "basket", "../BasketService/BasketService.csproj");
+    var frontend = builder.addProject(
+        "frontend", "../MyFrontend/MyFrontend.csproj");
+    frontend.withReference(basket);
+    frontend.withReference(catalog);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let catalog = builder.add_project(
+        "catalog",
+        "../CatalogService/CatalogService.csproj",
+        None,
+    )?;
+    let basket = builder.add_project(
+        "basket",
+        "../BasketService/BasketService.csproj",
+        None,
+    )?;
+    let frontend = builder.add_project(
+        "frontend",
+        "../MyFrontend/MyFrontend.csproj",
+        None,
+    )?;
+    frontend.with_reference(serialize_handle(&basket), None, None, None)?;
+    frontend.with_reference(serialize_handle(&catalog), None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 In the preceding example, the _frontend_ project references the _catalog_ project and the _basket_ project. The two `WithReference` calls instruct Aspire to:
@@ -212,6 +329,107 @@ const basket = await builder.addProject(
   '../BasketService/BasketService.csproj'
 );
 await basket.withHttpsEndpoint({ port: 9999, name: 'dashboard' });
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    basket = builder.add_project(
+        "basket", "../BasketService/BasketService.csproj"
+    )
+    basket.with_https_endpoint(port=9999, name="dashboard")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	basket := builder.
+		AddProject("basket", "../BasketService/BasketService.csproj").
+		WithHttpsEndpoint(&aspire.WithHttpsEndpointOptions{
+			Port: aspire.Float64Ptr(9999),
+			Name: aspire.StringPtr("dashboard"),
+		})
+	if err := basket.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var basket = builder.addProject(
+        "basket", "../BasketService/BasketService.csproj");
+    basket.withHttpsEndpoint(
+        new WithHttpsEndpointOptions().port(9999).name("dashboard"));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let basket = builder.add_project(
+        "basket",
+        "../BasketService/BasketService.csproj",
+        None,
+    )?;
+    basket.with_https_endpoint(
+        Some(9999.0),
+        None,
+        Some("dashboard"),
+        None,
+        None,
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
 ```
 
 </Fragment>
@@ -394,6 +612,99 @@ await frontend.withReference(api); // This is required!
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../Api/Api.csproj")
+    frontend = builder.add_project("frontend", "../Frontend/Frontend.csproj")
+    frontend.with_reference(api)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../Api/Api.csproj")
+	frontend := builder.
+		AddProject("frontend", "../Frontend/Frontend.csproj").
+		WithReference(api)
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var api = builder.addProject("api", "../Api/Api.csproj");
+    var frontend = builder.addProject(
+        "frontend", "../Frontend/Frontend.csproj");
+    frontend.withReference(api);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+    let frontend = builder.add_project(
+        "frontend",
+        "../Frontend/Frontend.csproj",
+        None,
+    )?;
+    frontend.with_reference(serialize_handle(&api), None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Named endpoint doesn't resolve
@@ -416,6 +727,100 @@ var api = builder.AddProject<Projects.Api>("api")
 ```typescript title="apphost.mts"
 const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withHttpEndpoint({ port: 9999, name: 'dashboard' }); // Name must match
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../Api/Api.csproj")
+    api.with_http_endpoint(port=9999, name="dashboard")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.
+		AddProject("api", "../Api/Api.csproj").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
+			Port: aspire.Float64Ptr(9999),
+			Name: aspire.StringPtr("dashboard"),
+		})
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var api = builder.addProject("api", "../Api/Api.csproj");
+    api.withHttpEndpoint(
+        new WithHttpEndpointOptions().port(9999).name("dashboard"));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+    api.with_http_endpoint(
+        Some(9999.0),
+        None,
+        Some("dashboard"),
+        None,
+        None,
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
 ```
 
 </Fragment>

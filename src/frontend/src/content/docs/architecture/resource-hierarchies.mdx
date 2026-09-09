@@ -70,6 +70,17 @@ In Aspire, configuration, connectivity details, and dependencies between distrib
 
 Aspire represents these relationships through a **heterogeneous Directed Acyclic Graph (<abbr title="Directed Acyclic Graph" data-tooltip-placement="top">DAG</abbr>)**. This graph tracks not only dependency ordering but also how **structured values** are passed between resources at multiple abstraction levels: configuration, connection, and runtime behavior.
 
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK in the verified core scenario does not include both addPostgres and addNpmApp.',
+    python: 'The generated Python SDK in the verified core scenario does not include add_postgres or add_npm_app.',
+    go: 'The generated Go SDK in the verified core scenario does not include AddPostgres or AddNpmApp.',
+    java: 'The generated Java SDK in the verified core scenario does not include addPostgres or addNpmApp.',
+    rust: 'The generated Rust SDK in the verified core scenario does not include add_postgres or add_npm_app.',
+  }}
+>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -79,6 +90,9 @@ var web = builder.AddNpmApp("web").WithReference(api);
 
 builder.Build().Run();
 ```
+
+</Fragment>
+</AppHostTabs>
 
 ```mermaid
 architecture-beta
@@ -193,6 +207,15 @@ Aspire evaluates the model in **two distinct modes**:
 
 **Example — Using `ReferenceExpression`:**
 
+<AppHostTabs limitations={{
+  typescript: 'TypeScript uses createReferenceExpression with generated resource values rather than the C# ReferenceExpression.Create API shown here.',
+  python: 'The Python SDK does not expose the C# ReferenceExpression.Create interpolation API.',
+  go: 'The Go SDK does not expose the C# ReferenceExpression.Create interpolation API.',
+  java: 'The Java SDK does not expose the C# ReferenceExpression.Create interpolation API.',
+  rust: 'The Rust SDK does not expose the C# ReferenceExpression.Create interpolation API.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var ep = api.GetEndpoint("http");
 
@@ -202,6 +225,9 @@ builder.WithEnvironment("HEALTH_URL",
     )
 );
 ```
+
+</Fragment>
+</AppHostTabs>
 
 _Publish manifest excerpt:_
 
@@ -222,6 +248,15 @@ HEALTH_URL=https://localhost:5000/health
 
 ### Alternate pattern using `ExecutionContext`
 
+<AppHostTabs limitations={{
+  typescript: 'TypeScript exposes execution-context mode checks, but this C# fallback uses ReferenceExpression.Create and direct interpolation shapes that are not projected identically.',
+  python: 'Python exposes an execution-context mode property, but not the C# ReferenceExpression.Create fallback shown here.',
+  go: 'Go exposes execution-context mode checks, but not the C# ReferenceExpression.Create fallback shown here.',
+  java: 'Java exposes execution-context mode checks, but not the C# ReferenceExpression.Create fallback shown here.',
+  rust: 'Rust exposes execution-context mode checks, but not the C# ReferenceExpression.Create fallback shown here.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var ep = api.GetEndpoint("http");
 
@@ -236,6 +271,9 @@ else
         ReferenceExpression.Create($"{ep}/health")); // structured
 }
 ```
+
+</Fragment>
+</AppHostTabs>
 
 ### Pattern used by `IResourceWithConnectionString`
 
@@ -279,6 +317,9 @@ These properties are dynamically resolved during the application's startup seque
 
 Resources supporting endpoints should implement `IResourceWithEndpoints`, enabling the use of `GetEndpoint(name)` to retrieve an `EndpointReference`. This is implemented on the built-in `ProjectResource`, `ContainerResource` and `ExecutableResource`. It allows endpoints to be programmatically accessed and passed between resources.
 
+<AppHostTabs>
+<Fragment slot="csharp">
+
 ```csharp title="Example — Endpoint Access and Resolution"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -290,6 +331,135 @@ var endpoint = redis.GetEndpoint("tcp");
 
 builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const redis = await builder.addContainer('redis', 'redis');
+await redis.withEndpoint({ name: 'tcp', targetPort: 6379 });
+
+const endpoint = await redis.getEndpoint('tcp');
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    redis = builder.add_container("redis", "redis")
+    redis.with_endpoint(name="tcp", target_port=6379)
+
+    endpoint = redis.get_endpoint("tcp")
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	redis := builder.
+		AddContainer("redis", "redis").
+		WithEndpoint(&aspire.WithEndpointOptions{
+			Name:       aspire.StringPtr("tcp"),
+			TargetPort: aspire.Float64Ptr(6379),
+		})
+	if err := redis.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	endpoint := redis.GetEndpoint("tcp")
+	if err := endpoint.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var redis = builder.addContainer("redis", "redis");
+    redis.withEndpoint(new WithEndpointOptions()
+        .name("tcp")
+        .targetPort(6379));
+
+    var endpoint = redis.getEndpoint("tcp");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let redis = builder.add_container("redis", serde_json::json!("redis"))?;
+    redis.with_endpoint(
+        None,
+        Some(6379.0),
+        None,
+        Some("tcp"),
+        None,
+        None,
+        None,
+        None,
+    )?;
+
+    let endpoint = redis.get_endpoint("tcp")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 ### What does "allocated" mean?
 
@@ -310,6 +480,17 @@ Use the `IsAllocated` property on an `EndpointReference` to check whether an end
 ### Accessing Allocated Endpoints Safely
 
 Endpoint resolution happens during the startup sequence of the `DistributedApplication`. To safely access endpoint values (e.g., `Url`, `Host`, `Port`), you must wait until endpoints are allocated. Aspire provides eventing APIs, such as `AfterEndpointsAllocatedEvent`, to access endpoints after allocation. These APIs ensure code executes only when endpoints are ready.
+
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK does not emit AfterEndpointsAllocatedEvent subscriptions.',
+    python: 'The generated Python SDK does not emit AfterEndpointsAllocatedEvent subscriptions.',
+    go: 'The generated Go SDK does not emit AfterEndpointsAllocatedEvent subscriptions.',
+    java: 'The generated Java SDK does not emit AfterEndpointsAllocatedEvent subscriptions.',
+    rust: 'The generated Rust SDK does not emit AfterEndpointsAllocatedEvent subscriptions.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="Example — Checking Allocation and Using Eventing"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -346,6 +527,9 @@ builder.Eventing.Subscribe<AfterEndpointsAllocatedEvent>(
 builder.Build().Run();
 ```
 
+</Fragment>
+</AppHostTabs>
+
 The preceding code will output different results depending on whether the application is running in **run mode** or **publish mode**:
 
 **Run Mode**:
@@ -375,6 +559,13 @@ This section covers how to reference endpoints from other resources in Aspire, a
 
 The `WithReference` API allows you to pass an endpoint reference directly to a target resource.
 
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust with_reference method accepts serde_json::Value and does not provide a typed EndpointReference overload.',
+  }}
+>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -387,11 +578,119 @@ builder.AddProject<Projects.Worker>("worker")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const redis = await builder.addContainer('redis', 'redis');
+await redis.withEndpoint({ name: 'tcp', targetPort: 6379 });
+
+await builder
+  .addProject('worker', '../Worker/Worker.csproj')
+  .withReference(await redis.getEndpoint('tcp'));
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    redis = builder.add_container("redis", "redis")
+    redis.with_endpoint(name="tcp", target_port=6379)
+
+    worker = builder.add_project("worker", "../Worker/Worker.csproj")
+    worker.with_reference(redis.get_endpoint("tcp"))
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	redis := builder.
+		AddContainer("redis", "redis").
+		WithEndpoint(&aspire.WithEndpointOptions{
+			Name:       aspire.StringPtr("tcp"),
+			TargetPort: aspire.Float64Ptr(6379),
+		})
+
+	worker := builder.
+		AddProject("worker", "../Worker/Worker.csproj").
+		WithReference(redis.GetEndpoint("tcp"))
+
+	if err := worker.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var redis = builder.addContainer("redis", "redis");
+    redis.withEndpoint(new WithEndpointOptions()
+        .name("tcp")
+        .targetPort(6379));
+
+    builder.addProject("worker", "../Worker/Worker.csproj")
+        .withReference(redis.getEndpoint("tcp"));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 `WithReference` is optimized for applications that use service discovery.
 
 ### Using `WithEnvironment`
 
 The `WithEnvironment` API exposes endpoint details as environment variables, enabling runtime configuration.
+
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust with_environment method accepts serde_json::Value and does not provide a typed EndpointReference overload.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="Example — Passing Redis Endpoint as Environment Variable"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -405,6 +704,107 @@ builder.AddProject<Worker>("worker")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const redis = await builder.addContainer('redis', 'redis');
+await redis.withEndpoint({ name: 'tcp', targetPort: 6379 });
+
+await builder
+  .addProject('worker', '../Worker/Worker.csproj')
+  .withEnvironment('RedisUrl', await redis.getEndpoint('tcp'));
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    redis = builder.add_container("redis", "redis")
+    redis.with_endpoint(name="tcp", target_port=6379)
+
+    worker = builder.add_project("worker", "../Worker/Worker.csproj")
+    worker.with_env("RedisUrl", redis.get_endpoint("tcp"))
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	redis := builder.
+		AddContainer("redis", "redis").
+		WithEndpoint(&aspire.WithEndpointOptions{
+			Name:       aspire.StringPtr("tcp"),
+			TargetPort: aspire.Float64Ptr(6379),
+		})
+
+	worker := builder.
+		AddProject("worker", "../Worker/Worker.csproj").
+		WithEnvironment("RedisUrl", redis.GetEndpoint("tcp"))
+
+	if err := worker.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var redis = builder.addContainer("redis", "redis");
+    redis.withEndpoint(new WithEndpointOptions()
+        .name("tcp")
+        .targetPort(6379));
+
+    builder.addProject("worker", "../Worker/Worker.csproj")
+        .withEnvironment("RedisUrl", redis.getEndpoint("tcp"));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 `WithEnvironment` gives full control over the configuration names injected into the target resource.
 
 ## `EndpointReferenceExpression` — Accessing Endpoint Parts
@@ -417,7 +817,11 @@ In C#, call `endpoint.Property(...)` to get that field. In TypeScript AppHosts, 
 | Only one part (e.g., host)              | C#: `endpoint.Property(EndpointProperty.Host)`<br />TypeScript: `await endpoint.property(EndpointProperty.Host)` |
 | Compose multiple parts into one setting | Build a `ReferenceExpression` (see dedicated section).                                                           |
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust with_environment method accepts serde_json::Value and does not provide a typed EndpointReferenceExpression overload.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -454,6 +858,66 @@ await builder
   .withEnvironment('REDIS_PORT', redisPort);
 
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    redis = builder.add_container("redis", "redis")
+    redis.with_endpoint(name="tcp", target_port=6379)
+
+    endpoint = redis.get_endpoint("tcp")
+    redis_host = endpoint.property("Host")
+    redis_port = endpoint.property("Port")
+
+    worker = builder.add_project("worker", "../Worker/Worker.csproj")
+    worker.with_env("REDIS_HOST", redis_host)
+    worker.with_env("REDIS_PORT", redis_port)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+redis := builder.
+	AddContainer("redis", "redis").
+	WithEndpoint(&aspire.WithEndpointOptions{
+		Name:       aspire.StringPtr("tcp"),
+		TargetPort: aspire.Float64Ptr(6379),
+	})
+
+endpoint := redis.GetEndpoint("tcp")
+redisHost := endpoint.Property(aspire.EndpointPropertyHost)
+redisPort := endpoint.Property(aspire.EndpointPropertyPort)
+
+worker := builder.
+	AddProject("worker", "../Worker/Worker.csproj").
+	WithEnvironment("REDIS_HOST", redisHost).
+	WithEnvironment("REDIS_PORT", redisPort)
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var redis = builder.addContainer("redis", "redis");
+redis.withEndpoint(new WithEndpointOptions()
+    .name("tcp")
+    .targetPort(6379));
+
+var endpoint = redis.getEndpoint("tcp");
+var redisHost = endpoint.property(EndpointProperty.HOST);
+var redisPort = endpoint.property(EndpointProperty.PORT);
+
+builder.addProject("worker", "../Worker/Worker.csproj")
+    .withEnvironment("REDIS_HOST", redisHost)
+    .withEnvironment("REDIS_PORT", redisPort);
 ```
 
 </Fragment>
@@ -521,6 +985,17 @@ Starting with Aspire 13.2, you can explicitly control endpoint resolution contex
 
 Use the `Caller` property to resolve an endpoint from the perspective of a specific calling resource:
 
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK does not expose ValueProviderContext or a caller-aware endpoint value overload.',
+    python: 'The generated Python SDK does not expose ValueProviderContext or a caller-aware endpoint value overload.',
+    go: 'The generated Go SDK does not expose ValueProviderContext or a caller-aware endpoint value overload.',
+    java: 'The generated Java SDK does not expose ValueProviderContext or a caller-aware endpoint value overload.',
+    rust: 'The generated Rust SDK does not expose ValueProviderContext or a caller-aware endpoint value overload.',
+  }}
+>
+<Fragment slot="csharp">
+
 ```csharp title="Resolve endpoint from a resource's perspective"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -539,11 +1014,25 @@ var url = await endpoint.GetValueAsync(new ValueProviderContext {
 // e.g., "cache:6379" using the resource name as the hostname
 ```
 
+</Fragment>
+</AppHostTabs>
+
 This is particularly useful when you need to pass connection information between resources that may be running in different contexts (containers vs. host processes).
 
 #### Resolve from a specific network
 
 Use the `Network` property to resolve an endpoint from the perspective of a specific network:
+
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK does not expose ValueProviderContext, KnownNetworkIdentifiers, or a network-aware endpoint value overload.',
+    python: 'The generated Python SDK does not expose ValueProviderContext, KnownNetworkIdentifiers, or a network-aware endpoint value overload.',
+    go: 'The generated Go SDK does not expose ValueProviderContext, KnownNetworkIdentifiers, or a network-aware endpoint value overload.',
+    java: 'The generated Java SDK does not expose ValueProviderContext, KnownNetworkIdentifiers, or a network-aware endpoint value overload.',
+    rust: 'The generated Rust SDK does not expose ValueProviderContext, KnownNetworkIdentifiers, or a network-aware endpoint value overload.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="Resolve endpoint from a network's perspective"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -561,6 +1050,9 @@ var url = await endpoint.GetValueAsync(new ValueProviderContext {
 // The URL will be appropriate for the container network
 // e.g., "cache:6379" using the resource name as the hostname
 ```
+
+</Fragment>
+</AppHostTabs>
 
 The `KnownNetworkIdentifiers` class provides predefined network identifiers:
 
@@ -580,6 +1072,17 @@ The `KnownNetworkIdentifiers` class provides predefined network identifiers:
 The following code demonstrates how to set environment variables for a project that needs to communicate with other resources like Grafana and Keycloak. It ensures that the URLs are correctly resolved based on the execution context (run mode vs. publish mode).
 
 With Aspire 13.2, you can simplify this using `ValueProviderContext`:
+
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK does not expose ValueProviderContext, and the tested core module does not include addKeycloak.',
+    python: 'The generated Python SDK does not expose ValueProviderContext, and the tested core module does not include add_keycloak.',
+    go: 'The generated Go SDK does not expose ValueProviderContext, and the tested core module does not include AddKeycloak.',
+    java: 'The generated Java SDK does not expose ValueProviderContext, and the tested core module does not include addKeycloak.',
+    rust: 'The generated Rust SDK does not expose ValueProviderContext, and the tested core module does not include add_keycloak.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="Simplified with ValueProviderContext (Aspire 13.2+)"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -615,7 +1118,21 @@ var api = builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
+</Fragment>
+</AppHostTabs>
+
 **Before Aspire 13.2**, you would need to manually construct the URL:
+
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK does not expose the endpoint callback context used by this legacy C# URL-construction pattern, and the tested core module does not include addKeycloak.',
+    python: 'The generated Python SDK does not expose the endpoint callback context used by this legacy C# URL-construction pattern, and the tested core module does not include add_keycloak.',
+    go: 'The generated Go SDK does not expose the endpoint callback context used by this legacy C# URL-construction pattern, and the tested core module does not include AddKeycloak.',
+    java: 'The generated Java SDK does not expose the endpoint callback context used by this legacy C# URL-construction pattern, and the tested core module does not include addKeycloak.',
+    rust: 'The generated Rust SDK does not expose a typed endpoint callback context for this legacy C# URL-construction pattern, and the tested core module does not include add_keycloak.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="Manual URL construction (pre-13.2)"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -651,3 +1168,6 @@ var api = builder.AddProject<Projects.Api>("api")
 
 builder.Build().Run();
 ```
+
+</Fragment>
+</AppHostTabs>

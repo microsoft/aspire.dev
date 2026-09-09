@@ -74,11 +74,92 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    # Configure resources and persistent storage here.
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Configure resources and persistent storage here.
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    // Configure resources and persistent storage here.
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    // Configure resources and persistent storage here.
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 The first code snippet to consider uses the `WithVolume` API to configure a volume for a SQL Server resource. The following code demonstrates how to configure a volume for a SQL Server resource in an Aspire AppHost project:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the SQL Server integration methods used by this example.',
+  go: 'The verified Go SDK does not include the SQL Server integration methods used by this example.',
+  java: 'The verified Java SDK does not include the SQL Server integration methods used by this example.',
+  rust: 'The verified Rust SDK does not include the SQL Server integration methods used by this example.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -103,7 +184,12 @@ In this example `/var/opt/mssql` sets the path to the database files in the cont
 
 All Aspire container resources can utilize volumes, and some provide convenient APIs for adding named volumes derived from resources. Using the `WithDataVolume` method as an example, the following code is functionally equivalent to the previous example but more succinct:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the SQL Server integration-specific with_data_volume method.',
+  go: 'The verified Go SDK does not include the SQL Server integration-specific WithDataVolume method.',
+  java: 'The verified Java SDK does not include the SQL Server integration-specific withDataVolume method.',
+  rust: 'The verified Rust SDK does not include the SQL Server integration-specific with_data_volume method.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -138,7 +224,12 @@ Bind mounts enable access to the data from both within the container and from pr
 
 Consider this code snippet, which uses the `WithBindMount` API to configure a bind mount for a SQL Server resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the SQL Server integration methods used by this example.',
+  go: 'The verified Go SDK does not include the SQL Server integration methods used by this example.',
+  java: 'The verified Java SDK does not include the SQL Server integration methods used by this example.',
+  rust: 'The verified Rust SDK does not include the SQL Server integration methods used by this example.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -166,7 +257,12 @@ In this example:
 
 As for volumes, some Aspire container resources provide convenient APIs for adding bind mounts. Using the `WithDataBindMount` method as an example, the following code is functionally equivalent to the previous example but more succinct:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the SQL Server integration-specific with_data_bind_mount method.',
+  go: 'The verified Go SDK does not include the SQL Server integration-specific WithDataBindMount method.',
+  java: 'The verified Java SDK does not include the SQL Server integration-specific withDataBindMount method.',
+  rust: 'The verified Rust SDK does not include the SQL Server integration-specific with_data_bind_mount method.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -191,7 +287,12 @@ const sqldb = await sql.addDatabase("sqldb");
 
 Named volumes require a consistent password between app launches. Aspire conveniently provides random password generation functionality. Consider the previous example once more, where a password is generated automatically:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the SQL Server integration-specific with_data_volume method.',
+  go: 'The verified Go SDK does not include the SQL Server integration-specific WithDataVolume method.',
+  java: 'The verified Java SDK does not include the SQL Server integration-specific withDataVolume method.',
+  rust: 'The verified Rust SDK does not include the SQL Server integration-specific with_data_volume method.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -241,7 +342,12 @@ The same pattern applies to the other server-based resource types, such as those
 
 By overriding the generated password, you can ensure that the password remains consistent between app launches. An alternative approach is to use the `AddParameter` method to create a parameter that can be used as a password. The following code demonstrates how to create a persistent password for a SQL Server resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Parameter resources are supported, but the verified Python SDK does not include the SQL Server integration methods used here.',
+  go: 'Parameter resources are supported, but the verified Go SDK does not include the SQL Server integration methods used here.',
+  java: 'Parameter resources are supported, but the verified Java SDK does not include the SQL Server integration methods used here.',
+  rust: 'Parameter resources are supported, but the verified Rust SDK does not include the SQL Server integration methods used here.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"

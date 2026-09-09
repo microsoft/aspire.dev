@@ -38,6 +38,92 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    agent = builder.add_executable("agent", "my-agent", ".", [])
+    agent.with_terminal()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	agent := builder.
+		AddExecutable("agent", "my-agent", ".", []string{}).
+		WithTerminal()
+	if err := agent.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var agent = builder.addExecutable(
+        "agent", "my-agent", ".", new String[] {});
+    agent.withTerminal();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let agent = builder.add_executable("agent", "my-agent", ".", vec![])?;
+    agent.with_terminal()?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 Once the app is running, open the resource's terminal page in the dashboard—or run `aspire terminal attach agent`—to interact with the process just as you would in a local shell.
@@ -120,8 +206,58 @@ await builder.build().run();
 ```
 
 <Aside type="note">
-In TypeScript AppHosts, `withTerminal()` currently applies the default options shown above. Configurable options are coming to the non-C# API as `WithTerminal` is finalized (tracked by [microsoft/aspire#18105](https://github.com/microsoft/aspire/issues/18105)).
+In TypeScript AppHosts, `withTerminal()` currently applies the default options shown above. Configurable options are coming to the generated AppHost SDKs as `WithTerminal` is finalized (tracked by [microsoft/aspire#18105](https://github.com/microsoft/aspire/issues/18105)).
 </Aside>
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    agent = builder.add_executable("agent", "my-agent", ".", [])
+    agent.with_terminal()
+
+    builder.run()
+```
+
+Python AppHosts currently apply the default terminal options. The generated SDK doesn't expose configurable columns, rows, or terminal-host visibility.
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+agent := builder.
+	AddExecutable("agent", "my-agent", ".", []string{}).
+	WithTerminal()
+if err := agent.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+Go AppHosts currently apply the default terminal options. The generated SDK doesn't expose configurable columns, rows, or terminal-host visibility.
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var agent = builder.addExecutable(
+    "agent", "my-agent", ".", new String[] {});
+agent.withTerminal();
+```
+
+Java AppHosts currently apply the default terminal options. The generated SDK doesn't expose configurable columns, rows, or terminal-host visibility.
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let agent = builder.add_executable("agent", "my-agent", ".", vec![])?;
+agent.with_terminal()?;
+```
+
+Rust AppHosts currently apply the default terminal options. The generated SDK doesn't expose configurable columns, rows, or terminal-host visibility.
 
 </Fragment>
 </AppHostTabs>
@@ -130,7 +266,14 @@ In TypeScript AppHosts, `withTerminal()` currently applies the default options s
 
 Each replica of a resource gets its own independent terminal session. Aspire creates one terminal host per parent replica, so requesting three replicas yields three separate terminals. The order of `WithReplicas` and `WithTerminal` does not matter—the final replica count is always honored:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not expose WithReplicas for executable resources, so this executable-replica example is not available.',
+    go: 'The generated Go SDK does not expose WithReplicas for executable resources, so this executable-replica example is not available.',
+    java: 'The generated Java SDK does not expose withReplicas for executable resources, so this executable-replica example is not available.',
+    rust: 'The generated Rust SDK does not expose with_replicas for executable resources, so this executable-replica example is not available.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
