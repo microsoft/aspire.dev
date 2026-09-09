@@ -78,6 +78,10 @@ function getMdxFiles(directory: string): string[] {
   return files;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 describe('AppHost language registry', () => {
   test('keeps the canonical order and enables only the established languages initially', () => {
     expect(appHostLanguageConfig.languages.map((language) => language.id)).toEqual([
@@ -263,6 +267,94 @@ describe('AppHost language registry', () => {
       }
     }
     expect(violations).toEqual([]);
+    expect(violations).toEqual([]);
+  });
+
+  test('cloud and AI Go AppHost resources check errors before use', () => {
+    const violations: string[] = [];
+    const goFencePattern = /```go[^\n]*\n(?<code>[\s\S]*?)```/g;
+
+    for (const directory of integrationParityDirectories) {
+      for (const file of getMdxFiles(directory)) {
+        const source = fs.readFileSync(file, 'utf8');
+
+        for (const match of source.matchAll(goFencePattern)) {
+          const code = match.groups?.code ?? '';
+          const lines = code.split(/\r?\n/);
+
+          for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+            const assignment = lines[lineIndex].match(
+              /^\s*(?<variable>[A-Za-z_]\w*)\s*:=\s*(?<expression>.+)$/
+            );
+            if (!assignment?.groups) {
+              continue;
+            }
+
+            const variable = assignment.groups.variable;
+            let expression = assignment.groups.expression;
+            let statementEnd = lineIndex;
+            let parenthesisDepth =
+              (expression.match(/\(/g) ?? []).length - (expression.match(/\)/g) ?? []).length;
+
+            while (
+              statementEnd + 1 < lines.length &&
+              (parenthesisDepth > 0 || expression.trimEnd().endsWith('.'))
+            ) {
+              statementEnd += 1;
+              expression += `\n${lines[statementEnd]}`;
+              parenthesisDepth +=
+                (lines[statementEnd].match(/\(/g) ?? []).length -
+                (lines[statementEnd].match(/\)/g) ?? []).length;
+            }
+
+            const createsGeneratedResource =
+              /\b(?:builder|[A-Za-z_]\w*)\.Add[A-Z]\w*\s*\(/.test(expression) &&
+              !/\bbuilder\.AddProject\s*\(/.test(expression);
+            if (!createsGeneratedResource) {
+              lineIndex = statementEnd;
+              continue;
+            }
+
+            const resourceCreationCount = (expression.match(/\.(?:Add[A-Z]\w*)\s*\(/g) ?? [])
+              .length;
+            if (resourceCreationCount > 1) {
+              violations.push(
+                `${path.relative(docsDirectory, file)}:${
+                  source.slice(0, (match.index ?? 0) + match[0].indexOf(code)).split('\n').length +
+                  lineIndex
+                } chains generated resources without exposing each parent for an Err check`
+              );
+            }
+
+            const escapedVariable = escapeRegExp(variable);
+            const errorPattern = new RegExp(`\\b${escapedVariable}\\.Err\\s*\\(`);
+            const usagePattern = new RegExp(`\\b${escapedVariable}\\b`);
+
+            for (let nextLine = statementEnd + 1; nextLine < lines.length; nextLine += 1) {
+              const candidate = lines[nextLine].trim();
+              if (!candidate || candidate.startsWith('//')) {
+                continue;
+              }
+              if (errorPattern.test(candidate)) {
+                break;
+              }
+              if (usagePattern.test(candidate) || /\bbuilder\.Build\s*\(/.test(candidate)) {
+                violations.push(
+                  `${path.relative(docsDirectory, file)}:${
+                    source.slice(0, (match.index ?? 0) + match[0].indexOf(code)).split('\n')
+                      .length + lineIndex
+                  } uses ${variable} before checking ${variable}.Err()`
+                );
+                break;
+              }
+            }
+
+            lineIndex = statementEnd;
+          }
+        }
+      }
+    }
+
     expect(violations).toEqual([]);
   });
 });

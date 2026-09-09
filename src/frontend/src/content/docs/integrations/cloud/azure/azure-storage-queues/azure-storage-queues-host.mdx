@@ -188,7 +188,15 @@ func main() {
 		log.Fatal(aspire.FormatError(err))
 	}
 
-	queues := builder.AddAzureStorage("storage").AddQueues("queues")
+	storage := builder.AddAzureStorage("storage")
+	if err := storage.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	queues := storage.AddQueues("queues")
+	if err := queues.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
 
 	builder.AddProject("apiservice", "../ExampleProject/ExampleProject.csproj").
 		WithReference(queues).
@@ -346,7 +354,14 @@ func main() {
 	}
 
 	storage := builder.AddAzureStorage("storage").RunAsEmulator()
+	if err := storage.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
 	queues := storage.AddQueues("queues")
+	if err := queues.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
 
 	builder.AddProject("apiservice", "../ExampleProject/ExampleProject.csproj").
 		WithReference(queues).
@@ -975,13 +990,27 @@ func main() {
 	}
 
 	existingStorageName := builder.AddParameter("existingStorageName")
-	existingStorageResourceGroup := builder.AddParameter("existingStorageResourceGroup")
+	if err := existingStorageName.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
 
-	queues := builder.AddAzureStorage("storage").
+	existingStorageResourceGroup := builder.AddParameter("existingStorageResourceGroup")
+	if err := existingStorageResourceGroup.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage").
 		AsExisting(existingStorageName, &aspire.AsExistingOptions{
 			ResourceGroup: existingStorageResourceGroup,
-		}).
-		AddQueues("queues")
+		})
+	if err := storage.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	queues := storage.AddQueues("queues")
+	if err := queues.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
 
 	builder.AddProject("apiservice", "../ExampleProject/ExampleProject.csproj").
 		WithReference(queues)

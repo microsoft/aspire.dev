@@ -182,7 +182,15 @@ func main() {
 		log.Fatal(aspire.FormatError(err))
 	}
 
-	tables := builder.AddAzureStorage("storage").AddTables("tables")
+	storage := builder.AddAzureStorage("storage")
+	if err := storage.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	tables := storage.AddTables("tables")
+	if err := tables.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
 
 	builder.AddProject("apiservice", "../ExampleProject/ExampleProject.csproj").
 		WithReference(tables).
@@ -346,7 +354,14 @@ func main() {
 	}
 
 	storage := builder.AddAzureStorage("storage").RunAsEmulator()
+	if err := storage.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
 	tables := storage.AddTables("tables")
+	if err := tables.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
 
 	builder.AddProject("apiservice", "../ExampleProject/ExampleProject.csproj").
 		WithReference(tables).

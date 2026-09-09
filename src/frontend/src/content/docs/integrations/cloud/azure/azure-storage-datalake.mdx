@@ -181,7 +181,14 @@ func main() {
 	}
 
 	storage := builder.AddAzureStorage("storage")
+	if err := storage.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
 	dataLake := storage.AddDataLake("datalake")
+	if err := dataLake.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
 
 	builder.AddProject("api", "../ExampleProject/ExampleProject.csproj").
 		WithReference(dataLake).
@@ -332,13 +339,24 @@ func main() {
 	}
 
 	storage := builder.AddAzureStorage("storage")
+	if err := storage.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
 	dataLake := storage.AddDataLake("datalake")
+	if err := dataLake.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
 	fileSystemName := "analytics-data"
 	fileSystem := storage.AddDataLakeFileSystem(
 		"analytics",
 		&aspire.AddDataLakeFileSystemOptions{
 			DataLakeFileSystemName: &fileSystemName,
 		})
+	if err := fileSystem.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
 
 	builder.AddProject("api", "../ExampleProject/ExampleProject.csproj").
 		WithReference(dataLake).
