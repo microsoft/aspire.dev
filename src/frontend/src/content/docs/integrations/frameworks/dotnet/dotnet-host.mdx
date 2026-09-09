@@ -4,7 +4,9 @@ seoTitle: 'Set up .NET / C# apps in the Aspire AppHost: hosting integration'
 description: Learn how to use the Aspire Dotnet hosting integration to add C# projects and file-based C# apps by path in an Aspire solution.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+
 import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import csharpIcon from '@assets/icons/csharp.svg';
@@ -46,8 +48,8 @@ The **.NET SDK** must be available on the `PATH` of the machine running the AppH
 
 To start building an Aspire app that adds a C# project or file-based app by path, install the [📦 Aspire.Hosting.Dotnet](https://www.nuget.org/packages/Aspire.Hosting.Dotnet) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add Aspire.Hosting.Dotnet
@@ -68,8 +70,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Dotnet" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add Aspire.Hosting.Dotnet
@@ -90,15 +92,15 @@ This updates your `aspire.config.json` with the Dotnet hosting integration packa
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add a C# project or file-based app by path
 
 Use `AddDotnetProject` / `addDotnetProject` to add a C# project or file-based app resource by path. The `path` argument can point at a project file (`.csproj`), a directory containing a single `.csproj`, or a file-based app (`.cs`). If the path isn't absolute, it's computed relative to the AppHost directory.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -110,8 +112,8 @@ var api = builder.AddDotnetProject("api", "../api/api.csproj")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -125,8 +127,8 @@ await api.withExternalHttpEndpoints();
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The resource launches with `dotnet run --project <path>` for a project file, or `dotnet run --file <path>` for a file-based app. Endpoints, environment variables, and service discovery are configured from the project's `launchSettings.json` and Kestrel configuration, matching `AddProject<T>`.
 
@@ -134,8 +136,8 @@ The resource launches with `dotnet run --project <path>` for a project file, or 
 
 A file-based app is a single `.cs` file run directly with `dotnet run --file`, without a `.csproj`. File-based apps require **.NET 10 or later**.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -145,8 +147,8 @@ builder.AddDotnetProject("inventoryservice", @"..\InventoryService.cs");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -158,15 +160,15 @@ await builder.addDotnetProject('inventoryservice', '../InventoryService.cs');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Configure options
 
 Pass a configuration action to set additional options such as the launch profile:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -176,8 +178,8 @@ builder.AddDotnetProject("inventoryservice", @"..\InventoryService.cs", o => o.L
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -191,8 +193,8 @@ await builder.addDotnetProject('inventoryservice', '../InventoryService.cs', {
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The resource is added as an [`ExecutableResource`](/app-host/executable-resources/) rather than a `ProjectResource`, so it doesn't need to be referenced from the AppHost's own solution. Before the resource starts, Aspire validates that the path resolves to a `.csproj` or `.cs` file (or a directory containing a single `.csproj`) and, for file-based apps, that the active .NET SDK version is 10 or later.
 

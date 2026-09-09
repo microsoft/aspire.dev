@@ -4,7 +4,9 @@ seoTitle: Deploy Aspire apps with Docker Compose to any host
 description: Publish and deploy your Aspire application using Docker Compose with Docker or Podman — generate compose files, build images, and orchestrate multi-service production runs.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Docker Compose is a deployment target for Aspire applications. When you add a Docker Compose environment to your AppHost, Aspire generates Docker Compose files, environment variable configurations, and container images from your app model. You can then deploy these artifacts to any machine running Docker or Podman.
@@ -59,8 +61,8 @@ When Podman is the active runtime, Aspire uses `podman-compose` (or the Docker C
 
 To deploy with Docker Compose, add a Docker Compose environment resource to your AppHost using `AddDockerComposeEnvironment`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs" {3}
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -71,8 +73,8 @@ builder.AddProject<Projects.Api>("api");
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" {5} twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -84,8 +86,8 @@ await builder.addProject('api', '../Api/Api.csproj');
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When a Docker Compose environment is present, all resources are automatically published as Docker Compose services — no additional opt-in is required.
 
@@ -225,8 +227,8 @@ Docker Compose deployments can build images from Dockerfiles that are generated 
   [`ASPIREDOCKERFILEBUILDER001`](/diagnostics/aspiredockerfilebuilder001/) when you choose to use them.
 </Aside>
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.ApplicationModel.Docker;
 
@@ -254,8 +256,8 @@ builder.AddDockerfileBuilder("frontend", "../frontend", context =>
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 import type { DockerfileBuilderCallbackContext } from './.aspire/modules/aspire.mjs';
@@ -290,8 +292,8 @@ await builder.addDockerfileBuilder(
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The generated Dockerfile is included with the Docker Compose output and is used when `aspire do prepare-{resource-name}` or `aspire deploy` builds container images.
 
@@ -303,8 +305,8 @@ The Docker hosting integration captures environment variables from your app mode
 
 For advanced scenarios, use `ConfigureEnvFile` to customize the generated `.env` file:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Docker;
 
@@ -320,8 +322,8 @@ builder.AddDockerComposeEnvironment("env")
         };
     });
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -339,8 +341,8 @@ await compose.configureEnvFile(async (envVars) => {
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 This is useful when you need to add custom environment variables to the generated `.env` file or modify how environment variables are captured.
 
@@ -348,8 +350,8 @@ This is useful when you need to add custom environment variables to the generate
 
 Use `ConfigureComposeFile` to customize the generated `docker-compose.yml` model before Aspire writes it to disk:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -366,8 +368,8 @@ builder.AddProject<Projects.Api>("api");
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -385,15 +387,15 @@ await builder.addProject('api', '../Api/Api.csproj', 'http');
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Customize Docker Compose services
 
 To customize the generated Docker Compose service for a specific resource, use the `PublishAsDockerComposeService` method. This is optional — all resources are automatically included in the Docker Compose output. Use this method only when you need to modify the generated service definition:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -413,8 +415,8 @@ builder.AddContainer("cache", "redis", "latest")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -434,8 +436,8 @@ await cache.publishAsDockerComposeService(async (composeService, service) => {
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The `configure` callback receives the `DockerComposeServiceResource` and the generated `Service` object, allowing you to modify properties like labels, restart policy, container name, or other Docker Compose service settings. Use `AsEnvironmentPlaceholder` for values that should be written as Compose environment variable placeholders in the generated YAML and `.env` files.
 
@@ -443,8 +445,8 @@ The `configure` callback receives the `DockerComposeServiceResource` and the gen
 
 Use `GetHostAddressExpression` when you need the host name that another Docker Compose service should use for an endpoint. In Docker Compose deployments, this expression resolves to the generated service name on the Compose network.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -456,8 +458,8 @@ var api = builder.AddContainer("api", "nginx", "alpine")
 var apiHost = compose.Resource.GetHostAddressExpression(
     api.GetEndpoint("http"));
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -471,23 +473,23 @@ await api.withHttpEndpoint({ name: 'http', targetPort: 80 });
 const apiEndpoint = await api.getEndpoint('http');
 const apiHost = await compose.getHostAddressExpression(apiEndpoint);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Image pull policy
 
 Container resources support an `ImagePullPolicy` that controls when the container runtime pulls an image. Use the `WithImagePullPolicy` extension method to set the policy on a container resource:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddContainer("mycontainer", "myimage:latest")
     .WithImagePullPolicy(ImagePullPolicy.Always);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder, ImagePullPolicy } from './.aspire/modules/aspire.mjs';
 
@@ -496,8 +498,8 @@ const builder = await createBuilder();
 const container = await builder.addContainer('mycontainer', { image: 'myimage', tag: 'latest' });
 await container.withImagePullPolicy(ImagePullPolicy.Always);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When you publish resources to a Docker Compose environment, the `ImagePullPolicy` is automatically mapped to the Docker Compose [`pull_policy`](https://docs.docker.com/reference/compose-file/services/#pull_policy) field:
 
@@ -522,8 +524,8 @@ When deploying containers, you can customize how container images are named, tag
 
 Use `WithRemoteImageName` and `WithRemoteImageTag` to customize the image reference:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -537,8 +539,8 @@ var api = builder.AddProject<Projects.Api>("api")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -551,15 +553,15 @@ await api.publishAsDockerComposeService(async (resource, service) => {
 await api.withRemoteImageName('myorg/myapi');
 await api.withRemoteImageTag('v1.0.0');
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Advanced customization with callbacks
 
 For more complex scenarios, use `WithImagePushOptions` to register a callback that dynamically configures push options:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -581,8 +583,8 @@ var api = builder.AddProject<Projects.Api>("api")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -599,8 +601,8 @@ await api
     context.options.setRemoteImageTag('latest');
   });
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Multiple callbacks can be registered on the same resource, and they are invoked in the order they were added.
 
@@ -608,8 +610,8 @@ Multiple callbacks can be registered on the same resource, and they are invoked 
 
 Use the `AddContainerRegistry` method to define a container registry and `WithContainerRegistry` to associate resources with it:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -629,8 +631,8 @@ var api = builder.AddProject<Projects.Api>("api")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -648,8 +650,8 @@ await api.publishAsDockerComposeService(async (resource, service) => {
 });
 await api.withContainerRegistry(registry);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="caution">
   The `AddContainerRegistry` API is experimental and may change in future
@@ -660,8 +662,8 @@ await api.withContainerRegistry(registry);
 
 For more flexible configuration in CI/CD pipelines, use parameters with environment variables:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -683,8 +685,8 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithContainerRegistry(registry);
 #pragma warning restore ASPIRECOMPUTE003
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -711,8 +713,8 @@ await api.publishAsDockerComposeService(async (resource, service) => {
 });
 await api.withContainerRegistry(registry);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Push images with the Aspire CLI
 

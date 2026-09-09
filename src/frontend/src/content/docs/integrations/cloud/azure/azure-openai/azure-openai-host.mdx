@@ -3,8 +3,10 @@ title: Set up Azure OpenAI in the AppHost
 description: Learn how to use the Aspire Azure OpenAI hosting integration to provision and configure Azure OpenAI resources in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import openaiIcon from '@assets/icons/azure-openai-icon.png';
 
@@ -25,8 +27,8 @@ If you're new to the Azure OpenAI integration, start with the [Get started with 
 
 To start building an Aspire app that uses Azure OpenAI, install the [📦 Aspire.Hosting.Azure.CognitiveServices](https://www.nuget.org/packages/Aspire.Hosting.Azure.CognitiveServices) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add azure-cognitive-services
@@ -46,8 +48,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Azure.CognitiveServices" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add azure-cognitive-services
@@ -67,15 +69,15 @@ This updates your `aspire.config.json` with the Azure OpenAI hosting integration
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add an Azure OpenAI resource
 
 Once you've installed the hosting integration in your AppHost project, you can add an Azure OpenAI account resource and then add one or more deployment resources beneath it:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -92,8 +94,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -109,8 +111,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Steps>
 
@@ -138,8 +140,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 Add multiple deployment children beneath the same account to share a single Azure OpenAI resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -156,8 +158,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -176,8 +178,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Referencing `chat` passes a connection named `chat` to the consuming project, and referencing `embeddings` passes a connection named `embeddings`. Both share the parent Azure OpenAI account.
 
@@ -187,8 +189,8 @@ By default, Aspire provisions Azure OpenAI with `disableLocalAuth: true` and aut
 
 To explicitly assign roles to a consuming app (for example, to grant contributor access for fine-tuning scenarios), call `WithRoleAssignments` in C# or `withCognitiveServicesRoleAssignments` in TypeScript on the consuming resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Azure;
 
@@ -205,8 +207,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder, AzureOpenAIRole } from './.aspire/modules/aspire.mjs';
 
@@ -223,8 +225,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The available `AzureOpenAIRole` values are:
 
@@ -236,14 +238,14 @@ The available `AzureOpenAIRole` values are:
 
 To remove the default automatic role assignments and manage them entirely yourself, call `ClearDefaultRoleAssignments` (or `clearDefaultRoleAssignments`) on the Azure OpenAI resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var openai = builder.AddAzureOpenAI("openai")
     .ClearDefaultRoleAssignments();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -252,15 +254,15 @@ const builder = await createBuilder();
 const openai = await builder.addAzureOpenAI("openai");
 await openai.clearDefaultRoleAssignments();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Connect to an existing Azure OpenAI service
 
 You might have an already-deployed Azure OpenAI account in your Azure subscription that you want to connect to. Use `AsExisting` (or `asExisting`) to point the resource at an existing account instead of provisioning a new one:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -278,8 +280,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -299,8 +301,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For more information on treating Azure resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
@@ -387,8 +389,8 @@ The generated Bicep is a starting point and is influenced by changes to the prov
 
 All Aspire Azure resources are subclasses of `AzureProvisioningResource`. This enables customization of the generated Bicep by providing a fluent API to configure Azure resources using the `ConfigureInfrastructure` API:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Azure.Provisioning.CognitiveServices;
 
@@ -410,8 +412,8 @@ builder.AddAzureOpenAI("openai")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -426,8 +428,8 @@ await openai.configureInfrastructure(async infra => {
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding C# code:
 

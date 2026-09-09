@@ -3,7 +3,9 @@ title: Configure Azure Container Apps environments
 description: Learn how to configure Azure Container Apps environment settings, scaling rules, and ingress for Aspire AppHost projects deployed to Azure.
 ---
 
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import containerAppsIcon from '@assets/icons/azure-container-apps-environments.svg';
 
@@ -48,8 +50,8 @@ By using the `Azure.Provisioning` APIs (explained in [Customize Azure resources]
 
 The `AzureContainerAppEnvironmentResource` type models an ACA environment resource. When you call the `AddAzureContainerAppEnvironment` method, it creates an instance of this type (wrapped in the `IResourceBuilder<AzureContainerAppEnvironmentResource>`).
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -59,8 +61,8 @@ var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env");
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -70,8 +72,8 @@ const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env");
 
 // Omitted for brevity...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 By default, calling this API to add an ACA environment generates the following provisioning Bicep module:
 
@@ -194,8 +196,8 @@ Using the `acaEnv` variable, you can chain a call to the `ConfigureInfrastructur
 
 If you've already provisioned an Azure Container Apps environment, chain `AsExisting` (or `asExisting`) on `AddAzureContainerAppEnvironment` to deploy your container apps into it instead of creating a new one:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -209,8 +211,8 @@ builder.AddProject<Projects.ApiService>("api");
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -226,8 +228,8 @@ await builder.addProject("api", "../ApiService/ApiService.csproj");
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When the environment is marked as existing, Aspire generates a thin Bicep module that references the existing managed environment by name. It does not emit a new managed environment, Log Analytics workspace, or Aspire Dashboard component — the existing environment already owns those. For background on the `AsExisting` family of APIs, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
@@ -241,8 +243,8 @@ Some configurations are incompatible with an existing environment and are reject
 
 By default, even when the environment is existing, Aspire still emits a new user-assigned managed identity and an `AcrPull` role assignment on the container registry so that newly deployed container apps can pull their images. If your deployment principal can't create identities or role assignments, or if you have an existing identity that you want to reuse, supply a pre-existing identity with `WithAcrPullIdentity` (or `withAcrPullIdentity`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -266,8 +268,8 @@ builder.AddProject<Projects.ApiService>("api");
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -293,8 +295,8 @@ await builder.addProject("api", "../ApiService/ApiService.csproj");
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 :::caution[You own the role assignment]
 The supplied identity must already have the `AcrPull` role on the registry. Aspire does not create that role assignment when you use `WithAcrPullIdentity` — you own the identity's role wiring (for example, by chaining `.WithRoleAssignments(acr, ContainerRegistryBuiltInRole.AcrPull)` when you add the identity).
@@ -327,8 +329,8 @@ The following `PublishAsAzureContainerApp` overloads let you customize the gener
 
 The callback receives an `AzureResourceInfrastructure` instance and the strongly-typed `ContainerApp` resource. This lets you set any property that Azure Container Apps supports — such as scaling rules, ingress settings, or environment variables — before the Bicep is generated.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -346,8 +348,8 @@ builder.AddProject<Projects.ApiService>("api")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 <Aside type="note">
   The `PublishAsAzureContainerApp` callback receives strongly-typed Azure SDK
   types from the `Azure.Provisioning.AppContainers` package — such as
@@ -357,15 +359,15 @@ builder.Build().Run();
   `configureInfrastructure` with a raw Bicep override, or apply the
   customizations via the Azure portal or a separate Bicep/ARM template.
 </Aside>
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Handle naming conventions
 
 By default, `AddAzureContainerAppEnvironment` uses a different Azure resource naming scheme than the [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/). If you're upgrading an existing deployment that previously used `azd`, you might see duplicate Azure resources. To avoid this issue, call the `WithAzdResourceNaming` method to revert to the naming convention used by `azd`:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -376,8 +378,8 @@ var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -388,8 +390,8 @@ await acaEnv.withAzdResourceNaming();
 
 // Omitted for brevity...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Calling this API ensures your existing Azure resources remain consistent and prevents duplication.
 
@@ -399,8 +401,8 @@ By default, the generated managed environment `name` keeps only lowercase letter
 
 Publish and deploy detect this collision up front and fail with guidance to call `WithUniqueResourceNaming` on the colliding environments:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -414,8 +416,8 @@ var env2 = builder.AddAzureContainerAppEnvironment("cae2")
 
 builder.Build().Run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `WithUniqueResourceNaming` preserves digits in the resource name when computing the managed environment `name`, so `cae1` and `cae2` produce distinct names and can coexist in the same resource group.
 
@@ -429,8 +431,8 @@ builder.Build().Run();
 
 All Azure resources are subclasses of the `AzureProvisioningResource` type. This enables customization of the generated Bicep by providing a fluent API to configure the Azure resources — using the `ConfigureInfrastructure` API:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -446,8 +448,8 @@ acaEnv.ConfigureInfrastructure(infra =>
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 <Aside type="note">
   `ConfigureInfrastructure` uses strongly-typed Azure SDK types from the
   `Azure.Provisioning.AppContainers` package — such as
@@ -456,8 +458,8 @@ builder.Build().Run();
   available from a C# AppHost. For more information, see [Customize Azure
   resources](/integrations/cloud/azure/customize-resources/).
 </Aside>
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding C# code:
 

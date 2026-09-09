@@ -4,6 +4,8 @@ seoTitle: Aspire health checks and readiness gates for resources
 description: Add health checks to Aspire resources to gate startup, surface readiness in the dashboard, and tie WaitFor / WaitForCompletion behavior to real application signals.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import healthChecksDashboardStatus from '@assets/fundamentals/health-checks-dashboard-status.png';
@@ -429,8 +431,8 @@ When a resource has health checks configured, the AppHost uses them to determine
 
 For resources that expose HTTP endpoints, you can add health checks that poll specific paths:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -444,8 +446,8 @@ builder.AddProject<Projects.WebApp>("webapp")
        .WaitFor(catalogApi); // Waits for /health to return HTTP 200
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -464,13 +466,13 @@ await webapp.withReference(catalogApi);
 await webapp.waitFor(catalogApi); // Waits for /health to return HTTP 200
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The `WithHttpHealthCheck` method can also be applied to project resources:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var backend = builder.AddProject<Projects.Backend>("backend")
@@ -481,8 +483,8 @@ builder.AddProject<Projects.Frontend>("frontend")
        .WaitFor(backend);
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -497,15 +499,15 @@ await frontend.withReference(backend);
 await frontend.waitFor(backend);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Custom resource health checks
 
 You can create custom health checks for more complex readiness scenarios. Start by defining the health check in the AppHost's service collection, then associate it with resources:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -528,8 +530,8 @@ builder.AddProject<Projects.MyApp>("myapp")
                   // AND the custom "mycheck" health check to be healthy
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
   TypeScript AppHost support for registering custom health checks with

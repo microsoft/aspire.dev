@@ -4,6 +4,8 @@ description: Add Aspire to an existing application — use aspire init with an A
 next: false
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import { Kbd } from 'starlight-kbd/components';
@@ -27,20 +29,20 @@ Before you begin, make sure you have:
 
 ### AppHost-specific requirements
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 - [.NET SDK 10.0 or later](/get-started/prerequisites/)
 - Visual Studio 2022 17.13 or later, Visual Studio Code, or JetBrains Rider (optional)
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 - [Node.js 22.x or 24.x LTS](https://nodejs.org/)
 - A [supported AppHost-root package manager](/app-host/typescript-apphost/#package-managers): npm, pnpm, Yarn 4+, or Bun
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Recommended: Use an AI coding agent with the "aspireify" skill
 
@@ -91,8 +93,8 @@ If you prefer full control over the wiring, or want to understand what the aspir
 
 The AppHost is the orchestration layer. Your choice here changes how you express orchestration, not what Aspire can orchestrate.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 Aspire offers two C# AppHost styles:
 
@@ -102,8 +104,8 @@ Aspire offers two C# AppHost styles:
 
 Both styles use the same `Aspire.AppHost.Sdk` and the same hosting APIs.
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 Use a TypeScript AppHost when your repo already centers on a Node.js workspace or when you prefer path-based orchestration in TypeScript.
 
@@ -111,8 +113,8 @@ Use a TypeScript AppHost when your repo already centers on a Node.js workspace o
 - Runs under supported package managers including npm, pnpm, Yarn 4+, and Bun
 - Fits naturally into existing package-manager and monorepo workflows
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 :::tip[No runtime lock-in]
 Both AppHost styles can orchestrate multi-language systems. You can mix C#, Node.js, Python, Go, Rust, Java, containers, and supported integrations in the same application model. Pick the AppHost that best fits your repo and team, not the one that matches a single workload.
@@ -120,8 +122,8 @@ Both AppHost styles can orchestrate multi-language systems. You can mix C#, Node
 
 ### Set up your AppHost
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 #### File-based AppHost (default)
 
@@ -262,8 +264,8 @@ Each `ProjectReference` in the AppHost triggers a source generator that creates 
 For the full `AddProject` workflow including custom type names, multi-project solutions, and launch profiles, see [Project resources](/integrations/dotnet/project-resources/).
 </LearnMore>
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 <Steps>
 
@@ -385,8 +387,8 @@ If your root `package.json` already contains any `aspire:`-prefixed scripts (for
 
 The AppHost package and your guest apps can use different package managers. The AppHost directory takes precedence for running AppHost scripts — if the AppHost's `package.json` declares `"packageManager": "pnpm@..."` or contains a `pnpm-lock.yaml`, pnpm is used for AppHost operations regardless of the toolchain in the parent workspace.
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Scenario: Existing services with hosting integrations
 
@@ -394,8 +396,8 @@ Use this approach when Aspire already has a first-class resource type for the wo
 
 Common examples include Node.js apps, Vite frontends, Python workers, and Uvicorn-based APIs.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="apphost.cs — Existing services with hosting integrations"
 #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
@@ -422,8 +424,8 @@ var web = builder.AddViteApp("web", "../services/web")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts — Existing services with hosting integrations" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -450,8 +452,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 If a workload does not have a dedicated hosting API yet, model it as an executable resource with `AddExecutable` or `addExecutable` so it can still participate in the same application model.
 
@@ -474,8 +476,8 @@ aspire add postgres
 aspire add redis
 ```
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="apphost.cs — Existing containers and shared infrastructure"
 #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
@@ -501,8 +503,8 @@ var web = builder.AddContainer("web", "ghcr.io/contoso/orders-web:latest")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts — Existing containers and shared infrastructure" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -527,8 +529,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 
 ### Scenario: Docker Compose
@@ -624,8 +626,8 @@ For more examples, see [Project resources](/integrations/dotnet/project-resource
 
 Telemetry is configured inside the workloads that emit it, not in the AppHost itself. Aspire gives those workloads an OTLP destination and a shared dashboard during local orchestration, but each service still uses the observability libraries that fit its runtime.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 If your app includes C# services, ServiceDefaults is the standard way to add observability, resilience, and health checks.
 
@@ -658,8 +660,8 @@ If your app includes C# services, ServiceDefaults is the standard way to add obs
 For more information, see [Service Defaults](/get-started/csharp-service-defaults/).
 </LearnMore>
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 If your app includes Node.js or TypeScript services, configure OpenTelemetry inside the service and point it at the Aspire <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint.
 
@@ -699,8 +701,8 @@ If your app includes Node.js or TypeScript services, configure OpenTelemetry ins
 
 </Steps>
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For other runtimes, use the OpenTelemetry SDK or instrumentation library that matches the runtime you are already using, then export telemetry to the OTLP endpoint Aspire provides during local orchestration.
 

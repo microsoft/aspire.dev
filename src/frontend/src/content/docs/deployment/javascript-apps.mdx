@@ -4,7 +4,9 @@ seoTitle: Deploy Aspire JavaScript apps with the Aspire AppHost
 description: Learn the main production deployment models for JavaScript app resources in Aspire — Next.js, Vite, SSR frameworks, container images, and CDN-fronted hosting targets.
 ---
 
-import { Aside, TabItem, Tabs } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 JavaScript app resources can represent static browser frontends, Node.js servers, SSR frameworks, and specialized resources such as Next.js apps. The deployment decision is less about which AppHost API you started with and more about **which resource owns the public HTTP surface in production**.
@@ -59,8 +61,8 @@ flowchart LR
     App --> Frontend["Vite build output"]
 ```
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -80,8 +82,8 @@ app.PublishWithContainerFiles(frontend, "./static");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -103,9 +105,8 @@ await app.publishWithContainerFiles(frontend, './static');
 await builder.build().run();
 ```
 
-</TabItem>
-
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### How it works
 
@@ -138,8 +139,8 @@ flowchart LR
     YARP --> Frontend["Frontend routes"]
 ```
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -163,8 +164,8 @@ builder
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -191,9 +192,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `AddViteApp` is still fine in this shape, but the Vite development server endpoint is not used at publish time.
 
@@ -201,8 +201,8 @@ await builder.build().run();
 
 If your gateway or BFF needs to know about the frontend dev server during local development, gate that wiring to run mode only:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var frontend = builder
@@ -220,8 +220,8 @@ if (builder.ExecutionContext.IsRunMode)
 }
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const frontend = await builder.addViteApp('frontend', './frontend');
@@ -238,9 +238,8 @@ if (await builder.executionContext.isRunMode()) {
 }
 ```
 
-</TabItem>
-
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="caution">
   Dev-only waits, references, and environment variables that point at the
@@ -275,8 +274,8 @@ Use `PublishAsStaticWebsite` when the framework produces static files and you wa
 
 Choose this shape instead of `PublishWithStaticFiles(...)` when you do not already have a gateway or BFF resource that should own the public route table. If you already have an explicit YARP resource for gateway or BFF behavior, keep using `PublishWithStaticFiles(...)` on that resource.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREJAVASCRIPT001
@@ -299,8 +298,8 @@ frontend.PublishAsStaticWebsite(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -324,9 +323,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Static website options
 
@@ -367,8 +365,8 @@ Use `PublishAsNodeServer` for frameworks that produce a self-contained Node.js s
 
 Choose this method instead of `PublishAsPackageScript` when the build output does not need a production `node_modules` install at runtime. The resulting image can be smaller because it copies the server artifact rather than the full application with production dependencies.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREJAVASCRIPT001
@@ -392,8 +390,8 @@ var svelteApp = builder
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -417,9 +415,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The generated container sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the Node.js server binds to all interfaces and is reachable inside the container network.
 
@@ -429,8 +426,8 @@ Use `PublishAsPackageScript` for SSR frameworks that start production by running
 
 Choose this method instead of `PublishAsNodeServer` when the production server imports packages from `node_modules` at runtime or the framework's recommended production command is a package script.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREJAVASCRIPT001
@@ -455,8 +452,8 @@ var nuxtApp = builder
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -481,9 +478,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The generated container sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the server binds to all interfaces inside the container network.
 
@@ -522,8 +518,8 @@ Use `AddNextJsApp` for Next.js apps that use [standalone output](https://nextjs.
 
 Choose this method instead of `AddJavaScriptApp(...).PublishAsPackageScript(...)` for Next.js standalone deployments. Use the more general package-script publish method for frameworks where the production server should be started through the package manager and the framework does not have a dedicated Aspire resource.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREJAVASCRIPT001
@@ -546,8 +542,8 @@ builder
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -570,9 +566,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Set `output: "standalone"` in your Next.js configuration so the generated Dockerfile has the server files it needs:
 
@@ -608,8 +603,8 @@ flowchart TD
 
 This is a natural model for many SPA teams, especially when they already think in terms of "static site + API". It can work, but it is not the primary Aspire deployment story for `AddViteApp` and `AddJavaScriptApp`.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -627,8 +622,8 @@ builder
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -648,9 +643,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Why this shape gets harder
 
@@ -663,8 +657,8 @@ This shape pushes more work onto the browser/frontend boundary:
 
 The following example looks reasonable, but it is a trap in publish/deploy:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -683,8 +677,8 @@ builder
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -705,9 +699,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Pitfalls
 
@@ -1211,8 +1204,8 @@ Prefer fixing the app model by choosing one of the deployment shapes in this art
 
 To disable the validation for the whole app, call `DisableBuildOnlyContainerValidation` on the pipeline:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREPIPELINES001
@@ -1228,8 +1221,8 @@ builder.Pipeline.DisableBuildOnlyContainerValidation();
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -1243,8 +1236,8 @@ builder.pipeline.disableBuildOnlyContainerValidation();
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The `DisableBuildOnlyContainerValidation` method is marked experimental with the `ASPIREPIPELINES001` diagnostic.
 
@@ -1263,8 +1256,8 @@ To resolve the conflict, choose one of the following options:
 - **Remove or rename the Dockerfile** so Aspire generates a new one that runs your requested script as the container entrypoint.
 - **Override the container entrypoint explicitly** by calling `PublishAsDockerFile(...)` and configuring the entrypoint directly on the container resource. This keeps the existing Dockerfile and gives you full control over what runs:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 builder
@@ -1275,8 +1268,8 @@ builder
         .WithArgs("src/migrate.ts"));
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 await builder
@@ -1288,8 +1281,8 @@ await builder
   });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Using the implicit default `runScriptName` (`"dev"`) without any custom arguments is always allowed, even when an existing Dockerfile is present, because no script override is actually requested in that case.
 

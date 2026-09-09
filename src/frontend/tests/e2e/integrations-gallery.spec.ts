@@ -83,9 +83,11 @@ test.describe('integrations gallery', () => {
     await dismissCookieConsentIfVisible(page);
 
     const postgresCard = page.locator('.card[data-title="aspire.hosting.postgresql"]');
-    const tsLink = postgresCard.locator('.lang-button').first();
-    const csharpLink = postgresCard.locator('.lang-button').nth(1);
+    const languageLinks = postgresCard.locator('.lang-button');
+    const tsLink = languageLinks.first();
+    const csharpLink = languageLinks.nth(1);
 
+    await expect(languageLinks).toHaveCount(2);
     await expect(tsLink).toHaveAttribute('href', /aspire-lang=typescript/);
     await expect(csharpLink).toHaveAttribute('href', /aspire-lang=csharp/);
 

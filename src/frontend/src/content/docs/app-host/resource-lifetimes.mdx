@@ -3,7 +3,9 @@ title: Configure resource lifetimes in Aspire
 description: Learn how session, persistent, resource-scoped, and parent-process lifetimes, plus explicit start, control Aspire containers, executables, and projects.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+
 import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import persistentContainer from '@assets/whats-new/aspire-9/persistent-container.png';
@@ -133,8 +135,8 @@ builder.Build().Run();
 
 For new code, configure a persistent container with `WithPersistentLifetime()`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -151,8 +153,8 @@ builder.AddProject<Projects.InventoryService>("inventory")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -174,8 +176,8 @@ await inventory.withReference(db);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 In the preceding example, the PostgreSQL container persists between AppHost runs, and `WithDataVolume()` stores database data in a named volume that survives container recreation. The `inventory` project references the database as normal.
 
@@ -183,8 +185,8 @@ In the preceding example, the PostgreSQL container persists between AppHost runs
 
 Executable resources can also use persistent lifetimes. Persistent executables are useful for local services that have expensive startup, need stable process identity, or should remain reachable while the AppHost restarts.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -196,8 +198,8 @@ var worker = builder.AddExecutable("worker", "node", "../worker", "server.js")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -213,8 +215,8 @@ await worker.withPersistentLifetime();
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding example configures a concrete `port` so the endpoint address is explicit. If you omit the public `port`, Aspire allocates one before the executable starts and reuses it from user secrets on later AppHost runs when user secrets are available.
 
@@ -222,8 +224,8 @@ The preceding example configures a concrete `port` so the endpoint address is ex
 
 Project resources can use persistent lifetimes when you want the project process to continue running after the AppHost exits.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -234,8 +236,8 @@ var api = builder.AddProject<Projects.ApiService>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -248,8 +250,8 @@ await api.withPersistentLifetime();
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Persistent project and executable resources are run by Aspire's orchestrator so it can manage their lifecycle consistently. Persistent project and executable resources don't support replicas.
 
@@ -257,8 +259,8 @@ Persistent project and executable resources are run by Aspire's orchestrator so 
 
 Use `WithLifetimeOf` when a companion resource should follow another resource's lifetime. This is useful when a sidecar, helper process, or supporting service should become persistent only when its source resource is persistent.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -273,8 +275,8 @@ var companion = builder.AddExecutable("companion", "dotnet", "../Companion", "Co
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -296,8 +298,8 @@ await companion.withLifetimeOf(database);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The dependent resource's lifetime is evaluated when Aspire prepares the application model, so later changes to the source resource's lifetime are reflected by the dependent resource.
 
@@ -305,8 +307,8 @@ The dependent resource's lifetime is evaluated when Aspire prepares the applicat
 
 Use `WithParentProcessLifetime` when a resource should survive AppHost restarts but be cleaned up when another process exits. Aspire records the parent process identity instead of retaining a live process handle, so the cleanup scope follows the specific process instance instead of a reused process ID.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -319,8 +321,8 @@ var worker = builder.AddExecutable("scoped-worker", "node", "../worker", "server
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -340,8 +342,8 @@ await worker.withParentProcessLifetime(parentProcessId);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The parent process ID must be greater than zero and identify a running process.
 
@@ -351,8 +353,8 @@ The older container-specific lifetime API is still supported. Use `WithLifetime(
 
 For new code, prefer the shared `WithPersistentLifetime()` and `WithSessionLifetime()` APIs because they work consistently across containers, executables, and projects.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -364,8 +366,8 @@ var postgres = builder.AddPostgres("postgres")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { ContainerLifetime, createBuilder } from './.aspire/modules/aspire.mjs';
@@ -379,8 +381,8 @@ await postgres.withDataVolume();
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Dashboard visualization
 
@@ -413,8 +415,8 @@ For example, if you have a service named `"postgres"` in an AppHost project loca
 
 For advanced scenarios, you can set a custom container name using the `WithContainerName` method:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -426,8 +428,8 @@ var postgres = builder.AddPostgres("postgres")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -441,8 +443,8 @@ await postgres.withContainerName('my-shared-postgres');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When you specify a custom container name, Aspire first checks if a container with that name already exists. If a container with that name exists and was previously created by Aspire, it follows the normal persistent container behavior and can be automatically recreated if the configuration changes. If a container with that name exists but wasn't created by Aspire, it won't be managed or recreated by the AppHost. If no container with the custom name exists, Aspire creates a new one.
 
@@ -481,8 +483,8 @@ For persistent executable and project resources, stop the running process with y
 
 For **databases and other stateful services**, use both APIs together so you get fast startup (the container stays running) _and_ data safety (a volume protects data even if the container is recreated):
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var postgres = builder.AddPostgres("postgres")
@@ -490,8 +492,8 @@ var postgres = builder.AddPostgres("postgres")
     .WithDataVolume();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -503,8 +505,8 @@ await postgres.withPersistentLifetime();
 await postgres.withDataVolume();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For **caches or other ephemeral state**, `WithPersistentLifetime()` alone may be sufficient because losing data on container recreation is acceptable.
 

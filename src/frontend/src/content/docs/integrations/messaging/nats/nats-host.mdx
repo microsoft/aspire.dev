@@ -4,8 +4,10 @@ seoTitle: "Set up NATS in the Aspire AppHost: hosting integration"
 description: Learn how to use the Aspire NATS Hosting integration to orchestrate and configure a NATS resource in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import natsIcon from '@assets/icons/nats-icon.png';
@@ -27,8 +29,8 @@ If you're new to the NATS integration, start with the [Get started with NATS int
 
 To start building an Aspire app that uses NATS, install the [📦 Aspire.Hosting.Nats](https://www.nuget.org/packages/Aspire.Hosting.Nats) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add nats
@@ -48,8 +50,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Nats" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add nats
@@ -69,15 +71,15 @@ This updates your `aspire.config.json` with the NATS hosting integration package
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add NATS resource
 
 Once you've installed the hosting integration in your AppHost project, you can add a NATS resource as shown in the following examples:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -88,8 +90,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -102,8 +104,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Steps>
 
@@ -125,8 +127,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 [JetStream](https://docs.nats.io/nats-concepts/jetstream) is NATS's built-in persistence engine that provides at-least-once delivery, replay, and stream retention. To enable JetStream on the NATS resource, use `WithJetStream` (or `withJetStream`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -138,8 +140,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -153,15 +155,15 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add NATS resource with data volume
 
 Add a data volume to the NATS resource to persist messages and JetStream state across container restarts:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -174,8 +176,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -190,8 +192,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The data volume is used to persist the NATS data outside the lifecycle of its container. The data volume is mounted at the `/data` path in the NATS container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-nats-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
@@ -199,8 +201,8 @@ The data volume is used to persist the NATS data outside the lifecycle of its co
 
 Add a data bind mount to the NATS resource as shown in the following examples:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -215,8 +217,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -231,8 +233,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
     Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
@@ -244,8 +246,8 @@ Data bind mounts rely on the host machine's filesystem to persist NATS data acro
 
 When you want to explicitly provide the port and credentials used by the NATS container, you can pass them as parameters:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -259,8 +261,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -276,8 +278,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When no `userName` or `password` parameters are provided, Aspire generates strong credentials automatically using the `CreateDefaultPasswordParameter` method.
 
@@ -285,8 +287,8 @@ When no `userName` or `password` parameters are provided, Aspire generates stron
 
 By default, Aspire injects the NATS connection information using variable names derived from the resource name (for example, `NATS_URI`, `NATS_HOST`, `NATS_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -304,8 +306,8 @@ var app = builder.AddExecutable("my-app", "node", "app.js", ".")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
 
@@ -325,8 +327,8 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Connection properties
 

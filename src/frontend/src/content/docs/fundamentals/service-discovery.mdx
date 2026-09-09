@@ -4,6 +4,8 @@ seoTitle: Aspire service discovery essentials for distributed apps
 description: Understand essential Aspire service discovery concepts — endpoints, URIs, HttpClient resolution, and how service references flow from the AppHost into your app code.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Service discovery is how your services find each other. Instead of hardcoding URLs like `http://localhost:5001`, your frontend can simply reference the `catalog` service by name—and Aspire handles resolving the actual address.
@@ -30,8 +32,8 @@ When you connect services using `WithReference()`, Aspire sets up automatic serv
 
 Configuration for service discovery is only added for services that are referenced by a given project. For example, consider the following AppHost program:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -44,8 +46,8 @@ var frontend = builder.AddProject<Projects.MyFrontend>("frontend")
                        .WithReference(catalog);
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -71,8 +73,8 @@ await frontend.withReference(catalog);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 In the preceding example, the _frontend_ project references the _catalog_ project and the _basket_ project. The two `WithReference` calls instruct Aspire to:
 
@@ -193,16 +195,16 @@ In the preceding JSON:
 
 Named endpoints can also be exposed by code in the AppHost. For instance, the previous example can be modeled as:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var basket = builder.AddProject<Projects.BasketService>("basket")
     .WithHttpsEndpoint(port: 9999, name: "dashboard");
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const basket = await builder.addProject(
@@ -212,8 +214,8 @@ const basket = await builder.addProject(
 await basket.withHttpsEndpoint({ port: 9999, name: 'dashboard' });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Named endpoints in Kubernetes using DNS SRV
 
@@ -370,8 +372,8 @@ const response = await fetch(`${dashboardUrl}/api/stats`);
 
 **Solution**: Verify your AppHost connects the services:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 var api = builder.AddProject<Projects.Api>("api");
@@ -379,8 +381,8 @@ var frontend = builder.AddProject<Projects.Frontend>("frontend")
     .WithReference(api);  // This is required!
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const api = await builder.addProject('api', '../Api/Api.csproj');
@@ -391,8 +393,8 @@ const frontend = await builder.addProject(
 await frontend.withReference(api); // This is required!
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Named endpoint doesn't resolve
 
@@ -400,24 +402,24 @@ await frontend.withReference(api); // This is required!
 
 **Solution**: Verify the endpoint is named in your AppHost:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 var api = builder.AddProject<Projects.Api>("api")
     .WithHttpEndpoint(port: 9999, name: "dashboard");  // Name must match
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withHttpEndpoint({ port: 9999, name: 'dashboard' }); // Name must match
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Then use the exact name with underscore prefix:
 

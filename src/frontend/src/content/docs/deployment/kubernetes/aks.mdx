@@ -4,7 +4,9 @@ seoTitle: Deploy Aspire apps to Azure Kubernetes Service (AKS)
 description: Deploy your Aspire application to Azure Kubernetes Service with full provisioning of AKS clusters, container registries, ingress, identity, and observability.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 
@@ -41,8 +43,8 @@ The Aspire CLI adds the [📦 Aspire.Hosting.Azure.Kubernetes](https://www.nuget
 
 Then add the AKS environment in your AppHost:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs" {3}
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -52,8 +54,8 @@ var api = builder.AddProject<Projects.MyApi>("api");
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" {5}
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -68,8 +70,8 @@ const api = await builder
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When an AKS environment is present, all compute resources are automatically deployed to AKS — no additional opt-in is required.
 
@@ -90,27 +92,27 @@ Aspire builds your container images, pushes them to ACR, generates Helm charts, 
 
 Customize the system node pool VM size and scaling using `WithSystemNodePool`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 builder.AddAzureKubernetesEnvironment("aks")
     .WithSystemNodePool("Standard_D4s_v5", minCount: 1, maxCount: 5);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
 await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Additional node pools
 
 Add additional node pools for workload isolation or specialized hardware, then use `WithNodePool` to schedule workloads on them:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var aks = builder.AddAzureKubernetesEnvironment("aks");
 var gpuPool = aks.AddNodePool("gpupool", "Standard_NC6s_v3", minCount: 0, maxCount: 5);
@@ -118,8 +120,8 @@ var gpuPool = aks.AddNodePool("gpupool", "Standard_NC6s_v3", minCount: 0, maxCou
 builder.AddContainer("ml-worker", "my-ml-image")
     .WithNodePool(gpuPool);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
 const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
@@ -127,8 +129,8 @@ const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
 const worker = await builder.addContainer('ml-worker', 'my-ml-image');
 await worker.withNodePool(gpuPool);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Deploy to AKS
 
@@ -233,8 +235,8 @@ Feature registration can take several minutes the first time. For the latest pre
 
 AGC requires a dedicated subnet for its frontend that is delegated to `Microsoft.ServiceNetworking/trafficControllers`. The AKS node subnet and the AGC subnet must not overlap, and the AKS service CIDR defaults to `10.0.0.0/16` — pick a VNet range that avoids it.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREAZURE003 // AddSubnet is evaluation-only
 
@@ -245,8 +247,8 @@ var albSubnet = vnet.AddSubnet("alb-public", "10.100.4.0/24");
 var aks = builder.AddAzureKubernetesEnvironment("aks")
                  .WithSubnet(aksSubnet);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const vnet = await builder.addAzureVirtualNetwork('vnet', '10.100.0.0/16');
 const aksSubnet = await vnet.addSubnet('aks-nodes', '10.100.0.0/22');
@@ -255,8 +257,8 @@ const albSubnet = await vnet.addSubnet('alb-public', '10.100.4.0/24');
 const aks = await builder.addAzureKubernetesEnvironment('aks');
 await aks.withSubnet(aksSubnet);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="tip">
 The AGC frontend subnet must be **/24 or larger**. The AKS node pool subnet should be **/22 or larger** to leave room for pods and scale-out. `AddSubnet` is currently evaluation-only and lives behind the `ASPIREAZURE003` diagnostic — suppress it as shown above.
@@ -266,18 +268,18 @@ The AGC frontend subnet must be **/24 or larger**. The AKS node pool subnet shou
 
 `AddLoadBalancer` returns a typed handle that gateways and ingresses attach to. Behind the scenes it delegates the supplied subnet to AGC, grants the controller's managed identity `Network Contributor` on the subnet, and applies the `ApplicationLoadBalancer` custom resource once the `azure-alb-external` GatewayClass is ready in the cluster.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var publicLb = aks.AddLoadBalancer("public", albSubnet);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const publicLb = await aks.addLoadBalancer('public', albSubnet);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
 Each AGC `ApplicationLoadBalancer` caps at five frontends (Gateways or Ingresses). Larger applications can call `AddLoadBalancer` multiple times — for example one `public` LB for customer traffic and a separate `admin` LB for an internal portal — and attach gateways to whichever LB they belong on.
@@ -287,8 +289,8 @@ Each AGC `ApplicationLoadBalancer` caps at five frontends (Gateways or Ingresses
 
 `AddGateway` declares a Kubernetes Gateway API `Gateway`. `WithLoadBalancer` attaches it to the AGC ALB you just created and defaults the `gatewayClassName` to `azure-alb-external`. `WithRoute` adds an `HTTPRoute` that forwards a path to the named endpoint on one of your services.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var api = builder.AddProject<Projects.MyApi>("api")
                  .WithExternalHttpEndpoints();
@@ -297,8 +299,8 @@ aks.AddGateway("storefront")
    .WithLoadBalancer(publicLb)
    .WithRoute("/", api.GetEndpoint("http"));
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const api = await builder
     .addNodeApp('api', './api', 'src/index.ts')
@@ -309,8 +311,8 @@ const storefront = await aks.addGateway('storefront');
 await storefront.withLoadBalancer(publicLb);
 await storefront.withRoute('/', api.getEndpoint('http'));
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Use the host overload of `WithRoute` when you need to send different hostnames to different backends — for example `WithRoute("api.contoso.com", "/", api.GetEndpoint("http"))`.
 
@@ -331,8 +333,8 @@ This first deploy serves plain HTTP only. Continue to the next step before expos
 
 `AddCertManager` installs the upstream cert-manager Helm chart with the CRDs and Gateway API watcher enabled and the `--force-conflicts` flag set so AKS's Azure Policy add-on doesn't break subsequent upgrades. `AddIssuer` adds a typed `ClusterIssuer` parented to that installation, and `WithTls(issuer)` on a gateway adds an HTTPS listener that cert-manager will populate with a real certificate.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var certManager = aks.AddCertManager("cert-manager");
 
@@ -345,8 +347,8 @@ aks.AddGateway("storefront")
    .WithRoute("/", api.GetEndpoint("http"))
    .WithTls(letsencrypt);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const certManager = await aks.addCertManager('cert-manager');
 
@@ -359,8 +361,8 @@ await storefront.withLoadBalancer(publicLb);
 await storefront.withRoute('/', api.getEndpoint('http'));
 await storefront.withTls(letsencrypt);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `WithTls(issuer)` is the strongly-typed overload — it validates at AppHost-build time that the gateway and the issuer's cert-manager installation belong to the same Kubernetes environment. There is also a no-argument `WithTls()` (auto-generated secret name, no issuer annotation) and a `WithTls(secretName)` overload for cases where you manage the certificate yourself.
 
@@ -371,8 +373,8 @@ Calling `WithTls` flips the gateway to an HTTPS-first posture:
 
 To tune or disable these defaults, pass an options callback. The `includeSubDomains` and `preload` HSTS flags are off by default because they're hard to reverse once browsers cache them — opt in explicitly when you're ready to commit to the hostname:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 aks.AddGateway("storefront")
    .WithLoadBalancer(publicLb)
@@ -383,15 +385,15 @@ aks.AddGateway("storefront")
        options.Hsts.Preload = true;
    });
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 await storefront.withTls(letsencrypt, {
     hsts: { includeSubDomains: true, preload: true },
 });
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="tip">
 Let's Encrypt's production endpoint enforces strict rate limits. While iterating on your AppHost, swap `WithLetsEncryptProduction` for `WithLetsEncryptStaging` so failed attempts don't cost you your weekly quota. Browsers will warn on staging certificates — flip back to production once everything works end-to-end.
@@ -436,8 +438,8 @@ The `*.alb.azure.com` FQDN is fine for testing but real applications need a host
 
 `WithHostname` adds the hostname to the gateway's `HTTPRoute`s and to the HTTPS listener so cert-manager issues the certificate for the right name. Use the parameter overload when the hostname differs across deployment environments.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var hostname = builder.AddParameter("hostname"); // e.g. "api.contoso.com"
 
@@ -447,8 +449,8 @@ aks.AddGateway("storefront")
    .WithRoute("/", api.GetEndpoint("http"))
    .WithTls(letsencrypt);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const hostname = builder.addParameter('hostname'); // e.g. "api.contoso.com"
 
@@ -458,8 +460,8 @@ await storefront.withHostname(hostname);
 await storefront.withRoute('/', api.getEndpoint('http'));
 await storefront.withTls(letsencrypt);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Provide the hostname value at deploy time:
 
@@ -527,8 +529,8 @@ After authentication, `aspire deploy` needs a target subscription and location. 
 
 Use `PublishAsKubernetesService` to customize the Kubernetes resources generated for individual services:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
 
@@ -542,8 +544,8 @@ builder.AddProject<Projects.MyApi>("api")
         }
     });
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const api = await builder
     .addNodeApp('api', './api', 'src/index.ts')
@@ -553,8 +555,8 @@ await api.publishAsKubernetesService(async (resource) => {
   await resource.workload.spec.replicas.set(3);
 });
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Install external Helm charts
 

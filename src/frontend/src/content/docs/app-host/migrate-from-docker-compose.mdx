@@ -3,7 +3,9 @@ title: Migrate from Docker Compose to Aspire
 description: Migrate your Docker Compose applications to Aspire — map services, volumes, networks, and environment variables to AppHost APIs and modernize your developer workflow.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 This guide helps you understand how to migrate applications from Docker Compose to Aspire, highlighting the key conceptual differences and providing accurate, practical examples for common migration scenarios.
@@ -95,8 +97,8 @@ volumes:
 
 **Aspire equivalent:**
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -122,8 +124,8 @@ var frontend = builder.AddProject<Projects.MyApp_Frontend>("frontend")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -151,8 +153,8 @@ const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Fr
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note" title="build: services become project or Dockerfile resources">
 In Docker Compose, the `build:` directive creates container images from Dockerfiles. In Aspire, .NET services are added directly as project references with `AddProject<T>()`, providing better debugging, hot reload, and telemetry integration. For services that still build from Dockerfiles, use `AddDockerfile()` for an existing Dockerfile or `AddDockerfileBuilder()` when the AppHost should generate the Dockerfile programmatically.
@@ -211,8 +213,8 @@ volumes:
 
 **Aspire equivalent:**
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -236,8 +238,8 @@ var web = builder.AddDockerfile("web", ".")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -263,8 +265,8 @@ const web = await builder.addDockerfile("web", ".")
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="caution" title="Connection string format differences">
 Aspire generates .NET-format connection strings, which differ from Docker Compose URL formats:
@@ -306,8 +308,8 @@ services:
 
 **Aspire approach:**
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -327,8 +329,8 @@ var app = builder.AddContainer("app", "myapp", "latest")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -350,8 +352,8 @@ const app = await builder.addContainer("app", { image: "myapp", tag: "latest" })
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="caution" title="Aspire connection strings differ from Docker Compose URLs">
 `WithReference()` provides connection strings in .NET format, not URL format:
@@ -362,8 +364,8 @@ await builder.build().run();
 If your application expects URL-format variables like `DATABASE_URL` or `REDIS_URL`, construct them manually using the `WithEnvironment` callback:
 </Aside>
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var dbPassword = builder.AddParameter("dbPassword", secret: true);
 
@@ -380,8 +382,8 @@ var app = builder.AddContainer("app", "myapp", "latest")
         context.EnvironmentVariables["REDIS_URL"] = "redis://cache:6379";
     });
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const dbPassword = builder.addParameter("dbPassword", { secret: true });
 
@@ -394,8 +396,8 @@ const app = await builder.addContainer("app", "myapp:latest")
         builder.createReferenceExpression`postgresql://postgres:${dbPassword}@db:5432/myapp`)
     .withEnvironment("REDIS_URL", "redis://cache:6379");
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Custom volumes and bind mounts
 
@@ -421,8 +423,8 @@ volumes:
 
 **Aspire equivalent:**
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -438,8 +440,8 @@ var worker = builder.AddContainer("worker", "myworker", "latest")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -454,8 +456,8 @@ const worker = await builder.addContainer("worker", { image: "myworker", tag: "l
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 **Key differences:**
 
@@ -559,8 +561,8 @@ Aspire generates .NET-style connection strings (`ConnectionStrings__*`) rather t
 
 **Solution**: If your application expects specific URL formats, construct them manually using `WithEnvironment()`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var dbPassword = builder.AddParameter("dbPassword", secret: true);
 
@@ -576,8 +578,8 @@ var app = builder.AddContainer("app", "myapp", "latest")
                 $"postgresql://postgres:{dbPassword}@db:5432/myapp");
     });
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const dbPassword = builder.addParameter("dbPassword", { secret: true });
 
@@ -589,8 +591,8 @@ const app = await builder.addContainer("app", "myapp:latest")
     .withEnvironment("DATABASE_URL",
         builder.createReferenceExpression`postgresql://postgres:${dbPassword}@db:5432/myapp`);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 #### Service startup order issues
 
@@ -598,22 +600,22 @@ const app = await builder.addContainer("app", "myapp:latest")
 
 **Solution**: Use `WaitFor()` to ensure dependencies are ready:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var api = builder.AddProject<Projects.Api>("api")
     .WithReference(database)  // Service discovery
     .WaitFor(database);       // Startup ordering
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const api = await builder.addProject("api", "./Api/Api.csproj", "https")
     .withReference(database)  // Service discovery
     .waitFor(database);       // Startup ordering
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 #### Volume mounting issues
 
@@ -627,20 +629,20 @@ Aspire automatically assigns random ports by default.
 
 **Solution**: Use `WithHostPort()` or `WithHttpEndpoint(port:)` for static port mapping:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var redis = builder.AddRedis("cache")
     .WithHostPort(6379);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const redis = await builder.addRedis("cache")
     .withHostPort(6379);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 #### Health check migration
 
@@ -648,25 +650,25 @@ Docker Compose health checks use shell commands. Aspire integrations (like Postg
 
 **Solution**: For resources with HTTP endpoints, use `WithHttpHealthCheck()`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var api = builder.AddProject<Projects.Api>("api")
     .WithHttpHealthCheck("/health");
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const api = await builder.addProject("api", "./Api/Api.csproj", "https")
     .withHttpHealthCheck("/health");
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For custom container health checks that need shell commands (like RabbitMQ), register a custom health check and associate it with the resource:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 builder.Services.AddHealthChecks()
     .AddCheck("rabbitmq-health", () =>
@@ -683,8 +685,8 @@ var rabbit = builder.AddContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpi
 var app = builder.AddProject<Projects.App>("app")
     .WaitFor(rabbit);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const rabbit = await builder.addContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpine")
     .withHealthCheck("rabbitmq-health");
@@ -693,8 +695,8 @@ const rabbit = await builder.addContainer("rabbitmq", "rabbitmq", "4.1.4-managem
 const app = await builder.addProject("app", "./App/App.csproj", "https")
     .waitFor(rabbit);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
 Aspire integration packages (like `Aspire.Hosting.PostgreSQL` or `Aspire.Hosting.Redis`) include built-in health checks. You don't need to define custom health checks for these services — `WaitFor()` automatically waits for the built-in health check to pass.

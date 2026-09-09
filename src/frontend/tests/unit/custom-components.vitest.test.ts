@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import heroImage from '@assets/aspire-hero.png';
 import AccessibleCodeButtons from '@components/AccessibleCodeButtons.astro';
 import AppHostBuilder from '@components/AppHostBuilder.astro';
+import AppHostLanguageSelector from '@components/AppHostLanguageSelector.astro';
+import AppHostTabs from '@components/AppHostTabs.astro';
 import AspireMap from '@components/AspireMap.astro';
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
@@ -914,6 +916,46 @@ describe('custom Astro component render coverage', () => {
     expect(genericHtml).toContain(typeScriptOption);
     expect(appHostHtml.indexOf(typeScriptOption)).toBeLessThan(appHostHtml.indexOf(csharpOption));
     expect(genericHtml.indexOf(csharpOption)).toBeLessThan(genericHtml.indexOf(typeScriptOption));
+  });
+
+  it('renders enabled AppHost languages from the shared registry', async () => {
+    const selectorHtml = normalizeHtml(await renderComponent(AppHostLanguageSelector));
+    const tabsHtml = normalizeHtml(
+      await renderComponent(AppHostTabs, {
+        slots: {
+          typescript: '<p>TypeScript AppHost content</p>',
+          csharp: '<p>C# AppHost content</p>',
+        },
+      })
+    );
+
+    expect(selectorHtml).toContain('data-pivot-option="typescript"');
+    expect(selectorHtml).toContain('data-pivot-option="csharp"');
+    expect(selectorHtml).not.toContain('data-pivot-option="python"');
+    expect(tabsHtml).toContain('data-apphost-tabs');
+    expect(tabsHtml).toContain('data-supports-typescript');
+    expect(tabsHtml).toContain('data-supports-csharp');
+    expect(tabsHtml).toContain('TypeScript AppHost content');
+    expect(tabsHtml).toContain('C# AppHost content');
+  });
+
+  it('renders an explicit limitation when an enabled language has no slot', async () => {
+    const html = normalizeHtml(
+      await renderComponent(AppHostTabs, {
+        props: {
+          limitations: {
+            csharp: 'This example is available only in generated AppHost SDKs.',
+          },
+        },
+        slots: {
+          typescript: '<p>TypeScript AppHost content</p>',
+        },
+      })
+    );
+
+    expect(html).toContain('data-apphost-limitation="csharp"');
+    expect(html).toContain('C# AppHost limitation');
+    expect(html).toContain('This example is available only in generated AppHost SDKs.');
   });
 
   it('renders the canonical TypeScript tab and apphost.mts before C#', async () => {

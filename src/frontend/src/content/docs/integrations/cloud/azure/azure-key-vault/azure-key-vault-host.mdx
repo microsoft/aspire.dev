@@ -3,8 +3,10 @@ title: Set up Azure Key Vault in the AppHost
 description: Learn how to use the Aspire Azure Key Vault Hosting integration to orchestrate and configure an Azure Key Vault resource in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import keyVaultIcon from '@assets/icons/azure-keyvault-icon.png';
 
@@ -25,8 +27,8 @@ If you're new to the Azure Key Vault integration, start with the [Get started wi
 
 To start building an Aspire app that uses Azure Key Vault, install the [📦 Aspire.Hosting.Azure.KeyVault](https://www.nuget.org/packages/Aspire.Hosting.Azure.KeyVault) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add azure-key-vault
@@ -46,8 +48,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Azure.KeyVault" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add azure-key-vault
@@ -67,15 +69,15 @@ This updates your `aspire.config.json` with the Azure Key Vault hosting integrat
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add Azure Key Vault resource
 
 Once you've installed the hosting integration in your AppHost project, you can add an Azure Key Vault resource as shown in the following examples:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -89,8 +91,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -105,8 +107,8 @@ await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj"
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The `WithReference` (or `withReference`) method configures a connection in the consuming project named after the referenced Key Vault resource.
 
@@ -129,8 +131,8 @@ The `WithReference` (or `withReference`) method configures a connection in the c
 
 You might have an existing Azure Key Vault instance that you want to connect to. Chain a call to `AsExisting` (or `asExisting`) to annotate that your resource already exists in Azure:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -148,8 +150,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -171,8 +173,8 @@ await builder.build().run();
   The TypeScript AppHost `asExisting` method accepts a vault name parameter, but does not accept a resource group parameter. Use `runAsExisting` or `publishAsExisting` for mode-specific control.
 </Aside>
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
   Alternatively, instead of representing an Azure Key Vault resource in the
@@ -185,8 +187,8 @@ await builder.build().run();
 
 By default, `AddAzureKeyVault` configures a [Key Vault Administrator built-in role](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/security#key-vault-administrator) for the consuming project. To assign a more restrictive role — such as `KeyVaultSecretsUser` — use `WithRoleAssignments` (or `withRoleAssignments`) on the consuming resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -199,8 +201,8 @@ var keyVault = builder.AddAzureKeyVault("key-vault")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder, AzureKeyVaultRole } from './.aspire/modules/aspire.mjs';
@@ -215,8 +217,8 @@ await api.withRoleAssignments(keyVault, [AzureKeyVaultRole.KeyVaultSecretsUser])
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 To clear the default role assignments and configure only specific roles, call `ClearDefaultRoleAssignments` (or `clearDefaultRoleAssignments`) before adding the roles you need.
 
@@ -228,8 +230,8 @@ You can reference secrets stored in an Azure Key Vault directly from your AppHos
 
 To add a secret to the Key Vault resource from the AppHost, call `AddSecret` (or `addSecret`) providing a name and a parameter:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -243,8 +245,8 @@ keyVault.AddSecret("my-api-key", apiKey);
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -259,15 +261,15 @@ await keyVault.addSecret("my-api-key", apiKey);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Reference an existing secret
 
 To reference an existing secret in the vault and pass it to a consuming resource, use `GetSecret` (or `getSecret`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -286,8 +288,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -308,8 +310,8 @@ await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj"
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Provisioning-generated Bicep
 
@@ -373,8 +375,8 @@ The generated Bicep is a starting point and is influenced by changes to the prov
 
 All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` (or `configureInfrastructure`) API:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -399,8 +401,8 @@ builder.AddAzureKeyVault("key-vault")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -421,8 +423,8 @@ await keyVault.configureInfrastructure(async (infra) => {
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 There are many more configuration options available. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
 

@@ -4,7 +4,9 @@ seoTitle: Keycloak integration for Aspire AppHost and apps
 description: Learn how to use the Keycloak integration, which includes both hosting and client integrations.
 ---
 
-import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside, Badge } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
@@ -39,8 +41,8 @@ The Keycloak hosting integration models the server as the `KeycloakResource` typ
 
 In your AppHost, call `AddKeycloak` to add and return a Keycloak resource builder:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -58,8 +60,8 @@ var webfrontend = builder.AddProject<Projects.Web>("webfrontend")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -79,8 +81,8 @@ await webfrontend.waitFor(apiService);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="tip">
   For local development use a stable port for the Keycloak resource (`8080` in
@@ -114,8 +116,8 @@ When the AppHost runs, the password is stored in the AppHost's secret store in t
 
 To add a data volume to the Keycloak resource, call the `WithDataVolume` method on the Keycloak resource:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -128,8 +130,8 @@ var apiService = builder.AddProject<Projects.ApiService>("apiservice")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -144,8 +146,8 @@ await apiService.waitFor(keycloak);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The data volume is used to persist the Keycloak data outside the lifecycle of its container. The data volume is mounted at the `/opt/keycloak/data` path in the Keycloak container.
 
@@ -158,8 +160,8 @@ The data volume is used to persist the Keycloak data outside the lifecycle of it
 
 To add a data bind mount to the Keycloak resource, call the `WithDataBindMount` method:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -172,8 +174,8 @@ var apiService = builder.AddProject<Projects.ApiService>("apiservice")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -188,8 +190,8 @@ await apiService.waitFor(keycloak);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside>
   Data bind mounts have limited functionality compared to volumes, and when you
@@ -201,8 +203,8 @@ await builder.build().run();
 
 When you want to explicitly provide the admin username and password used by the container image, you can provide these credentials as parameters:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -217,8 +219,8 @@ var apiService = builder.AddProject<Projects.ApiService>("apiservice")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -239,8 +241,8 @@ await apiService.waitFor(keycloak);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For more information on providing parameters, see [External parameters](/get-started/resources/).
 
@@ -248,8 +250,8 @@ For more information on providing parameters, see [External parameters](/get-sta
 
 To import a realm into Keycloak, call the `WithRealmImport` method:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -262,8 +264,8 @@ var apiService = builder.AddProject<Projects.ApiService>("apiservice")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -278,8 +280,8 @@ await apiService.waitFor(keycloak);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The realm import files are copied to `/opt/keycloak/data/import` in the
 Keycloak container. Realm import files are JSON files that represent the realm
@@ -308,8 +310,8 @@ FROM quay.io/keycloak/keycloak:25.0.0
 COPY ./realms/*.json /opt/keycloak/data/import/
 ```
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -322,8 +324,8 @@ var apiService = builder.AddProject<Projects.ApiService>("apiservice")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -338,11 +340,11 @@ await apiService.waitFor(keycloak);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```text title="Directory layout"
 AppHost.cs
@@ -352,8 +354,8 @@ keycloak/
     demo-realm.json
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```text title="Directory layout"
 apphost.mts
@@ -363,8 +365,8 @@ keycloak/
     demo-realm.json
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="tip">
   This approach keeps the defaults that `AddKeycloak` applies, including the
@@ -386,8 +388,8 @@ to manage realm configuration separately from your application deployment.
 
 Keycloak containers can export telemetry to your OTLP collector using the `WithOtlpExporter` method:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -400,8 +402,8 @@ var apiService = builder.AddProject<Projects.ApiService>("apiservice")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -416,8 +418,8 @@ await apiService.waitFor(keycloak);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 This enables Keycloak to send traces, metrics, and logs to the Aspire dashboard, providing better observability for your authentication flows.
 
@@ -432,8 +434,8 @@ The [📦 CommunityToolkit.Aspire.Hosting.Keycloak.Extensions](https://www.nuget
   prerelease={true}
 />
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -447,8 +449,8 @@ var keycloak = builder.AddKeycloak("keycloak", 8080)
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -464,8 +466,8 @@ await keycloak.withPostgres(database);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 By default, `WithPostgres` uses the PostgreSQL server's username and password parameters. Its optional arguments let you supply different `username` and `password` parameter resources and set `xaEnabled` when Keycloak needs XA transactions.
 
@@ -563,8 +565,8 @@ builder.Services.AddAuthentication()
 
 For production deployments, consider using connection strings:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -574,8 +576,8 @@ builder.AddConnectionString("keycloak", "https://your-keycloak-server.com");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
@@ -589,8 +591,8 @@ await builder.addConnectionString('keycloak', {
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Security best practices
 

@@ -4,8 +4,10 @@ seoTitle: "Set up OpenAI in the Aspire AppHost: hosting integration"
 description: Learn how to use the Aspire OpenAI hosting integration to orchestrate and configure OpenAI resources in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import openaiIcon from '@assets/icons/openai-icon.png';
 
@@ -26,8 +28,8 @@ If you're new to the OpenAI integration, start with the [Get started with OpenAI
 
 To start building an Aspire app that uses OpenAI, install the [📦 Aspire.Hosting.OpenAI](https://www.nuget.org/packages/Aspire.Hosting.OpenAI) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add openai
@@ -47,8 +49,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.OpenAI" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add openai
@@ -68,15 +70,15 @@ This updates your `aspire.config.json` with the OpenAI hosting integration packa
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add OpenAI resource
 
 Once you've installed the hosting integration in your AppHost project, you can add an OpenAI parent resource and then add one or more model resources beneath it:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -89,8 +91,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -105,8 +107,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Steps>
 
@@ -126,8 +128,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 Add multiple model children beneath the same parent to share a single API key and endpoint:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -142,8 +144,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -160,8 +162,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Referencing `chat` passes a connection string named `chat` to the project, and referencing `embeddings` passes a connection string named `embeddings`. Both share the parent API key and endpoint.
 
@@ -182,8 +184,8 @@ aspire secret set Parameters:openai-openai-apikey sk-your-api-key
 
 Replace the default parameter by creating your own secret parameter and passing it to `WithApiKey` (or `withApiKey`) on the parent:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -199,8 +201,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -218,8 +220,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">Parameters marked <code>secret: true</code> are stored in the user secrets store and never appear in plain text in logs or the dashboard.</Aside>
 
@@ -227,8 +229,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 Override the default `https://api.openai.com/v1` endpoint to use a proxy, an Azure OpenAI endpoint, or any OpenAI-compatible gateway. Call `WithEndpoint` (or `withEndpoint`) on the parent resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -242,8 +244,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -259,8 +261,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 All model resources beneath the parent inherit the overridden endpoint. The overridden endpoint is reflected in the `Endpoint` and `Uri` connection properties that Aspire injects into consuming apps.
 
@@ -268,8 +270,8 @@ All model resources beneath the parent inherit the overridden endpoint. The over
 
 Add an optional health check to a model resource to validate endpoint reachability, API key validity, and model existence at startup:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -283,8 +285,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -300,8 +302,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The model health check validates endpoint reachability, API key validity (401), and model existence (404). It executes only once per application instance to limit rate-limit implications.
 

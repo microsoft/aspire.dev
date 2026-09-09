@@ -4,7 +4,9 @@ seoTitle: Aspire deployment environments and target configuration
 description: Use Aspire environments to configure your application for development, staging, and production — parameters, secrets, container tags, and per-environment overrides.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 When you run or deploy an Aspire application, the **environment** determines how the AppHost configures resources, what parameter values are used, and how your deployment is organized. Environments let you use the same AppHost to target different deployment contexts — development, staging, production, or any custom name — without duplicating your application model.
@@ -66,8 +68,8 @@ You can start an AppHost locally with `aspire start --environment Staging` for v
 
 Your AppHost code can check the current environment to change behavior. The environment is available through the builder's host environment API:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -85,8 +87,8 @@ if (builder.Environment.IsEnvironment("Testing"))
 }
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -105,8 +107,8 @@ if (await env.isEnvironment('Testing')) {
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The following convenience methods are available:
 
@@ -123,8 +125,8 @@ The following convenience methods are available:
 
 Your services often need to know which environment they're running in. Different frameworks use different environment variables — use `WithEnvironment` to set the appropriate one for each service:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -148,8 +150,8 @@ builder.AddContainer("worker", "myorg/worker")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -179,8 +181,8 @@ await worker.withEnvironment('APP_ENV', appEnvironment);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Common environment variable conventions by framework and ecosystem:
 
@@ -207,8 +209,8 @@ Common environment variable conventions by framework and ecosystem:
 
 Use [parameters](/fundamentals/external-parameters/) to externalize values that change between environments, such as SKU tiers, replica counts, or API endpoints:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -221,8 +223,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -237,8 +239,8 @@ await api.withEnvironment('API_KEY', apiKey);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 #### How parameter values are resolved
 
@@ -303,8 +305,8 @@ Environment variables take the highest priority, so they override any values fro
 
 Use the [execution context](#environment-vs-execution-context) for choices that differ between local orchestration and publish/deploy workflows. For example, use a local Redis container in run mode and an Azure Managed Redis resource when publishing:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -319,8 +321,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -338,8 +340,8 @@ await api.withReference(cache);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Environments in CI/CD
 

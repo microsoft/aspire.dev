@@ -3,8 +3,10 @@ title: Customize Azure resources
 description: Learn how to customize Azure resource provisioning, existing resources, role assignments, naming, and outputs in Aspire.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import azureIcon from '@assets/icons/azure-icon.png';
 
@@ -29,8 +31,8 @@ For target-specific generated resource customization, see [Deploy to Azure Conta
 
 Use `AsExisting`, `RunAsExisting`, and `PublishAsExisting` when you want Aspire to reference an Azure resource that already exists instead of provisioning a new one.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -42,8 +44,8 @@ var serviceBus = builder.AddAzureServiceBus("messaging")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -57,8 +59,8 @@ await serviceBus.publishAsExisting(existingBusName, existingBusResourceGroup);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Use `RunAsExisting` when only local run mode should use the existing resource, `PublishAsExisting` when only deployed Azure environments should use it, and `AsExisting` when both modes should point at the same Azure resource.
 
@@ -71,8 +73,8 @@ Use `RunAsExisting` when only local run mode should use the existing resource, `
 
 Aspire automatically assigns Azure RBAC roles based on how resources reference one another. When you need to opt out of those defaults before applying different permissions, use `ClearDefaultRoleAssignments`.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -81,8 +83,8 @@ builder.AddAzureServiceBus("messaging")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -93,8 +95,8 @@ await serviceBus.clearDefaultRoleAssignments();
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <LearnMore>
 For built-in and custom RBAC guidance, see [Manage Azure role assignments](/integrations/cloud/azure/role-assignments/).
@@ -104,8 +106,8 @@ For built-in and custom RBAC guidance, see [Manage Azure role assignments](/inte
 
 Azure resources expose output references for values that Azure assigns during provisioning. Use those references when another resource, deployment step, or app setting needs the resolved Azure value.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -116,8 +118,8 @@ builder.AddProject<Projects.Api>("api")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -131,8 +133,8 @@ await api.withEnvironment("IDENTITY_CLIENT_ID", clientId);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Use `GetBicepIdentifier()` inside `ConfigureInfrastructure` or infrastructure resolvers when you need a stable identifier for a provisioned Azure construct. Use output references such as `ClientId`, `NameOutputReference`, or `getOutput("...")` when you need Azure-assigned values like a client ID, endpoint, or resource name.
 
@@ -148,8 +150,8 @@ For detailed API documentation and examples, see the [Azure.Provisioning API ref
 
 All Azure hosting resources in Aspire inherit from `AzureProvisioningResource`, which exposes `ConfigureInfrastructure`. The callback receives an `AzureResourceInfrastructure` instance that gives you access to all provisioned constructs for that resource.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 In C#, use `GetProvisionableResources()` with the strongly-typed Azure SDK types (for example `StorageAccount`, `ServiceBusNamespace`) to navigate and mutate each construct:
 
@@ -173,8 +175,8 @@ storage.ConfigureInfrastructure(infra =>
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 <Aside type="note">
   The TypeScript AppHost exposes `ConfigureInfrastructure` through the generic
@@ -202,13 +204,13 @@ await storage.configureInfrastructure(async (infra) => {
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Configure SKUs and tiers
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs (Storage)"
 storage.ConfigureInfrastructure(infra =>
@@ -253,8 +255,8 @@ redis.ConfigureInfrastructure(infra =>
 });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 <Aside type="note">
   Strongly-typed SKU and tier classes (such as `StorageSku`, `ServiceBusSku`,
@@ -262,13 +264,13 @@ redis.ConfigureInfrastructure(infra =>
   TypeScript. Use the C# AppHost to perform strongly-typed SKU configuration.
 </Aside>
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Configure networking
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 storage.ConfigureInfrastructure(infra =>
@@ -291,8 +293,8 @@ storage.ConfigureInfrastructure(infra =>
 });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 <Aside type="note">
   Strongly-typed networking types (such as `StorageAccountNetworkRuleSet`) are
@@ -300,13 +302,13 @@ storage.ConfigureInfrastructure(infra =>
   AppHost for networking customization via `ConfigureInfrastructure`.
 </Aside>
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Configure security and compliance
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 storage.ConfigureInfrastructure(infra =>
@@ -330,8 +332,8 @@ storage.ConfigureInfrastructure(infra =>
 });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 <Aside type="note">
   Strongly-typed security types (such as `StorageAccountEncryption`,
@@ -340,15 +342,15 @@ storage.ConfigureInfrastructure(infra =>
   customization via `ConfigureInfrastructure`.
 </Aside>
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Work with multiple resources
 
 When an integration creates multiple resources (for example, a Service Bus namespace and its queues), you can customize each one inside a single `ConfigureInfrastructure` call:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var servicebus = builder.AddAzureServiceBus("messaging");
@@ -373,8 +375,8 @@ servicebus.ConfigureInfrastructure(infra =>
 });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 <Aside type="note">
   Strongly-typed construct types (such as `ServiceBusNamespace`,
@@ -383,15 +385,15 @@ servicebus.ConfigureInfrastructure(infra =>
   customization.
 </Aside>
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Add Azure resources to the infrastructure
 
 For common scenarios, prefer Aspire's higher-level resource builders. For example, to add a private endpoint to a storage account, use `AddPrivateEndpoint` from the `Aspire.Hosting.Azure.Network` package, which automatically wires up the Private DNS Zone, VNet link, and DNS Zone Group:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -407,8 +409,8 @@ peSubnet.AddPrivateEndpoint(blobs);
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -426,8 +428,8 @@ peSubnet.addPrivateEndpoint(blobs);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When no Aspire-native resource builder exists for what you need, fall back to `ConfigureInfrastructure` to add an `Azure.Provisioning` construct directly. See the [Azure.Provisioning API reference](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning) for the available construct types and their properties.
 
@@ -435,8 +437,8 @@ When no Aspire-native resource builder exists for what you need, fall back to `C
 
 Another way to customize Azure provisioning is to create an [`InfrastructureResolver`](https://learn.microsoft.com/dotnet/api/azure.provisioning.primitives.infrastructureresolver). This is a C#-only API that lets you apply organization-wide naming conventions or other centralized provisioning behavior across many Azure resources.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 Define a resolver by inheriting from `InfrastructureResolver` and overriding the relevant virtual members:
 
@@ -475,8 +477,8 @@ builder.Services.Configure<AzureProvisioningOptions>(options =>
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 <Aside type="note">
   `InfrastructureResolver` is a C#-only API from the Azure SDK for .NET and is
@@ -484,8 +486,8 @@ builder.Build().Run();
   custom infrastructure resolvers.
 </Aside>
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Custom Bicep templates
 
@@ -524,8 +526,8 @@ output storageAccountName string = storageAccount.name
 
 Reference the file from the AppHost using `AddBicepTemplate` (C#) or `addBicepTemplate` (TypeScript). Use `WithParameter` / `withParameter` to supply input parameters, and `GetOutput` / `getOutput` to consume a named output by passing the resulting reference to another resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -539,8 +541,8 @@ builder.AddProject<Projects.WebApp>("webapp")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -558,8 +560,8 @@ await webapp.withEnvironment("STORAGE_ACCOUNT_NAME", storageAccountName);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="tip">
 For inline Bicep snippets, use `AddBicepTemplateString` (C#) or `addBicepTemplateString` (TypeScript) instead of `AddBicepTemplate`. Both APIs return the same `AzureBicepResource` and support the same `WithParameter` and `GetOutput` patterns.
@@ -597,8 +599,8 @@ resource sqlServer 'Microsoft.Sql/servers@2021-11-01' = {
 output sqlServerName string = sqlServer.name
 ```
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -614,8 +616,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -635,8 +637,8 @@ await api.withEnvironment("SQL_SERVER_NAME", sqlServerName);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <LearnMore>
 For more end-to-end examples — including chaining outputs between Bicep resources and using the `existing` Bicep keyword to reference resources that Aspire didn't provision — see the [Aspire `playground/bicep` sample](https://github.com/dotnet/aspire/tree/main/playground/bicep).
@@ -646,8 +648,8 @@ For more end-to-end examples — including chaining outputs between Bicep resour
 
 By default, Aspire deploys Bicep resources at the resource group scope. Some Bicep templates require a different [deployment scope](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-to-subscription), such as the subscription or the tenant.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 Set the `Scope` property on the Bicep resource using `AzureBicepResourceScope.CreateForSubscription` or `AzureBicepResourceScope.CreateForTenant`:
 
@@ -689,15 +691,15 @@ builder.Build().Run();
 Keep the `param location string` declaration in each template. `location` is a well-known Aspire parameter that the provisioner fills in automatically from the environment's location and passes to every Bicep deployment — including subscription- and tenant-scoped ones — so the template must declare it to accept the value.
 </Aside>
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 <Aside type="note">
   `AzureBicepResourceScope` and `Resource.Scope` are not currently exposed in the TypeScript AppHost APIs, so subscription/tenant deployment scopes for Bicep resources are currently C# only.
 </Aside>
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Inspect generated Bicep
 

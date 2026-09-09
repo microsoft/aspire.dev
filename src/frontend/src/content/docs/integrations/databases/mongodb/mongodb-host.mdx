@@ -4,8 +4,10 @@ seoTitle: "Set up MongoDB in the Aspire AppHost: hosting integration"
 description: Learn how to use the Aspire MongoDB Hosting integration to orchestrate and configure a MongoDB database in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import mongodbIcon from '@assets/icons/mongodb-icon.png';
@@ -27,8 +29,8 @@ If you're new to the MongoDB integration, start with the [Get started with Mongo
 
 To start building an Aspire app that uses MongoDB, install the [📦 Aspire.Hosting.MongoDB](https://www.nuget.org/packages/Aspire.Hosting.MongoDB) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add mongodb
@@ -48,8 +50,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.MongoDB" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add mongodb
@@ -69,15 +71,15 @@ This updates your `aspire.config.json` with the MongoDB hosting integration pack
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add MongoDB server resource
 
 Once you've installed the hosting integration in your AppHost project, you can add a MongoDB server resource and then add a database resource as shown in the following examples:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -92,8 +94,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -110,8 +112,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/library/mongo` image, it creates a new MongoDB server on your local machine. A reference to your MongoDB resource builder (the `mongo` variable) is used to add a database. The database is named `mongodb` and then referenced in the consuming project.
 
@@ -138,8 +140,8 @@ If you'd rather connect to an existing MongoDB server, call `AddConnectionString
 
 When you want to explicitly provide the username and password used by the container image, you can provide these credentials as parameters:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -155,8 +157,8 @@ var myService = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -174,8 +176,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The username and password parameters are typically provided as user secrets:
 
@@ -190,18 +192,18 @@ The username and password parameters are typically provided as user secrets:
 
 You can also specify a port:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var mongo = builder.AddMongoDB("mongo", port: 27017);
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const mongo = await builder.addMongoDB("mongo", { port: 27017 });
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For more information, see [External parameters](/get-started/resources/).
 
@@ -209,8 +211,8 @@ For more information, see [External parameters](/get-started/resources/).
 
 To add a data volume to the MongoDB server resource, call the `WithDataVolume` method:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -226,8 +228,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -245,8 +247,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The data volume is used to persist the MongoDB server data outside the lifecycle of its container. The data volume is mounted at the `/data/db` path in the MongoDB server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-mongodb-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
@@ -264,8 +266,8 @@ You can resolve the problem by deploying to a Kubernetes cluster, such as Azure 
 
 To add a data bind mount to the MongoDB server resource, call the `WithDataBindMount` method:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -281,8 +283,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -300,8 +302,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside>
 Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
@@ -313,8 +315,8 @@ Data bind mounts rely on the host machine's filesystem to persist the MongoDB se
 
 Use initialization files to seed the MongoDB server with data or run scripts at startup. The C# AppHost exposes `WithInitBindMount(...)`, while the TypeScript AppHost exposes `withInitFiles(...)`.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -330,8 +332,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -353,8 +355,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 :::note
 The TypeScript AppHost exposes `withInitFiles(source)` instead of `withInitBindMount(source)`. The `withInitFiles` method copies the specified files into the container's init folder, whereas the C# `WithInitBindMount` performs a host bind mount. The functional outcome — running initialization scripts at container startup — is the same.
 :::
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 MongoDB executes any JavaScript or shell scripts found in the init folder when the container first starts. This is useful for pre-populating collections or creating indexes.
 
@@ -362,8 +364,8 @@ MongoDB executes any JavaScript or shell scripts found in the init folder when t
 
 [MongoDB Express](https://github.com/mongo-express/mongo-express) is a web-based MongoDB admin user interface. To add a MongoDB Express resource that corresponds to the `docker.io/library/mongo-express` container image, call the `WithMongoExpress` method on the MongoDB server resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -379,8 +381,8 @@ var myService = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -398,8 +400,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When you run the Aspire solution, you'll see a MongoDB Express container listed in the resources. Select the resource's endpoint to open the GUI.
 
@@ -417,8 +419,8 @@ The MongoDB Express resource is configured to connect to the MongoDB server reso
 
 To configure the host port for the Mongo Express container, pass a configuration callback:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -428,8 +430,8 @@ var mongo = builder.AddMongoDB("mongo")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -445,15 +447,15 @@ await mongo.withLifetime("Persistent");
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Pass custom environment variables
 
 By default, Aspire injects the MongoDB connection information using variable names derived from the resource name (for example, `MONGODB_URI`, `MONGODB_HOST`, `MONGODB_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -473,8 +475,8 @@ var app = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
 
@@ -496,8 +498,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Connection properties
 

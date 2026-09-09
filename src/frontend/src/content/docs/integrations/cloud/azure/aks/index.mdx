@@ -3,8 +3,10 @@ title: Azure Kubernetes Service (AKS) integration
 description: Learn how to add Azure Kubernetes Service deployment support to your Aspire application using the Aspire.Hosting.Azure.Kubernetes hosting integration.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import LearnMore from '@components/LearnMore.astro';
 import kubernetesIcon from '@assets/icons/kubernetes.svg';
@@ -32,8 +34,8 @@ To get started with the Aspire AKS hosting integration, install the [📦 Aspire
 
 After installing the package, add an AKS environment to your AppHost using `AddAzureKubernetesEnvironment`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -43,8 +45,8 @@ var api = builder.AddProject<Projects.MyApi>("api");
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -59,8 +61,8 @@ const api = await builder
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When an AKS environment is present, all compute resources are automatically deployed to AKS — no additional opt-in is required.
 
@@ -68,27 +70,27 @@ When an AKS environment is present, all compute resources are automatically depl
 
 Customize the system node pool VM size and scaling using `WithSystemNodePool`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 builder.AddAzureKubernetesEnvironment("aks")
     .WithSystemNodePool("Standard_D4s_v5", minCount: 1, maxCount: 5);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
 await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add node pools
 
 Add additional node pools for workload isolation, GPU workloads, or specialized hardware requirements using `AddNodePool`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var aks = builder.AddAzureKubernetesEnvironment("aks");
 var gpuPool = aks.AddNodePool("gpupool", "Standard_NC6s_v3", minCount: 0, maxCount: 5);
@@ -96,8 +98,8 @@ var gpuPool = aks.AddNodePool("gpupool", "Standard_NC6s_v3", minCount: 0, maxCou
 builder.AddContainer("ml-worker", "my-ml-image")
     .WithNodePool(gpuPool);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
 const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
@@ -105,8 +107,8 @@ const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
 const worker = await builder.addContainer('ml-worker', 'my-ml-image');
 await worker.withNodePool(gpuPool);
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add a persistent volume
 
@@ -116,8 +118,8 @@ await worker.withNodePool(gpuPool);
 
 Call `AddPersistentVolume` directly on the AKS environment to model durable storage without reaching through to the underlying Kubernetes integration. The call forwards to the AKS environment's Kubernetes publisher, so the same configuration methods and workload-binding APIs described in [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/) apply:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var aks = builder.AddAzureKubernetesEnvironment("aks");
 
@@ -127,8 +129,8 @@ var data = aks.AddPersistentVolume("data")
 builder.AddProject<Projects.Api>("api")
     .WithPersistentVolume(data, "/data");
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment("aks");
 
@@ -141,8 +143,8 @@ const api = await builder
     .withExternalHttpEndpoints()
     .withKubernetesPersistentVolumeMount(data, "/data");
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When you don't set a storage class, the generated claim omits `spec.storageClassName` so the cluster's default storage class provisions the disk. A standard AKS cluster dynamically provisions an Azure managed disk for such claims. To request Premium SSD storage explicitly, call `WithStorageClass("managed-csi-premium")` in C# or `withStorageClass('managed-csi-premium')` in TypeScript.
 

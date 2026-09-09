@@ -3,8 +3,10 @@ title: Azure Virtual Network
 description: Learn how to use the Azure Virtual Network integration to configure virtual networks, subnets, NAT gateways, network security groups, private endpoints, and network security perimeters.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import azureIcon from '@assets/icons/azure-icon.png';
 
@@ -43,8 +45,8 @@ The Azure Virtual Network hosting integration models network resources as the fo
 
 To start building an Aspire app that uses Azure Virtual Network, install the [📦 Aspire.Hosting.Azure.Network](https://www.nuget.org/packages/Aspire.Hosting.Azure.Network) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add azure-network
@@ -65,8 +67,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Azure.Network" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add azure-network
@@ -87,8 +89,8 @@ This updates your `aspire.config.json` with the Azure Network hosting integratio
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="tip">
   When you call any of the Azure Virtual Network APIs, it implicitly calls
@@ -102,8 +104,8 @@ This updates your `aspire.config.json` with the Azure Network hosting integratio
 
 To add a virtual network, call `AddAzureVirtualNetwork` (or `addAzureVirtualNetwork`) on the `builder` instance:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -113,8 +115,8 @@ var vnet = builder.AddAzureVirtualNetwork("vnet");
 builder.Build().Run();
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -126,50 +128,50 @@ const vnet = await builder.addAzureVirtualNetwork("vnet");
 await builder.build().run();
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 By default, the virtual network uses the address prefix `10.0.0.0/16`. You can specify a custom address prefix:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var vnet = builder.AddAzureVirtualNetwork("vnet", "10.1.0.0/16");
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const vnet = await builder.addAzureVirtualNetwork('vnet', '10.1.0.0/16');
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Add subnets
 
 Call `AddSubnet` (or `addSubnet`) on the virtual network builder to add a subnet with a name and address prefix:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 
 var subnet = vnet.AddSubnet("my-subnet", "10.0.1.0/24");
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const vnet = await builder.addAzureVirtualNetwork("vnet");
 
 const subnet = vnet.addSubnet("my-subnet", "10.0.1.0/24");
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 You can add multiple subnets with different address ranges to a single virtual network. Subnet address prefixes must fall within the virtual network's address space (for example, `10.0.1.0/24` is valid within a `10.0.0.0/16` network).
 
@@ -177,8 +179,8 @@ You can add multiple subnets with different address ranges to a single virtual n
 
 A [NAT gateway](https://learn.microsoft.com/azure/nat-gateway/) provides deterministic outbound public IP addresses for subnet resources. Call `AddNatGateway` (or `addNatGateway`) to create a NAT gateway, then associate it with a subnet using `WithNatGateway` (or `withNatGateway`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var natGateway = builder.AddNatGateway("nat");
 
@@ -187,8 +189,8 @@ var subnet = vnet.AddSubnet("aca-subnet", "10.0.0.0/23")
 .WithNatGateway(natGateway);
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const natGateway = await builder.addNatGateway("nat");
 
@@ -197,13 +199,13 @@ const subnet = vnet.addSubnet("aca-subnet", "10.0.0.0/23")
     .withNatGateway(natGateway);
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 By default, a public IP address is automatically created for the NAT gateway. To provide an explicit public IP address for full control, call `AddPublicIPAddress` (or `addPublicIPAddress`) and associate it with `WithPublicIPAddress` (or `withPublicIPAddress`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var pip = builder.AddPublicIPAddress("nat-pip");
@@ -211,16 +213,16 @@ var natGateway = builder.AddNatGateway("nat")
     .WithPublicIPAddress(pip);
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const pip = await builder.addPublicIPAddress('nat-pip');
 const natGateway = await builder.addNatGateway('nat').withPublicIPAddress(pip);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For advanced settings like idle timeout or availability zones, use [`ConfigureInfrastructure`](/integrations/cloud/azure/customize-resources/).
 
@@ -232,8 +234,8 @@ For advanced settings like idle timeout or availability zones, use [`ConfigureIn
 
 The shorthand API uses fluent methods on subnet builders that automatically create an NSG, auto-increment priority, and auto-generate rule names:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 
@@ -245,8 +247,8 @@ protocol: SecurityRuleProtocol.Tcp)
 .DenyInbound(from: AzureServiceTags.Internet);
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const vnet = await builder.addAzureVirtualNetwork("vnet");
 
@@ -255,8 +257,8 @@ const subnet = vnet.addSubnet("web", "10.0.1.0/24")
     .denyInbound(undefined, "Internet");
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The available shorthand methods are:
 
@@ -278,8 +280,8 @@ Priority auto-increments by 100 (100, 200, 300...) and rule names are auto-gener
 
 For full control over security rules, create a standalone NSG with `AddNetworkSecurityGroup` (or `addNetworkSecurityGroup`) on the `builder` and attach it to a subnet with `WithNetworkSecurityGroup` (or `withNetworkSecurityGroup`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -300,8 +302,8 @@ var subnet = vnet.AddSubnet("web-subnet", "10.0.1.0/24")
 .WithNetworkSecurityGroup(nsg);
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -323,8 +325,8 @@ const subnet = vnet.addSubnet("web-subnet", "10.0.1.0/24")
     .withNetworkSecurityGroup(nsg);
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The `AzureSecurityRule` type provides sensible defaults—`SourcePortRange`, `SourceAddressPrefix`, and `DestinationAddressPrefix` all default to `"*"`. The `Name`, `Priority`, `Direction`, `Access`, `Protocol`, and `DestinationPortRange` properties are required.
 
@@ -340,8 +342,8 @@ A single NSG can be shared across multiple subnets.
 
 Compute environment integrations that support regional virtual network integration expose a `WithDelegatedSubnet` (or `withDelegatedSubnet` in TypeScript) extension method that assigns a subnet to the environment, enabling subnet delegation so the environment can inject its infrastructure. For example, [Azure Container Apps](/integrations/cloud/azure/configure-container-apps/) and [Azure App Service](/integrations/cloud/azure/azure-app-service/azure-app-service-host/#regional-virtual-network-integration) both support `WithDelegatedSubnet`:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 var acaSubnet = vnet.AddSubnet("aca-subnet", "10.0.0.0/24");
@@ -357,8 +359,8 @@ builder.AddAzureAppServiceEnvironment("app-service-env")
     .WithDelegatedSubnet(appServiceSubnet);
 #pragma warning restore ASPIREAZURE003
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const vnet = await builder.addAzureVirtualNetwork("vnet");
 const acaSubnet = await vnet.addSubnet("aca-subnet", "10.0.0.0/24");
@@ -373,8 +375,8 @@ await builder.addAzureAppServiceEnvironment("app-service-env")
     .withDelegatedSubnet(appServiceSubnet);
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Each compute environment delegates the subnet to its own Azure service (for example, App Service delegates to `Microsoft.Web/serverFarms`). Regional virtual network integration affects outbound traffic only—it doesn't make ingress private and doesn't enable Route All.
 
@@ -382,8 +384,8 @@ Each compute environment delegates the subnet to its own Azure service (for exam
 
 For scenarios that aren't covered by a compute environment's `WithDelegatedSubnet` helper, call `WithServiceDelegation` (or `withServiceDelegation` in TypeScript) directly on the subnet builder to delegate it to a supported Azure service. The delegation `name` defaults to `serviceName` so you don't have to repeat the value:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 var subnet = vnet.AddSubnet("aci-subnet", "10.0.0.0/23")
@@ -394,8 +396,8 @@ subnet.WithServiceDelegation(
     AzureSubnetServiceDelegations.ContainerInstances,
     name: "aci-delegation");
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { AzureSubnetServiceDelegations } from './.aspire/modules/aspire.mjs';
 
@@ -410,8 +412,8 @@ await subnet.withServiceDelegation(
     { name: "aci-delegation" });
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `AzureSubnetServiceDelegations` provides discoverable, well-known service identifiers so you don't have to remember or duplicate the underlying Azure resource provider strings:
 
@@ -428,8 +430,8 @@ You can also pass another supported Azure resource provider path as `serviceName
 
 [Private endpoints](https://learn.microsoft.com/azure/private-link/) enable secure connectivity to Azure services over a private network. Call `AddPrivateEndpoint` (or `addPrivateEndpoint`) on a subnet builder and pass the Azure resource to connect to:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 var peSubnet = vnet.AddSubnet("private-endpoints", "10.0.2.0/24");
@@ -440,8 +442,8 @@ var blobs = storage.AddBlobs("blobs");
 peSubnet.AddPrivateEndpoint(blobs);
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const vnet = await builder.addAzureVirtualNetwork("vnet");
 const peSubnet = vnet.addSubnet("private-endpoints", "10.0.2.0/24");
@@ -452,8 +454,8 @@ const blobs = storage.addBlobs("blobs");
 peSubnet.addPrivateEndpoint(blobs);
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When you add a private endpoint, the following resources are automatically created:
 
@@ -534,8 +536,8 @@ NSPs complement private endpoints with a higher-level grouping model. Instead of
 
 Call `AddNetworkSecurityPerimeter` (or `addNetworkSecurityPerimeter`) on the `builder` instance to create an NSP with a default profile:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -545,8 +547,8 @@ var nsp = builder.AddNetworkSecurityPerimeter("my-nsp");
 builder.Build().Run();
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -558,15 +560,15 @@ const nsp = await builder.addNetworkSecurityPerimeter("my-nsp");
 await builder.build().run();
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 #### Add access rules
 
 Access rules control traffic flowing into and out of the perimeter. Call `WithAccessRule` (or `withAccessRule`) and pass an `AzureNspAccessRule` to define a rule:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var nsp = builder.AddNetworkSecurityPerimeter("my-nsp")
     .WithAccessRule(new AzureNspAccessRule
@@ -582,8 +584,8 @@ var nsp = builder.AddNetworkSecurityPerimeter("my-nsp")
         FullyQualifiedDomainNames = { "*.blob.core.windows.net" }
     });
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const nsp = await builder.addNetworkSecurityPerimeter("my-nsp")
     .withAccessRule({
@@ -597,8 +599,8 @@ const nsp = await builder.addNetworkSecurityPerimeter("my-nsp")
         fullyQualifiedDomainNames: ["*.blob.core.windows.net"]
     });
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The following properties are available on `AzureNspAccessRule`:
 
@@ -620,8 +622,8 @@ Each property also has a corresponding `*References` variant (for example, `Addr
 
 Call `WithNetworkSecurityPerimeter` (or `withNetworkSecurityPerimeter`) on a PaaS resource builder to associate it with an NSP:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var nsp = builder.AddNetworkSecurityPerimeter("my-nsp");
 
@@ -631,8 +633,8 @@ var keyVault = builder.AddAzureKeyVault("kv")
 .WithNetworkSecurityPerimeter(nsp);
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const nsp = await builder.addNetworkSecurityPerimeter("my-nsp");
 
@@ -642,8 +644,8 @@ const keyVault = await builder.addAzureKeyVault("kv")
     .withNetworkSecurityPerimeter(nsp);
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Once associated, resources within the perimeter can communicate with each other, while public access is governed by the perimeter's access rules.
 
@@ -664,8 +666,8 @@ The following Azure resources support NSP association:
 
 By default, associations use **Enforced** mode—resources within the perimeter can communicate with each other, and any public traffic that doesn't match an access rule is blocked. You can switch to **Learning** mode to log violations without blocking traffic, which is helpful when onboarding resources to identify which access rules are needed before switching to enforced mode:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 // Enforced mode (default) — blocks traffic that violates the rules
 storage.WithNetworkSecurityPerimeter(nsp);
@@ -675,8 +677,8 @@ keyVault.WithNetworkSecurityPerimeter(
 nsp, NetworkSecurityPerimeterAssociationAccessMode.Learning);
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 // Enforced mode (default) — blocks traffic that violates the rules
 storage.withNetworkSecurityPerimeter(nsp);
@@ -685,8 +687,8 @@ storage.withNetworkSecurityPerimeter(nsp);
 keyVault.withNetworkSecurityPerimeter(nsp, "Learning");
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="tip">
   Start with **Learning** mode when you first add an NSP to an existing
@@ -704,8 +706,8 @@ The following example demonstrates a complete network topology with a virtual ne
   stable, the warning can be removed.
 </Aside>
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 #pragma warning disable AZPROVISION001
 
@@ -760,8 +762,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -804,8 +806,8 @@ await builder.addProject("api", "../Api/Api.csproj")
 await builder.build().run();
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## See also
 

@@ -4,8 +4,10 @@ seoTitle: Host Meilisearch with the Aspire AppHost hosting integration
 description: Learn how to use the Aspire Meilisearch Hosting integration to orchestrate and configure a Meilisearch resource in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Badge, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+import { Aside, Badge, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import meilisearchIcon from '@assets/icons/meilisearch-icon.png';
 
@@ -29,8 +31,8 @@ If you're new to the Meilisearch integration, start with the [Get started with M
 
 To start building an Aspire app that uses Meilisearch, install the [📦 CommunityToolkit.Aspire.Hosting.Meilisearch](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.Meilisearch) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.Meilisearch
@@ -50,8 +52,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="CommunityToolkit.Aspire.Hosting.Meilisearch" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.Meilisearch
@@ -71,15 +73,15 @@ This updates your `aspire.config.json` with the Meilisearch hosting integration 
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add Meilisearch resource
 
 Once you've installed the hosting integration in your AppHost project, you can add a Meilisearch resource as shown in the following example:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -92,8 +94,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -108,8 +110,8 @@ await exampleProject.withReference(meilisearch);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Steps>
 
@@ -129,8 +131,8 @@ await builder.build().run();
 
 To add a data volume to the Meilisearch resource, call the `WithDataVolume` method:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -144,8 +146,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -161,8 +163,8 @@ await exampleProject.withReference(meilisearch);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The data volume is used to persist Meilisearch data outside the lifecycle of its container. The data volume is mounted at the `/meili_data` path in the Meilisearch container. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-meilisearch-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
@@ -170,8 +172,8 @@ The data volume is used to persist Meilisearch data outside the lifecycle of its
 
 To add a data bind mount to the Meilisearch resource, call the `WithDataBindMount` method:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -185,8 +187,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -202,8 +204,8 @@ await exampleProject.withReference(meilisearch);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
     Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
@@ -215,8 +217,8 @@ Data bind mounts rely on the host machine's filesystem to persist Meilisearch da
 
 When you want to explicitly provide the master key used by the container image, you can provide it as a parameter:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -231,8 +233,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -249,8 +251,8 @@ await exampleProject.withReference(meilisearch);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When no `masterKey` parameter is provided, Aspire generates a strong master key automatically.
 

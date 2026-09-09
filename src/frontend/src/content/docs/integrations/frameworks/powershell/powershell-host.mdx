@@ -3,7 +3,9 @@ title: Configure PowerShell scripts in the AppHost
 description: Configure PowerShell runspace pools, scripts, arguments, dependencies, dashboard actions, and lifecycle behavior in Aspire.
 ---
 
-import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Badge } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import powershellIcon from '@assets/icons/powershell-icon.png';
 
@@ -27,8 +29,8 @@ Add the `CommunityToolkit.Aspire.Hosting.PowerShell` package to your AppHost. Th
 
 ## Install the package
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add communitytoolkit-powershell
@@ -36,8 +38,8 @@ aspire add communitytoolkit-powershell
 
 Or add [📦 CommunityToolkit.Aspire.Hosting.PowerShell](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.PowerShell) to the AppHost project.
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add communitytoolkit-powershell
@@ -45,15 +47,15 @@ aspire add communitytoolkit-powershell
 
 This adds the package to `aspire.config.json` and generates the TypeScript AppHost module.
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add a runspace pool
 
 `AddPowerShell` / `addPowerShell` adds a runspace-pool resource. The resource name is shown in the dashboard. By default, the pool uses `ConstrainedLanguage` mode with one to five runspaces.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using System.Management.Automation;
@@ -69,8 +71,8 @@ var scripts = builder.AddPowerShell(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -82,8 +84,8 @@ const scripts = await builder.addPowerShell('scripts', 'FullLanguage', 2, 8);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Use the least-permissive language mode appropriate for the scripts you run. The C# overload that accepts `PSLanguageMode` is marked `[AspireExportIgnore]` because the enum isn't ATS-compatible. The exported TypeScript bridge accepts the language-mode name as a string; invalid names fail while Aspire constructs the AppHost.
 
@@ -93,8 +95,8 @@ Use the least-permissive language mode appropriate for the scripts you run. The 
 
 Use `WithArgs` / `withArgs` to bind values to a PowerShell `param()` block. The C# `object[]` overload accepts values of any type but is marked `[AspireExportIgnore]` because `object[]` isn't ATS-compatible. The exported TypeScript bridge accepts strings.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -109,8 +111,8 @@ scripts.AddScript("process-data", """
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -128,8 +130,8 @@ await scripts
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Scripts execute in the AppHost process's current working directory. The integration has no `WithWorkingDirectory` API, so use absolute paths or set a location in the script when its file operations must be independent of the host's launch directory.
 
@@ -139,8 +141,8 @@ The script resource implements the standard environment annotation interface, bu
 
 In C#, `WithReference` on the runspace pool makes a connection string available as a read-only PowerShell variable. By default, the variable name is the referenced resource name. Pass `connectionName` to choose a different variable name. `optional: true` allows the connection string to be unavailable.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -156,13 +158,13 @@ scripts.AddScript("seed", """
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 The PowerShell-specific pool `WithReference` API is marked `[AspireExportIgnore]` because `IResourceBuilder<IResourceWithConnectionString>` is not currently validated for ATS export in this integration. You can use standard TypeScript AppHost relationships such as `waitFor`, but they do not create a PowerShell connection-string variable.
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The pool resolves these variables before it opens. This is distinct from an environment variable: the connection string is added to the PowerShell session state rather than to a process environment.
 
@@ -170,8 +172,8 @@ The pool resolves these variables before it opens. This is distinct from an envi
 
 Use `WaitFor` / `waitFor` for readiness dependencies. Each script automatically waits for its parent pool. Use `WaitForCompletion` / `waitForCompletion` when one script must finish before another script starts.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -189,8 +191,8 @@ scripts.AddScript("process", """
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -210,8 +212,8 @@ await scripts
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Dashboard behavior, health, and publishing
 

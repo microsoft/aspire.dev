@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { replaceAspireVersionPlaceholders } from './remark-aspire-version-placeholders.mjs';
 import { orderTypeScriptFirstAppHostTabsInMarkdown } from './remark-typescript-first-apphost-tabs.mjs';
+import { renderAppHostTabsInMarkdown } from './apphost-language-markdown.mjs';
+import appHostLanguageConfig from '../src/data/apphost-languages.json' with { type: 'json' };
 
 // Per-page Markdown copies emitted by `starlight-page-actions` bypass the
 // remark transforms that replace Aspire version placeholders and order AppHost
@@ -85,7 +87,8 @@ async function collectMarkdownCopies(directory, files) {
 
 async function processMarkdownCopy(filePath) {
   const content = await readFile(filePath, 'utf8');
-  const ordered = orderTypeScriptFirstAppHostTabsInMarkdown(content);
+  const rendered = renderAppHostTabsInMarkdown(content, appHostLanguageConfig.languages);
+  const ordered = orderTypeScriptFirstAppHostTabsInMarkdown(rendered);
   const updated = replaceAspireVersionPlaceholders(ordered);
 
   if (updated !== content) {

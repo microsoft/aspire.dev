@@ -4,7 +4,9 @@ seoTitle: Python integration for Aspire AppHost and apps
 description: Add Python apps, modules, and ASGI services to an Aspire AppHost and orchestrate them alongside your other resources with full service discovery, environment injection, and debugging support.
 ---
 
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
 import pythonIcon from '@assets/icons/python.svg';
@@ -44,8 +46,8 @@ The examples in this article use only `Aspire.Hosting.Python`.
 
 Use `AddPythonApp` to run a Python script directly:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -62,8 +64,8 @@ builder.AddProject<Projects.ExampleProject>("example")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -86,8 +88,8 @@ await example.withReference(python);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `AddPythonApp` / `addPythonApp` requires:
 
@@ -99,8 +101,8 @@ await builder.build().run();
 
 Use `AddPythonModule` to run a Python module (the equivalent of `python -m <module>`):
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -114,8 +116,8 @@ var python = builder.AddPythonModule(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -132,8 +134,8 @@ await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `AddPythonModule` / `addPythonModule` requires:
 
@@ -145,8 +147,8 @@ await builder.build().run();
 
 Use `AddPythonExecutable` to run a CLI tool installed in the virtual environment (for example, `uvicorn` or a custom script):
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -160,8 +162,8 @@ var python = builder.AddPythonExecutable(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -179,8 +181,8 @@ await python.withArgs(['main:app', '--host', '0.0.0.0', '--port', '8000']);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 :::note
 In the TypeScript AppHost, `addPythonExecutable` accepts only `name`, `appDirectory`, and `executableName`. Pass additional command-line arguments by chaining `.withArgs(...)` after the resource is created.
@@ -190,8 +192,8 @@ In the TypeScript AppHost, `addPythonExecutable` accepts only `name`, `appDirect
 
 For ASGI web frameworks like FastAPI, Starlette, and Quart, use `AddUvicornApp` which pre-configures Uvicorn as the ASGI server:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -208,8 +210,8 @@ builder.AddProject<Projects.ExampleProject>("example")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -232,8 +234,8 @@ await example.withReference(python);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `AddUvicornApp` / `addUvicornApp` requires:
 
@@ -245,8 +247,8 @@ await builder.build().run();
 
 Configure Uvicorn worker count and log level through environment variables:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -259,8 +261,8 @@ var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -279,8 +281,8 @@ await python.withEnvironment('UVICORN_LOG_LEVEL', 'info');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Common Uvicorn environment variables:
 
@@ -299,8 +301,8 @@ The official integration doesn't expose a C# or TypeScript API to disable virtua
 
 To specify a custom virtual environment path, use `WithVirtualEnvironment`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -311,8 +313,8 @@ var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -329,8 +331,8 @@ await python.withVirtualEnvironment('../python-app/.venv');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Package management
 
@@ -338,8 +340,8 @@ await builder.build().run();
 
 Use `WithUv` to opt into the [uv](https://docs.astral.sh/uv/) package manager, which installs dependencies significantly faster than pip:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -351,8 +353,8 @@ var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -370,15 +372,15 @@ await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### pip package manager
 
 Use `WithPip` to explicitly select pip:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -390,8 +392,8 @@ var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -409,8 +411,8 @@ await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 :::tip
 If neither `WithUv` nor `WithPip` is specified, Aspire automatically selects the package manager based on project files (`pyproject.toml` → uv, `requirements.txt` → pip).
@@ -420,8 +422,8 @@ If neither `WithUv` nor `WithPip` is specified, Aspire automatically selects the
 
 Python apps typically read the port from an environment variable. Use `WithHttpEndpoint` to declare the port and inject the variable name:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -432,8 +434,8 @@ var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -450,15 +452,15 @@ await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Multiple endpoints
 
 A Python app can expose more than one endpoint:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -470,8 +472,8 @@ var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -489,15 +491,15 @@ await python.withHttpEndpoint({ port: 8443, env: 'HTTPS_PORT', name: 'https' });
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Health checks
 
 Declare an HTTP health-check endpoint so Aspire knows when the app is ready:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -509,8 +511,8 @@ var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -528,15 +530,15 @@ await python.withHttpHealthCheck('/health');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Environment variables
 
 Inject arbitrary environment variables with `WithEnvironment`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -548,8 +550,8 @@ var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -567,15 +569,15 @@ await python.withEnvironment('LOG_LEVEL', 'debug');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Service discovery
 
 Reference other Aspire resources from a Python app using `WithReference`. Aspire injects the connection string as the `ConnectionStrings__<resourcename>` environment variable in the Python process:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -589,8 +591,8 @@ var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -610,8 +612,8 @@ await python.withReference(db);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Read the connection string in Python using the `ConnectionStrings__mydb` environment variable (double-underscore separator for Python/shell environments):
 
@@ -627,8 +629,8 @@ For details about how resource names map to environment variable names, see [Env
 
 By default, Python apps run over HTTP in local development. To enable HTTPS, use `WithHttpsEndpoint` together with `WithHttpsDeveloperCertificate`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -640,8 +642,8 @@ var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -659,8 +661,8 @@ await python.withHttpsDeveloperCertificate();
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `WithHttpsDeveloperCertificate` exports the ASP.NET Core development certificate and injects it into the Python process as environment variables. Read those variables in your Uvicorn startup:
 
@@ -689,8 +691,8 @@ HTTPS is needed primarily when your Python service is exposed externally. For in
 
 By default, Aspire services are only accessible within the distributed application. Use `WithExternalHttpEndpoints` to expose a service to external traffic:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -711,8 +713,8 @@ builder.AddProject<Projects.WebFrontend>("frontend")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -746,8 +748,8 @@ await frontend.withReference(publicApi);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 :::tip
 Keep backend Python services (databases, AI inference, internal APIs) unexposed. Only expose services that browsers or external clients need to reach directly.

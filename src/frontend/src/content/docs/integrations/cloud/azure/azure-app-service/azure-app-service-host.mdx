@@ -3,14 +3,11 @@ title: Set up Azure App Service in the AppHost
 description: Learn how to use the Aspire Azure App Service Hosting integration to provision an App Service environment and deploy compute resources from your AppHost.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
 import {
-  Aside,
-  Badge,
-  Steps,
-  Tabs,
-  TabItem,
-} from '@astrojs/starlight/components';
+  Aside, Badge, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import appServiceIcon from '@assets/icons/azure-app-services.svg';
@@ -34,8 +31,8 @@ If you're new to the Azure App Service integration, start with the [Get started 
 
 To start building an Aspire app that targets Azure App Service, install the [📦 Aspire.Hosting.Azure.AppService](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppService) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add Aspire.Hosting.Azure.AppService
@@ -56,8 +53,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Azure.AppService" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add Aspire.Hosting.Azure.AppService
@@ -78,15 +75,15 @@ This updates your `aspire.config.json` with the hosting integration package:
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add Azure App Service environment
 
 To deploy compute resources to Azure App Service, first add an App Service environment to your AppHost. The environment represents the hosting infrastructure (App Service Plan) into which Aspire deploys your project and container resources.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -99,8 +96,8 @@ builder.AddProject<Projects.WebApi>("api");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -115,8 +112,8 @@ await builder.addProject('api', '../WebApi/WebApi.csproj');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Steps>
 
@@ -155,8 +152,8 @@ When the App Service environment is provisioned in Azure, the following resource
 
 If you already have an App Service plan in Azure, annotate your environment resource as existing to use it instead of provisioning a new one:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -173,8 +170,8 @@ builder.AddProject<Projects.WebApi>("api");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -200,8 +197,8 @@ await builder.addProject('api', '../WebApi/WebApi.csproj');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For more information on treating Azure resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
@@ -209,8 +206,8 @@ For more information on treating Azure resources as existing resources, see [Use
 
 By default, Aspire generates an App Service website for each eligible resource without additional configuration. Use `PublishAsAzureAppServiceWebsite` (C#) or `publishAsAzureAppServiceWebsite` (TypeScript) when you need to customize the generated website — for example to add application settings or tags:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -233,8 +230,8 @@ builder.AddProject<Projects.WebApi>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -253,8 +250,8 @@ await api.publishAsAzureAppServiceWebsite({
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code:
 
@@ -277,8 +274,8 @@ The preceding code:
 
 [Deployment slots](https://learn.microsoft.com/azure/app-service/deploy-staging-slots) let you deploy your app to a staging environment for testing before swapping it into production. The `WithDeploymentSlot` extension method (or `withDeploymentSlot` in TypeScript) configures a deployment slot for the App Service environment:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -299,8 +296,8 @@ builder.AddProject<Projects.Web>("webfrontend")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -324,8 +321,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code configures all App Service websites to be deployed to a `staging` slot.
 
@@ -340,8 +337,8 @@ When you deploy to a slot, the deployment behavior depends on whether the produc
 
 Specify the deployment slot name as a parameter so that it can be provided at deployment time:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -356,8 +353,8 @@ builder.AddAzureAppServiceEnvironment("appservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -375,8 +372,8 @@ await (
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 With this configuration, provide a value for the `deploymentSlot` parameter when running [`aspire deploy`](/reference/cli/commands/aspire-deploy/).
 
@@ -390,8 +387,8 @@ With this configuration, provide a value for the `deploymentSlot` parameter when
 
 When you customize App Service resources using `PublishAsAzureAppServiceWebsite` (or `publishAsAzureAppServiceWebsite`) or `ConfigureInfrastructure`, those customizations apply to the production slot by default. Apply them separately to each slot when needed using the `configureSlot` option:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 builder.AddProject<Projects.WebApi>("api")
@@ -401,8 +398,8 @@ builder.AddProject<Projects.WebApi>("api")
     });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const api = await builder.addProject('api', '../WebApi/WebApi.csproj');
@@ -416,15 +413,15 @@ await api.publishAsAzureAppServiceWebsite({
 });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Regional virtual network integration
 
 To configure [regional virtual network integration](https://learn.microsoft.com/azure/app-service/overview-vnet-integration) for the websites in an App Service environment, add the [📦 Aspire.Hosting.Azure.Network](https://www.nuget.org/packages/Aspire.Hosting.Azure.Network) integration and delegate a subnet to the environment with `WithDelegatedSubnet` (or `withDelegatedSubnet` in TypeScript):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREAZURE003 // Azure Virtual Network APIs are experimental.
@@ -444,8 +441,8 @@ builder.AddProject<Projects.WebApi>("api");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -464,8 +461,8 @@ await builder.addProject('api', '../WebApi/WebApi.csproj');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `WithDelegatedSubnet` delegates the subnet to `Microsoft.Web/serverFarms` and configures every generated website, deployment slot, and the default Aspire Dashboard to use it for regional virtual network integration. The subnet must meet the [Azure App Service regional virtual network integration requirements](https://learn.microsoft.com/azure/app-service/overview-vnet-integration).
 
@@ -482,8 +479,8 @@ For more information on configuring virtual networks and subnets, see [Azure Vir
 
 All Aspire Azure resources expose a `ConfigureInfrastructure` API (or `configureInfrastructure` in TypeScript) that lets you customize the generated Bicep through the [Azure.Provisioning](https://learn.microsoft.com/dotnet/api/azure.provisioning) APIs. For example, you can change the App Service Plan SKU:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -507,8 +504,8 @@ var appServiceEnv = builder.AddAzureAppServiceEnvironment("app-service-env")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -524,8 +521,8 @@ await (
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code:
 

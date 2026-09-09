@@ -3,7 +3,9 @@ title: Set up Dapr resources in the AppHost
 description: Install the Community Toolkit Dapr hosting integration and configure sidecars, state stores, pub/sub, metadata, and Azure deployment.
 ---
 
-import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside, Badge } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import daprLightIcon from '@assets/icons/dapr-light-icon.png';
@@ -25,8 +27,8 @@ This article is the AppHost API reference for the [📦 CommunityToolkit.Aspire.
 
 ## Installation
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.Dapr
@@ -42,8 +44,8 @@ Or add the package manually:
 <PackageReference Include="CommunityToolkit.Aspire.Hosting.Dapr" Version="*" />
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.Dapr
@@ -51,8 +53,8 @@ aspire add CommunityToolkit.Aspire.Hosting.Dapr
 
 This adds the package to `aspire.config.json`. After `aspire restore`, `.aspire/modules/aspire.mjs` includes the Dapr APIs.
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <LearnMore>
   Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) and
@@ -67,8 +69,8 @@ The Dapr TypeScript exports are available, but the source test for referencing D
 
 Add Dapr, create state-store and pub/sub component resources, then reference the components from a sidecar:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -86,8 +88,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -115,13 +117,13 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `AddDaprStateStore` and `AddDaprPubSub` create generic component resources. Use the generic component API when you need another Dapr component type:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -133,8 +135,8 @@ var binding = builder.AddDaprComponent(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -146,15 +148,15 @@ const binding = builder.addDaprComponent('outbound', 'bindings.http');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Configure sidecar options
 
 Use `DaprSidecarOptions` or its TypeScript equivalent to configure the app ID, app endpoint, Dapr endpoints, health probes, logging, metrics, component paths, and other `dapr run` settings:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using CommunityToolkit.Aspire.Hosting.Dapr;
@@ -174,8 +176,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -198,15 +200,15 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Configure component metadata
 
 Use `WithMetadata` or `withMetadata` for static values. The hosting integration also exposes overloads for endpoint references, reference expressions, and parameters so metadata can follow Aspire-managed resources.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -222,8 +224,8 @@ var stateStore = builder.AddDaprStateStore("statestore")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -247,8 +249,8 @@ const stateStore = builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Dashboard integration
 
@@ -258,8 +260,8 @@ Each Dapr sidecar is a hidden resource named from its app resource, such as `api
 
 Install [📦 CommunityToolkit.Aspire.Hosting.Azure.Dapr](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Azure.Dapr), then enable Dapr components on the Azure Container Apps environment:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -270,8 +272,8 @@ environment.WithDaprComponents();
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -284,8 +286,8 @@ await environment.withDaprComponents();
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The integration translates local Dapr component and sidecar settings into Azure Container Apps Dapr configuration during publish.
 

@@ -1,6 +1,8 @@
 import type { ComponentProps } from 'astro/types';
 
 import heroImage from '@assets/aspire-hero.png';
+import AppHostLanguageSelector from '@components/AppHostLanguageSelector.astro';
+import AppHostTabs from '@components/AppHostTabs.astro';
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
@@ -195,6 +197,27 @@ const validBreadcrumbProps = {
 const invalidBreadcrumbProps: PropsOf<typeof Breadcrumb> = {
   crumbs: [],
   unexpected: true,
+};
+
+const validAppHostLanguageSelectorProps = {
+  title: 'Choose an AppHost language',
+  marginTop: 1,
+} satisfies PropsOf<typeof AppHostLanguageSelector>;
+// @ts-expect-error AppHostLanguageSelector marginTop must be numeric.
+const invalidAppHostLanguageSelectorProps: PropsOf<typeof AppHostLanguageSelector> = {
+  marginTop: '1',
+};
+
+const validAppHostTabsProps = {
+  limitations: {
+    python: 'This API is unavailable in Python.',
+  },
+} satisfies PropsOf<typeof AppHostTabs>;
+// @ts-expect-error AppHostTabs accepts only known AppHost language IDs.
+const invalidAppHostTabsProps: PropsOf<typeof AppHostTabs> = {
+  limitations: {
+    ruby: 'Unsupported.',
+  },
 };
 
 const validCtaBannerProps = {
@@ -732,6 +755,10 @@ const invalidYouTubeGridProps: PropsOf<typeof YouTubeGrid> = {
 };
 
 void [
+  validAppHostLanguageSelectorProps,
+  invalidAppHostLanguageSelectorProps,
+  validAppHostTabsProps,
+  invalidAppHostTabsProps,
   validAsciinemaPlayerProps,
   invalidAsciinemaPlayerProps,
   validBreadcrumbProps,

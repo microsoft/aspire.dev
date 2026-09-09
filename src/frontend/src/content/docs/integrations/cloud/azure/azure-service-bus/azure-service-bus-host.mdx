@@ -3,8 +3,10 @@ title: Set up Azure Service Bus in the AppHost
 description: Learn how to use the Aspire Azure Service Bus Hosting integration to orchestrate and configure an Azure Service Bus namespace in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import serviceBusIcon from '@assets/icons/azure-servicebus-icon.png';
@@ -34,8 +36,8 @@ The following resource types are available in the hosting integration:
 
 To start building an Aspire app that uses Azure Service Bus, install the [📦 Aspire.Hosting.Azure.ServiceBus](https://www.nuget.org/packages/Aspire.Hosting.Azure.ServiceBus) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add azure-service-bus
@@ -55,8 +57,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Azure.ServiceBus" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add azure-service-bus
@@ -76,15 +78,15 @@ This updates your `aspire.config.json` with the Azure Service Bus hosting integr
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add Azure Service Bus resource
 
 Once you've installed the hosting integration in your AppHost project, add an Azure Service Bus namespace resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -95,8 +97,8 @@ var serviceBus = builder.AddAzureServiceBus("messaging");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -108,8 +110,8 @@ const serviceBus = await builder.addAzureServiceBus("messaging");
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="caution">
   When you call `AddAzureServiceBus` (C#) or `addAzureServiceBus` (TypeScript),
@@ -131,8 +133,8 @@ await builder.build().run();
 
 If you have an existing Azure Service Bus namespace, chain a call to `AsExisting` (C#) or `asExisting` (TypeScript) to connect to it instead of provisioning a new one:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -150,8 +152,8 @@ builder.AddProject<Projects.WebApplication>("web")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -170,8 +172,8 @@ await builder.addNodeApp("web", "./web", "index.js")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For more information on treating Azure resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
@@ -187,8 +189,8 @@ For more information on treating Azure resources as existing resources, see [Use
 
 To add a queue to an Azure Service Bus namespace, call `AddServiceBusQueue` (C#) or `addServiceBusQueue` (TypeScript) on the Service Bus resource builder:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -203,8 +205,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -220,8 +222,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 This expresses an explicit parent-child relationship between the `messaging` Service Bus namespace and its child `queue`. The queue is created in the namespace that the `AzureServiceBusResource` represents. For more information, see [Queues, topics, and subscriptions in Azure Service Bus](https://learn.microsoft.com/azure/service-bus-messaging/service-bus-queues-topics-subscriptions).
 
@@ -229,8 +231,8 @@ This expresses an explicit parent-child relationship between the `messaging` Ser
 
 To add a topic, call `AddServiceBusTopic` (C#) or `addServiceBusTopic` (TypeScript) on the Service Bus resource builder:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -242,8 +244,8 @@ var topic = serviceBus.AddServiceBusTopic("topic");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -256,8 +258,8 @@ const topic = await serviceBus.addServiceBusTopic("topic");
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The topic is created in the namespace that the `AzureServiceBusResource` represents.
 
@@ -265,8 +267,8 @@ The topic is created in the namespace that the `AzureServiceBusResource` represe
 
 To add a subscription for a topic, call `AddServiceBusSubscription` (C#) or `addServiceBusSubscription` (TypeScript) on the topic resource builder:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -279,8 +281,8 @@ topic.AddServiceBusSubscription("sub1");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -294,8 +296,8 @@ await topic.addServiceBusSubscription("sub1");
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For more information, see [Queues, topics, and subscriptions in Azure Service Bus](https://learn.microsoft.com/azure/service-bus-messaging/service-bus-queues-topics-subscriptions).
 
@@ -345,8 +347,8 @@ builder.Build().Run();
 
 For local development, Aspire can run the [Azure Service Bus Emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator) as a container. Chain a call to `RunAsEmulator` (C#) or `runAsEmulator` (TypeScript) on the Service Bus resource builder:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -358,8 +360,8 @@ var serviceBus = builder.AddAzureServiceBus("messaging")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -372,8 +374,8 @@ const serviceBus = await builder.addAzureServiceBus("messaging")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When you call `runAsEmulator`, Aspire provisions the `mcr.microsoft.com/azure-messaging/servicebus-emulator` container and its companion `mcr.microsoft.com/mssql/server` container locally. The emulator starts alongside your AppHost instead of requiring an Azure subscription. For more information, see [Container resource lifecycle](/architecture/resource-model/#built-in-resources-and-lifecycle).
 
@@ -390,8 +392,8 @@ By default, the Service Bus emulator container exposes the following endpoints:
 
 By default, the host port is assigned dynamically. To pin it to a specific port, pass the `configureContainer` callback and call `withHostPort`:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -406,8 +408,8 @@ var serviceBus = builder.AddAzureServiceBus("messaging")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -424,8 +426,8 @@ const serviceBus = await builder.addAzureServiceBus("messaging")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code maps the `emulator` endpoint to host port `7777`:
 
@@ -437,8 +439,8 @@ The preceding code maps the `emulator` endpoint to host port `7777`:
 
 The Service Bus emulator generates its configuration automatically from the resources you've added. To provide a fully custom configuration file instead, call `WithConfigurationFile` (C#) or `withConfigurationFile` (TypeScript):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -454,8 +456,8 @@ var serviceBus = builder.AddAzureServiceBus("messaging")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -472,8 +474,8 @@ const serviceBus = await builder.addAzureServiceBus("messaging")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Patch the emulator configuration with `WithConfiguration`
 

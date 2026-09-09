@@ -3,8 +3,10 @@ title: Set up Azure Container Registry in the AppHost
 description: Learn how to use the Aspire Azure Container Registry Hosting integration to provision, configure, and manage an Azure Container Registry resource in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import containerRegistryIcon from '@assets/icons/azure-container-registry-icon.svg';
 
@@ -25,8 +27,8 @@ If you're new to the Azure Container Registry integration, start with the [Get s
 
 To start building an Aspire app that uses Azure Container Registry, install the [📦 Aspire.Hosting.Azure.ContainerRegistry](https://www.nuget.org/packages/Aspire.Hosting.Azure.ContainerRegistry) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add Aspire.Hosting.Azure.ContainerRegistry
@@ -46,8 +48,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Azure.ContainerRegistry" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add Aspire.Hosting.Azure.ContainerRegistry
@@ -67,8 +69,8 @@ This updates your `aspire.config.json` with the Azure Container Registry hosting
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="caution">
   When you call `AddAzureContainerRegistry` (or `addAzureContainerRegistry`), it implicitly calls
@@ -81,8 +83,8 @@ This updates your `aspire.config.json` with the Azure Container Registry hosting
 
 Once you've installed the hosting integration in your AppHost project, add an Azure Container Registry resource and wire it to a compute environment:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -95,8 +97,8 @@ builder.AddAzureContainerAppEnvironment("env")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -111,8 +113,8 @@ await env.withAzureContainerRegistry(acr);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Steps>
 
@@ -132,8 +134,8 @@ await builder.build().run();
 
 To retrieve the registry that is associated with a compute environment — for example, to add purge tasks to the auto-provisioned default registry — use `GetAzureContainerRegistry` (or `getAzureContainerRegistry`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -144,8 +146,8 @@ var env = builder.AddAzureContainerAppEnvironment("env");
 var registry = env.GetAzureContainerRegistry();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -158,8 +160,8 @@ const env = await builder.addAzureContainerAppEnvironment("env");
 const registry = await env.getAzureContainerRegistry();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 This returns an `AzureContainerRegistryResource` builder that you can use for further configuration, such as [scheduling image cleanup with purge tasks](#schedule-image-cleanup-with-purge-tasks).
 
@@ -171,8 +173,8 @@ This returns an `AzureContainerRegistryResource` builder that you can use for fu
 
 To reference a registry your team already manages rather than provisioning a new one, use `publishAsExisting`, `runAsExisting`, or `asExisting`:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 Use `PublishAsExisting` to reference an existing registry only in publish (deployment) mode:
 
@@ -199,8 +201,8 @@ var acr = builder.AddAzureContainerRegistry("my-acr")
                 options: new() { ResourceGroup = builder.AddParameter("rgName") });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 Use `publishAsExisting` to reference an existing registry only in publish (deployment) mode:
 
@@ -228,15 +230,15 @@ const acr = await builder.addAzureContainerRegistry("my-acr");
 await acr.asExisting(registryName, { resourceGroup: rgName });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Assign roles for access control
 
 Use `WithRoleAssignments` (or `withRoleAssignments`) to grant an Azure resource fine-grained access to the registry. The `ContainerRegistryBuiltInRole` enum (TypeScript: `AzureContainerRegistryRole`) covers the standard ACR roles:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -250,8 +252,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder, AzureContainerRegistryRole } from './.aspire/modules/aspire.mjs';
@@ -267,8 +269,8 @@ await api.withRoleAssignments(acr, [AzureContainerRegistryRole.AcrPush]);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Available roles include: `AcrPull`, `AcrPush`, `AcrDelete`, `AcrImageSigner`, `AcrQuarantineReader`, and `AcrQuarantineWriter`.
 
@@ -276,8 +278,8 @@ Available roles include: `AcrPull`, `AcrPush`, `AcrDelete`, `AcrImageSigner`, `A
 
 Over time, container registries accumulate old images that consume storage. Use `WithPurgeTask` (or `withPurgeTask`) to add a scheduled [ACR purge task](https://learn.microsoft.com/azure/container-registry/container-registry-auto-purge) that automatically removes old or unused images:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -288,8 +290,8 @@ var acr = builder.AddAzureContainerRegistry("my-acr")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -305,8 +307,8 @@ await acr.withPurgeTask("0 1 * * *", {
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code creates a purge task that runs daily at 1:00 AM, removing images older than 7 days while keeping the 5 most recent images per repository. The C# `ago` parameter accepts a `TimeSpan`; the TypeScript `ago` option accepts milliseconds.
 
@@ -314,8 +316,8 @@ The preceding code creates a purge task that runs daily at 1:00 AM, removing ima
 
 Add multiple purge tasks to target different repositories with different schedules:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="Multiple purge tasks"
 var acr = builder.AddAzureContainerRegistry("my-acr")
@@ -323,8 +325,8 @@ var acr = builder.AddAzureContainerRegistry("my-acr")
     .WithPurgeTask("0 2 * * 0", filter: "app2:.*", ago: TimeSpan.FromDays(30), keep: 10);
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="Multiple purge tasks"
 const acr = await builder.addAzureContainerRegistry("my-acr");
@@ -336,8 +338,8 @@ await acr.withPurgeTask("0 2 * * 0", {
 });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Each purge task is given a unique name automatically. Use the `taskName` option to specify a custom task name.
 
@@ -345,8 +347,8 @@ Each purge task is given a unique name automatically. Use the `taskName` option 
 
 To make changes that go beyond what the built-in APIs expose, configure the underlying Bicep infrastructure directly via `ConfigureInfrastructure` (or `configureInfrastructure`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var acr = builder.AddAzureContainerRegistry("my-acr")
@@ -360,8 +362,8 @@ var acr = builder.AddAzureContainerRegistry("my-acr")
     });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const acr = await builder.addAzureContainerRegistry("my-acr");
@@ -370,8 +372,8 @@ await acr.configureInfrastructure(async (infra) => {
 });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Provisioning-generated Bicep
 

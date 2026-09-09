@@ -3,7 +3,9 @@ title: Blazor WebAssembly integration
 description: Enable browser telemetry for Blazor WebAssembly apps with Aspire's Blazor hosting, gateway proxying, and client service defaults.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+
 
 Blazor WebAssembly apps run .NET in the browser, so they need a startup path that makes telemetry configuration available before the WebAssembly runtime starts. Starting with Aspire 13.4, you can use the Aspire Blazor hosting integration instead of configuring a Blazor WebAssembly app like a generic JavaScript browser app that sends OTLP directly to the dashboard.
 
@@ -13,8 +15,8 @@ The Blazor hosting integration configures same-origin gateway or host routes for
 
 For a standalone Blazor WebAssembly project, add the WASM project resource, reference any backend services from it, and bind it to a Blazor Gateway. Configure the gateway with HTTP/protobuf OTLP export because browser-based clients can't use OTLP/gRPC.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -32,8 +34,8 @@ builder.AddBlazorGateway("gateway")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder, OtlpProtocol } from './.aspire/modules/aspire.mjs';
@@ -61,8 +63,8 @@ await gateway.withBlazorClientApp(blazorApp);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The gateway exposes browser-safe configuration under the app path, such as `/app/_blazor/_configuration`. A Blazor JavaScript initializer reads that configuration before the runtime starts and adds values such as service discovery endpoints, `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and `OTEL_EXPORTER_OTLP_PROTOCOL` to the WebAssembly runtime environment. `OTEL_EXPORTER_OTLP_HEADERS` isn't sent to the browser; the gateway's proxy route injects dashboard OTLP headers when it forwards telemetry.
 

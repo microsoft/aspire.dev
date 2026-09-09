@@ -4,13 +4,15 @@ seoTitle: 'Persistent volumes for Aspire on Kubernetes clusters'
 description: Model durable storage as first-class persistent volume resources in your Aspire AppHost, then bind them to Kubernetes workloads with a storage class, capacity, and access modes.
 ---
 
-import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Stateful workloads — databases, message brokers, or any service that writes durable data — need storage that survives pod restarts and rescheduling. Call `AddPersistentVolume` on a Kubernetes environment to describe a durable disk once in your AppHost, configure its storage class, capacity, access modes, and annotations with fluent methods, then bind it to one or more workloads:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var k8s = builder.AddKubernetesEnvironment("k8s");
@@ -24,8 +26,8 @@ var pgData = k8s.AddPersistentVolume("pg-data")
   The persistent volume APIs are experimental. In C#, suppress the `ASPIRECOMPUTE002` diagnostic to use them.
 </Aside>
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const k8s = await builder.addKubernetesEnvironment('k8s');
@@ -35,8 +37,8 @@ await pgData.withStorageClass('managed-csi');
 await pgData.withCapacity('20Gi');
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 At publish time, the volume renders as a `v1.PersistentVolumeClaim` in the generated Helm chart. Like [ingress and gateway resources](/deployment/kubernetes-ingress/), you configure the volume once and reference it from workloads, rather than relying on a single environment-wide storage shape for every mount.
 
@@ -52,8 +54,8 @@ The following prerequisites must be in place before you can use persistent volum
 
 The full set of configuration methods lets you pin the storage class, capacity, access modes, and provisioner annotations. A complete AppHost that defines a volume looks like this:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes;
@@ -71,8 +73,8 @@ var pgData = k8s.AddPersistentVolume("pg-data")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -89,8 +91,8 @@ await pgData.withVolumeAnnotation('disk.csi.azure.com/skuName', 'Premium_LRS');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Every configuration method is optional. When you don't set a storage class, the cluster's default storage class provisions the backing disk. When you don't set a capacity or access mode, the environment's default storage size and read-write policy apply.
 
@@ -120,8 +122,8 @@ After defining a volume, bind it to the workloads that mount it. There are two o
 
 Use the name-match overload when the workload already declares a volume — for example, through `WithVolume("name", "/path")` or an integration helper such as Postgres' `WithDataVolume()`. The persistent volume's name must match the workload volume's name so the publisher can route the pod's `volumes[]` entry through the generated PVC:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var pgData = k8s.AddPersistentVolume("pg-data")
@@ -133,8 +135,8 @@ builder.AddPostgres("pg")
     .WithPersistentVolume(pgData);
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const pgData = await k8s.addPersistentVolume('pg-data');
@@ -146,15 +148,15 @@ await pg.withDataVolume({ name: 'pg-data' });
 await pg.withKubernetesPersistentVolume(pgData);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Bind with a mount path
 
 Use the mount-path overload when the workload doesn't already declare a named volume. It creates the mount itself, so it works for projects and any compute resource. Pass the mount path inside the container, and optionally mount read-only:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var media = k8s.AddPersistentVolume("media")
@@ -166,8 +168,8 @@ builder.AddProject<Projects.Api>("api")
     .WithPersistentVolume(media, "/srv/media");
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const media = await k8s.addPersistentVolume('media');
@@ -178,8 +180,8 @@ const api = await builder.addProject('api');
 await api.withKubernetesPersistentVolumeMount(media, '/srv/media');
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="caution" title="Workloads are promoted to StatefulSet">
   Any workload bound to a persistent volume is rendered as a `StatefulSet` instead of a `Deployment`, regardless of its default workload kind. There is no opt-out. A `Deployment` with a `ReadWriteOnce` claim and more than one replica is broken by design because the second pod can't mount the same volume. Therefore, binding to a durable volume automatically selects the `StatefulSet` path, which gives pods stable identity and ordered rollout.
@@ -209,8 +211,8 @@ This default only applies to workloads bound through `WithPersistentVolume(...)`
 
 The default security context is applied before any `PublishAsKubernetesService` callback runs, so a workload or cluster that needs a different group can replace it:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
@@ -227,20 +229,20 @@ builder.AddProject<Projects.Api>("api")
     });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 The TypeScript AppHost API supports `publishAsKubernetesService`, but its `KubernetesResource` callback doesn't currently expose the generated workload or pod spec. It can't override the generated `fsGroup` from the AppHost.
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The generated `OnRootMismatch` change policy is retained unless the callback also replaces it.
 
 To remove the generated pod security context entirely — for example, when ownership is managed by the image, an admission controller, or storage-specific configuration — set it to `null` in the same callback:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
@@ -254,13 +256,13 @@ builder.AddProject<Projects.Api>("api")
     });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 The TypeScript AppHost API supports `publishAsKubernetesService`, but its `KubernetesResource` callback doesn't currently expose the generated workload or pod spec. It can't remove the generated pod security context from the AppHost.
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="caution">
   The group ID `2000` is an Aspire-managed default, not a Kubernetes-reserved value. Some storage drivers don't support `fsGroup`, some CSI drivers apply the group at mount time themselves, and cluster admission policies can restrict allowed group ranges. Use the customization callback above as an escape hatch in those environments.

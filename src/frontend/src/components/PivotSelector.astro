@@ -1,8 +1,11 @@
 ---
+import { getEnabledAppHostLanguages } from '@utils/apphost-languages';
+
 interface Option {
   id: string;
   title: string;
   disabled?: boolean;
+  badge?: string;
 }
 
 type Props = {
@@ -13,13 +16,18 @@ type Props = {
 };
 
 const { options, key, title, marginTop } = Astro.props;
+const enabledAppHostLanguages = getEnabledAppHostLanguages();
+const appHostLanguageOrder = new Map(
+  enabledAppHostLanguages.map((language, index) => [language.id, index])
+);
 const renderedOptions =
   key === 'aspire-lang'
-    ? [
-        ...options.filter((option) => option.id === 'typescript'),
-        ...options.filter((option) => option.id === 'csharp'),
-        ...options.filter((option) => option.id !== 'typescript' && option.id !== 'csharp'),
-      ]
+    ? options
+        .filter((option) => appHostLanguageOrder.has(option.id))
+        .sort(
+          (left, right) =>
+            appHostLanguageOrder.get(left.id)! - appHostLanguageOrder.get(right.id)!
+        )
     : options;
 ---
 
@@ -29,7 +37,8 @@ const renderedOptions =
     {
       renderedOptions.map((o) => (
         <button type="button" data-pivot-option={o.id} disabled={o.disabled ? true : false}>
-          {o.title}
+          <span>{o.title}</span>
+          {o.badge && <span class="pivot-option-badge" aria-hidden="true">{o.badge}</span>}
         </button>
       ))
     }
@@ -157,6 +166,17 @@ const renderedOptions =
     white-space: nowrap;
     margin-top: 0;
     min-width: 4rem;
+  }
+
+  .pivot-option-badge {
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-inline-start: 0.35rem;
+    padding: 0.15rem 0.35rem;
+    text-transform: uppercase;
   }
 
   .pivot-selector button:hover {
@@ -469,13 +489,11 @@ const renderedOptions =
       // pages with `<Tabs syncKey="aspire-lang">` default to the same language.
       // Mirrors the label map in src/components/starlight/Head.astro.
       if (qsKey === 'aspire-lang') {
-        const appHostLangLabels = { csharp: 'C#', typescript: 'TypeScript' };
-        const label = appHostLangLabels[id];
-        if (label) {
-          try {
-            localStorage.setItem('starlight-synced-tabs__aspire-lang', label);
-          } catch (e) {}
-        }
+        window.dispatchEvent(
+          new CustomEvent('apphost-language-select', {
+            detail: { language: id },
+          })
+        );
       }
 
       // sync URL
@@ -506,8 +524,9 @@ const renderedOptions =
     }
 
     selector.addEventListener('click', (e) => {
-      if (e.target.dataset.pivotOption) {
-        apply(e.target.dataset.pivotOption);
+      const button = e.target.closest('button[data-pivot-option]');
+      if (button && selector.contains(button)) {
+        apply(button.dataset.pivotOption);
       }
     });
 

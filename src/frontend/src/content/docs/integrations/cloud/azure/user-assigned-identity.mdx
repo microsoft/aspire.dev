@@ -3,8 +3,10 @@ title: User-assigned managed identity
 description: Learn how to configure user-assigned managed identities for Aspire AppHost resources so deployed apps authenticate to Azure without secrets.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 import azureIcon from '@assets/icons/azure-icon.png';
 
 <Image
@@ -24,8 +26,8 @@ A user-assigned managed identity is a standalone Azure resource that you assign 
 
 To create a new user-assigned managed identity, use the `AddAzureUserAssignedIdentity` (or `addAzureUserAssignedIdentity`) API:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -36,8 +38,8 @@ var sharedMi = builder.AddAzureUserAssignedIdentity("custom-umi");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -50,8 +52,8 @@ const sharedMi = await builder.addAzureUserAssignedIdentity("custom-umi");
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code creates a new managed identity named `"custom-umi"` that you can use with other resources in your application.
 
@@ -67,8 +69,8 @@ The preceding code creates a new managed identity named `"custom-umi"` that you 
 
 If you already have a managed identity, reference it using the `PublishAsExisting` (or `publishAsExisting`) method. This is useful when you want to use an identity created outside of your Aspire project:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -83,8 +85,8 @@ var sharedMi = builder.AddAzureUserAssignedIdentity("custom-umi")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -101,8 +103,8 @@ await sharedMi.publishAsExisting(miName, miResourceGroup);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 In the preceding example, parameters supply the name and resource group of the existing identity so the AppHost references it rather than creating a new one.
 
@@ -110,8 +112,8 @@ In the preceding example, parameters supply the name and resource group of the e
 
 Grant Azure roles to your managed identity using the `WithRoleAssignments` (or `withRoleAssignments`) API, giving the identity access to other Azure resources:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -125,8 +127,8 @@ builder.AddAzureKeyVault("secrets")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder, AzureKeyVaultRole } from './.aspire/modules/aspire.mjs';
@@ -142,8 +144,8 @@ await sharedMi.withRoleAssignments(secrets, [AzureKeyVaultRole.KeyVaultSecretsUs
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 In the preceding example, the managed identity is granted the `KeyVaultSecretsUser` role on the Key Vault resource.
 

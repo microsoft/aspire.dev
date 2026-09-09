@@ -4,8 +4,10 @@ seoTitle: "Set up Seq in the Aspire AppHost: hosting integration"
 description: Learn how to use the Aspire Seq hosting integration to orchestrate and configure a Seq resource in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import seqIcon from '@assets/icons/seq-icon.png';
@@ -27,8 +29,8 @@ If you're new to the Seq integration, start with the [Get started with Seq integ
 
 To start building an Aspire app that uses Seq, install the [📦 Aspire.Hosting.Seq](https://www.nuget.org/packages/Aspire.Hosting.Seq) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add seq
@@ -48,8 +50,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Seq" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add seq
@@ -69,15 +71,15 @@ This updates your `aspire.config.json` with the Seq hosting integration package:
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add Seq resource
 
 Once you've installed the hosting integration in your AppHost project, you can add a Seq resource as shown in the following examples:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -92,8 +94,8 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
 
@@ -110,8 +112,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Steps>
 
@@ -141,8 +143,8 @@ Seq is an observability tool intended for local development and internal environ
 
 Add a data volume to the Seq resource to persist log data across container restarts:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -158,8 +160,8 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { ContainerLifetime, createBuilder } from './.aspire/modules/aspire.mjs';
@@ -181,8 +183,8 @@ await myService
 // After adding all resources, run the app...
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The data volume is used to persist the Seq data outside the lifecycle of its container. The data volume is mounted at `/data` in the Seq container, and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-seq-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
@@ -190,8 +192,8 @@ The data volume is used to persist the Seq data outside the lifecycle of its con
 
 Add a data bind mount to the Seq resource as shown in the following examples:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -207,8 +209,8 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
 
@@ -226,8 +228,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
     Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.

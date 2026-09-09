@@ -3,7 +3,9 @@ title: Azure Container App Jobs
 description: Learn how to use the Aspire Azure Container App Jobs hosting integration to deploy worker services as scheduled and event-driven jobs in Azure Container Apps.
 ---
 
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import containerAppsIcon from '@assets/icons/azure-container-apps-environments.svg';
 
@@ -32,16 +34,16 @@ The following resource types can be published as Azure Container App Jobs:
 
 Use `PublishAsAzureContainerAppJob` to deploy a project, container, or executable as an Azure Container App Job. Use `PublishAsScheduledAzureContainerAppJob` as a convenience wrapper that sets the cron schedule in one call.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.DataProcessor>("data-processor")
     .PublishAsScheduledAzureContainerAppJob("0 0 * * *"); // Every day at midnight
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -50,8 +52,8 @@ const builder = await createBuilder();
 const dataProcessor = await builder.addProject("data-processor", "../DataProcessor/DataProcessor.csproj");
 await dataProcessor.publishAsScheduledAzureContainerAppJob("0 0 * * *"); // Every day at midnight
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Job trigger types
 
@@ -59,8 +61,8 @@ Azure Container App Jobs support three trigger types: **manual**, **schedule**, 
 
 ### Manual trigger
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -70,18 +72,18 @@ builder.AddProject<Projects.ManualTask>("manual-task")
         job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
     });
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 <Aside type="note">
   The Azure Container App Jobs API is not yet available in the TypeScript AppHost.
 </Aside>
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Schedule trigger
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -94,18 +96,18 @@ builder.AddProject<Projects.ScheduledTask>("scheduled-task")
         job.Configuration.ScheduleTriggerConfig.ReplicaCompletionCount = 1;
     });
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 <Aside type="note">
   The Azure Container App Jobs API is not yet available in the TypeScript AppHost.
 </Aside>
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Event trigger
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -119,13 +121,13 @@ builder.AddProject<Projects.EventDrivenTask>("event-task")
         job.Configuration.EventTriggerConfig.ReplicaCompletionCount = 1;
     });
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 <Aside type="note">
   The Azure Container App Jobs API is not yet available in the TypeScript AppHost.
 </Aside>
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Advanced configuration
 
@@ -133,8 +135,8 @@ builder.AddProject<Projects.EventDrivenTask>("event-task")
 
 Configure CPU and memory for your job:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -146,20 +148,20 @@ builder.AddProject<Projects.ResourceIntensiveTask>("intensive-task")
         job.Template.Containers[0].Value!.Resources.Memory = "2Gi";
     });
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 <Aside type="note">
   The Azure Container App Jobs API is not yet available in the TypeScript AppHost.
 </Aside>
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Add environment variables
 
 Pass environment variables — including provisioning parameters — into the job container:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -176,18 +178,18 @@ builder.AddProject<Projects.DatabaseTask>("db-task")
         });
     });
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 <Aside type="note">
   The Azure Container App Jobs API is not yet available in the TypeScript AppHost.
 </Aside>
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Configure timeout and retry policy
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -199,18 +201,18 @@ builder.AddProject<Projects.RetryableTask>("retryable-task")
         job.Configuration.ReplicaRetryLimit = 3;
     });
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 <Aside type="note">
   The Azure Container App Jobs API is not yet available in the TypeScript AppHost.
 </Aside>
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Publish a container resource as a job
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -221,18 +223,18 @@ builder.AddContainer("batch-processor", "myregistry.azurecr.io/batch-processor:l
         job.Configuration.ScheduleTriggerConfig.CronExpression = "0 2 * * 0"; // Weekly on Sunday at 2 AM
     });
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 <Aside type="note">
   The Azure Container App Jobs API is not yet available in the TypeScript AppHost.
 </Aside>
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Publish an executable resource as a job
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -242,13 +244,13 @@ builder.AddExecutable("data-script", "python", ".", "process_data.py")
         job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
     });
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 <Aside type="note">
   The Azure Container App Jobs API is not yet available in the TypeScript AppHost.
 </Aside>
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## See also
 

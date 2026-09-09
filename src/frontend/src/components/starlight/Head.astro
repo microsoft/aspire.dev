@@ -5,6 +5,7 @@ import AccessibleCodeButtons from '../AccessibleCodeButtons.astro';
 import SiteTour from '../SiteTour.astro';
 import { getStructuredData } from '@utils/structured-data';
 import { getOgMetadata } from '@utils/page-metadata';
+import { getAppHostLanguageClientConfig } from '@utils/apphost-languages';
 
 const repoUrl = (
   import.meta.env.PUBLIC_REPO_URL ||
@@ -19,6 +20,7 @@ const path = route?.entry?.filePath;
 const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
 const structuredData = route ? getStructuredData(route, Astro.url, Astro.site) : undefined;
 const ogMetadata = route ? getOgMetadata(route, Astro.url, Astro.site) : undefined;
+const appHostLanguageClientConfig = getAppHostLanguageClientConfig();
 
 function computeRepoPath() {
   if (path) {
@@ -69,27 +71,48 @@ function computeSourceUrl() {
 {structuredData && <script type="application/ld+json" is:inline set:html={structuredData} />}
 
 <!-- Restore persisted sidebar state before paint and keep legacy AppHost pages readable -->
-<script is:inline>
+<script is:inline define:vars={{ appHostLanguageClientConfig }}>
   (function () {
-    var appHostLangLabels = {
-      csharp: 'C#',
-      typescript: 'TypeScript',
-    };
+    var appHostLanguages = appHostLanguageClientConfig.languages;
+    var appHostLangLabels = Object.fromEntries(
+      appHostLanguages.map(function (language) {
+        return [language.id, language.label];
+      })
+    );
+    var appHostLangAliases = {};
+    appHostLanguages.forEach(function (language) {
+      language.aliases.forEach(function (alias) {
+        appHostLangAliases[alias] = language.id;
+      });
+    });
+    var enabledAppHostLangs = new Set(
+      appHostLanguages
+        .filter(function (language) {
+          return language.enabled;
+        })
+        .map(function (language) {
+          return language.id;
+        })
+    );
+    var experimentalAppHostLangs = new Set(
+      appHostLanguages
+        .filter(function (language) {
+          return language.experimental;
+        })
+        .map(function (language) {
+          return language.id;
+        })
+    );
+    var defaultAppHostLang = appHostLanguageClientConfig.defaultLanguage;
     var appHostLangStorageKey = 'starlight-synced-tabs__aspire-lang';
 
-    function normalizeAppHostLang(value) {
-      var normalized = (value || '').toLowerCase().replace(/\s+/g, '');
-      if (normalized.indexOf('typescript') !== -1) {
-        return 'typescript';
+    function normalizeAppHostLang(value, enabledOnly) {
+      var normalized = (value || '').trim().toLowerCase().replace(/\s+/g, '');
+      var language = appHostLangAliases[normalized] || '';
+      if (enabledOnly !== false && language && !enabledAppHostLangs.has(language)) {
+        return '';
       }
-      if (
-        normalized.indexOf('c#') !== -1 ||
-        normalized.indexOf('csharp') !== -1 ||
-        normalized.indexOf('c-sharp') !== -1
-      ) {
-        return 'csharp';
-      }
-      return '';
+      return language;
     }
 
     function updateAppHostLangUrl(value) {
@@ -110,6 +133,11 @@ function computeSourceUrl() {
         localStorage.setItem('aspire-lang', normalized);
         localStorage.setItem(appHostLangStorageKey, appHostLangLabels[normalized]);
       } catch (e) {}
+      window.dispatchEvent(
+        new CustomEvent('apphost-language-change', {
+          detail: { language: normalized },
+        })
+      );
       return normalized;
     }
 
@@ -153,12 +181,37 @@ function computeSourceUrl() {
           }
         });
       });
+
+      window.addEventListener('apphost-language-select', function (event) {
+        var selected = normalizeAppHostLang(event.detail && event.detail.language);
+        if (selected) {
+          syncAppHostLangFromTab(selected);
+        }
+      });
     }
 
-    var qsAppHostLang = persistAppHostLang(
-      new URLSearchParams(window.location.search).get('aspire-lang')
-    );
-    var rawAppHostLang = qsAppHostLang || 'typescript';
+    function annotateAppHostLanguageControls() {
+      document
+        .querySelectorAll('starlight-tabs[data-sync-key="aspire-lang"] [role="tab"]')
+        .forEach(function (tab) {
+          var language = normalizeAppHostLang(tab.textContent, false);
+          if (!language) return;
+          tab.setAttribute('data-apphost-language', language);
+          if (experimentalAppHostLangs.has(language)) {
+            tab.setAttribute('data-apphost-experimental', '');
+          } else {
+            tab.removeAttribute('data-apphost-experimental');
+          }
+        });
+    }
+
+    var queryValue = new URLSearchParams(window.location.search).get('aspire-lang');
+    var qsAppHostLang = normalizeAppHostLang(queryValue);
+    if (queryValue && !qsAppHostLang) {
+      qsAppHostLang = defaultAppHostLang;
+      updateAppHostLangUrl(qsAppHostLang);
+    }
+    var rawAppHostLang = qsAppHostLang || defaultAppHostLang;
 
     try {
       rawAppHostLang =
@@ -168,10 +221,13 @@ function computeSourceUrl() {
         localStorage.getItem(appHostLangStorageKey) ||
         localStorage.getItem('starlight-synced-tabs__apphost-lang') ||
         localStorage.getItem('starlight-synced-tabs__apphost-implementation-lang') ||
-        'typescript';
+        defaultAppHostLang;
     } catch (e) {}
 
-    persistAppHostLang(normalizeAppHostLang(rawAppHostLang) || 'typescript');
+    persistAppHostLang(normalizeAppHostLang(rawAppHostLang) || defaultAppHostLang);
+    annotateAppHostLanguageControls();
+    document.addEventListener('astro:page-load', annotateAppHostLanguageControls);
+    window.addEventListener('apphost-language-change', annotateAppHostLanguageControls);
 
     try {
       var path = window.location.pathname.replace(/\/$/, '');
