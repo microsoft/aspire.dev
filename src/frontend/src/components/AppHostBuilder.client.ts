@@ -1,4 +1,5 @@
-type AppHostLanguage = 'csharp' | 'typescript';
+import type { AppHostLanguageId } from '@utils/apphost-languages';
+
 type EditorState = 'idle' | 'navigating' | 'selecting' | 'typing' | 'switching';
 
 interface DiffHunk {
@@ -10,8 +11,11 @@ interface DiffHunk {
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const LINE_SELECTOR = 'pre > code > .ec-line';
 
-function isAppHostLanguage(value: string | undefined): value is AppHostLanguage {
-  return value === 'csharp' || value === 'typescript';
+function isAppHostLanguage(
+  value: unknown,
+  enabledLanguages: ReadonlySet<AppHostLanguageId>
+): value is AppHostLanguageId {
+  return typeof value === 'string' && enabledLanguages.has(value as AppHostLanguageId);
 }
 
 function wait(duration: number): Promise<void> {
@@ -116,6 +120,11 @@ function initializeAppHostBuilder(root: HTMLElement): void {
   const languageGroups = Array.from(
     root.querySelectorAll<HTMLElement>('.code-lang-group[data-code-lang]')
   );
+  const enabledLanguages = new Set(
+    languageButtons
+      .map((button) => button.dataset.lang)
+      .filter((language): language is AppHostLanguageId => Boolean(language))
+  );
 
   if (
     !codeDisplay ||
@@ -129,12 +138,26 @@ function initializeAppHostBuilder(root: HTMLElement): void {
     return;
   }
 
-  const selectedLanguage = languageButtons.find(
-    (button) => button.getAttribute('aria-pressed') === 'true'
-  )?.dataset.lang;
-  if (!isAppHostLanguage(selectedLanguage)) return;
+  const persistedLanguage = document.documentElement.dataset.apphostLang;
+  const defaultLanguage = root.dataset.defaultLanguage;
+  const selectedButton =
+    languageButtons.find((button) => button.dataset.lang === persistedLanguage) ??
+    languageButtons.find((button) => button.getAttribute('aria-pressed') === 'true') ??
+    languageButtons.find((button) => button.dataset.lang === defaultLanguage) ??
+    languageButtons[0];
+  const selectedLanguage = selectedButton?.dataset.lang;
+  if (!isAppHostLanguage(selectedLanguage, enabledLanguages)) return;
+
+  languageButtons.forEach((button) => {
+    const selected = button === selectedButton;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-pressed', String(selected));
+    button.setAttribute('aria-checked', String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
 
   const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY);
+  const listeners = new AbortController();
   const isEditorMotionAllowed = () =>
     motionToggle.checked &&
     !reducedMotion.matches &&
@@ -144,12 +167,14 @@ function initializeAppHostBuilder(root: HTMLElement): void {
   let desiredLanguage = selectedLanguage;
   let currentVariant = getVariantKey();
   let desiredVariant = currentVariant;
-  let pendingAnnouncement = 'TypeScript AppHost code showing Front end.';
+  let pendingAnnouncement = `${
+    selectedButton.dataset.languageLabel ?? selectedLanguage
+  } AppHost code showing Front end.`;
   let processing = false;
   let caretLineIndex = 0;
   let caretColumn = 0;
 
-  const getTemplate = (language: AppHostLanguage, variant: string): HTMLElement | undefined =>
+  const getTemplate = (language: AppHostLanguageId, variant: string): HTMLElement | undefined =>
     root.querySelector<HTMLElement>(
       `.code-lang-group[data-code-lang="${language}"] .code-variant[data-variant="${variant}"]`
     ) ?? undefined;
@@ -160,23 +185,27 @@ function initializeAppHostBuilder(root: HTMLElement): void {
   };
 
   const cloneFrame = (template: HTMLElement): HTMLElement | undefined => {
-    const sourceFrame = template.querySelector<HTMLElement>('.expressive-code');
+    const sourceFrame = template.querySelector<HTMLElement>(
+      '.expressive-code, [data-code-limitation]'
+    );
     const frame = sourceFrame?.cloneNode(true);
     if (!(frame instanceof HTMLElement)) return undefined;
 
     frame.dataset.editorFrame = '';
-    frame.querySelectorAll('.copy').forEach((copyButton) => copyButton.remove());
+    if (frame.matches('.expressive-code')) {
+      frame.querySelectorAll('.copy').forEach((copyButton) => copyButton.remove());
 
-    const title = normalizeLineText(frame.querySelector('.title')?.textContent).trim();
-    const codeRegion = frame.querySelector('pre');
-    if (title && codeRegion) {
-      codeRegion.setAttribute('aria-label', `${title} preview in Build your AppHost`);
+      const title = normalizeLineText(frame.querySelector('.title')?.textContent).trim();
+      const codeRegion = frame.querySelector('pre');
+      if (title && codeRegion) {
+        codeRegion.setAttribute('aria-label', `${title} preview in Build your AppHost`);
+      }
     }
 
     return frame;
   };
 
-  const mountFrame = (language: AppHostLanguage, variant: string): HTMLElement | undefined => {
+  const mountFrame = (language: AppHostLanguageId, variant: string): HTMLElement | undefined => {
     const template = getTemplate(language, variant);
     if (!template) return undefined;
 
@@ -187,6 +216,8 @@ function initializeAppHostBuilder(root: HTMLElement): void {
     stage.insertBefore(frame, caret);
     stage.dataset.codeLang = language;
     stage.dataset.codeVariant = variant;
+    stage.dataset.codeVariantKind = template.dataset.variantKind ?? 'code';
+    stage.toggleAttribute('data-code-limited', template.dataset.variantKind === 'limitation');
     return frame;
   };
 
@@ -410,10 +441,18 @@ function initializeAppHostBuilder(root: HTMLElement): void {
     return true;
   };
 
-  const animateVariantChange = async (language: AppHostLanguage, targetVariant: string) => {
+  const animateVariantChange = async (language: AppHostLanguageId, targetVariant: string) => {
     const frame = stage.querySelector<HTMLElement>('[data-editor-frame]');
     const code = frame?.querySelector<HTMLElement>('pre > code');
     const template = getTemplate(language, targetVariant);
+    if (
+      stage.dataset.codeVariantKind === 'limitation' ||
+      template?.dataset.variantKind === 'limitation'
+    ) {
+      mountFrame(language, targetVariant);
+      await placeCaretAtEnd();
+      return;
+    }
     if (!frame || !code || !template) {
       mountFrame(language, targetVariant);
       return;
@@ -472,7 +511,7 @@ function initializeAppHostBuilder(root: HTMLElement): void {
     }
   };
 
-  const switchLanguage = async (language: AppHostLanguage, variant: string) => {
+  const switchLanguage = async (language: AppHostLanguageId, variant: string) => {
     const currentFrame = stage.querySelector<HTMLElement>('[data-editor-frame]');
     setEditorState('switching');
 
@@ -600,7 +639,7 @@ function initializeAppHostBuilder(root: HTMLElement): void {
     return variant;
   }
 
-  motionToggle.addEventListener('change', () => {
+  const syncMotionPreference = () => {
     const enabled = motionToggle.checked;
     root.dataset.editorMotionEnabled = String(enabled);
     codeDisplay.dataset.editorMotion = enabled
@@ -609,46 +648,102 @@ function initializeAppHostBuilder(root: HTMLElement): void {
         : 'animated'
       : 'disabled';
 
-    if (enabled) {
-      void placeCaretAtEnd();
-    }
+    if (enabled) void placeCaretAtEnd();
+  };
+
+  motionToggle.addEventListener('change', syncMotionPreference, {
+    signal: listeners.signal,
+  });
+  reducedMotion.addEventListener('change', syncMotionPreference, {
+    signal: listeners.signal,
   });
 
-  languageButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const language = button.dataset.lang;
-      if (!isAppHostLanguage(language) || desiredLanguage === language) return;
+  const setSelectedLanguage = (language: AppHostLanguageId, announce: boolean) => {
+    const selected = languageButtons.find((button) => button.dataset.lang === language);
+    if (!selected) return;
 
-      languageButtons.forEach((candidate) => {
-        const isSelected = candidate === button;
-        candidate.classList.toggle('active', isSelected);
-        candidate.setAttribute('aria-pressed', String(isSelected));
-      });
-
-      desiredLanguage = language;
-      desiredVariant = getVariantKey();
-      pendingAnnouncement = `AppHost code language changed to ${button.textContent?.trim() ?? language}.`;
-      root.dispatchEvent(
-        new CustomEvent('aspire:apphost-language-change', {
-          bubbles: true,
-          detail: { language },
-        })
-      );
-      void processRequestedState();
+    languageButtons.forEach((candidate) => {
+      const isSelected = candidate === selected;
+      candidate.classList.toggle('active', isSelected);
+      candidate.setAttribute('aria-pressed', String(isSelected));
+      candidate.setAttribute('aria-checked', String(isSelected));
+      candidate.tabIndex = isSelected ? 0 : -1;
     });
+
+    if (desiredLanguage === language) return;
+    desiredLanguage = language;
+    desiredVariant = getVariantKey();
+    if (announce) {
+      pendingAnnouncement = `AppHost code language changed to ${
+        selected.dataset.languageLabel ?? language
+      }.`;
+    }
+    void processRequestedState();
+  };
+
+  languageButtons.forEach((button) => {
+    button.addEventListener(
+      'click',
+      () => {
+        const language = button.dataset.lang;
+        if (!isAppHostLanguage(language, enabledLanguages)) return;
+        setSelectedLanguage(language, true);
+        window.dispatchEvent(
+          new CustomEvent('apphost-language-select', {
+            detail: { language },
+          })
+        );
+      },
+      { signal: listeners.signal }
+    );
+
+    button.addEventListener(
+      'keydown',
+      (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+
+        const currentIndex = languageButtons.indexOf(button);
+        const nextIndex =
+          event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? languageButtons.length - 1
+              : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + languageButtons.length) %
+                languageButtons.length;
+        languageButtons[nextIndex]?.focus();
+        languageButtons[nextIndex]?.click();
+      },
+      { signal: listeners.signal }
+    );
   });
 
   toggleButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const isSelected = button.classList.toggle('active');
-      button.setAttribute('aria-pressed', String(isSelected));
-      desiredVariant = getVariantKey();
+    button.addEventListener(
+      'click',
+      () => {
+        const isSelected = button.classList.toggle('active');
+        button.setAttribute('aria-pressed', String(isSelected));
+        desiredVariant = getVariantKey();
 
-      const label = button.textContent?.trim() ?? 'Option';
-      pendingAnnouncement = `${label} ${isSelected ? 'added to' : 'removed from'} the AppHost.`;
-      void processRequestedState();
-    });
+        const label = button.textContent?.trim() ?? 'Option';
+        pendingAnnouncement = `${label} ${isSelected ? 'added to' : 'removed from'} the AppHost.`;
+        void processRequestedState();
+      },
+      { signal: listeners.signal }
+    );
   });
+
+  window.addEventListener(
+    'apphost-language-change',
+    (event) => {
+      const language = (event as CustomEvent<{ language?: unknown }>).detail?.language;
+      if (isAppHostLanguage(language, enabledLanguages)) {
+        setSelectedLanguage(language, true);
+      }
+    },
+    { signal: listeners.signal }
+  );
 
   const initialFrame = mountFrame(currentLanguage, currentVariant);
   if (!initialFrame) return;
@@ -666,7 +761,14 @@ function initializeAppHostBuilder(root: HTMLElement): void {
     void placeCaretAtEnd();
   });
   void document.fonts?.ready.then(repositionCaret);
-  stage.addEventListener('scroll', repositionCaret, true);
+  stage.addEventListener('scroll', repositionCaret, {
+    capture: true,
+    signal: listeners.signal,
+  });
+  document.addEventListener('astro:before-swap', () => listeners.abort(), {
+    once: true,
+    signal: listeners.signal,
+  });
 }
 
 export function initializeAppHostBuilders(): void {

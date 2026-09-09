@@ -1,7 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+import appHostLanguageConfig from '../../src/data/apphost-languages.json' with { type: 'json' };
 import { dismissCookieConsentIfVisible } from './helpers';
+
+const enabledAppHostLanguages = appHostLanguageConfig.languages.filter(
+  (language) => language.enabled
+);
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -459,6 +464,31 @@ test('presents the application model as a live polyglot topology', async ({ page
   ).toBe(true);
 });
 
+test('keeps the application-model code story synchronized with registry languages', async ({
+  page,
+}) => {
+  const story = page.locator('[data-model-story]');
+  const builder = page.locator('[data-apphost-builder]').first();
+  const codeVariants = story.locator('[data-model-code-language]');
+  const languageIcons = story.locator('[data-model-language-icon]');
+
+  await expect(codeVariants).toHaveCount(enabledAppHostLanguages.length);
+  await expect(languageIcons).toHaveCount(enabledAppHostLanguages.length);
+
+  for (const language of enabledAppHostLanguages) {
+    await builder.locator(`.lang-toggle[data-lang="${language.id}"]`).click();
+    await expect(story).toHaveAttribute('data-story-language', language.id);
+    await expect(story.locator('[data-model-code-language][data-active="true"]')).toHaveCount(1);
+    await expect(
+      story.locator(`[data-model-code-language="${language.id}"][data-active="true"]`)
+    ).toBeVisible();
+    await expect(
+      story.locator(`[data-model-language-icon="${language.id}"][data-active="true"]`)
+    ).toBeVisible();
+    await expect(story.locator('[data-terminal-apphost]')).toHaveText(language.appHostFile);
+  }
+});
+
 test('starts finite motion after complete presentation and rail motion on entry', async ({
   page,
 }) => {
@@ -862,12 +892,12 @@ test('matches foreground Aspire CLI output and replaces startup statuses in plac
 
   await csharpButton.click();
   await expect(story).toHaveAttribute('data-story-language', 'csharp');
-  await expect(appHostFile).toHaveText('apphost.cs');
+  await expect(appHostFile).toHaveText('AppHost.cs');
   await codeStage.click();
-  await expect(status).toHaveText('Checking project type... apphost.cs');
+  await expect(status).toHaveText('Checking project type... AppHost.cs');
   await terminalWindow.scrollIntoViewIfNeeded();
   await control.click();
-  await expect.poll(() => status.textContent()).toBe('Building AppHost... apphost.cs');
+  await expect.poll(() => status.textContent()).toBe('Building AppHost... AppHost.cs');
   await codeStage.click();
   await expect(story).toHaveAttribute('data-story-playing', 'false');
 

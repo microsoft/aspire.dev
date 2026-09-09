@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
 
+import appHostLanguageConfig from '../../src/data/apphost-languages.json' with { type: 'json' };
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+
+const enabledAppHostLanguages = appHostLanguageConfig.languages.filter(
+  (language) => language.enabled
+);
 
 test('app host builder swaps visible code when toggles and language change', async ({ page }) => {
   await page.goto('/');
@@ -19,8 +24,25 @@ test('app host builder swaps visible code when toggles and language change', asy
   const typeScriptToggle = builder.locator('.lang-toggle[data-lang="typescript"]');
   const csharpToggle = builder.locator('.lang-toggle[data-lang="csharp"]');
 
-  await expect(languageToggles).toHaveText(['TypeScript', 'C#']);
+  await expect(languageToggles.locator(':scope > span:first-child')).toHaveText(
+    enabledAppHostLanguages.map((language) => language.label)
+  );
+  await expect(languageToggles).toHaveCount(enabledAppHostLanguages.length);
+  await expect(builder.locator('.language-experimental')).toHaveCount(
+    enabledAppHostLanguages.filter((language) => language.experimental).length
+  );
+  await expect(builder.locator('.code-lang-group')).toHaveCount(enabledAppHostLanguages.length);
+  for (const language of appHostLanguageConfig.languages.filter(
+    (candidate) => !candidate.enabled
+  )) {
+    await expect(builder.locator(`.lang-toggle[data-lang="${language.id}"]`)).toHaveCount(0);
+    await expect(builder.locator(`.code-lang-group[data-code-lang="${language.id}"]`)).toHaveCount(
+      0
+    );
+  }
   await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(typeScriptToggle).toHaveAttribute('aria-checked', 'true');
+  await expect(typeScriptToggle).toHaveAttribute('tabindex', '0');
   await expect(csharpToggle).toHaveAttribute('aria-pressed', 'false');
   await expect(codeStage).toBeVisible();
   await expect(codeStage).toHaveAttribute('data-code-lang', 'typescript');
@@ -37,12 +59,39 @@ test('app host builder swaps visible code when toggles and language change', asy
   await csharpToggle.click();
 
   await expect(csharpToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(csharpToggle).toHaveAttribute('aria-checked', 'true');
   await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'false');
   await expect(codeStage).toHaveAttribute('data-code-lang', 'csharp');
   await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
   await expect(codeStage).toContainText('AddPostgres("db")');
   await expect(csharpGroup).toBeHidden();
   await expect(typeScriptGroup).toBeHidden();
+  await expect(page.locator('html')).toHaveAttribute('data-apphost-lang', 'csharp');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('aspire-lang'))).toBe('csharp');
+});
+
+test('AppHost builder keyboard navigation follows registry order', async ({ page }) => {
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const firstLanguage = enabledAppHostLanguages[0];
+  const lastLanguage = enabledAppHostLanguages.at(-1);
+  if (!firstLanguage || !lastLanguage) throw new Error('Expected enabled AppHost languages.');
+
+  const firstToggle = builder.locator(`.lang-toggle[data-lang="${firstLanguage.id}"]`);
+  const lastToggle = builder.locator(`.lang-toggle[data-lang="${lastLanguage.id}"]`);
+
+  await firstToggle.focus();
+  await firstToggle.press('End');
+  await expect(lastToggle).toBeFocused();
+  await expect(lastToggle).toHaveAttribute('aria-checked', 'true');
+  await expect(lastToggle).toHaveAttribute('tabindex', '0');
+  await expect(firstToggle).toHaveAttribute('tabindex', '-1');
+
+  await lastToggle.press('Home');
+  await expect(firstToggle).toBeFocused();
+  await expect(firstToggle).toHaveAttribute('aria-checked', 'true');
 });
 
 test('AppHost builder types additions and selects removals before deleting them', async ({

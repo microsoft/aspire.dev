@@ -11,6 +11,7 @@ import {
 import { renderAppHostTabsInMarkdown } from '../../config/apphost-language-markdown.mjs';
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url));
+const componentsDirectory = path.resolve(testsDirectory, '..', '..', 'src', 'components');
 const docsDirectory = path.resolve(testsDirectory, '..', '..', 'src', 'content', 'docs');
 const excludedTopLevel = new Set([
   'da',
@@ -98,6 +99,35 @@ describe('AppHost language registry', () => {
 
     expect(violations).toEqual([]);
   });
+
+  test('interactive AppHost surfaces author every registry language with completeness guards', () => {
+    const builderSource = fs.readFileSync(
+      path.join(componentsDirectory, 'AppHostBuilder.astro'),
+      'utf8'
+    );
+    const builderClientSource = fs.readFileSync(
+      path.join(componentsDirectory, 'AppHostBuilder.client.ts'),
+      'utf8'
+    );
+    const homeSource = fs.readFileSync(
+      path.join(componentsDirectory, 'home', 'HomePage.astro'),
+      'utf8'
+    );
+
+    for (const language of appHostLanguageConfig.languages) {
+      expect(builderSource).toMatch(new RegExp(`\\b${language.id}:\\s+render[A-Z]`));
+      expect(homeSource).toMatch(new RegExp(`\\n\\s*${language.id}:\\s*\\{`));
+    }
+
+    expect(builderSource).toContain('AppHostBuilder requires code or a limitation for');
+    expect(homeSource).toContain('Home AppHost model story requires code or a limitation for');
+    expect(builderSource).toContain('language-experimental');
+    expect(homeSource).toContain('handle().to_json()');
+    expect(homeSource).not.toContain('[]aspire.Resource');
+    expect(builderClientSource).toContain("template?.dataset.variantKind === 'limitation'");
+    expect(builderClientSource).not.toContain("type AppHostLanguage = 'csharp' | 'typescript'");
+    expect(homeSource).not.toContain("type AppHostLanguage = 'csharp' | 'typescript'");
+  });
 });
 
 describe('AppHost page-action Markdown', () => {
@@ -121,10 +151,7 @@ builder.run()
 </AppHostTabs>
 `;
 
-    const rendered = renderAppHostTabsInMarkdown(
-      markdown,
-      appHostLanguageConfig.languages
-    );
+    const rendered = renderAppHostTabsInMarkdown(markdown, appHostLanguageConfig.languages);
 
     expect(rendered).toContain('### TypeScript');
     expect(rendered).toContain('### C#');
@@ -147,9 +174,7 @@ builder.run()
     const rendered = renderAppHostTabsInMarkdown(markdown, languages);
 
     expect(rendered).toContain('### Python (Experimental)');
-    expect(rendered).toContain(
-      '> **Python AppHost limitation:** This API is not generated yet.'
-    );
+    expect(rendered).toContain('> **Python AppHost limitation:** This API is not generated yet.');
   });
 
   test('preserves list indentation while rendering page-action Markdown', () => {
@@ -169,10 +194,7 @@ builder.run()
     </AppHostTabs>
 `;
 
-    const rendered = renderAppHostTabsInMarkdown(
-      markdown,
-      appHostLanguageConfig.languages
-    );
+    const rendered = renderAppHostTabsInMarkdown(markdown, appHostLanguageConfig.languages);
 
     expect(rendered).toContain('    ### TypeScript');
     expect(rendered).toContain('    ### C#');
@@ -187,10 +209,7 @@ Python preview content
 </AppHostLanguagePivot>
 `;
 
-    const rendered = renderAppHostTabsInMarkdown(
-      markdown,
-      appHostLanguageConfig.languages
-    );
+    const rendered = renderAppHostTabsInMarkdown(markdown, appHostLanguageConfig.languages);
 
     expect(rendered).toContain('TypeScript content');
     expect(rendered).not.toContain('Python preview content');

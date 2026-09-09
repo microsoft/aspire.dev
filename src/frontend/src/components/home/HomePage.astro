@@ -29,6 +29,11 @@ import HomeIntegrationRail from './HomeIntegrationRail.astro';
 import HomeTestimonials from './HomeTestimonials.astro';
 import { localizedHref } from '@utils/helpers';
 import { getLocaleFromPath } from '@utils/locale-routes';
+import {
+  appHostLanguageConfig,
+  getEnabledAppHostLanguages,
+  type AppHostLanguageId,
+} from '@utils/apphost-languages';
 
 const languages = [
   { name: 'C#', icon: csharpIcon },
@@ -41,7 +46,9 @@ const languages = [
   { name: 'Containers', icon: dockerIcon },
 ] as const;
 
-const modelAppHostTypescript = `import { createBuilder } from "./.aspire/modules/aspire.mjs";
+const modelAppHostVariants: Record<AppHostLanguageId, { code?: string; limitation?: string }> = {
+  typescript: {
+    code: `import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 const postgres = await builder
@@ -58,9 +65,10 @@ await builder.addViteApp("frontend", "./frontend")
     .withReference(cache);
 
 await builder.build().run();
-`;
-
-const modelAppHostCsharp = `var builder = DistributedApplication.CreateBuilder(args);
+`,
+  },
+  csharp: {
+    code: `var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
     .AddDatabase("catalogdb");
@@ -75,7 +83,159 @@ builder.AddProject<Projects.Frontend>("frontend")
     .WithReference(cache);
 
 builder.Build().Run();
-`;
+`,
+  },
+  python: {
+    code: `from aspire_app import create_builder
+
+with create_builder() as builder:
+    postgres = builder.add_container("postgres", "postgres:17")
+    cache = builder.add_container("basketcache", "redis:8")
+
+    catalog = (
+        builder.add_project("catalogservice", "../CatalogService/CatalogService.csproj")
+        .with_reference(postgres)
+    )
+
+    (
+        builder.add_project("frontend", "../Frontend/Frontend.csproj")
+        .with_reference(catalog)
+        .with_reference(cache)
+    )
+
+    builder.run()
+`,
+  },
+  go: {
+    code: `package main
+
+import (
+    "log"
+
+    "apphost/modules/aspire"
+)
+
+func main() {
+    builder, err := aspire.CreateBuilder()
+    if err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+
+    postgres := builder.AddContainer("postgres", "postgres:17")
+    if err := postgres.Err(); err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+
+    cache := builder.AddContainer("basketcache", "redis:8")
+    if err := cache.Err(); err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+
+    catalog := builder.
+        AddProject("catalogservice", "../CatalogService/CatalogService.csproj").
+        WithReference(postgres)
+    if err := catalog.Err(); err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+
+    frontend := builder.
+        AddProject("frontend", "../Frontend/Frontend.csproj").
+        WithReference(catalog).
+        WithReference(cache)
+    if err := frontend.Err(); err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+
+    app, err := builder.Build()
+    if err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+    if err := app.Run(); err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+}
+`,
+  },
+  java: {
+    code: `import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var postgres = builder.addContainer("postgres", "postgres:17");
+    var cache = builder.addContainer("basketcache", "redis:8");
+
+    var catalog = builder
+        .addProject("catalogservice", "../CatalogService/CatalogService.csproj")
+        .withReference(postgres);
+
+    builder
+        .addProject("frontend", "../Frontend/Frontend.csproj")
+        .withReference(catalog)
+        .withReference(cache);
+
+    builder.build().run();
+}
+`,
+  },
+  rust: {
+    code: `#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::Value;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let postgres = builder.add_container(
+        "postgres",
+        Value::String("postgres:17".to_string()),
+    )?;
+    let cache = builder.add_container(
+        "basketcache",
+        Value::String("redis:8".to_string()),
+    )?;
+
+    let catalog = builder.add_project(
+        "catalogservice",
+        "../CatalogService/CatalogService.csproj",
+        None,
+    )?;
+    catalog.with_reference(postgres.handle().to_json(), None, None, None)?;
+
+    let frontend = builder.add_project(
+        "frontend",
+        "../Frontend/Frontend.csproj",
+        None,
+    )?;
+    frontend.with_reference(catalog.handle().to_json(), None, None, None)?;
+    frontend.with_reference(cache.handle().to_json(), None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+`,
+  },
+};
+
+const enabledAppHostLanguages = getEnabledAppHostLanguages();
+const modelLanguageIcons: Record<AppHostLanguageId, ImageMetadata> = {
+  typescript: typescriptIcon,
+  csharp: csharpIcon,
+  python: pythonIcon,
+  go: goIcon,
+  java: javaIcon,
+  rust: rustIcon,
+};
+
+for (const language of appHostLanguageConfig.languages) {
+  const variant = modelAppHostVariants[language.id];
+  if (!variant?.code && !variant?.limitation) {
+    throw new Error(`Home AppHost model story requires code or a limitation for ${language.id}.`);
+  }
+}
 
 const frontendResourceIcons = [reactIcon, typescriptIcon, javascriptIcon] as const;
 const apiResourceIcons = [csharpIcon, javaIcon, pythonIcon, goIcon] as const;
@@ -179,7 +339,7 @@ const localizedPrinciples = principles.map((principle) => ({
           data-story-stage="code"
           data-story-focus="terminal"
           data-story-surface="hidden"
-          data-story-language="typescript"
+          data-story-language={appHostLanguageConfig.defaultLanguage}
         >
           <div class="model-story-stack">
             <div class="model-terminal">
@@ -235,22 +395,22 @@ const localizedPrinciples = principles.map((principle) => ({
                   aria-pressed="true"
                 >
                   <span class="model-tab-icon model-tab-lang" aria-hidden="true">
-                    <Image
-                      src={typescriptIcon}
-                      alt=""
-                      class="model-tab-lang-icon model-tab-lang-typescript"
-                      width="18"
-                      height="18"
-                      loading="eager"
-                    />
-                    <Image
-                      src={csharpIcon}
-                      alt=""
-                      class="model-tab-lang-icon model-tab-lang-csharp"
-                      width="18"
-                      height="18"
-                      loading="eager"
-                    />
+                    {
+                      enabledAppHostLanguages.map((language) => (
+                        <Image
+                          src={modelLanguageIcons[language.id]}
+                          alt=""
+                          class="model-tab-lang-icon"
+                          data-model-language-icon={language.id}
+                          data-active={String(
+                            language.id === appHostLanguageConfig.defaultLanguage
+                          )}
+                          width="18"
+                          height="18"
+                          loading="eager"
+                        />
+                      ))
+                    }
                   </span>
                   <span class="model-tab-text">AppHost</span>
                 </button>
@@ -308,13 +468,31 @@ const localizedPrinciples = principles.map((principle) => ({
 
               <div class="model-story-viewport" aria-hidden="true">
                 <div class="model-story-panel model-code" data-story-panel="code">
-                  <div class="model-code-variant" data-model-code-language="typescript">
-                    <Code code={modelAppHostTypescript} lang="typescript" frame="none" />
-                  </div>
-
-                  <div class="model-code-variant" data-model-code-language="csharp">
-                    <Code code={modelAppHostCsharp} lang="csharp" frame="none" />
-                  </div>
+                  {
+                    enabledAppHostLanguages.map((language) => {
+                      const variant = modelAppHostVariants[language.id];
+                      return (
+                        <div
+                          class="model-code-variant"
+                          data-model-code-language={language.id}
+                          data-apphost-file={language.appHostFile}
+                          data-apphost-build={String(language.id !== 'typescript')}
+                          data-active={String(
+                            language.id === appHostLanguageConfig.defaultLanguage
+                          )}
+                        >
+                          {variant.code ? (
+                            <Code code={variant.code} lang={language.codeFence} frame="none" />
+                          ) : (
+                            <div class="model-code-limitation" role="note">
+                              <strong>{language.label} AppHost limitation</strong>
+                              <p>{variant.limitation}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  }
                 </div>
 
                 <div
@@ -676,13 +854,16 @@ const localizedPrinciples = principles.map((principle) => ({
 
 <script>
   import { createViewportActivationObserver } from '@utils/viewport-activation';
+  import type { AppHostLanguageId } from '@utils/apphost-languages';
 
-  type AppHostLanguage = 'csharp' | 'typescript';
   type ModelStoryStage = 'code' | 'topology' | 'dashboard';
   type TerminalStatus = 'checking' | 'building' | 'preparing' | 'connecting' | 'dashboard';
 
-  function isAppHostLanguage(value: unknown): value is AppHostLanguage {
-    return value === 'csharp' || value === 'typescript';
+  function isAppHostLanguage(
+    value: unknown,
+    enabledLanguages: ReadonlySet<AppHostLanguageId>
+  ): value is AppHostLanguageId {
+    return typeof value === 'string' && enabledLanguages.has(value as AppHostLanguageId);
   }
 
   function randomizeLanguageOrder(page: HTMLElement) {
@@ -715,6 +896,17 @@ const localizedPrinciples = principles.map((principle) => ({
     const stageLabels = Array.from(root.querySelectorAll<HTMLElement>('[data-model-stage-label]'));
     const stageSurface = root.querySelector<HTMLElement>('[data-model-story-surface]');
     const graph = root.querySelector<HTMLElement>('[data-model-graph]');
+    const codeVariants = Array.from(
+      root.querySelectorAll<HTMLElement>('[data-model-code-language]')
+    );
+    const languageIcons = Array.from(
+      root.querySelectorAll<HTMLElement>('[data-model-language-icon]')
+    );
+    const enabledLanguages = new Set(
+      codeVariants
+        .map((variant) => variant.dataset.modelCodeLanguage)
+        .filter((language): language is AppHostLanguageId => Boolean(language))
+    );
     if (!command || !toggle || !statusLine || !statusText || !appHostOutput || !stageSurface) {
       return null;
     }
@@ -735,10 +927,11 @@ const localizedPrinciples = principles.map((principle) => ({
     let manuallyPaused = false;
     let cycleElapsed = 0;
     let cycleStartedAt = 0;
-    const initialLanguage = root.dataset.storyLanguage;
-    let storyLanguage: AppHostLanguage = isAppHostLanguage(initialLanguage)
+    const initialLanguage =
+      document.documentElement.dataset.apphostLang ?? root.dataset.storyLanguage;
+    let storyLanguage: AppHostLanguageId = isAppHostLanguage(initialLanguage, enabledLanguages)
       ? initialLanguage
-      : 'typescript';
+      : (codeVariants[0]?.dataset.modelCodeLanguage as AppHostLanguageId);
     let activeStatus: TerminalStatus | null = null;
 
     const dashboard = root.querySelector<HTMLElement>('[data-model-dashboard]');
@@ -828,8 +1021,10 @@ const localizedPrinciples = principles.map((principle) => ({
       toggle.setAttribute('aria-label', manuallyPaused ? playLabel : pauseLabel);
     };
 
-    const getAppHostFileName = () =>
-      storyLanguage === 'typescript' ? 'apphost.mts' : 'apphost.cs';
+    const getActiveCodeVariant = () =>
+      codeVariants.find((variant) => variant.dataset.modelCodeLanguage === storyLanguage);
+    const getAppHostFileName = () => getActiveCodeVariant()?.dataset.apphostFile ?? 'AppHost';
+    const languageUsesBuild = () => getActiveCodeVariant()?.dataset.apphostBuild === 'true';
 
     const getStatusText = (status: TerminalStatus) => {
       switch (status) {
@@ -918,7 +1113,7 @@ const localizedPrinciples = principles.map((principle) => ({
       command.textContent = commandText;
       root.removeAttribute('data-terminal-typing');
       if (stage === 'code') {
-        showStatus(storyLanguage === 'typescript' ? 'preparing' : 'checking');
+        showStatus(languageUsesBuild() ? 'checking' : 'preparing');
       } else if (stage === 'topology') {
         showStatus('connecting');
       } else {
@@ -938,15 +1133,18 @@ const localizedPrinciples = principles.map((principle) => ({
       }
     };
 
-    const setLanguage = (language: AppHostLanguage) => {
+    const setLanguage = (language: AppHostLanguageId) => {
       storyLanguage = language;
       root.dataset.storyLanguage = language;
-      if (
-        language === 'typescript' &&
-        (activeStatus === 'checking' || activeStatus === 'building')
-      ) {
+      codeVariants.forEach((variant) => {
+        variant.dataset.active = String(variant.dataset.modelCodeLanguage === language);
+      });
+      languageIcons.forEach((icon) => {
+        icon.dataset.active = String(icon.dataset.modelLanguageIcon === language);
+      });
+      if (!languageUsesBuild() && (activeStatus === 'checking' || activeStatus === 'building')) {
         activeStatus = 'preparing';
-      } else if (language === 'csharp' && activeStatus === 'preparing') {
+      } else if (languageUsesBuild() && activeStatus === 'preparing') {
         activeStatus = 'building';
       }
       syncTerminalLanguage();
@@ -998,12 +1196,9 @@ const localizedPrinciples = principles.map((principle) => ({
         );
       });
 
-      scheduleAt(
-        () => showStatus(storyLanguage === 'typescript' ? 'preparing' : 'checking'),
-        1_250
-      );
+      scheduleAt(() => showStatus(languageUsesBuild() ? 'checking' : 'preparing'), 1_250);
       scheduleAt(() => {
-        if (storyLanguage === 'csharp') {
+        if (languageUsesBuild()) {
           showStatus('building');
         }
       }, 2_050);
@@ -1179,6 +1374,7 @@ const localizedPrinciples = principles.map((principle) => ({
 
     toggle.addEventListener('click', handleToggle);
     stageLabels.forEach((label) => label.addEventListener('click', handleStageClick));
+    setLanguage(storyLanguage);
     updateControl();
 
     if (reducedMotion) {
@@ -1207,20 +1403,26 @@ const localizedPrinciples = principles.map((principle) => ({
     const modelStory = modelStoryRoot
       ? createModelStory(modelStoryRoot, reducedMotion.matches)
       : null;
-    const selectedLanguage = page.querySelector<HTMLButtonElement>(
-      '.home-hero-product .lang-toggle[aria-pressed="true"]'
-    )?.dataset.lang;
-    if (modelStory && isAppHostLanguage(selectedLanguage)) {
+    const storyLanguages = new Set(
+      Array.from(modelStoryRoot?.querySelectorAll<HTMLElement>('[data-model-code-language]') ?? [])
+        .map((variant) => variant.dataset.modelCodeLanguage)
+        .filter((language): language is AppHostLanguageId => Boolean(language))
+    );
+    const selectedLanguage =
+      document.documentElement.dataset.apphostLang ??
+      page.querySelector<HTMLButtonElement>('.home-hero-product .lang-toggle[aria-pressed="true"]')
+        ?.dataset.lang;
+    if (modelStory && isAppHostLanguage(selectedLanguage, storyLanguages)) {
       modelStory.setLanguage(selectedLanguage);
     }
 
     const handleAppHostLanguageChange = (event: Event) => {
       const language = (event as CustomEvent<{ language?: unknown }>).detail?.language;
-      if (modelStory && isAppHostLanguage(language)) {
+      if (modelStory && isAppHostLanguage(language, storyLanguages)) {
         modelStory.setLanguage(language);
       }
     };
-    document.addEventListener('aspire:apphost-language-change', handleAppHostLanguageChange);
+    window.addEventListener('apphost-language-change', handleAppHostLanguageChange);
 
     let modelStoryVisible = false;
     const revealItemsByTarget = new Map<HTMLElement, HTMLElement[]>();
@@ -1295,7 +1497,7 @@ const localizedPrinciples = principles.map((principle) => ({
         storyObserver?.disconnect();
         modelStory?.destroy();
         document.removeEventListener('visibilitychange', updateModelStoryPlayback);
-        document.removeEventListener('aspire:apphost-language-change', handleAppHostLanguageChange);
+        window.removeEventListener('apphost-language-change', handleAppHostLanguageChange);
         delete page.dataset.revealsInitialized;
       },
       { once: true }
@@ -1980,8 +2182,7 @@ const localizedPrinciples = principles.map((principle) => ({
     object-fit: contain;
   }
 
-  .model-proof[data-story-language='typescript'] :global(.model-tab-lang-typescript),
-  .model-proof[data-story-language='csharp'] :global(.model-tab-lang-csharp) {
+  .model-tab-lang :global(.model-tab-lang-icon[data-active='true']) {
     display: block;
   }
 
@@ -2099,11 +2300,31 @@ const localizedPrinciples = principles.map((principle) => ({
     display: none;
   }
 
-  .model-proof[data-story-language='typescript']
-    .model-code-variant[data-model-code-language='typescript'],
-  .model-proof[data-story-language='csharp']
-    .model-code-variant[data-model-code-language='csharp'] {
+  .model-code-variant[data-active='true'] {
     display: block;
+  }
+
+  .model-code-limitation {
+    height: 100%;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 0.75rem;
+    padding: clamp(2rem, 6vw, 4rem);
+    color: var(--home-text);
+    background: color-mix(in srgb, var(--sl-color-orange-low) 38%, var(--home-surface));
+    text-align: center;
+  }
+
+  .model-code-limitation strong {
+    color: var(--sl-color-orange-high);
+  }
+
+  .model-code-limitation p {
+    max-width: 34rem;
+    margin: 0;
+    color: var(--home-muted);
+    line-height: 1.6;
   }
 
   /*

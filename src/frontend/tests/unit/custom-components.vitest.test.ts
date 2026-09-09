@@ -60,6 +60,7 @@ import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 import samplesData from '@data/samples.json';
+import { appHostLanguageConfig, getEnabledAppHostLanguages } from '@utils/apphost-languages';
 import daTranslations from '../../src/content/i18n/da.json';
 import deTranslations from '../../src/content/i18n/de.json';
 import enTranslations from '../../src/content/i18n/en.json';
@@ -620,7 +621,7 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['AccessibleCodeButtons.astro?astro&type=script'],
   },
   {
-    name: 'AppHostBuilder renders both language groups and code display container',
+    name: 'AppHostBuilder renders enabled language groups and code display container',
     Component: AppHostBuilder,
     includes: [
       'data-code-lang="csharp"',
@@ -1007,6 +1008,29 @@ describe('custom Astro component render coverage', () => {
     const html = normalizeHtml(await renderComponent(AppHostBuilder));
 
     expect(html).not.toMatch(/withNpmPackageInstallation/i);
+  });
+
+  it('AppHostBuilder renders registry-enabled languages in order with every variant covered', async () => {
+    const html = normalizeHtml(await renderComponent(AppHostBuilder));
+    const enabledLanguages = getEnabledAppHostLanguages();
+    const disabledLanguages = appHostLanguageConfig.languages.filter(
+      (language) => !language.enabled
+    );
+    const renderedLanguageIds = Array.from(
+      html.matchAll(/class="lang-toggle[^"]*"[^>]*data-lang="([^"]+)"/g),
+      (match) => match[1]
+    );
+
+    expect(renderedLanguageIds).toEqual(enabledLanguages.map((language) => language.id));
+    expect(html.match(/data-variant="/g)).toHaveLength(enabledLanguages.length * 31);
+
+    for (const language of enabledLanguages) {
+      expect(html).toContain(`data-code-lang="${language.id}"`);
+    }
+    for (const language of disabledLanguages) {
+      expect(html).not.toContain(`data-lang="${language.id}"`);
+      expect(html).not.toContain(`data-code-lang="${language.id}"`);
+    }
   });
 
   it('ThemeImage contains non-square artwork via the optimizer, not rendered markup', async () => {
