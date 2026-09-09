@@ -165,21 +165,37 @@ describe('integration AppHost language parity', () => {
 
     for (const file of getScopedDocs()) {
       const source = fs.readFileSync(file, 'utf8');
-      const withoutAppHostTabs = source.replace(/<AppHostTabs[^>]*>[\s\S]*?<\/AppHostTabs>/g, '');
-      const sourceFences = withoutAppHostTabs.matchAll(
-        /```(?<language>csharp|typescript|python|go|java|rust)\b(?<metadata>[^\n]*)\n(?<code>[\s\S]*?)```/g
+      const withoutAppHostWrappers = source
+        .replace(/<AppHostTabs[^>]*>[\s\S]*?<\/AppHostTabs>/g, '')
+        .replace(/<AppHostLanguagePivot[^>]*>[\s\S]*?<\/AppHostLanguagePivot>/g, '');
+      const sourceFences = withoutAppHostWrappers.matchAll(
+        /```(?<language>csharp|typescript|python|go|java|rust|xml)\b(?<metadata>[^\n]*)\n(?<code>[\s\S]*?)```/g
       );
 
       for (const match of sourceFences) {
+        const language = match.groups?.language ?? '';
         const metadata = match.groups?.metadata ?? '';
         const code = match.groups?.code ?? '';
+        const titleMatch = metadata.match(/\btitle=(?:"(?<double>[^"]+)"|'(?<single>[^']+)'|(?<bare>\S+))/);
+        const title =
+          titleMatch?.groups?.double ??
+          titleMatch?.groups?.single ??
+          titleMatch?.groups?.bare ??
+          '';
+        const nonemptyLines = code
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+        const isPackageDirectiveOnly =
+          nonemptyLines.length > 0 && nonemptyLines.every((line) => line.startsWith('#:package '));
+        const isProjectFile = language === 'xml' || /\.(?:csproj|fsproj|vbproj)$/i.test(title);
         const isAppHostFence =
-          /\btitle=(['"])[^'"]*apphost\.[^'"]*\1/i.test(metadata) ||
+          /(?:^|[\\/])apphost\.(?:cs|mts|ts|py|go|java|rs)$/i.test(title) ||
           /DistributedApplication\.CreateBuilder|createBuilder\(\)|create_builder\(|CreateBuilder\(\)/.test(
             code
           );
 
-        if (isAppHostFence) {
+        if (isAppHostFence && !isPackageDirectiveOnly && !isProjectFile) {
           const line = source.slice(0, match.index).split('\n').length;
           violations.push(
             `${path.relative(docsDirectory, file)}:${line} has a standalone AppHost source fence`
