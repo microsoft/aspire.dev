@@ -1,100 +1,378 @@
 namespace AtsJsonGenerator.Helpers;
 
-/// <summary>
-/// Transforms the raw <c>aspire sdk dump --format json</c> output into the docs-site JSON model.
-/// </summary>
 internal static class AtsTransformer
 {
+    internal static readonly string[] Languages = ["typescript", "python", "go", "java", "rust"];
+    internal static readonly string[] ValidationLevels = ["source-derived", "upstream-test-validated", "sdk-output-validated"];
+    internal const string UpstreamRepository = "microsoft/aspire";
+    internal const string UpstreamCommit = "62028348b5d02dfc8f8baf03a4472946537b0d16";
+    internal const string UpstreamLockFile = "src/tools/AtsJsonGenerator/upstream-sources.lock.json";
     private const string NewAspireRepositoryUrl = "https://github.com/microsoft/aspire";
 
-    /// <summary>
-    /// Transform the deserialized dump output into a <see cref="TsPackageModel"/>.
-    /// </summary>
-    public static TsPackageModel Transform(
+    public static AppHostModuleModel Transform(
         AtsDumpRoot dump,
         string packageName,
         string? version = null,
         string? sourceRepository = null,
-        string? sourceCommit = null)
+        string? sourceCommit = null,
+        AppHostDumpProvenanceModel? dumpProvenance = null)
     {
-        sourceRepository = NormalizeSourceRepository(sourceRepository);
-
-        // Fall back to the version from the dump's Packages metadata if not explicitly provided
-        version ??= dump.Packages
-            .FirstOrDefault(p => string.Equals(p.Name, packageName, StringComparison.OrdinalIgnoreCase))
-            ?.Version;
-
-        // Transform handle types
-        var handleModels = dump.HandleTypes
-            .Select(TransformHandle)
-            .OrderBy(h => h.FullName)
-            .ToList();
-
-        // Build a lookup for associating capabilities with handle types
-        var handleLookup = handleModels.ToDictionary(h => h.FullName, h => h);
-
-        // Transform capabilities into functions
-        var functionModels = dump.Capabilities
-            .Select(TransformCapability)
-            .OrderBy(f => f.QualifiedName)
-            .ToList();
-
-        // Associate capabilities with their target handle types
-        foreach (var func in functionModels)
+        ArgumentNullException.ThrowIfNull(dump);
+        if (string.IsNullOrWhiteSpace(packageName))
         {
-            if (func.TargetTypeId is null)
-            {
-                continue;
-            }
-
-            var targetFullName = StripAssemblyPrefix(func.TargetTypeId);
-            if (handleLookup.TryGetValue(targetFullName, out var handle))
-            {
-                handle.Capabilities.Add(func);
-            }
+            throw new InvalidOperationException("Package name must not be empty.");
         }
 
-        // Transform DTO types
-        var dtoModels = dump.DtoTypes
-            .Select(TransformDto)
-            .OrderBy(d => d.FullName)
-            .ToList();
-
-        // Transform enum types
-        var enumModels = dump.EnumTypes
-            .Select(TransformEnum)
-            .OrderBy(e => e.FullName)
-            .ToList();
-
-        return new TsPackageModel
+        version ??= dump.Packages
+            .FirstOrDefault(package => string.Equals(package.Name, packageName, StringComparison.OrdinalIgnoreCase))
+            ?.Version;
+        var package = new AppHostPackageInfo
         {
-            Package = new TsPackageInfo
-            {
-                Name = packageName,
-                Version = version,
-                SourceRepository = sourceRepository,
-                SourceCommit = sourceCommit,
-            },
-            Functions = functionModels,
-            HandleTypes = handleModels,
-            DtoTypes = dtoModels,
-            EnumTypes = enumModels,
+            Name = packageName,
+            Version = version,
+            SourceRepository = NormalizeSourceRepository(sourceRepository),
+            SourceCommit = sourceCommit,
         };
+
+        ILanguageProjectionAdapter[] adapters =
+        [
+            new TypeScriptProjectionAdapter(dump),
+            new PythonProjectionAdapter(dump),
+            new GoProjectionAdapter(dump),
+            new JavaProjectionAdapter(dump),
+            new RustProjectionAdapter(dump),
+        ];
+
+        var items = new List<AppHostItemModel>();
+        items.AddRange(dump.Capabilities
+            .OrderBy(capability => capability.CapabilityId, StringComparer.Ordinal)
+            .Select(capability => TransformCapability(capability, adapters)));
+        items.AddRange(dump.HandleTypes
+            .OrderBy(handle => StripAssemblyPrefix(handle.AtsTypeId), StringComparer.Ordinal)
+            .Select(handle => TransformHandle(handle, adapters)));
+        items.AddRange(dump.DtoTypes
+            .OrderBy(dto => StripAssemblyPrefix(dto.TypeId), StringComparer.Ordinal)
+            .Select(dto => TransformDto(dto, adapters)));
+        items.AddRange(dump.EnumTypes
+            .OrderBy(enumType => EnumFullName(enumType), StringComparer.Ordinal)
+            .Select(enumType => TransformEnum(enumType, adapters)));
+        items.AddRange(dump.ExportedValues
+            .OrderBy(value => string.Join(".", value.PathSegments), StringComparer.Ordinal)
+            .Select(value => TransformExportedValue(value, adapters)));
+
+        EnsureUniqueIdentities(items);
+        ValidateProjectionAccounting(items);
+
+        return new AppHostModuleModel
+        {
+            GeneratorProvenance = new AppHostGeneratorProvenanceModel
+            {
+                Repository = UpstreamRepository,
+                Commit = UpstreamCommit,
+                LockFile = UpstreamLockFile,
+            },
+            DumpProvenance = dumpProvenance,
+            Package = package,
+            Items = items,
+        };
+    }
+
+    public static void DeduplicateAgainstBase(AppHostModuleModel model, AppHostModuleModel baseModel)
+    {
+        var baseIds = baseModel.Items.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
+        model.Items.RemoveAll(item => baseIds.Contains(item.Id));
+        ValidateProjectionAccounting(model.Items);
+    }
+
+    public static AppHostSupportMatrixModel CreateSupportMatrix(AppHostModuleModel model)
+    {
+        return SupportMatrixAggregator.Aggregate([model]);
+    }
+
+    private static AppHostItemModel TransformCapability(
+        AtsDumpCapability capability,
+        IEnumerable<ILanguageProjectionAdapter> adapters)
+    {
+        if (string.IsNullOrWhiteSpace(capability.CapabilityId))
+        {
+            throw new InvalidOperationException("Every capability must have a CapabilityId.");
+        }
+
+        var visibleParameters = capability.Parameters
+            .Where(parameter => !string.Equals(parameter.Name, capability.TargetParameterName, StringComparison.Ordinal))
+            .ToList();
+        var docs = capability.Documentation?.Parameters.ToDictionary(
+            parameter => parameter.Name,
+            parameter => NormalizeDoc(parameter.Description),
+            StringComparer.Ordinal)
+            ?? new Dictionary<string, string?>(StringComparer.Ordinal);
+
+        return new AppHostItemModel
+        {
+            Id = $"capability:{capability.CapabilityId}",
+            Kind = "capability",
+            Name = capability.MethodName,
+            CapabilityId = capability.CapabilityId,
+            QualifiedName = capability.QualifiedMethodName,
+            CapabilityKind = capability.CapabilityKind,
+            Description = NormalizeDoc(capability.Documentation?.Summary) ?? NormalizeDoc(capability.Description),
+            Remarks = NormalizeDoc(capability.Documentation?.Remarks),
+            Returns = NormalizeDoc(capability.Documentation?.Returns),
+            TargetTypeId = capability.TargetTypeId,
+            ExpandedTargetTypes = capability.ExpandedTargetTypes.Select(type => type.TypeId).ToList(),
+            ReturnsBuilder = capability.ReturnsBuilder,
+            Parameters = visibleParameters.Select(parameter => new AppHostParameterModel
+            {
+                Name = parameter.Name,
+                Type = FormatTypeRef(parameter.Type),
+                IsOptional = parameter.IsOptional,
+                IsNullable = parameter.IsNullable || parameter.Type?.IsNullable == true,
+                DefaultValue = parameter.DefaultValue,
+                IsCallback = parameter.IsCallback,
+                CallbackSignature = parameter.IsCallback ? FormatCallback(parameter) : null,
+                Description = docs.GetValueOrDefault(parameter.Name),
+            }).ToList(),
+            ReturnType = FormatTypeRef(capability.ReturnType),
+            Projections = Project(adapters, adapter => adapter.ProjectCapability(capability)),
+        };
+    }
+
+    private static AppHostItemModel TransformHandle(
+        AtsDumpHandleType handle,
+        IEnumerable<ILanguageProjectionAdapter> adapters)
+    {
+        var fullName = StripAssemblyPrefix(handle.AtsTypeId);
+        return new AppHostItemModel
+        {
+            Id = $"handle:{fullName}",
+            Kind = "handle",
+            Name = SimpleName(fullName),
+            FullName = fullName,
+            Description = NormalizeDoc(handle.Documentation?.Summary),
+            Remarks = NormalizeDoc(handle.Documentation?.Remarks),
+            IsInterface = handle.IsInterface,
+            ExposeProperties = handle.ExposeProperties,
+            ExposeMethods = handle.ExposeMethods,
+            ImplementedInterfaces = handle.ImplementedInterfaces.Select(type => StripAssemblyPrefix(type.TypeId)).ToList(),
+            BaseTypeHierarchy = handle.BaseTypeHierarchy.Select(type => StripAssemblyPrefix(type.TypeId)).ToList(),
+            Projections = Project(adapters, adapter => adapter.ProjectHandle(handle)),
+        };
+    }
+
+    private static AppHostItemModel TransformDto(
+        AtsDumpDtoType dto,
+        IEnumerable<ILanguageProjectionAdapter> adapters)
+    {
+        var fullName = StripAssemblyPrefix(dto.TypeId);
+        return new AppHostItemModel
+        {
+            Id = $"dto:{fullName}",
+            Kind = "dto",
+            Name = dto.Name,
+            FullName = fullName,
+            Description = NormalizeDoc(dto.Documentation?.Summary) ?? NormalizeDoc(dto.Description),
+            Remarks = NormalizeDoc(dto.Documentation?.Remarks),
+            Fields = dto.Properties.Select(property => new AppHostFieldModel
+            {
+                Name = property.Name,
+                Type = property.IsCallback
+                    ? FormatCallback(property.CallbackParameters, property.CallbackReturnType)
+                    : FormatTypeRef(property.Type),
+                IsOptional = property.IsOptional,
+                IsNullable = property.IsNullable || property.Type?.IsNullable == true,
+                Description = NormalizeDoc(property.Documentation?.Summary) ?? NormalizeDoc(property.Description),
+            }).ToList(),
+            Projections = Project(adapters, adapter => adapter.ProjectDto(dto)),
+        };
+    }
+
+    private static AppHostItemModel TransformEnum(
+        AtsDumpEnumType enumType,
+        IEnumerable<ILanguageProjectionAdapter> adapters)
+    {
+        var fullName = EnumFullName(enumType);
+        var valueDocs = enumType.ValueInfos.ToDictionary(
+            value => value.Name,
+            value => NormalizeDoc(value.Documentation?.Summary),
+            StringComparer.Ordinal);
+        return new AppHostItemModel
+        {
+            Id = $"enum:{fullName}",
+            Kind = "enum",
+            Name = enumType.Name,
+            FullName = fullName,
+            Description = NormalizeDoc(enumType.Documentation?.Summary),
+            Remarks = NormalizeDoc(enumType.Documentation?.Remarks),
+            Members = enumType.Values.Select(value => new AppHostEnumMemberModel
+            {
+                Name = value,
+                Value = value,
+                Description = valueDocs.GetValueOrDefault(value),
+            }).ToList(),
+            Projections = Project(adapters, adapter => adapter.ProjectEnum(enumType)),
+        };
+    }
+
+    private static AppHostItemModel TransformExportedValue(
+        AtsDumpExportedValue value,
+        IEnumerable<ILanguageProjectionAdapter> adapters)
+    {
+        if (value.PathSegments.Count == 0)
+        {
+            throw new InvalidOperationException("Every exported value must have at least one PathSegments entry.");
+        }
+
+        var path = string.Join(".", value.PathSegments);
+        return new AppHostItemModel
+        {
+            Id = $"exportedValue:{path}",
+            Kind = "exportedValue",
+            Name = value.PathSegments[^1],
+            FullName = path,
+            Description = NormalizeDoc(value.Documentation?.Summary) ?? NormalizeDoc(value.Description),
+            Remarks = NormalizeDoc(value.Documentation?.Remarks),
+            PathSegments = value.PathSegments,
+            Value = value.Value,
+            ReturnType = FormatTypeRef(value.Type),
+            Projections = Project(adapters, adapter => adapter.ProjectExportedValue(value)),
+        };
+    }
+
+    private static Dictionary<string, AppHostProjectionModel> Project(
+        IEnumerable<ILanguageProjectionAdapter> adapters,
+        Func<ILanguageProjectionAdapter, AppHostProjectionModel> projector)
+    {
+        var projections = new Dictionary<string, AppHostProjectionModel>(StringComparer.Ordinal);
+        foreach (var adapter in adapters)
+        {
+            projections.Add(adapter.Language, projector(adapter));
+        }
+        return projections;
+    }
+
+    private static void EnsureUniqueIdentities(IEnumerable<AppHostItemModel> items)
+    {
+        var duplicate = items.GroupBy(item => item.Id, StringComparer.Ordinal)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicate is not null)
+        {
+            throw new InvalidOperationException($"Duplicate ATS identity '{duplicate.Key}'.");
+        }
+    }
+
+    internal static void ValidateProjectionAccounting(IEnumerable<AppHostItemModel> items)
+    {
+        foreach (var item in items)
+        {
+            foreach (var language in Languages)
+            {
+                if (!item.Projections.TryGetValue(language, out var projection))
+                {
+                    throw new InvalidOperationException(
+                        $"ATS item '{item.Id}' is missing its '{language}' projection.");
+                }
+
+                if (projection.Status is not ("supported" or "unsupported"))
+                {
+                    throw new InvalidOperationException(
+                        $"ATS item '{item.Id}' has invalid '{language}' status '{projection.Status}'.");
+                }
+
+                if (!ValidationLevels.Contains(projection.Validation, StringComparer.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"ATS item '{item.Id}' has invalid '{language}' validation level '{projection.Validation}'.");
+                }
+
+                if (projection.Status == "unsupported" && string.IsNullOrWhiteSpace(projection.Reason))
+                {
+                    throw new InvalidOperationException(
+                        $"ATS item '{item.Id}' has an unsupported '{language}' projection without a reason.");
+                }
+
+                if (projection.Status == "supported" &&
+                    (string.IsNullOrWhiteSpace(projection.Identifier) ||
+                     string.IsNullOrWhiteSpace(projection.SourceFile)))
+                {
+                    throw new InvalidOperationException(
+                        $"ATS item '{item.Id}' has an incomplete supported '{language}' projection.");
+                }
+            }
+
+            if (item.Projections.Count != Languages.Length)
+            {
+                var extras = item.Projections.Keys.Except(Languages, StringComparer.Ordinal);
+                throw new InvalidOperationException(
+                    $"ATS item '{item.Id}' has unexpected projections: {string.Join(", ", extras)}.");
+            }
+        }
+    }
+
+    internal static string FormatTypeRef(AtsDumpTypeRef? typeRef)
+    {
+        if (typeRef is null)
+        {
+            return "void";
+        }
+
+        var category = typeRef.Category.ToLowerInvariant();
+        var formatted = category switch
+        {
+            "primitive" => typeRef.TypeId,
+            "callback" => "callback",
+            "array" => $"{FormatTypeRef(typeRef.ElementType)}[]",
+            "list" => $"list<{FormatTypeRef(typeRef.ElementType)}>",
+            "dict" => $"map<{FormatTypeRef(typeRef.KeyType)}, {FormatTypeRef(typeRef.ValueType)}>",
+            "union" => string.Join(" | ", (typeRef.UnionTypes ?? []).Select(FormatTypeRef).Distinct(StringComparer.Ordinal)),
+            _ => SimplifyTypeId(typeRef.TypeId),
+        };
+
+        if (typeRef.IsNullable == true && formatted is not ("void" or "any"))
+        {
+            formatted += " | null";
+        }
+        return formatted;
+    }
+
+    internal static string SimplifyTypeId(string typeId)
+    {
+        var stripped = StripAssemblyPrefix(typeId);
+        return FormatReflectionType(stripped);
+    }
+
+    internal static string StripAssemblyPrefix(string typeId)
+    {
+        var slashIndex = typeId.IndexOf('/');
+        var stripped = slashIndex >= 0 ? typeId[(slashIndex + 1)..] : typeId;
+        return stripped.Contains("[[", StringComparison.Ordinal)
+            ? CleanAssemblyQualifiedGenerics(stripped)
+            : stripped;
+    }
+
+    private static string FormatCallback(AtsDumpParameter parameter)
+        => FormatCallback(parameter.CallbackParameters, parameter.CallbackReturnType);
+
+    private static string FormatCallback(
+        IReadOnlyList<AtsDumpCallbackParam>? parameters,
+        AtsDumpTypeRef? returnType)
+    {
+        var args = string.Join(", ", (parameters ?? []).Select(parameter =>
+            $"{parameter.Name}: {FormatTypeRef(parameter.Type)}"));
+        return $"({args}) => {FormatTypeRef(returnType)}";
     }
 
     private static string? NormalizeSourceRepository(string? sourceRepository)
     {
         if (string.IsNullOrWhiteSpace(sourceRepository))
         {
-            return sourceRepository;
+            return null;
         }
 
         var trimmed = sourceRepository.Trim();
-
-        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var repoUri) &&
-            repoUri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var repositoryUri) &&
+            repositoryUri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
         {
-            var segments = repoUri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var segments = repositoryUri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
             if (segments.Length == 2 &&
                 segments[0].Equals("dotnet", StringComparison.OrdinalIgnoreCase) &&
                 (segments[1].Equals("aspire", StringComparison.OrdinalIgnoreCase) ||
@@ -103,211 +381,24 @@ internal static class AtsTransformer
                 return NewAspireRepositoryUrl;
             }
         }
-
         return trimmed;
     }
 
-    private static TsHandleTypeModel TransformHandle(AtsDumpHandleType h)
-    {
-        var fullName = StripAssemblyPrefix(h.AtsTypeId);
-        return new TsHandleTypeModel
-        {
-            Name = SimpleName(fullName),
-            FullName = fullName,
-            IsInterface = h.IsInterface,
-            ExposeProperties = h.ExposeProperties,
-            ExposeMethods = h.ExposeMethods,
-            Description = NormalizeDoc(h.Documentation?.Summary),
-            Remarks = NormalizeDoc(h.Documentation?.Remarks),
-            ImplementedInterfaces = h.ImplementedInterfaces
-                .Select(i => StripAssemblyPrefix(i.TypeId))
-                .OrderBy(i => i)
-                .ToList(),
-            BaseTypeHierarchy = h.BaseTypeHierarchy
-                .Select(i => StripAssemblyPrefix(i.TypeId))
-                .ToList(),
-        };
-    }
+    private static string EnumFullName(AtsDumpEnumType enumType)
+        => enumType.TypeId.StartsWith("enum:", StringComparison.Ordinal)
+            ? enumType.TypeId["enum:".Length..]
+            : StripAssemblyPrefix(enumType.TypeId);
 
-    private static TsFunctionModel TransformCapability(AtsDumpCapability cap)
-    {
-        // Filter out the context/builder target parameter from visible params
-        var visibleParams = cap.Parameters
-            .Where(p => p.Name != cap.TargetParameterName)
-            .ToList();
-
-        // Build a name → description lookup from the new Documentation block,
-        // covering only the parameters that will be rendered in the docs.
-        var paramDocLookup = cap.Documentation?.Parameters
-            .Where(d => !string.IsNullOrWhiteSpace(d.Description))
-            .GroupBy(d => d.Name, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.First().Description, StringComparer.Ordinal)
-            ?? new Dictionary<string, string?>(StringComparer.Ordinal);
-
-        var paramModels = visibleParams.Select(p => new TsParameterModel
-        {
-            Name = p.Name,
-            Type = FormatTypeRef(p.Type),
-            IsOptional = p.IsOptional,
-            IsNullable = p.IsNullable,
-            DefaultValue = p.DefaultValue,
-            IsCallback = p.IsCallback,
-            CallbackSignature = p.IsCallback ? FormatCallbackSignature(p) : null,
-            Description = paramDocLookup.TryGetValue(p.Name, out var pd) ? NormalizeDoc(pd) : null,
-        }).ToList();
-
-        // Build a TypeScript-style signature
-        var paramParts = paramModels.Select(p =>
-        {
-            var opt = p.IsOptional ? "?" : "";
-            var type = p.IsCallback && p.CallbackSignature is not null
-                ? p.CallbackSignature
-                : p.Type;
-            return $"{p.Name}{opt}: {type}";
-        });
-
-        var returnTypeStr = FormatTypeRef(cap.ReturnType);
-        var sig = $"{cap.MethodName}({string.Join(", ", paramParts)}): {returnTypeStr}";
-
-        // Prefer the richer Documentation.Summary; fall back to the legacy
-        // Description field for older dumps that don't ship Documentation.
-        var description = NormalizeDoc(cap.Documentation?.Summary) ?? NormalizeDoc(cap.Description);
-
-        return new TsFunctionModel
-        {
-            Name = cap.MethodName,
-            CapabilityId = cap.CapabilityId,
-            QualifiedName = cap.QualifiedMethodName,
-            Description = description,
-            Remarks = NormalizeDoc(cap.Documentation?.Remarks),
-            Returns = NormalizeDoc(cap.Documentation?.Returns),
-            Kind = cap.CapabilityKind,
-            Signature = sig,
-            Parameters = paramModels,
-            ReturnType = returnTypeStr,
-            ReturnsBuilder = cap.ReturnsBuilder,
-            TargetTypeId = cap.TargetTypeId,
-            ExpandedTargetTypes = cap.ExpandedTargetTypes
-                .Select(t => StripAssemblyPrefix(t.TypeId))
-                .ToList(),
-        };
-    }
-
-    private static TsDtoTypeModel TransformDto(AtsDumpDtoType dto)
-    {
-        var fullName = StripAssemblyPrefix(dto.TypeId);
-        return new TsDtoTypeModel
-        {
-            Name = dto.Name,
-            FullName = fullName,
-            Description = NormalizeDoc(dto.Documentation?.Summary) ?? NormalizeDoc(dto.Description),
-            Remarks = NormalizeDoc(dto.Documentation?.Remarks),
-            Fields = dto.Properties.Select(p => new TsDtoFieldModel
-            {
-                Name = p.Name,
-                Type = FormatTypeRef(p.Type),
-                // The Aspire TypeScript SDK intentionally emits DTOs as partial
-                // object shapes, regardless of the raw ATS property's nullability.
-                IsOptional = true,
-                Description = NormalizeDoc(p.Documentation?.Summary) ?? NormalizeDoc(p.Description),
-            }).ToList(),
-        };
-    }
-
-    private static TsEnumTypeModel TransformEnum(AtsDumpEnumType e)
-    {
-        // EnumType TypeId is "enum:Full.Name" — strip "enum:" prefix
-        var fullName = e.TypeId.StartsWith("enum:", StringComparison.Ordinal)
-            ? e.TypeId["enum:".Length..]
-            : e.TypeId;
-
-        // Build per-member docs from ValueInfos, preserving original order.
-        // Only emitted if at least one member carries non-empty documentation.
-        List<TsEnumMemberDocModel>? memberDocs = null;
-        if (e.ValueInfos.Count > 0)
-        {
-            var docs = e.ValueInfos.Select(v => new TsEnumMemberDocModel
-            {
-                Name = v.Name,
-                Description = NormalizeDoc(v.Documentation?.Summary),
-                Remarks = NormalizeDoc(v.Documentation?.Remarks),
-            }).ToList();
-
-            if (docs.Any(d => d.Description is not null || d.Remarks is not null))
-            {
-                memberDocs = docs;
-            }
-        }
-
-        return new TsEnumTypeModel
-        {
-            Name = e.Name,
-            FullName = fullName,
-            Description = NormalizeDoc(e.Documentation?.Summary),
-            Remarks = NormalizeDoc(e.Documentation?.Remarks),
-            Members = e.Values,
-            MemberDocs = memberDocs,
-        };
-    }
-
-    /// <summary>
-    /// Treat whitespace-only XML doc strings as missing so they're omitted from
-    /// the output JSON rather than serialized as empty strings.
-    /// </summary>
     private static string? NormalizeDoc(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value;
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    /// <summary>
-    /// Format a callback parameter into a TypeScript-style function type signature.
-    /// </summary>
-    private static string FormatCallbackSignature(AtsDumpParameter param)
+    private static string SimpleName(string fullName)
     {
-        if (param.CallbackParameters is null)
-        {
-            return "() => Promise<void>";
-        }
-
-        var cbParams = param.CallbackParameters.Select(p =>
-            $"{p.Name}: {FormatTypeRef(p.Type)}");
-
-        // The generated TypeScript SDK always exposes callbacks as async
-        // (the aspire TS code generator hardcodes `=> Promise<T>` for every
-        // callback because invocation happens over RPC). Mirror that here so
-        // the docs signatures match the actual SDK types.
-        var innerReturnType = param.CallbackReturnType is not null
-            ? FormatTypeRef(param.CallbackReturnType)
-            : "void";
-
-        return $"({string.Join(", ", cbParams)}) => Promise<{innerReturnType}>";
-    }
-
-    /// <summary>
-    /// Format a type reference for display, simplifying common patterns.
-    /// </summary>
-    internal static string FormatTypeRef(AtsDumpTypeRef? typeRef)
-    {
-        if (typeRef is null)
-        {
-            return "void";
-        }
-
-        return typeRef.Category switch
-        {
-            "Primitive" => typeRef.TypeId,
-            "Callback" => "callback",
-            "Array" when typeRef.ElementType is not null =>
-                $"{FormatTypeRef(typeRef.ElementType)}[]",
-            _ => SimplifyTypeId(typeRef.TypeId),
-        };
-    }
-
-    /// <summary>
-    /// Simplify a fully-qualified type ID for display.
-    /// </summary>
-    internal static string SimplifyTypeId(string typeId)
-    {
-        var stripped = StripAssemblyPrefix(typeId);
-        return FormatReflectionType(stripped);
+        var generic = fullName.IndexOf('<');
+        var prefix = generic >= 0 ? fullName[..generic] : fullName;
+        var suffix = generic >= 0 ? fullName[generic..] : "";
+        var delimiter = Math.Max(prefix.LastIndexOf('.'), prefix.LastIndexOf('+'));
+        return (delimiter >= 0 ? prefix[(delimiter + 1)..] : prefix) + suffix;
     }
 
     private static string FormatReflectionType(string typeName)
@@ -328,8 +419,7 @@ internal static class AtsTransformer
             TrySplitReflectionGenericArguments(typeName, argumentsIndex, out var arguments))
         {
             var genericName = SimpleName(typeName[..arityIndex]);
-            var formattedArguments = arguments.Select(FormatReflectionType);
-            return $"{genericName}<{string.Join(",", formattedArguments)}>{arraySuffix}";
+            return $"{genericName}<{string.Join(",", arguments.Select(FormatReflectionType))}>{arraySuffix}";
         }
 
         return $"{FormatPrimitiveType(SimpleName(typeName))}{arraySuffix}";
@@ -343,111 +433,82 @@ internal static class AtsTransformer
         arguments = [];
         var argumentStart = startIndex + 2;
         var depth = 1;
-        var i = argumentStart;
+        var index = argumentStart;
 
-        while (i < typeName.Length)
+        while (index < typeName.Length)
         {
-            if (i + 1 < typeName.Length && typeName[i] == '[' && typeName[i + 1] == ']')
+            if (index + 1 < typeName.Length && typeName[index] == '[' && typeName[index + 1] == ']')
             {
-                i += 2;
+                index += 2;
                 continue;
             }
 
-            if (i + 1 < typeName.Length && typeName[i] == '[' && typeName[i + 1] == '[')
+            if (index + 1 < typeName.Length && typeName[index] == '[' && typeName[index + 1] == '[')
             {
                 depth++;
-                i += 2;
+                index += 2;
                 continue;
             }
 
-            if (i + 1 < typeName.Length && typeName[i] == ']' && typeName[i + 1] == ']')
+            if (index + 1 < typeName.Length && typeName[index] == ']' && typeName[index + 1] == ']')
             {
                 depth--;
                 if (depth == 0)
                 {
-                    arguments.Add(typeName[argumentStart..i]);
-                    return i + 2 == typeName.Length;
+                    arguments.Add(typeName[argumentStart..index]);
+                    return index + 2 == typeName.Length;
                 }
-                i += 2;
+                index += 2;
                 continue;
             }
 
             if (depth == 1 &&
-                i + 2 < typeName.Length &&
-                typeName[i] == ']' &&
-                typeName[i + 1] == ',' &&
-                typeName[i + 2] == '[')
+                index + 2 < typeName.Length &&
+                typeName[index] == ']' &&
+                typeName[index + 1] == ',' &&
+                typeName[index + 2] == '[')
             {
-                arguments.Add(typeName[argumentStart..i]);
-                argumentStart = i + 3;
-                i += 3;
+                arguments.Add(typeName[argumentStart..index]);
+                argumentStart = index + 3;
+                index += 3;
                 continue;
             }
 
-            i++;
+            index++;
         }
-
         arguments = [];
         return false;
     }
 
-    private static string FormatPrimitiveType(string typeName)
+    private static string FormatPrimitiveType(string typeName) => typeName switch
     {
-        return typeName switch
-        {
-            "String" => "string",
-            "Boolean" => "boolean",
-            "Byte" or "SByte" or "Int16" or "UInt16" or "Int32" or "UInt32" or
-                "Int64" or "UInt64" or "Single" or "Double" or "Decimal" => "number",
-            "Object" => "unknown",
-            _ => typeName,
-        };
-    }
+        "String" => "string",
+        "Boolean" => "boolean",
+        "Byte" or "SByte" or "Int16" or "UInt16" or "Int32" or "UInt32" or
+            "Int64" or "UInt64" or "Single" or "Double" or "Decimal" => "number",
+        "Object" => "any",
+        _ => typeName,
+    };
 
-    /// <summary>
-    /// Strip the "Assembly/" prefix from a type ID and clean assembly-qualified
-    /// generic type arguments (e.g., <c>System.IEquatable`1[[TypeName, Assembly, Version=..., ...]]</c>).
-    /// </summary>
-    internal static string StripAssemblyPrefix(string typeId)
-    {
-        var slashIdx = typeId.IndexOf('/');
-        var stripped = slashIdx >= 0 ? typeId[(slashIdx + 1)..] : typeId;
-
-        // Clean assembly metadata from generic type arguments:
-        // [[TypeName, AssemblyName, Version=..., Culture=..., PublicKeyToken=...]]
-        // becomes [[TypeName]]
-        if (stripped.Contains("[["))
-        {
-            stripped = CleanAssemblyQualifiedGenerics(stripped);
-        }
-
-        return stripped;
-    }
-
-    /// <summary>
-    /// Remove assembly metadata from inside double-bracket generic type arguments.
-    /// </summary>
     private static string CleanAssemblyQualifiedGenerics(string typeId)
     {
         var result = new System.Text.StringBuilder(typeId.Length);
-        var i = 0;
-
-        while (i < typeId.Length)
+        var index = 0;
+        while (index < typeId.Length)
         {
-            if (i + 1 < typeId.Length && typeId[i] == '[' && typeId[i + 1] == '[')
+            if (index + 1 < typeId.Length &&
+                typeId[index] == '[' &&
+                typeId[index + 1] == '[' &&
+                TryCleanGenericArgumentList(typeId, index, out var cleaned, out var nextIndex))
             {
-                if (TryCleanGenericArgumentList(typeId, i, out var cleaned, out var nextIndex))
-                {
-                    result.Append(cleaned);
-                    i = nextIndex;
-                    continue;
-                }
+                result.Append(cleaned);
+                index = nextIndex;
+                continue;
             }
 
-            result.Append(typeId[i]);
-            i++;
+            result.Append(typeId[index]);
+            index++;
         }
-
         return result.ToString();
     }
 
@@ -457,21 +518,19 @@ internal static class AtsTransformer
         out string cleaned,
         out int nextIndex)
     {
-        var result = new System.Text.StringBuilder();
-        result.Append("[[");
-        var i = startIndex + 2;
-
-        while (i < typeId.Length)
+        var result = new System.Text.StringBuilder("[[");
+        var index = startIndex + 2;
+        while (index < typeId.Length)
         {
-            var argumentStart = i;
+            var argumentStart = index;
             var bracketDepth = 0;
-            while (i < typeId.Length)
+            while (index < typeId.Length)
             {
-                if (typeId[i] == '[')
+                if (typeId[index] == '[')
                 {
                     bracketDepth++;
                 }
-                else if (typeId[i] == ']')
+                else if (typeId[index] == ']')
                 {
                     if (bracketDepth == 0)
                     {
@@ -479,39 +538,34 @@ internal static class AtsTransformer
                     }
                     bracketDepth--;
                 }
-                i++;
+                index++;
             }
 
-            if (i >= typeId.Length)
+            if (index >= typeId.Length)
             {
-                cleaned = "";
-                nextIndex = startIndex;
-                return false;
+                break;
             }
 
-            var argument = typeId[argumentStart..i];
-            var assemblySeparator = FindTopLevelComma(argument);
-            var typeName = assemblySeparator >= 0 ? argument[..assemblySeparator] : argument;
+            var argument = typeId[argumentStart..index];
+            var separator = FindTopLevelComma(argument);
+            var typeName = separator >= 0 ? argument[..separator] : argument;
             result.Append(CleanAssemblyQualifiedGenerics(typeName.Trim()));
 
-            if (i + 1 < typeId.Length && typeId[i + 1] == ']')
+            if (index + 1 < typeId.Length && typeId[index + 1] == ']')
             {
                 result.Append("]]");
                 cleaned = result.ToString();
-                nextIndex = i + 2;
+                nextIndex = index + 2;
                 return true;
             }
 
-            if (i + 2 < typeId.Length && typeId[i + 1] == ',' && typeId[i + 2] == '[')
+            if (index + 2 < typeId.Length && typeId[index + 1] == ',' && typeId[index + 2] == '[')
             {
                 result.Append("],[");
-                i += 3;
+                index += 3;
                 continue;
             }
-
-            cleaned = "";
-            nextIndex = startIndex;
-            return false;
+            break;
         }
 
         cleaned = "";
@@ -522,39 +576,14 @@ internal static class AtsTransformer
     private static int FindTopLevelComma(string value)
     {
         var bracketDepth = 0;
-        for (var i = 0; i < value.Length; i++)
+        for (var index = 0; index < value.Length; index++)
         {
-            if (value[i] == '[')
+            bracketDepth += value[index] == '[' ? 1 : value[index] == ']' ? -1 : 0;
+            if (value[index] == ',' && bracketDepth == 0)
             {
-                bracketDepth++;
-            }
-            else if (value[i] == ']')
-            {
-                bracketDepth--;
-            }
-            else if (value[i] == ',' && bracketDepth == 0)
-            {
-                return i;
+                return index;
             }
         }
-
         return -1;
-    }
-
-    /// <summary>
-    /// Extract the simple name from a fully-qualified name.
-    /// </summary>
-    private static string SimpleName(string fullName)
-    {
-        // Handle generic types: don't split inside angle brackets
-        if (fullName.Contains('<'))
-        {
-            var angleIdx = fullName.IndexOf('<');
-            var prefix = fullName[..angleIdx];
-            var suffix = fullName[angleIdx..];
-            return prefix.Split('.').Last() + suffix;
-        }
-
-        return fullName.Split('.').Last();
     }
 }

@@ -28,7 +28,7 @@ internal static class BatchGenerateCommand
         Description = "One or more pre-generated JSON files from 'aspire sdk dump --format json' to transform.",
     };
 
-    private static readonly Option<string?> s_versionOption = new("--version")
+    private static readonly Option<string?> s_packageVersionOption = new("--package-version")
     {
         Description = "Package version to include in the output metadata.",
     };
@@ -43,6 +43,21 @@ internal static class BatchGenerateCommand
         Description = "Source commit SHA.",
     };
 
+    private static readonly Option<string?> s_dumpCliVersionOption = new("--dump-cli-version")
+    {
+        Description = "Optional Aspire CLI version that produced the input dumps.",
+    };
+
+    private static readonly Option<string?> s_dumpProductCommitOption = new("--dump-product-commit")
+    {
+        Description = "Optional Aspire product commit represented by the input dumps.",
+    };
+
+    private static readonly Option<string?> s_dumpGeneratedAtOption = new("--dump-generated-at")
+    {
+        Description = "Optional timestamp supplied by the dump-producing workflow.",
+    };
+
     public static Command GetCommand()
     {
         var command = new Command("batch", "Process multiple ATS dump files or discover packages from an Aspire repo clone.")
@@ -50,9 +65,12 @@ internal static class BatchGenerateCommand
             s_outputDirOption,
             s_aspireRepoOption,
             s_inputFilesOption,
-            s_versionOption,
+            s_packageVersionOption,
             s_sourceRepoOption,
             s_sourceCommitOption,
+            s_dumpCliVersionOption,
+            s_dumpProductCommitOption,
+            s_dumpGeneratedAtOption,
         };
 
         command.SetAction(static parseResult =>
@@ -60,11 +78,23 @@ internal static class BatchGenerateCommand
             var outputDir = parseResult.GetValue(s_outputDirOption)!;
             var aspireRepo = parseResult.GetValue(s_aspireRepoOption);
             var inputFiles = parseResult.GetValue(s_inputFilesOption);
-            var version = parseResult.GetValue(s_versionOption);
+            var version = parseResult.GetValue(s_packageVersionOption);
             var sourceRepo = parseResult.GetValue(s_sourceRepoOption);
             var sourceCommit = parseResult.GetValue(s_sourceCommitOption);
+            var dumpCliVersion = parseResult.GetValue(s_dumpCliVersionOption);
+            var dumpProductCommit = parseResult.GetValue(s_dumpProductCommitOption);
+            var dumpGeneratedAt = parseResult.GetValue(s_dumpGeneratedAtOption);
 
-            return RunBatch(outputDir, aspireRepo, inputFiles, version, sourceRepo, sourceCommit);
+            return RunBatch(
+                outputDir,
+                aspireRepo,
+                inputFiles,
+                version,
+                sourceRepo,
+                sourceCommit,
+                dumpCliVersion,
+                dumpProductCommit,
+                dumpGeneratedAt);
         });
 
         return command;
@@ -76,7 +106,10 @@ internal static class BatchGenerateCommand
         string[]? inputFiles,
         string? version,
         string? sourceRepo,
-        string? sourceCommit)
+        string? sourceCommit,
+        string? dumpCliVersion,
+        string? dumpProductCommit,
+        string? dumpGeneratedAt)
     {
         if (!Directory.Exists(outputDir))
         {
@@ -125,7 +158,15 @@ internal static class BatchGenerateCommand
             {
                 var outputPath = Path.Combine(outputDir, $"{packageName}.json");
                 var result = GenerateCommand.TransformFile(
-                    path, outputPath, packageName, version, sourceRepo, sourceCommit);
+                    path,
+                    outputPath,
+                    packageName,
+                    version,
+                    sourceRepo,
+                    sourceCommit,
+                    dumpCliVersion: dumpCliVersion,
+                    dumpProductCommit: dumpProductCommit,
+                    dumpGeneratedAt: dumpGeneratedAt);
 
                 if (result == 0)
                 {

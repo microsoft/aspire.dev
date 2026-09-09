@@ -1,100 +1,173 @@
 # AtsJsonGenerator
 
-Transforms `aspire sdk dump --format json` output into structured JSON files for the aspire.dev TypeScript API reference pages.
+Transforms one `aspire sdk dump --format json` document into one
+language-neutral AppHost API package in
+`src/frontend/src/data/apphost-modules/`.
 
-## Overview
+The generator preserves ATS identities and attaches projections for TypeScript,
+Python, Go, Java, and Rust to every capability, handle, DTO, enum, and exported
+value. A projection is either `supported` or `unsupported`; unsupported
+projections always include a reason.
 
-The Aspire CLI can emit a JSON description of all TypeScript-accessible capabilities for any hosting package via `aspire sdk dump --format json`. This tool transforms that output into a docs-friendly JSON format suitable for consumption by Astro's content collections.
+In addition to signatures and declarations, projections expose structured
+language-specific data:
 
-The companion `generate-ts-api-json.ps1` script reads the generated C# package JSON files in `src/frontend/src/data/pkgs/` and regenerates TypeScript API JSON using the same `Aspire.Hosting*` and `CommunityToolkit.Aspire.Hosting*` package/version sets. Modules with no generated functions or types are omitted so empty packages don't appear in the TypeScript API reference.
+- DTO projections use `fields: [{ name, type, isOptional?, isNullable? }]`.
+- Enum projections use `members: [{ name, value? }]`.
+- Exported values use `valueExpression`.
+- Handle projections use `kind: "interface" | "class" | "handle"` and
+  `implementedInterfaces`.
 
-## Usage
+The shared item retains the original ATS fields independently of these
+language projections.
 
-### Single file
+## Generate one package
 
-```bash
-# First, generate the dump from the Aspire CLI
+```powershell
 aspire sdk dump --format json -o Aspire.Hosting.dump.json
 
-# Then transform it for the docs site
-dotnet run --project AtsJsonGenerator.csproj -- \
-  --input Aspire.Hosting.dump.json \
-  --output ../../frontend/src/data/ts-pkgs/Aspire.Hosting.json \
-  --package-name "Aspire.Hosting" \
-  --version "13.2.0" \
-  --source-repo "https://github.com/microsoft/aspire"
+dotnet run --project .\AtsJsonGenerator.csproj -- `
+  --input .\Aspire.Hosting.dump.json `
+  --output ..\..\frontend\src\data\apphost-modules\Aspire.Hosting.json `
+  --support-output .\Aspire.Hosting.support.json `
+  --package-name Aspire.Hosting `
+  --package-version 13.2.0 `
+  --source-repo https://github.com/microsoft/aspire `
+  --dump-cli-version 13.2.0 `
+  --dump-product-commit 62028348b5d02dfc8f8baf03a4472946537b0d16
 ```
 
-### Batch mode
+Use `--base <semantic-package.json>` for integration packages. Deduplication
+removes matching ATS item identities after all five language projections have
+been generated, so it cannot produce language-specific drift.
 
-Process multiple pre-generated dump files:
+## Generate the package set
 
-```bash
-dotnet run --project AtsJsonGenerator.csproj -- batch \
-  --input Aspire.Hosting.json Aspire.Hosting.Redis.json \
-  --output-dir ../../frontend/src/data/ts-pkgs/
+```powershell
+.\generate-apphost-api-json.ps1 `
+  -AspireRepoPath D:\GitHub\aspire `
+  -SupportOutput ..\..\frontend\src\data\apphost-language-support.json
 ```
 
-Or discover and dump all integration packages from a local Aspire repo clone:
+Without arguments, the script reads package names and versions from
+`src/frontend/src/data/pkgs/`. Its default output directory is
+`src/frontend/src/data/apphost-modules/`. The support output defaults to
+`ASPIRE_API_LANGUAGE_SUPPORT_FILE`, when set, or
+`src/frontend/src/data/apphost-language-support.json`.
 
-```bash
-dotnet run --project AtsJsonGenerator.csproj -- batch \
-  --aspire-repo /path/to/microsoft/aspire \
-  --output-dir ../../frontend/src/data/ts-pkgs/ \
-  --version "13.2.0"
+Full runs aggregate exactly the staged semantic modules. Filtered and explicit
+runs merge staged modules with the existing module directory, replacing every
+successfully regenerated package while preserving unaffected packages. The
+aggregation is performed by the C# `support` command:
+
+Large interrupted runs can resume in disjoint explicit-package chunks without
+redumping core. Pass `-BaseModulePath` with the completed
+`Aspire.Hosting.<version>.json` semantic module so every integration still
+deduplicates against core. `-SkipBuild` is available when the generator was
+already built before launching parallel chunks.
+
+```powershell
+dotnet run --project .\AtsJsonGenerator.csproj -- support `
+  --input-dir ..\..\frontend\src\data\apphost-modules `
+  --output ..\..\frontend\src\data\apphost-language-support.json
 ```
 
-## Output Format
+`generate-ts-api-json.ps1` remains as a compatibility shim and forwards its
+parameters to `generate-apphost-api-json.ps1` with a deprecation warning.
 
-The generated JSON follows this schema:
+## Semantic package schema
 
 ```json
 {
+  "schemaVersion": "1.0",
+  "generatorProvenance": {
+    "repository": "microsoft/aspire",
+    "commit": "62028348b5d02dfc8f8baf03a4472946537b0d16",
+    "lockFile": "src/tools/AtsJsonGenerator/upstream-sources.lock.json"
+  },
+  "dumpProvenance": {
+    "cliVersion": "13.2.0",
+    "productCommit": "62028348b5d02dfc8f8baf03a4472946537b0d16"
+  },
   "package": {
     "name": "Aspire.Hosting",
     "version": "13.2.0",
-    "language": "typescript",
-    "sourceRepository": "https://github.com/microsoft/aspire"
+    "sourceRepository": "https://github.com/microsoft/aspire",
+    "sourceCommit": "..."
   },
-  "functions": [
+  "items": [
     {
+      "id": "capability:Aspire.Hosting/addContainer",
+      "kind": "capability",
       "name": "addContainer",
       "capabilityId": "Aspire.Hosting/addContainer",
-      "qualifiedName": "addContainer",
-      "description": "Adds a container resource",
-      "kind": "Method",
-      "signature": "addContainer(name: string, image: string): ContainerResource",
-      "parameters": [...],
+      "parameters": [],
       "returnType": "ContainerResource",
-      "returnsBuilder": true,
-      "targetTypeId": "Aspire.Hosting/...",
-      "expandedTargetTypes": [...]
+      "projections": {
+        "typescript": {
+          "status": "supported",
+          "validation": "source-derived",
+          "identifier": "addContainer",
+          "signature": "addContainer(name: string): Promise<ContainerResource>",
+          "sourceFile": "aspire.mts",
+          "parameters": [],
+          "return": {
+            "type": "Promise<ContainerResource>",
+            "errorModel": "exception"
+          }
+        },
+        "python": { "status": "supported", "validation": "source-derived", "identifier": "add_container", "sourceFile": "aspire.py" },
+        "go": { "status": "supported", "validation": "source-derived", "identifier": "AddContainer", "sourceFile": "aspire.go" },
+        "java": { "status": "supported", "validation": "source-derived", "identifier": "addContainer", "sourceFile": "Aspire.java" },
+        "rust": { "status": "supported", "validation": "source-derived", "identifier": "add_container", "sourceFile": "lib.rs" }
+      }
     }
-  ],
-  "handleTypes": [
-    {
-      "name": "ContainerResource",
-      "fullName": "Aspire.Hosting.ApplicationModel.ContainerResource",
-      "kind": "handle",
-      "isInterface": false,
-      "capabilities": [...]
-    }
-  ],
-  "dtoTypes": [...],
-  "enumTypes": [...]
+  ]
 }
 ```
 
-## Capability Kinds
+The optional support matrix uses this contract:
 
-- **Method** — Top-level functions called on the builder (e.g., `addContainer`, `withEndpoint`)
-- **PropertyGetter** — Property access on handle types (e.g., `EndpointReference.port`)
-- **PropertySetter** — Property mutation on handle types (e.g., `ExecuteCommandContext.setResourceName`)
-- **InstanceMethod** — Methods called on handle instances (e.g., `DistributedApplication.run`)
+```json
+{
+  "schemaVersion": "1.0",
+  "generatedFrom": {
+    "repository": "microsoft/aspire",
+    "commit": "62028348b5d02dfc8f8baf03a4472946537b0d16",
+    "lockFile": "src/tools/AtsJsonGenerator/upstream-sources.lock.json",
+    "dumpProvenance": {
+      "cliVersion": "13.2.0",
+      "productCommit": "62028348b5d02dfc8f8baf03a4472946537b0d16"
+    }
+  },
+  "packages": {
+    "Aspire.Hosting@13.2.0": {
+      "package": {
+        "name": "Aspire.Hosting",
+        "version": "13.2.0"
+      },
+      "items": {
+        "capability:Aspire.Hosting/addContainer": {
+          "kind": "capability",
+          "name": "addContainer",
+          "languages": {
+            "typescript": { "supported": true, "validation": "source-derived" },
+            "python": { "supported": true, "validation": "source-derived" },
+            "go": { "supported": true, "validation": "source-derived" },
+            "java": { "supported": true, "validation": "source-derived" },
+            "rust": { "supported": true, "validation": "source-derived" }
+          }
+        }
+      }
+    }
+  }
+}
+```
 
-## Building
+Transformation fails if any item is missing a language projection.
 
-```bash
-cd src/tools/AtsJsonGenerator
-dotnet build
+## Validation
+
+```powershell
+dotnet test ..\..\..\tests\AtsJsonGenerator.Tests\AtsJsonGenerator.Tests.csproj
 ```
