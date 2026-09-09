@@ -96,14 +96,122 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const cache = await builder.addRedis("cache");
-const db = (await builder.addPostgres("postgres")).addDatabase("appdb");
+const cache = await builder.addRedis('cache');
+const db = (await builder.addPostgres('postgres')).addDatabase('appdb');
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withReference(cache);
 await api.withReference(db);
 
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    cache = builder.add_redis("cache")
+    db = builder.add_postgres("postgres").add_database("appdb")
+
+    api = builder.add_project("api", "../Api/Api.csproj")
+    api.with_reference(cache)
+    api.with_reference(db)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cache := builder.AddRedis("cache")
+	if err := cache.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	db := builder.AddPostgres("postgres").AddDatabase("appdb")
+	if err := db.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../Api/Api.csproj")
+	api.WithReference(cache).WithReference(db)
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var cache = builder.addRedis("cache");
+    var db = builder.addPostgres("postgres").addDatabase("appdb");
+
+    var api = builder.addProject("api", "../Api/Api.csproj");
+    api.withReference(cache);
+    api.withReference(db);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let cache = builder.add_redis("cache", None, None)?;
+    let db = builder
+        .add_postgres("postgres", None, None, None)?
+        .add_database("appdb", None)?;
+
+    let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+    api.with_reference(cache.handle().to_json(), None, None, None)?;
+    api.with_reference(db.handle().to_json(), None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
 ```
 
 </Fragment>
@@ -135,7 +243,7 @@ var redisConnectionString = Environment.GetEnvironmentVariable("ConnectionString
 
 ```typescript title="app.ts"
 // Read the environment variable directly
-const redisConnectionString = process.env["ConnectionStrings__cache"];
+const redisConnectionString = process.env['ConnectionStrings__cache'];
 ```
 
 </TabItem>

@@ -1,6 +1,6 @@
 ---
 title: Set up SQL Server in the AppHost
-seoTitle: "Set up SQL Server in the Aspire AppHost: hosting integration"
+seoTitle: 'Set up SQL Server in the Aspire AppHost: hosting integration'
 description: Learn how to use the Aspire SQL Server Hosting integration to orchestrate and configure a SQL Server database in an Aspire solution.
 ---
 
@@ -29,7 +29,12 @@ If you're new to the SQL Server integration, start with the [Get started with SQ
 
 To start building an Aspire app that uses SQL Server, install the [📦 Aspire.Hosting.SqlServer](https://www.nuget.org/packages/Aspire.Hosting.SqlServer) NuGet package:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
 
 ```bash title="Terminal"
@@ -37,7 +42,8 @@ aspire add sql-server
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -58,7 +64,8 @@ aspire add sql-server
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the SQL Server hosting integration package:
@@ -78,25 +85,34 @@ This updates your `aspire.config.json` with the SQL Server hosting integration p
 
 Once you've installed the hosting integration in your AppHost project, you can add a SQL Server resource and then add a database resource as shown in the following examples:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
-    .WithLifetime(ContainerLifetime.Persistent);
+.WithLifetime(ContainerLifetime.Persistent);
 
 var db = sql.AddDatabase("database");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject")
-    .WithReference(db)
-    .WaitFor(db);
+.WithReference(db)
+.WaitFor(db);
 
 // After adding all resources, run the app...
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
 
@@ -114,6 +130,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -130,11 +147,18 @@ await builder.build().run();
 </Steps>
 
 <Aside type="note">
-    The SQL Server container is slow to start, so it's best to use a _persistent_ lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+  The SQL Server container is slow to start, so it's best to use a _persistent_
+  lifetime to avoid unnecessary restarts. For more information, see [Container
+  resource
+  lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
 </Aside>
 
 <Aside type="note">
-    When you reference a SQL Server resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, and port numbers. For a complete list of these properties and per-language connection examples, see [Connect to SQL Server](../sql-server-connect/).
+  When you reference a SQL Server resource from the AppHost, Aspire makes
+  several properties available to the consuming project, such as connection
+  URIs, hostnames, and port numbers. For a complete list of these properties and
+  per-language connection examples, see [Connect to SQL
+  Server](../sql-server-connect/).
 </Aside>
 
 <ContainerImages package="Aspire.Hosting.SqlServer" />
@@ -150,19 +174,25 @@ IF (NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = @DatabaseName))
 
 To supply a custom creation script, call `WithCreationScript` (or `withCreationScript`) on the database resource builder:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
-    .WithLifetime(ContainerLifetime.Persistent);
+.WithLifetime(ContainerLifetime.Persistent);
 
 var databaseName = "app-db";
 var creationScript = $$"""
-    IF DB_ID('{{databaseName}}') IS NULL
-        CREATE DATABASE [{{databaseName}}];
-    GO
+IF DB_ID('{{databaseName}}') IS NULL
+CREATE DATABASE [{{databaseName}}];
+GO
 
     USE [{{databaseName}}];
     GO
@@ -179,17 +209,20 @@ var creationScript = $$"""
     """;
 
 var db = sql.AddDatabase(databaseName)
-    .WithCreationScript(creationScript);
+.WithCreationScript(creationScript);
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject")
-    .WithReference(db)
-    .WaitFor(db);
+.WithReference(db)
+.WaitFor(db);
 
 // After adding all resources, run the app...
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
 
@@ -225,6 +258,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -234,25 +268,34 @@ The preceding example creates a database named `app-db` with a single `todos` ta
 
 Add a data volume to the SQL Server resource as shown in the following examples:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
-    .WithDataVolume();
+.WithDataVolume();
 
 var db = sql.AddDatabase("database");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject")
-    .WithReference(db)
-    .WaitFor(db);
+.WithReference(db)
+.WaitFor(db);
 
 // After adding all resources, run the app...
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -270,38 +313,49 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
 The data volume is used to persist the SQL Server data outside the lifecycle of its container. The data volume is mounted at the `/var/opt/mssql` path in the SQL Server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-sql-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 <Aside type="caution">
-The password is stored in the data volume. When using a data volume and if the password changes, it will not work until you delete the volume.
+  The password is stored in the data volume. When using a data volume and if the
+  password changes, it will not work until you delete the volume.
 </Aside>
 
 ## Add SQL Server resource with data bind mount
 
 Add a data bind mount to the SQL Server resource as shown in the following examples:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
-    .WithDataBindMount(source: @"C:\SqlServer\Data");
+.WithDataBindMount(source: @"C:\SqlServer\Data");
 
 var db = sql.AddDatabase("database");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject")
-    .WithReference(db)
-    .WaitFor(db);
+.WithReference(db)
+.WaitFor(db);
 
 // After adding all resources, run the app...
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -319,11 +373,18 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
 <Aside type="note">
-    Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+  Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have
+  limited functionality compared to
+  [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better
+  performance, portability, and security, making them more suitable for
+  production environments. However, bind mounts allow direct access and
+  modification of files on the host system, ideal for development and testing
+  where real-time changes are needed.
 </Aside>
 
 Data bind mounts rely on the host machine's filesystem to persist the SQL Server data across container restarts. The data bind mount is mounted at the `C:\SqlServer\Data` on Windows (or `/SqlServer/Data` on Unix) path on the host machine in the SQL Server container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
@@ -332,8 +393,14 @@ Data bind mounts rely on the host machine's filesystem to persist the SQL Server
 
 When you want to explicitly provide the password used by the container image, you can provide it as a parameter:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -343,14 +410,17 @@ var sql = builder.AddSqlServer("sql", password);
 var db = sql.AddDatabase("database");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject")
-    .WithReference(db)
-    .WaitFor(db);
+.WithReference(db)
+.WaitFor(db);
 
 // After adding all resources, run the app...
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -368,6 +438,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -377,25 +448,34 @@ When no `password` parameter is provided, Aspire generates a strong password aut
 
 To pin the SQL Server container to a specific release, call `WithImageTag` (or `withImageTag`):
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
-    .WithImageTag("2025-RTM-ubuntu-24.04-preview");
+.WithImageTag("2025-RTM-ubuntu-24.04-preview");
 
 var db = sql.AddDatabase("database");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject")
-    .WithReference(db)
-    .WaitFor(db);
+.WithReference(db)
+.WaitFor(db);
 
 // After adding all resources, run the app...
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -413,6 +493,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -422,8 +503,14 @@ For a list of available tags, see [SQL Server container image tags](https://mcr.
 
 By default, Aspire injects the SQL Server connection information using variable names derived from the resource name (for example, `DATABASE_URI`, `DATABASE_HOST`, `DATABASE_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -431,19 +518,22 @@ var sql = builder.AddSqlServer("sql");
 var database = sql.AddDatabase("database");
 
 var app = builder.AddExecutable("my-app", "node", "app.js", ".")
-    .WithReference(database)
-    .WithEnvironment(context =>
-    {
-        context.EnvironmentVariables["SQL_HOST"] = sql.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
-        context.EnvironmentVariables["SQL_PORT"] = sql.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
-        context.EnvironmentVariables["SQL_PASSWORD"] = sql.Resource.PasswordParameter;
-        context.EnvironmentVariables["SQL_DATABASE"] = database.Resource.DatabaseName;
-    });
+.WithReference(database)
+.WithEnvironment(context =>
+{
+context.EnvironmentVariables["SQL_HOST"] = sql.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+context.EnvironmentVariables["SQL_PORT"] = sql.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+context.EnvironmentVariables["SQL_PASSWORD"] = sql.Resource.PasswordParameter;
+context.EnvironmentVariables["SQL_DATABASE"] = database.Resource.DatabaseName;
+});
 
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -461,6 +551,7 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -468,21 +559,30 @@ await builder.build().run();
 
 To reference an externally managed SQL Server instance instead of running one as a container, use `AddConnectionString`:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddConnectionString("sql");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject")
-    .WithReference(sql);
+.WithReference(sql);
 
 // After adding all resources, run the app...
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -496,6 +596,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -556,6 +657,7 @@ When the AppHost runs, the server's database resources can be accessed from exte
             For more information, see [MSSQL for Visual Studio Code](https://learn.microsoft.com/sql/tools/visual-studio-code-extensions/mssql/mssql-extension-visual-studio-code).
         </LearnMore>
     </TabItem>
+
 </Tabs>
 
 ## Connection properties

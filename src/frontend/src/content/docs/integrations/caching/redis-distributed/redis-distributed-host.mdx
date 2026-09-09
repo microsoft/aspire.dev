@@ -35,7 +35,8 @@ aspire add redis
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -56,7 +57,8 @@ aspire add redis
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Redis hosting integration package:
@@ -70,6 +72,34 @@ This updates your `aspire.config.json` with the Redis hosting integration packag
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add redis
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add redis
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add redis
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add redis
+```
+
+</Fragment>
 </AppHostTabs>
 
 ## Add Redis resource
@@ -78,30 +108,129 @@ Once the hosting integration is installed, add a Redis resource in your AppHost 
 
 <AppHostTabs>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(cache);
+.WithReference(cache);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const cache = await builder.addRedis("cache");
+const cache = await builder.addRedis('cache');
 
-await builder.addNodeApp("api", "./api", "index.js")
-    .withReference(cache);
+await builder.addNodeApp('api', './api', 'index.js').withReference(cache);
 
 // After adding all resources, run the app...
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    cache = builder.add_redis("cache")
+
+    builder.add_project(
+        "apiservice",
+        "../ExampleProject/ExampleProject.csproj",
+    ).with_reference(cache)
+
+    builder.run()
+
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cache := builder.AddRedis("cache")
+	if err := cache.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject(
+		"apiservice",
+		"../ExampleProject/ExampleProject.csproj",
+	).WithReference(cache)
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var cache = builder.addRedis("cache");
+    builder.addProject(
+        "apiservice",
+        "../ExampleProject/ExampleProject.csproj")
+        .withReference(cache);
+
+}
+
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let cache = builder.add_redis("cache", None, None)?;
+    builder
+        .add_project(
+            "apiservice",
+            "../ExampleProject/ExampleProject.csproj",
+            None,
+        )?
+        .with_reference(cache.handle().to_json(), None, None, None)?;
+
+    Ok(())
+}
+```
+
 </Fragment>
 </AppHostTabs>
 
@@ -116,7 +245,11 @@ await builder.addNodeApp("api", "./api", "index.js")
 </Steps>
 
 <Aside type="note">
-  When you reference a Redis resource from the AppHost, Aspire makes the connection URI, hostname, port, and password available to the consuming project as environment variables. For a complete list of these properties, see [Connect to Redis distributed caching](../redis-distributed-connect/#connection-properties).
+  When you reference a Redis resource from the AppHost, Aspire makes the
+  connection URI, hostname, port, and password available to the consuming
+  project as environment variables. For a complete list of these properties, see
+  [Connect to Redis distributed
+  caching](../redis-distributed-connect/#connection-properties).
 </Aside>
 
 ## Full AppHost API reference

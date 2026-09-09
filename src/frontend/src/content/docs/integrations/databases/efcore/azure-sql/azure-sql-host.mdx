@@ -28,7 +28,12 @@ If you're new to the Azure SQL EF Core integration, start with the [Get started 
 
 The Aspire Azure SQL Database hosting integration models the SQL server as the `AzureSqlServerResource` type and SQL databases as the `AzureSqlDatabaseResource` type. To access these types and APIs, install the [📦 Aspire.Hosting.Azure.Sql](https://www.nuget.org/packages/Aspire.Hosting.Azure.Sql) NuGet package in your AppHost project:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
 
 ```bash title="Terminal"
@@ -36,7 +41,8 @@ aspire add azure-sql
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -57,7 +63,8 @@ aspire add azure-sql
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Azure SQL Database hosting integration package:
@@ -77,8 +84,14 @@ This updates your `aspire.config.json` with the Azure SQL Database hosting integ
 
 In your AppHost project, call `AddAzureSqlServer` to add and return an Azure SQL server resource builder. Chain a call to `AddDatabase` to add an Azure SQL database resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -86,13 +99,16 @@ var sql = builder.AddAzureSqlServer("sql");
 var db = sql.AddDatabase("database");
 
 var myService = builder.AddProject<Projects.MyService>()
-    .WithReference(db);
+.WithReference(db);
 
 // After adding all resources, run the app...
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -107,6 +123,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -121,23 +138,33 @@ await builder.build().run();
 </Steps>
 
 <Aside type="caution">
-  When you call `AddAzureSqlServer`, it implicitly calls
-  `AddAzureProvisioning` — which adds support for generating Azure resources
-  dynamically during app startup. The app must configure the appropriate
-  subscription and location. For more information, see [Local provisioning:
+  When you call `AddAzureSqlServer`, it implicitly calls `AddAzureProvisioning`
+  — which adds support for generating Azure resources dynamically during app
+  startup. The app must configure the appropriate subscription and location. For
+  more information, see [Local provisioning:
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 <Aside type="note">
-    When you reference an Azure SQL Database resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection strings, URIs, and port numbers. For a complete list of these properties, see [Connect to Azure SQL with EF Core](../azure-sql-connect/#connection-properties).
+  When you reference an Azure SQL Database resource from the AppHost, Aspire
+  makes several properties available to the consuming project, such as
+  connection strings, URIs, and port numbers. For a complete list of these
+  properties, see [Connect to Azure SQL with EF
+  Core](../azure-sql-connect/#connection-properties).
 </Aside>
 
 ## Connect to an existing Azure SQL server
 
 You might have an existing Azure SQL Database service that you want to connect to. Chain a call to `AsExisting` (or `asExisting`) to annotate that your resource already exists in Azure:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -145,17 +172,20 @@ var existingName = builder.AddParameter("existingSqlServerName");
 var existingResourceGroup = builder.AddParameter("existingSqlServerResourceGroup");
 
 var sql = builder.AddAzureSqlServer("sql")
-    .AsExisting(existingName, existingResourceGroup)
-    .AddDatabase("database");
+.AsExisting(existingName, existingResourceGroup)
+.AddDatabase("database");
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(sql);
+.WithReference(sql);
 
 // After adding all resources, run the app...
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -174,6 +204,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -183,24 +214,33 @@ For more information on treating Azure SQL resources as existing resources, see 
 
 During local development and testing, you can run an Azure SQL server as a local SQL Server container instead of provisioning an actual Azure resource. Call `RunAsContainer` (or `runAsContainer`) to switch to a local container:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddAzureSqlServer("sql")
-    .RunAsContainer();
+.RunAsContainer();
 
 var db = sql.AddDatabase("database");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>()
-    .WithReference(db);
+.WithReference(db);
 
 // After adding all resources, run the app...
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -217,13 +257,19 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
 When `RunAsContainer` is active, Aspire pulls a SQL Server container image and runs it locally. The consuming project receives the same connection environment variables it would receive when deployed to Azure, so your code works without modification between local and cloud environments.
 
 <Aside type="tip">
-  `RunAsContainer` accepts an optional delegate (C#) or options object (TypeScript) that lets you customize the underlying `SqlServerServerResource` configuration. For example, you can add a data volume or data bind mount. For more information, see the [Aspire SQL Server hosting integration](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-data-volume) section.
+  `RunAsContainer` accepts an optional delegate (C#) or options object
+  (TypeScript) that lets you customize the underlying `SqlServerServerResource`
+  configuration. For example, you can add a data volume or data bind mount. For
+  more information, see the [Aspire SQL Server hosting
+  integration](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-data-volume)
+  section.
 </Aside>
 
 ## Admin deployment script

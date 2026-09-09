@@ -1,8 +1,10 @@
 ---
 title: Set up Oracle in the AppHost
-seoTitle: "Set up Oracle in the Aspire AppHost: hosting integration"
+seoTitle: 'Set up Oracle in the Aspire AppHost: hosting integration'
 description: Learn how to use the Aspire Oracle Hosting integration to orchestrate and configure an Oracle database in an Aspire solution.
 ---
+
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 import { Image } from 'astro:assets';
 import { Aside, Steps } from '@astrojs/starlight/components';
@@ -24,7 +26,8 @@ This article is the reference for the Aspire Oracle Hosting integration. It enum
 If you're new to the Oracle EF Core integration, start with the [Get started with Oracle EF Core integrations](/integrations/databases/efcore/oracle/oracle-get-started/) guide. For how consuming C# apps connect to the database this page exposes, see [Connect to Oracle with EF Core](../oracle-connect/).
 
 <Aside type="note">
-TypeScript AppHost support for the Oracle EF Core hosting integration is not yet available.
+  TypeScript AppHost support for the Oracle EF Core hosting integration is not
+  yet available.
 </Aside>
 
 ## Installation
@@ -42,10 +45,21 @@ aspire add oracle
 
 Or, choose a manual installation approach:
 
+<AppHostTabs limitations={{
+  typescript: 'TypeScript for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  python: 'Python for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 #:package Aspire.Hosting.Oracle@*
 ```
 
+</Fragment>
+</AppHostTabs>
 ```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.Oracle" Version="*" />
 ```
@@ -54,21 +68,33 @@ Or, choose a manual installation approach:
 
 In the AppHost project, call `AddOracle` to add and return an Oracle server resource builder. Chain a call to `AddDatabase` on the returned resource builder to add an Oracle database to the server resource:
 
+<AppHostTabs limitations={{
+  typescript: 'TypeScript for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  python: 'Python for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var oracle = builder.AddOracle("oracle")
-                    .WithLifetime(ContainerLifetime.Persistent);
+.WithLifetime(ContainerLifetime.Persistent);
 
 var oracledb = oracle.AddDatabase("oracledb");
 
 builder.AddProject<Projects.ExampleProject>()
-       .WithReference(oracledb)
-       .WaitFor(oracledb);
+.WithReference(oracledb)
+.WaitFor(oracledb);
 
 // After adding all resources, run the app...
+
 ```
 
+</Fragment>
+</AppHostTabs>
 <Steps>
 
 1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `container-registry.oracle.com/database/free` image, it creates a new Oracle server instance on your local machine.
@@ -91,6 +117,15 @@ When you reference an Oracle resource from the AppHost, Aspire makes several pro
 
 The Oracle resource includes default credentials with a random password. Oracle supports configuration-based default passwords using the `ORACLE_PWD` environment variable. When you want to provide a password explicitly, pass it as a parameter:
 
+<AppHostTabs limitations={{
+  typescript: 'TypeScript for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  python: 'Python for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -106,6 +141,8 @@ var myService = builder.AddProject<Projects.ExampleProject>()
                        .WaitFor(oracledb);
 ```
 
+</Fragment>
+</AppHostTabs>
 The preceding code gets a parameter to pass to the `AddOracle` API, and internally assigns the parameter to the `ORACLE_PWD` environment variable of the Oracle container. The `password` parameter is usually specified as a user secret:
 
 ```json title="secrets.json"
@@ -122,22 +159,34 @@ For more information, see [External parameters](/get-started/resources/).
 
 To add a data volume to the Oracle resource, call the `WithDataVolume` method:
 
+<AppHostTabs limitations={{
+  typescript: 'TypeScript for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  python: 'Python for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var oracle = builder.AddOracle("oracle")
-                    .WithDataVolume()
-                    .WithLifetime(ContainerLifetime.Persistent);
+.WithDataVolume()
+.WithLifetime(ContainerLifetime.Persistent);
 
 var oracledb = oracle.AddDatabase("oracledb");
 
 builder.AddProject<Projects.ExampleProject>()
-       .WithReference(oracledb)
-       .WaitFor(oracledb);
+.WithReference(oracledb)
+.WaitFor(oracledb);
 
 // After adding all resources, run the app...
+
 ```
 
+</Fragment>
+</AppHostTabs>
 The data volume is used to persist the Oracle data outside the lifecycle of its container. The data volume is mounted at the `/opt/oracle/oradata` path in the Oracle container and, when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-oracle-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 :::danger
@@ -147,6 +196,15 @@ The password is stored in the data volume. When using a data volume and if the p
 ## Add Oracle resource with data bind mount
 
 To add a data bind mount to the Oracle resource, call the `WithDataBindMount` method:
+
+<AppHostTabs limitations={{
+  typescript: 'TypeScript for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  python: 'Python for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -163,10 +221,13 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
+</Fragment>
+</AppHostTabs>
 <Aside>
 Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
 
 Data bind mounts rely on the host machine's filesystem to persist Oracle data across container restarts. The bind mount path is `C:\Oracle\Data` on Windows (or `/Oracle/Data` on Unix). For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+
 </Aside>
 
 ## Hosting integration health checks

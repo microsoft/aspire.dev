@@ -1,6 +1,6 @@
 ---
 title: Set up Milvus in the AppHost
-seoTitle: "Set up Milvus in the Aspire AppHost: hosting integration"
+seoTitle: 'Set up Milvus in the Aspire AppHost: hosting integration'
 description: Learn how to use the Aspire Milvus Hosting integration to orchestrate and configure Milvus vector databases in an Aspire solution.
 ---
 
@@ -29,7 +29,12 @@ If you're new to the Milvus integration, start with the [Get started with Milvus
 
 To start building an Aspire app that uses Milvus, install the [📦 Aspire.Hosting.Milvus](https://www.nuget.org/packages/Aspire.Hosting.Milvus) NuGet package:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
 
 ```bash title="Terminal"
@@ -37,7 +42,8 @@ aspire add milvus
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -58,7 +64,8 @@ aspire add milvus
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Milvus hosting integration package:
@@ -78,24 +85,33 @@ This updates your `aspire.config.json` with the Milvus hosting integration packa
 
 Once you've installed the hosting integration in your AppHost project, you can add a Milvus server resource and then add a database resource as shown in the following examples:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var milvus = builder.AddMilvus("milvus")
-    .WithLifetime(ContainerLifetime.Persistent);
+.WithLifetime(ContainerLifetime.Persistent);
 
 var milvusdb = milvus.AddDatabase("milvusdb");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(milvusdb)
-    .WaitFor(milvusdb);
+.WithReference(milvusdb)
+.WaitFor(milvusdb);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -112,6 +128,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -126,15 +143,24 @@ await builder.addNodeApp("api", "./api", "index.js")
 </Steps>
 
 <Aside type="note">
-The Milvus container can be slow to start, so it's best to use a persistent lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+  The Milvus container can be slow to start, so it's best to use a persistent
+  lifetime to avoid unnecessary restarts. For more information, see [Container
+  resource
+  lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
 </Aside>
 
 <Aside type="note">
-    When you reference a Milvus resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, port numbers, and the authentication token. For a complete list of these properties and per-language connection examples, see [Connect to Milvus](../milvus-connect/).
+  When you reference a Milvus resource from the AppHost, Aspire makes several
+  properties available to the consuming project, such as connection URIs,
+  hostnames, port numbers, and the authentication token. For a complete list of
+  these properties and per-language connection examples, see [Connect to
+  Milvus](../milvus-connect/).
 </Aside>
 
 <Aside type="tip">
-If you'd rather connect to an existing Milvus server, call `AddConnectionString` instead. For more information, see [Reference existing resources](/get-started/resources/).
+  If you'd rather connect to an existing Milvus server, call
+  `AddConnectionString` instead. For more information, see [Reference existing
+  resources](/get-started/resources/).
 </Aside>
 
 <ContainerImages package="Aspire.Hosting.Milvus" only="Milvus" />
@@ -143,26 +169,35 @@ If you'd rather connect to an existing Milvus server, call `AddConnectionString`
 
 To change the default API key used by the Milvus container, pass an `apiKey` parameter:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var apiKey = builder.AddParameter("apiKey", secret: true);
 
 var milvus = builder.AddMilvus("milvus", apiKey)
-    .WithLifetime(ContainerLifetime.Persistent);
+.WithLifetime(ContainerLifetime.Persistent);
 
 var milvusdb = milvus.AddDatabase("milvusdb");
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(milvusdb)
-    .WaitFor(milvusdb);
+.WithReference(milvusdb)
+.WaitFor(milvusdb);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -181,6 +216,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -200,25 +236,34 @@ For more information, see [External parameters](/get-started/resources/).
 
 Add a data volume to the Milvus resource as shown in the following examples:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var milvus = builder.AddMilvus("milvus")
-    .WithDataVolume()
-    .WithLifetime(ContainerLifetime.Persistent);
+.WithDataVolume()
+.WithLifetime(ContainerLifetime.Persistent);
 
 var milvusdb = milvus.AddDatabase("milvusdb");
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(milvusdb)
-    .WaitFor(milvusdb);
+.WithReference(milvusdb)
+.WaitFor(milvusdb);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -236,6 +281,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -245,25 +291,34 @@ The data volume is used to persist the Milvus data outside the lifecycle of its 
 
 Add a data bind mount to the Milvus resource as shown in the following examples:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var milvus = builder.AddMilvus("milvus")
-    .WithDataBindMount(source: "/Milvus/Data")
-    .WithLifetime(ContainerLifetime.Persistent);
+.WithDataBindMount(source: "/Milvus/Data")
+.WithLifetime(ContainerLifetime.Persistent);
 
 var milvusdb = milvus.AddDatabase("milvusdb");
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(milvusdb)
-    .WaitFor(milvusdb);
+.WithReference(milvusdb)
+.WaitFor(milvusdb);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -281,11 +336,18 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
 <Aside type="note">
-    Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+  Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have
+  limited functionality compared to
+  [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better
+  performance, portability, and security, making them more suitable for
+  production environments. However, bind mounts allow direct access and
+  modification of files on the host system, ideal for development and testing
+  where real-time changes are needed.
 </Aside>
 
 Data bind mounts rely on the host machine's filesystem to persist the Milvus data across container restarts. The data bind mount is mounted at the `C:\Milvus\Data` on Windows (or `/Milvus/Data` on Unix) path on the host machine in the Milvus container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
@@ -294,25 +356,34 @@ Data bind mounts rely on the host machine's filesystem to persist the Milvus dat
 
 [Attu](https://zilliz.com/attu) is a graphical user interface (GUI) and management tool for Milvus. To add an Attu container alongside your Milvus server, call `WithAttu` (or `withAttu`):
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var milvus = builder.AddMilvus("milvus")
-    .WithAttu()
-    .WithLifetime(ContainerLifetime.Persistent);
+.WithAttu()
+.WithLifetime(ContainerLifetime.Persistent);
 
 var milvusdb = milvus.AddDatabase("milvusdb");
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(milvusdb)
-    .WaitFor(milvusdb);
+.WithReference(milvusdb)
+.WaitFor(milvusdb);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -330,6 +401,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -339,19 +411,28 @@ When you run the Aspire solution, an Attu container is listed in the dashboard r
 
 To configure the Attu container name or container further, pass a callback:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var milvus = builder.AddMilvus("milvus")
-    .WithAttu(attu => attu.WithHostPort(8080))
-    .WithLifetime(ContainerLifetime.Persistent);
+.WithAttu(attu => attu.WithHostPort(8080))
+.WithLifetime(ContainerLifetime.Persistent);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -367,6 +448,7 @@ await milvus.withLifetime("Persistent");
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -374,8 +456,14 @@ await milvus.withLifetime("Persistent");
 
 By default, Aspire injects the Milvus connection information using variable names derived from the resource name (for example, `MILVUSDB_HOST`, `MILVUSDB_PORT`, `MILVUSDB_TOKEN`, `MILVUSDB_URI`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -383,18 +471,21 @@ var milvus = builder.AddMilvus("milvus");
 var milvusdb = milvus.AddDatabase("milvusdb");
 
 var app = builder.AddExecutable("my-app", "node", "app.js", ".")
-    .WithReference(milvusdb)
-    .WithEnvironment(context =>
-    {
-        context.EnvironmentVariables["MILVUS_HOST"] = milvus.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
-        context.EnvironmentVariables["MILVUS_PORT"] = milvus.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
-        context.EnvironmentVariables["MILVUS_TOKEN"] = milvus.Resource.ApiKeyParameter;
-    });
+.WithReference(milvusdb)
+.WithEnvironment(context =>
+{
+context.EnvironmentVariables["MILVUS_HOST"] = milvus.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+context.EnvironmentVariables["MILVUS_PORT"] = milvus.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+context.EnvironmentVariables["MILVUS_TOKEN"] = milvus.Resource.ApiKeyParameter;
+});
 
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
 
@@ -414,6 +505,7 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 

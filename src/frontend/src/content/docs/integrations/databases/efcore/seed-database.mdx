@@ -3,6 +3,8 @@ title: Seed data in a database using Aspire
 description: Learn how to seed database data in Aspire projects using SQL scripts or Entity Framework Core during app startup.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import dotnetIcon from '@assets/icons/dotnet.svg';
@@ -105,7 +107,7 @@ END;
 GO
 ```
 
-You must ensure that this script is copied to the AppHost's output directory, so that Aspire can execute it. Add the following XML to your *.csproj* file:
+You must ensure that this script is copied to the AppHost's output directory, so that Aspire can execute it. Add the following XML to your _.csproj_ file:
 
 ```xml title="DatabaseContainers.AppHost.csproj" {11-15}
 <Project Sdk="Aspire.AppHost.Sdk/%ASPIRE_VERSION%">
@@ -141,6 +143,15 @@ Adjust the `Include` parameter to match the path to your SQL script in the proje
 
 Next, in the _AppHost.cs_ file, create the database and run the creation script:
 
+<AppHostTabs limitations={{
+  typescript: 'TypeScript for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  python: 'Python for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var sqlserver = builder.AddSqlServer("sqlserver")
     // Configure the container to store data in a volume so that it persists across instances.
@@ -151,9 +162,12 @@ var sqlserver = builder.AddSqlServer("sqlserver")
 // Add the database to the application model so that it can be referenced by other resources.
 var initScriptPath = Path.Join(Path.GetDirectoryName(typeof(Program).Assembly.Location), "init.sql");
 var addressBookDb = sqlserver.AddDatabase("AddressBook")
-    .WithCreationScript(File.ReadAllText(initScriptPath));
+.WithCreationScript(File.ReadAllText(initScriptPath));
+
 ```
 
+</Fragment>
+</AppHostTabs>
 The preceding code:
 
 - Create a SQL Server container by calling `builder.AddSqlServer()`.
@@ -187,8 +201,16 @@ VALUES
     ('Do the groceries', false)
 ON CONFLICT DO NOTHING;
 ```
-
 In the _AppHost.cs_ file, create the database and mount the folder that contains the SQL script as a bind mount:
+
+<AppHostTabs limitations={{
+  typescript: 'TypeScript for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  python: 'Python for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 // PostgreSQL container is configured with an auto-generated password by default
@@ -196,26 +218,38 @@ In the _AppHost.cs_ file, create the database and mount the folder that contains
 var todosDbName = "Todos";
 
 var postgres = builder.AddPostgres("postgres")
-    // Set the name of the default database to auto-create on container startup.
-    .WithEnvironment("POSTGRES_DB", todosDbName)
-    // Mount the SQL scripts directory into the container so that the init scripts run.
-    .WithBindMount("../DatabaseContainers.ApiService/data/postgres", "/docker-entrypoint-initdb.d")
-    // Configure the container to store data in a volume so that it persists across instances.
-    .WithDataVolume()
-    .WithPgWeb()
-    // Keep the container running between app host sessions.
-    .WithLifetime(ContainerLifetime.Persistent);
+// Set the name of the default database to auto-create on container startup.
+.WithEnvironment("POSTGRES_DB", todosDbName)
+// Mount the SQL scripts directory into the container so that the init scripts run.
+.WithBindMount("../DatabaseContainers.ApiService/data/postgres", "/docker-entrypoint-initdb.d")
+// Configure the container to store data in a volume so that it persists across instances.
+.WithDataVolume()
+.WithPgWeb()
+// Keep the container running between app host sessions.
+.WithLifetime(ContainerLifetime.Persistent);
 
 // Add the default database to the application model so that it can be referenced by other resources.
 var todosDb = postgres.AddDatabase(todosDbName);
+
 ```
 
+</Fragment>
+</AppHostTabs>
 </TabItem>
 <TabItem label="Pomelo MySQL">
 
 With Aspire, you can use the `WithCreationScript` method to ensure a MySQL script is run when the database is created. Add SQL code to this script that creates and populates the database, the necessary tables, and other database objects.
 
 In the following AppHost code, the script is created as a string and passed to the `WithCreationScript` method:
+
+<AppHostTabs limitations={{
+  typescript: 'TypeScript for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  python: 'Python for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this standalone AppHost scenario has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -253,10 +287,12 @@ WHERE NOT EXISTS (SELECT NULL FROM catalog)
 
 var mysqldb = mysql.AddDatabase(catalogDbName)
                    .WithCreationScript(creationScript);
-                   
+
 builder.Build().Run();
 ```
 
+</Fragment>
+</AppHostTabs>
 The preceding code:
 
 - Create a MySQL container by calling `builder.AddMySql()`.
@@ -286,7 +322,7 @@ Add the following code to the `Program.cs` file of your **API Service** project:
 <TabItem label="SQL Server">
 
 ```csharp title="Program.cs"
-builder.AddSqlServerDbContext<TicketContext>("TicketsDB", 
+builder.AddSqlServerDbContext<TicketContext>("TicketsDB",
     configureDbContextOptions: options =>
 {
     if (builder.Environment.IsDevelopment())
@@ -306,7 +342,7 @@ builder.AddSqlServerDbContext<TicketContext>("TicketsDB",
             }
 
         });
-    
+
         options.UseAsyncSeeding(async (context, _, cancellationToken) =>
         {
             var testTicket = await context.Set<SupportTicket>()
@@ -363,7 +399,7 @@ builder.AddNpgsqlDbContext<TicketContext>("TicketsDB",
             }
 
         });
-    
+
         options.UseAsyncSeeding(async (context, _, cancellationToken) =>
         {
             var testTicket = await context.Set<SupportTicket>()
@@ -400,7 +436,7 @@ if (app.Environment.IsDevelopment())
 <TabItem label="Pomelo MySQL">
 
 ```csharp title="Program.cs"
-builder.AddMySqlDbContext<TicketContext>("TicketsDB", 
+builder.AddMySqlDbContext<TicketContext>("TicketsDB",
     configureDbContextOptions: options =>
 {
     if (builder.Environment.IsDevelopment())
@@ -420,7 +456,7 @@ builder.AddMySqlDbContext<TicketContext>("TicketsDB",
             }
 
         });
-    
+
         options.UseAsyncSeeding(async (context, _, cancellationToken) =>
         {
             var testTicket = await context.Set<SupportTicket>()
@@ -502,7 +538,7 @@ if (app.Environment.IsDevelopment())
             context.Tickets.AddRange(
                 new Ticket
                 {
-                    Title = "Example Ticket", 
+                    Title = "Example Ticket",
                     Description = "This is a sample ticket for testing"
                 }
             );
@@ -537,7 +573,7 @@ if (app.Environment.IsDevelopment())
             context.Tickets.AddRange(
                 new Ticket
                 {
-                    Title = "Example Ticket", 
+                    Title = "Example Ticket",
                     Description = "This is a sample ticket for testing"
                 }
             );
@@ -572,7 +608,7 @@ if (app.Environment.IsDevelopment())
             context.Tickets.AddRange(
                 new Ticket
                 {
-                    Title = "Example Ticket", 
+                    Title = "Example Ticket",
                     Description = "This is a sample ticket for testing"
                 }
             );

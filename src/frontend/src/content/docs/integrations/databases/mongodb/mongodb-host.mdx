@@ -1,6 +1,6 @@
 ---
 title: Set up MongoDB in the AppHost
-seoTitle: "Set up MongoDB in the Aspire AppHost: hosting integration"
+seoTitle: 'Set up MongoDB in the Aspire AppHost: hosting integration'
 description: Learn how to use the Aspire MongoDB Hosting integration to orchestrate and configure a MongoDB database in an Aspire solution.
 ---
 
@@ -29,7 +29,12 @@ If you're new to the MongoDB integration, start with the [Get started with Mongo
 
 To start building an Aspire app that uses MongoDB, install the [📦 Aspire.Hosting.MongoDB](https://www.nuget.org/packages/Aspire.Hosting.MongoDB) NuGet package:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
 
 ```bash title="Terminal"
@@ -37,7 +42,8 @@ aspire add mongodb
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -58,7 +64,8 @@ aspire add mongodb
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the MongoDB hosting integration package:
@@ -78,24 +85,33 @@ This updates your `aspire.config.json` with the MongoDB hosting integration pack
 
 Once you've installed the hosting integration in your AppHost project, you can add a MongoDB server resource and then add a database resource as shown in the following examples:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mongo = builder.AddMongoDB("mongo")
-                   .WithLifetime(ContainerLifetime.Persistent);
+.WithLifetime(ContainerLifetime.Persistent);
 
 var mongodb = mongo.AddDatabase("mongodb");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(mongodb)
-    .WaitFor(mongodb);
+.WithReference(mongodb)
+.WaitFor(mongodb);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -112,6 +128,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -123,15 +140,24 @@ The MongoDB server resource includes default credentials:
 - `MONGO_INITDB_ROOT_PASSWORD`: A randomly generated password stored in the AppHost's secret store under `Parameters:mongo-password`
 
 <Aside type="note">
-The MongoDB container can be slow to start, so it's best to use a persistent lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+  The MongoDB container can be slow to start, so it's best to use a persistent
+  lifetime to avoid unnecessary restarts. For more information, see [Container
+  resource
+  lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
 </Aside>
 
 <Aside type="tip">
-If you'd rather connect to an existing MongoDB server, call `AddConnectionString` instead. For more information, see [Reference existing resources](/get-started/resources/).
+  If you'd rather connect to an existing MongoDB server, call
+  `AddConnectionString` instead. For more information, see [Reference existing
+  resources](/get-started/resources/).
 </Aside>
 
 <Aside type="note">
-    When you reference a MongoDB resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, and port numbers. For a complete list of these properties and per-language connection examples, see [Connect to MongoDB](../mongodb-connect/).
+  When you reference a MongoDB resource from the AppHost, Aspire makes several
+  properties available to the consuming project, such as connection URIs,
+  hostnames, and port numbers. For a complete list of these properties and
+  per-language connection examples, see [Connect to
+  MongoDB](../mongodb-connect/).
 </Aside>
 
 <ContainerImages package="Aspire.Hosting.MongoDB" only="MongoDB" />
@@ -140,8 +166,14 @@ If you'd rather connect to an existing MongoDB server, call `AddConnectionString
 
 When you want to explicitly provide the username and password used by the container image, you can provide these credentials as parameters:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -152,13 +184,16 @@ var mongo = builder.AddMongoDB("mongo", userName: username, password: password);
 var mongodb = mongo.AddDatabase("mongodb");
 
 var myService = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(mongodb)
-    .WaitFor(mongodb);
+.WithReference(mongodb)
+.WaitFor(mongodb);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -176,6 +211,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -192,16 +228,25 @@ The username and password parameters are typically provided as user secrets:
 
 You can also specify a port:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var mongo = builder.AddMongoDB("mongo", port: 27017);
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 const mongo = await builder.addMongoDB("mongo", { port: 27017 });
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -211,25 +256,34 @@ For more information, see [External parameters](/get-started/resources/).
 
 To add a data volume to the MongoDB server resource, call the `WithDataVolume` method:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mongo = builder.AddMongoDB("mongo")
-                   .WithDataVolume()
-                   .WithLifetime(ContainerLifetime.Persistent);
+.WithDataVolume()
+.WithLifetime(ContainerLifetime.Persistent);
 
 var mongodb = mongo.AddDatabase("mongodb");
 
 builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(mongodb)
-    .WaitFor(mongodb);
+.WithReference(mongodb)
+.WaitFor(mongodb);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -247,44 +301,56 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
 The data volume is used to persist the MongoDB server data outside the lifecycle of its container. The data volume is mounted at the `/data/db` path in the MongoDB server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-mongodb-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 <Aside type="caution">
-The password is stored in the data volume. When using a data volume and if the password changes, it will not work until you delete the volume.
+  The password is stored in the data volume. When using a data volume and if the
+  password changes, it will not work until you delete the volume.
 </Aside>
 
 <Aside type="danger">
 Some database integrations, including the MongoDB integration, can't successfully use data volumes after deployment to Azure Container Apps (ACA). This is because ACA uses Server Message Block (SMB) to connect containers to data volumes, and some systems can't use this connection. In the Aspire Dashboard, a database affected by this issue has a status of **Activating** or **Activation Failed** but is never listed as **Running**.
 
 You can resolve the problem by deploying to a Kubernetes cluster, such as Azure Kubernetes Services (AKS). For more information, see [Deploy your first Aspire app](/get-started/deploy-first-app/).
+
 </Aside>
 
 ## Add MongoDB server resource with data bind mount
 
 To add a data bind mount to the MongoDB server resource, call the `WithDataBindMount` method:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mongo = builder.AddMongoDB("mongo")
-                   .WithDataBindMount(source: @"C:\MongoDB\Data")
-                   .WithLifetime(ContainerLifetime.Persistent);
+.WithDataBindMount(source: @"C:\MongoDB\Data")
+.WithLifetime(ContainerLifetime.Persistent);
 
 var mongodb = mongo.AddDatabase("mongodb");
 
 builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(mongodb)
-    .WaitFor(mongodb);
+.WithReference(mongodb)
+.WaitFor(mongodb);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -302,6 +368,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -309,31 +376,41 @@ await builder.addNodeApp("api", "./api", "index.js")
 Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
 
 Data bind mounts rely on the host machine's filesystem to persist the MongoDB server data across container restarts. The data bind mount is mounted at the `C:\MongoDB\Data` on Windows (or `/MongoDB/Data` on Unix) path on the host machine in the MongoDB server container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+
 </Aside>
 
 ## Add MongoDB server resource with init files
 
 Use initialization files to seed the MongoDB server with data or run scripts at startup. The C# AppHost exposes `WithInitBindMount(...)`, while the TypeScript AppHost exposes `withInitFiles(...)`.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mongo = builder.AddMongoDB("mongo")
-                   .WithInitBindMount(source: @"C:\MongoDB\Init")
-                   .WithLifetime(ContainerLifetime.Persistent);
+.WithInitBindMount(source: @"C:\MongoDB\Init")
+.WithLifetime(ContainerLifetime.Persistent);
 
 var mongodb = mongo.AddDatabase("mongodb");
 
 builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(mongodb)
-    .WaitFor(mongodb);
+.WithReference(mongodb)
+.WaitFor(mongodb);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -351,10 +428,10 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-
 :::note
 The TypeScript AppHost exposes `withInitFiles(source)` instead of `withInitBindMount(source)`. The `withInitFiles` method copies the specified files into the container's init folder, whereas the C# `WithInitBindMount` performs a host bind mount. The functional outcome — running initialization scripts at container startup — is the same.
 :::
+
 </Fragment>
 </AppHostTabs>
 
@@ -364,25 +441,34 @@ MongoDB executes any JavaScript or shell scripts found in the init folder when t
 
 [MongoDB Express](https://github.com/mongo-express/mongo-express) is a web-based MongoDB admin user interface. To add a MongoDB Express resource that corresponds to the `docker.io/library/mongo-express` container image, call the `WithMongoExpress` method on the MongoDB server resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mongo = builder.AddMongoDB("mongo")
-                   .WithMongoExpress()
-                   .WithLifetime(ContainerLifetime.Persistent);
+.WithMongoExpress()
+.WithLifetime(ContainerLifetime.Persistent);
 
 var mongodb = mongo.AddDatabase("mongodb");
 
 var myService = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(mongodb)
-    .WaitFor(mongodb);
+.WithReference(mongodb)
+.WaitFor(mongodb);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -400,6 +486,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -419,19 +506,28 @@ The MongoDB Express resource is configured to connect to the MongoDB server reso
 
 To configure the host port for the Mongo Express container, pass a configuration callback:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mongo = builder.AddMongoDB("mongo")
-                   .WithMongoExpress(c => c.WithHostPort(8081))
-                   .WithLifetime(ContainerLifetime.Persistent);
+.WithMongoExpress(c => c.WithHostPort(8081))
+.WithLifetime(ContainerLifetime.Persistent);
 
 // After adding all resources, run the app...
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -447,6 +543,7 @@ await mongo.withLifetime("Persistent");
 
 // After adding all resources, run the app...
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -454,8 +551,14 @@ await mongo.withLifetime("Persistent");
 
 By default, Aspire injects the MongoDB connection information using variable names derived from the resource name (for example, `MONGODB_URI`, `MONGODB_HOST`, `MONGODB_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  go: 'Go for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  java: 'Java for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+  rust: 'Rust for this exact AppHost operation sequence has not been validated against the generated Aspire 13.6.0-preview.1.26458.6 SDK.',
+}}>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -463,20 +566,23 @@ var mongo = builder.AddMongoDB("mongo");
 var mongodb = mongo.AddDatabase("mongodb");
 
 var app = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
-    .WithReference(mongodb)
-    .WithEnvironment(context =>
-    {
-        context.EnvironmentVariables["MONGO_HOST"] = mongo.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
-        context.EnvironmentVariables["MONGO_PORT"] = mongo.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
-        context.EnvironmentVariables["MONGO_USERNAME"] = mongo.Resource.UserNameReference;
-        context.EnvironmentVariables["MONGO_PASSWORD"] = mongo.Resource.PasswordParameter;
-        context.EnvironmentVariables["MONGO_DATABASE"] = mongodb.Resource.DatabaseName;
-    });
+.WithReference(mongodb)
+.WithEnvironment(context =>
+{
+context.EnvironmentVariables["MONGO_HOST"] = mongo.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+context.EnvironmentVariables["MONGO_PORT"] = mongo.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+context.EnvironmentVariables["MONGO_USERNAME"] = mongo.Resource.UserNameReference;
+context.EnvironmentVariables["MONGO_PASSWORD"] = mongo.Resource.PasswordParameter;
+context.EnvironmentVariables["MONGO_DATABASE"] = mongodb.Resource.DatabaseName;
+});
 
 builder.Build().Run();
+
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts"
 import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
 
@@ -498,6 +604,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 

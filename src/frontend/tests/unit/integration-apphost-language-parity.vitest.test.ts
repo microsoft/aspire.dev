@@ -7,60 +7,67 @@ import { appHostLanguageConfig } from '../../src/utils/apphost-languages';
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const docsDirectory = path.resolve(testsDirectory, '..', '..', 'src', 'content', 'docs');
-const integrationDirectory = path.join(docsDirectory, 'integrations');
-const scopedCategories = [
-  'frameworks',
+const integrationsDirectory = path.join(docsDirectory, 'integrations');
+const scopedPaths = [
+  'caching',
   'compute',
-  'dotnet',
-  'devtools',
   'custom-integrations',
+  'databases',
+  'devtools',
+  'dotnet',
+  'frameworks',
+  'messaging',
+  'observability',
+  'reverse-proxies',
+  'security',
 ];
-const appHostBuilderPattern =
-  /\b(?:DistributedApplication\.CreateBuilder|createBuilder|create_builder|aspire\.CreateBuilder)\s*\(/;
 
-function getMdxFiles(directory: string): string[] {
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const resolved = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      return getMdxFiles(resolved);
+function getScopedDocs(): string[] {
+  const files = [path.join(integrationsDirectory, 'overview.mdx')];
+
+  function visit(directory: string): void {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const resolved = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(resolved);
+      } else if (entry.isFile() && entry.name.endsWith('.mdx')) {
+        files.push(resolved);
+      }
     }
+  }
 
-    return entry.isFile() && entry.name.endsWith('.mdx') ? [resolved] : [];
-  });
+  for (const scopedPath of scopedPaths) {
+    visit(path.join(integrationsDirectory, scopedPath));
+  }
+
+  return files;
 }
 
-function getScopedMdxFiles(): string[] {
-  return scopedCategories.flatMap((category) =>
-    getMdxFiles(path.join(integrationDirectory, category))
+function getAppHostTabs(source: string): RegExpMatchArray[] {
+  return Array.from(
+    source.matchAll(/<AppHostTabs(?<attributes>[^>]*)>(?<content>[\s\S]*?)<\/AppHostTabs>/g)
   );
 }
 
 describe('integration AppHost language parity', () => {
-  test('accounts for all six AppHost languages in the assigned categories', () => {
+  test('accounts for every AppHost language in the scoped integration docs', () => {
     const violations: string[] = [];
 
-    for (const file of getScopedMdxFiles()) {
+    for (const file of getScopedDocs()) {
       const source = fs.readFileSync(file, 'utf8');
-      const appHostTabs = source.matchAll(
-        /<AppHostTabs\b(?<attributes>[\s\S]*?)>(?<content>[\s\S]*?)<\/AppHostTabs>/g
-      );
+      const appHostTabs = getAppHostTabs(source);
 
-      for (const match of appHostTabs) {
+      for (const [index, match] of appHostTabs.entries()) {
         const attributes = match.groups?.attributes ?? '';
         const content = match.groups?.content ?? '';
-        const line = source.slice(0, match.index).split('\n').length;
 
         for (const language of appHostLanguageConfig.languages) {
-          const hasSlot = new RegExp(
-            String.raw`\bslot\s*=\s*(['"])${language.id}\1`
-          ).test(content);
-          const hasLimitation = new RegExp(
-            String.raw`\b${language.id}\s*:`
-          ).test(attributes);
+          const hasSlot = new RegExp(`<Fragment\\s+slot=(['"])${language.id}\\1`).test(content);
+          const hasLimitation = new RegExp(`\\b${language.id}\\s*:`).test(attributes);
 
           if (!hasSlot && !hasLimitation) {
             violations.push(
-              `${path.relative(docsDirectory, file)}:${line} is missing ${language.id}`
+              `${path.relative(docsDirectory, file)} AppHostTabs ${index + 1} omits ${language.id}`
             );
           }
         }
@@ -70,34 +77,112 @@ describe('integration AppHost language parity', () => {
     expect(violations).toEqual([]);
   });
 
-  test('wraps standalone AppHost builder examples for language accounting', () => {
+  test('uses safe generated SDK patterns in Go and Rust examples', () => {
     const violations: string[] = [];
 
-    for (const file of getScopedMdxFiles()) {
+    for (const file of getScopedDocs()) {
       const source = fs.readFileSync(file, 'utf8');
-      const appHostTabRanges = Array.from(
-        source.matchAll(/<AppHostTabs\b[\s\S]*?<\/AppHostTabs>/g),
-        (match) => ({
-          start: match.index,
-          end: match.index + match[0].length,
-        })
-      );
 
-      for (const codeFence of source.matchAll(
-        /```(?<language>csharp|typescript|python|go|java|rust)\b[^\n]*\n(?<code>[\s\S]*?)```/g
-      )) {
-        if (!appHostBuilderPattern.test(codeFence.groups?.code ?? '')) {
-          continue;
+      for (const [tabIndex, tab] of getAppHostTabs(source).entries()) {
+        const content = tab.groups?.content ?? '';
+        const goFences = content.matchAll(/```go\b[^\n]*\n(?<code>[\s\S]*?)```/g);
+
+        for (const fence of goFences) {
+          const code = fence.groups?.code ?? '';
+          for (const resourceCall of code.matchAll(/builder(?:\s*\.\s*)?Add[A-Z]\w*\s*\(/g)) {
+            if (resourceCall.index === undefined) {
+              continue;
+            }
+
+            const lineStart = code.lastIndexOf('\n', resourceCall.index) + 1;
+            const linePrefix = code.slice(lineStart, resourceCall.index);
+            if (!linePrefix.includes(':=')) {
+              violations.push(
+                `${path.relative(docsDirectory, file)} AppHostTabs ${tabIndex + 1} does not assign a Go resource for an immediate Err() check`
+              );
+            }
+          }
+
+          const assignments = Array.from(
+            code.matchAll(/^\s*(?<resource>\w+)\s*:=\s*builder(?:\s*\.\s*)?Add[A-Z]\w*\s*\(/gm)
+          );
+
+          for (const assignment of assignments) {
+            const resource = assignment.groups?.resource;
+            if (!resource || assignment.index === undefined) {
+              continue;
+            }
+
+            const remainder = code.slice(assignment.index + assignment[0].length);
+            const nextOperation = remainder.search(
+              /^\s*(?:\w+(?:\s*,\s*\w+)?\s*:=|app\s*,\s*err\s*:=\s*builder\.Build\(\))/m
+            );
+            const immediateBlock =
+              nextOperation === -1 ? remainder : remainder.slice(0, nextOperation);
+            const escapedResource = resource.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+            if (
+              !new RegExp(
+                `if\\s+err\\s*:=\\s*${escapedResource}\\.Err\\(\\);\\s*err\\s*!=\\s*nil`
+              ).test(immediateBlock)
+            ) {
+              violations.push(
+                `${path.relative(docsDirectory, file)} AppHostTabs ${tabIndex + 1} does not immediately check ${resource}.Err()`
+              );
+            }
+          }
         }
 
-        const isAccountedFor = appHostTabRanges.some(
-          (range) => codeFence.index >= range.start && codeFence.index < range.end
-        );
+        const rustFences = content.matchAll(/```rust\b[^\n]*\n(?<code>[\s\S]*?)```/g);
+        for (const fence of rustFences) {
+          const code = fence.groups?.code ?? '';
+          let referenceIndex = code.indexOf('.with_reference(');
 
-        if (!isAccountedFor) {
-          const line = source.slice(0, codeFence.index).split('\n').length;
+          while (referenceIndex !== -1) {
+            const referenceEnd = code.indexOf('?;', referenceIndex);
+            const referenceCall = code.slice(
+              referenceIndex,
+              referenceEnd === -1 ? undefined : referenceEnd
+            );
+
+            if (!referenceCall.includes('.handle().to_json()')) {
+              violations.push(
+                `${path.relative(docsDirectory, file)} AppHostTabs ${tabIndex + 1} passes a Rust reference without handle().to_json()`
+              );
+            }
+
+            referenceIndex = code.indexOf('.with_reference(', referenceIndex + 1);
+          }
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  test('does not leave AppHost source fences outside AppHostTabs', () => {
+    const violations: string[] = [];
+
+    for (const file of getScopedDocs()) {
+      const source = fs.readFileSync(file, 'utf8');
+      const withoutAppHostTabs = source.replace(/<AppHostTabs[^>]*>[\s\S]*?<\/AppHostTabs>/g, '');
+      const sourceFences = withoutAppHostTabs.matchAll(
+        /```(?<language>csharp|typescript|python|go|java|rust)\b(?<metadata>[^\n]*)\n(?<code>[\s\S]*?)```/g
+      );
+
+      for (const match of sourceFences) {
+        const metadata = match.groups?.metadata ?? '';
+        const code = match.groups?.code ?? '';
+        const isAppHostFence =
+          /\btitle=(['"])[^'"]*apphost\.[^'"]*\1/i.test(metadata) ||
+          /DistributedApplication\.CreateBuilder|createBuilder\(\)|create_builder\(|CreateBuilder\(\)/.test(
+            code
+          );
+
+        if (isAppHostFence) {
+          const line = source.slice(0, match.index).split('\n').length;
           violations.push(
-            `${path.relative(docsDirectory, file)}:${line} has a standalone ${codeFence.groups?.language} AppHost builder fence`
+            `${path.relative(docsDirectory, file)}:${line} has a standalone AppHost source fence`
           );
         }
       }
