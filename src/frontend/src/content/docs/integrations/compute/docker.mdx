@@ -234,12 +234,11 @@ func main() {
 	}
 
 	compose := builder.AddDockerComposeEnvironment("compose")
-	api := builder.AddProject("api", "../Api/Api.csproj").WithComputeEnvironment(compose)
-
 	if err := compose.Err(); err != nil {
 		log.Fatal(aspire.FormatError(err))
 	}
 
+	api := builder.AddProject("api", "../Api/Api.csproj").WithComputeEnvironment(compose)
 	if err := api.Err(); err != nil {
 		log.Fatal(aspire.FormatError(err))
 	}
@@ -470,17 +469,17 @@ func main() {
 
 	targetPort := 80.0
 	compose := builder.AddDockerComposeEnvironment("compose")
-	api := builder.AddContainer("api", "nginx:alpine").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: stringPtr("http"), TargetPort: &targetPort})
-	apiEndpoint := api.GetEndpoint("http")
-	_ = compose.GetHostAddressExpression(apiEndpoint)
-
 	if err := compose.Err(); err != nil {
 		log.Fatal(aspire.FormatError(err))
 	}
 
+	api := builder.AddContainer("api", "nginx:alpine").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: stringPtr("http"), TargetPort: &targetPort})
 	if err := api.Err(); err != nil {
 		log.Fatal(aspire.FormatError(err))
 	}
+
+	apiEndpoint := api.GetEndpoint("http")
+	_ = compose.GetHostAddressExpression(apiEndpoint)
 
 	app, err := builder.Build()
 	if err != nil {

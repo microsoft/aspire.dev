@@ -128,17 +128,16 @@ func main() {
 
 	endpointName := "http"
 	weatherAPI := builder.AddProject("weatherapi", "../WeatherApi/WeatherApi.csproj").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: &endpointName})
-	blazorApp := builder.AddBlazorWasmProject("app", "../Client/Client.csproj").WithReference(weatherAPI.GetEndpoint("http"))
-	gateway := builder.AddBlazorGateway("gateway").WithExternalHttpEndpoints().WithBlazorClientApp(blazorApp)
-
 	if err := weatherAPI.Err(); err != nil {
 		log.Fatal(aspire.FormatError(err))
 	}
 
+	blazorApp := builder.AddBlazorWasmProject("app", "../Client/Client.csproj").WithReference(weatherAPI.GetEndpoint("http"))
 	if err := blazorApp.Err(); err != nil {
 		log.Fatal(aspire.FormatError(err))
 	}
 
+	gateway := builder.AddBlazorGateway("gateway").WithExternalHttpEndpoints().WithBlazorClientApp(blazorApp)
 	if err := gateway.Err(); err != nil {
 		log.Fatal(aspire.FormatError(err))
 	}
