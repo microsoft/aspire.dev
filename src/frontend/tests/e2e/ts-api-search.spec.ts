@@ -30,3 +30,41 @@ test('AppHost API search keeps result names visible on narrow viewports', async 
     })
     .toBeGreaterThan(20);
 });
+
+test('AppHost API corrects unsupported stored languages after listeners initialize', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('aspire-lang', 'csharp');
+    localStorage.setItem('starlight-synced-tabs__aspire-lang', 'C#');
+  });
+
+  await page.goto('/reference/api/apphost/?aspire-lang=csharp');
+  await dismissCookieConsentIfVisible(page);
+
+  await expect(page.locator('html')).toHaveAttribute('data-apphost-lang', 'typescript');
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('aspire-lang'))
+    .toBe('typescript');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('aspire-lang')))
+    .toBe('typescript');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('starlight-synced-tabs__aspire-lang')))
+    .toBe('TypeScript');
+
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-apphost-lang', 'typescript');
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('aspire-lang'))
+    .toBe('typescript');
+
+  await page.goto('/reference/api/apphost/aspire.hosting/');
+  await expect(page.locator('html')).toHaveAttribute('data-apphost-lang', 'typescript');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('aspire-lang')))
+    .toBe('typescript');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('starlight-synced-tabs__aspire-lang')))
+    .toBe('TypeScript');
+});

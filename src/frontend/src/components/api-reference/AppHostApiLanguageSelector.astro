@@ -29,9 +29,16 @@ const allowed = languages.map((language) => language.id);
     if (!allowed.includes(current)) {
       const language = allowed[0];
       document.documentElement.dataset.apphostLang = language;
-      window.dispatchEvent(new CustomEvent('apphost-language-select', {
-        detail: { language },
-      }));
+      const dispatchSelection = () => {
+        window.dispatchEvent(new CustomEvent('apphost-language-select', {
+          detail: { language },
+        }));
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', dispatchSelection, { once: true });
+      } else {
+        dispatchSelection();
+      }
     }
   })();
 </script>

@@ -178,6 +178,26 @@ describe('AppHost language registry', () => {
     expect(homeSource).not.toContain("type AppHostLanguage = 'csharp' | 'typescript'");
   });
 
+  test('AppHost API language correction dispatches after sync listeners are ready', () => {
+    const selectorSource = fs.readFileSync(
+      path.join(componentsDirectory, 'api-reference', 'AppHostApiLanguageSelector.astro'),
+      'utf8'
+    );
+    const datasetUpdate = selectorSource.indexOf(
+      'document.documentElement.dataset.apphostLang = language;'
+    );
+    const readyStateBranch = selectorSource.indexOf(
+      "if (document.readyState === 'loading')"
+    );
+
+    expect(datasetUpdate).toBeGreaterThan(-1);
+    expect(readyStateBranch).toBeGreaterThan(datasetUpdate);
+    expect(selectorSource).toContain(
+      "document.addEventListener('DOMContentLoaded', dispatchSelection, { once: true });"
+    );
+    expect(selectorSource).toMatch(/else \{\s*dispatchSelection\(\);\s*\}/);
+  });
+
   test('cloud and AI AppHost tabs account for all six languages', () => {
     const violations: string[] = [];
     const appHostTabsPattern =
