@@ -101,16 +101,16 @@ $env:Azure__Location = "eastus"
 
 The following configuration options are available:
 
-| Setting | Description | Default |
-| --- | --- | --- |
-| `Azure:SubscriptionId` | Your Azure subscription ID | (required) |
-| `Azure:Location` | Azure region for resources | (required) |
-| `Azure:TenantId` | Azure tenant to use when selecting subscriptions and credentials | Current credential tenant |
-| `Azure:ResourceGroup` | Specific resource group to create or reuse | Auto-generated |
-| `Azure:ResourceGroupPrefix` | Prefix used when Aspire generates a resource group name | `rg-aspire` |
-| `Azure:CredentialSource` | Authentication method for local provisioning | `Default` |
-| `Azure:AllowResourceGroupCreation` | Allow creating resource groups | `true` |
-| `Azure:CredentialProcessTimeoutSeconds` | Timeout in seconds for credential subprocess operations (must be between 5 and 600) | Azure SDK default |
+| Setting                                 | Description                                                                         | Default                   |
+| --------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------- |
+| `Azure:SubscriptionId`                  | Your Azure subscription ID                                                          | (required)                |
+| `Azure:Location`                        | Azure region for resources                                                          | (required)                |
+| `Azure:TenantId`                        | Azure tenant to use when selecting subscriptions and credentials                    | Current credential tenant |
+| `Azure:ResourceGroup`                   | Specific resource group to create or reuse                                          | Auto-generated            |
+| `Azure:ResourceGroupPrefix`             | Prefix used when Aspire generates a resource group name                             | `rg-aspire`               |
+| `Azure:CredentialSource`                | Authentication method for local provisioning                                        | `Default`                 |
+| `Azure:AllowResourceGroupCreation`      | Allow creating resource groups                                                      | `true`                    |
+| `Azure:CredentialProcessTimeoutSeconds` | Timeout in seconds for credential subprocess operations (must be between 5 and 600) | Azure SDK default         |
 
 ## Resource group management
 
@@ -149,7 +149,12 @@ To prevent Aspire from creating resource groups:
 
 Add Azure resources to your AppHost using the relevant `Add*` APIs, then reference them from your consuming projects:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -158,10 +163,11 @@ var storage = builder.AddAzureStorage("storage");
 var blobs = storage.AddBlobs("blobs");
 
 builder.AddProject<Projects.WebApp>("webapp")
-       .WithReference(blobs);
+.WithReference(blobs);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -176,7 +182,8 @@ await builder.addNodeApp("webapp", "./webapp", "index.js")
     .withReference(blobs);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -215,15 +222,15 @@ When `Azure:CredentialSource` isn't set, local provisioning uses a development-f
 
 If you want to force a specific local credential, set `Azure:CredentialSource` to one of the supported values:
 
-| Value | Uses |
-| --- | --- |
-| `Default` | Development credential chain for local provisioning |
-| `AzureCli` | Azure CLI sign-in (`az login`) |
-| `AzureDeveloperCli` | Azure Developer CLI sign-in (`azd auth login`) |
-| `VisualStudio` | Visual Studio Azure account |
-| `VisualStudioCode` | Visual Studio Code Azure account |
-| `AzurePowerShell` | Azure PowerShell sign-in |
-| `InteractiveBrowser` | Browser-based sign-in prompt |
+| Value                | Uses                                                |
+| -------------------- | --------------------------------------------------- |
+| `Default`            | Development credential chain for local provisioning |
+| `AzureCli`           | Azure CLI sign-in (`az login`)                      |
+| `AzureDeveloperCli`  | Azure Developer CLI sign-in (`azd auth login`)      |
+| `VisualStudio`       | Visual Studio Azure account                         |
+| `VisualStudioCode`   | Visual Studio Code Azure account                    |
+| `AzurePowerShell`    | Azure PowerShell sign-in                            |
+| `InteractiveBrowser` | Browser-based sign-in prompt                        |
 
 ### Credential process timeout
 
@@ -290,7 +297,10 @@ Some Azure resource types are location-immutable — moving them to a new region
 If the acknowledgement is missing, Aspire fails the command before deleting the resource, persisting any location override, resetting provisioning state, or reprovisioning.
 
 <Aside type="note">
-Aspire doesn't require this acknowledgement when the resource's current location already matches the requested location, when the resource has no cached Azure resource ID (nothing to delete), or when the cached resource is already absent from Azure.
+  Aspire doesn't require this acknowledgement when the resource's current
+  location already matches the requested location, when the resource has no
+  cached Azure resource ID (nothing to delete), or when the cached resource is
+  already absent from Azure.
 </Aside>
 
 ## Limitations

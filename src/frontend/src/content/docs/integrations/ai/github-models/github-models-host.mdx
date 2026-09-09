@@ -23,7 +23,7 @@ import githubIcon from '@assets/icons/github-icon.png';
 The GitHub Models service is **no longer available to new customers**. The `Aspire.Hosting.GitHub.Models` integration is sunset as of Aspire 13.5. All public APIs are marked `[Obsolete]` and the package no longer appears in `aspire add` output. The package will ship one final obsolete release on NuGet and will be removed entirely in a future version. For new and existing apps, use the [Azure AI Foundry integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/) instead, which provides access to a broad catalog of models — including OpenAI's GPT models — and supports local development with `RunAsFoundryLocal()`. See [microsoft/aspire#18402](https://github.com/microsoft/aspire/issues/18402) for details.
 :::
 
-This article is the reference for the Aspire GitHub Models hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model GitHub Model resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire GitHub Models hosting integration. It shows the generated AppHost APIs for C#, TypeScript, Python, Go, Java, and Rust that model GitHub Model resources.
 
 If you're new to the GitHub Models integration, start with the [Get started with GitHub Models integrations](/integrations/ai/github-models/github-models-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to GitHub Models](../github-models-connect/).
 
@@ -39,7 +39,8 @@ aspire add github-models
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -60,10 +61,63 @@ aspire add github-models
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the GitHub Models hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.GitHub.Models": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</Fragment>
+<Fragment slot="python">
+
+The package is obsolete and no longer appears in `aspire add` results. Add it directly to `aspire.config.json`:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.GitHub.Models": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</Fragment>
+<Fragment slot="go">
+
+The package is obsolete and no longer appears in `aspire add` results. Add it directly to `aspire.config.json`:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.GitHub.Models": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+The package is obsolete and no longer appears in `aspire add` results. Add it directly to `aspire.config.json`:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.GitHub.Models": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+The package is obsolete and no longer appears in `aspire add` results. Add it directly to `aspire.config.json`:
 
 ```json title="aspire.config.json" ins={3}
 {
@@ -88,10 +142,11 @@ var builder = DistributedApplication.CreateBuilder(args);
 var chat = builder.AddGitHubModel("chat", GitHubModel.OpenAI.OpenAIGpt4oMini);
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat);
+.WithReference(chat);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -105,22 +160,112 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(chat);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+chat = builder.add_git_hub_model("chat", "OpenAIGpt4oMini")
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	chat := builder.AddGitHubModel(
+		"chat",
+		aspire.GitHubModelNameOpenAIGpt4oMini,
+	)
+	if err := chat.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var chat = builder.addGitHubModel(
+        "chat",
+        GitHubModelName.OPEN_AIGPT4O_MINI);
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let chat = builder.add_git_hub_model(
+        "chat",
+        GitHubModelName::OpenAIGpt4oMini,
+        None,
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
 <Steps>
 
-1. Calling `AddGitHubModel` (or `addGitHubModel`) creates a `GitHubModelResource`. It registers a secret parameter for the API key that defaults to the `GITHUB_TOKEN` environment variable.
+1. Adding a GitHub Model creates a `GitHubModelResource`. It registers a secret parameter for the API key that defaults to the `GITHUB_TOKEN` environment variable.
 
-1. The model identifier selects which GitHub-hosted model to target. In C#, use the strongly-typed `GitHubModel` constants grouped by publisher; in TypeScript, use the `GitHubModelName` enum.
+1. The model identifier selects which GitHub-hosted model to target. C# uses publisher-grouped `GitHubModel` constants. TypeScript, Python, Go, Java, and Rust use generated `GitHubModelName` values in each language's naming convention.
 
-1. The AppHost reference call configures a connection in the consuming project named after the resource (for example, `chat` in the preceding example).
+1. When a consuming resource references the model, Aspire configures a connection named after that resource, such as `chat`.
 
 </Steps>
 
 <Aside type="note">
-    When you reference a GitHub Model resource from the AppHost, Aspire makes several properties available to the consuming project, such as the endpoint URI, API key, and model name. For a complete list of these properties and per-language connection examples, see [Connect to GitHub Models](../github-models-connect/).
+  When you reference a GitHub Model resource from the AppHost, Aspire makes
+  several properties available to the consuming project, such as the endpoint
+  URI, API key, and model name. For a complete list of these properties and
+  per-language connection examples, see [Connect to GitHub
+  Models](../github-models-connect/).
 </Aside>
 
 ## Use a model identifier string
@@ -135,10 +280,11 @@ var builder = DistributedApplication.CreateBuilder(args);
 var chat = builder.AddGitHubModel("chat", "openai/gpt-4o-mini");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat);
+.WithReference(chat);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -152,21 +298,105 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(chat);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+chat = builder.add_git_hub_model_by_id("chat", "openai/gpt-4o-mini")
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	chat := builder.AddGitHubModelById("chat", "openai/gpt-4o-mini")
+	if err := chat.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var chat = builder.addGitHubModelById(
+        "chat",
+        "openai/gpt-4o-mini");
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let chat = builder.add_git_hub_model_by_id(
+        "chat",
+        "openai/gpt-4o-mini",
+        None,
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
 <Aside type="tip">
   In C#, use the strongly-typed `GitHubModel` constants to avoid typos — they're
   grouped by publisher (for example, `GitHubModel.OpenAI.OpenAIGpt4oMini`,
-  `GitHubModel.Microsoft.Phi4MiniInstruct`, `GitHubModel.DeepSeek.DeepSeekV30324`).
-  In TypeScript, use the `GitHubModelName` enum (for example,
-  `GitHubModelName.OpenAIGpt4oMini`, `GitHubModelName.DeepSeekV30324`).
+  `GitHubModel.Microsoft.Phi4MiniInstruct`,
+  `GitHubModel.DeepSeek.DeepSeekV30324`). In TypeScript, use the
+  `GitHubModelName` enum (for example, `GitHubModelName.OpenAIGpt4oMini`,
+  `GitHubModelName.DeepSeekV30324`).
 </Aside>
 
 ## Use default API key parameter
 
-Calling `AddGitHubModel("chat", ...)` (or `addGitHubModel("chat", ...)`) automatically creates a secret parameter named `chat-gh-apikey`. Aspire resolves its value in this order:
+Adding a GitHub Model named `chat` automatically creates a secret parameter named `chat-gh-apikey`. Aspire resolves its value in this order:
 
 1. The `Parameters:chat-gh-apikey` configuration key (user secrets, `appsettings.*`, or environment variables).
 2. The `GITHUB_TOKEN` environment variable.
@@ -179,7 +409,7 @@ aspire secret set Parameters:chat-gh-apikey github_pat_YOUR_TOKEN_HERE
 
 ## Use a custom API key parameter
 
-Replace the default parameter by creating your own secret parameter and passing it to `WithApiKey` (or `withApiKey`):
+Replace the default parameter by creating your own secret parameter and passing it to the generated API-key method:
 
 <AppHostTabs>
 <Fragment slot="csharp">
@@ -189,13 +419,14 @@ var builder = DistributedApplication.CreateBuilder(args);
 var apiKey = builder.AddParameter("my-gh-token", secret: true);
 
 var chat = builder.AddGitHubModel("chat", GitHubModel.OpenAI.OpenAIGpt4oMini)
-                  .WithApiKey(apiKey);
+.WithApiKey(apiKey);
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat);
+.WithReference(chat);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -212,11 +443,115 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(chat);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+api_key = builder.add_parameter("my-gh-token", secret=True)
+chat = builder.add_git_hub_model(
+"chat",
+"OpenAIGpt4oMini",
+).with_api_key(api_key)
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	secret := true
+	apiKey := builder.AddParameter(
+		"my-gh-token",
+		&aspire.AddParameterOptions{Secret: &secret},
+	)
+	chat := builder.AddGitHubModel(
+		"chat",
+		aspire.GitHubModelNameOpenAIGpt4oMini,
+	).WithApiKey(apiKey)
+	if err := chat.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var apiKey = builder.addParameter(
+        "my-gh-token",
+        new AddParameterOptions().secret(true));
+    var chat = builder.addGitHubModel(
+        "chat",
+        GitHubModelName.OPEN_AIGPT4O_MINI).withApiKey(apiKey);
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api_key = builder.add_parameter("my-gh-token", None, None, Some(true))?;
+    let chat = builder
+        .add_git_hub_model(
+            "chat",
+            GitHubModelName::OpenAIGpt4oMini,
+            None,
+        )?
+        .with_api_key(&api_key)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
-<Aside type="note">Parameters marked <code>secret: true</code> are stored in the user secrets store and never appear in plain text in logs or the dashboard.</Aside>
+<Aside type="note">
+  Parameters marked <code>secret: true</code> are stored in the user secrets
+  store and never appear in plain text in logs or the dashboard.
+</Aside>
 
 ## Specify an organization
 
@@ -232,10 +567,11 @@ var organization = builder.AddParameter("github-org");
 var chat = builder.AddGitHubModel("chat", GitHubModel.OpenAI.OpenAIGpt4oMini, organization);
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat);
+.WithReference(chat);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -253,7 +589,103 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(chat);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+organization = builder.add_parameter("github-org")
+chat = builder.add_git_hub_model(
+"chat",
+"OpenAIGpt4oMini",
+organization=organization,
+)
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	organization := builder.AddParameter("github-org")
+	chat := builder.AddGitHubModel(
+		"chat",
+		aspire.GitHubModelNameOpenAIGpt4oMini,
+		&aspire.AddGitHubModelOptions{Organization: &organization},
+	)
+	if err := chat.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var organization = builder.addParameter("github-org");
+    var chat = builder.addGitHubModel(
+        "chat",
+        GitHubModelName.OPEN_AIGPT4O_MINI,
+        organization);
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let organization = builder.add_parameter("github-org", None, None, None)?;
+    let chat = builder.add_git_hub_model(
+        "chat",
+        GitHubModelName::OpenAIGpt4oMini,
+        Some(&organization),
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -269,13 +701,14 @@ Add an optional health check to verify endpoint reachability and API key validit
 var builder = DistributedApplication.CreateBuilder(args);
 
 var chat = builder.AddGitHubModel("chat", GitHubModel.OpenAI.OpenAIGpt4oMini)
-                  .WithHealthCheck();
+.WithHealthCheck();
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat);
+.WithReference(chat);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -290,7 +723,98 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(chat);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+chat = builder.add_git_hub_model(
+"chat",
+"OpenAIGpt4oMini",
+).enable_health_check()
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	chat := builder.AddGitHubModel(
+		"chat",
+		aspire.GitHubModelNameOpenAIGpt4oMini,
+	).EnableHealthCheck()
+	if err := chat.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var chat = builder.addGitHubModel(
+        "chat",
+        GitHubModelName.OPEN_AIGPT4O_MINI).enableHealthCheck();
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let chat = builder
+        .add_git_hub_model(
+            "chat",
+            GitHubModelName::OpenAIGpt4oMini,
+            None,
+        )?
+        .enable_health_check()?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -302,21 +826,22 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 ## Available models
 
-GitHub Models supports a broad and growing catalog of models. Use the strongly-typed constants for the most accurate list:
+GitHub Models supports a broad and growing catalog of models. Use the strongly typed constants for the most accurate list. The table shows the C# and TypeScript spellings; Python, Go, Java, and Rust generate the same `GitHubModelName` values using each language's enum or literal conventions.
 
-| Publisher  | C# constant (examples)                             | TypeScript enum (examples)                          |
-| ---------- | --------------------------------------------------- | --------------------------------------------------- |
-| OpenAI     | `GitHubModel.OpenAI.OpenAIGpt4oMini`               | `GitHubModelName.OpenAIGpt4oMini`                   |
-| OpenAI     | `GitHubModel.OpenAI.OpenAIGpt41Mini`               | `GitHubModelName.OpenAIGpt41Mini`                   |
-| DeepSeek   | `GitHubModel.DeepSeek.DeepSeekV30324`              | `GitHubModelName.DeepSeekV30324`                    |
-| DeepSeek   | `GitHubModel.DeepSeek.DeepSeekR1`                  | `GitHubModelName.DeepSeekR1`                        |
-| Microsoft  | `GitHubModel.Microsoft.Phi4MiniInstruct`           | `GitHubModelName.Phi4MiniInstruct` *(see note)*     |
-| Meta       | `GitHubModel.Meta.MetaLlama318BInstruct`           | `GitHubModelName.MetaLlama318BInstruct`             |
+| Publisher | C# constant (examples)                   | TypeScript enum (examples)                      |
+| --------- | ---------------------------------------- | ----------------------------------------------- |
+| OpenAI    | `GitHubModel.OpenAI.OpenAIGpt4oMini`     | `GitHubModelName.OpenAIGpt4oMini`               |
+| OpenAI    | `GitHubModel.OpenAI.OpenAIGpt41Mini`     | `GitHubModelName.OpenAIGpt41Mini`               |
+| DeepSeek  | `GitHubModel.DeepSeek.DeepSeekV30324`    | `GitHubModelName.DeepSeekV30324`                |
+| DeepSeek  | `GitHubModel.DeepSeek.DeepSeekR1`        | `GitHubModelName.DeepSeekR1`                    |
+| Microsoft | `GitHubModel.Microsoft.Phi4MiniInstruct` | `GitHubModelName.Phi4MiniInstruct` _(see note)_ |
+| Meta      | `GitHubModel.Meta.MetaLlama318BInstruct` | `GitHubModelName.MetaLlama318BInstruct`         |
 
 <Aside type="note">
   In TypeScript, the `GitHubModelName` enum is a single flat list and does not
   use publisher-grouped sub-namespaces. This is a known gap compared to the C#
-  API. Check the enum values in `.aspire/modules/aspire.mjs` for the complete list.
+  API. Check the enum values in `.aspire/modules/aspire.mjs` for the complete
+  list.
 </Aside>
 
 For the full catalogue, visit the [GitHub Models Marketplace](https://github.com/marketplace/models).

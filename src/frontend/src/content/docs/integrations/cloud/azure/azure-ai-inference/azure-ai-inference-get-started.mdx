@@ -3,8 +3,10 @@ title: Get started with the Azure AI Inference integrations
 description: Understand why you use the Aspire Azure AI Inference integrations and how they fit together in your Aspire AppHost.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Badge, LinkButton, Steps } from '@astrojs/starlight/components';
+import { Badge, LinkButton } from '@astrojs/starlight/components';
 import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
 
 <Image
@@ -49,47 +51,56 @@ architecture-beta
 
 Getting there is a two-step process: register the connection string in your AppHost, then connect to the endpoint from each app that needs it.
 
-<Steps>
+### 1. Register the Azure AI Inference connection in your AppHost
 
-1. ### Register the Azure AI Inference connection in your AppHost
+Add a named connection string to your AppHost that points to your existing Azure AI Inference endpoint. Aspire injects the connection information into each consuming app that references it.
 
-    Add a named connection string to your AppHost that points to your existing Azure AI Inference endpoint. Aspire injects the connection information into each consuming app that references it.
+<AppHostTabs limitations={{
+  typescript: 'TypeScript AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
+<Fragment slot="csharp">
 
-    ```csharp title="AppHost.cs"
-    var builder = DistributedApplication.CreateBuilder(args);
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
 
-    var aiInference = builder.AddConnectionString("ai-foundry");
+var aiInference = builder.AddConnectionString("ai-foundry");
 
-    builder.AddProject<Projects.ExampleProject>("myapp")
-        .WithReference(aiInference);
+builder.AddProject<Projects.ExampleProject>("myapp")
+    .WithReference(aiInference);
 
-    // After adding all resources, run the app...
-    builder.Build().Run();
-    ```
+// After adding all resources, run the app...
+builder.Build().Run();
+```
 
-    Store the connection string in your AppHost's configuration — typically in User Secrets during local development — under the `ConnectionStrings` key:
+</Fragment>
+</AppHostTabs>
 
-    ```json title="User Secrets"
-    {
-      "ConnectionStrings": {
-        "ai-foundry": "Endpoint=https://{endpoint}/;Key={apikey};DeploymentId={deploymentName}"
-      }
-    }
-    ```
+Store the connection string in your AppHost's configuration — typically in User Secrets during local development — under the `ConnectionStrings` key:
 
-2. ### Connect from your consuming app
+```json title="User Secrets"
+{
+  "ConnectionStrings": {
+    "ai-foundry": "Endpoint=https://{endpoint}/;Key={apikey};DeploymentId={deploymentName}"
+  }
+}
+```
 
-    When you reference the connection from a consuming app, Aspire injects the connection string as an environment variable. See [Connect to Azure AI Inference](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect/) for the connection string format, per-language examples for C#, Go, Python, and TypeScript, and the full C# client integration reference.
+### 2. Connect from your consuming app
 
-    <LinkButton
-        variant='secondary'
-        iconPlacement='end'
-        icon='right-arrow'
-        href='/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect/'>
-        Connect to Azure AI Inference
-    </LinkButton>
+When you reference the connection from a consuming app, Aspire injects the connection string as an environment variable. See [Connect to Azure AI Inference](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect/) for the connection string format, per-language examples for C#, Go, Python, and TypeScript, and the full C# client integration reference.
 
-</Steps>
+<LinkButton
+  variant="secondary"
+  iconPlacement="end"
+  icon="right-arrow"
+  href="/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect/"
+>
+  Connect to Azure AI Inference
+</LinkButton>
 
 ## See also
 

@@ -50,7 +50,12 @@ By using the `Azure.Provisioning` APIs (explained in [Customize Azure resources]
 
 The `AzureContainerAppEnvironmentResource` type models an ACA environment resource. When you call the `AddAzureContainerAppEnvironment` method, it creates an instance of this type (wrapped in the `IResourceBuilder<AzureContainerAppEnvironmentResource>`).
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -60,7 +65,8 @@ var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env");
 // Omitted for brevity...
 
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -71,7 +77,8 @@ const builder = await createBuilder();
 const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env");
 
 // Omitted for brevity...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -196,7 +203,12 @@ Using the `acaEnv` variable, you can chain a call to the `ConfigureInfrastructur
 
 If you've already provisioned an Azure Container Apps environment, chain `AsExisting` (or `asExisting`) on `AddAzureContainerAppEnvironment` to deploy your container apps into it instead of creating a new one:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -205,12 +217,13 @@ var existingEnvName = builder.AddParameter("existingEnvName");
 var existingEnvResourceGroup = builder.AddParameter("existingEnvResourceGroup");
 
 var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env")
-    .AsExisting(existingEnvName, existingEnvResourceGroup);
+.AsExisting(existingEnvName, existingEnvResourceGroup);
 
 builder.AddProject<Projects.ApiService>("api");
 
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -227,7 +240,8 @@ await acaEnv.asExisting(existingEnvName, { resourceGroup: existingEnvResourceGro
 await builder.addProject("api", "../ApiService/ApiService.csproj");
 
 await builder.build().run();
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -243,7 +257,12 @@ Some configurations are incompatible with an existing environment and are reject
 
 By default, even when the environment is existing, Aspire still emits a new user-assigned managed identity and an `AcrPull` role assignment on the container registry so that newly deployed container apps can pull their images. If your deployment principal can't create identities or role assignments, or if you have an existing identity that you want to reuse, supply a pre-existing identity with `WithAcrPullIdentity` (or `withAcrPullIdentity`):
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -254,20 +273,21 @@ var existingIdentityName = builder.AddParameter("existingIdentityName");
 var existingResourceGroup = builder.AddParameter("existingResourceGroup");
 
 var acr = builder.AddAzureContainerRegistry("acr")
-    .AsExisting(existingAcrName, existingResourceGroup);
+.AsExisting(existingAcrName, existingResourceGroup);
 
 var pullIdentity = builder.AddAzureUserAssignedIdentity("acr-pull")
-    .AsExisting(existingIdentityName, existingResourceGroup);
+.AsExisting(existingIdentityName, existingResourceGroup);
 
 builder.AddAzureContainerAppEnvironment("aca-env")
-    .AsExisting(existingEnvName, existingResourceGroup)
-    .WithAzureContainerRegistry(acr)
-    .WithAcrPullIdentity(pullIdentity);
+.AsExisting(existingEnvName, existingResourceGroup)
+.WithAzureContainerRegistry(acr)
+.WithAcrPullIdentity(pullIdentity);
 
 builder.AddProject<Projects.ApiService>("api");
 
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -294,7 +314,8 @@ await acaEnv.withAcrPullIdentity(pullIdentity);
 await builder.addProject("api", "../ApiService/ApiService.csproj");
 
 await builder.build().run();
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -306,16 +327,16 @@ The supplied identity must already have the `AcrPull` role on the registry. Aspi
 
 The environment, container registry, and ACR pull identity can each independently be new or existing. The combination determines whether Aspire emits new resources alongside the references to existing ones:
 
-| Environment | Container registry | Pull identity (`WithAcrPullIdentity`) | What gets emitted beyond references |
-|-------------|--------------------|---------------------------------------|---------------------------------------------|
-| New | New (default or user-added) | Not supplied | New environment, Log Analytics, Aspire Dashboard, identity, `AcrPull` role assignment |
-| New | New | Supplied | New environment, Log Analytics, Aspire Dashboard. No identity or role assignment in the env module — wire the role on the identity yourself |
-| New | Existing | Not supplied | New environment, Log Analytics, Aspire Dashboard, identity, `AcrPull` role assignment on existing registry |
-| New | Existing | Supplied | New environment, Log Analytics, Aspire Dashboard. No identity or role assignment in the env module |
-| Existing | New | Not supplied | New identity, new registry, `AcrPull` role assignment |
-| Existing | New | Supplied | New registry. No identity or role assignment in the env module |
-| Existing | Existing | Not supplied | New identity, `AcrPull` role assignment on existing registry |
-| Existing | Existing | Supplied | Nothing — only references to existing resources |
+| Environment | Container registry          | Pull identity (`WithAcrPullIdentity`) | What gets emitted beyond references                                                                                                         |
+| ----------- | --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| New         | New (default or user-added) | Not supplied                          | New environment, Log Analytics, Aspire Dashboard, identity, `AcrPull` role assignment                                                       |
+| New         | New                         | Supplied                              | New environment, Log Analytics, Aspire Dashboard. No identity or role assignment in the env module — wire the role on the identity yourself |
+| New         | Existing                    | Not supplied                          | New environment, Log Analytics, Aspire Dashboard, identity, `AcrPull` role assignment on existing registry                                  |
+| New         | Existing                    | Supplied                              | New environment, Log Analytics, Aspire Dashboard. No identity or role assignment in the env module                                          |
+| Existing    | New                         | Not supplied                          | New identity, new registry, `AcrPull` role assignment                                                                                       |
+| Existing    | New                         | Supplied                              | New registry. No identity or role assignment in the env module                                                                              |
+| Existing    | Existing                    | Not supplied                          | New identity, `AcrPull` role assignment on existing registry                                                                                |
+| Existing    | Existing                    | Supplied                              | Nothing — only references to existing resources                                                                                             |
 
 The last row is the only configuration in which the env module emits no new identities, role assignments, or supporting resources. Use it when you already have all of the necessary resources provisioned.
 
@@ -329,7 +350,12 @@ The following `PublishAsAzureContainerApp` overloads let you customize the gener
 
 The callback receives an `AzureResourceInfrastructure` instance and the strongly-typed `ContainerApp` resource. This lets you set any property that Azure Container Apps supports — such as scaling rules, ingress settings, or environment variables — before the Bicep is generated.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -337,17 +363,18 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.AddAzureContainerAppEnvironment("aca-env");
 
 builder.AddProject<Projects.ApiService>("api")
-    .PublishAsAzureContainerApp((infrastructure, containerApp) =>
-    {
-        containerApp.Template.Value!.Scale = new ContainerAppScale
-        {
-            MinReplicas = 1,
-            MaxReplicas = 10
-        };
-    });
+.PublishAsAzureContainerApp((infrastructure, containerApp) =>
+{
+containerApp.Template.Value!.Scale = new ContainerAppScale
+{
+MinReplicas = 1,
+MaxReplicas = 10
+};
+});
 
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 <Aside type="note">
@@ -366,7 +393,12 @@ builder.Build().Run();
 
 By default, `AddAzureContainerAppEnvironment` uses a different Azure resource naming scheme than the [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/). If you're upgrading an existing deployment that previously used `azd`, you might see duplicate Azure resources. To avoid this issue, call the `WithAzdResourceNaming` method to revert to the naming convention used by `azd`:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -377,7 +409,8 @@ var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env")
 // Omitted for brevity...
 
 builder.Build().Run();
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -389,7 +422,8 @@ const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env");
 await acaEnv.withAzdResourceNaming();
 
 // Omitted for brevity...
-```
+
+````
 </Fragment>
 </AppHostTabs>
 
@@ -403,6 +437,10 @@ Publish and deploy detect this collision up front and fail with guidance to call
 
 <AppHostTabs limitations={{
   typescript: 'TypeScript AppHosts do not have a complete generated-SDK example verified for this scenario in the Aspire daily build used for this documentation.',
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in the Aspire daily build used for this documentation.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in the Aspire daily build used for this documentation.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in the Aspire daily build used for this documentation.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in the Aspire daily build used for this documentation.',
 }}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
@@ -417,14 +455,20 @@ var env2 = builder.AddAzureContainerAppEnvironment("cae2")
 // Omitted for brevity...
 
 builder.Build().Run();
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
 `WithUniqueResourceNaming` preserves digits in the resource name when computing the managed environment `name`, so `cae1` and `cae2` produce distinct names and can coexist in the same resource group.
 
 <Aside type="caution">
-  This method is marked with `[Experimental("ASPIREACANAMING002")]` and changes the managed environment `name` for the environment it's applied to. Applying it to an *already-deployed* single environment changes its name, which causes Azure to recreate the resource. Apply it only when deploying more than one environment to a single resource group, or to new deployments. For more information, see [ASPIREACANAMING002](/diagnostics/aspireacanaming002/).
+  This method is marked with `[Experimental("ASPIREACANAMING002")]` and changes
+  the managed environment `name` for the environment it's applied to. Applying
+  it to an *already-deployed* single environment changes its name, which causes
+  Azure to recreate the resource. Apply it only when deploying more than one
+  environment to a single resource group, or to new deployments. For more
+  information, see [ASPIREACANAMING002](/diagnostics/aspireacanaming002/).
 </Aside>
 
 `WithUniqueResourceNaming` acts as a fallback after any name resolver you configure explicitly through `AzureProvisioningOptions.ProvisioningBuildOptions`, and it has no effect when `WithAzdResourceNaming` is used, since `azd` naming sets the environment name explicitly.
@@ -433,7 +477,12 @@ builder.Build().Run();
 
 All Azure resources are subclasses of the `AzureProvisioningResource` type. This enables customization of the generated Bicep by providing a fluent API to configure the Azure resources — using the `ConfigureInfrastructure` API:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -442,13 +491,15 @@ var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env");
 
 acaEnv.ConfigureInfrastructure(infra =>
 {
-    var resources = infra.GetProvisionableResources();
-    var containerEnvironment = resources.OfType<ContainerAppManagedEnvironment>().FirstOrDefault();
+var resources = infra.GetProvisionableResources();
+var containerEnvironment = resources.OfType<ContainerAppManagedEnvironment>().FirstOrDefault();
 
     containerEnvironment.Tags.Add("ExampleKey", "Example value");
+
 });
 
 builder.Build().Run();
+
 ```
 </Fragment>
 <Fragment slot="typescript">
@@ -478,3 +529,4 @@ The preceding C# code:
 - [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
 - [Azure Container Apps documentation](https://learn.microsoft.com/azure/container-apps/)
 - [Container Apps pricing](https://learn.microsoft.com/azure/container-apps/billing)
+```

@@ -36,7 +36,12 @@ To access this type and APIs, add the [📦 Aspire.Hosting.Azure.FrontDoor](http
 
 In your AppHost, call `addAzureFrontDoor` to add a Front Door profile, then call `withOrigin` to attach a backend resource as an origin:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -62,12 +67,12 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-await builder.addAzureAppServiceEnvironment("production");
+await builder.addAzureAppServiceEnvironment('production');
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withExternalHttpEndpoints();
 
-const frontdoor = await builder.addAzureFrontDoor("frontdoor");
+const frontdoor = await builder.addAzureFrontDoor('frontdoor');
 await frontdoor.withOrigin(api);
 
 // After adding all resources, run the app...
@@ -97,7 +102,12 @@ Each call to `withOrigin` creates a separate Front Door endpoint, origin group, 
 
 You can add multiple backends to the same Front Door profile. Each origin gets its own Front Door endpoint and route:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -126,15 +136,15 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-await builder.addAzureAppServiceEnvironment("production");
+await builder.addAzureAppServiceEnvironment('production');
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withExternalHttpEndpoints();
 
-const web = await builder.addProject("web", "../Web/Web.csproj");
+const web = await builder.addProject('web', '../Web/Web.csproj');
 await web.withExternalHttpEndpoints();
 
-const frontdoor = await builder.addAzureFrontDoor("frontdoor");
+const frontdoor = await builder.addAzureFrontDoor('frontdoor');
 await frontdoor.withOrigin(api);
 await frontdoor.withOrigin(web);
 
@@ -155,7 +165,12 @@ Front Door uses health probes to determine which origins are healthy. By default
 When you publish your app, Aspire generates Bicep alongside the manifest. A Front Door resource with a single origin generates Bicep similar to the following:
 
 <Aside type="caution">
-  **Upgrading from Aspire 13.3.0-preview:** The resource names generated for Front Door profiles, endpoints, origin groups, origins, and routes changed in Aspire 13.4. This can result in duplicate Azure resources (profiles, endpoints, origin groups, routes, and origins) during an upgrade. To avoid duplicates, either remove the existing Azure resources before redeploying, or set resource names explicitly using `ConfigureInfrastructure`.
+  **Upgrading from Aspire 13.3.0-preview:** The resource names generated for
+  Front Door profiles, endpoints, origin groups, origins, and routes changed in
+  Aspire 13.4. This can result in duplicate Azure resources (profiles,
+  endpoints, origin groups, routes, and origins) during an upgrade. To avoid
+  duplicates, either remove the existing Azure resources before redeploying, or
+  set resource names explicitly using `ConfigureInfrastructure`.
 </Aside>
 
 ```bicep title="Generated Bicep — frontdoor.bicep"
@@ -236,7 +251,12 @@ The generated Bicep is a starting point and is influenced by changes to the prov
 
 For advanced scenarios such as upgrading to the Premium SKU, attaching a Web Application Firewall (WAF) policy, configuring caching, or tuning routes, use `ConfigureInfrastructure` (`configureInfrastructure` in TypeScript) to modify the generated Bicep model directly:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -269,17 +289,17 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-await builder.addAzureAppServiceEnvironment("production");
+await builder.addAzureAppServiceEnvironment('production');
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withExternalHttpEndpoints();
 
-const frontdoor = await builder.addAzureFrontDoor("frontdoor");
+const frontdoor = await builder.addAzureFrontDoor('frontdoor');
 await frontdoor.withOrigin(api);
 await frontdoor.configureInfrastructure(async (infra) => {
-    // Use the AzureResourceInfrastructure API to customize Bicep
-    // parameters or resources directly.
-    await infra.addParameter("skuName", "Premium_AzureFrontDoor");
+  // Use the AzureResourceInfrastructure API to customize Bicep
+  // parameters or resources directly.
+  await infra.addParameter('skuName', 'Premium_AzureFrontDoor');
 });
 
 await builder.build().run();

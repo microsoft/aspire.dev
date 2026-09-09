@@ -22,7 +22,9 @@ import azureIcon from '@assets/icons/azure-icon.png';
 When working with Azure integrations in Aspire, you often need to customize the provisioned infrastructure beyond the default settings. The same customization patterns apply across Azure hosting integrations such as Storage, Service Bus, Key Vault, user-assigned identities, Azure Container Apps, and Azure App Service. This page documents all customization APIs supported across both C# and TypeScript AppHost projects.
 
 <LearnMore>
-For target-specific generated resource customization, see [Deploy to Azure Container Apps](/deployment/azure/container-apps/) and [Deploy to Azure App Service](/deployment/azure/app-service/).
+  For target-specific generated resource customization, see [Deploy to Azure
+  Container Apps](/deployment/azure/container-apps/) and [Deploy to Azure App
+  Service](/deployment/azure/app-service/).
 </LearnMore>
 
 ## Shared Azure customization patterns
@@ -31,7 +33,12 @@ For target-specific generated resource customization, see [Deploy to Azure Conta
 
 Use `AsExisting`, `RunAsExisting`, and `PublishAsExisting` when you want Aspire to reference an Azure resource that already exists instead of provisioning a new one.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -40,10 +47,11 @@ var existingBusName = builder.AddParameter("existingServiceBusName");
 var existingBusResourceGroup = builder.AddParameter("existingServiceBusResourceGroup");
 
 var serviceBus = builder.AddAzureServiceBus("messaging")
-    .PublishAsExisting(existingBusName, existingBusResourceGroup);
+.PublishAsExisting(existingBusName, existingBusResourceGroup);
 
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -58,7 +66,8 @@ const serviceBus = await builder.addAzureServiceBus("messaging");
 await serviceBus.publishAsExisting(existingBusName, existingBusResourceGroup);
 
 await builder.build().run();
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -73,16 +82,22 @@ Use `RunAsExisting` when only local run mode should use the existing resource, `
 
 Aspire automatically assigns Azure RBAC roles based on how resources reference one another. When you need to opt out of those defaults before applying different permissions, use `ClearDefaultRoleAssignments`.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureServiceBus("messaging")
-    .ClearDefaultRoleAssignments();
+.ClearDefaultRoleAssignments();
 
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -94,19 +109,26 @@ const serviceBus = await builder.addAzureServiceBus("messaging");
 await serviceBus.clearDefaultRoleAssignments();
 
 await builder.build().run();
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
 <LearnMore>
-For built-in and custom RBAC guidance, see [Manage Azure role assignments](/integrations/cloud/azure/role-assignments/).
+  For built-in and custom RBAC guidance, see [Manage Azure role
+  assignments](/integrations/cloud/azure/role-assignments/).
 </LearnMore>
 
 ### Read generated output values
 
 Azure resources expose output references for values that Azure assigns during provisioning. Use those references when another resource, deployment step, or app setting needs the resolved Azure value.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -114,10 +136,11 @@ var builder = DistributedApplication.CreateBuilder(args);
 var identity = builder.AddAzureUserAssignedIdentity("identity");
 
 builder.AddProject<Projects.Api>("api")
-    .WithEnvironment("IDENTITY_CLIENT_ID", identity.Resource.ClientId);
+.WithEnvironment("IDENTITY_CLIENT_ID", identity.Resource.ClientId);
 
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -132,7 +155,8 @@ const api = await builder.addProject("api", "../Api/Api.csproj");
 await api.withEnvironment("IDENTITY_CLIENT_ID", clientId);
 
 await builder.build().run();
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -143,14 +167,22 @@ Use `GetBicepIdentifier()` inside `ConfigureInfrastructure` or infrastructure re
 The `ConfigureInfrastructure` API lets you customize the Azure resources that Aspire generates during provisioning. In C#, it provides a strongly-typed surface over the [Azure.Provisioning](https://www.nuget.org/packages/Azure.Provisioning) library, letting you modify any property of the generated Azure resource types before Bicep is emitted.
 
 <Aside type="tip" title="Azure.Provisioning resources">
-For detailed API documentation and examples, see the [Azure.Provisioning API reference](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning) and the [Azure.Provisioning README](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/provisioning/Azure.Provisioning/README.md).
+  For detailed API documentation and examples, see the [Azure.Provisioning API
+  reference](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning)
+  and the [Azure.Provisioning
+  README](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/provisioning/Azure.Provisioning/README.md).
 </Aside>
 
 ### Basic infrastructure customization
 
 All Azure hosting resources in Aspire inherit from `AzureProvisioningResource`, which exposes `ConfigureInfrastructure`. The callback receives an `AzureResourceInfrastructure` instance that gives you access to all provisioned constructs for that resource.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 In C#, use `GetProvisionableResources()` with the strongly-typed Azure SDK types (for example `StorageAccount`, `ServiceBusNamespace`) to navigate and mutate each construct:
@@ -192,13 +224,13 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const storage = await builder.addAzureStorage("storage");
+const storage = await builder.addAzureStorage('storage');
 
 await storage.configureInfrastructure(async (infra) => {
-    // Strongly-typed Azure SDK types are not available in TypeScript.
-    // Use getProvisionableResources() to access constructs dynamically.
-    const resources = await infra.getProvisionableResources();
-    // Work with resources generically as needed.
+  // Strongly-typed Azure SDK types are not available in TypeScript.
+  // Use getProvisionableResources() to access constructs dynamically.
+  const resources = await infra.getProvisionableResources();
+  // Work with resources generically as needed.
 });
 
 await builder.build().run();
@@ -209,7 +241,12 @@ await builder.build().run();
 
 ### Configure SKUs and tiers
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs (Storage)"
@@ -269,7 +306,12 @@ redis.ConfigureInfrastructure(infra =>
 
 ### Configure networking
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -307,7 +349,12 @@ storage.ConfigureInfrastructure(infra =>
 
 ### Configure security and compliance
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -349,7 +396,12 @@ storage.ConfigureInfrastructure(infra =>
 
 When an integration creates multiple resources (for example, a Service Bus namespace and its queues), you can customize each one inside a single `ConfigureInfrastructure` call:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -380,9 +432,9 @@ servicebus.ConfigureInfrastructure(infra =>
 
 <Aside type="note">
   Strongly-typed construct types (such as `ServiceBusNamespace`,
-  `ServiceBusQueue`) are not available in TypeScript. Use `getProvisionableResources()`
-  to iterate constructs dynamically, or use the C# AppHost for multi-resource
-  customization.
+  `ServiceBusQueue`) are not available in TypeScript. Use
+  `getProvisionableResources()` to iterate constructs dynamically, or use the C#
+  AppHost for multi-resource customization.
 </Aside>
 
 </Fragment>
@@ -392,7 +444,12 @@ servicebus.ConfigureInfrastructure(infra =>
 
 For common scenarios, prefer Aspire's higher-level resource builders. For example, to add a private endpoint to a storage account, use `AddPrivateEndpoint` from the `Aspire.Hosting.Azure.Network` package, which automatically wires up the Private DNS Zone, VNet link, and DNS Zone Group:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -417,11 +474,11 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const vnet = await builder.addAzureVirtualNetwork("vnet");
-const peSubnet = vnet.addSubnet("pe-subnet", "10.0.1.0/24");
+const vnet = await builder.addAzureVirtualNetwork('vnet');
+const peSubnet = vnet.addSubnet('pe-subnet', '10.0.1.0/24');
 
-const storage = await builder.addAzureStorage("storage");
-const blobs = storage.addBlobs("blobs");
+const storage = await builder.addAzureStorage('storage');
+const blobs = storage.addBlobs('blobs');
 
 peSubnet.addPrivateEndpoint(blobs);
 
@@ -437,7 +494,12 @@ When no Aspire-native resource builder exists for what you need, fall back to `C
 
 Another way to customize Azure provisioning is to create an [`InfrastructureResolver`](https://learn.microsoft.com/dotnet/api/azure.provisioning.primitives.infrastructureresolver). This is a C#-only API that lets you apply organization-wide naming conventions or other centralized provisioning behavior across many Azure resources.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 Define a resolver by inheriting from `InfrastructureResolver` and overriding the relevant virtual members:
@@ -526,7 +588,12 @@ output storageAccountName string = storageAccount.name
 
 Reference the file from the AppHost using `AddBicepTemplate` (C#) or `addBicepTemplate` (TypeScript). Use `WithParameter` / `withParameter` to supply input parameters, and `GetOutput` / `getOutput` to consume a named output by passing the resulting reference to another resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -549,13 +616,18 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const storage = await builder.addBicepTemplate("storage", "./custom-storage.bicep");
-await storage.withParameter("storageAccountName", { value: "mystorageaccount" });
+const storage = await builder.addBicepTemplate(
+  'storage',
+  './custom-storage.bicep'
+);
+await storage.withParameter('storageAccountName', {
+  value: 'mystorageaccount',
+});
 
-const storageAccountName = await storage.getOutput("storageAccountName");
+const storageAccountName = await storage.getOutput('storageAccountName');
 
-const webapp = await builder.addProject("webapp", "../WebApp/WebApp.csproj");
-await webapp.withEnvironment("STORAGE_ACCOUNT_NAME", storageAccountName);
+const webapp = await builder.addProject('webapp', '../WebApp/WebApp.csproj');
+await webapp.withEnvironment('STORAGE_ACCOUNT_NAME', storageAccountName);
 
 await builder.build().run();
 ```
@@ -564,7 +636,10 @@ await builder.build().run();
 </AppHostTabs>
 
 <Aside type="tip">
-For inline Bicep snippets, use `AddBicepTemplateString` (C#) or `addBicepTemplateString` (TypeScript) instead of `AddBicepTemplate`. Both APIs return the same `AzureBicepResource` and support the same `WithParameter` and `GetOutput` patterns.
+  For inline Bicep snippets, use `AddBicepTemplateString` (C#) or
+  `addBicepTemplateString` (TypeScript) instead of `AddBicepTemplate`. Both APIs
+  return the same `AzureBicepResource` and support the same `WithParameter` and
+  `GetOutput` patterns.
 </Aside>
 
 ### Pass parameters and read outputs
@@ -599,7 +674,12 @@ resource sqlServer 'Microsoft.Sql/servers@2021-11-01' = {
 output sqlServerName string = sqlServer.name
 ```
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -624,15 +704,17 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const adminPassword = await builder.addParameter("adminPassword", { secret: true });
+const adminPassword = await builder.addParameter('adminPassword', {
+  secret: true,
+});
 
-const sql = await builder.addBicepTemplate("sql", "./custom-sql.bicep");
-await sql.withParameter("administratorLoginPassword", { value: adminPassword });
+const sql = await builder.addBicepTemplate('sql', './custom-sql.bicep');
+await sql.withParameter('administratorLoginPassword', { value: adminPassword });
 
-const sqlServerName = await sql.getOutput("sqlServerName");
+const sqlServerName = await sql.getOutput('sqlServerName');
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
-await api.withEnvironment("SQL_SERVER_NAME", sqlServerName);
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withEnvironment('SQL_SERVER_NAME', sqlServerName);
 
 await builder.build().run();
 ```
@@ -641,14 +723,22 @@ await builder.build().run();
 </AppHostTabs>
 
 <LearnMore>
-For more end-to-end examples — including chaining outputs between Bicep resources and using the `existing` Bicep keyword to reference resources that Aspire didn't provision — see the [Aspire `playground/bicep` sample](https://github.com/dotnet/aspire/tree/main/playground/bicep).
+  For more end-to-end examples — including chaining outputs between Bicep
+  resources and using the `existing` Bicep keyword to reference resources that
+  Aspire didn't provision — see the [Aspire `playground/bicep`
+  sample](https://github.com/dotnet/aspire/tree/main/playground/bicep).
 </LearnMore>
 
 ### Set the deployment scope
 
 By default, Aspire deploys Bicep resources at the resource group scope. Some Bicep templates require a different [deployment scope](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-to-subscription), such as the subscription or the tenant.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 Set the `Scope` property on the Bicep resource using `AzureBicepResourceScope.CreateForSubscription` or `AzureBicepResourceScope.CreateForTenant`:
@@ -689,13 +779,16 @@ builder.Build().Run();
 `AzureBicepResourceScope.CreateForSubscription` and `AzureBicepResourceScope.CreateForTenant` are available in Aspire 13.5 and later, and require a `using Aspire.Hosting.Azure;` directive. `targetScope` in the Bicep template must match the scope you assign in C#. `CreateForSubscription` requires a subscription identifier; `CreateForTenant` targets the current tenant and takes no arguments.
 
 Keep the `param location string` declaration in each template. `location` is a well-known Aspire parameter that the provisioner fills in automatically from the environment's location and passes to every Bicep deployment — including subscription- and tenant-scoped ones — so the template must declare it to accept the value.
+
 </Aside>
 
 </Fragment>
 <Fragment slot="typescript">
 
 <Aside type="note">
-  `AzureBicepResourceScope` and `Resource.Scope` are not currently exposed in the TypeScript AppHost APIs, so subscription/tenant deployment scopes for Bicep resources are currently C# only.
+  `AzureBicepResourceScope` and `Resource.Scope` are not currently exposed in
+  the TypeScript AppHost APIs, so subscription/tenant deployment scopes for
+  Bicep resources are currently C# only.
 </Aside>
 
 </Fragment>
@@ -710,11 +803,13 @@ To see the Bicep that Aspire emits after applying your `ConfigureInfrastructure`
 3. Review the generated `.bicep` files to verify your customizations.
 
 <Aside type="note">
-Neither `aspire run` nor `aspire deploy` writes Bicep into your AppHost directory. Use `aspire publish` to materialize the generated Bicep on disk.
+  Neither `aspire run` nor `aspire deploy` writes Bicep into your AppHost
+  directory. Use `aspire publish` to materialize the generated Bicep on disk.
 </Aside>
 
 <Aside type="tip">
-Use the Azure Portal's **Export template** feature to view Bicep for manually configured resources, then adapt it for Aspire.
+  Use the Azure Portal's **Export template** feature to view Bicep for manually
+  configured resources, then adapt it for Aspire.
 </Aside>
 
 ## See also

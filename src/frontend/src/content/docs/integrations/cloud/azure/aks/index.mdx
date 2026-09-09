@@ -34,7 +34,12 @@ To get started with the Aspire AKS hosting integration, install the [📦 Aspire
 
 After installing the package, add an AKS environment to your AppHost using `AddAzureKubernetesEnvironment`:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -44,7 +49,8 @@ var aks = builder.AddAzureKubernetesEnvironment("aks");
 var api = builder.AddProject<Projects.MyApi>("api");
 
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -60,7 +66,8 @@ const api = await builder
     .withExternalHttpEndpoints();
 
 await builder.build().run();
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -70,34 +77,45 @@ When an AKS environment is present, all compute resources are automatically depl
 
 Customize the system node pool VM size and scaling using `WithSystemNodePool`:
 
-<AppHostTabs>
-<Fragment slot="csharp">
-```csharp title="AppHost.cs"
-builder.AddAzureKubernetesEnvironment("aks")
-    .WithSystemNodePool("Standard_D4s_v5", minCount: 1, maxCount: 5);
-```
-</Fragment>
-<Fragment slot="typescript">
-```typescript title="apphost.mts"
-const aks = await builder.addAzureKubernetesEnvironment('aks');
-await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
-```
-</Fragment>
+<AppHostTabs
+  limitations={{
+    python:
+      'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+    go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+    java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+    rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  }}
+>
+  <Fragment slot="csharp">
+    ```csharp title="AppHost.cs" builder.AddAzureKubernetesEnvironment("aks")
+    .WithSystemNodePool("Standard_D4s_v5", minCount: 1, maxCount: 5); ```
+  </Fragment>
+  <Fragment slot="typescript">
+    ```typescript title="apphost.mts" const aks = await
+    builder.addAzureKubernetesEnvironment('aks'); await
+    aks.withSystemNodePool('Standard_D4s_v5', 1, 5); ```
+  </Fragment>
 </AppHostTabs>
 
 ## Add node pools
 
 Add additional node pools for workload isolation, GPU workloads, or specialized hardware requirements using `AddNodePool`:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var aks = builder.AddAzureKubernetesEnvironment("aks");
 var gpuPool = aks.AddNodePool("gpupool", "Standard_NC6s_v3", minCount: 0, maxCount: 5);
 
 builder.AddContainer("ml-worker", "my-ml-image")
-    .WithNodePool(gpuPool);
-```
+.WithNodePool(gpuPool);
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -106,29 +124,37 @@ const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
 
 const worker = await builder.addContainer('ml-worker', 'my-ml-image');
 await worker.withNodePool(gpuPool);
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
 ## Add a persistent volume
 
 <Aside type="note">
-  Persistent volume APIs are experimental. In C#, suppress the `ASPIRECOMPUTE002` diagnostic to use them.
+  Persistent volume APIs are experimental. In C#, suppress the
+  `ASPIRECOMPUTE002` diagnostic to use them.
 </Aside>
 
 Call `AddPersistentVolume` directly on the AKS environment to model durable storage without reaching through to the underlying Kubernetes integration. The call forwards to the AKS environment's Kubernetes publisher, so the same configuration methods and workload-binding APIs described in [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/) apply:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var aks = builder.AddAzureKubernetesEnvironment("aks");
 
 var data = aks.AddPersistentVolume("data")
-    .WithCapacity("20Gi");
+.WithCapacity("20Gi");
 
 builder.AddProject<Projects.Api>("api")
-    .WithPersistentVolume(data, "/data");
-```
+.WithPersistentVolume(data, "/data");
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -142,18 +168,22 @@ const api = await builder
     .withHttpEndpoint({ env: 'PORT' })
     .withExternalHttpEndpoints()
     .withKubernetesPersistentVolumeMount(data, "/data");
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
 When you don't set a storage class, the generated claim omits `spec.storageClassName` so the cluster's default storage class provisions the disk. A standard AKS cluster dynamically provisions an Azure managed disk for such claims. To request Premium SSD storage explicitly, call `WithStorageClass("managed-csi-premium")` in C# or `withStorageClass('managed-csi-premium')` in TypeScript.
 
 <Aside type="note">
-  The APIs that are specific to Azure Files are intentionally deferred until managed-identity mounting can be modeled securely.
+  The APIs that are specific to Azure Files are intentionally deferred until
+  managed-identity mounting can be modeled securely.
 </Aside>
 
 <LearnMore>
-  For the full set of configuration methods (storage class, capacity, access modes, annotations) and how to bind volumes to workloads, see [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/).
+  For the full set of configuration methods (storage class, capacity, access
+  modes, annotations) and how to bind volumes to workloads, see [Persistent
+  volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/).
 </LearnMore>
 
 ## Publishing and deployment

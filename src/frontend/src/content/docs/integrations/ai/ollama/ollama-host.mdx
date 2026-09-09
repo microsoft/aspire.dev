@@ -1,6 +1,6 @@
 ---
 title: Set up Ollama in the AppHost
-seoTitle: "Set up Ollama in the Aspire AppHost: hosting integration"
+seoTitle: 'Set up Ollama in the Aspire AppHost: hosting integration'
 description: Learn how to use the Aspire Ollama hosting integration to orchestrate and configure Ollama models in an Aspire solution.
 ---
 
@@ -23,7 +23,7 @@ import ollamaIcon from '@assets/icons/ollama-icon.png';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Ollama hosting integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Ollama server and its model resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Ollama hosting integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). It shows the generated AppHost APIs for C#, TypeScript, Python, and Go that model an Ollama server and its model resources. The daily Java and Rust generators currently have package-level output conflicts, documented with each example.
 
 If you're new to the Ollama integration, start with the [Get started with Ollama integrations](/integrations/ai/ollama/ollama-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Ollama](../ollama-connect/).
 
@@ -31,7 +31,10 @@ If you're new to the Ollama integration, start with the [Get started with Ollama
 
 To start building an Aspire app that uses Ollama, install the [📦 CommunityToolkit.Aspire.Hosting.Ollama](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Ollama) NuGet package:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  java: 'The daily Java generator cannot emit this Community Toolkit package because it produces duplicate OllamaGpuVendor.java outputs.',
+  rust: 'The daily Rust generator emits conflicting OllamaGpuVendor types for this package, so the generated SDK does not compile.',
+}}>
 <Fragment slot="csharp">
 
 ```bash title="Terminal"
@@ -39,7 +42,8 @@ aspire add ollama --source CommunityToolkit
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -60,7 +64,8 @@ aspire add ollama --source CommunityToolkit
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Ollama hosting integration package:
@@ -74,8 +79,29 @@ This updates your `aspire.config.json` with the Ollama hosting integration packa
 ```
 
 <Aside type="note">
-  The TypeScript AppHost bindings for Ollama are provided by the Community Toolkit package and are not part of the core Aspire TypeScript SDK. The `.aspire/modules/aspire.mjs` file in your project will include `addOllama` and related APIs after installation.
+  The generated Ollama AppHost bindings come from the Community Toolkit package
+  rather than the core Aspire SDK. After installation, TypeScript, Python, and
+  Go AppHosts include `addOllama` or its language-specific equivalent in
+  `.aspire/modules`.
 </Aside>
+
+</Fragment>
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add ollama --source CommunityToolkit
+```
+
+This updates `aspire.config.json` with the Ollama hosting integration package.
+
+</Fragment>
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add ollama --source CommunityToolkit
+```
+
+This updates `aspire.config.json` with the Ollama hosting integration package.
 
 </Fragment>
 </AppHostTabs>
@@ -84,7 +110,10 @@ This updates your `aspire.config.json` with the Ollama hosting integration packa
 
 Once you've installed the hosting integration in your AppHost project, you can add an Ollama server resource and then add model resources as shown in the following examples:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  java: 'The daily Java generator cannot emit this Community Toolkit package because it produces duplicate OllamaGpuVendor.java outputs.',
+  rust: 'The daily Rust generator emits conflicting OllamaGpuVendor types for this package, so the generated SDK does not compile.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -93,10 +122,11 @@ var ollama = builder.AddOllama("ollama");
 var llama3 = ollama.AddModel("llama3");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(llama3);
+.WithReference(llama3);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -111,7 +141,52 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(llama3);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+ollama = builder.add_ollama("ollama")
+llama3 = ollama.add_model("llama3")
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama")
+	llama3 := ollama.AddModel("llama3")
+	if err := llama3.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -121,19 +196,25 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 1. The resource name passed to `AddOllama` is used as the connection string name when referenced in a dependency. Model sub-resources are named by sanitizing the model name (for example, `"llama3"` produces the resource name `"ollama-llama3"`).
 
-1. The AppHost reference call configures a connection in the consuming project named after the referenced model resource.
+1. When a consuming resource references the model, Aspire configures a connection named after that model resource.
 
 </Steps>
 
 <Aside type="note">
-    When you reference an Ollama model resource from the AppHost, Aspire makes several properties available to the consuming project, such as the HTTP endpoint, host, and port. For a complete list of these properties and per-language connection examples, see [Connect to Ollama](../ollama-connect/).
+  When you reference an Ollama model resource from the AppHost, Aspire makes
+  several properties available to the consuming project, such as the HTTP
+  endpoint, host, and port. For a complete list of these properties and
+  per-language connection examples, see [Connect to Ollama](../ollama-connect/).
 </Aside>
 
 ## Add Ollama model resource
 
-Models are sub-resources of an Ollama server resource. You add them with the `AddModel` (or `addModel`) method. Each model is downloaded when the Ollama container first starts.
+Models are sub-resources of an Ollama server resource. Add them with the generated model methods. Each model is downloaded when the Ollama container first starts.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  java: 'The daily Java generator cannot emit this Community Toolkit package because it produces duplicate OllamaGpuVendor.java outputs.',
+  rust: 'The daily Rust generator emits conflicting OllamaGpuVendor types for this package, so the generated SDK does not compile.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -147,11 +228,12 @@ var phi35 = ollama.AddModel("phi3.5");
 var llama3 = ollama.AddModel("ollama-llama3", "llama3");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(phi35)
-    .WithReference(llama3);
+.WithReference(phi35)
+.WithReference(llama3);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -172,7 +254,67 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(llama3);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+ollama = builder.add_ollama("ollama")
+
+    # Add by model name - resource name is generated automatically
+    phi35 = ollama.add_model("phi3.5")
+
+    # Add with an explicit resource name
+    llama3 = ollama.add_model("llama3", name="ollama-llama3")
+
+    builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama")
+
+	// Add by model name - resource name is generated automatically
+	phi35 := ollama.AddModel("phi3.5")
+
+	// Add with an explicit resource name
+	llama3 := ollama.AddNamedModel("ollama-llama3", "llama3")
+
+	if err := phi35.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := llama3.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -189,21 +331,25 @@ When the Ollama container for this integration first spins up, it downloads the 
 
 Add a data volume to the Ollama resource to persist downloaded models across container restarts:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  java: 'The daily Java generator cannot emit this Community Toolkit package because it produces duplicate OllamaGpuVendor.java outputs.',
+  rust: 'The daily Rust generator emits conflicting OllamaGpuVendor types for this package, so the generated SDK does not compile.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var ollama = builder.AddOllama("ollama")
-    .WithDataVolume();
+.WithDataVolume();
 
 var llama3 = ollama.AddModel("llama3");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>()
-    .WithReference(llama3);
+.WithReference(llama3);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -220,7 +366,52 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(llama3);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+ollama = builder.add_ollama("ollama").with_data_volume()
+llama3 = ollama.add_model("llama3")
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama").WithDataVolume()
+	llama3 := ollama.AddModel("llama3")
+	if err := llama3.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -228,9 +419,12 @@ The data volume is mounted at `/root/.ollama` in the Ollama container. When a `n
 
 ## Use GPUs when available
 
-By default, the Ollama container runs on CPU. To enable GPU acceleration, use the `WithGPUSupport` (or `withGPUSupport`) extension method:
+By default, the Ollama container runs on CPU. To enable GPU acceleration, use the generated GPU-support method:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  java: 'The daily Java generator cannot emit this Community Toolkit package because it produces duplicate OllamaGpuVendor.java outputs.',
+  rust: 'The daily Rust generator emits conflicting OllamaGpuVendor types for this package, so the generated SDK does not compile.',
+}}>
 <Fragment slot="csharp">
 
 **Nvidia:**
@@ -269,10 +463,10 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const ollama = await builder.addOllama("ollama");
+const ollama = await builder.addOllama('ollama');
 await ollama.withGPUSupport();
 
-await ollama.addModel("llama3");
+await ollama.addModel('llama3');
 
 // After adding all resources, run the app...
 ```
@@ -284,17 +478,116 @@ import { createBuilder, OllamaGpuVendor } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const ollama = await builder.addOllama("ollama");
+const ollama = await builder.addOllama('ollama');
 await ollama.withGPUSupport({ vendor: OllamaGpuVendor.AMD });
 
-await ollama.addModel("llama3");
+await ollama.addModel('llama3');
 
 // After adding all resources, run the app...
 ```
 
 <Aside type="note">
-  In TypeScript, select the GPU vendor with the `OllamaGpuVendor` enum imported from the generated `.aspire/modules/aspire.mjs` — for example, `OllamaGpuVendor.AMD` or `OllamaGpuVendor.Nvidia`.
+  In TypeScript, select the GPU vendor with the `OllamaGpuVendor` enum imported
+  from the generated `.aspire/modules/aspire.mjs` — for example,
+  `OllamaGpuVendor.AMD` or `OllamaGpuVendor.Nvidia`.
 </Aside>
+
+</Fragment>
+<Fragment slot="python">
+
+**Nvidia:**
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    ollama = builder.add_ollama("ollama").with_gpu_support()
+    ollama.add_model("llama3")
+    builder.run()
+```
+
+**AMD:**
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    ollama = builder.add_ollama("ollama").with_gpu_support(vendor="AMD")
+    ollama.add_model("llama3")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+**Nvidia:**
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama").WithGPUSupport()
+	model := ollama.AddModel("llama3")
+	if err := model.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+**AMD:**
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	vendor := aspire.OllamaGpuVendorAMD
+	ollama := builder.AddOllama("ollama").WithGPUSupport(
+		&aspire.WithGPUSupportOptions{Vendor: &vendor},
+	)
+	model := ollama.AddModel("llama3")
+	if err := model.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
 
 </Fragment>
 </AppHostTabs>
@@ -303,9 +596,12 @@ For more information, see [GPU support in Docker Desktop](https://docs.docker.co
 
 ## Add a model from Hugging Face
 
-To use a model in GGUF format from [Hugging Face](https://huggingface.co/), use the `AddHuggingFaceModel` (or `addHuggingFaceModel`) extension method:
+To use a model in GGUF format from [Hugging Face](https://huggingface.co/), use the generated Hugging Face model method:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  java: 'The daily Java generator cannot emit this Community Toolkit package because it produces duplicate OllamaGpuVendor.java outputs.',
+  rust: 'The daily Rust generator emits conflicting OllamaGpuVendor types for this package, so the generated SDK does not compile.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -313,14 +609,15 @@ var builder = DistributedApplication.CreateBuilder(args);
 var ollama = builder.AddOllama("ollama");
 
 var llama = ollama.AddHuggingFaceModel(
-    "llama",
-    "bartowski/Llama-3.2-1B-Instruct-GGUF:IQ4_XS");
+"llama",
+"bartowski/Llama-3.2-1B-Instruct-GGUF:IQ4_XS");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>()
-    .WithReference(llama);
+.WithReference(llama);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -338,7 +635,58 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(llama);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+ollama = builder.add_ollama("ollama")
+llama = ollama.add_hugging_face_model(
+"llama",
+"bartowski/Llama-3.2-1B-Instruct-GGUF:IQ4_XS",
+)
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama")
+	llama := ollama.AddHuggingFaceModel(
+		"llama",
+		"bartowski/Llama-3.2-1B-Instruct-GGUF:IQ4_XS",
+	)
+	if err := llama.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -348,7 +696,10 @@ Only models in GGUF format are supported. The integration automatically prefixes
 
 To use a fixed port for the Ollama container, pass it as a parameter:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  java: 'The daily Java generator cannot emit this Community Toolkit package because it produces duplicate OllamaGpuVendor.java outputs.',
+  rust: 'The daily Rust generator emits conflicting OllamaGpuVendor types for this package, so the generated SDK does not compile.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -358,7 +709,8 @@ var ollama = builder.AddOllama("ollama", port: 11434);
 ollama.AddModel("llama3");
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -371,7 +723,56 @@ const ollama = await builder.addOllama("ollama", { port: 11434 });
 await ollama.addModel("llama3");
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+ollama = builder.add_ollama("ollama", port=11434)
+ollama.add_model("llama3")
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	port := float64(11434)
+	ollama := builder.AddOllama(
+		"ollama",
+		&aspire.AddOllamaOptions{Port: &port},
+	)
+	model := ollama.AddModel("llama3")
+	if err := model.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -379,18 +780,22 @@ await ollama.addModel("llama3");
 
 The Ollama integration also provides support for running [Open WebUI](https://openwebui.com/) alongside the Ollama container:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  java: 'The daily Java generator cannot emit this Community Toolkit package because it produces duplicate OllamaGpuVendor.java outputs.',
+  rust: 'The daily Rust generator emits conflicting OllamaGpuVendor types for this package, so the generated SDK does not compile.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var ollama = builder.AddOllama("ollama")
-    .WithOpenWebUI();
+.WithOpenWebUI();
 
 ollama.AddModel("llama3");
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -404,7 +809,51 @@ await ollama.withOpenWebUI();
 await ollama.addModel("llama3");
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+ollama = builder.add_ollama("ollama").with_open_web_ui()
+ollama.add_model("llama3")
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama").WithOpenWebUI()
+	model := ollama.AddModel("llama3")
+	if err := model.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
 
 </Fragment>
 </AppHostTabs>

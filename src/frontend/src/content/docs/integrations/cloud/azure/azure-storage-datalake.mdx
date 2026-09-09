@@ -34,7 +34,8 @@ aspire add azure-storage
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -55,7 +56,8 @@ aspire add azure-storage
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Azure Storage hosting integration package:
@@ -67,6 +69,42 @@ This updates your `aspire.config.json` with the Azure Storage hosting integratio
   }
 }
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
+
+</Fragment>
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
+
+</Fragment>
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
+
+</Fragment>
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
 
 </Fragment>
 </AppHostTabs>
@@ -84,12 +122,13 @@ var storage = builder.AddAzureStorage("storage");
 var dataLake = storage.AddDataLake("datalake");
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(dataLake)
-    .WaitFor(dataLake);
+.WithReference(dataLake)
+.WaitFor(dataLake);
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -106,7 +145,98 @@ await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+storage = builder.add_azure_storage("storage")
+data_lake = storage.add_data_lake("datalake")
+
+    builder.add_project("api", "../ExampleProject/ExampleProject.csproj") \
+        .with_reference(data_lake) \
+        .wait_for(data_lake)
+
+    builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage")
+	dataLake := storage.AddDataLake("datalake")
+
+	builder.AddProject("api", "../ExampleProject/ExampleProject.csproj").
+		WithReference(dataLake).
+		WaitFor(dataLake)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var storage = builder.addAzureStorage("storage");
+    var dataLake = storage.addDataLake("datalake");
+
+    builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+        .withReference(dataLake)
+        .waitFor(dataLake);
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let storage = builder.add_azure_storage("storage")?;
+    let data_lake = storage.add_data_lake("datalake")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -117,7 +247,9 @@ The preceding code:
 - Passes a reference to the Data Lake resource to the consuming project and waits for it to be ready.
 
 <Aside type="caution" title="Emulator not supported">
-Azure Data Lake Storage does **not** support the Azure Storage emulator. You must use an actual Azure Storage account with hierarchical namespace (HNS) enabled, or use connection strings for local development.
+  Azure Data Lake Storage does **not** support the Azure Storage emulator. You
+  must use an actual Azure Storage account with hierarchical namespace (HNS)
+  enabled, or use connection strings for local development.
 </Aside>
 
 ### Add Azure Data Lake file system resource
@@ -134,13 +266,14 @@ var dataLake = storage.AddDataLake("datalake");
 var fileSystem = storage.AddDataLakeFileSystem("analytics", "analytics-data");
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(dataLake)
-    .WithReference(fileSystem)
-    .WaitFor(dataLake);
+.WithReference(dataLake)
+.WithReference(fileSystem)
+.WaitFor(dataLake);
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -159,33 +292,148 @@ await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+storage = builder.add_azure_storage("storage")
+data_lake = storage.add_data_lake("datalake")
+file_system = storage.add_data_lake_file_system(
+"analytics",
+data_lake_file_system_name="analytics-data")
+
+    builder.add_project("api", "../ExampleProject/ExampleProject.csproj") \
+        .with_reference(data_lake) \
+        .with_reference(file_system) \
+        .wait_for(data_lake)
+
+    builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage")
+	dataLake := storage.AddDataLake("datalake")
+	fileSystemName := "analytics-data"
+	fileSystem := storage.AddDataLakeFileSystem(
+		"analytics",
+		&aspire.AddDataLakeFileSystemOptions{
+			DataLakeFileSystemName: &fileSystemName,
+		})
+
+	builder.AddProject("api", "../ExampleProject/ExampleProject.csproj").
+		WithReference(dataLake).
+		WithReference(fileSystem).
+		WaitFor(dataLake)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var storage = builder.addAzureStorage("storage");
+    var dataLake = storage.addDataLake("datalake");
+    var fileSystem = storage.addDataLakeFileSystem("analytics", "analytics-data");
+
+    builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+        .withReference(dataLake)
+        .withReference(fileSystem)
+        .waitFor(dataLake);
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let storage = builder.add_azure_storage("storage")?;
+    let data_lake = storage.add_data_lake("datalake")?;
+    let file_system = storage.add_data_lake_file_system(
+        "analytics", Some("analytics-data"))?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
 The `AddDataLakeFileSystem` (or `addDataLakeFileSystem`) method takes:
+
 - `name`: The resource name used in Aspire.
 - `dataLakeFileSystemName` (optional): The actual file system name in Azure. Defaults to the resource name if not specified.
 
 <Aside type="note">
-Both `AddDataLake` and `AddDataLakeFileSystem` are called on the storage resource, not on each other. When you call either method, the storage account is automatically configured with hierarchical namespace (HNS) enabled, which is required for Data Lake Storage Gen2.
+  Both `AddDataLake` and `AddDataLakeFileSystem` are called on the storage
+  resource, not on each other. When you call either method, the storage account
+  is automatically configured with hierarchical namespace (HNS) enabled, which
+  is required for Data Lake Storage Gen2.
 </Aside>
 
 ### Customize provisioning infrastructure
 
 The Data Lake resource is part of the Azure Storage resource, which is a subclass of `AzureProvisioningResource`. You can customize the generated Bicep using the `ConfigureInfrastructure` (or `configureInfrastructure`) API on the storage resource. For example, you can configure the storage SKU, access tier, and other properties:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The Python daily SDK generates configure_infrastructure, but AzureResourceInfrastructure does not generate get_provisionable_resources, so the documented StorageAccount callback cannot be written.',
+  go: 'The Go daily SDK generates ConfigureInfrastructure, but AzureResourceInfrastructure does not generate GetProvisionableResources, so the documented StorageAccount callback cannot be written.',
+  java: 'The Java daily SDK generates configureInfrastructure, but AzureResourceInfrastructure does not generate getProvisionableResources, so the documented StorageAccount callback cannot be written.',
+  rust: 'The Rust daily SDK generates configure_infrastructure with an untyped Vec<Value> callback, and AzureResourceInfrastructure does not generate get_provisionable_resources, so the documented StorageAccount callback cannot be written.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var storage = builder.AddAzureStorage("storage")
-    .ConfigureInfrastructure(infra =>
-    {
-        var storageAccount = infra.GetProvisionableResources()
-            .OfType<StorageAccount>()
-            .Single();
+.ConfigureInfrastructure(infra =>
+{
+var storageAccount = infra.GetProvisionableResources()
+.OfType<StorageAccount>()
+.Single();
 
         storageAccount.Sku = new StorageSku { Name = StorageSkuName.PremiumLrs };
         storageAccount.Tags.Add("workload", "analytics");
@@ -194,11 +442,12 @@ var storage = builder.AddAzureStorage("storage")
 var dataLake = storage.AddDataLake("datalake");
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(dataLake);
+.WithReference(dataLake);
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -222,7 +471,8 @@ await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+````
+
 </Fragment>
 </AppHostTabs>
 

@@ -22,7 +22,7 @@ import storageExplorerImage from '@assets/integrations/cloud/azure/storage/azure
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Queue Storage Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure Storage account and its queue resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Queue Storage Hosting integration. It enumerates the AppHost APIs — with examples for C#, TypeScript, Python, Go, Java, and Rust where the generated SDK supports them — that you use to model an Azure Storage account and its queue resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure Queue Storage integration, start with the [Get started with Azure Queue Storage integrations](/integrations/cloud/azure/azure-storage-queues/azure-storage-queues-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Queue Storage](../azure-storage-queues-connect/).
 
@@ -38,7 +38,8 @@ aspire add azure-storage
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -59,7 +60,8 @@ aspire add azure-storage
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Azure Storage hosting integration package:
@@ -71,6 +73,42 @@ This updates your `aspire.config.json` with the Azure Storage hosting integratio
   }
 }
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
+
+</Fragment>
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
+
+</Fragment>
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
+
+</Fragment>
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
 
 </Fragment>
 </AppHostTabs>
@@ -104,15 +142,107 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const queues = await builder.addAzureStorage("storage")
-    .addQueues("queues");
+const queues = await builder.addAzureStorage('storage').addQueues('queues');
 
-await builder.addNodeApp("apiservice", "./api", "index.js")
-    .withReference(queues)
-    .waitFor(queues);
+await builder
+  .addNodeApp('apiservice', './api', 'index.js')
+  .withReference(queues)
+  .waitFor(queues);
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    storage = builder.add_azure_storage("storage")
+    queues = storage.add_queues("queues")
+
+    builder.add_project("apiservice", "../ExampleProject/ExampleProject.csproj") \
+        .with_reference(queues) \
+        .wait_for(queues)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	queues := builder.AddAzureStorage("storage").AddQueues("queues")
+
+	builder.AddProject("apiservice", "../ExampleProject/ExampleProject.csproj").
+		WithReference(queues).
+		WaitFor(queues)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var queues = builder.addAzureStorage("storage")
+        .addQueues("queues");
+
+    builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+        .withReference(queues)
+        .waitFor(queues);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let storage = builder.add_azure_storage("storage")?;
+    let queues = storage.add_queues("queues")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
 ```
 
 </Fragment>
@@ -121,18 +251,28 @@ await builder.build().run();
 The preceding code adds an Azure Storage resource named `storage`, attaches a queue storage resource named `queues` to it, and passes the queue's connection information to the consuming project.
 
 <Aside type="caution">
-When you call `AddAzureStorage` (or `addAzureStorage`), it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+  When you call `AddAzureStorage` (or `addAzureStorage`), it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 <Aside type="note">
-When you reference the queue resource from the AppHost, Aspire makes several connection properties available to the consuming project, such as the service URI and connection string. For a complete list of these properties and per-language connection examples, see [Connect to Azure Queue Storage](../azure-storage-queues-connect/).
+  When you reference the queue resource from the AppHost, Aspire makes several
+  connection properties available to the consuming project, such as the service
+  URI and connection string. For a complete list of these properties and
+  per-language connection examples, see [Connect to Azure Queue
+  Storage](../azure-storage-queues-connect/).
 </Aside>
 
 ## Run as Azurite emulator
 
 For local development, Aspire can run the [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) emulator in a container to avoid requiring an Azure subscription. Call `RunAsEmulator` (C#) or `runAsEmulator` (TypeScript) on the storage resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust daily SDK generates run_as_emulator with an untyped Vec<Value> callback instead of a typed AzureStorageEmulatorResource callback, so the documented emulator operation is not available.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -158,16 +298,88 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const storage = await builder.addAzureStorage("storage")
-    .runAsEmulator();
-const queues = await storage.addQueues("queues");
+const storage = await builder.addAzureStorage('storage').runAsEmulator();
+const queues = await storage.addQueues('queues');
 
-await builder.addNodeApp("apiservice", "./api", "index.js")
-    .withReference(queues)
-    .waitFor(queues);
+await builder
+  .addNodeApp('apiservice', './api', 'index.js')
+  .withReference(queues)
+  .waitFor(queues);
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    storage = builder.add_azure_storage("storage").run_as_emulator()
+    queues = storage.add_queues("queues")
+
+    builder.add_project("apiservice", "../ExampleProject/ExampleProject.csproj") \
+        .with_reference(queues) \
+        .wait_for(queues)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage").RunAsEmulator()
+	queues := storage.AddQueues("queues")
+
+	builder.AddProject("apiservice", "../ExampleProject/ExampleProject.csproj").
+		WithReference(queues).
+		WaitFor(queues)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var storage = builder.addAzureStorage("storage").runAsEmulator();
+    var queues = storage.addQueues("queues");
+
+    builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+        .withReference(queues)
+        .waitFor(queues);
+
+    builder.build().run();
+}
 ```
 
 </Fragment>
@@ -182,14 +394,16 @@ When running as an emulator, Aspire pulls the `mcr.microsoft.com/azure-storage/a
 By default, the Azurite container exposes the following endpoints:
 
 | Endpoint | Container port | Host port |
-|----------|----------------|-----------|
+| -------- | -------------- | --------- |
 | `blob`   | 10000          | dynamic   |
 | `queue`  | 10001          | dynamic   |
 | `table`  | 10002          | dynamic   |
 
-The host port is dynamic by default. To fix the ports, pass a configuration callback to `RunAsEmulator` (C#) or `runAsEmulator` (TypeScript):
+The host port is dynamic by default. To fix the ports, pass a configuration callback to the emulator operation:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust daily SDK generates run_as_emulator with an untyped Vec<Value> callback instead of a typed AzureStorageEmulatorResource callback, so the documented port configuration callback is not available.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -215,17 +429,93 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const storage = await builder.addAzureStorage("storage")
-    .runAsEmulator({
-        configureContainer: async (azurite) => {
-            await azurite.withBlobPort(27000);
-            await azurite.withQueuePort(27001);
-            await azurite.withTablePort(27002);
-        },
-    });
+const storage = await builder.addAzureStorage('storage').runAsEmulator({
+  configureContainer: async (azurite) => {
+    await azurite.withBlobPort(27000);
+    await azurite.withQueuePort(27001);
+    await azurite.withTablePort(27002);
+  },
+});
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+def configure_azurite(azurite):
+    azurite.with_blob_port(27000) \
+        .with_queue_port(27001) \
+        .with_table_port(27002)
+
+with create_builder() as builder:
+    storage = builder.add_azure_storage("storage") \
+        .run_as_emulator(configure_container=configure_azurite)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage").RunAsEmulator(
+		&aspire.RunAsEmulatorOptions{
+			ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
+				azurite.WithBlobPort(27000).
+					WithQueuePort(27001).
+					WithTablePort(27002)
+			},
+		})
+	if err := storage.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var storage = builder.addAzureStorage("storage")
+        .runAsEmulator(azurite -> azurite
+            .withBlobPort(27000)
+            .withQueuePort(27001)
+            .withTablePort(27002));
+
+    builder.build().run();
+}
 ```
 
 </Fragment>
@@ -233,17 +523,19 @@ await builder.build().run();
 
 The resulting port mappings (`container:host`) are:
 
-| Endpoint | Port mapping |
-|----------|--------------|
+| Endpoint | Port mapping  |
+| -------- | ------------- |
 | `blob`   | `10000:27000` |
 | `queue`  | `10001:27001` |
 | `table`  | `10002:27002` |
 
 ## Configure Azurite container with persistent lifetime
 
-To keep the Azurite container alive across AppHost restarts, call `WithLifetime` with `ContainerLifetime.Persistent`:
+To keep the Azurite container alive across AppHost restarts, configure the emulator container with a persistent lifetime:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust daily SDK generates run_as_emulator with an untyped Vec<Value> callback instead of a typed AzureStorageEmulatorResource callback, so the documented lifetime callback is not available.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -267,15 +559,85 @@ import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const storage = await builder.addAzureStorage("storage")
-    .runAsEmulator({
-        configureContainer: async (azurite) => {
-            await azurite.withLifetime(ContainerLifetime.Persistent);
-        },
-    });
+const storage = await builder.addAzureStorage('storage').runAsEmulator({
+  configureContainer: async (azurite) => {
+    await azurite.withLifetime(ContainerLifetime.Persistent);
+  },
+});
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+def configure_azurite(azurite):
+    azurite.with_lifetime("Persistent")
+
+with create_builder() as builder:
+    storage = builder.add_azure_storage("storage") \
+        .run_as_emulator(configure_container=configure_azurite)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage").RunAsEmulator(
+		&aspire.RunAsEmulatorOptions{
+			ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
+				azurite.WithLifetime(aspire.ContainerLifetimePersistent)
+			},
+		})
+	if err := storage.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var storage = builder.addAzureStorage("storage")
+        .runAsEmulator(azurite ->
+            azurite.withLifetime(ContainerLifetime.PERSISTENT));
+
+    builder.build().run();
+}
 ```
 
 </Fragment>
@@ -285,7 +647,9 @@ await builder.build().run();
 
 To persist Azurite data outside the container lifecycle, add a data volume:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust daily SDK generates run_as_emulator with an untyped Vec<Value> callback instead of a typed AzureStorageEmulatorResource callback, so the documented data-volume callback is not available.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -309,15 +673,84 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const storage = await builder.addAzureStorage("storage")
-    .runAsEmulator({
-        configureContainer: async (azurite) => {
-            await azurite.withDataVolume();
-        },
-    });
+const storage = await builder.addAzureStorage('storage').runAsEmulator({
+  configureContainer: async (azurite) => {
+    await azurite.withDataVolume();
+  },
+});
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+def configure_azurite(azurite):
+    azurite.with_data_volume()
+
+with create_builder() as builder:
+    storage = builder.add_azure_storage("storage") \
+        .run_as_emulator(configure_container=configure_azurite)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage").RunAsEmulator(
+		&aspire.RunAsEmulatorOptions{
+			ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
+				azurite.WithDataVolume()
+			},
+		})
+	if err := storage.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var storage = builder.addAzureStorage("storage")
+        .runAsEmulator(azurite -> azurite.withDataVolume());
+
+    builder.build().run();
+}
 ```
 
 </Fragment>
@@ -327,9 +760,11 @@ The data volume is mounted at the `/data` path in the Azurite container. When a 
 
 ## Configure Azurite container with data bind mount
 
-To use a bind mount instead of a volume, call `WithDataBindMount`:
+To use a bind mount instead of a volume, configure the emulator container with a data bind mount:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust daily SDK generates run_as_emulator with an untyped Vec<Value> callback instead of a typed AzureStorageEmulatorResource callback, so the documented data-bind-mount callback is not available.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -353,22 +788,101 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const storage = await builder.addAzureStorage("storage")
-    .runAsEmulator({
-        configureContainer: async (azurite) => {
-            await azurite.withDataBindMount({ path: "../azurite/data" });
-        },
-    });
+const storage = await builder.addAzureStorage('storage').runAsEmulator({
+  configureContainer: async (azurite) => {
+    await azurite.withDataBindMount({ path: '../azurite/data' });
+  },
+});
 
 // After adding all resources, run the app...
 await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+def configure_azurite(azurite):
+    azurite.with_data_bind_mount(path="../azurite/data")
+
+with create_builder() as builder:
+    storage = builder.add_azure_storage("storage") \
+        .run_as_emulator(configure_container=configure_azurite)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	path := "../azurite/data"
+	storage := builder.AddAzureStorage("storage").RunAsEmulator(
+		&aspire.RunAsEmulatorOptions{
+			ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
+				azurite.WithDataBindMount(&aspire.WithDataBindMountOptions{
+					Path: &path,
+				})
+			},
+		})
+	if err := storage.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var storage = builder.addAzureStorage("storage")
+        .runAsEmulator(azurite -> azurite.withDataBindMount(
+            new WithDataBindMountOptions().path("../azurite/data")));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 <Aside type="note">
-Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+  Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have
+  limited functionality compared to
+  [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better
+  performance, portability, and security, making them more suitable for
+  production environments. However, bind mounts allow direct access and
+  modification of files on the host system, ideal for development and testing
+  where real-time changes are needed.
 </Aside>
 
 Data bind mounts rely on the host machine's filesystem to persist Azurite data across container restarts. The data bind mount is mounted at the `../azurite/data` path on the host machine relative to the AppHost directory. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
@@ -405,24 +919,147 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const existingStorageName = await builder.addParameter("existingStorageName");
+const existingStorageName = await builder.addParameter('existingStorageName');
 
-const queues = await builder.addAzureStorage("storage")
-    .asExisting(existingStorageName)
-    .addQueues("queues");
+const queues = await builder
+  .addAzureStorage('storage')
+  .asExisting(existingStorageName)
+  .addQueues('queues');
 
-await builder.addNodeApp("apiservice", "./api", "index.js")
-    .withReference(queues);
+await builder
+  .addNodeApp('apiservice', './api', 'index.js')
+  .withReference(queues);
 
 // After adding all resources, run the app...
 await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    existing_storage_name = builder.add_parameter("existingStorageName")
+    existing_storage_resource_group = builder.add_parameter("existingStorageResourceGroup")
+
+    queues = builder.add_azure_storage("storage") \
+        .as_existing(
+            existing_storage_name,
+            resource_group=existing_storage_resource_group) \
+        .add_queues("queues")
+
+    builder.add_project("apiservice", "../ExampleProject/ExampleProject.csproj") \
+        .with_reference(queues)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	existingStorageName := builder.AddParameter("existingStorageName")
+	existingStorageResourceGroup := builder.AddParameter("existingStorageResourceGroup")
+
+	queues := builder.AddAzureStorage("storage").
+		AsExisting(existingStorageName, &aspire.AsExistingOptions{
+			ResourceGroup: existingStorageResourceGroup,
+		}).
+		AddQueues("queues")
+
+	builder.AddProject("apiservice", "../ExampleProject/ExampleProject.csproj").
+		WithReference(queues)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var existingStorageName = builder.addParameter("existingStorageName");
+    var existingStorageResourceGroup = builder.addParameter("existingStorageResourceGroup");
+
+    var queues = builder.addAzureStorage("storage")
+        .asExisting(existingStorageName, existingStorageResourceGroup)
+        .addQueues("queues");
+
+    builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+        .withReference(queues);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let existing_storage_name = builder.add_parameter(
+        "existingStorageName", None, None, None)?;
+    let existing_storage_resource_group = builder.add_parameter(
+        "existingStorageResourceGroup", None, None, None)?;
+
+    let storage = builder.add_azure_storage("storage")?;
+    storage.as_existing(
+        existing_storage_name.handle().to_json(),
+        Some(existing_storage_resource_group.handle().to_json()))?;
+    let queues = storage.add_queues("queues")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 <Aside type="caution">
-When you call `RunAsExisting`, `PublishAsExisting`, or `AsExisting` to work with resources that are already present in your Azure subscription, you must add certain configuration values to your AppHost so that Aspire can locate them. The necessary configuration values include **SubscriptionId**, **AllowResourceGroupCreation**, **ResourceGroup**, and **Location**. If you don't set them, "Missing configuration" errors appear in the Aspire dashboard. For more information about how to set them, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+  When you call `RunAsExisting`, `PublishAsExisting`, or `AsExisting` to work
+  with resources that are already present in your Azure subscription, you must
+  add certain configuration values to your AppHost so that Aspire can locate
+  them. The necessary configuration values include **SubscriptionId**,
+  **AllowResourceGroupCreation**, **ResourceGroup**, and **Location**. If you
+  don't set them, "Missing configuration" errors appear in the Aspire dashboard.
+  For more information about how to set them, see [Use existing Azure
+  resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 </Aside>
 
 ## Connect to storage resources from Azure Storage Explorer
@@ -430,7 +1067,10 @@ When you call `RunAsExisting`, `PublishAsExisting`, or `AsExisting` to work with
 When the Aspire AppHost runs, the storage resources can be accessed by external tools such as the [Azure Storage Explorer](https://azure.microsoft.com/features/storage-explorer/). If your storage resource is running locally using Azurite, it will automatically be picked up by the Azure Storage Explorer.
 
 <Aside type="note">
-The Azure Storage Explorer discovers Azurite storage resources assuming the default ports are used. If you've [configured the Azurite container to use different ports](#configure-azurite-container-ports), you'll need to configure the Azure Storage Explorer to connect to the correct ports.
+  The Azure Storage Explorer discovers Azurite storage resources assuming the
+  default ports are used. If you've [configured the Azurite container to use
+  different ports](#configure-azurite-container-ports), you'll need to configure
+  the Azure Storage Explorer to connect to the correct ports.
 </Aside>
 
 To connect to the storage resource from Azure Storage Explorer, follow these steps:
@@ -445,9 +1085,10 @@ To connect to the storage resource from Azure Storage Explorer, follow these ste
 1. Expand the **Storage Accounts** node.
 1. You should see a storage account with your resource's name as a prefix:
 
-    <Image
-      src={storageExplorerImage}
-      alt="Azure Storage Explorer: Azurite storage resource discovered." />
+   <Image
+     src={storageExplorerImage}
+     alt="Azure Storage Explorer: Azurite storage resource discovered."
+   />
 
 </Steps>
 

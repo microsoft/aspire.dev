@@ -14,6 +14,10 @@ import { renderAppHostTabsInMarkdown } from '../../config/apphost-language-markd
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const componentsDirectory = path.resolve(testsDirectory, '..', '..', 'src', 'components');
 const docsDirectory = path.resolve(testsDirectory, '..', '..', 'src', 'content', 'docs');
+const integrationParityDirectories = [
+  path.join(docsDirectory, 'integrations', 'ai'),
+  path.join(docsDirectory, 'integrations', 'cloud'),
+];
 const excludedTopLevel = new Set([
   'da',
   'de',
@@ -56,6 +60,21 @@ function getActiveEnglishDocs(): string[] {
   }
 
   visit(docsDirectory);
+  return files;
+}
+
+function getMdxFiles(directory: string): string[] {
+  const files: string[] = [];
+
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const resolved = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...getMdxFiles(resolved));
+    } else if (entry.isFile() && entry.name.endsWith('.mdx')) {
+      files.push(resolved);
+    }
+  }
+
   return files;
 }
 
@@ -153,6 +172,83 @@ describe('AppHost language registry', () => {
     expect(builderClientSource).toContain("template?.dataset.variantKind === 'limitation'");
     expect(builderClientSource).not.toContain("type AppHostLanguage = 'csharp' | 'typescript'");
     expect(homeSource).not.toContain("type AppHostLanguage = 'csharp' | 'typescript'");
+  });
+
+  test('cloud and AI AppHost tabs account for all six languages', () => {
+    const violations: string[] = [];
+    const appHostTabsPattern =
+      /<AppHostTabs\b(?<attributes>[\s\S]*?)>(?<content>[\s\S]*?)<\/AppHostTabs>/g;
+
+    for (const directory of integrationParityDirectories) {
+      for (const file of getMdxFiles(directory)) {
+        const source = fs.readFileSync(file, 'utf8');
+        let tabIndex = 0;
+
+        for (const match of source.matchAll(appHostTabsPattern)) {
+          tabIndex += 1;
+          const attributes = match.groups?.attributes ?? '';
+          const content = match.groups?.content ?? '';
+
+          for (const language of appHostLanguageConfig.languages) {
+            const slotPattern = new RegExp(
+              `<Fragment\\b[^>]*\\bslot\\s*=\\s*(['"])${language.id}\\1`,
+              'i'
+            );
+            const limitationPattern = new RegExp(`\\b${language.id}\\s*:`, 'i');
+
+            if (!slotPattern.test(content) && !limitationPattern.test(attributes)) {
+              violations.push(
+                `${path.relative(docsDirectory, file)} AppHostTabs #${tabIndex} does not account for ${language.id}`
+              );
+            }
+          }
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  test('cloud and AI AppHost builder examples use AppHost tabs', () => {
+    const violations: string[] = [];
+    const appHostTabsPattern = /<AppHostTabs\b[\s\S]*?<\/AppHostTabs>/g;
+    const codeFencePattern = /```(?<language>\w+)[^\n]*\n(?<code>[\s\S]*?)```/g;
+    const appHostBuilderPatterns = [
+      /DistributedApplication\.CreateBuilder\s*\(/,
+      /\bcreateBuilder\s*\(/,
+      /\bcreate_builder\s*\(/,
+      /\baspire\.CreateBuilder\s*\(/,
+    ];
+
+    for (const directory of integrationParityDirectories) {
+      for (const file of getMdxFiles(directory)) {
+        const source = fs.readFileSync(file, 'utf8');
+        const tabRanges = [...source.matchAll(appHostTabsPattern)].map((match) => ({
+          start: match.index ?? 0,
+          end: (match.index ?? 0) + match[0].length,
+        }));
+
+        for (const match of source.matchAll(codeFencePattern)) {
+          const code = match.groups?.code ?? '';
+          if (!appHostBuilderPatterns.some((pattern) => pattern.test(code))) {
+            continue;
+          }
+
+          const index = match.index ?? 0;
+          const inAppHostTabs = tabRanges.some(
+            (range) => index >= range.start && index < range.end
+          );
+          if (!inAppHostTabs) {
+            const line = source.slice(0, index).split('\n').length;
+            violations.push(
+              `${path.relative(docsDirectory, file)}:${line} has a standalone AppHost builder example`
+            );
+          }
+        }
+      }
+    }
+    expect(violations).toEqual([]);
+    expect(violations).toEqual([]);
   });
 });
 

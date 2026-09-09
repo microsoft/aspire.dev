@@ -1,6 +1,6 @@
 ---
 title: Set up OpenAI in the AppHost
-seoTitle: "Set up OpenAI in the Aspire AppHost: hosting integration"
+seoTitle: 'Set up OpenAI in the Aspire AppHost: hosting integration'
 description: Learn how to use the Aspire OpenAI hosting integration to orchestrate and configure OpenAI resources in an Aspire solution.
 ---
 
@@ -20,7 +20,7 @@ import openaiIcon from '@assets/icons/openai-icon.png';
   data-zoom-off
 />
 
-This article is the reference for the Aspire OpenAI hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an OpenAI parent resource and model resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire OpenAI hosting integration. It shows the generated AppHost APIs for C#, TypeScript, Python, Go, Java, and Rust that model an OpenAI parent resource and its model resources.
 
 If you're new to the OpenAI integration, start with the [Get started with OpenAI integrations](/integrations/ai/openai/openai-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to OpenAI](../openai-connect/).
 
@@ -36,7 +36,8 @@ aspire add openai
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -57,7 +58,8 @@ aspire add openai
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the OpenAI hosting integration package:
@@ -69,6 +71,42 @@ This updates your `aspire.config.json` with the OpenAI hosting integration packa
   }
 }
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add openai
+```
+
+This updates `aspire.config.json` with the OpenAI hosting integration package.
+
+</Fragment>
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add openai
+```
+
+This updates `aspire.config.json` with the OpenAI hosting integration package.
+
+</Fragment>
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add openai
+```
+
+This updates `aspire.config.json` with the OpenAI hosting integration package.
+
+</Fragment>
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add openai
+```
+
+This updates `aspire.config.json` with the OpenAI hosting integration package.
 
 </Fragment>
 </AppHostTabs>
@@ -87,10 +125,11 @@ var openai = builder.AddOpenAI("openai");
 var chat = openai.AddModel("chat", "gpt-4o-mini");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat);
+.WithReference(chat);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -106,22 +145,106 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(chat);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+openai = builder.add_open_ai("openai")
+chat = openai.add_model("chat", "gpt-4o-mini")
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	openai := builder.AddOpenAI("openai")
+	chat := openai.AddModel("chat", "gpt-4o-mini")
+	if err := chat.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var openai = builder.addOpenAI("openai");
+    var chat = openai.addModel("chat", "gpt-4o-mini");
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let openai = builder.add_open_ai("openai")?;
+    let chat = openai.add_model("chat", "gpt-4o-mini")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
 <Steps>
 
-1. Calling `AddOpenAI` (or `addOpenAI`) creates an `OpenAIResource` that models the OpenAI account. It registers a secret parameter for the API key that defaults to the `OPENAI_API_KEY` environment variable.
+1. Adding the OpenAI parent creates an `OpenAIResource` that models the OpenAI account. It registers a secret parameter for the API key that defaults to the `OPENAI_API_KEY` environment variable.
 
-1. Calling `AddModel` (or `addModel`) creates an `OpenAIModelResource` child whose connection string is composed from the parent endpoint, API key, and the model name you supply.
+1. Adding a model creates an `OpenAIModelResource` child whose connection string is composed from the parent endpoint, API key, and the model name you supply.
 
-1. The AppHost reference call configures a connection in the consuming project named after the referenced model resource, such as `chat` in the preceding example. Multiple models can share the single API key and endpoint from the parent resource.
+1. When a consuming resource references a model, Aspire configures a connection named after that model resource, such as `chat`. Multiple models can share the single API key and endpoint from the parent resource.
 
 </Steps>
 
 <Aside type="note">
-    When you reference an OpenAI model resource from the AppHost, Aspire makes several properties available to the consuming project, such as the endpoint URI, API key, and model name. For a complete list of these properties and per-language connection examples, see [Connect to OpenAI](../openai-connect/).
+  When you reference an OpenAI model resource from the AppHost, Aspire makes
+  several properties available to the consuming project, such as the endpoint
+  URI, API key, and model name. For a complete list of these properties and
+  per-language connection examples, see [Connect to OpenAI](../openai-connect/).
 </Aside>
 
 ## Add multiple OpenAI model resources
@@ -139,11 +262,12 @@ var chat = openai.AddModel("chat", "gpt-4o-mini");
 var embeddings = openai.AddModel("embeddings", "text-embedding-3-small");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat)
-    .WithReference(embeddings);
+.WithReference(chat)
+.WithReference(embeddings);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -161,7 +285,95 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(embeddings);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+openai = builder.add_open_ai("openai")
+chat = openai.add_model("chat", "gpt-4o-mini")
+embeddings = openai.add_model("embeddings", "text-embedding-3-small")
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	openai := builder.AddOpenAI("openai")
+	chat := openai.AddModel("chat", "gpt-4o-mini")
+	embeddings := openai.AddModel("embeddings", "text-embedding-3-small")
+	if err := chat.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := embeddings.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var openai = builder.addOpenAI("openai");
+    var chat = openai.addModel("chat", "gpt-4o-mini");
+    var embeddings = openai.addModel("embeddings", "text-embedding-3-small");
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let openai = builder.add_open_ai("openai")?;
+    let chat = openai.add_model("chat", "gpt-4o-mini")?;
+    let embeddings = openai.add_model("embeddings", "text-embedding-3-small")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -169,7 +381,7 @@ Referencing `chat` passes a connection string named `chat` to the project, and r
 
 ## Use default API key parameter
 
-Calling `AddOpenAI("openai")` (or `addOpenAI("openai")`) automatically creates a secret parameter named `openai-openai-apikey`. Aspire resolves its value in this order:
+Adding an OpenAI parent named `openai` automatically creates a secret parameter named `openai-openai-apikey`. Aspire resolves its value in this order:
 
 1. The `Parameters:openai-openai-apikey` configuration key (user secrets, `appsettings.*`, or environment variables).
 2. The `OPENAI_API_KEY` environment variable.
@@ -182,7 +394,7 @@ aspire secret set Parameters:openai-openai-apikey sk-your-api-key
 
 ## Use custom API key parameter
 
-Replace the default parameter by creating your own secret parameter and passing it to `WithApiKey` (or `withApiKey`) on the parent:
+Replace the default parameter by creating your own secret parameter and passing it to the generated API-key method on the parent:
 
 <AppHostTabs>
 <Fragment slot="csharp">
@@ -192,15 +404,16 @@ var builder = DistributedApplication.CreateBuilder(args);
 var apiKey = builder.AddParameter("my-api-key", secret: true);
 
 var openai = builder.AddOpenAI("openai")
-                    .WithApiKey(apiKey);
+.WithApiKey(apiKey);
 
 var chat = openai.AddModel("chat", "gpt-4o-mini");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat);
+.WithReference(chat);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -219,15 +432,109 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(chat);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+api_key = builder.add_parameter("my-api-key", secret=True)
+openai = builder.add_open_ai("openai").with_api_key(api_key)
+chat = openai.add_model("chat", "gpt-4o-mini")
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	secret := true
+	apiKey := builder.AddParameter(
+		"my-api-key",
+		&aspire.AddParameterOptions{Secret: &secret},
+	)
+	openai := builder.AddOpenAI("openai").WithApiKey(apiKey)
+	chat := openai.AddModel("chat", "gpt-4o-mini")
+	if err := chat.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var apiKey = builder.addParameter(
+        "my-api-key",
+        new AddParameterOptions().secret(true));
+    var openai = builder.addOpenAI("openai").withApiKey(apiKey);
+    var chat = openai.addModel("chat", "gpt-4o-mini");
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api_key = builder.add_parameter("my-api-key", None, None, Some(true))?;
+    let openai = builder.add_open_ai("openai")?.with_api_key(&api_key)?;
+    let chat = openai.add_model("chat", "gpt-4o-mini")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
-<Aside type="note">Parameters marked <code>secret: true</code> are stored in the user secrets store and never appear in plain text in logs or the dashboard.</Aside>
+<Aside type="note">
+  Parameters marked <code>secret: true</code> are stored in the user secrets
+  store and never appear in plain text in logs or the dashboard.
+</Aside>
 
 ## Add a custom endpoint
 
-Override the default `https://api.openai.com/v1` endpoint to use a proxy, an Azure OpenAI endpoint, or any OpenAI-compatible gateway. Call `WithEndpoint` (or `withEndpoint`) on the parent resource:
+Override the default `https://api.openai.com/v1` endpoint to use a proxy, an Azure OpenAI endpoint, or any OpenAI-compatible gateway. Use the generated endpoint method on the parent resource:
 
 <AppHostTabs>
 <Fragment slot="csharp">
@@ -235,15 +542,16 @@ Override the default `https://api.openai.com/v1` endpoint to use a proxy, an Azu
 var builder = DistributedApplication.CreateBuilder(args);
 
 var openai = builder.AddOpenAI("openai")
-                    .WithEndpoint("https://my-gateway.example.com/v1");
+.WithEndpoint("https://my-gateway.example.com/v1");
 
 var chat = openai.AddModel("chat", "gpt-4o-mini");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat);
+.WithReference(chat);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -260,7 +568,93 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(chat);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+openai = builder.add_open_ai("openai")
+openai.with_endpoint("https://my-gateway.example.com/v1")
+chat = openai.add_model("chat", "gpt-4o-mini")
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	openai := builder.AddOpenAI("openai").
+		WithEndpoint("https://my-gateway.example.com/v1")
+	chat := openai.AddModel("chat", "gpt-4o-mini")
+	if err := chat.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var openai = builder.addOpenAI("openai")
+        .withEndpoint("https://my-gateway.example.com/v1");
+    var chat = openai.addModel("chat", "gpt-4o-mini");
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let openai = builder
+        .add_open_ai("openai")?
+        .with_endpoint("https://my-gateway.example.com/v1")?;
+    let chat = openai.add_model("chat", "gpt-4o-mini")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -278,13 +672,14 @@ var builder = DistributedApplication.CreateBuilder(args);
 var openai = builder.AddOpenAI("openai");
 
 var chat = openai.AddModel("chat", "gpt-4o-mini")
-                 .WithHealthCheck();
+.WithHealthCheck();
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat);
+.WithReference(chat);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -301,28 +696,115 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(chat);
 
 // After adding all resources, run the app...
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+openai = builder.add_open_ai("openai")
+chat = openai.add_model("chat", "gpt-4o-mini").with_health_check()
+builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	openai := builder.AddOpenAI("openai")
+	chat := openai.AddModel("chat", "gpt-4o-mini").WithHealthCheck()
+	if err := chat.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var openai = builder.addOpenAI("openai");
+    var chat = openai.addModel("chat", "gpt-4o-mini")
+        .withHealthCheck();
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let openai = builder.add_open_ai("openai")?;
+    let chat = openai
+        .add_model("chat", "gpt-4o-mini")?
+        .with_health_check()?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
 The model health check validates endpoint reachability, API key validity (401), and model existence (404). It executes only once per application instance to limit rate-limit implications.
 
 <Aside type="note">
-In C#, each OpenAI parent resource also automatically registers a status-page health check against `https://status.openai.com/api/v2/status.json`. This status-page check is not currently exposed in the TypeScript AppHost.
+  In C#, each OpenAI parent resource also automatically registers a status-page
+  health check against `https://status.openai.com/api/v2/status.json`. This
+  status-page check is not generated for TypeScript, Python, Go, Java, or Rust
+  AppHosts.
 </Aside>
 
 ## Available models
 
 Common model identifiers for the OpenAI API:
 
-| Category   | Model identifiers |
-| ---------- | ----------------- |
-| Chat       | `gpt-5`, `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo` |
-| Reasoning  | `o3`, `o3-mini`, `o4-mini` |
-| Realtime   | `gpt-realtime` |
+| Category   | Model identifiers                                  |
+| ---------- | -------------------------------------------------- |
+| Chat       | `gpt-5`, `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`    |
+| Reasoning  | `o3`, `o3-mini`, `o4-mini`                         |
+| Realtime   | `gpt-realtime`                                     |
 | Embeddings | `text-embedding-3-small`, `text-embedding-3-large` |
-| Images     | `dall-e-3` |
-| Audio      | `whisper-1` |
+| Images     | `dall-e-3`                                         |
+| Audio      | `whisper-1`                                        |
 
 For the full and up-to-date list, see the [OpenAI models documentation](https://platform.openai.com/docs/models).
 

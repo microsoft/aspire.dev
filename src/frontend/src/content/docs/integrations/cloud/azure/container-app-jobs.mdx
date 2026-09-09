@@ -24,24 +24,30 @@ import containerAppsIcon from '@assets/icons/azure-container-apps-environments.s
 
 The following resource types can be published as Azure Container App Jobs:
 
-| Resource type | Description |
-|---|---|
-| `ProjectResource` | A .NET project added via `AddProject<T>`. |
-| `ContainerResource` | A container image added via `AddContainer`. |
+| Resource type        | Description                                      |
+| -------------------- | ------------------------------------------------ |
+| `ProjectResource`    | A .NET project added via `AddProject<T>`.        |
+| `ContainerResource`  | A container image added via `AddContainer`.      |
 | `ExecutableResource` | An executable process added via `AddExecutable`. |
 
 ## Publish a project as a Container App Job
 
 Use `PublishAsAzureContainerAppJob` to deploy a project, container, or executable as an Azure Container App Job. Use `PublishAsScheduledAzureContainerAppJob` as a convenience wrapper that sets the cron schedule in one call.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.DataProcessor>("data-processor")
-    .PublishAsScheduledAzureContainerAppJob("0 0 * * *"); // Every day at midnight
-```
+.PublishAsScheduledAzureContainerAppJob("0 0 \* \* \*"); // Every day at midnight
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -51,7 +57,8 @@ const builder = await createBuilder();
 
 const dataProcessor = await builder.addProject("data-processor", "../DataProcessor/DataProcessor.csproj");
 await dataProcessor.publishAsScheduledAzureContainerAppJob("0 0 * * *"); // Every day at midnight
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -61,17 +68,23 @@ Azure Container App Jobs support three trigger types: **manual**, **schedule**, 
 
 ### Manual trigger
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.ManualTask>("manual-task")
-    .PublishAsAzureContainerAppJob((_, job) =>
-    {
-        job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
-    });
-```
+.PublishAsAzureContainerAppJob((\_, job) =>
+{
+job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
+});
+
+````
 </Fragment>
 <Fragment slot="typescript">
 <Aside type="note">
@@ -82,7 +95,12 @@ builder.AddProject<Projects.ManualTask>("manual-task")
 
 ### Schedule trigger
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -95,7 +113,8 @@ builder.AddProject<Projects.ScheduledTask>("scheduled-task")
         job.Configuration.ScheduleTriggerConfig.Parallelism = 1;
         job.Configuration.ScheduleTriggerConfig.ReplicaCompletionCount = 1;
     });
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 <Aside type="note">
@@ -106,21 +125,27 @@ builder.AddProject<Projects.ScheduledTask>("scheduled-task")
 
 ### Event trigger
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.EventDrivenTask>("event-task")
-    .PublishAsAzureContainerAppJob((_, job) =>
-    {
-        job.Configuration.TriggerType = ContainerAppJobTriggerType.Event;
-        job.Configuration.EventTriggerConfig.Scale.MinExecutions = 1;
-        job.Configuration.EventTriggerConfig.Scale.MaxExecutions = 10;
-        job.Configuration.EventTriggerConfig.Parallelism = 1;
-        job.Configuration.EventTriggerConfig.ReplicaCompletionCount = 1;
-    });
-```
+.PublishAsAzureContainerAppJob((\_, job) =>
+{
+job.Configuration.TriggerType = ContainerAppJobTriggerType.Event;
+job.Configuration.EventTriggerConfig.Scale.MinExecutions = 1;
+job.Configuration.EventTriggerConfig.Scale.MaxExecutions = 10;
+job.Configuration.EventTriggerConfig.Parallelism = 1;
+job.Configuration.EventTriggerConfig.ReplicaCompletionCount = 1;
+});
+
+````
 </Fragment>
 <Fragment slot="typescript">
 <Aside type="note">
@@ -135,7 +160,12 @@ builder.AddProject<Projects.EventDrivenTask>("event-task")
 
 Configure CPU and memory for your job:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -147,7 +177,8 @@ builder.AddProject<Projects.ResourceIntensiveTask>("intensive-task")
         job.Template.Containers[0].Value!.Resources.Cpu = 1.0;
         job.Template.Containers[0].Value!.Resources.Memory = "2Gi";
     });
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 <Aside type="note">
@@ -160,7 +191,12 @@ builder.AddProject<Projects.ResourceIntensiveTask>("intensive-task")
 
 Pass environment variables — including provisioning parameters — into the job container:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -168,16 +204,17 @@ var builder = DistributedApplication.CreateBuilder(args);
 var connectionString = builder.AddParameter("connectionString");
 
 builder.AddProject<Projects.DatabaseTask>("db-task")
-    .PublishAsAzureContainerAppJob((infra, job) =>
-    {
-        job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
-        job.Template.Containers[0].Value!.Env.Add(new ContainerAppEnvironmentVariable
-        {
-            Name = "ConnectionString",
-            Value = connectionString.AsProvisioningParameter(infra)
-        });
-    });
-```
+.PublishAsAzureContainerAppJob((infra, job) =>
+{
+job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
+job.Template.Containers[0].Value!.Env.Add(new ContainerAppEnvironmentVariable
+{
+Name = "ConnectionString",
+Value = connectionString.AsProvisioningParameter(infra)
+});
+});
+
+````
 </Fragment>
 <Fragment slot="typescript">
 <Aside type="note">
@@ -188,7 +225,12 @@ builder.AddProject<Projects.DatabaseTask>("db-task")
 
 ### Configure timeout and retry policy
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -200,7 +242,8 @@ builder.AddProject<Projects.RetryableTask>("retryable-task")
         job.Configuration.ReplicaTimeout = 1800; // 30 minutes
         job.Configuration.ReplicaRetryLimit = 3;
     });
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 <Aside type="note">
@@ -211,18 +254,24 @@ builder.AddProject<Projects.RetryableTask>("retryable-task")
 
 ## Publish a container resource as a job
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddContainer("batch-processor", "myregistry.azurecr.io/batch-processor:latest")
-    .PublishAsAzureContainerAppJob((_, job) =>
-    {
-        job.Configuration.TriggerType = ContainerAppJobTriggerType.Schedule;
-        job.Configuration.ScheduleTriggerConfig.CronExpression = "0 2 * * 0"; // Weekly on Sunday at 2 AM
-    });
-```
+.PublishAsAzureContainerAppJob((\_, job) =>
+{
+job.Configuration.TriggerType = ContainerAppJobTriggerType.Schedule;
+job.Configuration.ScheduleTriggerConfig.CronExpression = "0 2 \* \* 0"; // Weekly on Sunday at 2 AM
+});
+
+````
 </Fragment>
 <Fragment slot="typescript">
 <Aside type="note">
@@ -233,7 +282,12 @@ builder.AddContainer("batch-processor", "myregistry.azurecr.io/batch-processor:l
 
 ## Publish an executable resource as a job
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -243,7 +297,8 @@ builder.AddExecutable("data-script", "python", ".", "process_data.py")
     {
         job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
     });
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 <Aside type="note">

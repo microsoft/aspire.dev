@@ -27,7 +27,13 @@ If you're new to the Azure App Configuration integration, start with the [Get st
 ## Installation
 
 To start building an Aspire app that uses Azure App Configuration, install the [📦 Aspire.Hosting.Azure.AppConfiguration](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppConfiguration) NuGet package:
-<AppHostTabs>
+
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```bash title="Terminal"
@@ -35,7 +41,8 @@ aspire add azure-app-configuration
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -56,7 +63,8 @@ aspire add azure-app-configuration
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Azure App Configuration hosting integration package:
@@ -75,7 +83,13 @@ This updates your `aspire.config.json` with the Azure App Configuration hosting 
 ## Add Azure App Configuration resource
 
 Once you've installed the hosting integration in your AppHost project, you can add an Azure App Configuration resource as shown in the following examples:
-<AppHostTabs>
+
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -99,10 +113,11 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const appConfig = await builder.addAzureAppConfiguration("config");
+const appConfig = await builder.addAzureAppConfiguration('config');
 
-await builder.addProject("web", "../WebApplication/WebApplication.csproj")
-    .withReference(appConfig);
+await builder
+  .addProject('web', '../WebApplication/WebApplication.csproj')
+  .withReference(appConfig);
 
 // After adding all resources, run the app...
 
@@ -113,15 +128,19 @@ await builder.build().run();
 </AppHostTabs>
 
 <Aside type="caution">
-  When you call `AddAzureAppConfiguration` (or `addAzureAppConfiguration`), it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
-  dynamically during app startup. The app must configure the appropriate
-  subscription and location. For more information, see [Local provisioning:
+  When you call `AddAzureAppConfiguration` (or `addAzureAppConfiguration`), it
+  implicitly calls `AddAzureProvisioning`—which adds support for generating
+  Azure resources dynamically during app startup. The app must configure the
+  appropriate subscription and location. For more information, see [Local
+  provisioning:
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 <Aside type="note">
-    When you reference an Azure App Configuration resource from the AppHost, Aspire makes the store endpoint available to the consuming project. For a complete list of these properties and per-language connection examples, see [Connect to Azure App Configuration](../azure-app-configuration-connect/).
+  When you reference an Azure App Configuration resource from the AppHost,
+  Aspire makes the store endpoint available to the consuming project. For a
+  complete list of these properties and per-language connection examples, see
+  [Connect to Azure App Configuration](../azure-app-configuration-connect/).
 </Aside>
 
 ## Provisioning-generated Bicep
@@ -183,7 +202,13 @@ The generated Bicep is a starting point and is influenced by changes to the prov
 ## Customize provisioning infrastructure
 
 All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources — using the `ConfigureInfrastructure` API (or `configureInfrastructure` in TypeScript). For example, you can configure the SKU, enable purge protection, add tags, and more:
-<AppHostTabs>
+
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -210,16 +235,17 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-await builder.addAzureAppConfiguration("config")
-    .configureInfrastructure(async infra => {
-        const resources = await infra.getProvisionableResources();
-        const store = resources.find(r => r.$type === 'AppConfigurationStore');
-        if (store) {
-            store.skuName = "Free";
-            store.enablePurgeProtection = true;
-            store.tags = { ...store.tags, ExampleKey: "Example value" };
-        }
-    });
+await builder
+  .addAzureAppConfiguration('config')
+  .configureInfrastructure(async (infra) => {
+    const resources = await infra.getProvisionableResources();
+    const store = resources.find((r) => r.$type === 'AppConfigurationStore');
+    if (store) {
+      store.skuName = 'Free';
+      store.enablePurgeProtection = true;
+      store.tags = { ...store.tags, ExampleKey: 'Example value' };
+    }
+  });
 ```
 
 </Fragment>
@@ -239,7 +265,13 @@ There are many more configuration options available to customize the Azure App C
 ## Add Azure App Configuration emulator resource
 
 Microsoft provides the Azure App Configuration emulator for developers who want a local, lightweight implementation of the Azure App Configuration service to code and test against. In Aspire, you can use this emulator by calling the `RunAsEmulator` method (or `runAsEmulator`) when you add your resource:
-<AppHostTabs>
+
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -261,8 +293,9 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const appConfig = await builder.addAzureAppConfiguration("config")
-    .runAsEmulator();
+const appConfig = await builder
+  .addAzureAppConfiguration('config')
+  .runAsEmulator();
 
 // After adding all resources, run the app...
 
@@ -283,7 +316,13 @@ There are various configurations available to container resources. For example, 
 #### Configure Azure App Configuration emulator host port
 
 By default, Aspire assigns a random host port for the emulator container. If you want to use a specific port, chain calls on the container resource builder provided by the `RunAsEmulator` method as shown in the following example:
-<AppHostTabs>
+
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -306,12 +345,13 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const appConfig = await builder.addAzureAppConfiguration("config")
-    .runAsEmulator({
-        configureEmulator: async emulator => {
-            await emulator.withHostPort({ port: 28000 });
-        }
-    });
+const appConfig = await builder
+  .addAzureAppConfiguration('config')
+  .runAsEmulator({
+    configureEmulator: async (emulator) => {
+      await emulator.withHostPort({ port: 28000 });
+    },
+  });
 
 // After adding all resources, run the app...
 ```
@@ -324,7 +364,13 @@ The preceding code configures the emulator container's endpoint to listen on por
 #### Configure Azure App Configuration emulator with persistent lifetime
 
 To configure the emulator container with a persistent lifetime, call the `WithLifetime` method (or `withLifetime`) on the emulator container resource and pass `ContainerLifetime.Persistent`:
-<AppHostTabs>
+
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -347,12 +393,13 @@ import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const appConfig = await builder.addAzureAppConfiguration("config")
-    .runAsEmulator({
-        configureEmulator: async emulator => {
-            await emulator.withLifetime(ContainerLifetime.Persistent);
-        }
-    });
+const appConfig = await builder
+  .addAzureAppConfiguration('config')
+  .runAsEmulator({
+    configureEmulator: async (emulator) => {
+      await emulator.withLifetime(ContainerLifetime.Persistent);
+    },
+  });
 
 // After adding all resources, run the app...
 ```
@@ -363,7 +410,13 @@ const appConfig = await builder.addAzureAppConfiguration("config")
 #### Configure Azure App Configuration emulator with data volume
 
 By default, the Azure App Configuration emulator doesn't persist data between container restarts. To enable persistent storage using a Docker volume, call the `WithDataVolume` method (or `withDataVolume`) on the emulator resource:
-<AppHostTabs>
+
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -386,12 +439,13 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const appConfig = await builder.addAzureAppConfiguration("config")
-    .runAsEmulator({
-        configureEmulator: async emulator => {
-            await emulator.withDataVolume();
-        }
-    });
+const appConfig = await builder
+  .addAzureAppConfiguration('config')
+  .runAsEmulator({
+    configureEmulator: async (emulator) => {
+      await emulator.withDataVolume();
+    },
+  });
 
 // After adding all resources, run the app...
 ```
@@ -404,7 +458,13 @@ The data volume is used to persist the emulator data outside the lifecycle of it
 #### Configure Azure App Configuration emulator with data bind mount
 
 To persist emulator data to a specific directory on your host machine, call the `WithDataBindMount` method (or `withDataBindMount`). This is useful when you want direct access to the data files on your host system:
-<AppHostTabs>
+
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -427,12 +487,13 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const appConfig = await builder.addAzureAppConfiguration("config")
-    .runAsEmulator({
-        configureEmulator: async emulator => {
-            await emulator.withDataBindMount({ path: "../Emulator/Data" });
-        }
-    });
+const appConfig = await builder
+  .addAzureAppConfiguration('config')
+  .runAsEmulator({
+    configureEmulator: async (emulator) => {
+      await emulator.withDataBindMount({ path: '../Emulator/Data' });
+    },
+  });
 
 // After adding all resources, run the app...
 ```
@@ -449,7 +510,13 @@ Data bind mounts rely on the host machine's filesystem to persist the emulator d
 ## Use existing Azure App Configuration resource
 
 You might have an existing Azure App Configuration store that you want to connect to. Call the `AsExisting` method (or `asExisting`) with the config store name and resource group parameters to connect to an existing store:
-<AppHostTabs>
+
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -474,11 +541,14 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const configName = await builder.addParameter("configName");
-const configResourceGroupName = await builder.addParameter("configResourceGroupName");
+const configName = await builder.addParameter('configName');
+const configResourceGroupName = await builder.addParameter(
+  'configResourceGroupName'
+);
 
-const appConfig = await builder.addAzureAppConfiguration("config")
-    .asExisting(configName, { resourceGroup: configResourceGroupName });
+const appConfig = await builder
+  .addAzureAppConfiguration('config')
+  .asExisting(configName, { resourceGroup: configResourceGroupName });
 
 // After adding all resources, run the app...
 
@@ -493,7 +563,13 @@ For more information, see [Use existing Azure resources](/integrations/cloud/azu
 ## Connect to existing Azure App Configuration store
 
 An alternative approach to using the `AsExisting` API enables the addition of a connection string instead, where the AppHost uses configuration to resolve the connection information. To add a connection to an existing Azure App Configuration store, call the `AddConnectionString` method:
-<AppHostTabs>
+
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -517,10 +593,11 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const config = await builder.addConnectionString("config");
+const config = await builder.addConnectionString('config');
 
-await builder.addProject("web", "../WebApplication/WebApplication.csproj")
-    .withReference(config);
+await builder
+  .addProject('web', '../WebApplication/WebApplication.csproj')
+  .withReference(config);
 
 // After adding all resources, run the app...
 
@@ -547,7 +624,13 @@ The connection string is configured in the AppHost's configuration, typically un
 ## Role-based access control
 
 By default, Aspire provisions the `AppConfigurationDataOwner` role so your app can read and write configuration values. You can customize the roles assigned using the `WithRoleAssignments` method (or `withRoleAssignments`) to grant least-privilege access. For example, to grant read-only access:
-<AppHostTabs>
+
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -568,14 +651,17 @@ builder.Build().Run();
 <Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
-import { createBuilder, AzureAppConfigurationRole } from './.aspire/modules/aspire.mjs';
+import {
+  createBuilder,
+  AzureAppConfigurationRole,
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const appConfig = await builder.addAzureAppConfiguration("config");
+const appConfig = await builder.addAzureAppConfiguration('config');
 
 await appConfig.withRoleAssignments(appConfig, [
-    AzureAppConfigurationRole.AppConfigurationDataReader
+  AzureAppConfigurationRole.AppConfigurationDataReader,
 ]);
 
 // After adding all resources, run the app...
@@ -588,10 +674,10 @@ await builder.build().run();
 
 The available roles are defined in the `AzureAppConfigurationRole` enum:
 
-| Role | Description |
-| ---- | ----------- |
-| `AppConfigurationDataOwner` | Full access to App Configuration data, including read, write, and delete operations |
-| `AppConfigurationDataReader` | Read-only access to App Configuration data |
+| Role                         | Description                                                                         |
+| ---------------------------- | ----------------------------------------------------------------------------------- |
+| `AppConfigurationDataOwner`  | Full access to App Configuration data, including read, write, and delete operations |
+| `AppConfigurationDataReader` | Read-only access to App Configuration data                                          |
 
 ## Connection properties
 

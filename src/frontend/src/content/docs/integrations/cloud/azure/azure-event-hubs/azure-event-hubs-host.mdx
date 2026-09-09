@@ -35,7 +35,12 @@ The hosting integration models the following types:
 
 To start building an Aspire app that uses Azure Event Hubs, install the [📦 Aspire.Hosting.Azure.EventHubs](https://www.nuget.org/packages/Aspire.Hosting.Azure.EventHubs) NuGet package:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```bash title="Terminal"
@@ -43,7 +48,8 @@ aspire add azure-event-hubs
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -64,7 +70,8 @@ aspire add azure-event-hubs
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Azure Event Hubs hosting integration package:
@@ -84,7 +91,12 @@ This updates your `aspire.config.json` with the Azure Event Hubs hosting integra
 
 Once you've installed the hosting integration, call `AddAzureEventHubs` to declare a namespace, then call `AddHub` to declare one or more hubs inside it:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -93,10 +105,11 @@ var eventHubs = builder.AddAzureEventHubs("event-hubs");
 eventHubs.AddHub("messages");
 
 builder.AddProject<Projects.ExampleService>()
-    .WithReference(eventHubs);
+.WithReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -111,31 +124,39 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
 The preceding code adds an Azure Event Hubs namespace named `event-hubs` with an Event Hub named `messages`. The `WithReference` (or `withReference`) method injects the connection information into the consuming project.
 
 <Aside type="caution">
-  When you call `AddAzureEventHubs`, it implicitly calls `AddAzureProvisioning` —
-  which adds support for generating Azure resources dynamically during app startup.
-  The app must configure the appropriate subscription and location. For more
-  information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+  When you call `AddAzureEventHubs`, it implicitly calls `AddAzureProvisioning`
+  — which adds support for generating Azure resources dynamically during app
+  startup. The app must configure the appropriate subscription and location. For
+  more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 <Aside type="note">
   When you reference an Azure Event Hubs resource from the AppHost, Aspire makes
   several properties available to the consuming project, such as connection URIs
   and hub names. For a complete list of these properties and per-language
-  connection examples, see [Connect to Azure Event Hubs](../azure-event-hubs-connect/).
+  connection examples, see [Connect to Azure Event
+  Hubs](../azure-event-hubs-connect/).
 </Aside>
 
 ## Add an Event Hub consumer group
 
 To add a consumer group to a hub, call `AddConsumerGroup` (or `addConsumerGroup`) on the hub resource builder:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -145,10 +166,11 @@ var messages = eventHubs.AddHub("messages");
 messages.AddConsumerGroup("messagesConsumer");
 
 builder.AddProject<Projects.ExampleService>()
-    .WithReference(eventHubs);
+.WithReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -164,7 +186,8 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -174,21 +197,27 @@ The `AddConsumerGroup` call registers a consumer group named `messagesConsumer` 
 
 The hosting integration supports running Event Hubs locally using the `mcr.microsoft.com/azure-messaging/eventhubs-emulator` container image. This lets you develop and test without an Azure subscription or an existing Event Hubs namespace.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-    .RunAsEmulator();
+.RunAsEmulator();
 
 eventHubs.AddHub("messages");
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(eventHubs);
+.WithReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -205,7 +234,8 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -217,30 +247,36 @@ For more information, see [Azure Event Hubs Emulator](https://learn.microsoft.co
 
 By default, the emulator container exposes port `5672` mapped to a random host port:
 
-| Endpoint   | Container image                                                | Container port | Host port |
-| ---------- | -------------------------------------------------------------- | -------------- | --------- |
-| `emulator` | `mcr.microsoft.com/azure-messaging/eventhubs-emulator`         | 5672           | dynamic   |
+| Endpoint   | Container image                                        | Container port | Host port |
+| ---------- | ------------------------------------------------------ | -------------- | --------- |
+| `emulator` | `mcr.microsoft.com/azure-messaging/eventhubs-emulator` | 5672           | dynamic   |
 
 To fix the host port, pass a `configureContainer` callback and call `WithHostPort` (or `withHostPort`):
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-    .RunAsEmulator(emulator =>
-    {
-        emulator.WithHostPort(7777);
-    });
+.RunAsEmulator(emulator =>
+{
+emulator.WithHostPort(7777);
+});
 
 eventHubs.AddHub("messages");
 
 builder.AddProject<Projects.ExampleService>()
-    .WithReference(eventHubs);
+.WithReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -261,7 +297,8 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -273,24 +310,30 @@ The emulator container's port mapping is then fixed:
 
 ### Add a data volume to the emulator
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-    .RunAsEmulator(emulator =>
-    {
-        emulator.WithDataVolume();
-    });
+.RunAsEmulator(emulator =>
+{
+emulator.WithDataVolume();
+});
 
 eventHubs.AddHub("messages");
 
 builder.AddProject<Projects.ExampleService>()
-    .WithReference(eventHubs);
+.WithReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 The TypeScript AppHost doesn't currently expose `withDataVolume` on the Event Hubs emulator resource. To persist emulator state across restarts from a TypeScript AppHost, use `withConfigurationFile` to pre-configure hubs or run the C# AppHost instead.
@@ -301,7 +344,12 @@ The data volume persists emulator state outside the container's lifecycle. The v
 
 ### Add a data bind mount to the emulator
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -318,7 +366,8 @@ builder.AddProject<Projects.ExampleService>()
     .WithReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 The TypeScript AppHost doesn't currently expose `withDataBindMount` on the Event Hubs emulator resource. Use a data volume via the C# AppHost or pre-configure hubs with `withConfigurationFile` instead.
@@ -331,24 +380,30 @@ Data bind mounts rely on the host machine's filesystem. For more information, se
 
 The Event Hubs emulator starts with a default [_Config.json_](https://github.com/Azure/azure-event-hubs-emulator-installer/blob/main/EventHub-Emulator/Config/Config.json). To replace it entirely, call `WithConfigurationFile` (or `withConfigurationFile`):
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-    .RunAsEmulator(emulator =>
-    {
-        emulator.WithConfigurationFile("./messaging/custom-config.json");
-    });
+.RunAsEmulator(emulator =>
+{
+emulator.WithConfigurationFile("./messaging/custom-config.json");
+});
 
 eventHubs.AddHub("messages");
 
 builder.AddProject<Projects.ExampleService>()
-    .WithReference(eventHubs);
+.WithReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -369,7 +424,8 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -378,6 +434,15 @@ The file is mounted at `/Eventhubs_Emulator/ConfigFiles/Config.json` in the cont
 ### Override specific emulator configuration properties
 
 To update individual properties in the default configuration rather than replacing the entire file, call `WithConfiguration` in C#:
+
+<AppHostTabs limitations={{
+  typescript: 'TypeScript AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -404,15 +469,25 @@ builder.AddProject<Projects.ExampleService>()
 // After adding all resources, run the app...
 ```
 
+</Fragment>
+</AppHostTabs>
+
 <Aside type="note">
-  `WithConfiguration` is not available in the TypeScript AppHost. Use `withConfigurationFile` to supply a fully customized configuration file instead.
+  `WithConfiguration` is not available in the TypeScript AppHost. Use
+  `withConfigurationFile` to supply a fully customized configuration file
+  instead.
 </Aside>
 
 ## Connect to an existing Azure Event Hubs namespace
 
 If you already have an Azure Event Hubs namespace, call `AsExisting` (or `asExisting`) instead of provisioning a new one:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -421,13 +496,14 @@ var existingName = builder.AddParameter("existingEventHubsName");
 var existingResourceGroup = builder.AddParameter("existingEventHubsResourceGroup");
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-    .AsExisting(existingName, existingResourceGroup);
+.AsExisting(existingName, existingResourceGroup);
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(eventHubs);
+.WithReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -444,7 +520,8 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(eventHubs);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -454,7 +531,8 @@ For more information, see [Use existing Azure resources](/integrations/cloud/azu
   Alternatively, you can add a connection string to the AppHost directly. This
   approach is weakly-typed and doesn't work with role assignments or
   infrastructure customizations. For more information, see [Add existing Azure
-  resources with connection strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).
+  resources with connection
+  strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).
 </Aside>
 
 ## Role-based access
@@ -463,7 +541,12 @@ Azure Event Hubs uses role-based access control (RBAC). The hosting integration 
 
 To customise role assignments, call `withRoleAssignments`:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -471,11 +554,12 @@ var builder = DistributedApplication.CreateBuilder(args);
 var eventHubs = builder.AddAzureEventHubs("event-hubs");
 
 builder.AddProject<Projects.ExampleService>()
-    .WithReference(eventHubs)
-    .WithRoleAssignments(eventHubs, AzureEventHubsRole.AzureEventHubsDataSender);
+.WithReference(eventHubs)
+.WithRoleAssignments(eventHubs, AzureEventHubsRole.AzureEventHubsDataSender);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -492,17 +576,18 @@ const api = await builder.addNodeApp("api", "./api", "index.js")
 await eventHubs.withRoleAssignments(api, [AzureEventHubsRole.AzureEventHubsDataSender]);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
 The available roles are:
 
-| Role                          | Description |
-| ----------------------------- | ----------- |
-| `AzureEventHubsDataOwner`     | Full access to Azure Event Hubs resources |
-| `AzureEventHubsDataReceiver`  | Receive access to Azure Event Hubs resources |
-| `AzureEventHubsDataSender`    | Send access to Azure Event Hubs resources |
+| Role                         | Description                                  |
+| ---------------------------- | -------------------------------------------- |
+| `AzureEventHubsDataOwner`    | Full access to Azure Event Hubs resources    |
+| `AzureEventHubsDataReceiver` | Receive access to Azure Event Hubs resources |
+| `AzureEventHubsDataSender`   | Send access to Azure Event Hubs resources    |
 
 ## Provisioning-generated Bicep
 
@@ -571,17 +656,22 @@ The generated Bicep is a starting point — customise it through the C# provisio
 
 All Aspire Azure resources subclass `AzureProvisioningResource`. The `ConfigureInfrastructure` (or `configureInfrastructure`) API lets you customise the generated Bicep with a fluent callback:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureEventHubs("event-hubs")
-    .ConfigureInfrastructure(infra =>
-    {
-        var eventHubs = infra.GetProvisionableResources()
-                              .OfType<EventHubsNamespace>()
-                              .Single();
+.ConfigureInfrastructure(infra =>
+{
+var eventHubs = infra.GetProvisionableResources()
+.OfType<EventHubsNamespace>()
+.Single();
 
         eventHubs.Sku = new EventHubsSku()
         {
@@ -592,7 +682,8 @@ builder.AddAzureEventHubs("event-hubs")
         eventHubs.PublicNetworkAccess = EventHubsPublicNetworkAccess.SecuredByPerimeter;
         eventHubs.Tags.Add("ExampleKey", "Example value");
     });
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -606,7 +697,8 @@ await eventHubs.configureInfrastructure(async (infra) => {
 });
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -628,4 +720,3 @@ For the full reference of Azure Event Hubs connection properties — and how con
 The Azure Event Hubs hosting integration automatically adds a health check for the Event Hubs resource. The health check verifies that the Event Hubs namespace is running and that a connection can be established to it.
 
 The hosting integration relies on the [📦 AspNetCore.HealthChecks.Azure.Messaging.EventHubs](https://www.nuget.org/packages/AspNetCore.HealthChecks.Azure.Messaging.EventHubs) NuGet package.
-

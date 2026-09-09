@@ -21,7 +21,7 @@ import storageExplorerImage from '@assets/integrations/cloud/azure/storage/azure
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Table Storage hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Azure Storage accounts and table resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Table Storage hosting integration. It enumerates the AppHost APIs — with examples for C#, TypeScript, Python, Go, Java, and Rust where the generated SDK supports them — that you use to model Azure Storage accounts and table resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure Table Storage integration, start with the [Get started with Azure Table Storage integrations](/integrations/cloud/azure/azure-storage-tables/azure-storage-tables-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Table Storage](../azure-storage-tables-connect/).
 
@@ -37,7 +37,8 @@ aspire add azure-storage
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -58,7 +59,8 @@ aspire add azure-storage
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Azure Storage hosting integration package:
@@ -70,6 +72,42 @@ This updates your `aspire.config.json` with the Azure Storage hosting integratio
   }
 }
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
+
+</Fragment>
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
+
+</Fragment>
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
+
+</Fragment>
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package.
 
 </Fragment>
 </AppHostTabs>
@@ -84,15 +122,16 @@ Once you've installed the hosting integration in your AppHost project, you can a
 var builder = DistributedApplication.CreateBuilder(args);
 
 var tables = builder.AddAzureStorage("storage")
-    .AddTables("tables");
+.AddTables("tables");
 
 builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(tables)
-    .WaitFor(tables);
+.WithReference(tables)
+.WaitFor(tables);
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -109,7 +148,95 @@ await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj"
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+tables = builder.add_azure_storage("storage").add_tables("tables")
+
+    builder.add_project("apiservice", "../ExampleProject/ExampleProject.csproj") \
+        .with_reference(tables) \
+        .wait_for(tables)
+
+    builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	tables := builder.AddAzureStorage("storage").AddTables("tables")
+
+	builder.AddProject("apiservice", "../ExampleProject/ExampleProject.csproj").
+		WithReference(tables).
+		WaitFor(tables)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var tables = builder.addAzureStorage("storage")
+        .addTables("tables");
+
+    builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+        .withReference(tables)
+        .waitFor(tables);
+
+    builder.build().run();
+
+}
+
+````
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let tables = builder.add_azure_storage("storage")?.add_tables("tables")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -126,34 +253,45 @@ await builder.build().run();
 </Steps>
 
 <Aside type="caution">
-When you call `AddAzureStorage` (or `addAzureStorage`), it implicitly calls `AddAzureProvisioning` (or `addAzureProvisioning`) — which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+  When you call `AddAzureStorage` (or `addAzureStorage`), it implicitly calls
+  `AddAzureProvisioning` (or `addAzureProvisioning`) — which adds support for
+  generating Azure resources dynamically during app startup. The app must
+  configure the appropriate subscription and location. For more information, see
+  [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 <Aside type="note">
-When you reference an Azure Table Storage resource from the AppHost, Aspire injects connection properties into the consuming app. For a complete list of these properties and per-language connection examples, see [Connect to Azure Table Storage](../azure-storage-tables-connect/).
+  When you reference an Azure Table Storage resource from the AppHost, Aspire
+  injects connection properties into the consuming app. For a complete list of
+  these properties and per-language connection examples, see [Connect to Azure
+  Table Storage](../azure-storage-tables-connect/).
 </Aside>
 
 ## Run as emulator (Azurite)
 
-For local development, configure the storage resource to use the [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) emulator instead of a real Azure Storage account. Call `RunAsEmulator` (or `runAsEmulator`) on the storage resource:
+For local development, configure the storage resource to use the [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) emulator instead of a real Azure Storage account:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust daily SDK generates run_as_emulator with an untyped Vec<Value> callback instead of a typed AzureStorageEmulatorResource callback, so the documented emulator operation is not available.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var storage = builder.AddAzureStorage("storage")
-    .RunAsEmulator();
+.RunAsEmulator();
 
 var tables = storage.AddTables("tables");
 
 builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(tables)
-    .WaitFor(tables);
+.WithReference(tables)
+.WaitFor(tables);
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -172,7 +310,78 @@ await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj"
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+````
+
+</Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+storage = builder.add_azure_storage("storage").run_as_emulator()
+tables = storage.add_tables("tables")
+
+    builder.add_project("apiservice", "../ExampleProject/ExampleProject.csproj") \
+        .with_reference(tables) \
+        .wait_for(tables)
+
+    builder.run()
+
+````
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage").RunAsEmulator()
+	tables := storage.AddTables("tables")
+
+	builder.AddProject("apiservice", "../ExampleProject/ExampleProject.csproj").
+		WithReference(tables).
+		WaitFor(tables)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+````
+
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+var builder = DistributedApplication.CreateBuilder();
+
+    var storage = builder.addAzureStorage("storage").runAsEmulator();
+    var tables = storage.addTables("tables");
+
+    builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+        .withReference(tables)
+        .waitFor(tables);
+
+    builder.build().run();
+
+}
+
+````
 </Fragment>
 </AppHostTabs>
 
@@ -192,7 +401,12 @@ By default, when Aspire configures the Azurite container, it exposes the followi
 
 The host port is dynamic by default. When the container starts, the ports are mapped to random ports on the host machine. To fix the endpoint ports, configure them inside the `RunAsEmulator` (or `runAsEmulator`) callback:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -207,7 +421,8 @@ var storage = builder.AddAzureStorage("storage")
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -216,18 +431,19 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const storage = await builder.addAzureStorage("storage")
-    .runAsEmulator({
-        configureContainer: async (azurite) => {
-            await azurite
-                .withBlobPort(27000)
-                .withQueuePort(27001)
-                .withTablePort(27002);
-        }
-    });
+.runAsEmulator({
+configureContainer: async (azurite) => {
+await azurite
+.withBlobPort(27000)
+.withQueuePort(27001)
+.withTablePort(27002);
+}
+});
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+
+````
 </Fragment>
 </AppHostTabs>
 
@@ -243,7 +459,12 @@ The preceding code configures the Azurite container ports as follows:
 
 To configure the Azurite container with a persistent lifetime so it survives app restarts, call `WithLifetime` (or `withLifetime`) with `ContainerLifetime.Persistent`:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -256,7 +477,8 @@ var storage = builder.AddAzureStorage("storage")
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -265,15 +487,16 @@ import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const storage = await builder.addAzureStorage("storage")
-    .runAsEmulator({
-        configureContainer: async (azurite) => {
-            await azurite.withLifetime(ContainerLifetime.Persistent);
-        }
-    });
+.runAsEmulator({
+configureContainer: async (azurite) => {
+await azurite.withLifetime(ContainerLifetime.Persistent);
+}
+});
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+
+````
 </Fragment>
 </AppHostTabs>
 
@@ -281,7 +504,12 @@ await builder.build().run();
 
 To persist Azurite data across container restarts with a data volume, call `WithDataVolume` (or `withDataVolume`) on the emulator resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -294,7 +522,8 @@ var storage = builder.AddAzureStorage("storage")
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -303,15 +532,16 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const storage = await builder.addAzureStorage("storage")
-    .runAsEmulator({
-        configureContainer: async (azurite) => {
-            await azurite.withDataVolume();
-        }
-    });
+.runAsEmulator({
+configureContainer: async (azurite) => {
+await azurite.withDataVolume();
+}
+});
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+
+````
 </Fragment>
 </AppHostTabs>
 
@@ -321,7 +551,12 @@ The data volume is mounted at the `/data` path in the Azurite container and when
 
 To add a data bind mount to the Azurite container instead of a named volume, call `WithDataBindMount` (or `withDataBindMount`):
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -334,7 +569,8 @@ var storage = builder.AddAzureStorage("storage")
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -343,15 +579,16 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const storage = await builder.addAzureStorage("storage")
-    .runAsEmulator({
-        configureContainer: async (azurite) => {
-            await azurite.withDataBindMount({ path: '../azurite/data' });
-        }
-    });
+.runAsEmulator({
+configureContainer: async (azurite) => {
+await azurite.withDataBindMount({ path: '../azurite/data' });
+}
+});
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+
+````
 </Fragment>
 </AppHostTabs>
 
@@ -393,7 +630,12 @@ For more information on using the Azure Storage Explorer, see [Get started with 
 
 If you have an existing Azure Storage account, you can connect to it using the `AsExisting` (or `asExisting`) method instead of provisioning a new one:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -411,7 +653,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts"
@@ -423,15 +666,16 @@ const existingStorageName = await builder.addParameter("existingStorageName");
 const existingStorageResourceGroup = await builder.addParameter("existingStorageResourceGroup");
 
 const storageAccount = await builder.addAzureStorage("storage")
-    .asExisting(existingStorageName, { resourceGroup: existingStorageResourceGroup });
+.asExisting(existingStorageName, { resourceGroup: existingStorageResourceGroup });
 
 const tables = await storageAccount.addTables("tables");
 
 await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
-    .withReference(tables);
+.withReference(tables);
 
 // After adding all resources, run the app...
 await builder.build().run();
+
 ```
 </Fragment>
 </AppHostTabs>
@@ -454,3 +698,4 @@ For example, for a resource named `tables`, the environment variables are `TABLE
 <LearnMore>
   For per-language connection examples and client library setup, see [Connect to Azure Table Storage](../azure-storage-tables-connect/).
 </LearnMore>
+```

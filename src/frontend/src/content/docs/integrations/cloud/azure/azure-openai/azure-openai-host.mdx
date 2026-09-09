@@ -27,7 +27,12 @@ If you're new to the Azure OpenAI integration, start with the [Get started with 
 
 To start building an Aspire app that uses Azure OpenAI, install the [📦 Aspire.Hosting.Azure.CognitiveServices](https://www.nuget.org/packages/Aspire.Hosting.Azure.CognitiveServices) NuGet package:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 
 ```bash title="Terminal"
@@ -35,7 +40,8 @@ aspire add azure-cognitive-services
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -56,7 +62,8 @@ aspire add azure-cognitive-services
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Azure OpenAI hosting integration package:
@@ -76,7 +83,12 @@ This updates your `aspire.config.json` with the Azure OpenAI hosting integration
 
 Once you've installed the hosting integration in your AppHost project, you can add an Azure OpenAI account resource and then add one or more deployment resources beneath it:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -84,16 +96,17 @@ var builder = DistributedApplication.CreateBuilder(args);
 var openai = builder.AddAzureOpenAI("openai");
 
 var chat = openai.AddDeployment(
-    name: "chat",
-    modelName: "gpt-4o",
-    modelVersion: "2024-08-06");
+name: "chat",
+modelName: "gpt-4o",
+modelVersion: "2024-08-06");
 
 builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat)
-    .WaitFor(chat);
+.WithReference(chat)
+.WaitFor(chat);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -110,7 +123,8 @@ await builder.addNodeApp("api", "./api", "index.js")
     .waitFor(chat);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -133,14 +147,23 @@ await builder.addNodeApp("api", "./api", "index.js")
 </Aside>
 
 <Aside type="note">
-    When you reference an Azure OpenAI deployment from the AppHost, Aspire makes the endpoint URI and model name available to the consuming project as environment variables. For a complete list of these properties and per-language connection examples, see [Connect to Azure OpenAI](../azure-openai-connect/).
+  When you reference an Azure OpenAI deployment from the AppHost, Aspire makes
+  the endpoint URI and model name available to the consuming project as
+  environment variables. For a complete list of these properties and
+  per-language connection examples, see [Connect to Azure
+  OpenAI](../azure-openai-connect/).
 </Aside>
 
 ## Add multiple Azure OpenAI deployments
 
 Add multiple deployment children beneath the same account to share a single Azure OpenAI resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -151,13 +174,14 @@ var chat = openai.AddDeployment("chat", "gpt-4o", "2024-08-06");
 var embeddings = openai.AddDeployment("embeddings", "text-embedding-3-small", "1");
 
 builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat)
-    .WithReference(embeddings)
-    .WaitFor(chat)
-    .WaitFor(embeddings);
+.WithReference(chat)
+.WithReference(embeddings)
+.WaitFor(chat)
+.WaitFor(embeddings);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -177,7 +201,8 @@ await builder.addNodeApp("api", "./api", "index.js")
     .waitFor(embeddings);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -189,7 +214,12 @@ By default, Aspire provisions Azure OpenAI with `disableLocalAuth: true` and aut
 
 To explicitly assign roles to a consuming app (for example, to grant contributor access for fine-tuning scenarios), call `WithRoleAssignments` in C# or `withCognitiveServicesRoleAssignments` in TypeScript on the consuming resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Azure;
@@ -201,12 +231,13 @@ var openai = builder.AddAzureOpenAI("openai");
 var chat = openai.AddDeployment("chat", "gpt-4o", "2024-08-06");
 
 builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(chat)
-    .WaitFor(chat)
-    .WithRoleAssignments(openai, AzureOpenAIRole.CognitiveServicesOpenAIContributor);
+.WithReference(chat)
+.WaitFor(chat)
+.WithRoleAssignments(openai, AzureOpenAIRole.CognitiveServicesOpenAIContributor);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -224,21 +255,27 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withCognitiveServicesRoleAssignments(openai, [AzureOpenAIRole.CognitiveServicesOpenAIContributor]);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
 The available `AzureOpenAIRole` values are:
 
-| Role | Description |
-| ---- | ----------- |
-| `CognitiveServicesOpenAIUser` | Read access to models, deployments, and completions. Default when using `WithReference`. |
-| `CognitiveServicesOpenAIContributor` | Create and delete deployments in addition to user permissions. |
-| `CognitiveServicesUser` | Broader Cognitive Services access. |
+| Role                                 | Description                                                                              |
+| ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `CognitiveServicesOpenAIUser`        | Read access to models, deployments, and completions. Default when using `WithReference`. |
+| `CognitiveServicesOpenAIContributor` | Create and delete deployments in addition to user permissions.                           |
+| `CognitiveServicesUser`              | Broader Cognitive Services access.                                                       |
 
 To remove the default automatic role assignments and manage them entirely yourself, call `ClearDefaultRoleAssignments` (or `clearDefaultRoleAssignments`) on the Azure OpenAI resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var openai = builder.AddAzureOpenAI("openai")
@@ -253,7 +290,8 @@ const builder = await createBuilder();
 
 const openai = await builder.addAzureOpenAI("openai");
 await openai.clearDefaultRoleAssignments();
-```
+
+````
 </Fragment>
 </AppHostTabs>
 
@@ -261,7 +299,12 @@ await openai.clearDefaultRoleAssignments();
 
 You might have an already-deployed Azure OpenAI account in your Azure subscription that you want to connect to. Use `AsExisting` (or `asExisting`) to point the resource at an existing account instead of provisioning a new one:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -279,7 +322,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
     .WaitFor(chat);
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -296,11 +340,12 @@ await openai.asExisting(existingOpenAIName, existingOpenAIResourceGroup);
 const chat = await openai.addDeployment("chat", "gpt-4o", "2024-08-06");
 
 await builder.addNodeApp("api", "./api", "index.js")
-    .withReference(chat)
-    .waitFor(chat);
+.withReference(chat)
+.waitFor(chat);
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 </AppHostTabs>
 
@@ -354,7 +399,7 @@ resource chat 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
 output connectionString string = 'Endpoint=${openai.properties.endpoint}'
 
 output name string = openai.name
-```
+````
 
 Role assignments are created in a companion module:
 
@@ -389,7 +434,12 @@ The generated Bicep is a starting point and is influenced by changes to the prov
 
 All Aspire Azure resources are subclasses of `AzureProvisioningResource`. This enables customization of the generated Bicep by providing a fluent API to configure Azure resources using the `ConfigureInfrastructure` API:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  go: 'Go AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  java: 'Java AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+  rust: 'Rust AppHosts do not have a complete generated-SDK example verified for this scenario in Aspire daily 13.6.0-preview.1.26458.6.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Azure.Provisioning.CognitiveServices;
@@ -397,10 +447,10 @@ using Azure.Provisioning.CognitiveServices;
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureOpenAI("openai")
-    .ConfigureInfrastructure(infra =>
-    {
-        var resources = infra.GetProvisionableResources();
-        var account = resources.OfType<CognitiveServicesAccount>().Single();
+.ConfigureInfrastructure(infra =>
+{
+var resources = infra.GetProvisionableResources();
+var account = resources.OfType<CognitiveServicesAccount>().Single();
 
         account.Sku = new CognitiveServicesSku
         {
@@ -411,7 +461,8 @@ builder.AddAzureOpenAI("openai")
     });
 
 // After adding all resources, run the app...
-```
+
+````
 </Fragment>
 <Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
@@ -427,7 +478,8 @@ await openai.configureInfrastructure(async infra => {
 });
 
 // After adding all resources, run the app...
-```
+````
+
 </Fragment>
 </AppHostTabs>
 
@@ -443,13 +495,13 @@ The preceding C# code:
 
 Common model identifiers for Azure OpenAI:
 
-| Category   | Model identifiers |
-| ---------- | ----------------- |
-| Chat       | `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo` |
-| Reasoning  | `o3`, `o3-mini`, `o4-mini` |
+| Category   | Model identifiers                                  |
+| ---------- | -------------------------------------------------- |
+| Chat       | `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`             |
+| Reasoning  | `o3`, `o3-mini`, `o4-mini`                         |
 | Embeddings | `text-embedding-3-small`, `text-embedding-3-large` |
-| Images     | `dall-e-3` |
-| Audio      | `whisper` |
+| Images     | `dall-e-3`                                         |
+| Audio      | `whisper`                                          |
 
 For the full list and current model versions, see the [Azure OpenAI models documentation](https://learn.microsoft.com/azure/ai-services/openai/concepts/models).
 
