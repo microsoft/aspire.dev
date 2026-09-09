@@ -108,7 +108,7 @@ This step ensures that the documentation you've created is properly indexed and 
 
 - Import `Badge` from '@astrojs/starlight/components' and add `<Badge text="⭐ Community Toolkit" variant="tip" size="large" />` at the top
 - Import and use the `Aside` component for notes, tips, cautions, and warnings
-- Import and use synced `Tabs` and `TabItem` from `@astrojs/starlight/components` for AppHost examples when both TypeScript and C# AppHost APIs are available. Put the `typescript` tab first, followed by `csharp`, and use `syncKey='aspire-lang'`.
+- Import and use `AppHostTabs` from `@components/AppHostTabs.astro` for AppHost examples. Follow `src/frontend/src/data/apphost-languages.json`; provide verified language slots and operation-level `limitations` for generated SDKs that do not expose the API.
 - Import and use `InstallPackage` for hosting packages
 - Import and use `InstallDotNetPackage` for client packages
 - Import `Image` from 'astro:assets' for icons
@@ -171,9 +171,9 @@ prerequisites. Do not present the add-on as a standalone service.
 ### AppHost language parity
 
 - Follow the `doc-writer` skill's AppHost language parity guidance for all AppHost and hosting-integration examples.
-- Always show both TypeScript AppHost (`apphost.mts`) and C# AppHost (`AppHost.cs`) variants inside synced `Tabs` (with `syncKey='aspire-lang'`) unless the feature is genuinely language-specific or TypeScript AppHost support does not exist yet. Put TypeScript first so it is the default.
-- Before writing a TypeScript AppHost example, verify the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples.
-- If TypeScript AppHost support is not available, show only the C# example without language tabs and add a note that TypeScript AppHost support for the integration is not yet available.
+- Account for TypeScript, C#, Python, Go, Java, and Rust in every AppHost operation. Show complete variants only when the exact generated API exists; otherwise configure an explicit `AppHostTabs` limitation for that language.
+- Verify every generated SDK independently. Do not infer Python, Go, Java, or Rust names, option shapes, callback signatures, or error handling from TypeScript or C#.
+- Let `AppHostTabs` and the central registry control order, visibility, Experimental badges, and selection persistence.
 - Use language-neutral prose around AppHost examples, such as "Add a resource to your AppHost" instead of C#-specific method instructions.
 
 ### Writing style
