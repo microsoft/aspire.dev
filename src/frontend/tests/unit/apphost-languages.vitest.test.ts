@@ -209,39 +209,54 @@ describe('AppHost language registry', () => {
     expect(violations).toEqual([]);
   });
 
-  test('cloud and AI AppHost builder examples use AppHost tabs', () => {
+  test('cloud and AI AppHost code uses language containers', () => {
     const violations: string[] = [];
-    const appHostTabsPattern = /<AppHostTabs\b[\s\S]*?<\/AppHostTabs>/g;
-    const codeFencePattern = /```(?<language>\w+)[^\n]*\n(?<code>[\s\S]*?)```/g;
+    const appHostContainerPattern =
+      /<(?:AppHostTabs|AppHostLanguagePivot)\b[\s\S]*?<\/(?:AppHostTabs|AppHostLanguagePivot)>/g;
+    const codeFencePattern = /```(?<language>\w+)(?<metadata>[^\n]*)\n(?<code>[\s\S]*?)```/g;
     const appHostBuilderPatterns = [
       /DistributedApplication\.CreateBuilder\s*\(/,
       /\bcreateBuilder\s*\(/,
       /\bcreate_builder\s*\(/,
       /\baspire\.CreateBuilder\s*\(/,
     ];
+    const appHostFileTitlePattern =
+      /\btitle\s*=\s*(['"])(?:apphost\.mts|AppHost\.cs|apphost\.py|apphost\.go|AppHost\.java|apphost\.rs)\1/i;
 
     for (const directory of integrationParityDirectories) {
       for (const file of getMdxFiles(directory)) {
         const source = fs.readFileSync(file, 'utf8');
-        const tabRanges = [...source.matchAll(appHostTabsPattern)].map((match) => ({
+        const containerRanges = [...source.matchAll(appHostContainerPattern)].map((match) => ({
           start: match.index ?? 0,
           end: (match.index ?? 0) + match[0].length,
         }));
 
         for (const match of source.matchAll(codeFencePattern)) {
           const code = match.groups?.code ?? '';
-          if (!appHostBuilderPatterns.some((pattern) => pattern.test(code))) {
+          const metadata = match.groups?.metadata ?? '';
+          const isBuilderExample = appHostBuilderPatterns.some((pattern) => pattern.test(code));
+          const isAppHostFile = appHostFileTitlePattern.test(metadata);
+          const isPackageDirectives = code
+            .trim()
+            .split(/\r?\n/)
+            .filter(Boolean)
+            .every((line) => line.trimStart().startsWith('#:package '));
+          const isProjectFile =
+            match.groups?.language.toLowerCase() === 'xml' ||
+            /\btitle\s*=\s*(['"])[^'"]+\.(?:csproj|fsproj|vbproj)\1/i.test(metadata);
+
+          if ((!isBuilderExample && !isAppHostFile) || isPackageDirectives || isProjectFile) {
             continue;
           }
 
           const index = match.index ?? 0;
-          const inAppHostTabs = tabRanges.some(
+          const inLanguageContainer = containerRanges.some(
             (range) => index >= range.start && index < range.end
           );
-          if (!inAppHostTabs) {
+          if (!inLanguageContainer) {
             const line = source.slice(0, index).split('\n').length;
             violations.push(
-              `${path.relative(docsDirectory, file)}:${line} has a standalone AppHost builder example`
+              `${path.relative(docsDirectory, file)}:${line} has a standalone AppHost code example`
             );
           }
         }

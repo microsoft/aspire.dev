@@ -3,6 +3,7 @@ title: Use Azure Container Registry at deploy time
 description: Learn how Azure Container Registry is consumed as a publish target during deployment, including registry outputs and integration with your deployment pipeline.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
 import { Image } from 'astro:assets';
 import { Aside } from '@astrojs/starlight/components';
 import containerRegistryIcon from '@assets/icons/azure-container-registry-icon.svg';
@@ -25,16 +26,20 @@ Unlike database or cache integrations, Azure Container Registry is not accessed 
 There is no client library to install in consuming apps. Your services do not open a connection to ACR, send commands to it, or read environment variables from it at startup.
 
 <Aside type="note">
-  If your app needs to interact with ACR programmatically at runtime — for example, to list or delete images — use the [Azure Container Registry client library for .NET](https://learn.microsoft.com/dotnet/api/overview/azure/Containers.ContainerRegistry-readme) directly, and supply credentials through standard Azure identity mechanisms.
+  If your app needs to interact with ACR programmatically at runtime — for
+  example, to list or delete images — use the [Azure Container Registry client
+  library for
+  .NET](https://learn.microsoft.com/dotnet/api/overview/azure/Containers.ContainerRegistry-readme)
+  directly, and supply credentials through standard Azure identity mechanisms.
 </Aside>
 
 ## Registry outputs
 
 When Aspire provisions an Azure Container Registry resource, the generated Bicep module exposes the following outputs:
 
-| Output name   | Description |
-| ------------- | ----------- |
-| `name`        | The provisioned name of the registry (used to reference the registry from other Bicep modules). |
+| Output name   | Description                                                                                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | The provisioned name of the registry (used to reference the registry from other Bicep modules).                                                                                       |
 | `loginServer` | The registry login server hostname, for example `myacr1234abcd.azurecr.io`. This is the endpoint used to tag and push images during CI/CD and to pull images in compute environments. |
 
 These outputs are automatically wired into the compute environment's Bicep when you call `WithAzureContainerRegistry` (or `withAzureContainerRegistry`) from your AppHost.
@@ -43,17 +48,62 @@ These outputs are automatically wired into the compute environment's Bicep when 
 
 If you need to pass the registry's `loginServer` value to another resource in your AppHost — for example, to tag images before pushing — use `GetOutput` (or `getOutput`) to retrieve it as a Bicep output reference:
 
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+const acr = await builder.addAzureContainerRegistry('my-acr');
+
+const loginServer = await acr.getOutput('loginServer');
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var acr = builder.AddAzureContainerRegistry("my-acr");
 
 var loginServer = acr.GetOutput("loginServer");
 ```
 
-```typescript title="apphost.mts"
-const acr = await builder.addAzureContainerRegistry("my-acr");
+</Fragment>
+<Fragment slot="python">
 
-const loginServer = await acr.getOutput("loginServer");
+```python title="apphost.py"
+acr = builder.add_azure_container_registry("my-acr")
+
+login_server = acr.get_output("loginServer")
 ```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+acr := builder.AddAzureContainerRegistry("my-acr")
+
+loginServer := acr.GetOutput("loginServer")
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var acr = builder.addAzureContainerRegistry("my-acr");
+
+var loginServer = acr.getOutput("loginServer");
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let acr = builder.add_azure_container_registry("my-acr")?;
+
+let login_server = acr.get_output("loginServer")?;
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## Push images from your CI/CD pipeline
 
