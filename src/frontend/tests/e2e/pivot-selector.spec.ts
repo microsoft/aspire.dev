@@ -129,7 +129,7 @@ test('postgres apphost tabs use the shared aspire-lang query string', async ({ p
   await expect(csharpPanel).toBeHidden();
 });
 
-test('app host page restores the shared AppHost language query string', async ({ page }) => {
+test('AppHost page restores the shared AppHost language query string', async ({ page }) => {
   await page.goto('/get-started/app-host/?aspire-lang=csharp');
   await dismissCookieConsentIfVisible(page);
 

@@ -65,7 +65,7 @@ export async function replaceAspireVersionPlaceholdersInDirectory(
   const runWorker = async () => {
     while (cursor < files.length) {
       const filePath = files[cursor++];
-      await processMarkdownCopy(filePath);
+      await processMarkdownCopy(filePath, languageConfig);
     }
   };
 
@@ -97,9 +97,9 @@ async function collectMarkdownCopies(directory, files) {
   }
 }
 
-async function processMarkdownCopy(filePath) {
+async function processMarkdownCopy(filePath, languageConfig) {
   const content = await readFile(filePath, 'utf8');
-  const rendered = renderAppHostTabsInMarkdown(content, appHostLanguageConfig.languages);
+  const rendered = renderAppHostTabsInMarkdown(content, languageConfig.languages);
   const ordered = orderTypeScriptFirstAppHostTabsInMarkdown(rendered);
   const updated = replaceAspireVersionPlaceholders(ordered);
 

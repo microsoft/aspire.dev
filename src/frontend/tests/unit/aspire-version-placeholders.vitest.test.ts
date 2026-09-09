@@ -235,32 +235,48 @@ describe('Aspire version placeholders', () => {
     }
   });
 
-  test('removes page-action Markdown copies for disabled AppHost project pages', async () => {
+  test('uses one custom AppHost language config for page deletion and Markdown rendering', async () => {
     const tempDir = await mkdtemp(path.join(os.tmpdir(), 'aspire-version-placeholders-'));
 
     try {
       const appHostDirectory = path.join(tempDir, 'app-host');
       await mkdir(appHostDirectory, { recursive: true });
 
-      const enabledPath = path.join(appHostDirectory, 'typescript-apphost.md');
+      const typescriptPath = path.join(appHostDirectory, 'typescript-apphost.md');
       const pythonPath = path.join(appHostDirectory, 'python-apphost.md');
-      const otherLanguagePaths = [
-        'go-apphost.md',
-        'java-apphost.md',
-        'rust-apphost.md',
-      ].map((fileName) => path.join(appHostDirectory, fileName));
+      const markdownPath = path.join(tempDir, 'example.md');
       const languageConfig = {
         ...appHostLanguageConfig,
         languages: appHostLanguageConfig.languages.map((language) => ({
           ...language,
-          enabled: language.id !== 'python',
+          enabled: ['csharp', 'python'].includes(language.id),
         })),
       };
 
       await Promise.all([
-        writeFile(enabledPath, 'TypeScript AppHost'),
-        writeFile(pythonPath, 'Disabled AppHost'),
-        ...otherLanguagePaths.map((filePath) => writeFile(filePath, 'Enabled AppHost')),
+        writeFile(typescriptPath, 'Disabled TypeScript AppHost'),
+        writeFile(pythonPath, 'Enabled Python AppHost'),
+        writeFile(
+          markdownPath,
+          `<AppHostTabs>
+<Fragment slot="typescript">
+TypeScript tab
+</Fragment>
+<Fragment slot="csharp">
+C# tab
+</Fragment>
+<Fragment slot="python">
+Python tab
+</Fragment>
+</AppHostTabs>
+<AppHostLanguagePivot id="typescript">
+TypeScript pivot
+</AppHostLanguagePivot>
+<AppHostLanguagePivot id="python">
+Python pivot
+</AppHostLanguagePivot>
+`
+        ),
       ]);
 
       await replaceAspireVersionPlaceholdersInDirectory(
@@ -269,13 +285,15 @@ describe('Aspire version placeholders', () => {
         languageConfig
       );
 
-      await expect(readFile(enabledPath, 'utf8')).resolves.toBe('TypeScript AppHost');
-      await expect(readFile(pythonPath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
-      await Promise.all(
-        otherLanguagePaths.map((filePath) =>
-          expect(readFile(filePath, 'utf8')).resolves.toBe('Enabled AppHost')
-        )
-      );
+      await expect(readFile(typescriptPath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(readFile(pythonPath, 'utf8')).resolves.toBe('Enabled Python AppHost');
+
+      const rendered = await readFile(markdownPath, 'utf8');
+      expect(rendered).toContain('### C#');
+      expect(rendered).toContain('### Python (Experimental)');
+      expect(rendered).not.toContain('### TypeScript');
+      expect(rendered).toContain('Python pivot');
+      expect(rendered).not.toContain('TypeScript pivot');
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }
