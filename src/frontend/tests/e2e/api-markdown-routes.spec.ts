@@ -87,11 +87,36 @@ for (const route of markdownRoutes) {
   });
 }
 
-test('legacy TypeScript markdown routes permanently redirect to the canonical tree', async ({ request }) => {
-  const response = await request.get('/reference/api/typescript/aspire.hosting.md', {
+test('legacy TypeScript markdown routes preserve the exact canonical target', async ({ request }) => {
+  const legacyPath = '/reference/api/typescript/aspire.hosting.md';
+  const canonicalPath = '/reference/api/apphost/aspire.hosting.md';
+  const response = await request.get(legacyPath, {
     maxRedirects: 0,
   });
 
-  expect(response.status()).toBe(308);
-  expect(response.headers().location).toBe('/reference/api/apphost/aspire.hosting.md');
+  if (response.status() === 308) {
+    // Astro dev executes the endpoint and preserves its permanent redirect.
+    expect(response.headers().location).toBe(canonicalPath);
+    return;
+  }
+
+  // Astro preview serves prerendered redirects as static files, so the
+  // endpoint status and Location header become a 200 redirect document.
+  expect(response.status()).toBe(200);
+  expect(response.headers()['content-type']).toContain('text/markdown');
+
+  const body = await response.text();
+
+  expect(body).toContain(`<meta http-equiv="refresh" content="0;url=${canonicalPath}">`);
+  expect(body).toContain(
+    `<link rel="canonical" href="https://aspire.dev${canonicalPath}">`
+  );
+  expect(body).toContain(`<a href="${canonicalPath}">`);
+  expect(body).not.toContain('# Aspire.Hosting');
+
+  const canonicalResponse = await request.get(canonicalPath);
+
+  expect(canonicalResponse.ok(), `${canonicalPath} should return 200.`).toBe(true);
+  expect(canonicalResponse.headers()['content-type']).toContain('text/markdown');
+  expect(await canonicalResponse.text()).toContain('# Aspire.Hosting');
 });

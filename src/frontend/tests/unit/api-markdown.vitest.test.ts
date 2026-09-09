@@ -82,6 +82,7 @@ const appHostModuleRoute = getRouteModule('../../src/pages/reference/api/apphost
 const appHostItemRoute = getRouteModule('../../src/pages/reference/api/apphost/[module]/[item].md.ts');
 const appHostMemberRoute = getRouteModule('../../src/pages/reference/api/apphost/[module]/[item]/[member].md.ts');
 const typeScriptIndexRoute = getRouteModule('../../src/pages/reference/api/typescript.md.ts');
+const typeScriptModuleRoute = getRouteModule('../../src/pages/reference/api/typescript/[module].md.ts');
 
 describe('API markdown routes', () => {
   it('returns markdown for the C# API index route', async () => {
@@ -179,6 +180,21 @@ describe('API markdown routes', () => {
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(308);
     expect((response as Response).headers.get('location')).toBe('/reference/api/apphost.md');
+  });
+
+  it('preserves exact TypeScript module markdown redirect semantics', async () => {
+    const route = await findStaticRoute(
+      typeScriptModuleRoute.getStaticPaths,
+      (candidate) => candidate.params.module === 'aspire.hosting',
+      'TypeScript module compatibility route'
+    );
+    const response = await typeScriptModuleRoute.GET?.({ props: route.props } as any);
+
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).status).toBe(308);
+    expect((response as Response).headers.get('location')).toBe(
+      '/reference/api/apphost/aspire.hosting.md'
+    );
   });
 });
 
