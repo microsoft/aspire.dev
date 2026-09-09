@@ -1,415 +1,236 @@
 ---
 title: Aspire glossary of terms and concepts
-description: Key terms and concepts used throughout Aspire documentation — AppHost, resources, service discovery, integrations, dashboard, deployment, and orchestration primitives.
+description: Key Aspire terms for AppHosts, resources, generated language SDKs, service discovery, integrations, diagnostics, publishing, and deployment.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import AppHostLanguageSelector from '@components/AppHostLanguageSelector.astro';
-import Pivot from '@components/Pivot.astro';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
-This glossary defines the key terms and concepts you'll encounter when working with Aspire. Bookmark this page as a quick reference.
+This glossary defines terms used throughout the Aspire documentation.
 
 ## Core concepts
 
-These are the foundational concepts you need to understand when working with Aspire.
-
 ### AppHost
 
-The **AppHost** is the orchestration project where you define your entire application's architecture. It's a special Aspire project that:
+The **AppHost** is the code-first entry point that declares resources and their relationships. Aspire uses the resulting model for local orchestration, dashboard views, publishing, and deployment workflows.
 
-- Declares what services, databases, and containers make up your application.
-- Defines how resources depend on each other.
-- Configures how resources communicate.
-- Orchestrates startup order during local development.
-- Generates deployment artifacts for production.
+<AppHostTabs>
+<Fragment slot="typescript">
 
-Think of it as the "control tower" for your distributed application.
-
-<AppHostLanguageSelector
-  title="Select your programming language"
-  marginTop={1}
-/>
-
-<Pivot id="csharp">
-```csharp title="AppHost.cs"
-// This IS the AppHost - Program.cs in your AppHost project
-var builder = DistributedApplication.CreateBuilder(args);
-
-var db = builder.AddPostgres("db");
-var api = builder.AddProject<Projects.Api>("api")
-    .WithReference(db);
-
-builder.Build().Run();
-```
-</Pivot>
-<Pivot id="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
-// This IS the AppHost in a TypeScript project
 const builder = await createBuilder();
-
-const db = await builder.addPostgres("db");
-await builder.addProject("api", "../Api/Api.csproj")
-    .withReference(db);
-
+const cache = await builder.addRedis('cache');
 await builder.build().run();
 ```
-</Pivot>
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="apphost.cs"
+#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+#:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
+
+var builder = DistributedApplication.CreateBuilder(args);
+var cache = builder.AddRedis("cache");
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    cache = builder.add_redis("cache")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache")
+if err := cache.Err(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+var cache = builder.addRedis("cache");
+builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+let cache = builder.add_redis("cache", None, None)?;
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
+</AppHostTabs>
+
+### AppHost language
+
+The **AppHost language** is the language used to express the application model. It doesn't constrain the languages of the workloads in that model.
+
+| Language   | CLI language ID     | Entry file                                          | Status       |
+| ---------- | ------------------- | --------------------------------------------------- | ------------ |
+| TypeScript | `typescript/nodejs` | `apphost.mts`                                       | Established  |
+| C#         | `csharp`            | `apphost.cs`, `AppHost.cs`, or a C# AppHost project | Established  |
+| Python     | `python`            | `apphost.py`                                        | Experimental |
+| Go         | `go`                | `apphost.go`                                        | Experimental |
+| Java       | `java`              | `AppHost.java`                                      | Experimental |
+| Rust       | `rust`              | `apphost.rs`                                        | Experimental |
 
 ### Resource
 
-A **resource** is any component that your application depends on. Resources can be:
+A **resource** is an item in the application model. Examples include application projects, executables, containers, databases, caches, message brokers, cloud resources, parameters, and connection strings.
 
-| Resource type | Examples |
-|--------------|----------|
-| **Projects** | .NET applications, services, APIs |
-| **Containers** | Docker containers (databases, caches, message brokers) |
-| **Executables** | Node.js apps, Python scripts, any executable |
-| **Cloud services** | Azure Storage, AWS S3, managed databases |
-| **Parameters** | Configuration values, secrets |
+Every resource has a name. Aspire uses that name in dashboard views, service-discovery data, environment variables, connection strings, and deployment artifacts.
 
-Resources are the building blocks you compose in your AppHost.
+### Resource builder
+
+A **resource builder** is the fluent object returned when the AppHost adds a resource. Methods on the builder configure annotations, endpoints, references, health checks, persistence, commands, and other resource behavior.
+
+Guest-language resource builders are generated wrappers around host-side resource builders.
 
 ### Distributed application
 
-A **distributed application** is an application split into multiple independent services that communicate over a network. Instead of one monolithic application, you have:
+A **distributed application** is a system made of multiple independently running resources that communicate over a network or shared infrastructure. Aspire models those resources as one application even when they use different languages, frameworks, and deployment targets.
 
-- A frontend service
-- One or more API services
-- Databases
-- Caches
-- Message queues
-- etc.
+### Application model
 
-Aspire helps you orchestrate all these pieces together.
+The **application model** is the graph produced by the AppHost. It contains resources, annotations, endpoints, references, and dependency relationships. The orchestration host validates and executes this graph.
 
-### Service defaults
+### Guest-language AppHost
 
-**Service defaults** are pre-configured settings that Aspire applies to your .NET projects automatically. They include:
+A **guest-language AppHost** runs outside the .NET orchestration host and communicates with it through a generated SDK. TypeScript, Python, Go, Java, and Rust use this architecture.
 
-- **OpenTelemetry** - Automatic logging, tracing, and metrics
-- **Health checks** - Endpoints for monitoring (`/health`, `/alive`)
-- **Service discovery** - Automatic resolution of service URLs
-- **Resilience** - Retry policies for HTTP calls
+### Aspire Type System
 
-When you add `builder.AddServiceDefaults()` to a project, you get production-ready observability and resilience out of the box.
+The **Aspire Type System (ATS)** is the language-neutral contract used to export .NET hosting APIs into generated guest SDKs. ATS describes capabilities, handles, DTOs, callbacks, collections, unions, and documentation.
+
+### Generated SDK
+
+The **generated SDK** is the language-specific API emitted under `.aspire/modules` from ATS exports in the AppHost's hosting packages. Run `aspire restore` to regenerate it. Don't edit generated SDK files manually.
 
 ### Polyglot
 
-In this repository, **polyglot** means relating to code and applications written in multiple languages, including TypeScript, C#, Python, Go, Java, and Rust. Aspire supports polyglot code in AppHosts, generated SDKs, other projects, and related tooling.
+In this documentation, **polyglot** describes AppHosts, workloads, generated SDKs, integrations, or tooling that span multiple programming languages.
 
----
+## Relationships and dependencies
 
-## APIs and patterns
+### Reference
 
-These are the key APIs and patterns you'll use when building Aspire applications.
+A **reference** connects one resource to another. APIs such as `WithReference`, `withReference`, `with_reference`, and the generated language equivalent pass service-discovery or connection information to the consuming resource.
 
-### WithReference
-
-`WithReference()`/`withReference()` is how you connect resources together. When you call `.WithReference(otherResource)`/`.withReference(otherResource)`, Aspire:
-
-1. Injects the connection information as environment variables
-2. Sets up service discovery so your code can find the other resource
-3. Creates a dependency relationship for startup ordering
-
-<Pivot id="csharp">
-```csharp title="AppHost.cs"
-var db = builder.AddPostgres("db");
-var api = builder.AddProject<Projects.Api>("api")
-    .WithReference(db);  // API now has DATABASE connection info injected
-```
-</Pivot>
-<Pivot id="typescript">
-```typescript title="apphost.mts"
-const db = await builder.addPostgres("db");
-await builder.addProject("api", "../Api/Api.csproj")
-    .withReference(db);  // API now has DATABASE connection info injected
-```
-</Pivot>
-
-The API project will receive environment variables like:
-- `ConnectionStrings__db` - The database connection string
-- Service discovery configuration for the "db" resource
+Connection-string references commonly become environment variables such as `ConnectionStrings__cache`.
 
 ### WaitFor
 
-`WaitFor()`/`waitFor()` tells Aspire to delay starting a resource until its dependency is ready:
+**WaitFor** adds a startup dependency. The consuming resource waits for the dependency to satisfy its health checks instead of merely waiting for the process to start.
 
-<Pivot id="csharp">
-```csharp title="AppHost.cs"
-var db = builder.AddPostgres("db");
-var api = builder.AddProject<Projects.Api>("api")
-    .WithReference(db)
-    .WaitFor(db);  // Don't start API until database is healthy
-```
-</Pivot>
-<Pivot id="typescript">
-```typescript title="apphost.mts"
-const db = await builder.addPostgres("db");
-await builder.addProject("api", "../Api/Api.csproj")
-    .withReference(db)
-    .waitFor(db);  // Don't start API until database is healthy
-```
-</Pivot>
-
-<Aside type="tip">
-  Without `WaitFor()`/`waitFor()`, your API might start and immediately crash because the database isn't ready yet. This prevents race conditions during startup.
-</Aside>
-
-### WaitForCompletion
-
-`WaitForCompletion()`/`waitForCompletion()` waits for a resource to finish and exit (not just start). Useful for setup scripts:
-
-<Pivot id="csharp">
-```csharp title="AppHost.cs"
-var migrate = builder.AddProject<Projects.DbMigration>("migrate");
-var api = builder.AddProject<Projects.Api>("api")
-    .WaitForCompletion(migrate);  // Wait for migrations to complete
-```
-</Pivot>
-<Pivot id="typescript">
-```typescript title="apphost.mts"
-const migrate = await builder.addProject("migrate", "../DbMigration/DbMigration.csproj");
-await builder.addProject("api", "../Api/Api.csproj")
-    .waitForCompletion(migrate);  // Wait for migrations to complete
-```
-</Pivot>
-
-### WaitForStart
-
-`WaitForStart()`/`waitForStart()` waits only for a resource to reach the running state, without waiting for health checks to pass:
-
-<Pivot id="csharp">
-```csharp title="AppHost.cs"
-var db = builder.AddPostgres("db");
-var api = builder.AddProject<Projects.Api>("api")
-    .WaitForStart(db);  // Start as soon as db is running, don't wait for healthy
-```
-</Pivot>
-<Pivot id="typescript">
-```typescript title="apphost.mts"
-const db = await builder.addPostgres("db");
-await builder.addProject("api", "../Api/Api.csproj")
-    .waitForStart(db);  // Start as soon as db is running, don't wait for healthy
-```
-</Pivot>
-
-<Aside type="tip">
-  Use `WaitForStart()`/`waitForStart()` when you need looser coupling—your service can handle initial connection failures via retry policies. Use `WaitFor()`/`waitFor()` when you need strict dependency on health.
-</Aside>
-
----
-
-## Key terms
-
-These terms appear frequently throughout the documentation and in error messages.
-
-### Connection string
-
-A **connection string** is a formatted string containing the information needed to connect to a resource (database, cache, message broker, etc.). In Aspire, connection strings are:
-
-- Automatically generated by the AppHost based on resource configuration
-- Injected into your application as environment variables
-- Retrieved using `builder.Configuration.GetConnectionString("resource-name")`/`builder.configuration.getConnectionString("resource-name")`
-
-Example: `Host=localhost;Port=5432;Database=mydb;Username=postgres;Password=secret`
+Use **WaitForStart** when running is sufficient, and **WaitForCompletion** when the dependency must finish successfully before the consuming resource starts. Verify the exact generated method in `.aspire/modules` for experimental AppHost languages.
 
 ### Service discovery
 
-**Service discovery** is the mechanism that allows your services to find and communicate with each other by name, without hardcoding addresses. In Aspire:
+**Service discovery** lets resources find one another by logical name instead of hardcoded host and port values. The AppHost generates endpoint configuration and passes it to referenced workloads.
 
-- Resources are addressable by their resource name (e.g., `http://apiservice`)
-- The AppHost configures DNS/environment variables so services can resolve each other
-- Works automatically when you use `WithReference()`/`withReference()`
+### Connection string
 
-For details, see [Service Discovery](/fundamentals/service-discovery/).
+A **connection string** is a formatted value required to connect to a database, cache, queue, or another resource. Aspire can generate it from a managed resource or read an existing value from AppHost configuration.
 
 ### Health check
 
-A **health check** is a mechanism to determine if a resource is ready and functioning. Aspire uses health checks in two ways:
+A **health check** reports whether a resource is ready or alive. Aspire uses health checks in dashboard status, dependency ordering, and deployment workflows.
 
-1. **AppHost level**: Determines when dependencies are ready (controls `WaitFor()`/`waitFor()` behavior)
-2. **Application level**: Exposes `/health` and `/alive` endpoints for load balancers
-
-For details, see [Health Checks](/fundamentals/health-checks/).
-
-### Environment variable
-
-Aspire uses **environment variables** to pass configuration from the AppHost to your services:
-
-- Connection strings: `ConnectionStrings__resourcename`
-- Service endpoints: `services__servicename__https__0`
-- Custom values via `WithEnvironment()`/`withEnvironment()`
-
-Your application reads these using standard .NET configuration (`IConfiguration`).
-
----
-
-## Resource types
-
-Aspire uses two types of NuGet packages to work with resources.
+## Integrations and SDKs
 
 ### Hosting integration
 
-A **hosting integration** is an Aspire package that helps you add and configure resources in your AppHost. Hosting integrations:
+A **hosting integration** is a package used by the AppHost to add and configure resource types. For example, `Aspire.Hosting.Redis` exports the Redis resource APIs.
 
-- Add containers or cloud resources to your app model
-- Configure networking, health checks, and volumes
-- Handle connection string generation
-
-Example: `Aspire.Hosting.PostgreSQL` adds the `AddPostgres()`/`addPostgres()` method.
+For guest AppHosts, the integration must expose an ATS-compatible surface before its APIs can appear in the generated SDK.
 
 ### Client integration
 
-A **client integration** is an Aspire package that helps your application code connect to resources. Client integrations:
+A **client integration** configures application code to consume a resource. It can register clients, read connection strings, add telemetry, and add health checks inside a workload.
 
-- Register SDK clients with dependency injection
-- Configure connection strings from environment variables
-- Add health checks and telemetry
+Hosting integrations belong in the AppHost. Client integrations belong in the application that consumes the resource.
 
-Example: `Aspire.Npgsql` registers `NpgsqlConnection` for PostgreSQL.
+### Capability
 
-### The relationship
+A **capability** is an ATS-exported operation that the host can invoke for a guest SDK. Runtime dispatch uses a stable capability ID rather than a C# overload signature.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ AppHost (uses Hosting Integration)                          │
-│   Aspire.Hosting.PostgreSQL → AddPostgres("db")             │
-│                                   ↓                         │
-│                          Injects connection info            │
-└─────────────────────────────────────────────────────────────┘
-                                   ↓
-┌─────────────────────────────────────────────────────────────┐
-│ API Project (uses Client Integration)                       │
-│   Aspire.Npgsql → builder.AddNpgsqlDataSource("db")         │
-│                          ↓                                  │
-│                  Reads connection from env vars             │
-│                  Registers NpgsqlConnection in DI           │
-└─────────────────────────────────────────────────────────────┘
-```
+### Handle
 
----
+A **handle** is an opaque identifier for an object that remains in the host process. Guest SDK wrappers use handles for resources, builders, endpoint references, and other live host-side objects.
 
-## Execution modes
+### DTO
 
-Aspire operates in two distinct modes depending on what you're trying to accomplish.
+A **data transfer object (DTO)** is a JSON-shaped value that crosses the guest/host boundary by value. ATS DTOs should contain portable scalar, collection, enum, union, or nested DTO values rather than service providers or other runtime-only objects.
+
+## Execution and operations
 
 ### Run mode
 
-**Run mode** is local development. When you execute `aspire run` or debug your AppHost:
-
-- Aspire starts all your resources locally
-- Containers run in Docker
-- The Aspire Dashboard shows logs and traces
-- Service discovery uses localhost addresses
+**Run mode** starts the application locally. `aspire run` restores the AppHost, starts resources, configures service discovery, and provides the dashboard.
 
 ### Publish mode
 
-**Publish mode** generates deployment artifacts. When you execute `aspire publish`:
+**Publish mode** evaluates publishers against the application model and writes deployment artifacts without necessarily deploying them.
 
-- Aspire generates Docker Compose files, Kubernetes Helm charts, or cloud infrastructure
-- No containers are started locally
-- Connection strings reference production endpoints
-- Output is ready for CI/CD pipelines
+### Deploy mode
 
----
+**Deploy mode** executes deployment steps for a configured target. Deployment support depends on the target package and the APIs available to the selected AppHost language.
 
-## Dashboard and observability
+### Aspire Dashboard
 
-Aspire provides built-in tools for monitoring and debugging your applications.
-
-### Aspire dashboard
-
-The **Aspire Dashboard** is a web UI that automatically runs during local development. It shows:
-
-- All your resources and their status
-- Real-time logs from every service
-- Distributed traces across service calls
-- Metrics and performance data
-- Resource health checks
-
-Access it at the URL shown when you run `aspire run` (typically `http://localhost:15888`).
+The **Aspire Dashboard** displays resources, endpoints, logs, traces, metrics, health, and commands for the running application.
 
 ### OpenTelemetry
 
-**OpenTelemetry** (<abbr title="OpenTelemetry" data-tooltip-placement="top">OTEL</abbr>) is the observability standard that Aspire uses for:
+**OpenTelemetry** is the standard Aspire uses for logs, traces, and metrics. Workloads configure their language-specific OpenTelemetry SDKs and export telemetry to the endpoint provided by Aspire.
 
-- **Logs** - Structured logging with context
-- **Traces** - Following requests across services
-- **Metrics** - Performance measurements
+### Service Defaults
 
-Aspire configures OpenTelemetry automatically through service defaults.
+**Service Defaults** is the C# project pattern that configures OpenTelemetry, health checks, service discovery, and HTTP resilience in .NET workloads. Other workload runtimes use their own OpenTelemetry and resilience libraries.
 
----
+## Experimental feature flags
 
-## Common patterns
+The experimental AppHost flags are:
 
-These patterns appear frequently in Aspire applications.
+- `experimentalPolyglot:python`
+- `experimentalPolyglot:go`
+- `experimentalPolyglot:java`
+- `experimentalPolyglot:rust`
 
-### Emulator pattern
+Set one globally with:
 
-Many hosting integrations support running as an **emulator** for local development:
-
-<Pivot id="csharp">
-```csharp title="AppHost.cs"
-var storage = builder.AddAzureStorage("storage")
-    .RunAsEmulator();  // Uses Azurite container locally
+```bash title="Enable an experimental AppHost language"
+aspire config set features:experimentalPolyglot:python true --global
 ```
-</Pivot>
-<Pivot id="typescript">
-```typescript title="apphost.mts"
-const storage = await builder.addAzureStorage("storage");
-await storage.runAsEmulator();  // Uses Azurite container locally
-```
-</Pivot>
 
-This lets you develop against Azure, AWS, or other cloud services without needing actual cloud accounts during development.
-
-### Existing resource pattern
-
-Connect to resources that already exist (not managed by Aspire):
-
-<Pivot id="csharp">
-```csharp title="AppHost.cs"
-var existingDb = builder.AddConnectionString("db");
-```
-</Pivot>
-<Pivot id="typescript">
-```typescript title="apphost.mts"
-const existingDb = await builder.addConnectionString("db");
-```
-</Pivot>
-
-Aspire resolves this from `ConnectionStrings:db` (or environment variable `ConnectionStrings__db`) in the AppHost configuration and passes it through as a single connection string value.
-
-Use this for production databases or shared team resources.
-
----
-
-## API reference terms
-
-These terms appear frequently in API documentation and advanced usage:
-
-| Term | Description |
-|------|-------------|
-| `IResourceAnnotation` | Typed metadata object attached to resources. |
-| `WithAnnotation()`/`withAnnotation()` | Fluent method to attach typed annotations. |
-| `ReferenceExpression` | Structured formatter preserving value references. |
-| `ResourceNotificationService` | Publishes observable state updates. |
-
-| Concept | Definition |
-|---------|------------|
-| <abbr title="Directed Acyclic Graph" data-tooltip-placement="top">DAG</abbr> | Directed acyclic graph—the structure of resource dependencies. |
-| Heterogeneous DAG | DAG containing varied resource types (projects, containers, cloud). |
-| Publisher | Component that emits deployment artifacts from the app model. |
-| Hoisting | Leaving a value unresolved for later substitution at runtime. |
-| Deferred evaluation | Computing a value only when needed. |
-| Lifecycle events | Time-based signals for resource transitions. |
-
----
+You can also set the exact key to `true` in the `features` object of a project's `aspire.config.json`.
 
 ## See also
 
 - [What is Aspire?](/get-started/what-is-aspire/)
-- [Create your first Aspire app](/get-started/first-app/)
+- [What is the AppHost?](/get-started/app-host/)
+- [Multi-language architecture](/architecture/multi-language-architecture/)
+- [Author multi-language integrations](/extensibility/multi-language-integration-authoring/)

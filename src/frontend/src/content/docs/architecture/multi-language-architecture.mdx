@@ -1,138 +1,240 @@
 ---
 title: Multi-language architecture
-seoTitle: 'Aspire multi-language architecture: C# and TypeScript'
-description: Understand how Aspire uses a guest/host architecture, ATS, SDK generation, and local token-based auth to support TypeScript AppHosts.
+seoTitle: Aspire multi-language AppHost architecture and SDKs
+description: Understand Aspire guest-language AppHosts, ATS SDK generation, local authenticated transport, runtime conventions, and generated project layouts.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
 import LearnMore from '@components/LearnMore.astro';
 
-Aspire supports writing AppHosts in multiple languages. While the orchestration engine is built on .NET, a guest/host architecture allows AppHosts written in TypeScript today, and additional languages in the future, to access Aspire integrations, service discovery, and the dashboard.
+Aspire uses one application model across C#, TypeScript, Python, Go, Java, and Rust AppHosts. C# hosts that model directly. The other languages use generated SDKs that call the same .NET orchestration engine.
+
+TypeScript and C# AppHosts are established. Python, Go, Java, and Rust AppHosts are experimental and require the corresponding `experimentalPolyglot:<language>` feature flag.
 
 ## Why a shared backend
 
-Aspire's hosting integrations and deployment publishers are written in .NET and have already accumulated the runtime behavior needed for local orchestration, diagnostics, and publishing. Rewriting those integrations for every guest language would duplicate a large amount of behavior and significantly increase maintenance cost.
+Aspire hosting integrations and deployment publishers are implemented in .NET. They already contain the behavior for containers, service discovery, health checks, diagnostics, resource commands, and publishing. Reimplementing that behavior for every AppHost language would produce separate orchestration engines that could drift.
 
-Instead, guest languages only declare resources such as `addRedis`, `addPostgres`, and `withReference`, while the .NET host handles orchestration concerns such as starting containers, wiring service discovery, running health checks, and generating deployment artifacts. The trade-off is a local IPC hop, which is much cheaper than maintaining the same integration surface independently in multiple languages.
+Instead, ATS exports a language-neutral capability contract. Generated guest SDKs expose that contract using each language's naming and error conventions, while the .NET host remains responsible for resource behavior.
 
-## Guest/host model
+## Guest and host processes
 
-When you run a TypeScript AppHost, the Aspire CLI orchestrates two processes:
+When you run a guest-language AppHost, the Aspire CLI coordinates two processes:
 
-- **Guest**: your `apphost.mts` process, running in Node.js
-- **Host**: the Aspire orchestration server, running on .NET
+- **Guest process**: your `apphost.mts`, `apphost.py`, `apphost.go`, `AppHost.java`, or `apphost.rs` program.
+- **Host process**: the Aspire orchestration server that loads hosting integrations and owns the application model.
 
-The guest communicates with the host via JSON-RPC over a local transport: Unix sockets on macOS and Linux, and named pipes on Windows. Your code calls methods such as `addRedis()` or `withReference()`, and the generated SDK translates those calls into RPC requests.
+The generated SDK sends JSON-RPC requests over a local transport: Unix domain sockets on macOS and Linux, and named pipes on Windows.
 
 ```mermaid
 flowchart TB
-    subgraph Guest["Guest Process (Node.js)"]
-        TS["apphost.mts"]
-        SDK["Generated SDK (.aspire/modules/)"]
-        Client["JSON-RPC Client"]
-        TS --> SDK --> Client
+    subgraph Guest["Guest language process"]
+        AppHost["AppHost source"]
+        SDK["Generated SDK (.aspire/modules)"]
+        Client["JSON-RPC client"]
+        AppHost --> SDK --> Client
     end
 
-    subgraph Host["Host Process (Aspire Server)"]
-        RPC["JSON-RPC Server"]
-        Dispatcher["Capability Dispatcher"]
-        Integrations["Hosting Integrations"]
+    subgraph Host["Aspire orchestration host"]
+        RPC["JSON-RPC server"]
+        Dispatcher["Capability dispatcher"]
+        Integrations["Hosting integrations"]
         RPC --> Dispatcher --> Integrations
     end
 
-    subgraph Managed["Managed Resources"]
-        Dashboard["Dashboard"]
-        Containers["Containers"]
-        Discovery["Service Discovery"]
+    subgraph Managed["Managed application model"]
+        Resources["Resources and relationships"]
+        Dashboard["Dashboard and diagnostics"]
+        Publishers["Publishers and deployment steps"]
     end
 
-    Client <-->|"Local transport"| RPC
-    Integrations --> Dashboard & Containers & Discovery
+    Client <-->|"Authenticated local transport"| RPC
+    Integrations --> Resources & Dashboard & Publishers
 ```
 
 ## Startup sequence
 
-1. The CLI prepares the host process with the required hosting packages.
-2. The ATS scanner inspects assemblies for exports and generates the TypeScript SDK into `.aspire/modules/`.
-3. The CLI starts the host process and creates the local socket or pipe endpoint.
-4. The CLI starts the guest process and passes connection details through environment variables.
-5. The guest connects and invokes capabilities such as `createBuilder`, `addRedis`, `build`, and `run`.
-6. The host orchestrates resources, starts the dashboard, and manages the application lifecycle.
+1. The CLI detects the AppHost from `aspire.config.json` or its canonical entry filename.
+1. The CLI restores the hosting packages required by the AppHost.
+1. ATS scans exported capabilities and generates the language SDK under `.aspire/modules`.
+1. The CLI starts the host process and creates a local socket or named pipe.
+1. The CLI generates a one-time authentication token and passes connection details to the guest process through environment variables.
+1. The guest runtime starts and invokes capabilities such as builder creation, resource methods, `build`, and `run`.
+1. The host validates and orchestrates the resulting resource graph.
 
-## Token-based authentication
-
-The guest process authenticates to the host with a one-time token generated for that session and passed through environment variables at startup. The local transport is also protected by operating system file permissions, so only processes running as the same user can connect. There are no public network ports involved in guest-to-host communication.
+The transport doesn't open a public network port. Operating-system permissions protect the local endpoint, and the one-time token authenticates the guest process.
 
 ## Aspire Type System
 
-The Aspire Type System, or ATS, is the contract that bridges .NET and guest languages. Every exported type that crosses the boundary gets a portable type identity derived from its assembly and type name.
+The Aspire Type System (ATS) describes the contract that can cross the guest/host boundary. It gives exported .NET types portable identities and classifies values by how they move across JSON-RPC.
 
-### Type categories
+| Category              | Representation                                                    |
+| --------------------- | ----------------------------------------------------------------- |
+| Primitive             | JSON-native strings, numbers, booleans, and null values           |
+| Enum or value catalog | Generated language enum, constant, or literal representation      |
+| Handle                | Opaque reference to an object that remains in the host process    |
+| DTO                   | JSON-shaped object generated in the guest SDK                     |
+| Callback              | Guest function registered by identifier and invoked from the host |
+| Collection            | JSON value or a handle, depending on the exported contract        |
+| Union                 | One of the explicitly exported ATS-compatible value shapes        |
 
-| Category | Description | Serialization |
-|----------|-------------|---------------|
-| **Primitive** | `string`, `int`, `bool`, `double`, and similar scalar types | JSON native values |
-| **Enum** | .NET enum types | String member names |
-| **Handle** | Opaque references to host-side objects | JSON handle envelopes |
-| **DTO** | Data transfer objects marked for export | JSON objects |
-| **Callback** | Guest-provided delegate functions | Callback identifiers |
-| **Array** | Immutable collections | JSON arrays |
-| **List / dictionary** | Mutable collections | Handles for properties, JSON for parameters |
+Resource builders are handles. A guest method such as `addRedis`, `add_redis`, or `AddRedis` invokes a host capability and returns a generated wrapper for the host-side resource builder.
 
-### How ATS maps to TypeScript
+## Generated SDK layouts
 
-| .NET type | TypeScript representation |
-|----------|---------------------------|
-| Primitives | Native TypeScript primitives |
-| Enums | String literal unions |
-| Resource types | Typed handle objects with fluent methods |
-| DTOs | Interfaces serialized as JSON |
-| Collections | Arrays and `Record<string, T>` |
-| Delegates | Async callback functions |
+The package list in `aspire.config.json` controls which integration APIs are generated. `aspire add` updates the package list and regenerates the SDK; `aspire restore` regenerates it without running the AppHost.
 
-Resource types are passed by handle. The actual instance remains in the host process, while the TypeScript SDK keeps a reference and dispatches method calls as JSON-RPC requests.
+| Language   | Generated layout under `.aspire/modules`         | AppHost reference                                              |
+| ---------- | ------------------------------------------------ | -------------------------------------------------------------- |
+| TypeScript | `aspire.mts`, `base.mts`, `transport.mts`        | `./.aspire/modules/aspire.mjs`                                 |
+| Python     | `aspire_app.py`, `pyproject.toml`                | Editable `aspire_app` package installed from `.aspire/modules` |
+| Go         | `aspire.go`, `base.go`, `transport.go`, `go.mod` | `apphost/modules/aspire`, replaced to `./.aspire/modules`      |
+| Java       | `aspire/*.java`, `sources.txt`                   | `import aspire.*;`                                             |
+| Rust       | `aspire.rs`, `base.rs`, `transport.rs`, `mod.rs` | `#[path = ".aspire/modules/mod.rs"] mod aspire;`               |
+
+Don't edit generated files. Their contents are replaced whenever the SDK regenerates.
+
+## Runtime and error conventions
+
+Each SDK follows the target language instead of reproducing C# syntax:
+
+| Language   | Runtime command                   | Method style              | Error and fluent convention                                                                                                                  |
+| ---------- | --------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript | Node.js package-manager command   | `camelCase`, asynchronous | Await generated calls; wrapper-returning methods support fluent chaining.                                                                    |
+| Python     | `uv run python` or `.venv` Python | `snake_case`              | SDK calls raise Python exceptions; `create_builder()` is a context manager.                                                                  |
+| Go         | `go run .`                        | exported `PascalCase`     | Value operations return errors; fluent resource methods accumulate errors and expose `Err()`. Use `aspire.FormatError` for host diagnostics. |
+| Java       | `java` after `javac --release 25` | `camelCase`               | Generated calls throw exceptions; resource methods use Java-style fluent objects and options builders.                                       |
+| Rust       | `cargo run --bin apphost --`      | `snake_case`              | Generated calls return `Result<_, Box<dyn Error>>`; use `?` or handle each error.                                                            |
+
+Java can also detect Maven or Gradle projects. Aspire uses the checked-in wrapper to resolve dependencies, then compiles the AppHost and generated sources with `javac` so `.aspire/modules` participates in the same compile.
+
+Python prefers `uv`. If `uv` isn't available, Aspire creates `.venv`, bootstraps `pip`, and installs `apphost_requirements.txt`. Both paths require Python 3.11 or later.
+
+## Same model, language-specific syntax
+
+The following AppHosts all declare one Redis resource:
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const cache = await builder.addRedis('cache');
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="apphost.cs"
+#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+#:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
+
+var builder = DistributedApplication.CreateBuilder(args);
+var cache = builder.AddRedis("cache");
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    cache = builder.add_redis("cache")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache")
+if err := cache.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+var cache = builder.addRedis("cache");
+builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+let cache = builder.add_redis("cache", None, None)?;
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
+</AppHostTabs>
+
+The syntax differs, but the host receives the same resource and relationship model.
 
 ## Polymorphism flattening
 
-.NET APIs rely on inheritance, interfaces, and generics. Guest SDKs do not need to expose that full shape directly. During scanning, ATS flattens the exported type system so the generated guest API is easier to consume:
+.NET hosting APIs use interfaces, inheritance, generics, overloads, and extension methods. ATS flattens that shape for guest SDKs:
 
-- Concrete types receive the full set of applicable capabilities.
-- Interface relationships are expanded into directly callable members.
-- Generic constraints are resolved into exportable concrete surfaces.
+- Concrete generated wrappers receive the capabilities that apply to their base types and interfaces.
+- Exported overload families become one ATS-friendly method, options object, or union where possible.
+- Runtime capability IDs stay independent from friendly generated method names.
+- Resource and endpoint values remain handles instead of being serialized as arbitrary JSON.
 
-That flattening means a resource such as `RedisResource` can expose fluent methods from shared interfaces alongside Redis-specific APIs without requiring guest languages to model the original inheritance tree.
+This lets a generated `RedisResource` wrapper expose common resource-builder capabilities alongside Redis-specific APIs without reproducing the complete .NET inheritance tree.
 
-## SDK generation
+## Feature flags and language IDs
 
-The TypeScript SDK is generated from hosting integration assemblies. When you add an integration with `aspire add`, the CLI:
+| Language   | CLI language ID                                            | Feature flag                  |
+| ---------- | ---------------------------------------------------------- | ----------------------------- |
+| TypeScript | `typescript/nodejs` (`typescript` is accepted as an alias) | None                          |
+| C#         | `csharp`                                                   | None                          |
+| Python     | `python`                                                   | `experimentalPolyglot:python` |
+| Go         | `go`                                                       | `experimentalPolyglot:go`     |
+| Java       | `java`                                                     | `experimentalPolyglot:java`   |
+| Rust       | `rust`                                                     | `experimentalPolyglot:rust`   |
 
-1. Loads the integration assembly.
-2. Scans exported methods and types.
-3. Applies ATS rules, including polymorphism flattening.
-4. Emits typed TypeScript wrappers into `.aspire/modules/`.
+Enable an experimental language globally with `aspire config set features:<flag> true --global`, or add the same key under `features` in the project's `aspire.config.json`.
 
-This keeps the SDK in sync with the .NET implementation. Integration authors do not hand-write TypeScript bindings; they export their .NET APIs and the CLI generates the guest surface automatically.
+## Current limitations
+
+- Python, Go, Java, and Rust AppHost contracts are experimental and can change.
+- Rust SDK validation is marked `continue-on-error` in the Aspire polyglot validation workflow because known issues remain.
+- Integration availability depends on ATS exports. A hosting package can work in C# while lacking a verified generated surface in one or more guest languages.
+- Full starter templates currently exist for Go and Java AppHosts. `aspire-py-starter` creates a Python workload with a **TypeScript AppHost**, and Rust has only an empty AppHost template.
 
 <LearnMore>
-  If you're building a hosting integration and want it to work with TypeScript
-  AppHosts, see [Multi-language integrations](/extensibility/multi-language-integration-authoring/).
+  If you build a hosting integration, see [Author multi-language Aspire
+  integrations](/extensibility/multi-language-integration-authoring/) for ATS
+  export and validation guidance.
 </LearnMore>
-
-## Same model, different syntax
-
-The AppHost model is the same regardless of language. A TypeScript AppHost defines the same resources, references, and dependency graph as a C# AppHost. The difference is the authoring syntax.
-
-| Concept | C# | TypeScript |
-|---------|----|------------|
-| Create builder | `DistributedApplication.CreateBuilder(args)` | `await createBuilder()` |
-| Add resource | `builder.AddRedis("cache")` | `await builder.addRedis("cache")` |
-| Reference | `.WithReference(db)` | `.withReference(db)` |
-| Wait for | `.WaitFor(api)` | `.waitFor(api)` |
-| Build and run | `builder.Build().Run()` | `await builder.build().run()` |
-
-The resulting dashboard, service discovery behavior, health checks, and deployment artifacts come from the same host-side orchestration engine.
 
 ## See also
 
-- [Build your first app](/get-started/first-app/?lang=typescript) — get started with a TypeScript AppHost
-- [Resource model](/architecture/resource-model/) — understand how Aspire models resources and relationships
-- [Multi-language integrations](/extensibility/multi-language-integration-authoring/) — make your integration work with TypeScript AppHosts
+- [Build your first Aspire app](/get-started/first-app/)
+- [What is the AppHost?](/get-started/app-host/)
+- [Resource model](/architecture/resource-model/)
+- [Multi-language integrations](/extensibility/multi-language-integration-authoring/)

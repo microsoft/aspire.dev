@@ -1,0 +1,133 @@
+---
+title: Rust AppHost project structure
+seoTitle: Aspire Rust AppHost project structure overview
+description: Learn the files, Cargo setup, generated module, Result-based errors, and current limitations in an experimental Aspire Rust AppHost.
+topic: docs
+---
+
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
+
+:::danger[Experimental AppHost]
+Rust AppHost authoring is experimental. Enable `experimentalPolyglot:rust` before using its template, generated SDK, or runtime. Upstream Rust SDK validation currently has known non-blocking failures.
+:::
+
+Create an empty Rust AppHost with:
+
+```bash title="Create a Rust AppHost"
+aspire config set features:experimentalPolyglot:rust true --global
+aspire new aspire-rust-empty -n my-apphost -o my-apphost
+```
+
+The CLI scaffolds this structure:
+
+<FileTree>
+
+- my-apphost/
+  - .aspire/
+    - modules/ Generated Rust module; do not edit
+      - aspire.rs
+      - base.rs
+      - mod.rs
+      - transport.rs
+  - apphost.rs AppHost entry point
+  - aspire.config.json AppHost language, packages, and launch profiles
+  - Cargo.toml AppHost package and binary target
+
+</FileTree>
+
+## Runtime requirements
+
+Install the Rust toolchain and Cargo. Aspire executes the AppHost with:
+
+```bash title="Rust AppHost runtime"
+cargo run --bin apphost --
+```
+
+The AppHost's Cargo toolchain is independent from the workloads it orchestrates.
+
+## aspire.config.json
+
+The AppHost configuration identifies the entry point and language:
+
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.rs",
+    "language": "rust"
+  },
+  "packages": {
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+`aspire add` records hosting integrations in `packages`. `aspire restore` resolves those packages and regenerates `.aspire/modules`.
+
+## Generated Rust module
+
+`apphost.rs` includes `.aspire/modules/mod.rs` by path. That module exposes the Rust projection of ATS APIs plus the base handle and transport implementation.
+
+Don't edit `.aspire/modules`. Regenerate it instead:
+
+```bash title="Restore a Rust AppHost"
+aspire restore
+```
+
+## apphost.rs
+
+The entry point uses `Result` and the `?` operator to propagate AppHost failures:
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let cache = builder.add_redis("cache", None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+Add Redis before using this example:
+
+```bash title="Add Redis"
+aspire add redis
+```
+
+Generated Rust APIs use `snake_case`. Handle each returned `Result` explicitly or propagate it with `?`.
+
+## Templates
+
+| Template            | Purpose                         |
+| ------------------- | ------------------------------- |
+| `aspire-rust-empty` | Empty experimental Rust AppHost |
+
+There is currently no Rust starter template.
+
+## Validation limitation
+
+The upstream polyglot workflow scaffolds a Rust AppHost, adds Redis, runs Aspire, and polls for the Redis container. That job currently uses `continue-on-error` and is excluded from the required-pass condition because known SDK issues remain. Verify every generated API used by your application.
+
+## Run the AppHost
+
+```bash title="Run the Rust AppHost"
+aspire run
+```
+
+Aspire restores the generated SDK when needed, runs the Rust guest process, starts the .NET orchestration host, and prints the dashboard URL.
+
+## Source control
+
+Add `.aspire/` and Cargo build output to `.gitignore`. The generated module can be recreated from `aspire.config.json`.
+
+## See also
+
+- [Build your first Aspire app](/get-started/first-app/?lang=rust)
+- [Multi-language architecture](/architecture/multi-language-architecture/)
+- [Author multi-language integrations](/extensibility/multi-language-integration-authoring/)

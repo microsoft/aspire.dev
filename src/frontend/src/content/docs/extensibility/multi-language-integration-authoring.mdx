@@ -1,29 +1,30 @@
 ---
 title: Multi-language integrations
 seoTitle: Author multi-language Aspire integrations for AppHost
-description: Annotate Aspire hosting integrations so they work with TypeScript AppHosts and the generated SDK, while preparing exports for future AppHost languages.
+description: Export Aspire hosting integrations through the Aspire Type System, then validate their generated TypeScript, Python, Go, Java, and Rust SDK surfaces.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
-Aspire hosting integrations are C# libraries that extend the AppHost with new resource types. By default, these integrations are only available in C# AppHosts. To make them available in TypeScript AppHosts, you annotate your APIs with ATS (Aspire Type System) attributes.
+Aspire hosting integrations are C# libraries that extend the AppHost with new resource types. C# AppHosts consume those APIs directly. TypeScript, Python, Go, Java, and Rust AppHosts consume a language-specific SDK generated from **Aspire Type System (ATS)** metadata.
 
-This guide walks you through the process of exporting your integration for TypeScript AppHost use. The same ATS metadata can support additional AppHost languages as they become available in future Aspire releases.
+This guide shows how to design one language-neutral ATS contract, preserve an idiomatic C# API, and validate every generated SDK that your integration intends to support.
 
 ## How it works
 
-When a TypeScript AppHost adds your integration, the Aspire CLI:
+When a guest-language AppHost adds your integration, the Aspire CLI:
 
 <Steps>
 
 1. Loads your integration assembly
 2. Scans for ATS attributes on methods, types, and properties, such as `[AspireExport]`.
-3. Generates a typed TypeScript SDK with matching methods
+3. Generates a typed SDK for the selected AppHost language
 4. The generated SDK communicates with your C# code via JSON-RPC at runtime
 
 </Steps>
 
-Your C# code runs as-is — the TypeScript SDK is a thin client that calls into it. You don't need to rewrite anything in TypeScript.
+Your C# code runs as-is in the orchestration host. The generated SDK is a thin guest-language client that calls into it. You don't rewrite the integration in every language, but you must validate that the exported contract maps cleanly into each supported generator.
 
 <a id="install-the-analyzer"></a>
 
@@ -44,7 +45,7 @@ The analyzer reports diagnostics that help you get your exports right before use
 
 ## Export extension methods
 
-Annotate your extension methods with `[AspireExport]` and use XML doc comments to document them for the generated TypeScript SDK:
+Annotate your extension methods with `[AspireExport]` and use XML doc comments to document them for generated SDKs:
 
 ```csharp title="MyDatabaseBuilderExtensions.cs"
 /// <summary>Adds a MyDatabase container resource.</summary>
@@ -88,9 +89,18 @@ public static IResourceBuilder<MyDatabaseResource> WithDataVolume(
 }
 ```
 
-This generates the following highlighted TypeScript APIs:
+The current TypeScript generator produces the following highlighted API. Treat it as one projection of the ATS contract, not as the contract itself.
 
-```typescript title="Generated SDK" {5-8}
+<AppHostTabs limitations={{
+  csharp: 'C# AppHosts call the hosting integration directly and do not use an ATS-generated guest SDK.',
+  python: 'Generate and inspect the Python SDK before documenting the call shape. This sample integration has not been validated against the Python generator.',
+  go: 'Generate and inspect the Go SDK before documenting the call shape. Go fluent resource calls can accumulate errors that must be checked with Err().',
+  java: 'Generate and inspect the Java SDK before documenting the call shape. This sample integration has not been validated against the Java generator.',
+  rust: 'Generate and inspect the Rust SDK before documenting the call shape. Rust SDK validation currently has known non-blocking failures.',
+}}>
+<Fragment slot="typescript">
+
+```typescript title="Generated TypeScript SDK" {5-8}
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -102,6 +112,9 @@ const db = await builder
 
 await builder.build().run();
 ```
+
+</Fragment>
+</AppHostTabs>
 
 <Aside type="tip" title="Naming convention">
   The effective export ID usually becomes the method name in generated SDKs. By
@@ -115,9 +128,9 @@ await builder.build().run();
 
 ### Document your exports
 
-XML doc comments are the primary source for generated SDK API documentation. The ATS scanner reads `<summary>`, `<param>`, `<returns>`, and `<remarks>` tags and includes them in the TypeScript JSDoc generated for your integration.
+XML doc comments are the primary source for generated SDK API documentation. The ATS scanner reads `<summary>`, `<param>`, `<returns>`, and `<remarks>` tags and includes them in the generated documentation format for each language.
 
-Use `ats-*` override tags when the standard C# XML documentation doesn't translate well to generated SDK docs — for example, when a `<summary>` references C#-specific types or language constructs that have no direct equivalent in TypeScript. The supported overrides are:
+Use `ats-*` override tags when the standard C# XML documentation doesn't translate well to generated SDK docs — for example, when a `<summary>` references C#-specific types or language constructs that don't exist in guest SDKs. The supported overrides are:
 
 - `<ats-summary>` — overrides `<summary>` in [polyglot](/get-started/glossary/#polyglot) docs
 - `<ats-param name="...">` — overrides `<param>` for a specific parameter
@@ -164,7 +177,7 @@ public static IResourceBuilder<RedisResource> ConfigureRedis(
 }
 ```
 
-TypeScript renders these references as JSDoc `{@link ...}` links.
+Generators render these references in their language-specific documentation format. TypeScript uses JSDoc `{@link ...}` links.
 
 :::note
 The `Description` property on `[AspireExport]` is still supported as a compatibility fallback, but new exports should use XML doc comments. The analyzer reports `ASPIREEXPORT015` as an error when `Description` is set on a new export.
@@ -172,7 +185,7 @@ The `Description` property on `[AspireExport]` is still supported as a compatibi
 
 ### Keep capability IDs unique
 
-The runtime dispatches TypeScript AppHost calls by **capability ID**. A capability ID is more restrictive than a C# method signature: it doesn't include the C# receiver type, parameter list, or overload signature. Starting in Aspire 13.3, the analyzer reports `ASPIREEXPORT013` when two exports in the same assembly generate the same capability ID.
+The runtime dispatches guest AppHost calls by **capability ID**. A capability ID is more restrictive than a C# method signature: it doesn't include the C# receiver type, parameter list, or overload signature. Starting in Aspire 13.3, the analyzer reports `ASPIREEXPORT013` when two exports in the same assembly generate the same capability ID.
 
 For static exports, the generated capability ID uses the assembly name and effective export ID. The following methods collide even though they target different C# types:
 
@@ -223,7 +236,7 @@ Use these patterns as an implementation checklist when you design a hosting inte
 1. Design the ATS contract first: the generated methods, DTOs, values, callbacks, and docs that SDK users should see.
 2. Keep the C# API ergonomic with overloads and rich implementation types where they help C# callers.
 3. Adapt the C# API to ATS with explicit exports, DTO/options types, unions, small context/editor types, and ignored C#-only overloads.
-4. Validate the generated TypeScript SDK as the first concrete generated SDK, but keep the contract language-neutral so future SDKs can share it.
+4. Validate the generated TypeScript, Python, Go, Java, and Rust SDKs that your integration claims to support.
 5. Inspect generated signatures and docs before shipping.
 
 ### Do and don't checklist
@@ -236,11 +249,11 @@ Use these patterns as an implementation checklist when you design a hosting inte
 | Accept ATS values with union-shaped method parameters or editor methods.                                                        | Hide live resource handles, endpoint references, or expressions inside JSON DTOs.                                            |
 | Use explicit `[AspireExport]` attributes for callback contexts and editor types.                                                | Turn on broad property or method expansion for large framework-style types.                                                  |
 | Document every exported API, DTO, parameter, and property with language-neutral XML comments and `ats-*` overrides when needed. | Publish C#-specific descriptions that mention implementation types the generated SDK doesn't expose.                         |
-| Test with the analyzer and a TypeScript AppHost project reference, then inspect generated `.d.ts` signatures.                   | Assume a C# API shape is polyglot-safe without checking the generated module.                                                |
+| Test with the analyzer and guest AppHost project references, then inspect every generated language surface.                     | Assume a C# API shape is polyglot-safe because one generated SDK compiles.                                                   |
 
 ### Design ATS-first, not C#-first
 
-Start from the ATS contract you want generated SDKs to expose, then map that contract back to C#. TypeScript is a useful way to test and illustrate the shape today, but the design target is the ATS surface that other generated AppHost SDKs can share. Prefer one clear ATS-visible operation over a set of C# overloads that need different generated names. Use DTO options bags, `[AspireUnion]`, and small exported context or editor types to represent the cross-language contract.
+Start from the ATS contract you want generated SDKs to expose, then map that contract back to C#. TypeScript is useful for illustrating promise-based behavior, but it is not a substitute for the other generators. Prefer one clear ATS-visible operation over a set of C# overloads that need different generated names. Use DTO options bags, `[AspireUnion]`, and small exported context or editor types to represent the cross-language contract.
 
 Every documented AppHost feature should have ATS metadata if generated SDKs can reasonably use it. For example, APIs for health checks, files, endpoints, commands, or resource annotations shouldn't be documented as C#-only surface area unless the underlying feature is intentionally unavailable to generated SDKs.
 
@@ -545,7 +558,17 @@ public static IResourceBuilder<MyDatabaseResource> AddMyDatabase(
 
 ### Validate the generated shape
 
-Use the analyzer and a TypeScript AppHost that references your integration project. After `aspire restore` or `aspire run` generates modules, inspect the generated imports and `.d.ts` signatures to confirm method names, DTO shapes, callback accessors, and docs metadata match the API you intended. Generated TypeScript APIs are promise-heavy, so await builder and fluent calls, await `PropertyAccessor` reads and writes, and consult the generated `.d.ts` signatures for service-provider methods and callback accessors. New TypeScript AppHosts use `apphost.mts` and `.aspire/modules/*.mjs` imports; legacy `apphost.ts` projects remain supported and may use `.modules/*.js` imports.
+Use the analyzer and a test AppHost for every guest language your integration claims to support. After `aspire restore` or `aspire run` generates modules, inspect method names, DTO shapes, callback accessors, documentation, and error behavior.
+
+| AppHost    | Generated surface to inspect                               | Important convention                                                                      |
+| ---------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| TypeScript | `.aspire/modules/*.mts` and generated type signatures      | APIs are promise-heavy; await builder, fluent, property-accessor, and callback operations |
+| Python     | `.aspire/modules/aspire_app.py`                            | APIs use `snake_case`; runtime failures surface as exceptions                             |
+| Go         | `.aspire/modules/aspire.go`, `base.go`, and `transport.go` | exported APIs use `PascalCase`; fluent builders accumulate errors for `Err()`             |
+| Java       | `.aspire/modules/aspire/*.java`                            | APIs use `camelCase`; runtime failures surface as exceptions                              |
+| Rust       | `.aspire/modules/aspire.rs`, `base.rs`, and `transport.rs` | APIs use `snake_case` and return `Result` values                                          |
+
+The TypeScript example below demonstrates its asynchronous generated shape:
 
 ```typescript title="Await generated AppHost APIs"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -1093,7 +1116,7 @@ A clean build with zero analyzer warnings or errors is the required baseline. St
 
 ## Local development with project references
 
-You can test your integration locally without publishing to a NuGet feed. In your TypeScript AppHost's `aspire.config.json`, set the package value to a `.csproj` path instead of a version number:
+You can test your integration locally without publishing to a NuGet feed. In a guest-language AppHost's `aspire.config.json`, set the package value to a `.csproj` path instead of a version number:
 
 ```json title="aspire.config.json"
 {
@@ -1108,7 +1131,15 @@ You can test your integration locally without publishing to a NuGet feed. In you
 }
 ```
 
-When the CLI detects a `.csproj` path, it builds the project locally and generates the TypeScript SDK from the resulting assemblies. This lets you iterate on your exports without publishing to a feed.
+When the CLI detects a `.csproj` path, it builds the project locally and generates the selected language SDK from the resulting assemblies. Change the `appHost.path` and `appHost.language` values for each test AppHost:
+
+| AppHost    | `path`         | `language`          |
+| ---------- | -------------- | ------------------- |
+| TypeScript | `apphost.mts`  | `typescript/nodejs` |
+| Python     | `apphost.py`   | `python`            |
+| Go         | `apphost.go`   | `go`                |
+| Java       | `AppHost.java` | `java`              |
+| Rust       | `apphost.rs`   | `rust`              |
 
 <Aside type="note">
   Project references require the .NET SDK to be installed (for `dotnet build`).
@@ -1119,14 +1150,25 @@ When the CLI detects a `.csproj` path, it builds the project locally and generat
 
 <Steps>
 
-1. Create a TypeScript AppHost for testing:
+1. Create one test AppHost per generated SDK:
 
-   ```bash title="Create test AppHost"
-   mkdir test-apphost && cd test-apphost
+   ```bash title="Create TypeScript test AppHost"
+   mkdir test-typescript && cd test-typescript
    aspire init --language typescript
    ```
 
-2. Add your integration via project reference in `aspire.config.json`:
+   Enable the exact feature flag before initializing an experimental language:
+
+   ```bash title="Enable experimental AppHost languages"
+   aspire config set features:experimentalPolyglot:python true --global
+   aspire config set features:experimentalPolyglot:go true --global
+   aspire config set features:experimentalPolyglot:java true --global
+   aspire config set features:experimentalPolyglot:rust true --global
+   ```
+
+   Then create each AppHost in a separate directory with `aspire init --language python`, `go`, `java`, or `rust`. Python requires Python 3.11 or later, the current Go scaffold declares `go 1.26`, Java requires JDK 25, and Rust requires Cargo.
+
+2. Add your integration via project reference in each `aspire.config.json`:
 
    ```json title="aspire.config.json (packages section)"
    {
@@ -1136,33 +1178,24 @@ When the CLI detects a `.csproj` path, it builds the project locally and generat
    }
    ```
 
-3. Run `aspire run` to generate the TypeScript SDK:
+3. Run `aspire restore` to generate the SDK without starting the application:
 
-   ```bash title="Generate SDK and start"
-   aspire run
+   ```bash title="Generate SDK"
+   aspire restore
    ```
 
-4. Check the generated `.aspire/modules/` directory for your integration's TypeScript types. Verify that your exported methods appear with the correct signatures.
+4. Inspect `.aspire/modules/` and verify that exports, names, options, callbacks, docs, and error shapes are idiomatic for that language.
 
-5. Use the generated API in `apphost.mts`:
-
-   ```typescript title="apphost.mts"
-   import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-   const builder = await createBuilder();
-
-   const db = await builder
-     .addMyDatabase('db', { port: 5432 })
-     .addDatabase('mydata')
-     .withDataVolume();
-
-   await builder.build().run();
-   ```
+5. Write a minimal AppHost scenario with the generated API, run it with `aspire run`, and assert that the resource reaches its expected state.
 
 </Steps>
 
 :::tip[Troubleshoot generated AppHosts]
-If generated TypeScript behavior differs from the C# API, check the generated `.d.ts` signature first. For new TypeScript AppHosts, inspect `.aspire/modules/*`; for legacy AppHosts, inspect `.modules/*`. If TypeScript doesn't see a method, verify that the integration package was restored, the export is analyzer-clean, and the generated module contains the method. Then use `aspire doctor` for version and environment mismatches, and run `aspire certs trust` when HTTPS certificate trust errors block local AppHost execution.
+If generated behavior differs from the C# API, inspect the selected language's files under `.aspire/modules` first. Verify that the integration package was restored, the export is analyzer-clean, and the generated module contains the method. Then use `aspire doctor` for version and environment mismatches. TypeScript AppHosts may also need `aspire certs trust` when HTTPS certificate trust errors block local execution.
+:::
+
+:::caution[Rust validation status]
+The upstream polyglot workflow currently runs the Rust Redis scenario with `continue-on-error`, and Rust is excluded from the required-pass condition because known SDK issues remain. Test Rust exports, but don't claim them as supported until the scenario passes reliably.
 :::
 
 ## Supported types
@@ -1187,6 +1220,6 @@ Types that are **not** ATS-compatible include: interpolated string handlers and 
 
 ## See also
 
-- [Build your first app](/get-started/first-app/?lang=typescript) — Get started with a TypeScript AppHost
+- [Build your first app](/get-started/first-app/) — Compare the six AppHost language workflows
 - [Custom resources](/extensibility/custom-resources/) — Creating custom resource types
 - [Integrations overview](/integrations/overview/) — Available integrations

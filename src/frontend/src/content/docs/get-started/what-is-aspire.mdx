@@ -1,7 +1,7 @@
 ---
 title: What is Aspire?
 seoTitle: What is Aspire? Distributed apps made easy
-description: "Learn how Aspire helps you compose, debug, and deploy distributed apps with a code-first, agent-ready AppHost across C#, TypeScript, Python, JavaScript, and Java."
+description: 'Learn how Aspire helps you compose, debug, and deploy distributed apps with a code-first AppHost across C#, TypeScript, Python, Go, Java, and Rust.'
 tableOfContents: true
 lastUpdated: true
 next:
@@ -12,7 +12,7 @@ next:
 import AppHostTabs from '@components/AppHostTabs.astro';
 
 import { Aside, Steps } from '@astrojs/starlight/components';
-import { Kbd } from 'starlight-kbd/components'
+import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Aspire is a code-first orchestration and observability layer for distributed applications.
@@ -22,12 +22,12 @@ Use Aspire to model the services, frontends, databases, queues, caches, containe
 ## What Aspire is and isn't
 
 - **Aspire is** the product layer where you model, run, and observe a distributed application in one place.
-- **Aspire is** multi-language: choose a C# or TypeScript AppHost, then connect workloads across many runtimes.
+- **Aspire is** multi-language: use an established C# or TypeScript AppHost, or opt into an experimental Python, Go, Java, or Rust AppHost.
 - **Aspire isn't** a replacement for your application framework.
 - **Aspire isn't** a cloud provider or production runtime.
 - **Aspire isn't** only for .NET-only solutions. See [Languages & runtimes](/languages-and-runtimes/).
 
-You describe your architecture in an [AppHost](/get-started/app-host/), run it locally with [`aspire run`](/reference/cli/commands/aspire-run/), inspect it in the [Aspire Dashboard](/dashboard/), and [deploy](/deployment/) the same application model to your target environment. Aspire supports **C#** and **TypeScript** as AppHost authoring languages today while helping you orchestrate workloads written in C#, JavaScript, Python, Go, Java, Rust, PowerShell, and more. AI coding tools build on that same model through the Aspire CLI, skill files, and MCP server.
+You describe your architecture in an [AppHost](/get-started/app-host/), run it locally with [`aspire run`](/reference/cli/commands/aspire-run/), inspect it in the [Aspire Dashboard](/dashboard/), and [deploy](/deployment/) the same application model to your target environment. Aspire supports **C#** and **TypeScript** as established AppHost authoring languages. **Python**, **Go**, **Java**, and **Rust** AppHosts are experimental and hidden behind per-language feature flags. Every AppHost can orchestrate workloads across runtimes. AI coding tools build on that same model through the Aspire CLI, skill files, and MCP server.
 
 ## Why Aspire?
 
@@ -35,16 +35,16 @@ Building modern applications means coordinating multiple resources, runtimes, an
 
 ### The pain of distributed development
 
-| Problem | Without Aspire | With Aspire |
-|---------|----------------|-------------|
-| **Starting services** | Open 5 terminals, run 5 different commands, hope they start in the right order | Run `aspire run` — everything starts automatically. See [AppHost overview](/get-started/app-host/). |
-| **Connection strings** | Hardcode `localhost:5432` everywhere, break production deploys | Service discovery handles it — same code works locally and in production. See [Service discovery](/fundamentals/service-discovery/). |
-| **"Works on my machine"** | Different team members have different ports, different configs | One AppHost definition, everyone runs the same setup. See [First app tutorial](/get-started/first-app/). |
-| **Debugging** | Attach debugger to each service individually | Debug your entire stack with a single <Kbd windows="F5" mac="F5" linux="F5" />. |
-| **Finding logs** | Check 5 different terminal windows | Aspire Dashboard shows all logs in one place. See [Dashboard overview](/dashboard/overview/). |
-| **Adding a database** | Install locally, configure connection, hope versions match | `builder.AddPostgres("db")` — containerized, versioned, consistent. See [Integrations](/integrations/overview/). |
-| **Working across languages** | Stitch together separate scripts and conventions for C#, Node.js, Python, and more | Model the same distributed app in a single AppHost, including multi-language stacks. See [Languages & runtimes](/languages-and-runtimes/). |
-| **Using AI coding agents** | Agents only see fragments of your setup and guess at runtime state | `aspire agent init` gives agents structured access to your app model, logs, traces, and resources. See [Use AI coding agents](/get-started/ai-coding-agents/). |
+| Problem                      | Without Aspire                                                                     | With Aspire                                                                                                                                                    |
+| ---------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Starting services**        | Open 5 terminals, run 5 different commands, hope they start in the right order     | Run `aspire run` — everything starts automatically. See [AppHost overview](/get-started/app-host/).                                                            |
+| **Connection strings**       | Hardcode `localhost:5432` everywhere, break production deploys                     | Service discovery handles it — same code works locally and in production. See [Service discovery](/fundamentals/service-discovery/).                           |
+| **"Works on my machine"**    | Different team members have different ports, different configs                     | One AppHost definition, everyone runs the same setup. See [First app tutorial](/get-started/first-app/).                                                       |
+| **Debugging**                | Attach debugger to each service individually                                       | Debug your entire stack with a single <Kbd windows="F5" mac="F5" linux="F5" />.                                                                                |
+| **Finding logs**             | Check 5 different terminal windows                                                 | Aspire Dashboard shows all logs in one place. See [Dashboard overview](/dashboard/overview/).                                                                  |
+| **Adding a database**        | Install locally, configure connection, hope versions match                         | `builder.AddPostgres("db")` — containerized, versioned, consistent. See [Integrations](/integrations/overview/).                                               |
+| **Working across languages** | Stitch together separate scripts and conventions for C#, Node.js, Python, and more | Model the same distributed app in a single AppHost, including multi-language stacks. See [Languages & runtimes](/languages-and-runtimes/).                     |
+| **Using AI coding agents**   | Agents only see fragments of your setup and guess at runtime state                 | `aspire agent init` gives agents structured access to your app model, logs, traces, and resources. See [Use AI coding agents](/get-started/ai-coding-agents/). |
 
 ### Before and after
 
@@ -123,32 +123,86 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const db = await builder.addPostgres("db");
+const db = await builder.addPostgres('db');
 
 const api = await builder
-  .addNodeApp("api", "../api", "server.js")
+  .addNodeApp('api', '../api', 'server.js')
   .withReference(db);
 
 const worker = await builder
-  .addPythonApp("worker", "../worker", "main.py")
+  .addPythonApp('worker', '../worker', 'main.py')
   .withReference(db);
 
-await builder
-  .addViteApp("frontend", "../frontend")
-  .withReference(api);
+await builder.addViteApp('frontend', '../frontend').withReference(api);
 
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    cache = builder.add_redis("cache")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache")
+if err := cache.Err(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+app, err := builder.Build()
+if err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+var cache = builder.addRedis("cache");
+builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+let cache = builder.add_redis("cache", None, None)?;
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
 </AppHostTabs>
 
 <Aside type="tip" title="The real win">
-Your AppHost becomes the single source of truth for your application's architecture. New team members can understand your entire system by reading one file.
+  Your AppHost becomes the single source of truth for your application's
+  architecture. New team members can understand your entire system by reading
+  one file.
 </Aside>
 
 <LearnMore>
-    Want to make that app model available to AI coding tools? See [Use AI coding agents](/get-started/ai-coding-agents/).
+  Want to make that app model available to AI coding tools? See [Use AI coding
+  agents](/get-started/ai-coding-agents/).
 </LearnMore>
 
 ## Key benefits
@@ -171,7 +225,7 @@ That AppHost becomes the model for how your distributed app is composed:
 - **Execution**: Let Aspire orchestrate local startup, environment wiring, health checks, and diagnostics.
 - **Operations**: Use the same model through the CLI, Dashboard, and AI-agent tooling.
 
-Aspire keeps that model consistent even when the AppHost language changes. A TypeScript AppHost uses a guest/host architecture to access the same orchestration engine, integrations, service discovery, and diagnostics as a C# AppHost.
+Aspire keeps that model consistent even when the AppHost language changes. TypeScript, Python, Go, Java, and Rust AppHosts use a guest/host architecture to access the same orchestration engine, integrations, service discovery, and diagnostics as a C# AppHost.
 
 This approach provides several advantages:
 
@@ -187,7 +241,10 @@ This approach provides several advantages:
 </LearnMore>
 
 <Aside type="note" title="Same model, different AppHost language">
-Whether you write your AppHost in C# or TypeScript, Aspire uses the same underlying orchestration model for resources, service discovery, diagnostics, and deployment.
+  Whether you write your AppHost in C#, TypeScript, or an experimental guest
+  language, Aspire uses the same underlying orchestration model for resources,
+  service discovery, and diagnostics. Integration and deployment support still
+  depends on the generated API surface for that language.
 </Aside>
 
 ## Development vs production
@@ -206,5 +263,7 @@ Aspire doesn't replace your existing deployment workflows—it enhances them by 
 </LearnMore>
 
 <Aside type="tip" title="Working with agents and multi-language stacks">
-For AI-assisted workflows, run `aspire agent init`. For guest-language AppHosts, see [Multi-language architecture](/architecture/multi-language-architecture/).
+  For AI-assisted workflows, run `aspire agent init`. For guest-language
+  AppHosts, see [Multi-language
+  architecture](/architecture/multi-language-architecture/).
 </Aside>
