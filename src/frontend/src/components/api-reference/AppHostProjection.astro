@@ -1,0 +1,148 @@
+---
+import { Code } from '@astrojs/starlight/components';
+
+import type {
+  AppHostApiItem,
+  AppHostApiProjection,
+} from '@utils/apphost-modules';
+import type { AppHostLanguage } from '@utils/apphost-languages';
+
+interface Props {
+  item: AppHostApiItem;
+  language: AppHostLanguage;
+  projection: AppHostApiProjection;
+}
+
+const { item, language, projection } = Astro.props;
+const declaration = projection.declaration ?? projection.signature;
+---
+
+<section class="apphost-api-projection" data-api-language={language.id}>
+  <div class="api-projection-heading">
+    <h2>{projection.identifier ?? item.name}</h2>
+    <span class="api-kind-pill">{language.label}</span>
+    {projection.sourceFile && <code>{projection.sourceFile}</code>}
+  </div>
+
+  {item.description && <p>{item.description}</p>}
+  {(projection.reason || projection.status === 'unsupported') && (
+    <p class="api-projection-limitation">
+      <strong>{projection.status === 'unsupported' ? 'Unsupported:' : 'Limitation:'}</strong>{' '}
+      {projection.reason ?? 'No limitation reason was generated.'}
+    </p>
+  )}
+  {declaration && <Code code={declaration} lang={language.codeFence} showLineNumbers={false} />}
+
+  {(projection.parameters?.length ?? 0) > 0 && (
+    <>
+      <h3>Parameters</h3>
+      <dl class="api-projection-list">
+        {projection.parameters?.map((parameter) => (
+          <>
+            <dt><code>{parameter.name}</code></dt>
+            <dd>
+              <code>{parameter.isCallback ? parameter.callbackSignature ?? parameter.type : parameter.type}</code>
+              {parameter.isOptional && <span class="api-mini-badge">optional</span>}
+              {parameter.defaultValue && <span class="api-mini-badge">default: {parameter.defaultValue}</span>}
+              {parameter.description && <p>{parameter.description}</p>}
+            </dd>
+          </>
+        ))}
+      </dl>
+    </>
+  )}
+
+  {projection.return && (
+    <>
+      <h3>Returns</h3>
+      <p>
+        <code>{projection.return.type}</code>
+        {projection.return.errorModel && projection.return.errorModel !== 'none' && (
+          <span class="api-mini-badge">errors: {projection.return.errorModel}</span>
+        )}
+      </p>
+    </>
+  )}
+
+  {(projection.fields?.length ?? 0) > 0 && (
+    <>
+      <h3>Fields</h3>
+      <dl class="api-projection-list">
+        {projection.fields?.map((field) => (
+          <>
+            <dt><code>{field.name}</code></dt>
+            <dd>
+              <code>{field.type}</code>
+              {field.isOptional && <span class="api-mini-badge">optional</span>}
+            </dd>
+          </>
+        ))}
+      </dl>
+    </>
+  )}
+
+  {(projection.members?.length ?? 0) > 0 && (
+    <>
+      <h3>Values</h3>
+      <ul>
+        {projection.members?.map((member) => (
+          <li><code>{member.name}</code>{member.value !== undefined && <> = <code>{member.value}</code></>}</li>
+        ))}
+      </ul>
+    </>
+  )}
+
+  {projection.valueExpression && (
+    <>
+      <h3>Value</h3>
+      <Code code={projection.valueExpression} lang={language.codeFence} showLineNumbers={false} />
+    </>
+  )}
+</section>
+
+<style>
+  .apphost-api-projection {
+    display: none;
+  }
+
+  :global(html:not([data-apphost-lang])) [data-api-language='typescript'],
+  :global(html[data-apphost-lang='typescript']) [data-api-language='typescript'],
+  :global(html[data-apphost-lang='python']) [data-api-language='python'],
+  :global(html[data-apphost-lang='go']) [data-api-language='go'],
+  :global(html[data-apphost-lang='java']) [data-api-language='java'],
+  :global(html[data-apphost-lang='rust']) [data-api-language='rust'] {
+    display: block;
+  }
+
+  .api-projection-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .api-projection-heading h2 {
+    margin: 0;
+  }
+
+  .api-projection-list {
+    display: grid;
+    grid-template-columns: minmax(8rem, auto) 1fr;
+    gap: 0.5rem 1rem;
+  }
+
+  .api-projection-list dt,
+  .api-projection-list dd {
+    margin: 0;
+  }
+
+  .api-mini-badge {
+    margin-left: 0.5rem;
+  }
+
+  .api-projection-limitation {
+    padding: 0.75rem 1rem;
+    border-inline-start: 0.25rem solid var(--sl-color-orange);
+    background: var(--sl-color-orange-low);
+  }
+</style>

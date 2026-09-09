@@ -107,25 +107,51 @@ export const collections = {
   }),
 
   /**
-   * TypeScript API module schemas — drop `{Package}.{version}.json` files
-   * into `src/data/ts-modules/` and the TS API reference pages are generated
-   * automatically.
+   * AppHost API module schemas — one semantic document per package with
+   * language projections for every generated AppHost SDK.
    */
-  tsModules: defineCollection({
-    loader: glob({ pattern: '**/*.json', base: './src/data/ts-modules' }),
+  apphostModules: defineCollection({
+    loader: glob({ pattern: '**/*.json', base: './src/data/apphost-modules' }),
     schema: z
       .object({
+        schemaVersion: z.string(),
+        generatorProvenance: z.object({
+          repository: z.string(),
+          commit: z.string(),
+          lockFile: z.string(),
+        }),
+        dumpProvenance: z
+          .object({
+            cliVersion: z.string().optional(),
+            productCommit: z.string().optional(),
+            generatedAt: z.string().optional(),
+          })
+          .optional(),
         package: z.object({
           name: z.string(),
           version: z.string().optional(),
-          language: z.string().optional(),
           sourceRepository: z.string().optional(),
           sourceCommit: z.string().optional(),
         }),
-        functions: z.array(z.any()).default([]),
-        handleTypes: z.array(z.any()).default([]),
-        dtoTypes: z.array(z.any()).default([]),
-        enumTypes: z.array(z.any()).default([]),
+        items: z.array(
+          z.object({
+            id: z.string(),
+            kind: z.enum(['capability', 'handle', 'dto', 'enum', 'exportedValue']),
+            name: z.string(),
+            projections: z.record(
+              z.string(),
+              z.object({
+                status: z.enum(['supported', 'unsupported']),
+                validation: z.enum([
+                  'source-derived',
+                  'upstream-test-validated',
+                  'sdk-output-validated',
+                ]),
+                reason: z.string().optional(),
+              }).passthrough()
+            ),
+          }).passthrough()
+        ),
       })
       .passthrough(),
   }),

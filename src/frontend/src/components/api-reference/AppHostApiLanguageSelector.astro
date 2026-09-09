@@ -1,0 +1,37 @@
+---
+import PivotSelector from '@components/PivotSelector.astro';
+import { getGeneratedApiLanguages } from '@utils/apphost-languages';
+
+interface Props {
+  marginTop?: number | null;
+}
+
+const { marginTop = 0 } = Astro.props;
+const languages = getGeneratedApiLanguages();
+const options = languages.map((language) => ({
+  id: language.id,
+  title: language.label,
+  badge: language.experimental ? 'Experimental' : undefined,
+}));
+const allowed = languages.map((language) => language.id);
+---
+
+<PivotSelector
+  key="aspire-lang"
+  options={options}
+  title="Select the generated AppHost API language"
+  {marginTop}
+/>
+
+<script is:inline define:vars={{ allowed }}>
+  (() => {
+    const current = document.documentElement.dataset.apphostLang;
+    if (!allowed.includes(current)) {
+      const language = allowed[0];
+      document.documentElement.dataset.apphostLang = language;
+      window.dispatchEvent(new CustomEvent('apphost-language-select', {
+        detail: { language },
+      }));
+    }
+  })();
+</script>

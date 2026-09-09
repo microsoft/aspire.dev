@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { dismissCookieConsentIfVisible, isNarrowViewport } from '@tests/e2e/helpers';
 
-test('TypeScript API search keeps result names visible on narrow viewports', async ({ page }) => {
+test('AppHost API search keeps result names visible on narrow viewports', async ({ page }) => {
   test.skip(!isNarrowViewport(page), 'This regression only applies to narrow/mobile viewports.');
 
-  await page.goto('/reference/api/typescript/?q=withBun');
+  await page.goto('/reference/api/apphost/?q=withBun&aspire-lang=typescript');
   await dismissCookieConsentIfVisible(page);
 
-  const results = page.locator('#ts-api-search-results .api-search-result');
+  const results = page.locator('#apphost-api-search-results .api-search-result');
   await expect(results.first()).toBeVisible();
 
   const firstResult = results.first();

@@ -2,7 +2,12 @@
 import DefaultSearch from "@astrojs/starlight/components/Search.astro";
 import { Image } from 'astro:assets';
 import csharpIcon from '@assets/icons/csharp.svg';
+import goIcon from '@assets/icons/go.svg';
+import javaIcon from '@assets/icons/java.svg';
+import pythonIcon from '@assets/icons/python.svg';
+import rustIcon from '@assets/icons/rust.svg';
 import typescriptIcon from '@assets/icons/typescript.svg';
+import { getGeneratedApiLanguages } from '@utils/apphost-languages';
 
 const routeData = Astro.locals.starlightRoute;
 const pageId = routeData?.id ?? '';
@@ -10,7 +15,19 @@ const isApiRefPage = pageId.startsWith('reference/api') || Astro.url.pathname.st
 const hideSearch = isApiRefPage;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const csharpHref = `${base}/reference/api/csharp/`;
-const typescriptHref = `${base}/reference/api/typescript/`;
+const apphostHref = `${base}/reference/api/apphost/`;
+const generatedLanguageIcons = {
+  typescript: typescriptIcon,
+  python: pythonIcon,
+  go: goIcon,
+  java: javaIcon,
+  rust: rustIcon,
+};
+const generatedApiLinks = getGeneratedApiLanguages().map((language) => ({
+  ...language,
+  href: `${apphostHref}?aspire-lang=${language.id}`,
+  icon: generatedLanguageIcons[language.id as keyof typeof generatedLanguageIcons],
+}));
 ---
 
 { hideSearch ? <></> : <DefaultSearch><slot /></DefaultSearch> }
@@ -29,16 +46,18 @@ const typescriptHref = `${base}/reference/api/typescript/`;
         <Image src={csharpIcon} alt="" width={50} height={50} />
         <span>C# API Reference</span>
       </a>
-      <a
-        href={typescriptHref}
-        class="api-search-btn"
-        data-api-search-link
-        data-api-lang="typescript"
-        data-api-base-href={typescriptHref}
-      >
-        <Image src={typescriptIcon} alt="" width={50} height={50} />
-        <span>TypeScript API Reference</span>
-      </a>
+      {generatedApiLinks.map((language) => (
+        <a
+          href={language.href}
+          class="api-search-btn"
+          data-api-search-link
+          data-api-lang={language.id}
+          data-api-base-href={language.href}
+        >
+          <Image src={language.icon} alt="" width={50} height={50} />
+          <span>{language.label} AppHost API</span>
+        </a>
+      ))}
     </div>
   </div>
 </template>
@@ -64,7 +83,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
 <script>
   /**
    * Layered enhancements for the Starlight/Pagefind search dialog:
-   *   1. Injects the C#/TypeScript "API search notice" template.
+   *   1. Injects the C#/generated AppHost "API search notice" template.
    *   2. Injects the keyboard-shortcut footer (↑ ↓ ↵ Esc).
    *   3. Wires keyboard navigation across Pagefind result links so
    *      arrow keys and Tab move *real* focus (and stay in sync).
@@ -91,7 +110,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
     private dialog: HTMLDialogElement;
     private input: HTMLInputElement | null = null;
     // All keyboard-navigable targets: Pagefind result links + the
-    // Pagefind "Load more results" button + the C#/TS API buttons. Up/Down
+    // Pagefind "Load more results" button + the C#/AppHost API buttons. Up/Down
     // cycle through them in DOM order so arrow nav matches Tab order.
     private targets: HTMLElement[] = [];
     private activeIndex = -1;
@@ -200,7 +219,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
 
       // Resolve the first result link in the new list. We only ever
       // auto-highlight result links — never the "Load more results" or
-      // C#/TypeScript API buttons. (The buttons stay reachable via Tab
+      // C#/AppHost API buttons. (The buttons stay reachable via Tab
       // and arrow nav once the user explicitly enters the list.)
       const firstResultLinkIndex = this.targets.findIndex(
         (el) =>
@@ -374,7 +393,13 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       const q = (this.input?.value ?? '').trim();
       for (const btn of this.buttons) {
         const baseHref = btn.dataset.apiBaseHref ?? btn.href.split('?')[0];
-        btn.href = q ? `${baseHref}?q=${encodeURIComponent(q)}` : baseHref;
+        const url = new URL(baseHref, window.location.origin);
+        if (q) {
+          url.searchParams.set('q', q);
+        } else {
+          url.searchParams.delete('q');
+        }
+        btn.href = `${url.pathname}${url.search}${url.hash}`;
       }
     }
 
@@ -513,7 +538,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
     background-color: var(--sl-color-accent-low);
   }
 
-  /* The Pagefind "Load more results" button and the C#/TS API buttons are
+  /* The Pagefind "Load more results" button and the C#/AppHost API buttons are
      also keyboard-navigable. `[data-search-active]` is set on the element
      itself (not a parent), and we match `:focus-visible` so Tab and
      arrow nav land on the same look. */

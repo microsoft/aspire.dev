@@ -13,33 +13,32 @@ import {
   renderCSharpTypeMarkdown,
 } from '@utils/csharp-api-markdown';
 import { memberKindSlugs, resolveMemberAnchors } from '@utils/packages';
-import { tsSlugify } from '@utils/ts-modules';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import type { TsApiDocument, TsHandleType } from '@utils/ts-modules';
 
 vi.mock('astro:content', async (importOriginal) => {
   const actual = await importOriginal<typeof import('astro:content')>();
   const csharpPackageModules = import.meta.glob<{ default: any }>('../../src/data/pkgs/Aspire.Hosting.*.json');
-  const typeScriptModuleModules = import.meta.glob<{ default: any }>('../../src/data/ts-modules/Aspire.Hosting.*.json');
+  const appHostModuleModules = import.meta.glob<{ default: any }>('../../src/data/apphost-modules/Aspire.Hosting.*.json');
   const rootHostingPackagePattern = /\/(Aspire\.Hosting\.\d[^/]*\.json)$/;
   const getRootHostingIds = (modules: Record<string, () => Promise<{ default: any }>>) =>
     Object.keys(modules)
       .map((path) => path.match(rootHostingPackagePattern)?.[1])
       .filter((id): id is string => Boolean(id));
   const csharpPackageIds = getRootHostingIds(csharpPackageModules);
-  const typeScriptModuleIds = new Set(getRootHostingIds(typeScriptModuleModules));
+  const appHostModuleIds = new Set(getRootHostingIds(appHostModuleModules));
   const commonPackageIds = csharpPackageIds
-    .filter((id) => typeScriptModuleIds.has(id))
+    .filter((id) => appHostModuleIds.has(id))
     .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
   const fixtureId = commonPackageIds[commonPackageIds.length - 1];
 
   if (!fixtureId) {
-    throw new Error('Expected matching Aspire.Hosting package and TypeScript module fixtures.');
+    throw new Error('Expected matching Aspire.Hosting package and AppHost module fixtures.');
   }
 
-  const [{ default: csharpPackageFixture }, { default: typeScriptModuleFixture }] = await Promise.all([
+  const [{ default: csharpPackageFixture }, { default: appHostModuleFixture }] = await Promise.all([
     csharpPackageModules[`../../src/data/pkgs/${fixtureId}`](),
-    typeScriptModuleModules[`../../src/data/ts-modules/${fixtureId}`](),
+    appHostModuleModules[`../../src/data/apphost-modules/${fixtureId}`](),
   ]);
 
   return {
@@ -51,8 +50,8 @@ vi.mock('astro:content', async (importOriginal) => {
         return [{ id: fixtureId, data: csharpPackageFixture }];
       }
 
-      if (collectionName === 'tsModules') {
-        return [{ id: fixtureId, data: typeScriptModuleFixture }];
+      if (collectionName === 'apphostModules') {
+        return [{ id: fixtureId, data: appHostModuleFixture }];
       }
 
       return await actual.getCollection(collectionName);
@@ -78,10 +77,11 @@ const csharpIndexRoute = getRouteModule('../../src/pages/reference/api/csharp.md
 const csharpPackageRoute = getRouteModule('../../src/pages/reference/api/csharp/[package].md.ts');
 const csharpTypeRoute = getRouteModule('../../src/pages/reference/api/csharp/[package]/[type].md.ts');
 const csharpMemberKindRoute = getRouteModule('../../src/pages/reference/api/csharp/[package]/[type]/[memberKind].md.ts');
+const appHostIndexRoute = getRouteModule('../../src/pages/reference/api/apphost.md.ts');
+const appHostModuleRoute = getRouteModule('../../src/pages/reference/api/apphost/[module].md.ts');
+const appHostItemRoute = getRouteModule('../../src/pages/reference/api/apphost/[module]/[item].md.ts');
+const appHostMemberRoute = getRouteModule('../../src/pages/reference/api/apphost/[module]/[item]/[member].md.ts');
 const typeScriptIndexRoute = getRouteModule('../../src/pages/reference/api/typescript.md.ts');
-const typeScriptModuleRoute = getRouteModule('../../src/pages/reference/api/typescript/[module].md.ts');
-const typeScriptItemRoute = getRouteModule('../../src/pages/reference/api/typescript/[module]/[item].md.ts');
-const typeScriptMemberRoute = getRouteModule('../../src/pages/reference/api/typescript/[module]/[item]/[member].md.ts');
 
 describe('API markdown routes', () => {
   it('returns markdown for the C# API index route', async () => {
@@ -135,103 +135,50 @@ describe('API markdown routes', () => {
     expect(markdown).toContain('```csharp');
   });
 
-  it('returns markdown for the TypeScript API index route', async () => {
-    const markdown = await readMarkdown(typeScriptIndexRoute.GET?.({} as any));
+  it('returns markdown for the canonical AppHost API index route', async () => {
+    const markdown = await readMarkdown(appHostIndexRoute.GET?.({} as any));
 
-    expect(markdown).toContain('# TypeScript API Reference');
-    expect(markdown).toMatch(/\/reference\/api\/typescript\/[^)\s]+\.md/);
-    expect(markdown).not.toContain('·');
-    expect(markdown).not.toContain('—');
+    expect(markdown).toContain('# AppHost API Reference');
+    expect(markdown).toMatch(/\/reference\/api\/apphost\/[^)\s]+\.md/);
   });
 
-  it('returns markdown for a TypeScript module route', async () => {
-    const route = await findStaticRoute(
-      typeScriptModuleRoute.getStaticPaths,
-      () => true,
-      'TypeScript module route'
-    );
-    const markdown = await readMarkdown(typeScriptModuleRoute.GET?.({ props: route.props } as any));
+  it('returns markdown for a canonical AppHost module route', async () => {
+    const route = await findStaticRoute(appHostModuleRoute.getStaticPaths, () => true, 'AppHost module route');
+    const markdown = await readMarkdown(appHostModuleRoute.GET?.({ props: route.props } as any));
 
-    expect(markdown).toContain(`# ${route.props.pkg.package.name}`);
-    expect(markdown).toMatch(new RegExp(`/reference/api/typescript/${route.params.module}/[^)\\s]+\\.md`));
+    expect(markdown).toContain(`# ${route.props.document.package.name}`);
+    expect(markdown).toMatch(new RegExp(`/reference/api/apphost/${route.params.module}/[^)\\s]+\\.md`));
   });
 
-  it('returns markdown for a TypeScript handle route', async () => {
-    const route = await findStaticRoute(
-      typeScriptItemRoute.getStaticPaths,
-      (candidate) =>
-        candidate.props.itemKind === 'handle' &&
-        candidate.props.item.capabilities?.some(
-          (capability: any) => capability.kind === 'Method' || capability.kind === 'InstanceMethod'
-        ),
-      'TypeScript handle route'
-    );
-    const method = route.props.item.capabilities.find(
-      (capability: any) => capability.kind === 'Method' || capability.kind === 'InstanceMethod'
-    );
-    const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
+  it('renders enabled projections for an AppHost item route', async () => {
+    const route = await findStaticRoute(appHostItemRoute.getStaticPaths, () => true, 'AppHost item route');
+    const markdown = await readMarkdown(appHostItemRoute.GET?.({ props: route.props } as any));
 
     expect(markdown).toContain(`# ${route.props.item.name}`);
-    expect(markdown).toContain('## Methods');
+    expect(markdown).toContain('## TypeScript');
+    expect(markdown).not.toContain('## Python');
+    expect(markdown).not.toContain('## Go');
+    expect(markdown).not.toContain('## Java');
+    expect(markdown).not.toContain('## Rust');
+  });
+
+  it('returns markdown for a canonical AppHost member route', async () => {
+    const route = await findStaticRoute(appHostMemberRoute.getStaticPaths, () => true, 'AppHost member route');
+    const markdown = await readMarkdown(appHostMemberRoute.GET?.({ props: route.props } as any));
+
+    expect(markdown).toContain(`# ${route.props.handle.name}.${route.props.member.name}`);
+    expect(markdown).toContain('## TypeScript');
     expect(markdown).toContain(
-      `/reference/api/typescript/${route.params.module}/${route.params.item}/${tsSlugify(method.name)}.md`
+      `/reference/api/apphost/${route.params.module}/${route.params.item}.md`
     );
   });
 
-  it('returns markdown for a TypeScript DTO route', async () => {
-    const route = await findStaticRoute(
-      typeScriptItemRoute.getStaticPaths,
-      (candidate) =>
-        candidate.props.itemKind === 'dto' &&
-        (candidate.props.item.fields?.length ?? 0) > 0,
-      'TypeScript DTO route'
-    );
-    const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
+  it('preserves the TypeScript markdown endpoint as a permanent compatibility redirect', async () => {
+    const response = await typeScriptIndexRoute.GET?.({} as any);
 
-    expect(markdown).toContain(`# ${route.props.item.name}`);
-    expect(markdown).toContain('## Fields');
-  });
-
-  it('returns markdown for a TypeScript enum route', async () => {
-    const route = await findStaticRoute(
-      typeScriptItemRoute.getStaticPaths,
-      (candidate) =>
-        candidate.props.itemKind === 'enum' &&
-        (candidate.props.item.members?.length ?? 0) > 0,
-      'TypeScript enum route'
-    );
-    const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
-
-    expect(markdown).toContain(`# ${route.props.item.name}`);
-    expect(markdown).toContain('## Values');
-  });
-
-  it('returns markdown for a TypeScript function route', async () => {
-    const route = await findStaticRoute(
-      typeScriptItemRoute.getStaticPaths,
-      (candidate) =>
-        candidate.props.itemKind === 'function' &&
-        (candidate.props.item.parameters?.length ?? 0) > 0,
-      'TypeScript function route'
-    );
-    const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
-
-    expect(markdown).toContain(`# ${route.props.item.name}`);
-    expect(markdown).toContain('## Parameters');
-    expect(markdown).toContain('## Returns');
-  });
-
-  it('returns markdown for a TypeScript member route', async () => {
-    const route = await findStaticRoute(
-      typeScriptMemberRoute.getStaticPaths,
-      () => true,
-      'TypeScript member route'
-    );
-    const markdown = await readMarkdown(typeScriptMemberRoute.GET?.({ props: route.props } as any));
-
-    expect(markdown).toContain(`# ${route.props.parentType.name}.${route.props.method.name}`);
-    expect(markdown).toContain('## Signature');
-    expect(markdown).toContain(`/reference/api/typescript/${route.params.module}/${route.params.item}.md`);
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).status).toBe(308);
+    expect((response as Response).headers.get('location')).toBe('/reference/api/apphost.md');
   });
 });
 

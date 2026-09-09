@@ -1,119 +1,59 @@
 import type { APIRoute } from 'astro';
 
-import { markdownResponse } from '@utils/api-markdown-shared';
-import { renderTypeScriptItemMarkdown } from '@utils/typescript-api-markdown';
-import type { TsApiDocument, TsDtoType, TsEnumType, TsFunction, TsHandleType } from '@utils/ts-modules';
-import { getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
+import { getAppHostItemSlug, getAppHostTopLevelItems } from '@utils/apphost-api-routes';
+import { appHostModuleSlug, getAppHostModules, projectAppHostModule } from '@utils/apphost-modules';
+import {
+  getAppHostTypeScriptMarkdownTarget,
+  getAppHostTypeScriptRouteAliases,
+} from '@utils/apphost-typescript-route-aliases';
+import { getTsItemSlug, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 
 export const prerender = true;
 
-type TypeScriptItemKind = 'handle' | 'dto' | 'enum' | 'function';
-type TypeScriptItem = TsHandleType | TsDtoType | TsEnumType | TsFunction;
-
-type RouteProps = {
-  item: TypeScriptItem;
-  itemKind: TypeScriptItemKind;
-  pkg: TsApiDocument;
-};
-
-type StaticPath = {
-  params: { item: string; module: string };
-  props: RouteProps;
-};
-
-export async function getStaticPaths(): Promise<StaticPath[]> {
-  const packages = await getTsModules();
-  const paths: StaticPath[] = [];
-
-  for (const entry of packages) {
-    const pkg = entry.data;
-    const pkgSlug = tsModuleSlug(pkg.package.name);
-
-    for (const handle of pkg.handleTypes ?? []) {
-      const itemSlug = tsSlugify(handle.name);
-      if (!itemSlug) {
-        continue;
-      }
-
+export async function getStaticPaths() {
+  const paths = [];
+  for (const entry of await getAppHostModules()) {
+    const sharedItems = getAppHostTopLevelItems(entry.data);
+    const tsDocument = projectAppHostModule(entry.data, 'typescript');
+    const tsItems = getTsTopLevelRouteItems(tsDocument);
+    for (const tsItem of tsItems) {
+      const sharedItem = sharedItems.find((item) => item.id === tsItem.id);
+      if (!sharedItem) continue;
       paths.push({
         params: {
-          item: itemSlug,
-          module: pkgSlug,
+          module: appHostModuleSlug(entry.data.package.name),
+          item: getTsItemSlug(tsItem, tsItems),
         },
         props: {
-          item: handle,
-          itemKind: 'handle',
-          pkg,
-        },
-      });
-    }
-
-    for (const dto of pkg.dtoTypes ?? []) {
-      const itemSlug = tsSlugify(dto.name);
-      if (!itemSlug) {
-        continue;
-      }
-
-      paths.push({
-        params: {
-          item: itemSlug,
-          module: pkgSlug,
-        },
-        props: {
-          item: dto,
-          itemKind: 'dto',
-          pkg,
-        },
-      });
-    }
-
-    for (const enumType of pkg.enumTypes ?? []) {
-      const itemSlug = tsSlugify(enumType.name);
-      if (!itemSlug) {
-        continue;
-      }
-
-      paths.push({
-        params: {
-          item: itemSlug,
-          module: pkgSlug,
-        },
-        props: {
-          item: enumType,
-          itemKind: 'enum',
-          pkg,
-        },
-      });
-    }
-
-    for (const fn of (pkg.functions ?? []).filter((candidate) => !candidate.qualifiedName || !candidate.qualifiedName.includes('.'))) {
-      const itemSlug = tsSlugify(fn.name);
-      if (!itemSlug) {
-        continue;
-      }
-
-      paths.push({
-        params: {
-          item: itemSlug,
-          module: pkgSlug,
-        },
-        props: {
-          item: fn,
-          itemKind: 'function',
-          pkg,
+          target: `/reference/api/apphost/${appHostModuleSlug(entry.data.package.name)}/${getAppHostItemSlug(sharedItem, sharedItems)}/`,
         },
       });
     }
   }
-
+  const routeKeys = new Set(
+    paths.map((path) => `${path.params.module}/${path.params.item}`)
+  );
+  for (const alias of getAppHostTypeScriptRouteAliases(2)) {
+    if (routeKeys.has(alias.source)) continue;
+    const [module, item] = alias.source.split('/');
+    paths.push({
+      params: { module, item },
+      props: { target: alias.target },
+    });
+    routeKeys.add(alias.source);
+  }
   return paths;
 }
 
 export const GET: APIRoute = ({ props }) => {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  const routeProps = props as RouteProps;
+  if (typeof props.target !== 'string') {
+    throw new TypeError('Missing TypeScript API Markdown redirect target.');
+  }
 
-  return markdownResponse(
-    renderTypeScriptItemMarkdown(routeProps.pkg, routeProps.item, routeProps.itemKind, base)
-  );
+  return new Response(null, {
+    status: 308,
+    headers: {
+      Location: getAppHostTypeScriptMarkdownTarget(props.target),
+    },
+  });
 };

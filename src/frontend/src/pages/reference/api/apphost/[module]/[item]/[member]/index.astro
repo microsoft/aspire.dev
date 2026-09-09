@@ -1,0 +1,74 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+import AppHostApiLanguageSelector from '@components/api-reference/AppHostApiLanguageSelector.astro';
+import AppHostProjection from '@components/api-reference/AppHostProjection.astro';
+import Breadcrumb from '@components/Breadcrumb.astro';
+import { getGeneratedApiLanguages } from '@utils/apphost-languages';
+import { getAppHostApiSidebar } from '@utils/apphost-api-sidebar';
+import { getAppHostItemSlug, getAppHostMemberSlug, getAppHostTopLevelItems } from '@utils/apphost-api-routes';
+import {
+  appHostModuleSlug,
+  getAppHostModules,
+  getCapabilitiesForHandle,
+} from '@utils/apphost-modules';
+
+export async function getStaticPaths() {
+  const paths = [];
+  for (const entry of await getAppHostModules()) {
+    const items = getAppHostTopLevelItems(entry.data);
+    for (const handle of items.filter((item) => item.kind === 'handle')) {
+      const members = getCapabilitiesForHandle(entry.data, handle);
+      for (const member of members) {
+        paths.push({
+          params: {
+            module: appHostModuleSlug(entry.data.package.name),
+            item: getAppHostItemSlug(handle, items),
+            member: getAppHostMemberSlug(member, members, handle.name),
+          },
+          props: { document: entry.data, handle, member },
+        });
+      }
+    }
+  }
+  return paths;
+}
+
+const { document, handle, member } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const sidebar = await getAppHostApiSidebar(document.package.name);
+const moduleSlug = appHostModuleSlug(document.package.name);
+const languages = getGeneratedApiLanguages();
+---
+
+<StarlightPage
+  frontmatter={{
+    title: `${handle.name}.${member.name}`,
+    description: `Generated AppHost API member reference for ${member.name} in ${document.package.name}.`,
+    tableOfContents: false,
+    prev: false,
+    next: false,
+    pagefind: false,
+    pageActions: true,
+  }}
+  sidebar={sidebar}
+  headings={[]}
+>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search AppHost APIs', href: `${base}/reference/api/apphost/` },
+    { label: document.package.name, href: `${base}/reference/api/apphost/${moduleSlug}/` },
+    { label: handle.name, href: `${base}/reference/api/apphost/${moduleSlug}/${Astro.params.item}/` },
+    { label: member.name },
+  ]} />
+
+  <AppHostApiLanguageSelector />
+
+  {languages.map((language) => {
+    const projection = member.projections[language.id];
+    return projection && (
+      <AppHostProjection item={member} language={language} projection={projection} />
+    );
+  })}
+</StarlightPage>

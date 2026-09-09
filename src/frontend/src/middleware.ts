@@ -2,7 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { stripApiReferenceLocale } from './utils/api-reference-routes';
 
 const nestedApiMarkdownPattern =
-  /^\/reference\/(?:api\/(?:csharp|typescript)|samples)\/.+\.md$/;
+  /^\/reference\/(?:api\/(?:apphost|csharp|typescript)|samples)\/.+\.md$/;
 const cliConfigSchemaPattern = /^\/reference\/cli\/configuration\/schema\/[^/]+\.json$/;
 
 function redirect(location: string, status = 308): Response {

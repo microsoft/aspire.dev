@@ -1,0 +1,101 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+import ApiSearchBar from '@components/api-reference/ApiSearchBar.astro';
+import AppHostApiLanguageSelector from '@components/api-reference/AppHostApiLanguageSelector.astro';
+import Breadcrumb from '@components/Breadcrumb.astro';
+import { getGeneratedApiLanguages } from '@utils/apphost-languages';
+import { buildAppHostApiSearchIndex } from '@utils/apphost-api-search';
+import {
+  formatAppHostApiSearchStats,
+  getAppHostApiSearchStats,
+} from '@utils/apphost-api-search-stats';
+import { getAppHostApiSidebar } from '@utils/apphost-api-sidebar';
+import {
+  appHostModuleSlug,
+  getAppHostModules,
+  getGeneratedProjectionLanguages,
+} from '@utils/apphost-modules';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const sidebar = await getAppHostApiSidebar();
+const documents = (await getAppHostModules())
+  .map((entry) => entry.data)
+  .sort((left, right) => left.package.name.localeCompare(right.package.name));
+const languages = getGeneratedApiLanguages();
+const index = buildAppHostApiSearchIndex(documents, base);
+const kinds = [...new Set(index.map((entry) => entry.k))].sort();
+const versions = [...new Set(index.map((entry) => entry.v).filter(Boolean))] as string[];
+const indexJson = JSON.stringify(index);
+const languageIds = languages.map((language) => language.id);
+const languageIdsJson = JSON.stringify(languageIds);
+const defaultStats = getAppHostApiSearchStats(index, languageIds[0]);
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'AppHost API Reference',
+    description: 'Search and browse generated Aspire AppHost APIs for TypeScript, Python, Go, Java, and Rust.',
+    prev: false,
+    next: false,
+    tableOfContents: false,
+    pagefind: false,
+    pageActions: true,
+  }}
+  sidebar={sidebar}
+  headings={[]}
+>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search AppHost APIs' },
+  ]} />
+
+  <AppHostApiLanguageSelector />
+
+  <div class="api-ref-landing not-content">
+    <p>
+      Browse the generated AppHost SDK surface. Support is determined per API item, so a package
+      can expose different capabilities in each language.
+    </p>
+
+    <ApiSearchBar
+      id="apphost-api"
+      placeholder="Search functions, methods, values, and types..."
+      kinds={kinds}
+      versions={versions}
+      defaultStatsText={formatAppHostApiSearchStats(defaultStats)}
+      size="lg"
+    />
+
+    <div id="apphost-api-package-list" class="api-list">
+      {documents.map((document) => {
+        const supportedLanguages = [
+          ...new Set(document.items.flatMap((item) => getGeneratedProjectionLanguages(item))),
+        ];
+        return (
+          <a
+            href={`${base}/reference/api/apphost/${appHostModuleSlug(document.package.name)}/`}
+            class="api-list-item"
+            data-version={document.package.version}
+            data-languages={supportedLanguages.join(',')}
+          >
+            <div class="api-list-header">
+              <span class="api-pkg-link">{document.package.name}</span>
+              {document.package.version && <code>{document.package.version}</code>}
+            </div>
+          </a>
+        );
+      })}
+    </div>
+  </div>
+</StarlightPage>
+
+<script is:inline define:vars={{ indexJson, languageIdsJson }}>
+  window.__appHostApiSearchIndex = JSON.parse(indexJson);
+  window.__appHostApiLanguageIds = JSON.parse(languageIdsJson);
+</script>
+
+<script>
+  import '@components/api-reference/apphost-api-search-controller';
+</script>

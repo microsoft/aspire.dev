@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     Refreshes the aspire.dev integration data and, when integration package
-    versions change, regenerates the C#/TypeScript API reference JSON and the
+    versions change, regenerates the C#/AppHost API reference JSON and the
     twoslash bundle. Replaces the former `gh aw` agentic workflow with plain,
     reliable scripting that runs identically in CI and locally.
 
@@ -18,8 +18,8 @@
          counts) do NOT trigger regeneration.
       3. Conditional API-reference regeneration (only when a version changed):
            a. generate-package-json.ps1  -> src/data/pkgs/*.json (C# API)
-           b. pnpm update:ts-api         -> src/data/ts-modules/*.json (TS API)
-                                            + chains twoslash aspire.d.ts bundle
+           b. pnpm update:apphost-api    -> src/data/apphost-modules/*.json
+                                            + support matrix + twoslash bundle
       4. Semantic validation — cross-checks generated identities, provenance,
          DTO optionality, inheritance, options shapes, and attribute payloads.
       5. Scope check — the working tree must only contain allowed data files.
@@ -28,7 +28,7 @@
 
     Exit codes:
       0  success (whether or not there were changes)
-      1  a required phase failed (data update/validation, TS API regen, out-of-scope diff).
+      1  a required phase failed (data update/validation, AppHost API regen, out-of-scope diff).
          The caller must NOT open a PR on a non-zero exit.
 
     Packages without a public API surface are reported as explicit skips. Any
@@ -77,7 +77,8 @@ $AllowedPaths = @(
     'src/frontend/src/data/samples.json',
     'src/frontend/src/assets/samples/',
     'src/frontend/src/data/pkgs/',
-    'src/frontend/src/data/ts-modules/',
+    'src/frontend/src/data/apphost-modules/',
+    'src/frontend/src/data/apphost-language-support.json',
     'src/frontend/src/data/twoslash/aspire.d.ts'
 )
 
@@ -133,7 +134,9 @@ function Test-PathAllowed {
 function Restore-ApiEnvironment {
     foreach ($name in @(
         'ASPIRE_API_PKGS_DIR',
+        'ASPIRE_API_APPHOST_MODULES_DIR',
         'ASPIRE_API_TS_MODULES_DIR',
+        'ASPIRE_API_LANGUAGE_SUPPORT_FILE',
         'ASPIRE_API_TWOSLASH_FILE'
     )) {
         $previousValue = $script:PreviousApiEnvironment[$name]
@@ -172,6 +175,7 @@ function Publish-GeneratedApiData {
     param(
         [Parameter(Mandatory)][string]$PackageSource,
         [Parameter(Mandatory)][string]$ModuleSource,
+        [Parameter(Mandatory)][string]$SupportSource,
         [Parameter(Mandatory)][string]$TwoslashSource
     )
 
@@ -183,8 +187,13 @@ function Publish-GeneratedApiData {
         },
         [PSCustomObject]@{
             Source = $ModuleSource
-            Destination = Join-Path $DataDir 'ts-modules'
-            Backup = Join-Path $script:ApiStageRoot 'backup-ts-modules'
+            Destination = Join-Path $DataDir 'apphost-modules'
+            Backup = Join-Path $script:ApiStageRoot 'backup-apphost-modules'
+        },
+        [PSCustomObject]@{
+            Source = $SupportSource
+            Destination = Join-Path $DataDir 'apphost-language-support.json'
+            Backup = Join-Path $script:ApiStageRoot 'backup-apphost-language-support.json'
         },
         [PSCustomObject]@{
             Source = $TwoslashSource
@@ -199,16 +208,17 @@ function Publish-GeneratedApiData {
             if (-not (Test-Path $move.Source)) {
                 throw "Staged API artifact is missing: $($move.Source)"
             }
-            if (-not (Test-Path $move.Destination)) {
-                throw "Published API artifact is missing: $($move.Destination)"
-            }
             if (Test-Path $move.Backup) {
                 throw "API recovery path already exists: $($move.Backup)"
             }
+            $move | Add-Member -NotePropertyName HadDestination `
+                -NotePropertyValue (Test-Path $move.Destination)
         }
 
         foreach ($move in $moves) {
-            Move-Item -LiteralPath $move.Destination -Destination $move.Backup
+            if ($move.HadDestination) {
+                Move-Item -LiteralPath $move.Destination -Destination $move.Backup
+            }
             $completed.Add($move)
             Move-Item -LiteralPath $move.Source -Destination $move.Destination
         }
@@ -365,8 +375,8 @@ else {
 $regenRan = $false
 $pkgSummary = ''
 $pkgSkippedPackages = ''
-$tsApiSummary = ''
-$tsSkippedPackages = ''
+$appHostApiSummary = ''
+$appHostSkippedPackages = ''
 $twoslashSummary = ''
 $semanticSummary = ''
 
@@ -376,17 +386,22 @@ if ($versionsChanged -and -not $SkipRegen) {
     $script:ApiStageRoot = Join-Path $DataDir ".api-generation-$([Guid]::NewGuid().ToString('N'))"
     New-Item -ItemType Directory -Path $script:ApiStageRoot -Force | Out-Null
     $pkgStageDir = Join-Path $script:ApiStageRoot 'pkgs'
-    $tsStageDir = Join-Path $script:ApiStageRoot 'ts-modules'
+    $appHostStageDir = Join-Path $script:ApiStageRoot 'apphost-modules'
+    $supportStageFile = Join-Path $script:ApiStageRoot 'apphost-language-support.json'
     $twoslashStageFile = Join-Path $script:ApiStageRoot 'twoslash' 'aspire.d.ts'
     foreach ($name in @(
         'ASPIRE_API_PKGS_DIR',
+        'ASPIRE_API_APPHOST_MODULES_DIR',
         'ASPIRE_API_TS_MODULES_DIR',
+        'ASPIRE_API_LANGUAGE_SUPPORT_FILE',
         'ASPIRE_API_TWOSLASH_FILE'
     )) {
         $script:PreviousApiEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     }
     $env:ASPIRE_API_PKGS_DIR = $pkgStageDir
-    $env:ASPIRE_API_TS_MODULES_DIR = $tsStageDir
+    $env:ASPIRE_API_APPHOST_MODULES_DIR = $appHostStageDir
+    Remove-Item Env:ASPIRE_API_TS_MODULES_DIR -ErrorAction SilentlyContinue
+    $env:ASPIRE_API_LANGUAGE_SUPPORT_FILE = $supportStageFile
     $env:ASPIRE_API_TWOSLASH_FILE = $twoslashStageFile
 
     # 3a. C# API JSON.
@@ -421,7 +436,7 @@ if ($versionsChanged -and -not $SkipRegen) {
 
     # 3a-normalize. Enforce Aspire terminology in the freshly generated C# API
     # JSON so regenerated pkgs/ prose never trips the Forbidden Words check. The
-    # ts-modules JSON is normalized inside update:ts-api below (before its
+    # apphost-modules JSON is normalized inside update:apphost-api below (before its
     # twoslash bundle), so only pkgs/ is handled here.
     Write-Host "→ pnpm normalize:api-data --pkgs (Aspire terminology → pkgs/)" -ForegroundColor Cyan
     Push-Location $FrontendDir
@@ -436,44 +451,44 @@ if ($versionsChanged -and -not $SkipRegen) {
         Stop-ApiRegeneration "normalize:api-data (pkgs) failed (exit $pkgNormExit).`n$pkgNormLog`nAborting; no PR will be opened."
     }
 
-    # 3b. TS API JSON (+ chained twoslash bundle). Requires the Aspire CLI; the
+    # 3b. AppHost API JSON (+ support matrix and chained twoslash bundle). Requires the Aspire CLI; the
     # script honours ASPIRE_CLI_PATH. A non-zero exit here IS fatal — we must not
     # ship a PR with C#-only pkgs updates.
-    Write-Host "→ pnpm update:ts-api (TS API → ts-modules/ + twoslash aspire.d.ts)" -ForegroundColor Cyan
+    Write-Host "→ pnpm update:apphost-api (semantic API → apphost-modules/ + support matrix + twoslash)" -ForegroundColor Cyan
     Push-Location $FrontendDir
     try {
-        $tsLog = & pnpm run update:ts-api 2>&1 | Tee-Object -Variable tsTeed | Out-String
-        $tsExit = $LASTEXITCODE
+        $appHostLog = & pnpm run update:apphost-api 2>&1 | Tee-Object -Variable appHostTeed | Out-String
+        $appHostExit = $LASTEXITCODE
     }
     finally {
         Pop-Location
     }
-    if ($tsExit -ne 0) {
+    if ($appHostExit -ne 0) {
         # Distinguish phase-2 vs phase-3 failure using the script's log markers.
-        if ($tsLog -match 'Twoslash type generation failed') {
-            Stop-ApiRegeneration "Twoslash bundle generation failed.`n$tsLog`nAborting; no PR will be opened."
+        if ($appHostLog -match 'Twoslash type generation failed') {
+            Stop-ApiRegeneration "Twoslash bundle generation failed.`n$appHostLog`nAborting; no PR will be opened."
         }
         else {
-            Stop-ApiRegeneration "TypeScript API generation failed.`n$tsLog`nAborting; no PR will be opened."
+            Stop-ApiRegeneration "AppHost API generation failed.`n$appHostLog`nAborting; no PR will be opened."
         }
     }
 
-    $tsApiDone = ($tsLog -split "`n" |
+    $appHostApiDone = ($appHostLog -split "`n" |
         Where-Object { $_ -match 'Complete:\s+\d+\s+succeeded,\s+\d+\s+failed,\s+\d+\s+skipped' } |
         Select-Object -First 1)
-    if (-not $tsApiDone -or
-        $tsApiDone -notmatch 'Complete:\s+(?<Succeeded>\d+)\s+succeeded,\s+(?<Failed>\d+)\s+failed,\s+(?<Skipped>\d+)\s+skipped') {
-        Stop-ApiRegeneration "TypeScript API generation did not emit a valid completion summary. Aborting; no PR will be opened."
+    if (-not $appHostApiDone -or
+        $appHostApiDone -notmatch 'Complete:\s+(?<Succeeded>\d+)\s+succeeded,\s+(?<Failed>\d+)\s+failed,\s+(?<Skipped>\d+)\s+skipped') {
+        Stop-ApiRegeneration "AppHost API generation did not emit a valid completion summary. Aborting; no PR will be opened."
     }
-    $tsApiSummary = "$($Matches.Succeeded) succeeded, $($Matches.Failed) failed, $($Matches.Skipped) skipped"
+    $appHostApiSummary = "$($Matches.Succeeded) succeeded, $($Matches.Failed) failed, $($Matches.Skipped) skipped"
     if ([int]$Matches.Failed -gt 0) {
-        Stop-ApiRegeneration "TypeScript API generation reported $($Matches.Failed) package failure(s). Aborting; no PR will be opened."
+        Stop-ApiRegeneration "AppHost API generation reported $($Matches.Failed) package failure(s). Aborting; no PR will be opened."
     }
-    $tsSkippedLine = ($tsLog -split "`n" |
+    $appHostSkippedLine = ($appHostLog -split "`n" |
         Where-Object { $_ -match '^\s*Skipped packages:' } |
         Select-Object -First 1)
-    $tsSkippedPackages = if ($tsSkippedLine) {
-        ($tsSkippedLine -replace '^\s*Skipped packages:\s*', '').Trim()
+    $appHostSkippedPackages = if ($appHostSkippedLine) {
+        ($appHostSkippedLine -replace '^\s*Skipped packages:\s*', '').Trim()
     }
     else { '' }
 
@@ -498,7 +513,8 @@ if ($versionsChanged -and -not $SkipRegen) {
     try {
         Publish-GeneratedApiData `
             -PackageSource $pkgStageDir `
-            -ModuleSource $tsStageDir `
+            -ModuleSource $appHostStageDir `
+            -SupportSource $supportStageFile `
             -TwoslashSource $twoslashStageFile
     }
     catch {
@@ -552,7 +568,9 @@ function Get-AreaCounts {
 }
 
 $pkgsCounts = Get-AreaCounts -Prefix 'src/frontend/src/data/pkgs/'
-$tsModulesCounts = Get-AreaCounts -Prefix 'src/frontend/src/data/ts-modules/'
+$appHostModulesCounts = Get-AreaCounts -Prefix 'src/frontend/src/data/apphost-modules/'
+$supportMatrixChanged = @(Invoke-Git @('diff', '--name-only', 'HEAD', '--', 'src/frontend/src/data/apphost-language-support.json') |
+    Where-Object { $_ -and $_.Trim().Length -gt 0 }).Count -gt 0
 $twoslashChanged = @(Invoke-Git @('diff', '--name-only', 'HEAD', '--', 'src/frontend/src/data/twoslash/aspire.d.ts') |
     Where-Object { $_ -and $_.Trim().Length -gt 0 }).Count -gt 0
 
@@ -575,7 +593,7 @@ $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine("### API reference regeneration")
 [void]$sb.AppendLine("")
 if ($regenRan) {
-    [void]$sb.AppendLine("Versions changed for the following packages, so the C# and TypeScript API reference data and the twoslash bundle were regenerated:")
+    [void]$sb.AppendLine("Versions changed for the following packages, so the C# and generated AppHost API reference data, support matrix, and twoslash bundle were regenerated:")
     [void]$sb.AppendLine("")
     $shown = 0
     foreach ($change in $versionChanges) {
@@ -590,20 +608,21 @@ if ($regenRan) {
     [void]$sb.AppendLine("| Area | Added | Modified | Removed |")
     [void]$sb.AppendLine("|---|---|---|---|")
     [void]$sb.AppendLine("| ``src/frontend/src/data/pkgs/**`` | $($pkgsCounts.Added) | $($pkgsCounts.Modified) | $($pkgsCounts.Removed) |")
-    [void]$sb.AppendLine("| ``src/frontend/src/data/ts-modules/**`` | $($tsModulesCounts.Added) | $($tsModulesCounts.Modified) | $($tsModulesCounts.Removed) |")
+    [void]$sb.AppendLine("| ``src/frontend/src/data/apphost-modules/**`` | $($appHostModulesCounts.Added) | $($appHostModulesCounts.Modified) | $($appHostModulesCounts.Removed) |")
+    [void]$sb.AppendLine("| ``src/frontend/src/data/apphost-language-support.json`` | — | $(if ($supportMatrixChanged) { 'yes' } else { 'no' }) | — |")
     [void]$sb.AppendLine("| ``src/frontend/src/data/twoslash/aspire.d.ts`` | — | $(if ($twoslashChanged) { 'yes' } else { 'no' }) | — |")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("Generator summary:")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("- C# API JSON (``generate-package-json.ps1`` → ``pkgs/``): $pkgSummary")
-    [void]$sb.AppendLine("- TS API JSON (``update:ts-api`` → ``ts-modules/``): $tsApiSummary")
+    [void]$sb.AppendLine("- AppHost API JSON (``update:apphost-api`` → ``apphost-modules/``): $appHostApiSummary")
     [void]$sb.AppendLine("- Twoslash bundle (``twoslash/aspire.d.ts``): $twoslashSummary")
     [void]$sb.AppendLine("- Semantic generated-data validation: $semanticSummary")
     if ($pkgSkippedPackages) {
         [void]$sb.AppendLine("- C# packages skipped because they have no public API: ``$pkgSkippedPackages``")
     }
-    if ($tsSkippedPackages) {
-        [void]$sb.AppendLine("- TypeScript packages skipped because they export no ATS functions: ``$tsSkippedPackages``")
+    if ($appHostSkippedPackages) {
+        [void]$sb.AppendLine("- AppHost packages skipped because they export no ATS items: ``$appHostSkippedPackages``")
     }
 }
 else {
@@ -624,7 +643,8 @@ if ($iconWarnings) {
 [void]$sb.AppendLine("- [ ] Package counts and versions updated appropriately")
 [void]$sb.AppendLine("- [ ] Official Aspire package icons still use package-specific NuGet icon URLs")
 if ($regenRan) {
-    [void]$sb.AppendLine("- [ ] New/removed ``pkgs/`` and ``ts-modules/`` files match the version changes")
+    [void]$sb.AppendLine("- [ ] New/removed ``pkgs/`` and ``apphost-modules/`` files match the version changes")
+    [void]$sb.AppendLine("- [ ] ``apphost-language-support.json`` accounts for every ATS item")
     [void]$sb.AppendLine("- [ ] ``src/frontend/src/data/twoslash/aspire.d.ts`` is included in the diff")
 }
 $prBody = $sb.ToString()

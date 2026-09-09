@@ -13,7 +13,7 @@ declare global {
   }
 }
 
-class InpageSearchSync {
+export class InpageSearchSync {
   private input: HTMLInputElement;
   private clearBtn: HTMLElement;
   private onClear: () => void;

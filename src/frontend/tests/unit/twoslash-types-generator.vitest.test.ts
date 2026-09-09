@@ -74,6 +74,13 @@ describe('generate-twoslash-types', () => {
     expect(output).not.toMatch(/options\?: \{\s*options\?:/);
   });
 
+  test('emits options for a single optional Dockerfile stage name', () => {
+    expect(output).toMatch(
+      /from\(image: string, options\?: \{ stageName\?: string \}\): DockerfileStage;/
+    );
+    expect(output).toMatch(/from\(image: string, stageName\?: string\): DockerfileStage;/);
+  });
+
   test('does not infer ContainerResource from marker interfaces', () => {
     expect(output).not.toMatch(
       /export interface \w+[^{]*extends[^{]*(?:ExecutableResource[^{]*ContainerResource|ContainerResource[^{]*ExecutableResource)/
@@ -83,7 +90,7 @@ describe('generate-twoslash-types', () => {
   test('scopes fallback inheritance to the package when full type names collide', () => {
     const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'aspire-twoslash-types-'));
     const packagesDir = path.join(fixtureRoot, 'pkgs');
-    const modulesDir = path.join(fixtureRoot, 'ts-modules');
+    const modulesDir = path.join(fixtureRoot, 'apphost-modules');
     const fixtureOutput = path.join(fixtureRoot, 'twoslash', 'aspire.d.ts');
     mkdirSync(packagesDir);
     mkdirSync(modulesDir);
@@ -117,32 +124,50 @@ describe('generate-twoslash-types', () => {
         ],
       });
       writeJson(path.join(modulesDir, 'A.K3s.1.0.0.json'), {
+        schemaVersion: '1.0',
         package: { name: 'A.K3s', version: '1.0.0' },
-        handleTypes: [
+        items: [
           {
+            id: 'A.K3s/Aspire.Hosting.ApplicationModel.ContainerResource',
             name: 'ContainerResource',
             fullName: 'Aspire.Hosting.ApplicationModel.ContainerResource',
             kind: 'handle',
+            projections: {
+              typescript: { status: 'supported', identifier: 'ContainerResource' },
+            },
           },
           {
+            id: 'A.K3s/Aspire.Hosting.ApplicationModel.K8sManifestResource',
             name: 'K8sManifestResource',
             fullName: collidingFullName,
             kind: 'handle',
+            projections: {
+              typescript: { status: 'supported', identifier: 'K8sManifestResource' },
+            },
           },
         ],
       });
       writeJson(path.join(modulesDir, 'B.Kind.1.0.0.json'), {
+        schemaVersion: '1.0',
         package: { name: 'B.Kind', version: '1.0.0' },
-        handleTypes: [
+        items: [
           {
+            id: 'B.Kind/Aspire.Hosting.ApplicationModel.KindDeployedResource',
             name: 'KindDeployedResource',
             fullName: 'Aspire.Hosting.ApplicationModel.KindDeployedResource',
             kind: 'handle',
+            projections: {
+              typescript: { status: 'supported', identifier: 'KindDeployedResource' },
+            },
           },
           {
+            id: 'B.Kind/Aspire.Hosting.ApplicationModel.K8sManifestResource',
             name: 'K8sManifestResource',
             fullName: collidingFullName,
             kind: 'handle',
+            projections: {
+              typescript: { status: 'supported', identifier: 'K8sManifestResource' },
+            },
           },
         ],
       });
@@ -153,7 +178,7 @@ describe('generate-twoslash-types', () => {
         env: {
           ...process.env,
           ASPIRE_API_PKGS_DIR: packagesDir,
-          ASPIRE_API_TS_MODULES_DIR: modulesDir,
+          ASPIRE_API_APPHOST_MODULES_DIR: modulesDir,
           ASPIRE_API_TWOSLASH_FILE: fixtureOutput,
         },
         stdio: 'pipe',
@@ -179,7 +204,7 @@ describe('generate-twoslash-types', () => {
     expect(output).toMatch(/label\?: string/);
     expect(output).toMatch(/description\?: string/);
     expect(output).toMatch(/enableDescriptionMarkdown\?: boolean/);
-    expect(output).toMatch(/options\?: Dict<string,string>/);
+    expect(output).toMatch(/options\?: Record<string, string>/);
     expect(output).toMatch(/value\?: string/);
     expect(output).toMatch(/placeholder\?: string/);
     expect(output).toMatch(/allowCustomChoice\?: boolean/);

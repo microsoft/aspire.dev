@@ -4,6 +4,7 @@ import { isApiReferencePath, stripApiReferenceLocale } from '../../src/utils/api
 
 test('isApiReferencePath recognizes API page and markdown routes', () => {
   expect(isApiReferencePath('/reference/api/csharp/')).toBe(true);
+  expect(isApiReferencePath('/reference/api/apphost/aspire.hosting.md')).toBe(true);
   expect(isApiReferencePath('/reference/api/typescript/aspire.hosting.md')).toBe(true);
   expect(isApiReferencePath('/fr/reference/api/csharp/')).toBe(true);
   expect(isApiReferencePath('reference/api/csharp/')).toBe(true);
@@ -12,6 +13,7 @@ test('isApiReferencePath recognizes API page and markdown routes', () => {
 
 test('stripApiReferenceLocale returns the canonical API path for localized API URLs', () => {
   expect(stripApiReferenceLocale('/fr/reference/api/csharp/')).toBe('/reference/api/csharp/');
+  expect(stripApiReferenceLocale('/ja/reference/api/apphost/')).toBe('/reference/api/apphost/');
   expect(stripApiReferenceLocale('/ja/reference/api/typescript/')).toBe('/reference/api/typescript/');
   expect(stripApiReferenceLocale('/zh-CN/reference/api/csharp/communitytoolkit.aspire.hosting.activemq.md')).toBe(
     '/reference/api/csharp/communitytoolkit.aspire.hosting.activemq.md'

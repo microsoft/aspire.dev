@@ -38,6 +38,60 @@ function createValidInput(): ValidationInput {
       },
     ],
   };
+  const semanticModule = {
+    schemaVersion: '1.0',
+    generatorProvenance: {
+      repository: 'microsoft/aspire',
+      commit: '62028348b5d02dfc8f8baf03a4472946537b0d16',
+      lockFile: 'src/tools/AtsJsonGenerator/upstream-sources.lock.json',
+    },
+    package: structuredClone(pkg.package),
+    items: [
+      {
+        id: 'Aspire.Hosting.Foo/addFoo',
+        kind: 'capability' as const,
+        name: 'addFoo',
+        projections: {
+          typescript: { status: 'supported' as const, validation: 'source-derived' as const, identifier: 'addFoo' },
+          python: { status: 'supported' as const, validation: 'source-derived' as const, identifier: 'add_foo' },
+          go: { status: 'supported' as const, validation: 'source-derived' as const, identifier: 'AddFoo' },
+          java: { status: 'supported' as const, validation: 'source-derived' as const, identifier: 'addFoo' },
+          rust: {
+            status: 'unsupported' as const,
+            validation: 'source-derived' as const,
+            reason: 'Requires a runtime callback adapter.',
+          },
+        },
+      },
+    ],
+  };
+  const supportMatrix = {
+    schemaVersion: '1.0',
+    generatedFrom: structuredClone(semanticModule.generatorProvenance),
+    packages: {
+      'Aspire.Hosting.Foo@1.0.0': {
+        package: { name: 'Aspire.Hosting.Foo', version: '1.0.0' },
+        items: {
+          'Aspire.Hosting.Foo/addFoo': {
+            kind: 'capability' as const,
+            name: 'addFoo',
+            languages: Object.fromEntries(
+              Object.entries(semanticModule.items[0].projections).map(
+                ([language, projection]) => [
+                  language,
+                  {
+                    supported: projection.status === 'supported',
+                    validation: projection.validation,
+                    ...('reason' in projection ? { reason: projection.reason } : {}),
+                  },
+                ]
+              )
+            ),
+          },
+        },
+      },
+    },
+  };
 
   return {
     catalog: [{ title: 'Aspire.Hosting.Foo', version: '1.0.0' }],
@@ -82,6 +136,13 @@ function createValidInput(): ValidationInput {
         },
       },
     ],
+    semanticModules: [
+      {
+        fileName: 'Aspire.Hosting.Foo.1.0.0.json',
+        data: semanticModule,
+      },
+    ],
+    supportMatrix,
     declarations: [
       'export interface FooOptions {',
       '  port?: number;',
@@ -117,7 +178,7 @@ describe('validateGeneratedApiData', () => {
     input.declarations = input.declarations.replace('port?: number', 'port: number');
 
     expect(validateGeneratedApiData(input).errors).toContain(
-      'Twoslash DTO FooOptions.port optionality does not match ts-modules metadata.'
+      'Twoslash DTO FooOptions.port optionality does not match AppHost TypeScript projection metadata.'
     );
   });
 
@@ -127,7 +188,7 @@ describe('validateGeneratedApiData', () => {
     input.declarations = input.declarations.replace('port?: number', 'port?: string[]');
 
     expect(validateGeneratedApiData(input).errors).toContain(
-      'Twoslash DTO FooOptions.port type string[] does not match ts-modules metadata String]][].'
+      'Twoslash DTO FooOptions.port type string[] does not match AppHost TypeScript projection metadata String]][].'
     );
   });
 
@@ -265,6 +326,58 @@ describe('validateGeneratedApiData', () => {
       'Stale C# API output Aspire.Hosting.Foo@1.0.0; catalog version is 2.0.0.'
     );
     expect(errors).toContain('Missing C# API output for catalog package Aspire.Hosting.Foo@2.0.0.');
+  });
+
+  test('requires every semantic item to account for every generated language', () => {
+    const input = createValidInput();
+    Reflect.deleteProperty(
+      input.semanticModules![0].data.items[0].projections,
+      'java'
+    );
+
+    expect(validateGeneratedApiData(input).errors).toContain(
+      'Aspire.Hosting.Foo.1.0.0.json item Aspire.Hosting.Foo/addFoo has no java projection.'
+    );
+  });
+
+  test('requires an explicit limitation reason for unsupported projections', () => {
+    const input = createValidInput();
+    input.semanticModules![0].data.items[0].projections.rust.reason = ' ';
+
+    expect(validateGeneratedApiData(input).errors).toContain(
+      'Aspire.Hosting.Foo.1.0.0.json item Aspire.Hosting.Foo/addFoo has no rust limitation reason.'
+    );
+  });
+
+  test('rejects duplicate semantic item identities', () => {
+    const input = createValidInput();
+    input.semanticModules![0].data.items.push(
+      structuredClone(input.semanticModules![0].data.items[0])
+    );
+
+    expect(validateGeneratedApiData(input).errors).toContain(
+      'Aspire.Hosting.Foo.1.0.0.json contains duplicate semantic item Aspire.Hosting.Foo/addFoo.'
+    );
+  });
+
+  test('reconciles support matrix statuses with semantic projections', () => {
+    const input = createValidInput();
+    input.supportMatrix!.packages['Aspire.Hosting.Foo@1.0.0'].items[
+      'Aspire.Hosting.Foo/addFoo'
+    ].languages.python.supported = false;
+
+    expect(validateGeneratedApiData(input).errors).toContain(
+      'AppHost language support mismatch for Aspire.Hosting.Foo@1.0.0/Aspire.Hosting.Foo/addFoo/python.'
+    );
+  });
+
+  test('rejects unexpected generator provenance', () => {
+    const input = createValidInput();
+    input.semanticModules![0].data.generatorProvenance.commit = 'unexpected';
+
+    expect(validateGeneratedApiData(input).errors).toContain(
+      'Aspire.Hosting.Foo.1.0.0.json has unexpected AppHost generator provenance.'
+    );
   });
 });
 

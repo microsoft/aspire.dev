@@ -1,13 +1,13 @@
 /**
- * update-ts-api.ts — Regenerates TypeScript API reference data.
+ * update-ts-api.ts — Regenerates config-driven AppHost API reference data.
  *
  * Runs the AtsJsonGenerator tool against the aspire sdk dump output.
  * Requires: dotnet SDK and aspire CLI.
  * Set ASPIRE_CLI_PATH to use an installed Aspire CLI that is not on PATH.
  *
  * By default, reads the generated C# package JSON files and generates
- * data for the matching Aspire.Hosting* and CommunityToolkit.Aspire.Hosting*
- * package/version sets.
+ * one semantic document for each matching Aspire.Hosting* and
+ * CommunityToolkit.Aspire.Hosting* package/version set.
  *
  * Optionally pass an Aspire repo clone path to discover packages from source:
  *   tsx ./scripts/update-ts-api.ts /path/to/aspire
@@ -23,7 +23,12 @@ import { existsSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
-import { normalizeApiDir, TS_MODULES_DIR } from './normalize-generated-api-data';
+import {
+  APPHOST_LANGUAGE_SUPPORT_FILE,
+  APPHOST_MODULES_DIR,
+  normalizeApiDir,
+  normalizeApiFile,
+} from './normalize-generated-api-data';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCRIPT_PATH = resolve(
@@ -32,7 +37,7 @@ const SCRIPT_PATH = resolve(
   '..',
   'tools',
   'AtsJsonGenerator',
-  'generate-ts-api-json.ps1'
+  'generate-apphost-api-json.ps1'
 );
 
 function getErrorMessage(error: unknown): string {
@@ -49,6 +54,10 @@ function checkPrerequisite(cmd: string, args: string[], name: string): boolean {
   }
 }
 
+function readCommandOutput(cmd: string, args: string[]): string {
+  return execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+}
+
 function main(): void {
   const aspireRepoPath = process.argv[2] ?? process.env.ASPIRE_REPO_PATH;
   const aspireCliPath = process.env.ASPIRE_CLI_PATH?.trim() || 'aspire';
@@ -59,46 +68,64 @@ function main(): void {
   if (!checkPrerequisite(aspireCliPath, ['--version'], 'Aspire CLI')) {
     process.exit(1);
   }
+  const aspireCliVersion = readCommandOutput(aspireCliPath, ['--version']);
 
-  const psArgs = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', SCRIPT_PATH];
+  const psArgs = [
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-File',
+    SCRIPT_PATH,
+    '-DumpCliVersion',
+    aspireCliVersion,
+  ];
   if (aspireRepoPath) {
     const resolvedPath = resolve(aspireRepoPath);
     if (!existsSync(resolvedPath)) {
       console.error(`❌ Aspire repo not found at: ${resolvedPath}`);
       process.exit(1);
     }
-    console.log(`🔄 Generating TypeScript API reference data from ${resolvedPath}...`);
+    console.log(`🔄 Generating AppHost API reference data from ${resolvedPath}...`);
     psArgs.push('-AspireRepoPath', resolvedPath);
   } else {
-    console.log('🔄 Generating TypeScript API reference data from installed Aspire CLI...');
+    console.log('🔄 Generating AppHost API reference data from installed Aspire CLI...');
   }
 
-  const outputDir = process.env.ASPIRE_API_TS_MODULES_DIR
-    ? resolve(process.env.ASPIRE_API_TS_MODULES_DIR)
-    : TS_MODULES_DIR;
-  if (process.env.ASPIRE_API_TS_MODULES_DIR) {
+  const outputDir = process.env.ASPIRE_API_APPHOST_MODULES_DIR
+    ? resolve(process.env.ASPIRE_API_APPHOST_MODULES_DIR)
+    : process.env.ASPIRE_API_TS_MODULES_DIR
+      ? resolve(process.env.ASPIRE_API_TS_MODULES_DIR)
+      : APPHOST_MODULES_DIR;
+  if (process.env.ASPIRE_API_APPHOST_MODULES_DIR || process.env.ASPIRE_API_TS_MODULES_DIR) {
     psArgs.push('-OutputDir', outputDir);
   }
 
   try {
     execFileSync('pwsh', psArgs, { stdio: 'inherit', cwd: resolve(__dirname, '..') });
-    console.log('✅ TypeScript API reference data updated.');
+    console.log('✅ AppHost API reference data updated.');
   } catch (error: unknown) {
     console.error('❌ Generation failed:', getErrorMessage(error));
     process.exit(1);
   }
 
-  // Enforce Aspire terminology in the freshly generated ts-modules JSON before
+  // Enforce Aspire terminology in the freshly generated apphost-modules JSON before
   // the twoslash bundle is derived from it, so both the JSON and the .d.ts hover
   // tooltips stay free of the deprecated Aspire terminology that upstream
   // JSDoc/XML docs may carry. Reuses the single source of truth in
   // aspire-terminology.ts.
-  console.log('🔄 Normalizing Aspire terminology in ts-modules JSON...');
+  console.log('🔄 Normalizing Aspire terminology in apphost-modules JSON...');
   const { changes: tsModuleChanges } = normalizeApiDir(outputDir);
-  console.log(`✅ Normalized ${tsModuleChanges} occurrence(s) in ts-modules JSON.`);
+  console.log(`✅ Normalized ${tsModuleChanges} occurrence(s) in apphost-modules JSON.`);
+  const supportFile = process.env.ASPIRE_API_LANGUAGE_SUPPORT_FILE
+    ? resolve(process.env.ASPIRE_API_LANGUAGE_SUPPORT_FILE)
+    : APPHOST_LANGUAGE_SUPPORT_FILE;
+  if (existsSync(supportFile)) {
+    const supportChanges = normalizeApiFile(supportFile);
+    console.log(`✅ Normalized ${supportChanges} occurrence(s) in the AppHost support matrix.`);
+  }
 
   // Refresh the twoslash .d.ts bundle so docs hover tooltips stay in sync
-  // with the regenerated ts-modules JSON. The bundle is source-controlled
+  // with the TypeScript projection. The bundle is source-controlled
   // at src/data/twoslash/aspire.d.ts — commit the diff alongside the JSON.
   const generatorScript = resolve(__dirname, 'generate-twoslash-types.ts');
   const tsxBin = resolve(__dirname, '..', 'node_modules', 'tsx', 'dist', 'cli.mjs');
