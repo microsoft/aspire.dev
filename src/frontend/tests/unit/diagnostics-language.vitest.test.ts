@@ -15,16 +15,33 @@ const pages = readdirSync(diagnosticsRoot)
     name,
     source: readFileSync(new URL(name, diagnosticsRoot), 'utf8'),
   }));
-const modulesRoot = new URL('../../src/data/ts-modules/', import.meta.url);
+const modulesRoot = new URL('../../src/data/apphost-modules/', import.meta.url);
 const apiPackages = new Map<string, Set<string>>();
 for (const file of readdirSync(modulesRoot).filter((file) => file.endsWith('.json'))) {
-  const module: { package: { name: string }; functions: Array<{ name: string }> } = JSON.parse(
-    readFileSync(new URL(file, modulesRoot), 'utf8')
-  );
-  for (const api of module.functions) {
-    const packages = apiPackages.get(api.name) ?? new Set<string>();
+  const module: {
+    package: { name: string };
+    items: Array<{
+      kind: string;
+      projections?: {
+        typescript?: {
+          status?: string;
+          identifier?: string;
+        };
+      };
+    }>;
+  } = JSON.parse(readFileSync(new URL(file, modulesRoot), 'utf8'));
+  for (const item of module.items) {
+    const projection = item.projections?.typescript;
+    if (
+      item.kind !== 'capability' ||
+      projection?.status !== 'supported' ||
+      !projection.identifier
+    ) {
+      continue;
+    }
+    const packages = apiPackages.get(projection.identifier) ?? new Set<string>();
     packages.add(module.package.name);
-    apiPackages.set(api.name, packages);
+    apiPackages.set(projection.identifier, packages);
   }
 }
 
