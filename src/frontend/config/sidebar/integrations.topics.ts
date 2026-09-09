@@ -1329,6 +1329,14 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': 'C# 和 .NET',
           },
           items: [
+            {
+              label: 'Get started with apps by path',
+              slug: 'integrations/frameworks/dotnet/dotnet-get-started',
+            },
+            {
+              label: 'Set up C# apps by path in the AppHost',
+              slug: 'integrations/frameworks/dotnet/dotnet-host',
+            },
             { label: 'Project resources', slug: 'integrations/dotnet/project-resources' },
             { label: 'C# file-based apps', slug: 'integrations/dotnet/csharp-file-based-apps' },
             { label: 'Launch profiles', slug: 'integrations/dotnet/launch-profiles' },
@@ -1362,20 +1370,6 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Connect to Dapr',
               slug: 'integrations/frameworks/dapr/dapr-connect',
-            },
-          ],
-        },
-        {
-          label: '.NET / C#',
-          collapsed: true,
-          items: [
-            {
-              label: 'Get started',
-              slug: 'integrations/frameworks/dotnet/dotnet-get-started',
-            },
-            {
-              label: 'Set up .NET / C# apps in the AppHost',
-              slug: 'integrations/frameworks/dotnet/dotnet-host',
             },
           ],
         },
