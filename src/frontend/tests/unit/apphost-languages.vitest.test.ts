@@ -177,4 +177,23 @@ builder.run()
     expect(rendered).toContain('    ### TypeScript');
     expect(rendered).toContain('    ### C#');
   });
+
+  test('removes disabled AppHost pivots from page-action Markdown', () => {
+    const markdown = `<AppHostLanguagePivot id="typescript">
+TypeScript content
+</AppHostLanguagePivot>
+<AppHostLanguagePivot id="python">
+Python preview content
+</AppHostLanguagePivot>
+`;
+
+    const rendered = renderAppHostTabsInMarkdown(
+      markdown,
+      appHostLanguageConfig.languages
+    );
+
+    expect(rendered).toContain('TypeScript content');
+    expect(rendered).not.toContain('Python preview content');
+    expect(rendered).not.toContain('AppHostLanguagePivot');
+  });
 });

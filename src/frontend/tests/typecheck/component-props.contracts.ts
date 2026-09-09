@@ -2,6 +2,8 @@ import type { ComponentProps } from 'astro/types';
 
 import heroImage from '@assets/aspire-hero.png';
 import AppHostLanguageSelector from '@components/AppHostLanguageSelector.astro';
+import AppHostLanguagePivot from '@components/AppHostLanguagePivot.astro';
+import AppHostLanguageEvidence from '@components/AppHostLanguageEvidence.astro';
 import AppHostTabs from '@components/AppHostTabs.astro';
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
@@ -206,6 +208,22 @@ const validAppHostLanguageSelectorProps = {
 // @ts-expect-error AppHostLanguageSelector marginTop must be numeric.
 const invalidAppHostLanguageSelectorProps: PropsOf<typeof AppHostLanguageSelector> = {
   marginTop: '1',
+};
+
+const validAppHostLanguagePivotProps = {
+  id: 'python',
+} satisfies PropsOf<typeof AppHostLanguagePivot>;
+// @ts-expect-error AppHostLanguagePivot accepts only known language IDs.
+const invalidAppHostLanguagePivotProps: PropsOf<typeof AppHostLanguagePivot> = {
+  id: 'ruby',
+};
+
+const validAppHostLanguageEvidenceProps = {
+  language: 'go',
+} satisfies PropsOf<typeof AppHostLanguageEvidence>;
+// @ts-expect-error AppHostLanguageEvidence accepts only known language IDs.
+const invalidAppHostLanguageEvidenceProps: PropsOf<typeof AppHostLanguageEvidence> = {
+  language: 'ruby',
 };
 
 const validAppHostTabsProps = {
@@ -755,6 +773,10 @@ const invalidYouTubeGridProps: PropsOf<typeof YouTubeGrid> = {
 };
 
 void [
+  validAppHostLanguageEvidenceProps,
+  invalidAppHostLanguageEvidenceProps,
+  validAppHostLanguagePivotProps,
+  invalidAppHostLanguagePivotProps,
   validAppHostLanguageSelectorProps,
   invalidAppHostLanguageSelectorProps,
   validAppHostTabsProps,

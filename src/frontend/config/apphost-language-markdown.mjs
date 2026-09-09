@@ -1,7 +1,7 @@
 import { createProcessor } from '@mdx-js/mdx';
 
 const markdownParser = createProcessor();
-const appHostTabsSourcePattern = /<AppHostTabs\b/i;
+const appHostLanguageSourcePattern = /<AppHost(?:Tabs|LanguagePivot)\b/i;
 
 function getStringAttribute(node, name) {
   const attribute = node.attributes?.find(
@@ -117,6 +117,23 @@ function collectAppHostTabEdits(node, markdown, enabledLanguages, edits) {
     return;
   }
 
+  if (node.type === 'mdxJsxFlowElement' && node.name === 'AppHostLanguagePivot') {
+    const start = node.position?.start.offset;
+    const end = node.position?.end.offset;
+    const languageId = getStringAttribute(node, 'id');
+    if (typeof start !== 'number' || typeof end !== 'number' || !languageId) {
+      throw new Error('Unable to locate AppHostLanguagePivot in the Markdown source.');
+    }
+
+    const language = enabledLanguages.find((candidate) => candidate.id === languageId);
+    edits.push({
+      start,
+      end,
+      replacement: language ? getInnerSource(node, markdown).trim() : '',
+    });
+    return;
+  }
+
   if (Array.isArray(node.children)) {
     for (const child of node.children) {
       collectAppHostTabEdits(child, markdown, enabledLanguages, edits);
@@ -125,7 +142,7 @@ function collectAppHostTabEdits(node, markdown, enabledLanguages, edits) {
 }
 
 export function renderAppHostTabsInMarkdown(markdown, languages) {
-  if (!appHostTabsSourcePattern.test(markdown)) {
+  if (!appHostLanguageSourcePattern.test(markdown)) {
     return markdown;
   }
 

@@ -129,42 +129,57 @@ test('postgres apphost tabs use the shared aspire-lang query string', async ({ p
   await expect(csharpPanel).toBeHidden();
 });
 
-test('app host page restores pivot state from the lang query string', async ({ page }) => {
-  await page.goto('/get-started/app-host/?lang=nodejs');
+test('app host page restores the shared AppHost language query string', async ({ page }) => {
+  await page.goto('/get-started/app-host/?aspire-lang=csharp');
   await dismissCookieConsentIfVisible(page);
 
-  const pivotSelector = page.locator('#pivot-selector-lang');
-  const nodeJsButton = pivotSelector.getByRole('button', { name: 'Node.js' });
-  const javaButton = pivotSelector.getByRole('button', { name: 'Java' });
-  const nodeJsContent = page.getByText(
-    'This architecture demonstrates a Node.js API connecting to a PostgreSQL database',
-    {
-      exact: false,
-    }
-  );
+  const pivotSelector = page.locator('#pivot-selector-aspire-lang');
+  const csharpButton = pivotSelector.getByRole('button', { name: 'C#' });
+  const typeScriptButton = pivotSelector.getByRole('button', { name: 'TypeScript' });
   const csharpContent = page.getByText(
-    'This architecture demonstrates a .NET API connecting to a PostgreSQL database',
+    'A C# AppHost can be a single apphost.cs file or a project-based AppHost',
     {
       exact: false,
     }
   );
-  const javaContent = page.getByText(
-    'This architecture demonstrates a Java API (using Spring Boot) connecting to a PostgreSQL database',
+  const typeScriptContent = page.getByText(
+    'A TypeScript AppHost uses apphost.mts, Node.js, and a generated SDK',
     {
       exact: false,
     }
   );
 
-  await expect(page).toHaveURL(/\?lang=nodejs$/);
-  await expect(nodeJsButton).toHaveClass(/active/);
-  await expect(nodeJsContent).toBeVisible();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('aspire-lang'))
+    .toBe('csharp');
+  await expect(csharpButton).toHaveClass(/active/);
+  await expect(csharpContent).toBeVisible();
+  await expect(typeScriptContent).toBeHidden();
+
+  await typeScriptButton.click();
+
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('aspire-lang'))
+    .toBe('typescript');
+  await expect(typeScriptButton).toHaveClass(/active/);
+  await expect(csharpButton).not.toHaveClass(/active/);
+  await expect(typeScriptContent).toBeVisible();
   await expect(csharpContent).toBeHidden();
+});
 
-  await javaButton.click();
+test('disabled AppHost language pivots and media are absent from rendered pages', async ({
+  page,
+}) => {
+  await page.goto('/get-started/first-app/');
+  await dismissCookieConsentIfVisible(page);
 
-  await expect(page).toHaveURL(/\?lang=java$/);
-  await expect(javaButton).toHaveClass(/active/);
-  await expect(nodeJsButton).not.toHaveClass(/active/);
-  await expect(javaContent).toBeVisible();
-  await expect(nodeJsContent).toBeHidden();
+  await expect(page.locator('[data-pivot-block="typescript"]').first()).toBeAttached();
+  await expect(page.locator('[data-pivot-block="csharp"]').first()).toBeAttached();
+  await expect(page.locator('[data-pivot-block="python"]')).toHaveCount(0);
+  await expect(page.locator('[data-pivot-block="go"]')).toHaveCount(0);
+  await expect(page.locator('[data-pivot-block="java"]')).toHaveCount(0);
+  await expect(page.locator('[data-pivot-block="rust"]')).toHaveCount(0);
+  await expect(
+    page.locator('.asciinema-player-container[data-src="/casts/apphost-python.cast"]')
+  ).toHaveCount(0);
 });

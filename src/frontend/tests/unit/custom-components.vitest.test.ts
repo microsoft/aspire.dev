@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import heroImage from '@assets/aspire-hero.png';
 import AccessibleCodeButtons from '@components/AccessibleCodeButtons.astro';
 import AppHostBuilder from '@components/AppHostBuilder.astro';
+import AppHostLanguageEvidence from '@components/AppHostLanguageEvidence.astro';
+import AppHostLanguagePivot from '@components/AppHostLanguagePivot.astro';
 import AppHostLanguageSelector from '@components/AppHostLanguageSelector.astro';
 import AppHostTabs from '@components/AppHostTabs.astro';
 import AspireMap from '@components/AspireMap.astro';
@@ -937,6 +939,36 @@ describe('custom Astro component render coverage', () => {
     expect(tabsHtml).toContain('data-supports-csharp');
     expect(tabsHtml).toContain('TypeScript AppHost content');
     expect(tabsHtml).toContain('C# AppHost content');
+  });
+
+  it('removes disabled AppHost language pivots from rendered output', async () => {
+    const enabledHtml = normalizeHtml(
+      await renderComponent(AppHostLanguagePivot, {
+        props: { id: 'typescript' },
+        slots: { default: '<p>Enabled language content</p>' },
+      })
+    );
+    const disabledHtml = normalizeHtml(
+      await renderComponent(AppHostLanguagePivot, {
+        props: { id: 'python' },
+        slots: { default: '<p>Disabled language content</p>' },
+      })
+    );
+
+    expect(enabledHtml).toContain('Enabled language content');
+    expect(disabledHtml).not.toContain('Disabled language content');
+  });
+
+  it('renders verified AppHost evidence for an enabled language', async () => {
+    const html = normalizeHtml(
+      await renderComponent(AppHostLanguageEvidence, {
+        props: { language: 'typescript' },
+      })
+    );
+
+    expect(html).toContain('/casts/apphost-typescript.cast');
+    expect(html).toContain('apphost.mts');
+    expect(html).toContain('TypeScript AppHost dashboard');
   });
 
   it('renders an explicit limitation when an enabled language has no slot', async () => {
