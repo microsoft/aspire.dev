@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import fetch from 'node-fetch';
 
 import { normalizeAspireTerminology, normalizeAspireTerminologyInCode } from './aspire-terminology';
+import { getAppHostLanguages, type AppHostLanguageId } from '../src/utils/apphost-languages';
 
 const REPO = 'microsoft/aspire-samples';
 const DEFAULT_BRANCH = 'main';
@@ -114,7 +115,7 @@ export interface SampleResult {
   appHostCode: string | null;
 }
 
-// `appHostCode` is rendered as C# (not prose), so only its **comments** are
+// `appHostCode` is rendered as source code (not prose), so only its **comments** are
 // normalized — identifiers, string literals, and CLI commands stay byte-for-byte
 // identical, keeping the code compilable while still fixing deprecated terms that
 // would otherwise render in the sample's code block and trip forbidden-words CI.
@@ -131,9 +132,9 @@ export function normalizeSampleTerminology(sample: SampleResult): SampleResult {
   };
 }
 
-type AppHostKind = 'typescript' | 'csproj' | 'file-based';
+export type AppHostKind = AppHostLanguageId | 'csproj' | 'file-based';
 
-interface AppHostInfo {
+export interface AppHostInfo {
   kind: AppHostKind;
   entryPath: string;
 }
@@ -156,6 +157,8 @@ const TAG_RULES: TagRule[] = [
       /\bGo\b.*\bGin\b/i,
     ],
   },
+  { tag: 'java', patterns: [/\bJava\b/i, /\.java\b/] },
+  { tag: 'rust', patterns: [/\bRust\b/i, /\.rs\b/] },
   { tag: 'redis', patterns: [/\bRedis\b/i] },
   { tag: 'postgresql', patterns: [/\bPostgre(?:SQL|s)\b/i, /\bNpgsql\b/i] },
   { tag: 'sql-server', patterns: [/\bSQL\s*Server\b/i, /\bMSSQL\b/i] },
@@ -187,7 +190,11 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function detectTags(name: string, readme: string, appHost: AppHostKind | null): string[] {
+function appHostLanguageId(kind: AppHostKind): AppHostLanguageId {
+  return kind === 'csproj' || kind === 'file-based' ? 'csharp' : kind;
+}
+
+export function detectTags(name: string, readme: string, appHost: AppHostKind | null): string[] {
   const corpus = `${name} ${readme}`;
   const tags = new Set<string>();
 
@@ -203,45 +210,72 @@ function detectTags(name: string, readme: string, appHost: AppHostKind | null): 
   // Knowing the AppHost kind is a stronger signal than README text. The
   // language used to define the AppHost is always part of the sample's
   // tech stack, so promote it to a tag if not already present.
-  if (appHost === 'typescript') {
-    tags.add('typescript');
-  } else if (appHost === 'csproj' || appHost === 'file-based') {
-    tags.add('csharp');
+  if (appHost) {
+    tags.add(appHostLanguageId(appHost));
   }
 
   return [...tags].sort();
 }
 
-function detectAppHost(paths: readonly string[]): AppHostInfo | null {
-  // Priority: TypeScript apphost wins because the file-based AppHost.cs
-  // detection would otherwise catch sample mirrors that include both shapes.
-  // Aspire 13.4 renamed the entry point from `apphost.ts` to `apphost.mts`
-  // (with the generated SDK moving from `./.modules/` to `./.aspire/modules/`).
-  // Both layouts continue to work and either may appear in samples, so the
-  // regex accepts the legacy `.ts` extension and the current `.mts` one.
-  for (const p of paths) {
-    if (/(?:^|\/)apphost\.m?ts$/i.test(p)) {
-      return { kind: 'typescript', entryPath: p };
-    }
+function basename(filePath: string): string {
+  const slashIndex = filePath.lastIndexOf('/');
+  return slashIndex === -1 ? filePath : filePath.slice(slashIndex + 1);
+}
+
+function directory(filePath: string): string {
+  const slashIndex = filePath.lastIndexOf('/');
+  return slashIndex === -1 ? '' : filePath.slice(0, slashIndex + 1);
+}
+
+function sortPaths(paths: readonly string[]): string[] {
+  return [...paths].sort(
+    (left, right) =>
+      left.localeCompare(right, 'en', { sensitivity: 'base' }) || left.localeCompare(right)
+  );
+}
+
+function findExactFile(paths: readonly string[], filename: string): string | undefined {
+  const normalizedFilename = filename.toLowerCase();
+  return paths.find((filePath) => basename(filePath).toLowerCase() === normalizedFilename);
+}
+
+function detectCSharpAppHost(paths: readonly string[]): AppHostInfo | null {
+  const projectPaths = paths.filter((filePath) =>
+    /^[^/]*apphost\.csproj$/i.test(basename(filePath))
+  );
+
+  for (const projectPath of projectPaths) {
+    const projectDirectory = directory(projectPath);
+    const siblings = paths.filter((filePath) => directory(filePath) === projectDirectory);
+    const entryPath =
+      findExactFile(siblings, 'AppHost.cs') ?? findExactFile(siblings, 'Program.cs') ?? projectPath;
+    return { kind: 'csproj', entryPath };
   }
 
-  // csproj: locate the *AppHost.csproj and prefer its sibling entry-point .cs
-  // file (AppHost.cs > Program.cs) because that's the code authors care about.
-  // The .csproj XML itself is mostly boilerplate.
-  for (const p of paths) {
-    if (/(?:^|\/)[^/]*apphost\.csproj$/i.test(p)) {
-      const dir = p.slice(0, p.lastIndexOf('/') + 1);
-      const siblings = paths.filter((q) => q.startsWith(dir) && !q.slice(dir.length).includes('/'));
-      const appHostCs = siblings.find((q) => /(?:^|\/)apphost\.cs$/i.test(q));
-      const programCs = siblings.find((q) => /(?:^|\/)program\.cs$/i.test(q));
-      return { kind: 'csproj', entryPath: appHostCs ?? programCs ?? p };
-    }
-  }
+  const fileBasedEntry = findExactFile(paths, 'AppHost.cs');
+  return fileBasedEntry ? { kind: 'file-based', entryPath: fileBasedEntry } : null;
+}
 
-  // file-based: a standalone AppHost.cs not paired with a *.AppHost.csproj.
-  for (const p of paths) {
-    if (/(?:^|\/)apphost\.cs$/i.test(p)) {
-      return { kind: 'file-based', entryPath: p };
+export function detectAppHost(paths: readonly string[]): AppHostInfo | null {
+  const orderedPaths = sortPaths(paths);
+
+  for (const language of getAppHostLanguages()) {
+    if (language.id === 'csharp') {
+      const csharpAppHost = detectCSharpAppHost(orderedPaths);
+      if (csharpAppHost) {
+        return csharpAppHost;
+      }
+      continue;
+    }
+
+    const entryFilenames =
+      language.id === 'typescript' ? [language.appHostFile, 'apphost.ts'] : [language.appHostFile];
+
+    for (const entryFilename of entryFilenames) {
+      const entryPath = findExactFile(orderedPaths, entryFilename);
+      if (entryPath) {
+        return { kind: language.id, entryPath };
+      }
     }
   }
 

@@ -1,16 +1,158 @@
 import { describe, expect, test } from 'vitest';
 
 import samples from '@data/samples.json';
+import {
+  appHostBrandColor,
+  appHostCodeLang,
+  appHostFallbackGlyph,
+  appHostLabel,
+  appHostShortLabel,
+  isAppHostEnabled,
+  type AppHostKind,
+} from '@utils/samples';
 
 import {
   normalizeAspireTerminology,
   normalizeAspireTerminologyInCode,
 } from '../../scripts/aspire-terminology';
-import { type SampleResult, normalizeSampleTerminology } from '../../scripts/update-samples';
+import {
+  detectAppHost,
+  detectTags,
+  type SampleResult,
+  normalizeSampleTerminology,
+} from '../../scripts/update-samples';
 
 const legacyAspireName = ['.NET', 'Aspire'].join(' ');
 const legacyDotnetAspireName = ['dotnet', 'aspire'].join(' ');
 const legacyAppHostName = ['app', 'host'].join(' ');
+
+describe('sample AppHost detection', () => {
+  test.each([
+    ['TypeScript module', ['apphost.mts'], 'typescript', 'apphost.mts'],
+    ['legacy TypeScript', ['src/apphost.ts'], 'typescript', 'src/apphost.ts'],
+    ['Python', ['apphost.py'], 'python', 'apphost.py'],
+    ['Go', ['nested/apphost.go'], 'go', 'nested/apphost.go'],
+    ['Java', ['AppHost.java'], 'java', 'AppHost.java'],
+    ['Rust', ['apphost.rs'], 'rust', 'apphost.rs'],
+  ] as const)('detects the %s entry point', (_name, paths, kind, entryPath) => {
+    expect(detectAppHost(paths)).toEqual({ kind, entryPath });
+  });
+
+  test('detects a C# project and prefers AppHost.cs over Program.cs', () => {
+    expect(
+      detectAppHost([
+        'Store.AppHost/Program.cs',
+        'Store.AppHost/Store.AppHost.csproj',
+        'Store.AppHost/AppHost.cs',
+      ])
+    ).toEqual({
+      kind: 'csproj',
+      entryPath: 'Store.AppHost/AppHost.cs',
+    });
+  });
+
+  test('uses Program.cs and then the project file as deterministic C# project fallbacks', () => {
+    expect(
+      detectAppHost(['Store.AppHost/Store.AppHost.csproj', 'Store.AppHost/Program.cs'])
+    ).toEqual({
+      kind: 'csproj',
+      entryPath: 'Store.AppHost/Program.cs',
+    });
+    expect(detectAppHost(['Store.AppHost/Store.AppHost.csproj'])).toEqual({
+      kind: 'csproj',
+      entryPath: 'Store.AppHost/Store.AppHost.csproj',
+    });
+  });
+
+  test('detects a file-based C# AppHost', () => {
+    expect(detectAppHost(['src/AppHost.cs'])).toEqual({
+      kind: 'file-based',
+      entryPath: 'src/AppHost.cs',
+    });
+  });
+
+  test('uses registry order for precedence and ignores substring collisions', () => {
+    expect(
+      detectAppHost([
+        'apphost.rs',
+        'AppHost.java',
+        'apphost.go',
+        'apphost.py',
+        'Store.AppHost/Store.AppHost.csproj',
+        'apphost.ts',
+        'apphost.mts',
+      ])
+    ).toEqual({
+      kind: 'typescript',
+      entryPath: 'apphost.mts',
+    });
+
+    expect(
+      detectAppHost([
+        'myapphost.ts',
+        'not-apphost.py.txt',
+        'myapphost.go.bak',
+        'AppHost.java.disabled',
+        'apphost.rs.example',
+        'Store.AppHost.csproj.user',
+        'NestedAppHost.cs',
+      ])
+    ).toBeNull();
+  });
+
+  test.each(['typescript', 'csproj', 'file-based', 'python', 'go', 'java', 'rust'] as const)(
+    'promotes the detected %s AppHost language to a tag',
+    (kind) => {
+      const expected = kind === 'csproj' || kind === 'file-based' ? 'csharp' : kind;
+      expect(detectTags('sample', '', kind)).toContain(expected);
+    }
+  );
+});
+
+describe('sample AppHost presentation metadata', () => {
+  test.each([
+    ['typescript', 'TypeScript AppHost', 'TypeScript AppHost', 'typescript', '#3178c6', 'TS'],
+    ['csproj', 'C# AppHost (project-based)', 'C# project AppHost', 'csharp', '#512bd4', 'C#'],
+    ['file-based', 'C# AppHost (file-based)', 'C# file-based AppHost', 'csharp', '#512bd4', 'C#'],
+    [
+      'python',
+      'Python AppHost (Experimental)',
+      'Python AppHost (Experimental)',
+      'python',
+      '#3776ab',
+      'Py',
+    ],
+    ['go', 'Go AppHost (Experimental)', 'Go AppHost (Experimental)', 'go', '#00add8', 'Go'],
+    ['java', 'Java AppHost (Experimental)', 'Java AppHost (Experimental)', 'java', '#e76f00', 'J'],
+    ['rust', 'Rust AppHost (Experimental)', 'Rust AppHost (Experimental)', 'rust', '#ce412b', 'Rs'],
+  ] as const)(
+    'uses registry labels and code fences for %s',
+    (kind, label, shortLabel, fence, color, glyph) => {
+      expect(appHostLabel(kind)).toBe(label);
+      expect(appHostShortLabel(kind)).toBe(shortLabel);
+      expect(appHostCodeLang(kind, kind === 'csproj' ? 'AppHost.cs' : null)).toBe(fence);
+      expect(appHostBrandColor(kind)).toBe(color);
+      expect(appHostFallbackGlyph(kind)).toBe(glyph);
+    }
+  );
+
+  test('uses XML highlighting only when a C# project file is the entry-point fallback', () => {
+    expect(appHostCodeLang('csproj', 'Store.AppHost.csproj')).toBe('xml');
+    expect(appHostCodeLang('csproj', 'Program.cs')).toBe('csharp');
+  });
+
+  test.each([
+    ['typescript', true],
+    ['csproj', true],
+    ['file-based', true],
+    ['python', false],
+    ['go', false],
+    ['java', false],
+    ['rust', false],
+  ] as const)('reflects registry activation for %s', (kind, enabled) => {
+    expect(isAppHostEnabled(kind as AppHostKind)).toBe(enabled);
+  });
+});
 
 describe('Aspire terminology normalization', () => {
   test.each([
@@ -134,10 +276,7 @@ describe('Aspire terminology normalization in code', () => {
       'var value = $"{Get("// ' + legacyAppHostName + '")}";',
     ],
     ['a C# raw string', 'var value = """// ' + legacyAppHostName + '""";'],
-    [
-      'a C# interpolated raw string',
-      'var value = $"""{Get("// ' + legacyAppHostName + '")}""";',
-    ],
+    ['a C# interpolated raw string', 'var value = $"""{Get("// ' + legacyAppHostName + '")}""";'],
     ['a TS template literal', `const label = \`the ${legacyAppHostName} process\`;`],
     ['a bare identifier expression', 'var appHost = builder.Build();'],
   ])('preserves %s so the code still compiles', (_scenario, input) => {
@@ -232,7 +371,11 @@ describe('sample terminology normalization', () => {
       description: 'An Aspire AppHost project.',
       readme: '# Aspire sample\n\nRun the AppHost.',
       readmeRaw:
-        '# Aspire sample\n\n' + 'Run the AppHost.\n\n' + '```bash\n' + 'dotnet aspire run\n' + '```\n',
+        '# Aspire sample\n\n' +
+        'Run the AppHost.\n\n' +
+        '```bash\n' +
+        'dotnet aspire run\n' +
+        '```\n',
       appHostCode: '// Keep the container running between AppHost sessions.',
     });
   });

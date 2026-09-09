@@ -1143,7 +1143,8 @@ describe('custom Astro component render coverage', () => {
     );
     expect(html).toContain('+1');
     expect(html).toContain('data-apphost="csproj"');
-    expect(html).toContain('C# (csproj) AppHost');
+    expect(html).toContain('C# project AppHost');
+    expect(html).toContain('--apphost-color: #512bd4');
 
     // The AppHost pill must live in the footer next to the "View on GitHub"
     // link rather than higher up in the card body, so the badge sits on the
@@ -1208,6 +1209,7 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('Aspire sample');
     expect(html).toContain('TypeScript AppHost');
     expect(html).toContain('data-apphost="typescript"');
+    expect(html).toContain('--apphost-color: #3178c6');
     expect(html).toContain('This sample shows how to connect an API and dashboard to Redis.');
     expect(html).not.toContain('**This sample**');
     expect(html).toContain('Running the app');
@@ -1312,6 +1314,39 @@ describe('custom Astro component render coverage', () => {
     expect(ctaIconIndex).toBeLessThan(ctaLabelIndex);
   });
 
+  it('keeps disabled AppHost languages out of authored sample UI', async () => {
+    const disabledLanguageSample = {
+      ...sampleDetailFixture,
+      appHost: 'python' as const,
+      appHostPath: 'apphost.py',
+      appHostCode: 'print("disabled AppHost metadata remains ingestible")',
+      tags: [],
+    };
+
+    const [cardHtml, detailHtml] = await Promise.all([
+      renderComponent(SampleCard, {
+        props: {
+          sample: {
+            ...disabledLanguageSample,
+            resolvedThumbnail: null,
+          },
+        },
+      }).then(normalizeHtml),
+      renderComponent(SampleDetail, {
+        props: {
+          sample: disabledLanguageSample,
+          samplesHref: '/reference/samples/',
+        },
+      }).then(normalizeHtml),
+    ]);
+
+    expect(cardHtml).not.toContain('data-apphost="python"');
+    expect(cardHtml).not.toContain('Python AppHost');
+    expect(detailHtml).not.toContain('data-apphost="python"');
+    expect(detailHtml).not.toContain('Python AppHost');
+    expect(detailHtml).not.toContain('disabled AppHost metadata remains ingestible');
+  });
+
   it('strips emphasized first paragraphs and long emphasized labels (paragraphPlainText doubling regression)', async () => {
     // Regression for the marked-token doubling bug in SampleDetail's
     // paragraphPlainText: marked carries both a `text` field and a `tokens`
@@ -1406,6 +1441,23 @@ describe('custom Astro component render coverage', () => {
     );
     expect(markdown).toContain('![External](https://example.com/x.png)');
     expect(markdown.endsWith('\n')).toBe(true);
+
+    const disabledAppHostMarkdown = buildSampleMarkdown(
+      {
+        name: 'python-apphost-sample',
+        title: 'Python AppHost sample',
+        description: null,
+        href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/python-apphost-sample',
+        readme: '# Python AppHost sample',
+        tags: ['python'],
+        thumbnail: null,
+        appHost: 'python',
+      },
+      { appHostLabel }
+    );
+
+    expect(disabledAppHostMarkdown).not.toContain('**AppHost:**');
+    expect(disabledAppHostMarkdown).toContain('**Tags:** python');
   });
 
   it('renders SessionCard speaker metadata and time badge', async () => {

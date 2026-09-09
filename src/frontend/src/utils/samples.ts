@@ -1,4 +1,10 @@
-export type AppHostKind = 'typescript' | 'csproj' | 'file-based';
+import {
+  getAppHostLanguage,
+  type AppHostLanguage,
+  type AppHostLanguageId,
+} from '@utils/apphost-languages';
+
+export type AppHostKind = AppHostLanguageId | 'csproj' | 'file-based';
 export type SampleImageTheme = 'light' | 'dark';
 
 export interface ThemeAwareSampleImage {
@@ -79,32 +85,33 @@ export function normalizeThemeImageAlt(alt: string): string {
     .trim();
 }
 
+export function appHostLanguageId(kind: AppHostKind): AppHostLanguageId {
+  return kind === 'csproj' || kind === 'file-based' ? 'csharp' : kind;
+}
+
+export function appHostLanguage(kind: AppHostKind): AppHostLanguage {
+  return getAppHostLanguage(appHostLanguageId(kind));
+}
+
 export function appHostLabel(kind: AppHostKind): string {
-  switch (kind) {
-    case 'typescript':
-      return 'TypeScript AppHost';
-    case 'csproj':
-      return 'C# AppHost';
-    case 'file-based':
-      return 'File-based AppHost';
-  }
+  const language = appHostLanguage(kind);
+  const flavor =
+    kind === 'csproj' ? ' (project-based)' : kind === 'file-based' ? ' (file-based)' : '';
+  const status = language.experimental ? ' (Experimental)' : '';
+  return `${language.label} AppHost${flavor}${status}`;
 }
 
 export function appHostShortLabel(kind: AppHostKind): string {
-  switch (kind) {
-    case 'typescript':
-      return 'TypeScript';
-    case 'csproj':
-      return 'C# (csproj)';
-    case 'file-based':
-      return 'File-based';
-  }
+  const language = appHostLanguage(kind);
+  const flavor = kind === 'csproj' ? ' project' : kind === 'file-based' ? ' file-based' : '';
+  const status = language.experimental ? ' (Experimental)' : '';
+  return `${language.label}${flavor} AppHost${status}`;
 }
 
 /**
- * Map an AppHost kind to a Starlight icon name where one is a clean fit.
- * Returns `null` for `'csproj'` so callers can render their own custom glyph
- * (an XML-style angle-bracket mark) instead of a misleading C# letterform.
+ * Map registry icon IDs to Starlight icons where a clean built-in icon exists.
+ * Other languages use a compact fallback glyph supplied by
+ * `appHostFallbackGlyph`.
  *
  * The return type is a subset of `StarlightIcon` so consumers can pass it
  * straight into `<Icon name={...}>` without a cast.
@@ -112,23 +119,54 @@ export function appHostShortLabel(kind: AppHostKind): string {
 export type SampleAppHostIcon = 'seti:typescript' | 'seti:c-sharp';
 
 export function appHostIconName(kind: AppHostKind | null | undefined): SampleAppHostIcon | null {
-  if (kind === 'typescript') return 'seti:typescript';
-  if (kind === 'file-based') return 'seti:c-sharp';
+  if (!kind) return null;
+  const icon = appHostLanguage(kind).icon;
+  if (icon === 'typescript') return 'seti:typescript';
+  if (icon === 'csharp') return 'seti:c-sharp';
   return null;
 }
 
+const APP_HOST_FALLBACK_GLYPHS: Record<AppHostLanguageId, string> = {
+  typescript: 'TS',
+  csharp: 'C#',
+  python: 'Py',
+  go: 'Go',
+  java: 'J',
+  rust: 'Rs',
+};
+
+const APP_HOST_BRAND_COLORS: Record<AppHostLanguageId, string> = {
+  typescript: '#3178c6',
+  csharp: '#512bd4',
+  python: '#3776ab',
+  go: '#00add8',
+  java: '#e76f00',
+  rust: '#ce412b',
+};
+
+export function appHostFallbackGlyph(kind: AppHostKind): string {
+  return APP_HOST_FALLBACK_GLYPHS[appHostLanguage(kind).icon];
+}
+
+export function appHostBrandColor(kind: AppHostKind): string {
+  return APP_HOST_BRAND_COLORS[appHostLanguageId(kind)];
+}
+
+export function isAppHostEnabled(kind: AppHostKind | null | undefined): boolean {
+  return kind ? appHostLanguage(kind).enabled : false;
+}
+
 /**
- * Map the AppHost entry-point file extension to an expressive-code language
- * identifier so syntax highlighting matches the file. Treats Aspire 13.4's
- * `apphost.mts` (TypeScript module) the same as the legacy `apphost.ts`.
+ * Map the detected AppHost language to its registry code fence. C# project
+ * files use XML only when no source entry point was found.
  */
-export function appHostCodeLang(path: string | null | undefined): string {
-  if (!path) return 'text';
-  const lower = path.toLowerCase();
-  if (lower.endsWith('.ts') || lower.endsWith('.mts')) return 'typescript';
-  if (lower.endsWith('.cs')) return 'csharp';
-  if (lower.endsWith('.csproj')) return 'xml';
-  return 'text';
+export function appHostCodeLang(
+  kind: AppHostKind | null | undefined,
+  path: string | null | undefined
+): string {
+  if (!kind) return 'text';
+  if (kind === 'csproj' && path?.toLowerCase().endsWith('.csproj')) return 'xml';
+  return appHostLanguage(kind).codeFence;
 }
 
 /**
@@ -197,7 +235,9 @@ export function buildSampleMarkdown(sample: Sample, options: BuildSampleMarkdown
 
   const metaLines = [
     `> **Source:** [${sample.name}](${sample.href})`,
-    sample.appHost ? `> **AppHost:** ${options.appHostLabel(sample.appHost)}` : null,
+    sample.appHost && isAppHostEnabled(sample.appHost)
+      ? `> **AppHost:** ${options.appHostLabel(sample.appHost)}`
+      : null,
     sample.tags.length > 0 ? `> **Tags:** ${sample.tags.join(', ')}` : null,
   ].filter((line): line is string => line !== null);
 
