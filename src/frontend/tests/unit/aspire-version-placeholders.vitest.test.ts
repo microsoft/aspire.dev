@@ -4,7 +4,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { locales } from '../../config/locales.ts';
-import { replaceAspireVersionPlaceholdersInDirectory } from '../../config/aspire-version-placeholders-integration.mjs';
+import {
+  getPageActionsMarkdownOutputPath,
+  replaceAspireVersionPlaceholdersInDirectory,
+} from '../../config/aspire-version-placeholders-integration.mjs';
 import appHostLanguageConfig from '../../src/data/apphost-languages.json';
 import {
   currentAspireMajorMinorVersion,
@@ -214,7 +217,12 @@ describe('Aspire version placeholders', () => {
         writeFile(jsonPath, '{"version":"%ASPIRE_VERSION%"}'),
       ]);
 
-      await replaceAspireVersionPlaceholdersInDirectory(tempDir);
+      await replaceAspireVersionPlaceholdersInDirectory(
+        tempDir,
+        undefined,
+        undefined,
+        null
+      );
 
       // Only the `.md` copy (which bypasses the remark pipeline) is rewritten.
       await expect(readFile(markdownPath, 'utf8')).resolves.toBe(
@@ -235,16 +243,128 @@ describe('Aspire version placeholders', () => {
     }
   });
 
+  test('matches page-actions output paths for root, nested, index, and localized docs', () => {
+    const sourceDirectory = path.join('workspace', 'src', 'content', 'docs');
+    const outputDirectory = path.join('workspace', 'dist');
+    const cases = [
+      ['index.mdx', 'index.md'],
+      [path.join('get-started', 'app-host.mdx'), path.join('get-started', 'app-host.md')],
+      [path.join('get-started', 'index.mdx'), 'get-started.md'],
+      [
+        path.join('de', 'get-started', 'app-host.mdx'),
+        path.join('de', 'get-started', 'app-host.md'),
+      ],
+      [path.join('de', 'get-started', 'index.mdx'), path.join('de', 'get-started.md')],
+    ];
+
+    for (const [sourceRelativePath, outputRelativePath] of cases) {
+      expect(
+        getPageActionsMarkdownOutputPath(
+          path.join(sourceDirectory, sourceRelativePath),
+          sourceDirectory,
+          outputDirectory
+        )
+      ).toBe(path.join(outputDirectory, outputRelativePath));
+    }
+  });
+
+  test('regenerates the CI parser failures from their original AppHost sources', async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'aspire-version-placeholders-'));
+    const sourceDirectory = path.join(tempDir, 'source');
+    const outputDirectory = path.join(tempDir, 'dist');
+    const sourceRelativePaths = [
+      path.join('fundamentals', 'custom-resource-commands.mdx'),
+      path.join('get-started', 'deploy-first-app.mdx'),
+      path.join('integrations', 'frameworks', 'dotnet', 'dotnet-host.mdx'),
+      path.join('integrations', 'security', 'keycloak.mdx'),
+    ];
+
+    try {
+      await mkdir(outputDirectory, { recursive: true });
+      await Promise.all(
+        sourceRelativePaths.map(async (relativePath) => {
+          const sourcePath = path.join(sourceDirectory, relativePath);
+          await mkdir(path.dirname(sourcePath), { recursive: true });
+          await writeFile(sourcePath, await readFile(path.join(docsRoot, relativePath), 'utf8'));
+        })
+      );
+
+      await replaceAspireVersionPlaceholdersInDirectory(
+        outputDirectory,
+        2,
+        appHostLanguageConfig,
+        sourceDirectory
+      );
+
+      for (const relativePath of sourceRelativePaths) {
+        const outputPath = getPageActionsMarkdownOutputPath(
+          path.join(sourceDirectory, relativePath),
+          sourceDirectory,
+          outputDirectory
+        );
+        const output = await readFile(outputPath, 'utf8');
+        expect(output).not.toContain('<AppHostTabs');
+        expect(output).not.toContain('<AppHostLanguagePivot');
+      }
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('reports source and output paths when AppHost Markdown regeneration fails', async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'aspire-version-placeholders-'));
+    const sourceDirectory = path.join(tempDir, 'source');
+    const outputDirectory = path.join(tempDir, 'dist');
+
+    try {
+      await Promise.all([
+        mkdir(sourceDirectory, { recursive: true }),
+        mkdir(outputDirectory, { recursive: true }),
+      ]);
+      await writeFile(path.join(sourceDirectory, 'broken.mdx'), '<AppHostTabs>{');
+
+      await expect(
+        replaceAspireVersionPlaceholdersInDirectory(
+          outputDirectory,
+          1,
+          appHostLanguageConfig,
+          sourceDirectory
+        )
+      ).rejects.toThrow(
+        'Failed to regenerate Markdown copy "broken.md" from source "broken.mdx"'
+      );
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test('uses one custom AppHost language config for page deletion and Markdown rendering', async () => {
     const tempDir = await mkdtemp(path.join(os.tmpdir(), 'aspire-version-placeholders-'));
 
     try {
-      const appHostDirectory = path.join(tempDir, 'app-host');
-      await mkdir(appHostDirectory, { recursive: true });
+      const sourceDirectory = path.join(tempDir, 'source');
+      const outputDirectory = path.join(tempDir, 'dist');
+      const sourceAppHostDirectory = path.join(sourceDirectory, 'app-host');
+      const outputAppHostDirectory = path.join(outputDirectory, 'app-host');
+      const localizedOutputAppHostDirectory = path.join(
+        outputDirectory,
+        'de',
+        'app-host'
+      );
+      await Promise.all([
+        mkdir(sourceAppHostDirectory, { recursive: true }),
+        mkdir(outputAppHostDirectory, { recursive: true }),
+        mkdir(localizedOutputAppHostDirectory, { recursive: true }),
+      ]);
 
-      const typescriptPath = path.join(appHostDirectory, 'typescript-apphost.md');
-      const pythonPath = path.join(appHostDirectory, 'python-apphost.md');
-      const markdownPath = path.join(tempDir, 'example.md');
+      const typescriptPath = path.join(outputAppHostDirectory, 'typescript-apphost.md');
+      const localizedTypescriptPath = path.join(
+        localizedOutputAppHostDirectory,
+        'typescript-apphost.md'
+      );
+      const pythonPath = path.join(outputAppHostDirectory, 'python-apphost.md');
+      const sourceMarkdownPath = path.join(sourceDirectory, 'example.mdx');
+      const outputMarkdownPath = path.join(outputDirectory, 'example.md');
       const languageConfig = {
         ...appHostLanguageConfig,
         languages: appHostLanguageConfig.languages.map((language) => ({
@@ -255,10 +375,15 @@ describe('Aspire version placeholders', () => {
 
       await Promise.all([
         writeFile(typescriptPath, 'Disabled TypeScript AppHost'),
+        writeFile(localizedTypescriptPath, 'Disabled localized TypeScript AppHost'),
         writeFile(pythonPath, 'Enabled Python AppHost'),
         writeFile(
-          markdownPath,
-          `<AppHostTabs>
+          sourceMarkdownPath,
+          `---
+title: Example
+---
+
+<AppHostTabs>
 <Fragment slot="typescript">
 TypeScript tab
 </Fragment>
@@ -280,15 +405,20 @@ Python pivot
       ]);
 
       await replaceAspireVersionPlaceholdersInDirectory(
-        tempDir,
+        outputDirectory,
         Number.NaN,
-        languageConfig
+        languageConfig,
+        sourceDirectory
       );
 
       await expect(readFile(typescriptPath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(readFile(localizedTypescriptPath, 'utf8')).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
       await expect(readFile(pythonPath, 'utf8')).resolves.toBe('Enabled Python AppHost');
 
-      const rendered = await readFile(markdownPath, 'utf8');
+      const rendered = await readFile(outputMarkdownPath, 'utf8');
+      expect(rendered).toContain('# Example');
       expect(rendered).toContain('### C#');
       expect(rendered).toContain('### Python (Experimental)');
       expect(rendered).not.toContain('### TypeScript');
@@ -319,7 +449,12 @@ ${csharp}${typescript}</Tabs>
 `
       );
 
-      await replaceAspireVersionPlaceholdersInDirectory(tempDir);
+      await replaceAspireVersionPlaceholdersInDirectory(
+        tempDir,
+        undefined,
+        undefined,
+        null
+      );
 
       await expect(readFile(markdownPath, 'utf8')).resolves.toBe(
         `<Tabs syncKey='aspire-lang'>
@@ -359,7 +494,12 @@ ${typescript}${csharp.replace('%ASPIRE_VERSION%', currentAspireVersion)}</Tabs>
         }
       }
 
-      await replaceAspireVersionPlaceholdersInDirectory(tempDir, 2);
+      await replaceAspireVersionPlaceholdersInDirectory(
+        tempDir,
+        2,
+        undefined,
+        null
+      );
 
       await Promise.all(
         markdownPaths.map(async (markdownPath) => {
@@ -388,7 +528,12 @@ ${typescript}${csharp.replace('%ASPIRE_VERSION%', currentAspireVersion)}</Tabs>
 
       // A non-finite concurrency must not collapse the worker pool to an empty
       // array and silently skip every file.
-      await replaceAspireVersionPlaceholdersInDirectory(tempDir, Number.NaN);
+      await replaceAspireVersionPlaceholdersInDirectory(
+        tempDir,
+        Number.NaN,
+        undefined,
+        null
+      );
 
       await expect(readFile(markdownPath, 'utf8')).resolves.toBe(
         `Aspire ${currentAspireMajorMinorVersion}: ${currentAspireVersion}`

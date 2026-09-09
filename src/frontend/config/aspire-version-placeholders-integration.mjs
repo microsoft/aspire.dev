@@ -1,18 +1,19 @@
-import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cleanStarlightMarkdown } from 'tidymd';
 import { getDisabledAppHostProjectPageIds } from './apphost-language-docs-loader.mjs';
 import { replaceAspireVersionPlaceholders } from './remark-aspire-version-placeholders.mjs';
 import { orderTypeScriptFirstAppHostTabsInMarkdown } from './remark-typescript-first-apphost-tabs.mjs';
 import { renderAppHostTabsInMarkdown } from './apphost-language-markdown.mjs';
 import appHostLanguageConfig from '../src/data/apphost-languages.json' with { type: 'json' };
 
-// Per-page Markdown copies emitted by `starlight-page-actions` bypass the
-// remark transforms that replace Aspire version placeholders and order AppHost
-// language tabs:
-// that plugin `viteStaticCopy`s `src/content/docs/**/*.{md,mdx}` straight to
-// `dist/**/*.md` through a regex-only transform, so it never runs through the
-// configured remark pipeline.
+// Per-page Markdown copies emitted by `starlight-page-actions` bypass the remark
+// pipeline. The plugin also cleans MDX before copying it, which flattens custom
+// AppHost components before they can be rendered safely. Regenerate those copies
+// from the original source in the required order: render AppHost language content,
+// run the same page-actions cleanup, then apply copy-only ordering and placeholders.
+// Copies without AppHost components keep the faster in-place post-build path.
 //
 // Everything else is already handled before it reaches `dist`:
 //   - `.html` pages   -> rendered via the remark pipeline (placeholders replaced
@@ -25,6 +26,11 @@ import appHostLanguageConfig from '../src/data/apphost-languages.json' with { ty
 // of the output — including the large `llms-full.txt` assets — which is what
 // previously exhausted the Node heap.
 const markdownCopyExtensions = new Set(['.md']);
+const sourceMarkdownExtensions = new Set(['.md', '.mdx']);
+const appHostLanguageSourcePattern = /<AppHost(?:Tabs|LanguagePivot)\b/i;
+const defaultDocsSourceDirectory = fileURLToPath(
+  new URL('../src/content/docs/', import.meta.url)
+);
 
 // Process the Markdown copies through a small worker pool rather than a single
 // recursive `Promise.all` over the whole tree, so peak memory stays proportional
@@ -45,39 +51,81 @@ export function aspireVersionPlaceholdersIntegration() {
 export async function replaceAspireVersionPlaceholdersInDirectory(
   directory,
   concurrency = DEFAULT_CONCURRENCY,
-  languageConfig = appHostLanguageConfig
+  languageConfig = appHostLanguageConfig,
+  sourceDirectory = defaultDocsSourceDirectory
 ) {
-  await removeDisabledAppHostMarkdownCopies(directory, languageConfig);
-
   const files = [];
   await collectMarkdownCopies(directory, files);
 
-  if (files.length === 0) {
+  const disabledIds = getDisabledAppHostProjectPageIds(languageConfig);
+  const enabledOutputFiles = await removeDisabledAppHostMarkdownCopies(
+    directory,
+    files,
+    disabledIds
+  );
+  const sourceCopies = [];
+  if (sourceDirectory) {
+    await collectAppHostSourceCopies(
+      sourceDirectory,
+      sourceDirectory,
+      directory,
+      disabledIds,
+      sourceCopies
+    );
+  }
+  const regeneratedOutputFiles = new Set(sourceCopies.map(({ outputPath }) => outputPath));
+
+  await runWorkerPool(sourceCopies, concurrency, ({ sourcePath, outputPath }) =>
+    regenerateAppHostMarkdownCopy(
+      sourcePath,
+      outputPath,
+      sourceDirectory,
+      directory,
+      languageConfig
+    )
+  );
+  await runWorkerPool(
+    enabledOutputFiles.filter((filePath) => !regeneratedOutputFiles.has(filePath)),
+    concurrency,
+    (filePath) => processMarkdownCopy(filePath, directory)
+  );
+}
+
+async function runWorkerPool(items, concurrency, action) {
+  if (items.length === 0) {
     return;
   }
 
   // Normalize to a finite positive integer so a stray NaN/0/negative value can't
   // collapse the worker pool to an empty array and silently skip every file.
   const limit = Number.isFinite(concurrency) ? Math.floor(concurrency) : DEFAULT_CONCURRENCY;
-  const workerCount = Math.min(Math.max(1, limit), files.length);
+  const workerCount = Math.min(Math.max(1, limit), items.length);
   let cursor = 0;
 
   const runWorker = async () => {
-    while (cursor < files.length) {
-      const filePath = files[cursor++];
-      await processMarkdownCopy(filePath, languageConfig);
+    while (cursor < items.length) {
+      await action(items[cursor++]);
     }
   };
 
   await Promise.all(Array.from({ length: workerCount }, runWorker));
 }
 
-async function removeDisabledAppHostMarkdownCopies(directory, languageConfig) {
-  await Promise.all(
-    getDisabledAppHostProjectPageIds(languageConfig).map((id) =>
-      rm(path.join(directory, `${id}.md`), { force: true })
-    )
-  );
+async function removeDisabledAppHostMarkdownCopies(directory, files, disabledIds) {
+  const enabledFiles = [];
+  const disabledFiles = [];
+
+  for (const filePath of files) {
+    const relativePath = normalizeRelativePath(path.relative(directory, filePath));
+    if (disabledIds.some((id) => relativePath === `${id}.md` || relativePath.endsWith(`/${id}.md`))) {
+      disabledFiles.push(filePath);
+    } else {
+      enabledFiles.push(filePath);
+    }
+  }
+
+  await Promise.all(disabledFiles.map((filePath) => rm(filePath, { force: true })));
+  return enabledFiles;
 }
 
 async function collectMarkdownCopies(directory, files) {
@@ -97,13 +145,135 @@ async function collectMarkdownCopies(directory, files) {
   }
 }
 
-async function processMarkdownCopy(filePath, languageConfig) {
-  const content = await readFile(filePath, 'utf8');
-  const rendered = renderAppHostTabsInMarkdown(content, languageConfig.languages);
-  const ordered = orderTypeScriptFirstAppHostTabsInMarkdown(rendered);
-  const updated = replaceAspireVersionPlaceholders(ordered);
+async function collectAppHostSourceCopies(
+  currentDirectory,
+  sourceDirectory,
+  outputDirectory,
+  disabledIds,
+  copies
+) {
+  const entries = await readdir(currentDirectory, { withFileTypes: true });
 
-  if (updated !== content) {
-    await writeFile(filePath, updated);
+  for (const entry of entries) {
+    const sourcePath = path.join(currentDirectory, entry.name);
+
+    if (entry.isDirectory()) {
+      await collectAppHostSourceCopies(
+        sourcePath,
+        sourceDirectory,
+        outputDirectory,
+        disabledIds,
+        copies
+      );
+      continue;
+    }
+
+    if (!entry.isFile() || !sourceMarkdownExtensions.has(path.extname(entry.name))) {
+      continue;
+    }
+
+    const content = await readFile(sourcePath, 'utf8');
+    if (!appHostLanguageSourcePattern.test(content)) {
+      continue;
+    }
+
+    const outputPath = getPageActionsMarkdownOutputPath(
+      sourcePath,
+      sourceDirectory,
+      outputDirectory
+    );
+    const outputRelativePath = normalizeRelativePath(path.relative(outputDirectory, outputPath));
+    if (
+      disabledIds.some(
+        (id) => outputRelativePath === `${id}.md` || outputRelativePath.endsWith(`/${id}.md`)
+      )
+    ) {
+      continue;
+    }
+
+    copies.push({ sourcePath, outputPath });
   }
+}
+
+export function getPageActionsMarkdownOutputPath(
+  sourcePath,
+  sourceDirectory,
+  outputDirectory
+) {
+  const relativePath = path.relative(sourceDirectory, sourcePath);
+  const extension = path.extname(relativePath);
+  const pathSegments = relativePath.slice(0, -extension.length).split(path.sep);
+  const fileName = pathSegments.at(-1);
+  let outputSegments;
+
+  if (fileName === 'index') {
+    if (pathSegments.length === 1) {
+      outputSegments = ['index.md'];
+    } else {
+      outputSegments = [
+        ...pathSegments.slice(0, -2),
+        `${pathSegments.at(-2)}.md`,
+      ];
+    }
+  } else {
+    outputSegments = [
+      ...pathSegments.slice(0, -1),
+      `${fileName}.md`,
+    ];
+  }
+
+  return path.join(outputDirectory, ...outputSegments);
+}
+
+async function regenerateAppHostMarkdownCopy(
+  sourcePath,
+  outputPath,
+  sourceDirectory,
+  outputDirectory,
+  languageConfig
+) {
+  const sourceRelativePath = normalizeRelativePath(path.relative(sourceDirectory, sourcePath));
+  const outputRelativePath = normalizeRelativePath(path.relative(outputDirectory, outputPath));
+
+  try {
+    const source = await readFile(sourcePath, 'utf8');
+    const rendered = renderAppHostTabsInMarkdown(source, languageConfig.languages);
+    const cleaned = cleanStarlightMarkdown(rendered, {
+      frontmatter: 'title-as-heading',
+      internalLinks: { mode: 'preserve' },
+    });
+    const ordered = orderTypeScriptFirstAppHostTabsInMarkdown(cleaned);
+    const updated = replaceAspireVersionPlaceholders(ordered);
+
+    await mkdir(path.dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, updated);
+  } catch (error) {
+    throw new Error(
+      `Failed to regenerate Markdown copy "${outputRelativePath}" from source "${sourceRelativePath}": ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    );
+  }
+}
+
+async function processMarkdownCopy(filePath, outputDirectory) {
+  const relativePath = normalizeRelativePath(path.relative(outputDirectory, filePath));
+
+  try {
+    const content = await readFile(filePath, 'utf8');
+    const ordered = orderTypeScriptFirstAppHostTabsInMarkdown(content);
+    const updated = replaceAspireVersionPlaceholders(ordered);
+
+    if (updated !== content) {
+      await writeFile(filePath, updated);
+    }
+  } catch (error) {
+    throw new Error(
+      `Failed to process Markdown copy "${relativePath}": ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    );
+  }
+}
+
+function normalizeRelativePath(relativePath) {
+  return relativePath.split(path.sep).join('/');
 }
