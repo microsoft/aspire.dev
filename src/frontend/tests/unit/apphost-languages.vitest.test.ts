@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   appHostLanguageConfig,
+  getAppHostLanguageProjectHref,
   getEnabledAppHostLanguages,
   normalizeAppHostLanguage,
 } from '../../src/utils/apphost-languages';
@@ -82,6 +83,31 @@ describe('AppHost language registry', () => {
     expect(normalizeAppHostLanguage('mongo')).toBeUndefined();
     expect(normalizeAppHostLanguage('python')).toBeUndefined();
     expect(normalizeAppHostLanguage('python', false)).toBe('python');
+  });
+
+  test('publishes project links only for enabled AppHost languages', () => {
+    expect(getAppHostLanguageProjectHref('typescript')).toBe('/app-host/typescript-apphost/');
+    expect(getAppHostLanguageProjectHref('python')).toBeUndefined();
+
+    const enabledPythonConfig = {
+      ...appHostLanguageConfig,
+      languages: appHostLanguageConfig.languages.map((language) => ({
+        ...language,
+        enabled: language.id === 'python' || language.enabled,
+      })),
+    };
+
+    expect(getAppHostLanguageProjectHref('python', enabledPythonConfig)).toBe(
+      '/app-host/python-apphost/'
+    );
+  });
+
+  test('preserves the legacy AppHost dependency anchor', () => {
+    const source = fs.readFileSync(path.join(docsDirectory, 'get-started', 'app-host.mdx'), 'utf8');
+
+    expect(source).toMatch(
+      /<a id="adding-an-api-resource-and-declaring-a-dependency"><\/a>\r?\n\r?\n## Define resources and relationships/
+    );
   });
 
   test('active English docs use only registry-backed AppHost language components', () => {

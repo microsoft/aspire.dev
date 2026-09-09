@@ -150,6 +150,18 @@ export function getAppHostLanguage(id: AppHostLanguageId): AppHostLanguage {
   return language;
 }
 
+export function getAppHostLanguageProjectHref(
+  id: AppHostLanguageId,
+  config = appHostLanguageConfig
+): string | undefined {
+  const language = config.languages.find((candidate) => candidate.id === id);
+  if (!language) {
+    throw new Error(`Unknown AppHost language: ${id}`);
+  }
+
+  return language.enabled ? `/app-host/${language.id}-apphost/` : undefined;
+}
+
 export function normalizeAppHostLanguage(
   value: string | null | undefined,
   enabledOnly = true

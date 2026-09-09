@@ -6,6 +6,7 @@ import AppHostBuilder from '@components/AppHostBuilder.astro';
 import AppHostLanguageEvidence from '@components/AppHostLanguageEvidence.astro';
 import AppHostLanguagePivot from '@components/AppHostLanguagePivot.astro';
 import AppHostLanguageSelector from '@components/AppHostLanguageSelector.astro';
+import AppHostProjectLink from '@components/AppHostProjectLink.astro';
 import AppHostTabs from '@components/AppHostTabs.astro';
 import AspireMap from '@components/AspireMap.astro';
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
@@ -958,6 +959,26 @@ describe('custom Astro component render coverage', () => {
 
     expect(enabledHtml).toContain('Enabled language content');
     expect(disabledHtml).not.toContain('Disabled language content');
+  });
+
+  it('renders project links only for enabled AppHost languages', async () => {
+    const enabledHtml = normalizeHtml(
+      await renderComponent(AppHostProjectLink, {
+        props: { id: 'typescript' },
+        slots: { default: 'TypeScript project structure' },
+      })
+    );
+    const disabledHtml = normalizeHtml(
+      await renderComponent(AppHostProjectLink, {
+        props: { id: 'python' },
+        slots: { default: 'Python project structure' },
+      })
+    );
+
+    expect(enabledHtml).toContain('href="/app-host/typescript-apphost/"');
+    expect(enabledHtml).toContain('TypeScript project structure');
+    expect(disabledHtml).not.toContain('href=');
+    expect(disabledHtml).toContain('Python project structure');
   });
 
   it('renders verified AppHost evidence for an enabled language', async () => {
