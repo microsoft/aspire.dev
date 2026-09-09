@@ -234,6 +234,39 @@ describe('Aspire version placeholders', () => {
     }
   });
 
+  test('removes page-action Markdown copies for disabled AppHost project pages', async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'aspire-version-placeholders-'));
+
+    try {
+      const appHostDirectory = path.join(tempDir, 'app-host');
+      await mkdir(appHostDirectory, { recursive: true });
+
+      const enabledPath = path.join(appHostDirectory, 'typescript-apphost.md');
+      const disabledPaths = [
+        'python-apphost.md',
+        'go-apphost.md',
+        'java-apphost.md',
+        'rust-apphost.md',
+      ].map((fileName) => path.join(appHostDirectory, fileName));
+
+      await Promise.all([
+        writeFile(enabledPath, 'TypeScript AppHost'),
+        ...disabledPaths.map((filePath) => writeFile(filePath, 'Disabled AppHost')),
+      ]);
+
+      await replaceAspireVersionPlaceholdersInDirectory(tempDir);
+
+      await expect(readFile(enabledPath, 'utf8')).resolves.toBe('TypeScript AppHost');
+      await Promise.all(
+        disabledPaths.map((filePath) =>
+          expect(readFile(filePath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+        )
+      );
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test('orders C#-first AppHost tabs in generated Markdown copies', async () => {
     const tempDir = await mkdtemp(path.join(os.tmpdir(), 'aspire-version-placeholders-'));
 

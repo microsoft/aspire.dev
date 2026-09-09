@@ -1,6 +1,7 @@
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getDisabledAppHostProjectPageIds } from './apphost-language-docs-loader.mjs';
 import { replaceAspireVersionPlaceholders } from './remark-aspire-version-placeholders.mjs';
 import { orderTypeScriptFirstAppHostTabsInMarkdown } from './remark-typescript-first-apphost-tabs.mjs';
 import { renderAppHostTabsInMarkdown } from './apphost-language-markdown.mjs';
@@ -45,6 +46,8 @@ export async function replaceAspireVersionPlaceholdersInDirectory(
   directory,
   concurrency = DEFAULT_CONCURRENCY
 ) {
+  await removeDisabledAppHostMarkdownCopies(directory);
+
   const files = [];
   await collectMarkdownCopies(directory, files);
 
@@ -66,6 +69,14 @@ export async function replaceAspireVersionPlaceholdersInDirectory(
   };
 
   await Promise.all(Array.from({ length: workerCount }, runWorker));
+}
+
+async function removeDisabledAppHostMarkdownCopies(directory) {
+  await Promise.all(
+    getDisabledAppHostProjectPageIds().map((id) =>
+      rm(path.join(directory, `${id}.md`), { force: true })
+    )
+  );
 }
 
 async function collectMarkdownCopies(directory, files) {
