@@ -15204,16 +15204,6 @@ export interface IDistributedApplicationBuilder {
 
   addBitwardenSecretManager(name: string, projectNameOrId: string | ParameterResource, organizationId: string | ParameterResource, accessToken: string | ParameterResource): BitwardenSecretManagerResource;
   /**
-   * Adds a Bun app to the builder.
-   */
-
-  addBunApp(name: string, options?: { workingDirectory?: string; entryPoint?: string; watch?: boolean }): BunAppResource;
-  /**
-   * Adds a Bun app to the builder.
-   */
-
-  addBunApp(name: string, workingDirectory?: string, entryPoint?: string, watch?: boolean): BunAppResource;
-  /**
    * Adds a DbGate container resource to the application.
    */
 
@@ -17260,11 +17250,6 @@ export interface BunAppResource {
    */
 
   withYarn(install?: boolean, installArgs?: string[]): this;
-  /**
-   * Ensures the Bun packages are installed before the application starts using Bun as the package manager.
-   */
-
-  withBunPackageInstallation(): this;
   /**
    * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
    */
