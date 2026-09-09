@@ -1,7 +1,7 @@
 ---
 title: Project resources
 seoTitle: "Add C# project resources to your Aspire AppHost"
-description: Learn how to add .NET projects as resources in your Aspire AppHost — with examples for both AppHost.cs (C#) and apphost.mts (TypeScript).
+description: Add .NET project resources from C#, TypeScript, Python, Go, Java, and Rust AppHosts, including references, launch profiles, endpoints, and replicas.
 ---
 
 import AppHostTabs from '@components/AppHostTabs.astro';
@@ -23,7 +23,7 @@ import proxyWithRandomPorts from '@assets/fundamentals/networking/proxy-with-ran
   data-zoom-off
 />
 
-This article is the reference for modeling .NET projects as first-class Aspire resources in your AppHost. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to add, configure, and connect a .NET project resource in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for modeling .NET projects as first-class Aspire resources in your AppHost. It shows the C# API and the generated TypeScript, Python, Go, Java, and Rust APIs that add, configure, and connect a .NET project resource.
 
 ## When to use project resources
 
@@ -33,7 +33,7 @@ Use project resources when you need to:
 - Connect the project to other Aspire resources with `withReference`, service discovery, and generated connection strings.
 - Reuse launch profile settings and ASP.NET Core endpoint discovery from `launchSettings.json`.
 
-In a **C# AppHost**, `AddProject<T>` references the target project through a generated `Projects.*` type, created from a `ProjectReference` in the AppHost `.csproj`. In a **TypeScript AppHost**, `addProject(name, path)` takes the path to the `.csproj` file directly — no generated type or project file reference is needed.
+In a **C# AppHost**, `AddProject<T>` references the target project through a generated `Projects.*` type, created from a `ProjectReference` in the AppHost `.csproj`. Generated guest-language SDKs take the path to the `.csproj` file directly, so no generated project type or AppHost project reference is needed.
 
 For single-file apps or quick experiments that don't need a `ProjectReference`, use [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/) instead.
 
@@ -78,13 +78,96 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../ApiService/ApiService.csproj")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../ApiService/ApiService.csproj")
+
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var api = builder.addProject("api", "../ApiService/ApiService.csproj");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let _api = builder.add_project("api", "../ApiService/ApiService.csproj", None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ## Resource dependencies
 
 Project resources participate fully in the Aspire application model. You can reference other resources, flow connection strings and service discovery information, and expose endpoints like any other Aspire resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  go: 'The PostgreSQL package used by this dependency example was not generated in the available Go SDK batch.',
+  rust: 'The Redis and PostgreSQL packages used by this dependency example are not present in the available Rust SDK module.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -118,6 +201,41 @@ await builder.addProject("api", "../ApiService/ApiService.csproj")
 
 await builder.build().run();
 ```
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    cache = builder.add_redis("cache")
+    postgres = builder.add_postgres("postgres")
+    db = postgres.add_database("appdb")
+    api = builder.add_project("api", "../ApiService/ApiService.csproj")
+    api.with_reference(cache).with_reference(db).with_external_http_endpoints()
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var cache = builder.addRedis("cache");
+    var db = builder.addPostgres("postgres").addDatabase("appdb");
+    var api = builder.addProject("api", "../ApiService/ApiService.csproj")
+        .withReference(cache)
+        .withReference(db)
+        .withExternalHttpEndpoints();
+
+    builder.build().run();
+}
+```
+
 </Fragment>
 </AppHostTabs>
 
@@ -176,6 +294,98 @@ await builder.addProject("inventoryservice", "../InventoryService/InventoryServi
 await builder.build().run();
 ```
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    inventory = builder.add_project(
+        "inventoryservice",
+        "../InventoryService/InventoryService.csproj",
+        launch_profile_or_options="https",
+    )
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	inventory := builder.AddProject("inventoryservice", "../InventoryService/InventoryService.csproj", &aspire.AddProjectOptions{LaunchProfileOrOptions: "https"})
+
+	if err := inventory.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var inventory = builder.addProject(
+        "inventoryservice",
+        "../InventoryService/InventoryService.csproj",
+        "https");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let _inventory = builder.add_project(
+        "inventoryservice",
+        "../InventoryService/InventoryService.csproj",
+        Some(json!("https")),
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 The `launchProfileName` argument has the highest precedence. When you don't specify it, Aspire selects the effective launch profile in this order:
@@ -187,7 +397,12 @@ The `launchProfileName` argument has the highest precedence. When you don't spec
 
 To force a project resource to run without a launch profile, pass `launchProfileName: null`:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for explicitly disabling launch-profile selection for addProject.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for explicitly disabling launch-profile selection for addProject.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for explicitly disabling launch-profile selection for addProject.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for explicitly disabling launch-profile selection for addProject.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -223,6 +438,92 @@ await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend
     .withHttpsEndpoint({ port: 7239 });
 ```
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    frontend = builder.add_project("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
+    frontend.with_http_endpoint(port=5066).with_https_endpoint(port=7239)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	httpPort, httpsPort := 5066.0, 7239.0
+	frontend := builder.AddProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: &httpPort}).WithHttpsEndpoint(&aspire.WithHttpsEndpointOptions{Port: &httpsPort})
+
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var frontend = builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
+        .withHttpEndpoint(new WithHttpEndpointOptions().port(5066))
+        .withHttpsEndpoint(new WithHttpsEndpointOptions().port(7239));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let frontend = builder.add_project("frontend", "../Networking_Frontend/Networking_Frontend.csproj", None)?;
+    frontend.with_http_endpoint(Some(5066.0), None, None, None, None)?;
+    frontend.with_https_endpoint(Some(7239.0), None, None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 If there's no _launchSettings.json_ file or selected launch profile, project resources don't get HTTP or HTTPS bindings by default.
@@ -248,7 +549,12 @@ With a Kestrel endpoint configured, remove any `applicationUrl` from _launchSett
   AppHost throws an exception.
 </Aside>
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the addProject configure callback that changes launch-profile and Kestrel endpoint flags.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the addProject configure callback that changes launch-profile and Kestrel endpoint flags.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the addProject configure callback that changes launch-profile and Kestrel endpoint flags.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the addProject configure callback that changes launch-profile and Kestrel endpoint flags.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -281,7 +587,12 @@ await builder.build().run();
 
 For ASP.NET Core projects, Aspire reads the selected launch profile and can create endpoints from the `applicationUrl` field in _launchSettings.json_. You can then customize those endpoints with methods like `WithEndpoint`:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the endpoint mutation callback used to set IsProxied.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the endpoint mutation callback used to set IsProxied.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the endpoint mutation callback used to set IsProxied.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the endpoint mutation callback used to set IsProxied.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -329,6 +640,92 @@ await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend
     .withReplicas(2);
 ```
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    frontend = builder.add_project("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
+    frontend.with_http_endpoint(port=5066).with_replicas(2)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	port := 5066.0
+	frontend := builder.AddProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: &port}).WithReplicas(2)
+
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var frontend = builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
+        .withHttpEndpoint(new WithHttpEndpointOptions().port(5066))
+        .withReplicas(2);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let frontend = builder.add_project("frontend", "../Networking_Frontend/Networking_Frontend.csproj", None)?;
+    frontend.with_http_endpoint(Some(5066.0), None, None, None, None)?;
+    frontend.with_replicas(2.0)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 The following diagram shows this setup:
@@ -360,6 +757,90 @@ await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend
     .withHttpEndpoint({ port: 5066 });
 ```
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    frontend = builder.add_project("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
+    frontend.with_http_endpoint(port=5066)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	port := 5066.0
+	frontend := builder.AddProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: &port})
+
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var frontend = builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
+        .withHttpEndpoint(new WithHttpEndpointOptions().port(5066));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let frontend = builder.add_project("frontend", "../Networking_Frontend/Networking_Frontend.csproj", None)?;
+    let _frontend = frontend.with_http_endpoint(Some(5066.0), None, None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 <Image
@@ -387,6 +868,89 @@ builder.AddProject<Projects.Networking_Frontend>("frontend")
 await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
     .withHttpEndpoint();
 ```
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    frontend = builder.add_project("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
+    frontend.with_http_endpoint()
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	frontend := builder.AddProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj").WithHttpEndpoint()
+
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var frontend = builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
+        .withHttpEndpoint();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let frontend = builder.add_project("frontend", "../Networking_Frontend/Networking_Frontend.csproj", None)?;
+    let _frontend = frontend.with_http_endpoint(None, None, None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
 </Fragment>
 </AppHostTabs>
 
@@ -428,6 +992,95 @@ await builder.addProject("apiservice", "../Networking.ApiService/Networking.ApiS
 await builder.build().run();
 ```
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("apiservice", "../Networking.ApiService/Networking.ApiService.csproj")
+    api.with_https_endpoint().with_https_endpoint(port=19227, name="admin").with_endpoints_in_env(["https"])
+    builder.run()
+````
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	adminPort := 19227.0
+	adminName := "admin"
+	api := builder.AddProject("apiservice", "../Networking.ApiService/Networking.ApiService.csproj").WithHttpsEndpoint().WithHttpsEndpoint(&aspire.WithHttpsEndpointOptions{Port: &adminPort, Name: &adminName}).WithEndpointsInEnvironment([]string{"https"})
+
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var api = builder.addProject("apiservice", "../Networking.ApiService/Networking.ApiService.csproj")
+        .withHttpsEndpoint()
+        .withHttpsEndpoint(new WithHttpsEndpointOptions().port(19227).name("admin"))
+        .withEndpointsInEnvironment(new String[] { "https" });
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project("apiservice", "../Networking.ApiService/Networking.ApiService.csproj", None)?;
+    api.with_https_endpoint(None, None, None, None, None)?;
+    api.with_https_endpoint(Some(19227.0), None, Some("admin"), None, None)?;
+    api.with_endpoints_in_environment(vec!["https".to_string()])?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 This keeps the `admin` endpoint out of the environment variables while still defining it in the application model.
@@ -438,11 +1091,11 @@ This keeps the `admin` endpoint out of the environment variables while still def
 
 ## How project references work
 
-The C# and TypeScript AppHosts differ in how they reference .NET projects:
+The C# API and generated guest-language APIs differ in how they reference .NET projects:
 
 - **C# AppHost**: A `ProjectReference` in the AppHost `.csproj` causes the Aspire SDK to generate a `Projects.*` type during build. `AddProject<Projects.ApiService>("api")` uses that generated type to locate and launch the project. For the SDK-level build behavior behind this generation step, see [Aspire SDK](/get-started/aspire-sdk/).
 
-- **TypeScript AppHost**: No `ProjectReference` is needed. `addProject("api", "../ApiService/ApiService.csproj")` points directly to the `.csproj` file. The TypeScript SDK resolves the project path at startup.
+- **Generated guest-language AppHosts**: No `ProjectReference` is needed. Pass the `.csproj` path directly to the generated `addProject` equivalent. The SDK resolves the project path at startup.
 
 ## Exclude a project from orchestration
 
@@ -493,6 +1146,94 @@ const microservice2 = await builder.addProject("micro2", "../Microservice2/Prese
 
 await builder.build().run();
 ```
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    microservice1 = builder.add_project("micro1", "../Microservice1/Presentation.Api/Presentation.Api.csproj")
+    microservice2 = builder.add_project("micro2", "../Microservice2/Presentation.Api/Presentation.Api.csproj")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	microservice1 := builder.AddProject("micro1", "../Microservice1/Presentation.Api/Presentation.Api.csproj")
+	microservice2 := builder.AddProject("micro2", "../Microservice2/Presentation.Api/Presentation.Api.csproj")
+
+	if err := microservice1.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := microservice2.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var microservice1 = builder.addProject("micro1", "../Microservice1/Presentation.Api/Presentation.Api.csproj");
+    var microservice2 = builder.addProject("micro2", "../Microservice2/Presentation.Api/Presentation.Api.csproj");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let _microservice1 = builder.add_project("micro1", "../Microservice1/Presentation.Api/Presentation.Api.csproj", None)?;
+    let _microservice2 = builder.add_project("micro2", "../Microservice2/Presentation.Api/Presentation.Api.csproj", None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
 </Fragment>
 </AppHostTabs>
 

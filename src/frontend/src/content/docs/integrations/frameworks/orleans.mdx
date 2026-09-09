@@ -21,7 +21,7 @@ import orleansIcon from '@assets/icons/microsoft-orleans.png';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Orleans Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Orleans cluster in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Orleans Hosting integration. It shows the equivalent generated APIs for TypeScript, Python, Go, Java, and Rust AppHosts alongside C# examples.
 
 [Orleans](https://github.com/dotnet/orleans) is a cross-platform framework for building distributed applications that are elastically scalable and fault-tolerant. Unlike other Aspire integrations, the Orleans integration doesn't create a container. Instead, the Orleans service is modeled as a resource in the AppHost and its configuration is propagated to any project that references it.
 
@@ -76,6 +76,38 @@ This updates your `aspire.config.json` with the Orleans hosting integration pack
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Orleans
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Orleans
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Orleans
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Orleans
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Add an Orleans resource
@@ -105,6 +137,68 @@ const builder = await createBuilder();
 const orleans = await builder.addOrleans("default");
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    orleans = builder.add_orleans("default")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+orleans := builder.AddOrleans("default")
+if err := orleans.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var orleans = builder.addOrleans("default");
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let _orleans = builder.add_orleans("default")?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -160,13 +254,113 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    storage = builder.add_azure_storage("storage")
+    clustering_table = storage.add_tables("clustering")
+    grain_storage = storage.add_blobs("grainstate")
+
+    orleans = builder.add_orleans("default")
+    orleans.with_clustering(clustering_table).with_grain_storage("Default", grain_storage)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage")
+if err := storage.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+clusteringTable := storage.AddTables("clustering")
+if err := clusteringTable.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+grainStorage := storage.AddBlobs("grainstate")
+if err := grainStorage.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+orleans := builder.AddOrleans("default").WithClustering(clusteringTable).WithGrainStorage("Default", grainStorage)
+if err := orleans.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var storage = builder.addAzureStorage("storage");
+var clusteringTable = storage.addTables("clustering");
+var grainStorage = storage.addBlobs("grainstate");
+var orleans = builder.addOrleans("default")
+    .withClustering(clusteringTable)
+    .withGrainStorage("Default", grainStorage);
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let storage = builder.add_azure_storage("storage")?;
+let clustering_table = storage.add_tables("clustering")?;
+let grain_storage = storage.add_blobs("grainstate")?;
+let clustering_provider = IResourceWithConnectionString::new(
+    clustering_table.handle().clone(),
+    clustering_table.client().clone(),
+);
+let grain_provider = IResourceWithConnectionString::new(
+    grain_storage.handle().clone(),
+    grain_storage.client().clone(),
+);
+let orleans = builder.add_orleans("default")?
+    .with_clustering(&clustering_provider)?
+    .with_grain_storage("Default", &grain_provider)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 Any project that references the Orleans resource also inherits a reference to the `clusteringTable` resource automatically.
 
 ### Add an Orleans server project
 
-Add a project to your solution as an Orleans server (a silo). Reference the Orleans resource from the server project so that it receives the clustering and storage configuration. In TypeScript AppHosts, use `withOrleansReference` to configure a project as a silo:
+Add a project to your solution as an Orleans server (a silo). Reference the Orleans resource from the server project so that it receives the clustering and storage configuration. Generated guest AppHost SDKs use their language-specific form of `withOrleansReference` to configure a project as a silo:
 
 <AppHostTabs>
 <Fragment slot="csharp">
@@ -212,13 +406,126 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    storage = builder.add_azure_storage("storage")
+    clustering_table = storage.add_tables("clustering")
+    grain_storage = storage.add_blobs("grainstate")
+
+    orleans = builder.add_orleans("default")
+    orleans.with_clustering(clustering_table).with_grain_storage("Default", grain_storage)
+
+    server = builder.add_project("orleans-server", "../OrleansServer/OrleansServer.csproj")
+    server.with_orleans_reference(orleans)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage")
+if err := storage.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+clusteringTable := storage.AddTables("clustering")
+if err := clusteringTable.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+grainStorage := storage.AddBlobs("grainstate")
+if err := grainStorage.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+orleans := builder.AddOrleans("default").WithClustering(clusteringTable).WithGrainStorage("Default", grainStorage)
+if err := orleans.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+server := builder.AddProject("orleans-server", "../OrleansServer/OrleansServer.csproj").WithOrleansReference(orleans)
+if err := server.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var storage = builder.addAzureStorage("storage");
+var clusteringTable = storage.addTables("clustering");
+var grainStorage = storage.addBlobs("grainstate");
+var orleans = builder.addOrleans("default")
+    .withClustering(clusteringTable)
+    .withGrainStorage("Default", grainStorage);
+var server = builder.addProject("orleans-server", "../OrleansServer/OrleansServer.csproj")
+    .withOrleansReference(orleans);
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let storage = builder.add_azure_storage("storage")?;
+let clustering_table = storage.add_tables("clustering")?;
+let grain_storage = storage.add_blobs("grainstate")?;
+let clustering_provider = IResourceWithConnectionString::new(
+    clustering_table.handle().clone(),
+    clustering_table.client().clone(),
+);
+let grain_provider = IResourceWithConnectionString::new(
+    grain_storage.handle().clone(),
+    grain_storage.client().clone(),
+);
+let orleans = builder.add_orleans("default")?
+    .with_clustering(&clustering_provider)?
+    .with_grain_storage("Default", &grain_provider)?;
+let server = builder.add_project("orleans-server", "../OrleansServer/OrleansServer.csproj", None)?;
+server.with_orleans_reference(&orleans)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 When you reference the Orleans resource from a project, the dependent storage resources are also referenced transitively.
 
 ### Add an Orleans client project
 
-Orleans clients communicate with grains hosted in an Orleans cluster. For example, a frontend web app calls grains running on Orleans servers. Reference the Orleans resource using `asClient()` (or `AsClient()`) so the project is configured as a client rather than a silo. In TypeScript AppHosts, use `withOrleansClientReference` for Orleans client references:
+Orleans clients communicate with grains hosted in an Orleans cluster. For example, a frontend web app calls grains running on Orleans servers. Reference the Orleans resource using the language-specific form of `asClient` so the project is configured as a client rather than a silo. Generated guest AppHost SDKs use their language-specific form of `withOrleansClientReference` for Orleans client references:
 
 <AppHostTabs>
 <Fragment slot="csharp">
@@ -261,6 +568,121 @@ const client = await builder.addProject("orleans-client", "../OrleansClient/Orle
     .withOrleansClientReference(orleans.asClient());
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    storage = builder.add_azure_storage("storage")
+    clustering_table = storage.add_tables("clustering")
+    grain_storage = storage.add_blobs("grainstate")
+
+    orleans = builder.add_orleans("default")
+    orleans.with_clustering(clustering_table).with_grain_storage("Default", grain_storage)
+
+    client = builder.add_project("orleans-client", "../OrleansClient/OrleansClient.csproj")
+    client.with_orleans_client_reference(orleans.as_client())
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage")
+if err := storage.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+clusteringTable := storage.AddTables("clustering")
+if err := clusteringTable.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+grainStorage := storage.AddBlobs("grainstate")
+if err := grainStorage.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+orleans := builder.AddOrleans("default").WithClustering(clusteringTable).WithGrainStorage("Default", grainStorage)
+if err := orleans.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+orleansClient := orleans.AsClient()
+client := builder.AddProject("orleans-client", "../OrleansClient/OrleansClient.csproj").WithOrleansClientReference(orleansClient)
+if err := client.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var storage = builder.addAzureStorage("storage");
+var clusteringTable = storage.addTables("clustering");
+var grainStorage = storage.addBlobs("grainstate");
+var orleans = builder.addOrleans("default")
+    .withClustering(clusteringTable)
+    .withGrainStorage("Default", grainStorage);
+var client = builder.addProject("orleans-client", "../OrleansClient/OrleansClient.csproj")
+    .withOrleansClientReference(orleans.asClient());
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let storage = builder.add_azure_storage("storage")?;
+let clustering_table = storage.add_tables("clustering")?;
+let grain_storage = storage.add_blobs("grainstate")?;
+let clustering_provider = IResourceWithConnectionString::new(
+    clustering_table.handle().clone(),
+    clustering_table.client().clone(),
+);
+let grain_provider = IResourceWithConnectionString::new(
+    grain_storage.handle().clone(),
+    grain_storage.client().clone(),
+);
+let orleans = builder.add_orleans("default")?
+    .with_clustering(&clustering_provider)?
+    .with_grain_storage("Default", &grain_provider)?;
+let orleans_client = orleans.as_client()?;
+let client = builder.add_project("orleans-client", "../OrleansClient/OrleansClient.csproj", None)?;
+client.with_orleans_client_reference(&orleans_client)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>

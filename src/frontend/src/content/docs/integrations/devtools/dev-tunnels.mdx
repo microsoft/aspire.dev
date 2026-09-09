@@ -74,13 +74,43 @@ This updates your `aspire.config.json` with the Dev Tunnels hosting integration 
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add devtunnels
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add devtunnels
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add devtunnels
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add devtunnels
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Add a dev tunnel resource
 
 In the AppHost project, add a dev tunnel and configure it to expose specific resources:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK generates Dev Tunnel resources, but its withReference operation currently requires an untyped Value and is not validated for resource references.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -103,6 +133,74 @@ const tunnel = await builder.addDevTunnel("my-tunnel")
     .withReference(web);
 ```
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    web = builder.add_node_app("web", "../web", "index.js")
+    tunnel = builder.add_dev_tunnel("my-tunnel")
+    tunnel.with_reference(web)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	web := builder.AddNodeApp("web", "../web", "index.js")
+	tunnel := builder.AddDevTunnel("my-tunnel").WithReference(web)
+
+	if err := web.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := tunnel.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var web = builder.addNodeApp("web", "../web", "index.js");
+    var tunnel = builder.addDevTunnel("my-tunnel").withReference(web);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 When you run the AppHost, the dev tunnel is created to expose the web application endpoints publicly. The tunnel URLs are shown in the Aspire dashboard. By default, the tunnel requires authentication and is available only to the user who created it.
@@ -111,7 +209,9 @@ When you run the AppHost, the dev tunnel is created to expose the web applicatio
 
 To allow anonymous (public) access to the entire tunnel, chain a call to the `WithAnonymousAccess` method:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK generates Dev Tunnel resources, but its withReference operation currently requires an untyped Value and is not validated for resource references.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -136,13 +236,85 @@ const tunnel = await builder.addDevTunnel("public-api")
     .withAnonymousAccess();
 ```
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    web = builder.add_node_app("web", "../web", "index.js")
+    tunnel = builder.add_dev_tunnel("public-api")
+    tunnel.with_reference(web).with_anonymous_access()
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	web := builder.AddNodeApp("web", "../web", "index.js")
+	tunnel := builder.AddDevTunnel("public-api").WithReference(web).WithAnonymousAccess()
+
+	if err := web.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := tunnel.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var web = builder.addNodeApp("web", "../web", "index.js");
+    var tunnel = builder.addDevTunnel("public-api")
+        .withReference(web)
+        .withAnonymousAccess();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Configure dev tunnel options
 
 To configure other options for the dev tunnel, provide the `DevTunnelOptions` to the `AddDevTunnel` method:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK generates Dev Tunnel options, but its withReference operation currently requires an untyped Value and is not validated for resource references.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -172,13 +344,100 @@ const tunnel = await builder.addDevTunnel("qa", "my-tunnel-id", false, "QA envir
     .withReference(web);
 ```
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    web = builder.add_node_app("web", "../web", "index.js")
+    tunnel = builder.add_dev_tunnel(
+        "qa",
+        tunnel_id="my-tunnel-id",
+        allow_anonymous=False,
+        description="QA environment tunnel",
+        labels=["qa", "testing"],
+    )
+    tunnel.with_reference(web)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	tunnelID := "my-tunnel-id"
+	allowAnonymous := false
+	description := "QA environment tunnel"
+	web := builder.AddNodeApp("web", "../web", "index.js")
+	tunnel := builder.AddDevTunnel("qa", &aspire.AddDevTunnelOptions{TunnelId: &tunnelID, AllowAnonymous: &allowAnonymous, Description: &description, Labels: []string{"qa", "testing"}}).WithReference(web)
+
+	if err := web.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := tunnel.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var web = builder.addNodeApp("web", "../web", "index.js");
+    var options = new AddDevTunnelOptions()
+        .tunnelId("my-tunnel-id")
+        .allowAnonymous(false)
+        .description("QA environment tunnel")
+        .labels(new String[] { "qa", "testing" });
+    var tunnel = builder.addDevTunnel("qa", options).withReference(web);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Configure for mixed access
 
 To allow anonymous access to specific endpoints, use the appropriate `WithReference` overload:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the Dev Tunnel endpoint-specific reference overload with per-endpoint anonymous access.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the Dev Tunnel endpoint-specific reference overload with per-endpoint anonymous access.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the Dev Tunnel endpoint-specific reference overload with per-endpoint anonymous access.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the Dev Tunnel endpoint-specific reference overload with per-endpoint anonymous access.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);

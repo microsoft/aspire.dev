@@ -73,6 +73,34 @@ This updates your `aspire.config.json` with the Kubernetes hosting integration p
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add kubernetes
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add kubernetes
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add kubernetes
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add kubernetes
+```
+
+</Fragment>
 </AppHostTabs>
 
 ## Add Kubernetes environment
@@ -111,15 +139,112 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    k8s = builder.add_kubernetes_env("k8s")
+    api = builder.add_node_app("api", "./api", "src/index.ts")
+    api.with_http_endpoint(env="PORT").with_external_http_endpoints()
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	envName := "PORT"
+	k8s := builder.AddKubernetesEnvironment("k8s")
+	api := builder.AddNodeApp("api", "./api", "src/index.ts").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: &envName}).WithExternalHttpEndpoints()
+
+	if err := k8s.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var k8s = builder.addKubernetesEnvironment("k8s");
+    var api = builder.addNodeApp("api", "./api", "src/index.ts")
+        .withHttpEndpoint(new WithHttpEndpointOptions().env("PORT"))
+        .withExternalHttpEndpoints();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let _k8s = builder.add_kubernetes_environment("k8s")?;
+    let api = builder.add_node_app("api", "./api", "src/index.ts")?;
+    api.with_http_endpoint(None, None, None, Some("PORT"), None)?;
+    api.with_external_http_endpoints()?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 <Aside type="tip">
   With the `k8s` variable assigned, you can pass it to the compute environment API to
   disambiguate compute resources for solutions that define more than one. Otherwise, the `k8s`
-  variable isn't required. This API is named `WithComputeEnvironment` in C# AppHosts and
-  `withComputeEnvironment` in TypeScript AppHosts.
+  variable isn't required. The generated API is named `withComputeEnvironment` in TypeScript and
+  Java, `with_compute_env` in Python, and `WithComputeEnvironment` in Go. The Rust export currently
+  requires an unvalidated compute-environment interface conversion.
 
-  <AppHostTabs>
+  <AppHostTabs limitations={{
+  rust: 'The generated Rust SDK exposes both resources, but its compute-environment API requires an interface conversion that is not validated for this example.',
+}}>
   <Fragment slot="csharp">
   ```csharp title="AppHost.cs"
   var k8s = builder.AddKubernetesEnvironment("k8s");
@@ -136,14 +261,88 @@ await builder.build().run();
   await api.withComputeEnvironment(k8s);
   ```
   </Fragment>
-  </AppHostTabs>
+  <Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    k8s = builder.add_kubernetes_env("k8s")
+    api = builder.add_node_app("api", "./api", "src/index.ts")
+    api.with_compute_env(k8s)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	k8s := builder.AddKubernetesEnvironment("k8s")
+	api := builder.AddNodeApp("api", "./api", "src/index.ts").WithComputeEnvironment(k8s)
+
+	if err := k8s.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var k8s = builder.addKubernetesEnvironment("k8s");
+    var api = builder.addNodeApp("api", "./api", "src/index.ts")
+        .withComputeEnvironment(k8s);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
 </Aside>
 
 ## Configure Helm chart options
 
 You can configure the generated Helm chart using the `WithHelm` method, which provides a fluent `HelmChartOptions` builder:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the Helm configuration callback in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the Helm configuration callback in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the Helm configuration callback in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the Helm configuration callback in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -191,7 +390,9 @@ The `WithHelm` method is the single configuration entry point for Helm chart set
 
 A vanilla Kubernetes cluster doesn't know which container registry to use for your application images. Use `AddContainerRegistry` and `WithContainerRegistry` to specify a registry that is accessible from both your local machine and from the cluster:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The generated Rust SDK exposes container registries, but withContainerRegistry requires an IResource conversion that is not validated for this example.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -209,6 +410,77 @@ await k8s.withContainerRegistry(registry);
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    registry = builder.add_container_registry("registry", "myregistry.example.com:5000")
+    k8s = builder.add_kubernetes_env("k8s")
+    k8s.with_container_registry(registry)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	registry := builder.AddContainerRegistry("registry", "myregistry.example.com:5000")
+	k8s := builder.AddKubernetesEnvironment("k8s").WithContainerRegistry(registry)
+
+	if err := registry.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := k8s.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var registry = builder.addContainerRegistry(
+        "registry",
+        AspireUnion.of("myregistry.example.com:5000"));
+    var k8s = builder.addKubernetesEnvironment("k8s")
+        .withContainerRegistry(registry);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 <Aside type="note">
@@ -219,7 +491,10 @@ await k8s.withContainerRegistry(registry);
 
 To create durable storage in a Kubernetes cluster, model it as a first-class `KubernetesPersistentVolumeResource` with `AddPersistentVolume`. Then configure its storage class, capacity, and access modes, and bind it to workloads. At publish time, the volume renders as a `v1.PersistentVolumeClaim`, and any workload bound to it is promoted to a `StatefulSet`.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  go: 'The PostgreSQL package used by this persistent-volume example was not generated in the available Go SDK batch.',
+  rust: 'The PostgreSQL package used by this persistent-volume example was not generated in the available Rust SDK batch.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -252,6 +527,43 @@ await pg.withKubernetesPersistentVolume(pgData);
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    k8s = builder.add_kubernetes_env("k8s")
+    pg_data = k8s.add_persistent_volume("pg-data")
+    pg_data.with_storage_class("managed-csi").with_capacity("20Gi")
+    pg = builder.add_postgres("pg")
+    pg.with_data_volume(name="pg-data")
+    pg.with_kubernetes_persistent_volume(pg_data)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var k8s = builder.addKubernetesEnvironment("k8s");
+    var pgData = k8s.addPersistentVolume("pg-data")
+        .withStorageClass("managed-csi")
+        .withCapacity("20Gi");
+    var pg = builder.addPostgres("pg")
+        .withDataVolume(new WithDataVolumeOptions().name("pg-data"))
+        .withKubernetesPersistentVolume(pgData);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 <LearnMore>
@@ -262,7 +574,12 @@ await pg.withKubernetesPersistentVolume(pgData);
 
 Use `PublishAsKubernetesService` to modify the generated Kubernetes resources for individual services:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the mutable Kubernetes workload callback in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the mutable Kubernetes workload callback in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the mutable Kubernetes workload callback in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the mutable Kubernetes workload callback in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -302,7 +619,12 @@ The API surface differs by language:
 - **C#**: add subclasses of `BaseKubernetesResource` directly to the `AdditionalResources` collection. Several built-in types (such as `ConfigMap`) are available in the `Aspire.Hosting.Kubernetes.Resources` namespace, and you can subclass `BaseKubernetesResource` to model any custom resource definition (CRD).
 - **TypeScript**: call `addManifest` on the resource. It takes the manifest's `apiVersion`, `kind`, and `metadata.name`, and returns a handle for setting labels, annotations, a namespace, and arbitrary field values using dot-notation paths.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for custom Kubernetes resource authoring and mutable additional-resource collections in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for custom Kubernetes resource authoring and mutable additional-resource collections in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for custom Kubernetes resource authoring and mutable additional-resource collections in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for custom Kubernetes resource authoring and mutable additional-resource collections in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 
 Define a class for the custom resource by deriving from `BaseKubernetesResource`, then add an instance to `AdditionalResources`. The example below models a cert-manager `Certificate` CRD:

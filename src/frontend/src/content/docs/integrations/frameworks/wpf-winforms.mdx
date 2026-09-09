@@ -5,6 +5,7 @@ description: Learn how to orchestrate WPF and Windows Forms desktop applications
 
 import { Image } from 'astro:assets';
 import { Steps } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 import dotnetIcon from '@assets/icons/dotnet.svg';
 
 <Image
@@ -24,11 +25,11 @@ WPF and Windows Forms applications require Windows and are **not** containerized
 
 ## Add WPF or Windows Forms to the AppHost
 
-No additional NuGet package is required. Add the desktop project reference to the AppHost and call `AddProject` to register it.
+No additional NuGet package is required. C# AppHosts reference the desktop project from the AppHost project; generated guest AppHosts identify it by project path. Use the language-specific `AddProject` API to register it.
 
 <Steps>
 
-1. **Add a project reference** from your AppHost `.csproj` to the WPF or Windows Forms project:
+1. **For a C# AppHost, add a project reference** from the AppHost `.csproj` to the WPF or Windows Forms project. Generated guest AppHosts don't have an AppHost `.csproj` and use the project path shown in the next step.
 
    ```xml title="AppHost.csproj"
    <ItemGroup>
@@ -37,6 +38,9 @@ No additional NuGet package is required. Add the desktop project reference to th
    ```
 
 1. **Register the project** in your AppHost and wire up any service references it needs:
+
+   <AppHostTabs>
+   <Fragment slot="csharp">
 
    ```csharp title="AppHost.cs"
    var builder = DistributedApplication.CreateBuilder(args);
@@ -50,6 +54,106 @@ No additional NuGet package is required. Add the desktop project reference to th
    // After adding all resources, run the app...
    builder.Build().Run();
    ```
+
+   </Fragment>
+   <Fragment slot="typescript">
+
+   ```typescript title="apphost.mts"
+   import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+   const builder = await createBuilder();
+
+   const api = await builder.addProject(
+     'api',
+     '../ApiService/ApiService.csproj'
+   );
+   const desktop = await builder.addProject(
+     'desktop',
+     '../MyWpfApp/MyWpfApp.csproj'
+   );
+   await desktop.withReference(api);
+   await desktop.waitFor(api);
+
+   await builder.build().run();
+   ```
+
+   </Fragment>
+   <Fragment slot="python">
+
+   ```python title="apphost.py"
+   from aspire_app import create_builder
+
+   with create_builder() as builder:
+       api = builder.add_project("api", "../ApiService/ApiService.csproj")
+       desktop = builder.add_project("desktop", "../MyWpfApp/MyWpfApp.csproj")
+       desktop.with_reference(api).wait_for(api)
+       builder.run()
+   ```
+
+   </Fragment>
+   <Fragment slot="go">
+
+   ```go title="apphost.go"
+   builder, err := aspire.CreateBuilder()
+   if err != nil {
+       log.Fatal(aspire.FormatError(err))
+   }
+
+   api := builder.AddProject("api", "../ApiService/ApiService.csproj")
+   if err := api.Err(); err != nil {
+       log.Fatal(aspire.FormatError(err))
+   }
+
+   desktop := builder.AddProject("desktop", "../MyWpfApp/MyWpfApp.csproj").
+       WithReference(api).
+       WaitFor(api)
+   if err := desktop.Err(); err != nil {
+       log.Fatal(aspire.FormatError(err))
+   }
+
+
+   app, err := builder.Build()
+   if err != nil {
+       log.Fatal(aspire.FormatError(err))
+   }
+   if err := app.Run(); err != nil {
+       log.Fatal(aspire.FormatError(err))
+   }
+   ```
+
+   </Fragment>
+   <Fragment slot="java">
+
+   ```java title="AppHost.java"
+   var builder = DistributedApplication.CreateBuilder();
+
+   var api = builder.addProject("api", "../ApiService/ApiService.csproj");
+   var desktop = builder.addProject("desktop", "../MyWpfApp/MyWpfApp.csproj")
+       .withReference(api)
+       .waitFor(api);
+
+   builder.build().run();
+   ```
+
+   </Fragment>
+   <Fragment slot="rust">
+
+   ```rust title="apphost.rs"
+   let builder = create_builder(None)?;
+
+   let api = builder.add_project("api", "../ApiService/ApiService.csproj", None)?;
+   let desktop =
+       builder.add_project("desktop", "../MyWpfApp/MyWpfApp.csproj", None)?;
+   desktop.with_reference(api.handle().to_json(), None, None, None)?;
+   let api_resource = IResource::new(api.handle().clone(), api.client().clone());
+   desktop.wait_for(&api_resource, None)?;
+
+   let app = builder.build()?;
+   app.run(None)?;
+   ```
+
+   </Fragment>
+   </AppHostTabs>
 
    When you run the AppHost, the desktop application starts automatically as a process resource alongside all other registered services.
 
@@ -113,6 +217,11 @@ No additional NuGet package is required. Add the desktop project reference to th
 
 A common pattern is to register the desktop app only during local development and skip it in CI or staging environments. Use `builder.Environment.IsDevelopment()` to add the resource conditionally:
 
+<AppHostTabs limitations={{
+  go: 'This scenario also requires Aspire.Hosting.PostgreSQL, which is not present in the restored generated Go AppHost SDK.',
+  rust: 'This scenario also requires Aspire.Hosting.PostgreSQL, which is not present in the restored generated Rust AppHost SDK.',
+}}>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -132,6 +241,76 @@ if (builder.Environment.IsDevelopment())
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const database = await postgres.addDatabase('mydb');
+const api = await builder.addProject(
+  'api',
+  '../ApiService/ApiService.csproj'
+);
+await api.withReference(database);
+
+if (await builder.environment().isDevelopment()) {
+  const desktop = await builder.addProject(
+    'desktop',
+    '../MyWpfApp/MyWpfApp.csproj'
+  );
+  await desktop.withReference(api);
+  await desktop.waitFor(api);
+}
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    postgres = builder.add_postgres("postgres")
+    database = postgres.add_database("mydb")
+    api = builder.add_project("api", "../ApiService/ApiService.csproj")
+    api.with_reference(database)
+
+    if builder.env.is_development():
+        desktop = builder.add_project("desktop", "../MyWpfApp/MyWpfApp.csproj")
+        desktop.with_reference(api).wait_for(api)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var postgres = builder.addPostgres("postgres");
+var database = postgres.addDatabase("mydb");
+var api = builder.addProject("api", "../ApiService/ApiService.csproj")
+    .withReference(database);
+
+if (builder.environment().isDevelopment()) {
+    builder.addProject("desktop", "../MyWpfApp/MyWpfApp.csproj")
+        .withReference(api)
+        .waitFor(api);
+}
+
+builder.build().run();
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## Limitations
 

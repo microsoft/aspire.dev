@@ -72,6 +72,86 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    worker = builder.add_c_sharp_app("worker", "../worker/Program.cs")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	worker := builder.AddCSharpApp("worker", "../worker/Program.cs")
+
+	if err := worker.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var worker = builder.addCSharpApp("worker", "../worker/Program.cs");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let _worker = builder.add_c_sharp_app("worker", "../worker/Program.cs", None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 You can also point to a `.csproj` file or a directory that contains one:
@@ -111,6 +191,94 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_c_sharp_app("api", "../api/Api.csproj")
+    frontend = builder.add_c_sharp_app("frontend", "../frontend/")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddCSharpApp("api", "../api/Api.csproj")
+	frontend := builder.AddCSharpApp("frontend", "../frontend/")
+
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var api = builder.addCSharpApp("api", "../api/Api.csproj");
+    var frontend = builder.addCSharpApp("frontend", "../frontend/");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let _api = builder.add_c_sharp_app("api", "../api/Api.csproj", None)?;
+    let _frontend = builder.add_c_sharp_app("frontend", "../frontend/", None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 <Aside type="tip">
@@ -125,7 +293,10 @@ When pointing to a `.csproj` file or directory, `AddCSharpApp` behaves similarly
 
 File-based apps integrate fully with Aspire's resource model. You can reference other resources and configure service discovery just like any other project resource:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  go: 'The PostgreSQL package used by this C# app dependency example was not generated in the available Go SDK batch.',
+  rust: 'The Redis and PostgreSQL packages used by this C# app dependency example are not present in the available Rust SDK module.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -165,6 +336,41 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    cache = builder.add_redis("cache")
+    pg = builder.add_postgres("pg")
+    db = pg.add_database("mydb")
+    worker = builder.add_c_sharp_app("worker", "../worker/Program.cs")
+    worker.with_reference(cache).with_reference(db).with_external_http_endpoints()
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var cache = builder.addRedis("cache");
+    var db = builder.addPostgres("pg").addDatabase("mydb");
+    var worker = builder.addCSharpApp("worker", "../worker/Program.cs")
+        .withReference(cache)
+        .withReference(db)
+        .withExternalHttpEndpoints();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 The file-based app receives connection strings and service discovery information through environment variables, exactly like projects added with `AddProject<T>` (or `addProject`).
@@ -173,7 +379,12 @@ The file-based app receives connection strings and service discovery information
 
 The C# `AddCSharpApp` method accepts an optional `Action<ProjectResourceOptions>` callback to configure launch settings:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for constructing and mutating ProjectResourceOptions for addCSharpApp.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for constructing and mutating ProjectResourceOptions for addCSharpApp.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for constructing and mutating ProjectResourceOptions for addCSharpApp.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for constructing and mutating ProjectResourceOptions for addCSharpApp.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -213,6 +424,15 @@ The available options are the same as those used with `AddProject<T>`:
 
 You can also write the AppHost itself as a file-based C# app using the `#:sdk` directive:
 
+<AppHostTabs limitations={{
+  typescript: 'The `#:sdk` and `#:package` directives are C# compiler features. TypeScript AppHosts use apphost.mts and aspire.config.json instead.',
+  python: 'The `#:sdk` and `#:package` directives are C# compiler features. Python AppHosts use apphost.py and aspire.config.json instead.',
+  go: 'The `#:sdk` and `#:package` directives are C# compiler features. Go AppHosts use apphost.go and aspire.config.json instead.',
+  java: 'The `#:sdk` and `#:package` directives are C# compiler features. Java AppHosts use AppHost.java and aspire.config.json instead.',
+  rust: 'The `#:sdk` and `#:package` directives are C# compiler features. Rust AppHosts use apphost.rs and aspire.config.json instead.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="apphost.cs"
 #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
 #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
@@ -229,10 +449,13 @@ builder.AddCSharpApp("worker", "../worker/Program.cs")
 builder.Build().Run();
 ```
 
+</Fragment>
+</AppHostTabs>
+
 Use `#:package` directives to add NuGet package references directly in the source file instead of a `.csproj`.
 
 :::note
-A TypeScript AppHost (`apphost.mts`) is already a file-based script with no project file required. The `#:sdk` and `#:package` directives are specific to the C# file-based AppHost feature and have no TypeScript equivalent.
+Guest-language AppHosts already use source entry files without an AppHost project file. The `#:sdk` and `#:package` directives are specific to the C# file-based AppHost feature and have no TypeScript, Python, Go, Java, or Rust equivalent.
 :::
 
 <LearnMore>
@@ -276,7 +499,7 @@ dotnet_diagnostic.ASPIRECSHARPAPPS001.severity = none
 ```
 
 :::note
-`ASPIRECSHARPAPPS001` is a C# compiler diagnostic. TypeScript AppHosts call `addCSharpApp` without any diagnostic suppression needed.
+`ASPIRECSHARPAPPS001` is a C# compiler diagnostic. Generated guest-language SDKs call their `addCSharpApp` equivalent without diagnostic suppression.
 :::
 
 <LearnMore>

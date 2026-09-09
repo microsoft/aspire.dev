@@ -67,13 +67,46 @@ This updates your `aspire.config.json` with the Docker hosting integration packa
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add docker
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add docker
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add docker
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add docker
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Add Docker Compose environment resource
 
 The following example demonstrates how to add a Docker Compose environment to your app model:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for Docker Compose service callback customization in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for Docker Compose service callback customization in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for Docker Compose service callback customization in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for Docker Compose service callback customization in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -147,10 +180,13 @@ When a Docker Compose environment is present, all resources are automatically pu
 <Aside type="tip">
   With the `compose` variable assigned, you can pass it to the compute environment API to
   disambiguate compute resources for solutions that define more than one. Otherwise, the `compose`
-  variable isn't required. This API is named `WithComputeEnvironment` in C# AppHosts and
-  `withComputeEnvironment` in TypeScript AppHosts.
+  variable isn't required. The generated API is named `withComputeEnvironment` in TypeScript and
+  Java, `with_compute_env` in Python, and `WithComputeEnvironment` in Go. The Rust export currently
+  requires an unvalidated compute-environment interface conversion.
 
-  <AppHostTabs>
+  <AppHostTabs limitations={{
+  rust: 'The generated Rust SDK exposes both resources, but its compute-environment API requires an interface conversion that is not validated for this example.',
+}}>
   <Fragment slot="csharp">
   ```csharp title="AppHost.cs"
   var compose = builder.AddDockerComposeEnvironment("compose");
@@ -167,14 +203,88 @@ When a Docker Compose environment is present, all resources are automatically pu
   await api.withComputeEnvironment(compose);
   ```
   </Fragment>
-  </AppHostTabs>
+  <Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    compose = builder.add_docker_compose_env("compose")
+    api = builder.add_project("api", "../Api/Api.csproj")
+    api.with_compute_env(compose)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	compose := builder.AddDockerComposeEnvironment("compose")
+	api := builder.AddProject("api", "../Api/Api.csproj").WithComputeEnvironment(compose)
+
+	if err := compose.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var compose = builder.addDockerComposeEnvironment("compose");
+    var api = builder.addProject("api", "../Api/Api.csproj")
+        .withComputeEnvironment(compose);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
 </Aside>
 
 ### Add Docker Compose environment resource with properties
 
 You can configure various properties of the Docker Compose environment using the `WithProperties` method:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the Docker Compose environment-properties callback in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the Docker Compose environment-properties callback in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the Docker Compose environment-properties callback in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the Docker Compose environment-properties callback in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 builder.AddDockerComposeEnvironment("compose")
@@ -206,7 +316,12 @@ The `DashboardEnabled` property determines whether to include an Aspire dashboar
 
 You can customize the generated Docker Compose file using the `ConfigureComposeFile` method:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the mutable Docker Compose file and service collection callback in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the mutable Docker Compose file and service collection callback in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the mutable Docker Compose file and service collection callback in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the mutable Docker Compose file and service collection callback in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 builder.AddDockerComposeEnvironment("compose")
@@ -244,7 +359,12 @@ The `ConfigureComposeFile` callback runs after Aspire generates the Docker Compo
 
 The Docker hosting integration includes an Aspire dashboard for telemetry visualization. You can configure or disable it using the `WithDashboard` method:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the Docker Compose dashboard configuration callbacks in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the Docker Compose dashboard configuration callbacks in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the Docker Compose dashboard configuration callbacks in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the Docker Compose dashboard configuration callbacks in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 // Enable dashboard with custom configuration
@@ -314,6 +434,108 @@ const apiEndpoint = await api.getEndpoint("http");
 const apiHost = await compose.getHostAddressExpression(apiEndpoint);
 ```
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    compose = builder.add_docker_compose_env("compose")
+    api = builder.add_container("api", "nginx:alpine")
+    api.with_http_endpoint(name="http", target_port=80)
+    api_endpoint = api.get_endpoint("http")
+    api_host = compose.get_host_address_expression(api_endpoint)
+    builder.run()
+````
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	stringPtr := func(value string) *string { return &value }
+
+	targetPort := 80.0
+	compose := builder.AddDockerComposeEnvironment("compose")
+	api := builder.AddContainer("api", "nginx:alpine").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: stringPtr("http"), TargetPort: &targetPort})
+	apiEndpoint := api.GetEndpoint("http")
+	_ = compose.GetHostAddressExpression(apiEndpoint)
+
+	if err := compose.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var compose = builder.addDockerComposeEnvironment("compose");
+    var api = builder.addContainer("api", "nginx:alpine")
+        .withHttpEndpoint(new WithHttpEndpointOptions().name("http").targetPort(80));
+    var apiHost = compose.getHostAddressExpression(api.getEndpoint("http"));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let compose = builder.add_docker_compose_environment("compose")?;
+    let api = builder.add_container("api", json!("nginx:alpine"))?;
+    api.with_http_endpoint(None, Some(80.0), Some("http"), None, None)?;
+    let api_endpoint = api.get_endpoint("http")?;
+    let _api_host = compose.get_host_address_expression(&api_endpoint)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Publishing and deployment
@@ -328,7 +550,12 @@ The Docker hosting integration captures environment variables from your app mode
 
 For advanced scenarios, use `ConfigureEnvFile` to customize the generated `.env` file:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the Docker Compose environment-file dictionary callback in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the Docker Compose environment-file dictionary callback in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the Docker Compose environment-file dictionary callback in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the Docker Compose environment-file dictionary callback in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -371,7 +598,12 @@ This is useful when you need to add custom environment variables to the generate
 
 To customize the generated Docker Compose service for a specific resource, use the `PublishAsDockerComposeService` method. This is optional — all resources are automatically included in the Docker Compose output. Use this method only when you need to modify the generated service definition:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the mutable Docker Compose service callback in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the mutable Docker Compose service callback in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the mutable Docker Compose service callback in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the mutable Docker Compose service callback in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -428,7 +660,12 @@ Use `AddDockerfileBuilder` to create a container resource from a Dockerfile gene
   [`ASPIREDOCKERFILEBUILDER001`](/diagnostics/aspiredockerfilebuilder001/) when you choose to use them.
 </Aside>
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the programmatic Dockerfile builder callback in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the programmatic Dockerfile builder callback in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the programmatic Dockerfile builder callback in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the programmatic Dockerfile builder callback in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.ApplicationModel.Docker;
@@ -523,6 +760,90 @@ await container.withImagePullPolicy(ImagePullPolicy.Always);
 await builder.build().run();
 ```
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    container = builder.add_container("mycontainer", "myimage:latest")
+    container.with_image_pull_policy("Always")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	container := builder.AddContainer("mycontainer", "myimage:latest").WithImagePullPolicy(aspire.ImagePullPolicyAlways)
+
+	if err := container.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var container = builder.addContainer("mycontainer", "myimage:latest")
+        .withImagePullPolicy(ImagePullPolicy.ALWAYS);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let container = builder.add_container("mycontainer", json!("myimage:latest"))?;
+    let _container = container.with_image_pull_policy(ImagePullPolicy::Always)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Use `Never` with locally-built images
@@ -549,6 +870,90 @@ await app.withImagePullPolicy(ImagePullPolicy.Never);
 
 await builder.build().run();
 ```
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    app = builder.add_container("myapp", "my-local-image:dev")
+    app.with_image_pull_policy("Never")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	appResource := builder.AddContainer("myapp", "my-local-image:dev").WithImagePullPolicy(aspire.ImagePullPolicyNever)
+
+	if err := appResource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var app = builder.addContainer("myapp", "my-local-image:dev")
+        .withImagePullPolicy(ImagePullPolicy.NEVER);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let app = builder.add_container("myapp", json!("my-local-image:dev"))?;
+    let _app = app.with_image_pull_policy(ImagePullPolicy::Never)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
 </Fragment>
 </AppHostTabs>
 
@@ -579,7 +984,12 @@ When deploying containers, you can customize how container images are named and 
 
 Use `WithRemoteImageName` and `WithRemoteImageTag` to customize the image reference:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for Docker Compose publication plus remote-image metadata in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for Docker Compose publication plus remote-image metadata in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for Docker Compose publication plus remote-image metadata in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for Docker Compose publication plus remote-image metadata in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -614,7 +1024,12 @@ await api.withRemoteImageTag("v1.0.0");
 
 For more complex scenarios, use `WithImagePushOptions` to register a callback that can dynamically configure push options:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the image-push options callback in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the image-push options callback in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the image-push options callback in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the image-push options callback in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -660,7 +1075,12 @@ await api
 
 For asynchronous operations (such as retrieving configuration from external sources), use the async overload:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for the asynchronous image-push options callback in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for the asynchronous image-push options callback in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for the asynchronous image-push options callback in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for the asynchronous image-push options callback in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -721,7 +1141,12 @@ You can configure your Aspire application to push container images to registries
 
 Use the `AddContainerRegistry` method to define a container registry and the `WithContainerRegistry` method to associate resources with that registry:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for Docker Compose publication callbacks used with a container registry in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for Docker Compose publication callbacks used with a container registry in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for Docker Compose publication callbacks used with a container registry in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for Docker Compose publication callbacks used with a container registry in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -770,7 +1195,12 @@ For GitHub Container Registry, the registry endpoint is `ghcr.io` and the reposi
 
 For more flexible configuration, especially in CI/CD pipelines, you can use parameters with environment variables:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python AppHost SDK does not provide a validated mapping for Docker Compose publication callbacks used with parameterized registry configuration in the daily SDK.',
+  go: 'The generated Go AppHost SDK does not provide a validated mapping for Docker Compose publication callbacks used with parameterized registry configuration in the daily SDK.',
+  java: 'The generated Java AppHost SDK does not provide a validated mapping for Docker Compose publication callbacks used with parameterized registry configuration in the daily SDK.',
+  rust: 'The generated Rust AppHost SDK does not provide a validated mapping for Docker Compose publication callbacks used with parameterized registry configuration in the daily SDK.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);

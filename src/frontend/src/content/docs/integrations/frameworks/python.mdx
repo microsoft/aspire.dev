@@ -89,6 +89,82 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_python_app("python-api", "../python-app", "main.py")
+    python_app.with_http_endpoint(port=8000, env="PORT")
+    example = builder.add_project("example", "../ExampleProject/ExampleProject.csproj")
+    example.with_reference(python_app)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddPythonApp("python-api", "../python-app", "main.py").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8000), Env: aspire.StringPtr("PORT")})
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+example := builder.AddProject("example", "../ExampleProject/ExampleProject.csproj").WithReference(pythonApp)
+if err := example.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addPythonApp("python-api", "../python-app", "main.py")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8000).env("PORT"));
+var example = builder.addProject("example", "../ExampleProject/ExampleProject.csproj")
+    .withReference(pythonApp);
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_python_app("python-api", "../python-app", "main.py")?;
+python_app.with_http_endpoint(Some(8000.0), None, None, Some("PORT"), None)?;
+let example = builder.add_project("example", "../ExampleProject/ExampleProject.csproj", None)?;
+example.with_reference(python_app.handle().to_json(), None, None, None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 `AddPythonApp` / `addPythonApp` requires:
@@ -135,6 +211,71 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_python_module("python-module", "../python-app", "mymodule")
+    python_app.with_http_endpoint(port=8000, env="PORT")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddPythonModule("python-module", "../python-app", "mymodule").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8000), Env: aspire.StringPtr("PORT")})
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addPythonModule("python-module", "../python-app", "mymodule")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8000).env("PORT"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_python_module("python-module", "../python-app", "mymodule")?;
+python_app.with_http_endpoint(Some(8000.0), None, None, Some("PORT"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 `AddPythonModule` / `addPythonModule` requires:
@@ -170,7 +311,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-// TypeScript: pass additional arguments via withArgs after creation
+// Pass additional arguments after creating the resource
 const python = await builder.addPythonExecutable(
   'python-tool',
   '../python-app',
@@ -179,6 +320,74 @@ const python = await builder.addPythonExecutable(
 await python.withArgs(['main:app', '--host', '0.0.0.0', '--port', '8000']);
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_python_executable("python-tool", "../python-app", "uvicorn")
+    python_app.with_args(["main:app", "--host", "0.0.0.0", "--port", "8000"])
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddPythonExecutable("python-tool", "../python-app", "uvicorn").WithArgs([]string{"main:app", "--host", "0.0.0.0", "--port", "8000"})
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addPythonExecutable("python-tool", "../python-app", "uvicorn")
+    .withArgs(new String[] { "main:app", "--host", "0.0.0.0", "--port", "8000" });
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_python_executable("python-tool", "../python-app", "uvicorn")?;
+python_app.with_args(vec![
+    "main:app".into(), "--host".into(), "0.0.0.0".into(),
+    "--port".into(), "8000".into(),
+])?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -235,6 +444,82 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")
+    python_app.with_http_endpoint(port=8000, env="PORT")
+    example = builder.add_project("example", "../ExampleProject/ExampleProject.csproj")
+    example.with_reference(python_app)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddUvicornApp("python-api", "../python-app", "main:app").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8000), Env: aspire.StringPtr("PORT")})
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+example := builder.AddProject("example", "../ExampleProject/ExampleProject.csproj").WithReference(pythonApp)
+if err := example.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addUvicornApp("python-api", "../python-app", "main:app")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8000).env("PORT"));
+var example = builder.addProject("example", "../ExampleProject/ExampleProject.csproj")
+    .withReference(pythonApp);
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")?;
+python_app.with_http_endpoint(Some(8000.0), None, None, Some("PORT"), None)?;
+let example = builder.add_project("example", "../ExampleProject/ExampleProject.csproj", None)?;
+example.with_reference(python_app.handle().to_json(), None, None, None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 `AddUvicornApp` / `addUvicornApp` requires:
@@ -282,6 +567,77 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")
+    python_app.with_http_endpoint(port=8000, env="PORT")
+    python_app.with_environment("UVICORN_WORKERS", "4")
+    python_app.with_environment("UVICORN_LOG_LEVEL", "info")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddUvicornApp("python-api", "../python-app", "main:app").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8000), Env: aspire.StringPtr("PORT")}).WithEnvironment("UVICORN_WORKERS", "4").WithEnvironment("UVICORN_LOG_LEVEL", "info")
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addUvicornApp("python-api", "../python-app", "main:app")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8000).env("PORT"))
+    .withEnvironment("UVICORN_WORKERS", "4")
+    .withEnvironment("UVICORN_LOG_LEVEL", "info");
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")?;
+python_app.with_http_endpoint(Some(8000.0), None, None, Some("PORT"), None)?;
+python_app.with_environment("UVICORN_WORKERS", serde_json::json!("4"))?;
+python_app.with_environment("UVICORN_LOG_LEVEL", serde_json::json!("info"))?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 Common Uvicorn environment variables:
@@ -295,7 +651,7 @@ Common Uvicorn environment variables:
 
 The Python hosting integration automatically detects and uses a virtual environment in the project directory. By default, if a `requirements.txt` or `pyproject.toml` is found, Aspire creates and activates a virtual environment before starting the app.
 
-The official integration doesn't expose a C# or TypeScript API to disable virtual environment management. Use the default `.venv` location or specify a different path.
+The official integration doesn't expose an AppHost API to disable virtual environment management. Use the default `.venv` location or specify a different path.
 
 ### Custom virtual environment
 
@@ -329,6 +685,71 @@ const python = await builder.addPythonApp(
 await python.withVirtualEnvironment('../python-app/.venv');
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_python_app("python-api", "../python-app", "main.py")
+    python_app.with_virtual_env("../python-app/.venv")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddPythonApp("python-api", "../python-app", "main.py").WithVirtualEnvironment("../python-app/.venv")
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addPythonApp("python-api", "../python-app", "main.py")
+    .withVirtualEnvironment("../python-app/.venv");
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_python_app("python-api", "../python-app", "main.py")?;
+python_app.with_virtual_environment("../python-app/.venv", None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -373,6 +794,74 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")
+    python_app.with_uv()
+    python_app.with_http_endpoint(port=8000, env="PORT")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddUvicornApp("python-api", "../python-app", "main:app").WithUv().WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8000), Env: aspire.StringPtr("PORT")})
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addUvicornApp("python-api", "../python-app", "main:app")
+    .withUv()
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8000).env("PORT"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")?;
+python_app.with_uv(None, None)?;
+python_app.with_http_endpoint(Some(8000.0), None, None, Some("PORT"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### pip package manager
@@ -409,6 +898,74 @@ await python.withPip();
 await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_python_app("python-api", "../python-app", "main.py")
+    python_app.with_pip()
+    python_app.with_http_endpoint(port=8000, env="PORT")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddPythonApp("python-api", "../python-app", "main.py").WithPip().WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8000), Env: aspire.StringPtr("PORT")})
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addPythonApp("python-api", "../python-app", "main.py")
+    .withPip()
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8000).env("PORT"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_python_app("python-api", "../python-app", "main.py")?;
+python_app.with_pip(None, None)?;
+python_app.with_http_endpoint(Some(8000.0), None, None, Some("PORT"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -453,6 +1010,71 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")
+    python_app.with_http_endpoint(port=8000, env="PORT")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddUvicornApp("python-api", "../python-app", "main:app").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8000), Env: aspire.StringPtr("PORT")})
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addUvicornApp("python-api", "../python-app", "main:app")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8000).env("PORT"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")?;
+python_app.with_http_endpoint(Some(8000.0), None, None, Some("PORT"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Multiple endpoints
@@ -489,6 +1111,74 @@ await python.withHttpEndpoint({ port: 8000, env: 'HTTP_PORT', name: 'http' });
 await python.withHttpEndpoint({ port: 8443, env: 'HTTPS_PORT', name: 'https' });
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_python_app("python-api", "../python-app", "main.py")
+    python_app.with_http_endpoint(port=8000, env="HTTP_PORT", name="http")
+    python_app.with_http_endpoint(port=8443, env="HTTPS_PORT", name="https")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddPythonApp("python-api", "../python-app", "main.py").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8000), Env: aspire.StringPtr("HTTP_PORT"), Name: aspire.StringPtr("http")}).WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8443), Env: aspire.StringPtr("HTTPS_PORT"), Name: aspire.StringPtr("https")})
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addPythonApp("python-api", "../python-app", "main.py")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8000).env("HTTP_PORT").name("http"))
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8443).env("HTTPS_PORT").name("https"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_python_app("python-api", "../python-app", "main.py")?;
+python_app.with_http_endpoint(Some(8000.0), None, Some("http"), Some("HTTP_PORT"), None)?;
+python_app.with_http_endpoint(Some(8443.0), None, Some("https"), Some("HTTPS_PORT"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -531,6 +1221,74 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")
+    python_app.with_http_endpoint(port=8000, env="PORT")
+    python_app.with_http_health_check(path="/health")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddUvicornApp("python-api", "../python-app", "main:app").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8000), Env: aspire.StringPtr("PORT")}).WithHttpHealthCheck(&aspire.WithHttpHealthCheckOptions{Path: aspire.StringPtr("/health")})
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addUvicornApp("python-api", "../python-app", "main:app")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8000).env("PORT"))
+    .withHttpHealthCheck(new WithHttpHealthCheckOptions().path("/health"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")?;
+python_app.with_http_endpoint(Some(8000.0), None, None, Some("PORT"), None)?;
+python_app.with_http_health_check(Some("/health"), None, None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 ## Environment variables
@@ -570,13 +1328,84 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_python_app("python-api", "../python-app", "main.py")
+    python_app.with_environment("DEBUG", "true")
+    python_app.with_environment("LOG_LEVEL", "debug")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddPythonApp("python-api", "../python-app", "main.py").WithEnvironment("DEBUG", "true").WithEnvironment("LOG_LEVEL", "debug")
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addPythonApp("python-api", "../python-app", "main.py")
+    .withEnvironment("DEBUG", "true")
+    .withEnvironment("LOG_LEVEL", "debug");
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_python_app("python-api", "../python-app", "main.py")?;
+python_app.with_environment("DEBUG", serde_json::json!("true"))?;
+python_app.with_environment("LOG_LEVEL", serde_json::json!("debug"))?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 ## Service discovery
 
 Reference other Aspire resources from a Python app using `WithReference`. Aspire injects the connection string as the `ConnectionStrings__<resourcename>` environment variable in the Python process:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  go: 'This example also requires Aspire.Hosting.PostgreSQL, which is not present in the restored generated Go AppHost SDK.',
+  rust: 'This example also requires Aspire.Hosting.PostgreSQL, which is not present in the restored generated Rust AppHost SDK.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -610,6 +1439,36 @@ const python = await builder.addPythonApp(
 await python.withReference(db);
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    postgres = builder.add_postgres("postgres")
+    db = postgres.add_database("mydb")
+    python_app = builder.add_python_app("python-api", "../python-app", "main.py")
+    python_app.with_reference(db)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var postgres = builder.addPostgres("postgres");
+var db = postgres.addDatabase("mydb");
+var pythonApp = builder.addPythonApp("python-api", "../python-app", "main.py")
+    .withReference(db);
+
+builder.build().run();
 ```
 
 </Fragment>
@@ -659,6 +1518,74 @@ await python.withHttpsEndpoint({ port: 8443, env: 'PORT' });
 await python.withHttpsDeveloperCertificate();
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")
+    python_app.with_https_endpoint(port=8443, env="PORT")
+    python_app.with_https_developer_certificate()
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+pythonApp := builder.AddUvicornApp("python-api", "../python-app", "main:app").WithHttpsEndpoint(&aspire.WithHttpsEndpointOptions{Port: aspire.Float64Ptr(8443), Env: aspire.StringPtr("PORT")}).WithHttpsDeveloperCertificate()
+if err := pythonApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var pythonApp = builder.addUvicornApp("python-api", "../python-app", "main:app")
+    .withHttpsEndpoint(new WithHttpsEndpointOptions().port(8443).env("PORT"))
+    .withHttpsDeveloperCertificate();
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let python_app = builder.add_uvicorn_app("python-api", "../python-app", "main:app")?;
+python_app.with_https_endpoint(Some(8443.0), None, None, Some("PORT"), None)?;
+python_app.with_https_developer_certificate(None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -746,6 +1673,98 @@ await frontend.withReference(internalApi);
 await frontend.withReference(publicApi);
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    internal_api = builder.add_uvicorn_app("internal-api", "../internal-api", "main:app")
+    internal_api.with_http_endpoint(port=8001, env="PORT")
+    public_api = builder.add_uvicorn_app("public-api", "../public-api", "main:app")
+    public_api.with_http_endpoint(port=8000, env="PORT")
+    public_api.with_external_http_endpoints()
+    frontend = builder.add_project("frontend", "../WebFrontend/WebFrontend.csproj")
+    frontend.with_reference(internal_api).with_reference(public_api)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+internalAPI := builder.AddUvicornApp("internal-api", "../internal-api", "main:app").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8001), Env: aspire.StringPtr("PORT")})
+if err := internalAPI.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+publicAPI := builder.AddUvicornApp("public-api", "../public-api", "main:app").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8000), Env: aspire.StringPtr("PORT")}).WithExternalHttpEndpoints()
+if err := publicAPI.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+frontend := builder.AddProject("frontend", "../WebFrontend/WebFrontend.csproj").WithReference(internalAPI).WithReference(publicAPI)
+if err := frontend.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var internalApi = builder.addUvicornApp("internal-api", "../internal-api", "main:app")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8001).env("PORT"));
+var publicApi = builder.addUvicornApp("public-api", "../public-api", "main:app")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8000).env("PORT"))
+    .withExternalHttpEndpoints();
+var frontend = builder.addProject("frontend", "../WebFrontend/WebFrontend.csproj")
+    .withReference(internalApi)
+    .withReference(publicApi);
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let internal_api = builder.add_uvicorn_app("internal-api", "../internal-api", "main:app")?;
+internal_api.with_http_endpoint(Some(8001.0), None, None, Some("PORT"), None)?;
+let public_api = builder.add_uvicorn_app("public-api", "../public-api", "main:app")?;
+public_api.with_http_endpoint(Some(8000.0), None, None, Some("PORT"), None)?;
+public_api.with_external_http_endpoints()?;
+let frontend = builder.add_project("frontend", "../WebFrontend/WebFrontend.csproj", None)?;
+frontend.with_reference(internal_api.handle().to_json(), None, None, None)?;
+frontend.with_reference(public_api.handle().to_json(), None, None, None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>

@@ -73,13 +73,43 @@ This updates your `aspire.config.json` with the Blazor hosting package:
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Blazor
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Blazor
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Blazor
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Blazor
+```
+
+</Fragment>
 </AppHostTabs>
 
 ## Add Blazor WebAssembly project
 
 Use `AddBlazorWasmProject` / `addBlazorWasmProject` to add a Blazor WebAssembly project to the AppHost model.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK generates Blazor resources, but its withReference operation currently requires an untyped Value and is not validated for endpoint references.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -108,6 +138,75 @@ const blazorApp = await builder
   .withReference(await api.getEndpoint('http'));
 
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../MyApi/MyApi.csproj")
+    blazor_app = builder.add_blazor_wasm_project("app", "../MyBlazorApp/MyBlazorApp.csproj")
+    blazor_app.with_reference(api.get_endpoint("http"))
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../MyApi/MyApi.csproj")
+	blazorApp := builder.AddBlazorWasmProject("app", "../MyBlazorApp/MyBlazorApp.csproj").WithReference(api.GetEndpoint("http"))
+
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := blazorApp.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var api = builder.addProject("api", "../MyApi/MyApi.csproj");
+    var blazorApp = builder.addBlazorWasmProject("app", "../MyBlazorApp/MyBlazorApp.csproj")
+        .withReference(api.getEndpoint("http"));
+
+    builder.build().run();
+}
 ```
 
 </Fragment>
@@ -145,6 +244,89 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    gateway = builder.add_blazor_gateway("gateway")
+    gateway.with_external_http_endpoints()
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	gateway := builder.AddBlazorGateway("gateway").WithExternalHttpEndpoints()
+
+	if err := gateway.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var gateway = builder.addBlazorGateway("gateway")
+        .withExternalHttpEndpoints();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let gateway = builder.add_blazor_gateway("gateway")?;
+    let _gateway = gateway.with_external_http_endpoints()?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 :::note
@@ -155,7 +337,9 @@ await builder.build().run();
 
 Use `WithBlazorClientApp` / `withBlazorClientApp` to bind the WebAssembly project resource to the Blazor Gateway:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK generates Blazor resources, but its withReference operation currently requires an untyped Value and is not validated for endpoint references.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -197,6 +381,85 @@ await builder
   .withBlazorClientApp(blazorApp);
 
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    weather_api = builder.add_project("weatherapi", "../WeatherApi/WeatherApi.csproj")
+    blazor_app = builder.add_blazor_wasm_project("app", "../MyBlazorApp/MyBlazorApp.csproj")
+    blazor_app.with_reference(weather_api.get_endpoint("http"))
+    gateway = builder.add_blazor_gateway("gateway")
+    gateway.with_external_http_endpoints().with_blazor_client_app(blazor_app)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	weatherAPI := builder.AddProject("weatherapi", "../WeatherApi/WeatherApi.csproj")
+	blazorApp := builder.AddBlazorWasmProject("app", "../MyBlazorApp/MyBlazorApp.csproj").WithReference(weatherAPI.GetEndpoint("http"))
+	gateway := builder.AddBlazorGateway("gateway").WithExternalHttpEndpoints().WithBlazorClientApp(blazorApp)
+
+	if err := weatherAPI.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := blazorApp.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	if err := gateway.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var weatherApi = builder.addProject("weatherapi", "../WeatherApi/WeatherApi.csproj");
+    var blazorApp = builder.addBlazorWasmProject("app", "../MyBlazorApp/MyBlazorApp.csproj")
+        .withReference(weatherApi.getEndpoint("http"));
+    var gateway = builder.addBlazorGateway("gateway")
+        .withExternalHttpEndpoints()
+        .withBlazorClientApp(blazorApp);
+
+    builder.build().run();
+}
 ```
 
 </Fragment>

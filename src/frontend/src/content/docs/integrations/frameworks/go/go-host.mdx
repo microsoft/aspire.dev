@@ -22,7 +22,7 @@ import goLightIcon from '@assets/icons/go-light-icon.png';
   classOverride="float-inline-left icon"
 />
 
-This article is the reference for the Aspire Go hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to orchestrate Go applications in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Go hosting integration. It shows the equivalent generated APIs for TypeScript, Python, Go, Java, and Rust AppHosts alongside C# examples.
 
 If you're new to the Go integration, start with the [Get started with the Go integration](/integrations/frameworks/go/go-get-started/) guide.
 
@@ -83,6 +83,38 @@ This updates your `aspire.config.json` with the Go hosting integration package:
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add go
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add go
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add go
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add go
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Migrate from the Community Toolkit package
@@ -125,6 +157,74 @@ await api.withHttpEndpoint({ port: 8080, env: 'PORT' });
 await api.withExternalHttpEndpoints();
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_go_app("api", "./api")
+    api.with_http_endpoint(port=8080, env="PORT")
+    api.with_external_http_endpoints()
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddGoApp("api", "./api").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8080), Env: aspire.StringPtr("PORT")}).WithExternalHttpEndpoints()
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addGoApp("api", "./api")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8080).env("PORT"))
+    .withExternalHttpEndpoints();
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_go_app("api", "./api", None, None, None, None, None)?;
+api.with_http_endpoint(Some(8080.0), None, None, Some("PORT"), None)?;
+api.with_external_http_endpoints()?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -212,6 +312,71 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_go_app("api", "./api", package_path="./cmd/server")
+    api.with_http_endpoint(env="PORT")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddGoApp("api", "./api", &aspire.AddGoAppOptions{PackagePath: aspire.StringPtr("./cmd/server")}).WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addGoApp("api", "./api", new AddGoAppOptions().packagePath("./cmd/server"))
+    .withHttpEndpoint(new WithHttpEndpointOptions().env("PORT"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_go_app("api", "./api", Some("./cmd/server"), None, None, None, None)?;
+api.with_http_endpoint(None, None, None, Some("PORT"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 The same `packagePath` is used for local run mode, headless Delve debugging, and publish-time `go build`.
@@ -258,6 +423,95 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_go_app(
+        "api",
+        "./api",
+        package_path="./cmd/server",
+        build_tags=["netgo", "integration"],
+        ld_flags="-X main.version=1.2.3 -s -w",
+        gc_flags="all=-N -l",
+        race_detector=True,
+    )
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddGoApp("api", "./api", &aspire.AddGoAppOptions{
+	PackagePath: aspire.StringPtr("./cmd/server"),
+	BuildTags: []string{"netgo", "integration"},
+	LdFlags: aspire.StringPtr("-X main.version=1.2.3 -s -w"),
+	GcFlags: aspire.StringPtr("all=-N -l"),
+	RaceDetector: aspire.BoolPtr(true),
+})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addGoApp("api", "./api", new AddGoAppOptions()
+    .packagePath("./cmd/server")
+    .buildTags(new String[] { "netgo", "integration" })
+    .ldFlags("-X main.version=1.2.3 -s -w")
+    .gcFlags("all=-N -l")
+    .raceDetector(true));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let _api = builder.add_go_app(
+    "api",
+    "./api",
+    Some("./cmd/server"),
+    Some(vec!["netgo".into(), "integration".into()]),
+    Some("-X main.version=1.2.3 -s -w"),
+    Some("all=-N -l"),
+    Some(true),
+)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 The options map to Go command-line flags:
@@ -297,6 +551,74 @@ await api.withAppArgs(['--config', 'dev.yaml']);
 await api.withHttpEndpoint({ env: 'PORT' });
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_go_app("api", "./api")
+    api.with_app_args(["--config", "dev.yaml"])
+    api.with_http_endpoint(env="PORT")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddGoApp("api", "./api").WithAppArgs([]any{"--config", "dev.yaml"}).WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addGoApp("api", "./api")
+    .withAppArgs(new Object[] { "--config", "dev.yaml" })
+    .withHttpEndpoint(new WithHttpEndpointOptions().env("PORT"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_go_app("api", "./api", None, None, None, None, None)?;
+api.with_app_args(vec![serde_json::json!("--config"), serde_json::json!("dev.yaml")])?;
+api.with_http_endpoint(None, None, None, Some("PORT"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -340,6 +662,77 @@ await api.withVetTool();
 await api.withHttpEndpoint({ env: 'PORT' });
 
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_go_app("api", "./api")
+    api.with_mod_tidy().with_mod_vendor().with_mod_download().with_vet_tool()
+    api.with_http_endpoint(env="PORT")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddGoApp("api", "./api").WithModTidy().WithModVendor().WithModDownload().WithVetTool().WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addGoApp("api", "./api")
+    .withModTidy()
+    .withModVendor()
+    .withModDownload()
+    .withVetTool()
+    .withHttpEndpoint(new WithHttpEndpointOptions().env("PORT"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_go_app("api", "./api", None, None, None, None, None)?;
+api.with_mod_tidy()?.with_mod_vendor()?.with_mod_download()?.with_vet_tool()?;
+api.with_http_endpoint(None, None, None, Some("PORT"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -399,6 +792,74 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_go_app("api", "./api")
+    api.with_delve_server()
+    api.with_http_endpoint(port=8080, env="PORT")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddGoApp("api", "./api").WithDelveServer().WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8080), Env: aspire.StringPtr("PORT")})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addGoApp("api", "./api")
+    .withDelveServer()
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(8080).env("PORT"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_go_app("api", "./api", None, None, None, None, None)?;
+api.with_delve_server(None)?;
+api.with_http_endpoint(Some(8080.0), None, None, Some("PORT"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 By default the Delve server accepts a single debugger client on port `2345`. To accept multiple
@@ -431,6 +892,93 @@ await api.withDelveServer({
     log: true,
     logOutput: 'rpc,dap,debugger',
 });
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_go_app("api", "./api")
+    api.with_delve_server(options={
+        "AcceptMultiClient": True,
+        "ContinueOnStart": True,
+        "Log": True,
+        "LogOutput": "rpc,dap,debugger",
+    })
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddGoApp("api", "./api").WithDelveServer(&aspire.DelveServerOptions{
+	AcceptMultiClient: aspire.BoolPtr(true),
+	ContinueOnStart: aspire.BoolPtr(true),
+	Log: aspire.BoolPtr(true),
+	LogOutput: aspire.StringPtr("rpc,dap,debugger"),
+})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var options = new DelveServerOptions();
+options.setAcceptMultiClient(true);
+options.setContinueOnStart(true);
+options.setLog(true);
+options.setLogOutput("rpc,dap,debugger");
+
+var api = builder.addGoApp("api", "./api").withDelveServer(options);
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let options = DelveServerOptions {
+    accept_multi_client: Some(true),
+    continue_on_start: Some(true),
+    log: Some(true),
+    log_output: Some("rpc,dap,debugger".into()),
+    ..Default::default()
+};
+let api = builder.add_go_app("api", "./api", None, None, None, None, None)?;
+api.with_delve_server(Some(options))?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -504,6 +1052,71 @@ await builder.build().run();
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_go_app("api", "./api")
+    api.with_go_private(["github.com/myorg"], "github.com")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddGoApp("api", "./api").WithGoPrivate([]string{"github.com/myorg"}, "github.com")
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addGoApp("api", "./api")
+    .withGoPrivate(new String[] { "github.com/myorg" }, "github.com");
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_go_app("api", "./api", None, None, None, None, None)?;
+api.with_go_private(vec!["github.com/myorg".into()], "github.com", None, None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 <LearnMore>
@@ -513,7 +1126,7 @@ await builder.build().run();
 
 ## Experimental Go AppHost templates
 
-The `Aspire.Hosting.Go` integration can be used from C# and TypeScript AppHosts. Aspire also includes experimental Go AppHost and Go starter template support in the Aspire CLI. The Go AppHost templates use experimental Go AppHost APIs instead of the `Aspire.Hosting.Go` package. To enable Go AppHost language support for CLI templates, enable the Go feature flag:
+The `Aspire.Hosting.Go` integration can be used from C#, TypeScript, Python, Go, Java, and Rust AppHosts. The generated Python, Go, Java, and Rust AppHost SDKs are experimental. Aspire also includes experimental Go AppHost and Go starter templates in the Aspire CLI. To enable Go AppHost language support for CLI templates, enable the Go feature flag:
 
 ```bash title="Aspire CLI"
 aspire config set features:experimentalPolyglot:go true --global
