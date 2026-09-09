@@ -2,6 +2,14 @@
 import { Code, Icon } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import { getContainerImages, getRegistryUrl, getRegistryLabel } from '@utils/container-images';
+import {
+  getEnabledAppHostLanguages,
+  type AppHostLanguageId,
+} from '@utils/apphost-languages';
+import {
+  getAppHostModules,
+  resolveAppHostCapabilityLanguageSupport,
+} from '@utils/apphost-modules';
 import dockerLogo from '@assets/icons/docker.svg';
 import microsoftMark from '@assets/icons/microsoft-icon.svg?raw';
 
@@ -18,8 +26,8 @@ interface Props {
   /**
    * Optional override for the introducing AppHost API (e.g. `WithPgAdmin`).
    * Defaults to each image's `api` from the data file; set this only to override
-   * it. `()` is appended automatically and the casing pivots with the page's
-   * C#/TypeScript language selection.
+   * it. `()` is appended automatically and the projected name follows the
+   * page's AppHost language selection.
    */
   api?: string;
 }
@@ -41,16 +49,40 @@ if (images.length === 0) {
 const count = images.length;
 const displayLabel = title ?? (count === 1 ? 'Container image' : 'Container images');
 const groupLabel = `${displayLabel} for ${aspirePackage}`;
+const enabledLanguages = getEnabledAppHostLanguages();
+const appHostModule = (await getAppHostModules()).find(
+  (entry) => entry.data.package.name === aspirePackage
+)?.data;
 
-// Resolve the introducing API label pair for an image. The explicit `api` prop
-// overrides the per-image `api` from the data file. Mirrors the page's C#/TS
-// pivot (Starlight `syncKey="aspire-lang"`): C# is PascalCase (`AddPostgres`),
-// the TypeScript AppHost binding lowercases the first letter (`addPostgres`).
-function apiLabels(raw: string | null | undefined) {
-  if (!raw) return null;
-  const cs = raw.endsWith(')') ? raw : `${raw}()`;
-  const ts = cs.charAt(0).toLowerCase() + cs.slice(1);
-  return { cs, ts };
+interface ApiLabel {
+  language: AppHostLanguageId;
+  value: string;
+}
+
+function asCall(identifier: string): string {
+  return identifier.endsWith(')') ? identifier : `${identifier}()`;
+}
+
+// Resolve exact generated member names from the semantic AppHost API catalog.
+// Unsupported or missing projections are omitted instead of guessing casing.
+function apiLabels(raw: string | null | undefined): ApiLabel[] {
+  if (!raw) return [];
+
+  const csharpMemberName = raw.replace(/\(\)$/, '');
+  const resolution = appHostModule
+    ? resolveAppHostCapabilityLanguageSupport(appHostModule, csharpMemberName)
+    : undefined;
+
+  return enabledLanguages.flatMap((language) => {
+    if (language.id === 'csharp') {
+      return [{ language: language.id, value: asCall(csharpMemberName) }];
+    }
+
+    const projection = resolution?.languages[language.id];
+    return projection?.status === 'supported' && projection.identifier
+      ? [{ language: language.id, value: asCall(projection.identifier) }]
+      : [];
+  });
 }
 
 // Registry-specific brand glyph, only for registries with a recognizable mark:
@@ -125,15 +157,11 @@ function registryGlyph(registry: string) {
             </div>
 
             <div class="ci-meta">
-              {labels && (
-                <p class="ci-caption">
-                  Added by{' '}
-                  <code class="ci-api">
-                    <span data-lang="csharp">{labels.cs}</span>
-                    <span data-lang="typescript">{labels.ts}</span>
-                  </code>.
+              {labels.map((label) => (
+                <p class="ci-caption" data-lang={label.language}>
+                  Added by <code class="ci-api">{label.value}</code>.
                 </p>
-              )}
+              ))}
               <a
                 class="ci-link ci-link-source"
                 href={img.sourceUrl}
@@ -172,58 +200,6 @@ function registryGlyph(registry: string) {
   )
 }
 
-{/* Reflect the page-wide C#/TS pivot (Starlight `syncKey="aspire-lang"`) onto
-    <html data-aspire-lang> so the API label above can swap casing with CSS.
-    Inlined + guarded so it runs once per page and before paint. */}
-<script is:inline>
-  (function () {
-    if (window.__aspireLangPivot) return;
-    window.__aspireLangPivot = true;
-
-    var KEY = 'starlight-synced-tabs__aspire-lang';
-
-    function normalize(label) {
-      if (!label) return null;
-      var value = label.trim().toLowerCase();
-      if (value === 'typescript') return 'typescript';
-      if (value === 'c#' || value === 'csharp') return 'csharp';
-      return null;
-    }
-
-    function readStored() {
-      try {
-        return normalize(localStorage.getItem(KEY));
-      } catch (error) {
-        return null;
-      }
-    }
-
-    function apply(lang) {
-      document.documentElement.dataset.aspireLang = lang || 'typescript';
-    }
-
-    apply(readStored() || document.documentElement.dataset.apphostLang);
-
-    // Starlight persists the choice on tab click; defer a tick so we read the
-    // stored value it just wrote rather than the tab we clicked.
-    document.addEventListener('click', function (event) {
-      var target = event.target;
-      if (!target || !target.closest) return;
-      var tab = target.closest('starlight-tabs[data-sync-key="aspire-lang"] a[role="tab"]');
-      if (!tab) return;
-      var clicked = normalize(tab.textContent);
-      setTimeout(function () {
-        apply(readStored() || clicked);
-      }, 0);
-    });
-
-    // Keep in sync when the choice changes in another tab/window.
-    window.addEventListener('storage', function (event) {
-      if (event.key === KEY) apply(normalize(event.newValue));
-    });
-  })();
-</script>
-
 <style>
   .container-images {
     margin: 1rem 0;
@@ -239,6 +215,7 @@ function registryGlyph(registry: string) {
   /* Caption tying the image back to the API that introduces it, rendered under
      the reference so the card reads as a detail of that API call. */
   .ci-caption {
+    display: none;
     margin: 0;
     font-size: var(--sl-text-body);
     color: var(--sl-color-gray-2);
@@ -267,7 +244,7 @@ function registryGlyph(registry: string) {
   /* The API method reads as inline code that matches prose inline code exactly.
      The component root carries `.not-content`, which opts the subtree out of
      Starlight's inline-code rule, so replicate that rule here with the same
-     theme vars. Casing pivots with the page's C#/TS selection (rules below). */
+     theme vars. */
   .ci-api {
     font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, monospace);
     font-size: var(--sl-text-body);
@@ -279,19 +256,13 @@ function registryGlyph(registry: string) {
     border-radius: 0.25rem;
   }
 
-  /* Language pivot: mirror the page-wide `syncKey="aspire-lang"` choice. Default
-     to the TypeScript name while preserving an explicit C# selection. The
-     `data-aspire-lang` attribute is set on <html> by the inline script below. */
-  .ci-api [data-lang] {
-    display: none;
-  }
-
-  :global(html[data-aspire-lang='typescript']) .ci-api [data-lang='typescript'] {
-    display: inline;
-  }
-
-  :global(html[data-aspire-lang='csharp']) .ci-api [data-lang='csharp'] {
-    display: inline;
+  :global(html[data-apphost-lang='typescript']) .ci-caption[data-lang='typescript'],
+  :global(html[data-apphost-lang='csharp']) .ci-caption[data-lang='csharp'],
+  :global(html[data-apphost-lang='python']) .ci-caption[data-lang='python'],
+  :global(html[data-apphost-lang='go']) .ci-caption[data-lang='go'],
+  :global(html[data-apphost-lang='java']) .ci-caption[data-lang='java'],
+  :global(html[data-apphost-lang='rust']) .ci-caption[data-lang='rust'] {
+    display: block;
   }
 
   .ci-list {
