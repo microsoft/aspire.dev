@@ -51,6 +51,10 @@ function getAppHostTabs(source: string): RegExpMatchArray[] {
   );
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 describe('integration AppHost language parity', () => {
   test('accounts for every AppHost language in the scoped integration docs', () => {
     const violations: string[] = [];
@@ -91,47 +95,76 @@ describe('integration AppHost language parity', () => {
 
         for (const fence of goFences) {
           const code = fence.groups?.code ?? '';
-          for (const resourceCall of code.matchAll(/builder(?:\s*\.\s*)?Add[A-Z]\w*\s*\(/g)) {
-            if (resourceCall.index === undefined) {
-              continue;
-            }
+          const lines = code.split(/\r?\n/);
 
-            const lineStart = code.lastIndexOf('\n', resourceCall.index) + 1;
-            const linePrefix = code.slice(lineStart, resourceCall.index);
-            if (!linePrefix.includes(':=')) {
-              violations.push(
-                `${path.relative(docsDirectory, file)} AppHostTabs ${tabIndex + 1} does not assign a Go resource for an immediate Err() check`
-              );
-            }
-          }
-
-          const assignments = Array.from(
-            code.matchAll(/^\s*(?<resource>\w+)\s*:=\s*builder(?:\s*\.\s*)?Add[A-Z]\w*\s*\(/gm)
-          );
-
-          for (const assignment of assignments) {
-            const resource = assignment.groups?.resource;
-            if (!resource || assignment.index === undefined) {
-              continue;
-            }
-
-            const remainder = code.slice(assignment.index + assignment[0].length);
-            const nextOperation = remainder.search(
-              /^\s*(?:\w+(?:\s*,\s*\w+)?\s*:=|app\s*,\s*err\s*:=\s*builder\.Build\(\))/m
+          for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+            const assignment = lines[lineIndex].match(
+              /^\s*(?<variable>[A-Za-z_]\w*)\s*:=\s*(?<expression>.+)$/
             );
-            const immediateBlock =
-              nextOperation === -1 ? remainder : remainder.slice(0, nextOperation);
-            const escapedResource = resource.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            if (!assignment?.groups) {
+              continue;
+            }
 
-            if (
-              !new RegExp(
-                `if\\s+err\\s*:=\\s*${escapedResource}\\.Err\\(\\);\\s*err\\s*!=\\s*nil`
-              ).test(immediateBlock)
+            const variable = assignment.groups.variable;
+            let expression = assignment.groups.expression;
+            let statementEnd = lineIndex;
+            let parenthesisDepth =
+              (expression.match(/\(/g) ?? []).length -
+              (expression.match(/\)/g) ?? []).length;
+
+            while (
+              statementEnd + 1 < lines.length &&
+              (parenthesisDepth > 0 || expression.trimEnd().endsWith('.'))
             ) {
+              statementEnd += 1;
+              expression += `\n${lines[statementEnd]}`;
+              parenthesisDepth +=
+                (lines[statementEnd].match(/\(/g) ?? []).length -
+                (lines[statementEnd].match(/\)/g) ?? []).length;
+            }
+
+            const createsGeneratedResource =
+              /\b(?:builder|[A-Za-z_]\w*)\.Add[A-Z]\w*\s*\(/.test(expression) &&
+              !/\bbuilder\.AddProject\s*\(/.test(expression);
+            if (!createsGeneratedResource) {
+              lineIndex = statementEnd;
+              continue;
+            }
+
+            const resourceCreationCount = (
+              expression.match(/\.(?:Add[A-Z]\w*)\s*\(/g) ?? []
+            ).length;
+            if (resourceCreationCount > 1) {
               violations.push(
-                `${path.relative(docsDirectory, file)} AppHostTabs ${tabIndex + 1} does not immediately check ${resource}.Err()`
+                `${path.relative(docsDirectory, file)} AppHostTabs ${
+                  tabIndex + 1
+                } chains generated Go resources without exposing each parent for an Err() check`
               );
             }
+
+            const escapedVariable = escapeRegExp(variable);
+            const errorPattern = new RegExp(`\\b${escapedVariable}\\.Err\\s*\\(`);
+            const usagePattern = new RegExp(`\\b${escapedVariable}\\b`);
+
+            for (let nextLine = statementEnd + 1; nextLine < lines.length; nextLine += 1) {
+              const candidate = lines[nextLine].trim();
+              if (!candidate || candidate.startsWith('//')) {
+                continue;
+              }
+              if (errorPattern.test(candidate)) {
+                break;
+              }
+              if (usagePattern.test(candidate) || /\bbuilder\.Build\s*\(/.test(candidate)) {
+                violations.push(
+                  `${path.relative(docsDirectory, file)} AppHostTabs ${
+                    tabIndex + 1
+                  } uses ${variable} before checking ${variable}.Err()`
+                );
+                break;
+              }
+            }
+
+            lineIndex = statementEnd;
           }
         }
 
