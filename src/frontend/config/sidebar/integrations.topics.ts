@@ -1330,7 +1330,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           },
           items: [
             {
-              label: 'Get started with apps by path',
+              label: 'Get started with the .NET / C# app integration',
               slug: 'integrations/frameworks/dotnet/dotnet-get-started',
             },
             {
@@ -1346,8 +1346,14 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               collapsed: true,
               items: [
                 { label: 'Get started', slug: 'integrations/dotnet/blazor-get-started' },
-                { label: 'Set up Blazor hosting in the AppHost', slug: 'integrations/dotnet/blazor-hosting' },
-                { label: 'Connect Blazor apps and APIs', slug: 'integrations/dotnet/blazor-connect' },
+                {
+                  label: 'Set up Blazor hosting in the AppHost',
+                  slug: 'integrations/dotnet/blazor-hosting',
+                },
+                {
+                  label: 'Connect Blazor apps and APIs',
+                  slug: 'integrations/dotnet/blazor-connect',
+                },
               ],
             },
             { label: '.NET MAUI', slug: 'integrations/dotnet/maui' },
