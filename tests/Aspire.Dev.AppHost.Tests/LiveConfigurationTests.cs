@@ -14,16 +14,16 @@ public sealed class LiveConfigurationTests
             DisableDashboard = true,
         });
         var siteSecrets = builder.AddAzureKeyVault("siteconfig");
-        var liveCache = builder.AddAzureManagedRedis("livecache")
+        var cache = builder.AddAzureManagedRedis("livecache")
             .RunAsContainer();
         var website = builder.AddProject<Projects.StaticHost>("aspiredev")
-            .WithReference(liveCache)
+            .WithReference(cache)
             .WithExternalHttpEndpoints()
             .WithProductionLiveStatus(builder, siteSecrets);
         await using var app = builder.Build();
 
         var redis = Assert.Single(builder.Resources.OfType<AzureManagedRedisResource>());
-        Assert.Same(liveCache.Resource, redis);
+        Assert.Same(cache.Resource, redis);
         Assert.Equal("livecache", redis.Name);
         Assert.False(redis.UseAccessKeyAuthentication);
         Assert.Single(builder.Resources.OfType<ProjectResource>());
