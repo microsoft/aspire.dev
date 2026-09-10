@@ -27,7 +27,6 @@ The following table shows the compatibility between Aspire AI hosting and client
 | `Aspire.Hosting.Foundry` | ❌ No | ⚠️ Partial | ✅ Yes (preferred) |
 | `Aspire.Hosting.Azure.CognitiveServices` | ❌ No | ✅ Yes (preferred) | ❌ No |
 | `Aspire.Hosting.OpenAI` | ✅ Yes (preferred) | ✅ Yes | ❌ No |
-| `Aspire.Hosting.GitHub.Models` | ⚠️ Partial | ❌ No | ✅ Yes (preferred) |
 
 <Aside type="note" title="Legend">
 
@@ -165,47 +164,6 @@ The [Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) package provid
 builder.AddOpenAIClient("openai");
 ```
 
-### GitHub Models
-
-For GitHub Models, use the **Aspire.Azure.AI.Inference** client integration for the best compatibility with the GitHub Models API. For more information, see [Aspire GitHub Models integration (Preview)](/integrations/ai/github-models/github-models-get-started/).
-
-#### Hosting integration
-
-The [Aspire.Hosting.GitHub.Models](https://www.nuget.org/packages/Aspire.Hosting.GitHub.Models) package provides the hosting integration. In your app host project:
-
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var chat = builder.AddGitHubModel("chat", "openai/gpt-4o-mini");
-
-builder.AddProject<Projects.ExampleProject>()
-    .WithReference(chat);
-```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
-```typescript title="apphost.mts" twoslash
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-const chat = await builder.addGitHubModelById("chat", "openai/gpt-4o-mini");
-
-await builder.addNodeApp("api", "./api", "index.js")
-    .withReference(chat);
-```
-</TabItem>
-</Tabs>
-
-#### Client integration
-
-The [Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspire.Azure.AI.Inference) package provides the client integration. In your service project:
-
-```csharp title="Program.cs"
-builder.AddAzureChatCompletionsClient("chat");
-```
-
 ## Connection string formats
 
 Understanding how hosting and client integrations communicate through connection strings can help you troubleshoot connectivity issues and understand the underlying mechanics.
@@ -248,12 +206,6 @@ Endpoint={EmulatorServiceUri};Key={ApiKey}
 Endpoint={Endpoint};Key={Key};Model={Model}
 ```
 
-#### Aspire.Hosting.GitHub.Models
-
-```
-Endpoint=https://models.github.ai/inference;Key={Key};Model={ModelName}
-```
-
 ### Client integration connection string requirements
 
 #### Aspire.OpenAI
@@ -286,7 +238,7 @@ Expects connection strings in the format:
 Endpoint={Endpoint};EndpointAIInference={EndpointAIInference};Key={Key};Deployment={DeploymentName};Model={ModelName}
 ```
 
-Uses either `Deployment` or `Model` (in that order). `Deployment` is set by `Aspire.Hosting.Azure.CognitiveServices` while `Model` is set by `Aspire.Hosting.GitHub.Models`.
+Uses either `Deployment` or `Model` (in that order).
 
 Uses `EndpointAIInference` if available, otherwise `Endpoint`.
 
