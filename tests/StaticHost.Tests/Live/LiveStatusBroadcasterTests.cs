@@ -180,6 +180,118 @@ public sealed class LiveStatusBroadcasterTests
     }
 
     [Fact]
+    public void ApplyState_IgnoresDuplicateAndOutOfOrderVersions()
+    {
+        var (b, _) = Create(coalesceMs: 0);
+        var current = LiveStatus.Idle with
+        {
+            IsLive = true,
+            PrimarySource = "twitch",
+            Twitch = new TwitchStatus(true, "aspiredotdev", "Live"),
+            LiveSessionId = "live-1",
+            UpdatedAt = DateTimeOffset.UnixEpoch.AddSeconds(2),
+        };
+
+        var epoch = Guid.NewGuid();
+        b.ApplyState(new LiveStatusState(epoch, 2, current), flushImmediately: true);
+        b.ApplyState(new LiveStatusState(epoch, 1, LiveStatus.Idle), flushImmediately: true);
+        b.ApplyState(new LiveStatusState(epoch, 2, LiveStatus.Idle), flushImmediately: true);
+
+        Assert.Equal(current, b.Current);
+    }
+
+    [Fact]
+    public void ApplyState_VerifiesEpochChangesAgainstCanonicalState()
+    {
+        var (b, _) = Create(coalesceMs: 0);
+        var previousEpoch = Guid.NewGuid();
+        var currentEpoch = Guid.NewGuid();
+        var live = LiveStatus.Idle with
+        {
+            IsLive = true,
+            PrimarySource = "twitch",
+            Twitch = new TwitchStatus(true, "aspiredotdev", "Live"),
+            LiveSessionId = "live-1",
+            UpdatedAt = DateTimeOffset.UnixEpoch.AddSeconds(1),
+        };
+
+        b.ApplyState(
+            new LiveStatusState(previousEpoch, 20, live),
+            flushImmediately: true,
+            allowEpochChange: true);
+        b.ApplyState(
+            new LiveStatusState(currentEpoch, 1, LiveStatus.Idle),
+            flushImmediately: true,
+            allowEpochChange: true);
+
+        Assert.False(b.ApplyState(
+            new LiveStatusState(previousEpoch, 21, live),
+            flushImmediately: true));
+        Assert.Equal(LiveStatus.Idle, b.Current);
+    }
+
+    [Fact]
+    public void ApplyState_RefreshesCanonicalTimestampWithoutBroadcasting()
+    {
+        var (b, _) = Create(coalesceMs: 0);
+        var (reader, subscription) = b.Subscribe();
+        using var lease = subscription;
+        Assert.True(reader.TryRead(out _));
+        var refreshed = LiveStatus.Idle with
+        {
+            UpdatedAt = DateTimeOffset.UnixEpoch.AddMinutes(1),
+        };
+
+        b.ApplyState(
+            new LiveStatusState(Guid.NewGuid(), 1, refreshed),
+            flushImmediately: true);
+
+        Assert.Equal(refreshed, b.Current);
+        Assert.False(reader.TryRead(out _));
+    }
+
+    [Fact]
+    public async Task SharedStore_AtomicallyMergesConcurrentProviderUpdates()
+    {
+        var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        var store = new InMemoryLiveStatusStore(time);
+        var options = Options.Create(new LiveStatusOptions { CoalesceWindowMs = 0 });
+        using var first = new LiveStatusBroadcaster(
+            options,
+            NullLogger<LiveStatusBroadcaster>.Instance,
+            time,
+            store);
+        using var second = new LiveStatusBroadcaster(
+            options,
+            NullLogger<LiveStatusBroadcaster>.Instance,
+            time,
+            store);
+
+        await Task.WhenAll(
+            first.UpdateAsync(
+                new LiveStatusUpdate
+                {
+                    Twitch = new TwitchStatus(true, "aspiredotdev", null),
+                }).AsTask(),
+            second.UpdateAsync(
+                new LiveStatusUpdate
+                {
+                    YouTube = new YouTubeStatus(true, "video-1"),
+                }).AsTask());
+
+        var state = await store.GetAsync();
+        Assert.Equal(2, state.Version);
+        Assert.True(state.Snapshot.Twitch.Live);
+        Assert.True(state.Snapshot.YouTube.Live);
+        Assert.True(state.Snapshot.IsLive);
+        Assert.NotNull(state.Snapshot.LiveSessionId);
+
+        await first.RefreshAsync();
+        Assert.True(first.Current.Twitch.Live);
+        Assert.True(first.Current.YouTube.Live);
+    }
+
+    [Fact]
     public async Task Unsubscribe_StopsDeliveringEvents()
     {
         var (b, time) = Create(coalesceMs: 1);

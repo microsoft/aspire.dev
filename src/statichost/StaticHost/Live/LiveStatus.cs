@@ -39,6 +39,12 @@ public sealed record LiveStatus(
         UpdatedAt: DateTimeOffset.UnixEpoch);
 }
 
+/// <summary>An epoch-scoped, monotonically versioned canonical live-status snapshot.</summary>
+public sealed record LiveStatusState(Guid Epoch, long Version, LiveStatus Snapshot)
+{
+    public static LiveStatusState CreateInitial() => new(Guid.NewGuid(), 0, LiveStatus.Idle);
+}
+
 /// <summary>Twitch sub-status.</summary>
 public sealed record TwitchStatus(bool Live, string? Channel, string? Title);
 
@@ -50,8 +56,11 @@ public sealed record YouTubeStatus(bool Live, string? VideoId);
 /// Keeps the snapshot allocation-free and AOT-friendly.
 /// </summary>
 [JsonSerializable(typeof(LiveStatus))]
+[JsonSerializable(typeof(LiveStatusState))]
 [JsonSerializable(typeof(TwitchStatus))]
 [JsonSerializable(typeof(YouTubeStatus))]
+[JsonSerializable(typeof(YouTube.YouTubeWebSubSubscriptionData))]
+[JsonSerializable(typeof(YouTube.YouTubeWebSubSubscriptionRequest))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.Never,

@@ -19,10 +19,14 @@ public sealed class YouTubeWebSubService(
     IOptionsMonitor<LiveStatusOptions> options,
     ILogger<YouTubeWebSubService> logger,
     TimeProvider? timeProvider = null,
-    YouTubeWebSubSubscriptionState? subscriptionState = null) : BackgroundService
+    IYouTubeWebSubSubscriptionState? subscriptionState = null,
+    ILiveStatusCoordination? coordination = null) : BackgroundService
 {
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
-    private readonly YouTubeWebSubSubscriptionState _subscriptions = subscriptionState ?? new();
+    private readonly IYouTubeWebSubSubscriptionState _subscriptions =
+        subscriptionState ?? new YouTubeWebSubSubscriptionState();
+    private readonly ILiveStatusCoordination _coordination =
+        coordination ?? new SingleInstanceLiveStatusCoordination();
 
     private DateTimeOffset _nextDiscoveryPollAt = DateTimeOffset.MinValue;
     private int _consecutiveOfflinePolls;
@@ -39,6 +43,14 @@ public sealed class YouTubeWebSubService(
             return;
         }
 
+        await _coordination.RunAsLeaderAsync(
+            LiveStatusRedisKeys.YouTubeLeader,
+            RunLeaderAsync,
+            stoppingToken).ConfigureAwait(false);
+    }
+
+    private async Task RunLeaderAsync(CancellationToken stoppingToken)
+    {
         try
         {
             await Task.Delay(TimeSpan.FromSeconds(3), _time, stoppingToken).ConfigureAwait(false);
@@ -96,10 +108,16 @@ public sealed class YouTubeWebSubService(
         }
 
         var now = _time.GetUtcNow();
-        if (!string.IsNullOrEmpty(youtube.WebhookSecret) &&
-            _subscriptions.ShouldRequestSubscription(channelId, now))
+        var request = !string.IsNullOrEmpty(youtube.WebhookSecret)
+            ? await _subscriptions.TryBeginSubscriptionAsync(
+                channelId,
+                now,
+                cancellationToken).ConfigureAwait(false)
+            : null;
+
+        if (request is not null)
         {
-            var request = _subscriptions.BeginSubscription(channelId, now);
+            var requestSent = false;
             try
             {
                 var callback = $"{opts.PublicBaseUrl.TrimEnd('/')}/api/live/youtube/webhook";
@@ -110,16 +128,34 @@ public sealed class YouTubeWebSubService(
                     request.VerifyToken,
                     TimeSpan.FromDays(5),
                     cancellationToken).ConfigureAwait(false);
+                requestSent = true;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                await _subscriptions.MarkRequestFailedAsync(
+                    request,
+                    CancellationToken.None).ConfigureAwait(false);
+                throw;
             }
             catch (Exception ex)
             {
-                _subscriptions.MarkRequestFailed(request);
+                await _subscriptions.MarkRequestFailedAsync(
+                    request,
+                    CancellationToken.None).ConfigureAwait(false);
                 logger.LogWarning(ex, "YouTube WebSub subscribe failed; will retry next tick.");
+            }
+
+            if (requestSent)
+            {
+                await _subscriptions.MarkRequestSentAsync(
+                    request,
+                    _time.GetUtcNow(),
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
         YouTubeLiveResult? live = null;
-        var current = broadcaster.Current.YouTube;
+        var current = (await broadcaster.GetCurrentAsync(cancellationToken).ConfigureAwait(false)).YouTube;
         if (current.Live && !string.IsNullOrEmpty(current.VideoId))
         {
             ResetOfflineConfirmationFor(current.VideoId);
@@ -140,11 +176,13 @@ public sealed class YouTubeWebSubService(
         {
             _consecutiveOfflinePolls = 0;
             _offlineConfirmationVideoId = live.VideoId;
-            broadcaster.Update(new LiveStatusUpdate { YouTube = new YouTubeStatus(true, live.VideoId) });
+            await broadcaster.UpdateAsync(
+                new LiveStatusUpdate { YouTube = new YouTubeStatus(true, live.VideoId) },
+                cancellationToken).ConfigureAwait(false);
         }
         else
         {
-            var latest = broadcaster.Current.YouTube;
+            var latest = (await broadcaster.GetCurrentAsync(cancellationToken).ConfigureAwait(false)).YouTube;
             if (!latest.Live)
             {
                 _consecutiveOfflinePolls = 0;
@@ -162,7 +200,9 @@ public sealed class YouTubeWebSubService(
             _consecutiveOfflinePolls++;
             if (_consecutiveOfflinePolls >= youtube.OfflineConfirmationCount)
             {
-                broadcaster.Update(new LiveStatusUpdate { YouTube = new YouTubeStatus(false, null) });
+                await broadcaster.UpdateAsync(
+                    new LiveStatusUpdate { YouTube = new YouTubeStatus(false, null) },
+                    cancellationToken).ConfigureAwait(false);
             }
         }
     }

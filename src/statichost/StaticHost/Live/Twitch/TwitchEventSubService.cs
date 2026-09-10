@@ -19,9 +19,12 @@ public sealed class TwitchEventSubService(
     LiveStatusBroadcaster broadcaster,
     IOptionsMonitor<LiveStatusOptions> options,
     ILogger<TwitchEventSubService> logger,
-    TimeProvider? timeProvider = null) : BackgroundService
+    TimeProvider? timeProvider = null,
+    ILiveStatusCoordination? coordination = null) : BackgroundService
 {
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+    private readonly ILiveStatusCoordination _coordination =
+        coordination ?? new SingleInstanceLiveStatusCoordination();
     private string? _resolvedChannelLogin;
     private string? _resolvedChannelId;
 
@@ -34,6 +37,14 @@ public sealed class TwitchEventSubService(
             return;
         }
 
+        await _coordination.RunAsLeaderAsync(
+            LiveStatusRedisKeys.TwitchLeader,
+            RunLeaderAsync,
+            stoppingToken).ConfigureAwait(false);
+    }
+
+    private async Task RunLeaderAsync(CancellationToken stoppingToken)
+    {
         // Initial reconcile after a short delay so the app can finish starting.
         try
         {
@@ -94,10 +105,12 @@ public sealed class TwitchEventSubService(
 
         // Re-seed state.
         var stream = await client.GetStreamAsync(channelId, cancellationToken).ConfigureAwait(false);
-        broadcaster.Update(new LiveStatusUpdate
-        {
-            Twitch = new TwitchStatus(stream.Live, twitch.ChannelLogin, stream.Title)
-        });
+        await broadcaster.UpdateAsync(
+            new LiveStatusUpdate
+            {
+                Twitch = new TwitchStatus(stream.Live, twitch.ChannelLogin, stream.Title)
+            },
+            cancellationToken).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(twitch.WebhookSecret))
         {

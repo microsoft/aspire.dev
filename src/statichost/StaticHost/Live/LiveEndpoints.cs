@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -78,11 +77,13 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         return endpoints;
     }
 
-    private static IResult GetSnapshot(HttpContext context, LiveStatusBroadcaster broadcaster)
+    private static async Task<IResult> GetSnapshot(
+        LiveStatusBroadcaster broadcaster,
+        CancellationToken cancellationToken)
     {
         // Cache-Control: no-store is applied to the whole /api/live group by an
         // endpoint filter in MapLiveStatus.
-        var snapshot = broadcaster.Current;
+        var snapshot = await broadcaster.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
         return Results.Json(snapshot, LiveStatusJsonContext.Default.LiveStatus,
             statusCode: StatusCodes.Status200OK);
     }
@@ -93,6 +94,8 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         TimeProvider time,
         CancellationToken cancellationToken)
     {
+        await broadcaster.RefreshAsync(cancellationToken).ConfigureAwait(false);
+
         context.Response.StatusCode = StatusCodes.Status200OK;
         context.Response.Headers.ContentType = "text/event-stream";
         context.Response.Headers["X-Accel-Buffering"] = "no";
@@ -148,9 +151,6 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
     // --- Twitch EventSub ----------------------------------------------------
 
-    // Tiny thread-safe LRU for replay defense (Twitch-Eventsub-Message-Id).
-    private static readonly TwitchMessageDedup s_twitchDedup = new(capacity: 1024);
-
     private static IResult TwitchWebhookInfo() =>
         Results.Text("Twitch EventSub webhook endpoint. Twitch sends signed notifications with POST.", "text/plain");
 
@@ -159,6 +159,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         IHostEnvironment env,
         IOptions<LiveStatusOptions> options,
         LiveStatusBroadcaster broadcaster,
+        ILiveStatusCoordination coordination,
         TimeProvider time,
         ILoggerFactory loggerFactory)
     {
@@ -216,21 +217,53 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         // Verification handshakes must echo the challenge every time the hub retries,
         // so never let message-id dedup swallow them; only real notifications dedupe.
         var isVerification = string.Equals(messageType, "webhook_callback_verification", StringComparison.Ordinal);
-        if (!isVerification && !s_twitchDedup.TryRegister(messageId))
+        ITwitchMessageLease? messageLease = null;
+        if (!isVerification)
         {
-            logger.LogDebug("Twitch webhook replay ignored for {MessageId}.", messageId);
-            return Results.Ok();
+            var acquisition = await coordination.AcquireTwitchMessageAsync(
+                messageId,
+                context.RequestAborted).ConfigureAwait(false);
+
+            if (acquisition.Status == TwitchMessageAcquisitionStatus.Completed)
+            {
+                logger.LogDebug("Twitch webhook replay ignored for {MessageId}.", messageId);
+                return Results.Ok();
+            }
+
+            if (acquisition.Status == TwitchMessageAcquisitionStatus.Processing)
+            {
+                logger.LogDebug(
+                    "Twitch webhook {MessageId} is already being processed; asking Twitch to retry.",
+                    messageId);
+                return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+            }
+
+            messageLease = acquisition.Lease
+                ?? throw new InvalidOperationException(
+                    "An acquired Twitch message did not include its processing lease.");
         }
 
+        await using var ownedMessageLease = messageLease;
         var bodyJson = Encoding.UTF8.GetString(bodyBytes);
-        return TwitchWebhookHandler.Handle(messageType, bodyJson, broadcaster, twitch, logger);
+        var result = await TwitchWebhookHandler.HandleAsync(
+            messageType,
+            bodyJson,
+            broadcaster,
+            twitch,
+            logger,
+            context.RequestAborted).ConfigureAwait(false);
+        if (ownedMessageLease is not null)
+        {
+            await ownedMessageLease.CompleteAsync().ConfigureAwait(false);
+        }
+        return result;
     }
 
     // --- YouTube WebSub -----------------------------------------------------
 
-    private static IResult YouTubeVerify(
+    private static async Task<IResult> YouTubeVerify(
         HttpContext context,
-        YouTubeWebSubSubscriptionState subscriptions,
+        IYouTubeWebSubSubscriptionState subscriptions,
         TimeProvider time,
         ILoggerFactory loggerFactory)
     {
@@ -253,12 +286,23 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             return Results.BadRequest("Invalid WebSub verification request.");
         }
 
-        if (!subscriptions.TryConfirmSubscription(
-            mode,
-            topic,
-            verifyToken,
-            leaseSeconds,
-            time.GetUtcNow()))
+        if (!YouTubeWebSubSubscriptionTransitions.HasValidConfirmationShape(
+                mode,
+                topic,
+                verifyToken,
+                leaseSeconds))
+        {
+            logger.LogWarning("Rejected malformed YouTube WebSub {Mode} verification for {Topic}.", mode, topic);
+            return Results.NotFound();
+        }
+
+        if (!await subscriptions.TryConfirmSubscriptionAsync(
+                mode,
+                topic,
+                verifyToken,
+                leaseSeconds,
+                time.GetUtcNow(),
+                context.RequestAborted).ConfigureAwait(false))
         {
             logger.LogWarning("Rejected unexpected YouTube WebSub {Mode} verification for {Topic}.", mode, topic);
             return Results.NotFound();
@@ -272,6 +316,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         IOptions<LiveStatusOptions> options,
         LiveStatusBroadcaster broadcaster,
         YouTubeLiveConfirmationQueue confirmationQueue,
+        ILiveStatusCoordination coordination,
         IHostEnvironment env,
         ILoggerFactory loggerFactory)
     {
@@ -305,7 +350,9 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             }
 
             var videoId = YouTubeWebhookHandler.ExtractVideoId(bodyBytes);
-            broadcaster.Update(new LiveStatusUpdate { YouTube = new YouTubeStatus(videoId is not null, videoId) });
+            await broadcaster.UpdateAsync(
+                new LiveStatusUpdate { YouTube = new YouTubeStatus(videoId is not null, videoId) },
+                context.RequestAborted).ConfigureAwait(false);
             logger.LogInformation("YouTube dev webhook accepted without API key; videoId={VideoId}", videoId);
             return Results.Ok();
         }
@@ -313,7 +360,11 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         // Queue a coalesced, host-scoped confirming poll instead of blocking the hub
         // or spawning an untracked Task.Run per notification. The queue collapses a
         // burst of retries into a single Data API call and cancels on shutdown.
-        confirmationQueue.RequestConfirmation();
+        if (await coordination.TryQueueYouTubeConfirmationAsync(
+                context.RequestAborted).ConfigureAwait(false))
+        {
+            confirmationQueue.RequestConfirmation();
+        }
 
         return Results.Ok();
     }
@@ -338,12 +389,14 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         }
 
         var live = await ytClient.GetCurrentLiveAsync(channelId, cancellationToken).ConfigureAwait(false);
-        broadcaster.Update(new LiveStatusUpdate { YouTube = new YouTubeStatus(live.Live, live.VideoId) });
+        await broadcaster.UpdateAsync(
+            new LiveStatusUpdate { YouTube = new YouTubeStatus(live.Live, live.VideoId) },
+            cancellationToken).ConfigureAwait(false);
     }
 
     // --- Dev-only -----------------------------------------------------------
 
-    private static IResult DevSet(
+    private static async Task<IResult> DevSet(
         HttpContext context,
         [FromBody] DevSetBody body,
         IHostEnvironment env,
@@ -369,9 +422,11 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         {
             update.YouTube = new YouTubeStatus(body.YouTube.Live, body.YouTube.VideoId);
         }
-        broadcaster.Update(update);
+        var snapshot = await broadcaster.UpdateAsync(
+            update,
+            context.RequestAborted).ConfigureAwait(false);
         broadcaster.FlushNow();
-        return Results.Ok(broadcaster.Current);
+        return Results.Ok(snapshot);
     }
 
     /// <summary>Body of the dev-only set endpoint.</summary>
@@ -403,23 +458,4 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             Encoding.UTF8.GetBytes(options.DevCommandSecret));
     }
 
-    // --- Tiny LRU for Twitch dedup ------------------------------------------
-
-    private sealed class TwitchMessageDedup(int capacity)
-    {
-        private readonly ConcurrentDictionary<string, byte> _set = new(StringComparer.Ordinal);
-        private readonly ConcurrentQueue<string> _order = new();
-        private readonly int _capacity = capacity;
-
-        public bool TryRegister(string id)
-        {
-            if (!_set.TryAdd(id, 0)) return false;
-            _order.Enqueue(id);
-            while (_order.Count > _capacity && _order.TryDequeue(out var dropped))
-            {
-                _set.TryRemove(dropped, out _);
-            }
-            return true;
-        }
-    }
 }

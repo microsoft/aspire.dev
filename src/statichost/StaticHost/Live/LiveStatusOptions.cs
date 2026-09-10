@@ -20,13 +20,6 @@ public sealed class LiveStatusOptions
     public const string SectionName = "Live";
 
     /// <summary>
-    /// Optional origin of a dedicated live-status coordinator. When set, this
-    /// host proxies <c>/api/live</c> requests to that origin instead of running
-    /// the process-local broadcaster and provider workers itself.
-    /// </summary>
-    public string BackendUrl { get; set; } = "";
-
-    /// <summary>
     /// Public, externally-reachable base URL of the site. Used to build the
     /// callback URLs registered with Twitch EventSub and YouTube WebSub.
     /// </summary>

@@ -198,43 +198,98 @@ public sealed class YouTubeWebSubServiceTests
     }
 
     [Fact]
-    public void SubscriptionState_AcceptsOnlyPendingSubscribeAndUsesGrantedLease()
+    public async Task SubscriptionState_AcceptsOnlyPendingSubscribeAndUsesGrantedLease()
     {
         var now = DateTimeOffset.UnixEpoch;
         var state = new YouTubeWebSubSubscriptionState();
-        var request = state.BeginSubscription("channel-123", now);
+        var request = Assert.IsType<YouTubeWebSubSubscriptionRequest>(
+            await state.TryBeginSubscriptionAsync("channel-123", now));
+        await state.MarkRequestSentAsync(request, now);
 
-        Assert.False(state.TryConfirmSubscription(
+        Assert.False(await state.TryConfirmSubscriptionAsync(
             "unsubscribe",
             request.Topic,
             request.VerifyToken,
             (int)TimeSpan.FromDays(5).TotalSeconds,
             now));
-        Assert.False(state.TryConfirmSubscription(
+        Assert.False(await state.TryConfirmSubscriptionAsync(
             "subscribe",
             request.Topic,
             "wrong-token",
             (int)TimeSpan.FromDays(5).TotalSeconds,
             now));
-        Assert.True(state.TryConfirmSubscription(
+        Assert.False(await state.TryConfirmSubscriptionAsync(
+            "subscribe",
+            "",
+            request.VerifyToken,
+            (int)TimeSpan.FromDays(5).TotalSeconds,
+            now));
+        Assert.False(await state.TryConfirmSubscriptionAsync(
+            "subscribe",
+            request.Topic,
+            "",
+            (int)TimeSpan.FromDays(5).TotalSeconds,
+            now));
+        Assert.False(await state.TryConfirmSubscriptionAsync(
+            "subscribe",
+            request.Topic,
+            request.VerifyToken,
+            0,
+            now));
+        Assert.True(await state.TryConfirmSubscriptionAsync(
             "subscribe",
             request.Topic,
             request.VerifyToken,
             (int)TimeSpan.FromDays(5).TotalSeconds,
             now));
-        Assert.Equal(now.AddDays(4), state.RenewAt);
-        Assert.False(state.ShouldRequestSubscription("channel-123", now.AddDays(3)));
-        Assert.True(state.ShouldRequestSubscription("channel-123", now.AddDays(4)));
+        Assert.Equal(now.AddDays(4), await state.GetRenewAtAsync());
+        Assert.Null(await state.TryBeginSubscriptionAsync("channel-123", now.AddDays(3)));
+        Assert.NotNull(await state.TryBeginSubscriptionAsync("channel-123", now.AddDays(4)));
 
         var shortLeaseState = new YouTubeWebSubSubscriptionState();
-        var shortLeaseRequest = shortLeaseState.BeginSubscription("channel-123", now);
-        Assert.True(shortLeaseState.TryConfirmSubscription(
+        var shortLeaseRequest = Assert.IsType<YouTubeWebSubSubscriptionRequest>(
+            await shortLeaseState.TryBeginSubscriptionAsync("channel-123", now));
+        Assert.True(await shortLeaseState.TryConfirmSubscriptionAsync(
             "subscribe",
             shortLeaseRequest.Topic,
             shortLeaseRequest.VerifyToken,
             30,
             now));
-        Assert.Equal(now.AddSeconds(24), shortLeaseState.RenewAt);
+        Assert.Equal(now.AddSeconds(24), await shortLeaseState.GetRenewAtAsync());
+    }
+
+    [Fact]
+    public async Task SubscriptionState_ReclaimsAbandonedPreSendReservation()
+    {
+        var now = DateTimeOffset.UnixEpoch;
+        var state = new YouTubeWebSubSubscriptionState();
+
+        var abandoned = Assert.IsType<YouTubeWebSubSubscriptionRequest>(
+            await state.TryBeginSubscriptionAsync("channel-123", now));
+        Assert.Null(
+            await state.TryBeginSubscriptionAsync(
+                "channel-123",
+                now.AddSeconds(29)));
+
+        var replacement = Assert.IsType<YouTubeWebSubSubscriptionRequest>(
+            await state.TryBeginSubscriptionAsync(
+                "channel-123",
+                now.AddSeconds(30)));
+
+        Assert.NotEqual(abandoned.VerifyToken, replacement.VerifyToken);
+
+        var sentState = new YouTubeWebSubSubscriptionState();
+        var sent = Assert.IsType<YouTubeWebSubSubscriptionRequest>(
+            await sentState.TryBeginSubscriptionAsync("channel-123", now));
+        await sentState.MarkRequestSentAsync(sent, now);
+        Assert.Null(
+            await sentState.TryBeginSubscriptionAsync(
+                "channel-123",
+                now.AddMinutes(9)));
+        Assert.NotNull(
+            await sentState.TryBeginSubscriptionAsync(
+                "channel-123",
+                now.AddMinutes(10)));
     }
 
     [Fact]

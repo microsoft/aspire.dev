@@ -14,13 +14,19 @@ public sealed class LiveConfigurationTests
             DisableDashboard = true,
         });
         var siteSecrets = builder.AddAzureKeyVault("siteconfig");
-        var publicWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
-            .WithExternalHttpEndpoints();
-        var liveStatusWebsite = builder.AddProject<Projects.StaticHost>("aspiredev-live")
+        var liveCache = builder.AddAzureManagedRedis("livecache")
+            .RunAsContainer();
+        var website = builder.AddProject<Projects.StaticHost>("aspiredev")
+            .WithReference(liveCache)
             .WithExternalHttpEndpoints()
             .WithProductionLiveStatus(builder, siteSecrets);
-        publicWebsite.WithProductionLiveStatusProxy(liveStatusWebsite);
         await using var app = builder.Build();
+
+        var redis = Assert.Single(builder.Resources.OfType<AzureManagedRedisResource>());
+        Assert.Same(liveCache.Resource, redis);
+        Assert.Equal("livecache", redis.Name);
+        Assert.False(redis.UseAccessKeyAuthentication);
+        Assert.Single(builder.Resources.OfType<ProjectResource>());
 
         var vault = Assert.Single(builder.Resources.OfType<AzureKeyVaultResource>());
         Assert.Same(siteSecrets.Resource, vault);
@@ -51,11 +57,13 @@ public sealed class LiveConfigurationTests
 
         var environment = new Dictionary<string, object>();
         var context = new EnvironmentCallbackContext(
-            builder.ExecutionContext, liveStatusWebsite.Resource, environment, CancellationToken.None);
-        foreach (var annotation in liveStatusWebsite.Resource.Annotations.OfType<EnvironmentCallbackAnnotation>())
+            builder.ExecutionContext, website.Resource, environment, CancellationToken.None);
+        foreach (var annotation in website.Resource.Annotations.OfType<EnvironmentCallbackAnnotation>())
         {
             await annotation.Callback(context);
         }
+
+        Assert.Contains("ConnectionStrings__livecache", environment);
 
         foreach (var (key, parameterName) in expectedConfiguration)
         {
@@ -80,40 +88,14 @@ public sealed class LiveConfigurationTests
             Assert.Null(reference.SecretOwner);
         }
 
-        var assignment = Assert.Single(liveStatusWebsite.Resource.Annotations.OfType<RoleAssignmentAnnotation>());
+        var assignment = Assert.Single(
+            website.Resource.Annotations.OfType<RoleAssignmentAnnotation>(),
+            annotation => ReferenceEquals(annotation.Target, vault));
         Assert.Same(vault, assignment.Target);
         Assert.Equal("4633458b-17de-408a-b874-0445c86b69e6", Assert.Single(assignment.Roles).Id);
 
-        var publicEnvironment = new Dictionary<string, object>();
-        var publicContext = new EnvironmentCallbackContext(
-            builder.ExecutionContext, publicWebsite.Resource, publicEnvironment, CancellationToken.None);
-        foreach (var annotation in publicWebsite.Resource.Annotations.OfType<EnvironmentCallbackAnnotation>())
-        {
-            await annotation.Callback(publicContext);
-        }
-
-        Assert.Equal(
-            ["Live__BackendUrl"],
-            publicEnvironment.Keys
-                .Where(key => key.StartsWith("Live__", StringComparison.Ordinal))
-                .ToArray());
-        var backend = Assert.IsType<EndpointReference>(publicEnvironment["Live__BackendUrl"]);
-        Assert.Same(liveStatusWebsite.Resource, backend.Resource);
-        Assert.Equal("https", backend.EndpointName);
-        Assert.Empty(publicWebsite.Resource.Annotations.OfType<RoleAssignmentAnnotation>());
-
-        var coordinatorCustomization = Assert.Single(
-            liveStatusWebsite.Resource.Annotations.OfType<AzureAppServiceWebsiteCustomizationAnnotation>());
-        var coordinatorSite = new Azure.Provisioning.AppService.WebSite("coordinator")
-        {
-            SiteConfig = new Azure.Provisioning.AppService.SiteConfigProperties
-            {
-                NumberOfWorkers = 30,
-            },
-        };
-        coordinatorCustomization.Configure(null!, coordinatorSite);
-        Assert.Equal(1, coordinatorSite.SiteConfig.NumberOfWorkers.Value);
         Assert.Empty(
-            publicWebsite.Resource.Annotations.OfType<AzureAppServiceWebsiteCustomizationAnnotation>());
+            website.Resource.Annotations.OfType<AzureAppServiceWebsiteCustomizationAnnotation>());
+        Assert.Single(redis.Annotations.OfType<DefaultRoleAssignmentsAnnotation>());
     }
 }

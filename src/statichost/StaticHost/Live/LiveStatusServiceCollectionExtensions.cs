@@ -9,7 +9,8 @@ namespace StaticHost.Live;
 public static class LiveStatusServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers the in-memory <see cref="LiveStatusBroadcaster"/>, named
+    /// Registers Redis-backed canonical state, a per-process
+    /// <see cref="LiveStatusBroadcaster"/>, named
     /// <see cref="HttpClient"/> instances (<c>"twitch"</c>, <c>"twitch-id"</c>,
     /// <c>"youtube"</c>, <c>"youtube-pubsub"</c>) with standard resilience, the
     /// Twitch token provider + Helix client, the YouTube Data + WebSub client,
@@ -28,13 +29,20 @@ public static class LiveStatusServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        builder.AddRedisClientBuilder("livecache")
+            .WithAzureAuthentication()
+            .WithDistributedCache();
+
         builder.Services
             .AddOptions<LiveStatusOptions>()
             .Bind(builder.Configuration.GetSection(LiveStatusOptions.SectionName))
             .ValidateDataAnnotations();
 
-        builder.Services.AddSingleton<LiveStatusBroadcaster>();
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<RedisDistributedLock>();
+        builder.Services.AddSingleton<ILiveStatusStore, RedisLiveStatusStore>();
+        builder.Services.AddSingleton<ILiveStatusCoordination, RedisLiveStatusCoordination>();
+        builder.Services.AddSingleton<LiveStatusBroadcaster>();
 
         builder.Services.AddHttpClient(TwitchClient.HttpClientName)
             .AddStandardResilienceHandler();
@@ -49,10 +57,13 @@ public static class LiveStatusServiceCollectionExtensions
         builder.Services.AddSingleton<ITwitchClient, TwitchClient>();
         builder.Services.AddSingleton<IYouTubeClient, YouTubeClient>();
 
-        builder.Services.AddSingleton<YouTubeWebSubSubscriptionState>();
+        builder.Services.AddSingleton<
+            IYouTubeWebSubSubscriptionState,
+            RedisYouTubeWebSubSubscriptionState>();
         builder.Services.AddSingleton<YouTubeLiveConfirmationQueue>();
         builder.Services.AddHostedService(static sp => sp.GetRequiredService<YouTubeLiveConfirmationQueue>());
 
+        builder.Services.AddHostedService<LiveStatusSynchronizer>();
         builder.Services.AddHostedService<TwitchEventSubService>();
         builder.Services.AddHostedService<YouTubeWebSubService>();
 

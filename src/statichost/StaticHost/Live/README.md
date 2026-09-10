@@ -8,24 +8,32 @@ can watch immediately.
 ## Architecture
 
 ```
- Twitch EventSub ─┐
- YouTube WebSub ──┼──► aspire.dev /api/live/* ──► scalable StaticHost proxy
- Browser SSE ─────┘                                      │
-                                                        ▼
-                                             single-worker live coordinator
-                                             (webhooks, provider workers,
-                                              in-memory state + SSE)
+ Twitch EventSub --+
+ YouTube WebSub ---+--> any aspiredev worker
+ Browser requests -+            |
+                                v
+                         Azure Managed Redis
+                    canonical state, locks, leases,
+                         replay keys, and pub/sub
+                                |
+                                v
+                    per-worker SSE fan-out + coalescing
 ```
 
-Two `BackgroundService` workers keep the state honest belt-and-braces:
+The App Service can use its normal horizontal scaling. Every worker can serve
+snapshot, SSE, and webhook requests because Redis holds the canonical state and
+coordination data. Redis pub/sub replicates each versioned snapshot to the
+per-process broadcaster that serves that worker's SSE clients.
+
+Two `BackgroundService` workers keep the state current:
 
 | Worker                    | Push                      | Confirming poll                                   |
 |---------------------------|---------------------------|---------------------------------------------------|
 | `TwitchEventSubService`   | EventSub `stream.online/offline` | `/streams?user_id=` reconcile every 30 min |
 | `YouTubeWebSubService`    | PubSubHubbub `videos.xml` push   | `videos.list` every 2 min while live; `search.list` every 30 min while idle |
 
-Webhook handlers are pure (`bytes + headers -> StateUpdate`) and unit-
-testable. Outgoing HTTP is performed by named, resilient
+Webhook signature and parsing logic remains separate and unit-testable.
+Outgoing HTTP is performed by named, resilient
 `HttpClient` instances (`twitch`, `twitch-id`, `youtube`,
 `youtube-pubsub`) registered with `AddStandardResilienceHandler`.
 
@@ -37,7 +45,6 @@ The SSE endpoint reports offline unless a local simulation sets live state.
 
 ```json
 "Live": {
-  "BackendUrl": "",
   "PublicBaseUrl": "https://aspire.dev",
   "CoalesceWindowMs": 750,
   "EnableDevEndpoint": false,
@@ -65,9 +72,11 @@ The SSE endpoint reports offline unless a local simulation sets live state.
 ### Production configuration and secrets
 
 In publish mode, the AppHost passes non-sensitive settings as ordinary
-deployment parameters and provisions an empty, shared `siteconfig` Azure Key
-Vault for credentials and signing secrets. The vault is not limited to live
-streaming. StaticHost receives read-only references to the four `live-*`
+deployment parameters. It provisions an empty, shared `siteconfig` Azure Key
+Vault for credentials and signing secrets, plus an Azure Managed Redis
+instance for live state and coordination.
+
+The scalable StaticHost receives read-only references to the four `live-*`
 secrets and the **Key Vault Secrets User** role. Neither the AppHost nor
 StaticHost creates, updates, or deletes secret values, and the AppHost does not
 accept secret-value deployment parameters.
@@ -102,27 +111,29 @@ names; the live feature references only this list.
 | `live-youtube-api-key` | YouTube Data API key |
 | `live-youtube-webhook-secret` | Independently generated WebSub signing secret |
 
-The production deployment creates two App Service websites in the same
-per-site-scaling plan:
+The production deployment creates one horizontally scalable `aspiredev` App
+Service website. Aspire provisions Azure Managed Redis with Microsoft Entra
+authentication and access keys disabled. `WithReference(livecache)` grants the
+website's managed identity the Redis data access it needs; no Redis password is
+stored in Key Vault.
 
-- `aspiredev` remains the public, horizontally scalable website. It receives
-  only `Live__BackendUrl` and proxies `/api/live/*` without buffering through
-  YARP.
-- `aspiredev-live` receives the deployment parameters and read-only Key Vault
-  references. It is limited to one worker because live snapshots, SSE
-  subscribers, replay detection, provider subscription state, and renewal
-  workers are coordinated in memory.
+Redis stores only live-status and coordination data:
 
-This keeps the process-local correctness requirement isolated to the
-non-critical live-status coordinator instead of reducing the worker ceiling or
-availability of the main site. If the coordinator is unavailable, static site
-traffic continues normally and live-status requests fail independently.
+- The complete versioned Twitch and YouTube snapshot.
+- Provider leadership leases and state-update locks.
+- Twitch replay-detection keys with an 11-minute expiry.
+- The pending and active YouTube WebSub subscription state.
+- A short-lived YouTube confirmation coalescing key.
 
-The coordinator resolves the Key Vault references at startup; it does not
-contact Key Vault for each snapshot, SSE connection, or provider request.
+API keys, OAuth client secrets, and webhook signing secrets remain in Key
+Vault. Every StaticHost worker receives those references because any worker can
+accept and verify a webhook callback.
+
+StaticHost resolves Key Vault references at startup; it does not contact Key
+Vault for each snapshot, SSE connection, or provider request.
 Populate all referenced secrets before using the production feature: an
 unresolved reference is not equivalent to an absent setting. After changing
-values, refresh the coordinator App Service references and restart it so its
+values, refresh the App Service references and restart it so its
 bound configuration is reloaded. Rotating webhook signing secrets also
 requires recreating the corresponding provider subscriptions.
 
@@ -148,12 +159,23 @@ Aspire brand kit (purple `#7455dd`, light `#dcd5f6`, dark `#1f1e33`).
 ## Mesh logic — when both fire
 
 YouTube and Twitch usually fire near-simultaneously when a single "going
-live" announcement happens. The broadcaster:
+live" announcement happens. A Redis-backed state store:
 
 - Aggregates: `isLive = twitch.live || youtube.live`.
+- Serializes updates under a short distributed lock and fences the Redis write
+  against lock ownership, so simultaneous or delayed callbacks cannot
+  overwrite newer state.
+- Scopes each monotonic version sequence to a random state epoch. Workers use
+  the epoch and version, rather than clocks that may differ between App Service
+  instances, to ignore duplicate or out-of-order pub/sub messages and recover
+  safely if the canonical state key is recreated.
 - Picks a sticky `primarySource` — only swaps when the current primary
   goes offline. Prevents the UI from flapping when the second platform's
   webhook arrives a few seconds late.
+- Publishes the complete versioned snapshot through Redis pub/sub.
+
+Each worker's local broadcaster:
+
 - Coalesces outgoing SSE events with a configurable window
   (default 750 ms). If both sources flip in that window the subscriber
   receives **one** combined update.
@@ -163,6 +185,8 @@ live" announcement happens. The broadcaster:
 - Uses one periodic heartbeat timer per SSE connection and retains the
   outstanding channel read between ticks, rather than cancelling a read
   for every idle heartbeat.
+- Reloads canonical state before seeding a new SSE subscriber and every 30
+  seconds, recovering updates missed during a Redis reconnect.
 
 The videos page autoplays only the selected provider. Idle embeds are not
 reloaded when the initial snapshot arrives, and an unchanged PiP source reuses
@@ -190,7 +214,7 @@ credentials:
 
 The provider workers remain idle when their API credentials are missing, so
 the feature is effectively off until a dashboard command (or manual HTTP call)
-pushes local state.
+pushes state through Redis.
 
 The dashboard commands follow the documented Aspire custom HTTP command
 security pattern: the AppHost creates a per-run secret parameter, passes it to
@@ -233,7 +257,28 @@ must opt in explicitly.
 
 ## Resilience
 
-- All workers swallow exceptions in their loops and log structured.
+- Redis is a required dependency and participates in the application's health
+  checks. There is no silent in-memory production fallback that could let
+  workers diverge.
+- Each provider worker competes for its own renewable Redis leadership lease,
+  so only one worker polls or reconciles Twitch and only one independently
+  polls or renews YouTube. A worker stops its leader loop as soon as it loses
+  the lease.
+- Canonical state writes fail the webhook request when Redis is unavailable, so
+  Twitch or YouTube can retry instead of receiving a false success.
+- Twitch message IDs use separate processing and completed states. Concurrent
+  deliveries receive a retryable response while the owner is still processing;
+  failed owners release their reservation, and abandoned reservations expire.
+- A YouTube subscription is marked as awaiting verification only after the hub
+  request is sent. A short pre-send reservation lets another leader recover
+  quickly if the original worker exits first.
+- If state persistence succeeds but pub/sub publication fails, the writer logs
+  the failure. Other workers recover from canonical state during their
+  periodic resynchronization.
+- Existing SSE connections retain the last local snapshot during a temporary
+  Redis interruption. New snapshot and SSE requests require canonical Redis
+  state.
+- Provider loops log failures and retry on their configured intervals.
 - Standard resilience pipeline on every named `HttpClient`.
 - Reconciliation timers are the safety net for missed individual webhooks.
 - SSE heartbeats every 15 s defeat proxy idle-timeouts; the client uses

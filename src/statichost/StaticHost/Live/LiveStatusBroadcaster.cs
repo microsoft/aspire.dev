@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace StaticHost.Live;
 
 /// <summary>
-/// Mutator passed to <see cref="LiveStatusBroadcaster.Update"/> to compose a
+/// Mutator passed to <see cref="LiveStatusBroadcaster.UpdateAsync"/> to compose a
 /// new snapshot from the previous one.
 /// </summary>
 public sealed class LiveStatusUpdate
@@ -29,8 +29,8 @@ public sealed class LiveStatusEvent(LiveStatus snapshot)
 }
 
 /// <summary>
-/// Singleton holding the current <see cref="LiveStatus"/> and fanning changes
-/// out to all SSE subscribers.
+/// Per-process replica of the current <see cref="LiveStatus"/> that fans
+/// distributed changes out to local SSE subscribers.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -58,19 +58,37 @@ public sealed class LiveStatusEvent(LiveStatus snapshot)
 public sealed class LiveStatusBroadcaster(
     IOptions<LiveStatusOptions> options,
     ILogger<LiveStatusBroadcaster> logger,
-    TimeProvider? timeProvider = null) : IDisposable
+    TimeProvider? timeProvider = null,
+    ILiveStatusStore? store = null) : IDisposable
 {
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+    private readonly ILiveStatusStore _store = store ?? new InMemoryLiveStatusStore(timeProvider);
     private readonly TimeSpan _coalesceWindow = TimeSpan.FromMilliseconds(options.Value.CoalesceWindowMs);
 
     private readonly Lock _gate = new();
     private LiveStatusEvent _current = new(LiveStatus.Idle);
-    private LiveStatus? _pending;
+    private Guid? _currentEpoch;
+    private long _currentVersion;
+    private LiveStatusState? _pending;
     private ITimer? _flushTimer;
     private readonly HashSet<ChannelWriter<LiveStatusEvent>> _subscribers = [];
 
     /// <summary>Returns the current snapshot. Lock-free.</summary>
     public LiveStatus Current => Volatile.Read(ref _current).Snapshot;
+
+    /// <summary>Reads the authoritative distributed snapshot.</summary>
+    public async ValueTask<LiveStatus> GetCurrentAsync(CancellationToken cancellationToken = default) =>
+        (await _store.GetAsync(cancellationToken).ConfigureAwait(false)).Snapshot;
+
+    /// <summary>
+    /// Reloads the authoritative state into this process before an SSE client
+    /// subscribes, recovering any pub/sub messages missed during reconnection.
+    /// </summary>
+    internal async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
+    {
+        var state = await _store.GetAsync(cancellationToken).ConfigureAwait(false);
+        ApplyState(state, flushImmediately: true, allowEpochChange: true);
+    }
 
     /// <summary>
     /// Subscribe to live-status changes. The returned <see cref="ChannelReader{T}"/>
@@ -103,65 +121,60 @@ public sealed class LiveStatusBroadcaster(
     /// Apply a partial update. Triggers a coalesced broadcast.
     /// Setting only fields you want to change leaves the others as-is.
     /// </summary>
-    public void Update(LiveStatusUpdate update)
+    public async ValueTask<LiveStatus> UpdateAsync(
+        LiveStatusUpdate update,
+        CancellationToken cancellationToken = default)
+    {
+        var state = await _store.UpdateAsync(update, cancellationToken).ConfigureAwait(false);
+        ApplyState(state, allowEpochChange: true);
+        return state.Snapshot;
+    }
+
+    /// <summary>Synchronously applies an update for focused unit tests.</summary>
+    internal void Update(LiveStatusUpdate update) =>
+        UpdateAsync(update).AsTask().GetAwaiter().GetResult();
+
+    internal bool ApplyState(
+        LiveStatusState state,
+        bool flushImmediately = false,
+        bool allowEpochChange = false)
     {
         lock (_gate)
         {
-            var basis = _pending ?? _current.Snapshot;
-            var twitch = update.Twitch ?? basis.Twitch;
-            var youtube = update.YouTube ?? basis.YouTube;
-            if (twitch == basis.Twitch && youtube == basis.YouTube)
+            var latestEpoch = _pending?.Epoch ?? _currentEpoch;
+            var latestVersion = _pending?.Version ?? _currentVersion;
+            if (latestEpoch is { } epoch)
             {
-                return;
+                if (state.Epoch != epoch)
+                {
+                    if (!allowEpochChange)
+                    {
+                        return false;
+                    }
+                }
+                else if (state.Version <= latestVersion)
+                {
+                    return true;
+                }
             }
 
-            // Sticky primary: keep the previous primary if it's still live;
-            // otherwise pick whichever source is live. Resolve against the pending
-            // basis (not _current) so that during the coalescing window the source
-            // that arrived first stays primary even if a second source's update
-            // lands before the flush.
-            var primary = ResolvePrimary(basis.PrimarySource, twitch, youtube);
-            var isLive = twitch.Live || youtube.Live;
-            var now = _time.GetUtcNow();
-            var liveSessionId = ResolveLiveSessionId(basis, isLive, now);
+            _pending = state;
 
-            var next = new LiveStatus(
-                IsLive: isLive,
-                PrimarySource: primary,
-                Twitch: twitch,
-                YouTube: youtube,
-                LiveSessionId: liveSessionId,
-                UpdatedAt: now);
-
-            _pending = next;
-
-            if (_coalesceWindow == TimeSpan.Zero)
+            if (flushImmediately || _coalesceWindow == TimeSpan.Zero)
             {
                 FlushLocked();
-                return;
+                return true;
             }
 
-            _flushTimer ??= _time.CreateTimer(static state => ((LiveStatusBroadcaster)state!).Flush(),
-                this, _coalesceWindow, Timeout.InfiniteTimeSpan);
+            _flushTimer ??= _time.CreateTimer(
+                static timerState => ((LiveStatusBroadcaster)timerState!).Flush(),
+                this,
+                _coalesceWindow,
+                Timeout.InfiniteTimeSpan);
 
             _flushTimer.Change(_coalesceWindow, Timeout.InfiniteTimeSpan);
+            return true;
         }
-    }
-
-    private static string? ResolvePrimary(string? previous, TwitchStatus twitch, YouTubeStatus youtube)
-    {
-        if (previous == "twitch" && twitch.Live) return "twitch";
-        if (previous == "youtube" && youtube.Live) return "youtube";
-        if (twitch.Live) return "twitch";
-        if (youtube.Live) return "youtube";
-        return null;
-    }
-
-    private static string? ResolveLiveSessionId(LiveStatus basis, bool isLive, DateTimeOffset now)
-    {
-        if (!isLive) return null;
-        if (basis.IsLive && !string.IsNullOrEmpty(basis.LiveSessionId)) return basis.LiveSessionId;
-        return $"live-{now.ToUnixTimeMilliseconds():x}";
     }
 
     private void Flush()
@@ -177,15 +190,32 @@ public sealed class LiveStatusBroadcaster(
         if (_pending is not { } next) return;
         // Excluding UpdatedAt: if an update and a later revert coalesce into the
         // same substantive state as _current, don't broadcast a timestamp-only bump.
-        if ((next with { UpdatedAt = _current.Snapshot.UpdatedAt }) == _current.Snapshot) { _pending = null; return; }
+        if ((next.Snapshot with { UpdatedAt = _current.Snapshot.UpdatedAt }) == _current.Snapshot)
+        {
+            if (next.Snapshot != _current.Snapshot)
+            {
+                Volatile.Write(ref _current, new LiveStatusEvent(next.Snapshot));
+            }
 
-        var published = new LiveStatusEvent(next);
+            _currentEpoch = next.Epoch;
+            _currentVersion = next.Version;
+            _pending = null;
+            return;
+        }
+
+        var published = new LiveStatusEvent(next.Snapshot);
         Volatile.Write(ref _current, published);
+        _currentEpoch = next.Epoch;
+        _currentVersion = next.Version;
         _pending = null;
 
         logger.LogInformation(
-            "Live status updated: isLive={IsLive} primary={Primary} twitch={Twitch} youtube={YouTube}",
-            next.IsLive, next.PrimarySource, next.Twitch.Live, next.YouTube.Live);
+            "Live status updated to version {Version}: isLive={IsLive} primary={Primary} twitch={Twitch} youtube={YouTube}",
+            next.Version,
+            next.Snapshot.IsLive,
+            next.Snapshot.PrimarySource,
+            next.Snapshot.Twitch.Live,
+            next.Snapshot.YouTube.Live);
 
         foreach (var writer in _subscribers)
         {

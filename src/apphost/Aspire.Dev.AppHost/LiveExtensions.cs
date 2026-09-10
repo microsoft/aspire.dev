@@ -7,7 +7,7 @@ using Azure.Provisioning.KeyVault;
 internal static class LiveExtensions
 {
     public static IResourceBuilder<ProjectResource> WithProductionLiveStatus(
-        this IResourceBuilder<ProjectResource> liveStatusWebsite,
+        this IResourceBuilder<ProjectResource> staticHostWebsite,
         IDistributedApplicationBuilder builder,
         IResourceBuilder<AzureKeyVaultResource> siteSecrets)
     {
@@ -49,7 +49,7 @@ internal static class LiveExtensions
             "2",
             publishValueAsDefault: true);
 
-        return liveStatusWebsite
+        return staticHostWebsite
             .WithRoleAssignments(siteSecrets, KeyVaultBuiltInRole.KeyVaultSecretsUser)
             .WithReference(siteSecrets)
             .WithEnvironment("Live__PublicBaseUrl", publicBaseUrl)
@@ -66,21 +66,8 @@ internal static class LiveExtensions
             .WithEnvironment("Live__Twitch__ClientSecret", siteSecrets.GetSecret("live-twitch-client-secret"))
             .WithEnvironment("Live__Twitch__WebhookSecret", siteSecrets.GetSecret("live-twitch-webhook-secret"))
             .WithEnvironment("Live__YouTube__ApiKey", siteSecrets.GetSecret("live-youtube-api-key"))
-            .WithEnvironment("Live__YouTube__WebhookSecret", siteSecrets.GetSecret("live-youtube-webhook-secret"))
-            .PublishAsAzureAppServiceWebsite((_, website) =>
-            {
-                // Only the dedicated live-status coordinator is single-worker.
-                // The public StaticHost remains on Aspire's normal scaling limit.
-                website.SiteConfig.NumberOfWorkers = 1;
-            });
+            .WithEnvironment("Live__YouTube__WebhookSecret", siteSecrets.GetSecret("live-youtube-webhook-secret"));
     }
-
-    public static IResourceBuilder<ProjectResource> WithProductionLiveStatusProxy(
-        this IResourceBuilder<ProjectResource> staticHostWebsite,
-        IResourceBuilder<ProjectResource> liveStatusWebsite) =>
-        staticHostWebsite.WithEnvironment(
-            "Live__BackendUrl",
-            liveStatusWebsite.GetEndpoint("https"));
 
     public static IResourceBuilder<ProjectResource> WithLocalLiveStatusDevCommands(this IResourceBuilder<ProjectResource> staticHostWebsite)
     {

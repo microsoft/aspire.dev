@@ -64,7 +64,27 @@ public static class TwitchWebhookHandler
     ///   <item><c>revocation</c> → log + 204; reconcile loop will recreate the sub.</item>
     /// </list>
     /// </summary>
-    public static IResult Handle(string messageType, string bodyJson, LiveStatusBroadcaster broadcaster, TwitchOptions twitch, ILogger logger)
+    public static IResult Handle(
+        string messageType,
+        string bodyJson,
+        LiveStatusBroadcaster broadcaster,
+        TwitchOptions twitch,
+        ILogger logger) =>
+        HandleAsync(
+            messageType,
+            bodyJson,
+            broadcaster,
+            twitch,
+            logger).GetAwaiter().GetResult();
+
+    /// <summary>Asynchronously handles a Twitch EventSub callback.</summary>
+    public static async Task<IResult> HandleAsync(
+        string messageType,
+        string bodyJson,
+        LiveStatusBroadcaster broadcaster,
+        TwitchOptions twitch,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
     {
         switch (messageType)
         {
@@ -83,11 +103,15 @@ public static class TwitchWebhookHandler
                     switch (subType)
                     {
                         case "stream.online":
-                            broadcaster.Update(new LiveStatusUpdate { Twitch = new TwitchStatus(true, login, null) });
+                            await broadcaster.UpdateAsync(
+                                new LiveStatusUpdate { Twitch = new TwitchStatus(true, login, null) },
+                                cancellationToken).ConfigureAwait(false);
                             logger.LogInformation("Twitch stream.online for {Login}", login);
                             break;
                         case "stream.offline":
-                            broadcaster.Update(new LiveStatusUpdate { Twitch = new TwitchStatus(false, login, null) });
+                            await broadcaster.UpdateAsync(
+                                new LiveStatusUpdate { Twitch = new TwitchStatus(false, login, null) },
+                                cancellationToken).ConfigureAwait(false);
                             logger.LogInformation("Twitch stream.offline for {Login}", login);
                             break;
                         default:
