@@ -745,6 +745,134 @@ test('matches foreground Aspire CLI output and replaces startup statuses in plac
         horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
       };
     });
+  const pauseAtMilestone = async (milestone: 'topology' | 'terminal' | 'dashboard') => {
+    await expect(story).toHaveAttribute('data-story-playing', 'false');
+    await control.click();
+    const milestoneHandle = await page.waitForFunction(
+      (target) => {
+        const root = document.querySelector<HTMLElement>('[data-model-story]');
+        const control = root?.querySelector<HTMLButtonElement>('[data-model-story-toggle]');
+        const terminal = root?.querySelector<HTMLElement>('.model-terminal');
+        const terminalWindow = root?.querySelector<HTMLElement>('.model-window');
+        const stage = root?.querySelector<HTMLElement>('[data-model-story-surface]');
+        const terminalFocusBorder =
+          terminalWindow?.querySelector<HTMLElement>('[data-model-focus-border]');
+        const stageFocusBorder = stage?.querySelector<HTMLElement>(
+          ':scope > [data-model-focus-border]'
+        );
+        const graph = root?.querySelector<HTMLElement>('[data-model-graph]');
+        const topologyStage = root?.querySelector<HTMLElement>(
+          '[data-model-stage-label="topology"]'
+        );
+        const dashboardStage = root?.querySelector<HTMLElement>(
+          '[data-model-stage-label="dashboard"]'
+        );
+        if (
+          root?.dataset.storyPlaying !== 'true' ||
+          !control ||
+          !terminal ||
+          !terminalWindow ||
+          !stage ||
+          !terminalFocusBorder ||
+          !stageFocusBorder ||
+          !graph ||
+          !topologyStage ||
+          !dashboardStage
+        ) {
+          return false;
+        }
+
+        const terminalFocusAnimation = getComputedStyle(
+          terminalFocusBorder,
+          '::before'
+        ).animationName;
+        const stageFocusAnimation = getComputedStyle(
+          stageFocusBorder,
+          '::before'
+        ).animationName;
+        const terminalStyle = getComputedStyle(terminal);
+        const terminalWindowStyle = getComputedStyle(terminalWindow);
+        const stageStyle = getComputedStyle(stage);
+        const terminalRect = terminal.getBoundingClientRect();
+        const stageRect = stage.getBoundingClientRect();
+        const centerOffsetX =
+          (stageRect.left + stageRect.right) / 2 - (terminalRect.left + terminalRect.right) / 2;
+        const visualGap = stageRect.top - terminalRect.bottom;
+        const widthRatio = stageRect.width / terminalRect.width;
+        const terminalLayersSettled =
+          Number(terminalStyle.zIndex) > Number(stageStyle.zIndex) &&
+          Number(terminalStyle.scale) === 1 &&
+          Number(stageStyle.scale) >= 0.89 &&
+          Number(stageStyle.scale) <= 0.93 &&
+          Number(terminalWindowStyle.opacity) === 1 &&
+          Number(stageStyle.opacity) < 0.8 &&
+          Math.abs(centerOffsetX) <= 1 &&
+          widthRatio >= 0.89 &&
+          widthRatio <= 0.93 &&
+          visualGap >= 24 &&
+          visualGap <= 48 &&
+          document.documentElement.scrollWidth <= window.innerWidth;
+        const snapshot = {
+          storyStage: root.dataset.storyStage,
+          storyFocus: root.dataset.storyFocus,
+          storySwap: root.dataset.storySwap,
+          storySurface: root.dataset.storySurface,
+          stageAriaHidden: stage.getAttribute('aria-hidden'),
+          stageInert: stage.hasAttribute('inert'),
+          topologyActive: topologyStage.dataset.active,
+          dashboardActive: dashboardStage.dataset.active,
+          graphActive: graph.hasAttribute('data-graph-active'),
+          terminalFocusAnimation,
+          stageFocusAnimation,
+          terminalLayersSettled,
+          summaryCount: root.querySelectorAll('[data-terminal-summary].is-visible').length,
+          statusText:
+            root.querySelector<HTMLElement>('[data-terminal-status-text]')?.textContent ?? null,
+        };
+
+        const matches =
+          target === 'topology'
+            ? snapshot.storyStage === 'topology' &&
+              snapshot.topologyActive === 'true' &&
+              snapshot.graphActive
+            : target === 'terminal'
+              ? snapshot.storyStage === 'topology' &&
+                snapshot.storyFocus === 'terminal' &&
+                snapshot.storySwap === 'terminal' &&
+                snapshot.storySurface === 'visible' &&
+                snapshot.stageAriaHidden === 'true' &&
+                snapshot.stageInert &&
+                snapshot.graphActive &&
+                snapshot.terminalFocusAnimation === 'model-focus-border-trace' &&
+                snapshot.stageFocusAnimation === 'none' &&
+                snapshot.terminalLayersSettled
+              : snapshot.storyStage === 'dashboard' &&
+                snapshot.storyFocus === 'stage' &&
+                snapshot.storySwap === 'stage' &&
+                snapshot.dashboardActive === 'true' &&
+                !snapshot.graphActive &&
+                snapshot.stageAriaHidden === 'false' &&
+                !snapshot.stageInert &&
+                snapshot.terminalFocusAnimation === 'none' &&
+                snapshot.stageFocusAnimation === 'model-focus-border-trace' &&
+                snapshot.summaryCount === 4 &&
+                snapshot.statusText === 'Starting dashboard...';
+
+        if (!matches) return false;
+        control.click();
+        return snapshot;
+      },
+      milestone,
+      { polling: 'raf', timeout: 10_000 }
+    );
+    const snapshot = await milestoneHandle.jsonValue();
+    await milestoneHandle.dispose();
+    await expect(story).toHaveAttribute('data-story-playing', 'false');
+    if (!snapshot) {
+      throw new Error(`The ${milestone} story milestone did not produce a snapshot.`);
+    }
+    return snapshot;
+  };
 
   await expect(control).toHaveAttribute('data-paused', 'false');
   await control.evaluate((button: HTMLButtonElement) => button.click());
@@ -847,27 +975,32 @@ test('matches foreground Aspire CLI output and replaces startup statuses in plac
     })
     .toBe(true);
 
-  await control.click();
-  await expect(story).toHaveAttribute('data-story-playing', 'true');
+  const topologyMilestone = await pauseAtMilestone('topology');
+  expect(topologyMilestone).toMatchObject({
+    storyStage: 'topology',
+    topologyActive: 'true',
+    graphActive: true,
+  });
   await expect(topologyStage).toHaveAttribute('data-active', 'true');
-  await expect(graph).toHaveAttribute('data-graph-active', '');
-  await control.click();
-  await expect(story).toHaveAttribute('data-story-playing', 'false');
 
-  await control.click();
-  await expect(story).toHaveAttribute('data-story-playing', 'true');
+  const terminalMilestone = await pauseAtMilestone('terminal');
+  expect(terminalMilestone).toMatchObject({
+    storyStage: 'topology',
+    storyFocus: 'terminal',
+    storySwap: 'terminal',
+    storySurface: 'visible',
+    stageAriaHidden: 'true',
+    stageInert: true,
+    graphActive: true,
+    terminalFocusAnimation: 'model-focus-border-trace',
+    stageFocusAnimation: 'none',
+    terminalLayersSettled: true,
+  });
   await expect(story).toHaveAttribute('data-story-focus', 'terminal');
   await expect(story).toHaveAttribute('data-story-swap', 'terminal');
   await expect(story).toHaveAttribute('data-story-surface', 'visible');
   await expect(stageSurface).toHaveAttribute('aria-hidden', 'true');
   await expect(stageSurface).toHaveAttribute('inert', '');
-  await expect(graph).toHaveAttribute('data-graph-active', '');
-  await expect.poll(readFocusBorderAnimations).toEqual({
-    terminal: 'model-focus-border-trace',
-    stage: 'none',
-  });
-  await control.click();
-  await expect(story).toHaveAttribute('data-story-playing', 'false');
   await expect
     .poll(async () => {
       const layers = await readLayerState();
@@ -889,8 +1022,20 @@ test('matches foreground Aspire CLI output and replaces startup statuses in plac
     })
     .toBe(true);
 
-  await control.click();
-  await expect(story).toHaveAttribute('data-story-playing', 'true');
+  const dashboardMilestone = await pauseAtMilestone('dashboard');
+  expect(dashboardMilestone).toMatchObject({
+    storyStage: 'dashboard',
+    storyFocus: 'stage',
+    storySwap: 'stage',
+    dashboardActive: 'true',
+    graphActive: false,
+    stageAriaHidden: 'false',
+    stageInert: false,
+    terminalFocusAnimation: 'none',
+    stageFocusAnimation: 'model-focus-border-trace',
+    summaryCount: 4,
+    statusText: 'Starting dashboard...',
+  });
   await expect.poll(() => status.textContent(), { timeout: 5_000 }).toBe('Starting dashboard...');
   await expect
     .poll(() => story.locator('[data-terminal-summary].is-visible').count(), { timeout: 5_000 })
@@ -901,12 +1046,6 @@ test('matches foreground Aspire CLI output and replaces startup statuses in plac
   await expect(graph).not.toHaveAttribute('data-graph-active', '');
   await expect(stageSurface).toHaveAttribute('aria-hidden', 'false');
   await expect(stageSurface).not.toHaveAttribute('inert', '');
-  await expect.poll(readFocusBorderAnimations).toEqual({
-    terminal: 'none',
-    stage: 'model-focus-border-trace',
-  });
-  await control.click();
-  await expect(story).toHaveAttribute('data-story-playing', 'false');
 
   await expect(status).not.toHaveClass(/is-visible/);
   await expect(story.locator('.term-key')).toHaveText(['AppHost:', 'Dashboard:', 'Logs:']);
