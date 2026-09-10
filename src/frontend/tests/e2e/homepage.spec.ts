@@ -168,10 +168,35 @@ test('uses concise section copy and a compact editorial rhythm', async ({ page }
     ].map((selector) =>
       Math.round(document.querySelector<HTMLElement>(selector)?.getBoundingClientRect().height ?? 0)
     );
+    const languageControl = document.querySelector<HTMLElement>(
+      '.home-hero-product .lang-toggles'
+    );
+    const languageButtons = Array.from(
+      languageControl?.querySelectorAll<HTMLElement>('.lang-toggle') ?? []
+    );
+    if (!languageControl || languageButtons.length === 0) {
+      throw new Error('The homepage AppHost language control did not render.');
+    }
+    const languageControlStyle = getComputedStyle(languageControl);
+    const languageControlChrome = [
+      languageControlStyle.paddingTop,
+      languageControlStyle.paddingBottom,
+      languageControlStyle.borderTopWidth,
+      languageControlStyle.borderBottomWidth,
+    ].reduce((total, value) => total + Number.parseFloat(value), 0);
+    const singleLanguageRowHeight =
+      Math.max(...languageButtons.map((button) => button.getBoundingClientRect().height)) +
+      languageControlChrome;
+    const wrappedLanguageRowHeight = Math.max(
+      0,
+      languageControl.getBoundingClientRect().height - singleLanguageRowHeight
+    );
+    const pageHeight = document.documentElement.scrollHeight;
 
     return {
       width: window.innerWidth,
-      pageHeight: document.documentElement.scrollHeight,
+      pageHeight,
+      normalizedMobilePageHeight: pageHeight - Math.round(wrappedLanguageRowHeight),
       headingLines,
       modelHeadingOffset:
         sectionIndex && sectionHeading
@@ -189,7 +214,9 @@ test('uses concise section copy and a compact editorial rhythm', async ({ page }
     expect(Math.max(...layout.headingLines)).toBeLessThanOrEqual(2);
     expect(Math.max(...layout.sectionHeights)).toBeLessThanOrEqual(1575);
   } else if (layout.width <= 500) {
-    expect(layout.pageHeight).toBeLessThanOrEqual(12_400);
+    // Preserve the original one-row mobile height budget while discounting only
+    // the measured selector height added when enabled AppHost languages wrap.
+    expect(layout.normalizedMobilePageHeight).toBeLessThanOrEqual(12_400);
   }
 });
 
