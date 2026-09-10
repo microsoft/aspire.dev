@@ -6,8 +6,6 @@ builder.AddAzureAppServiceEnvironment("production");
 var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
     .WithExternalHttpEndpoints();
 
-builder.AddAzureFrontDoor(staticHostWebsite);
-
 if (builder.ExecutionContext.IsRunMode)
 {
     staticHostWebsite.WithLocalLiveStatusDevCommands();
@@ -25,7 +23,13 @@ if (builder.ExecutionContext.IsRunMode)
 else
 {
     var siteSecrets = builder.AddAzureKeyVault("siteconfig");
-    staticHostWebsite.WithProductionLiveStatus(builder, siteSecrets);
+    var liveStatusWebsite = builder.AddProject<Projects.StaticHost>("aspiredev-live")
+        .WithExternalHttpEndpoints()
+        .WithProductionLiveStatus(builder, siteSecrets);
+
+    staticHostWebsite.WithProductionLiveStatusProxy(liveStatusWebsite);
 }
+
+builder.AddAzureFrontDoor(staticHostWebsite);
 
 builder.Build().Run();

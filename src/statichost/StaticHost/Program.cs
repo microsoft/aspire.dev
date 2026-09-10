@@ -3,7 +3,7 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-builder.AddLiveStatus();
+var liveStatusHostingMode = builder.AddLiveStatusHosting();
 
 builder.Services.AddHsts(options =>
 {
@@ -89,8 +89,9 @@ app.Use(async (context, next) =>
 
 app.MapGet("/healthz", () => Results.Ok());
 
-// Live-status API + SSE + webhooks.
-app.MapLiveStatus();
+// Live-status API + SSE + webhooks, or the production proxy to the dedicated
+// single-worker coordinator.
+app.MapLiveStatusHosting(liveStatusHostingMode);
 
 // OpenAPI + Scalar API reference (with custom Aspire-brand theme) in dev.
 if (app.Environment.IsDevelopment())

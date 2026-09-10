@@ -8,24 +8,13 @@ can watch immediately.
 ## Architecture
 
 ```
-                      ┌────────────────────────────────────────┐
-                      │  Twitch EventSub  ─►  /twitch/webhook ─┐
-   YouTube PubSubHub ─┤                                          │
-                      │  YouTube WebSub  ─►  /youtube/webhook ──┤
-                      └────────────────────────────────────────┘ │
-                                                                 ▼
-                                                       LiveStatusBroadcaster
-                                                       (in-memory + debounce)
-                                                                 │
-                       ┌─────────────────────────────────────────┤
-                       │                                         │
-                       ▼                                         ▼
-              GET /api/live (JSON)                   GET /api/live/stream (SSE)
-                                                                 │
-                                                                 ▼
-                                                  All connected aspire.dev clients
-                                                  (header icon, videos-page tabs,
-                                                   floating PiP player)
+ Twitch EventSub ─┐
+ YouTube WebSub ──┼──► aspire.dev /api/live/* ──► scalable StaticHost proxy
+ Browser SSE ─────┘                                      │
+                                                        ▼
+                                             single-worker live coordinator
+                                             (webhooks, provider workers,
+                                              in-memory state + SSE)
 ```
 
 Two `BackgroundService` workers keep the state honest belt-and-braces:
@@ -48,6 +37,7 @@ The SSE endpoint reports offline unless a local simulation sets live state.
 
 ```json
 "Live": {
+  "BackendUrl": "",
   "PublicBaseUrl": "https://aspire.dev",
   "CoalesceWindowMs": 750,
   "EnableDevEndpoint": false,
@@ -112,18 +102,29 @@ names; the live feature references only this list.
 | `live-youtube-api-key` | YouTube Data API key |
 | `live-youtube-webhook-secret` | Independently generated WebSub signing secret |
 
-App Service receives the deployment parameters directly as environment
-variables and resolves the Key Vault references for sensitive values.
-StaticHost binds those values at startup; it does not contact Key Vault for
-each snapshot, SSE connection, or provider request. Populate all referenced
-secrets before using the production feature: an unresolved reference is not
-equivalent to an absent setting. After changing values, refresh the App Service
-references and restart the application so its bound configuration is reloaded.
-Rotating webhook signing secrets also requires recreating the corresponding
-provider subscriptions.
+The production deployment creates two App Service websites in the same
+per-site-scaling plan:
 
-The generated App Service site is limited to one worker because live snapshots
-and webhook subscription state are coordinated in memory.
+- `aspiredev` remains the public, horizontally scalable website. It receives
+  only `Live__BackendUrl` and proxies `/api/live/*` without buffering through
+  YARP.
+- `aspiredev-live` receives the deployment parameters and read-only Key Vault
+  references. It is limited to one worker because live snapshots, SSE
+  subscribers, replay detection, provider subscription state, and renewal
+  workers are coordinated in memory.
+
+This keeps the process-local correctness requirement isolated to the
+non-critical live-status coordinator instead of reducing the worker ceiling or
+availability of the main site. If the coordinator is unavailable, static site
+traffic continues normally and live-status requests fail independently.
+
+The coordinator resolves the Key Vault references at startup; it does not
+contact Key Vault for each snapshot, SSE connection, or provider request.
+Populate all referenced secrets before using the production feature: an
+unresolved reference is not equivalent to an absent setting. After changing
+values, refresh the coordinator App Service references and restart it so its
+bound configuration is reloaded. Rotating webhook signing secrets also
+requires recreating the corresponding provider subscriptions.
 
 `EnableDevEndpoint` and `DevCommandSecret` are intentionally excluded from the
 vault. The AppHost creates those values only for local dashboard-command

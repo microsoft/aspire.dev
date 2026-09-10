@@ -7,7 +7,7 @@ using Azure.Provisioning.KeyVault;
 internal static class LiveExtensions
 {
     public static IResourceBuilder<ProjectResource> WithProductionLiveStatus(
-        this IResourceBuilder<ProjectResource> staticHostWebsite,
+        this IResourceBuilder<ProjectResource> liveStatusWebsite,
         IDistributedApplicationBuilder builder,
         IResourceBuilder<AzureKeyVaultResource> siteSecrets)
     {
@@ -49,7 +49,7 @@ internal static class LiveExtensions
             "2",
             publishValueAsDefault: true);
 
-        return staticHostWebsite
+        return liveStatusWebsite
             .WithRoleAssignments(siteSecrets, KeyVaultBuiltInRole.KeyVaultSecretsUser)
             .WithReference(siteSecrets)
             .WithEnvironment("Live__PublicBaseUrl", publicBaseUrl)
@@ -69,10 +69,18 @@ internal static class LiveExtensions
             .WithEnvironment("Live__YouTube__WebhookSecret", siteSecrets.GetSecret("live-youtube-webhook-secret"))
             .PublishAsAzureAppServiceWebsite((_, website) =>
             {
-                // Live state and WebSub verification are coordinated in memory.
+                // Only the dedicated live-status coordinator is single-worker.
+                // The public StaticHost remains on Aspire's normal scaling limit.
                 website.SiteConfig.NumberOfWorkers = 1;
             });
     }
+
+    public static IResourceBuilder<ProjectResource> WithProductionLiveStatusProxy(
+        this IResourceBuilder<ProjectResource> staticHostWebsite,
+        IResourceBuilder<ProjectResource> liveStatusWebsite) =>
+        staticHostWebsite.WithEnvironment(
+            "Live__BackendUrl",
+            liveStatusWebsite.GetEndpoint("https"));
 
     public static IResourceBuilder<ProjectResource> WithLocalLiveStatusDevCommands(this IResourceBuilder<ProjectResource> staticHostWebsite)
     {
