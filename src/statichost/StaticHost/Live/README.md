@@ -72,46 +72,55 @@ The SSE endpoint reports offline unless a local simulation sets live state.
 }
 ```
 
-### Production Key Vault
+### Production configuration and secrets
 
-In publish mode, the AppHost provisions an empty, shared `siteconfig` Azure
-Key Vault resource for site-wide configuration. The vault is not limited to
-live streaming. StaticHost receives read-only references to the individual
-`live-*` secrets and the **Key Vault Secrets User** role. Neither the AppHost
-nor StaticHost creates, updates, or deletes secret values, and the AppHost no
-longer accepts secret-value deployment parameters.
+In publish mode, the AppHost passes non-sensitive settings as ordinary
+deployment parameters and provisions an empty, shared `siteconfig` Azure Key
+Vault for credentials and signing secrets. The vault is not limited to live
+streaming. StaticHost receives read-only references to the four `live-*`
+secrets and the **Key Vault Secrets User** role. Neither the AppHost nor
+StaticHost creates, updates, or deletes secret values, and the AppHost does not
+accept secret-value deployment parameters.
 
-An authorized operator must populate the following secrets separately in the
-provisioned vault. Use the actual Azure vault name from deployment outputs,
-not the Aspire resource name. Keep unrelated site settings under their own
-names; the live feature references only this list.
+The following non-sensitive deployment parameters configure the production
+feature. Parameters with a default can be overridden. Supply the Twitch client
+ID and both channel IDs when deploying.
 
-| Secret name | Value to supply |
+| Parameter name | Default or value to supply |
 | --- | --- |
-| `live-public-base-url` | Public HTTPS origin, normally `https://aspire.dev` |
+| `live-public-base-url` | `https://aspire.dev` |
 | `live-coalesce-window-ms` | `750` |
 | `live-twitch-client-id` | Twitch application client ID |
-| `live-twitch-client-secret` | Twitch application client secret |
-| `live-twitch-webhook-secret` | Independently generated EventSub signing secret |
 | `live-twitch-channel-login` | `aspiredotdev` |
 | `live-twitch-channel-id` | Numeric Twitch broadcaster ID |
 | `live-twitch-reconcile-interval-seconds` | `1800` |
-| `live-youtube-api-key` | YouTube Data API key |
-| `live-youtube-webhook-secret` | Independently generated WebSub signing secret |
 | `live-youtube-channel-handle` | `@aspiredotdev` |
 | `live-youtube-channel-id` | YouTube channel ID |
 | `live-youtube-polling-interval-seconds` | `120` |
 | `live-youtube-discovery-polling-interval-seconds` | `1800` |
 | `live-youtube-offline-confirmation-count` | `2` |
 
-App Service resolves the Key Vault references into environment variables.
+An authorized operator must populate the following secrets separately in the
+provisioned vault. Use the actual Azure vault name from deployment outputs,
+not the Aspire resource name. Keep unrelated site secrets under their own
+names; the live feature references only this list.
+
+| Secret name | Value to supply |
+| --- | --- |
+| `live-twitch-client-secret` | Twitch application client secret |
+| `live-twitch-webhook-secret` | Independently generated EventSub signing secret |
+| `live-youtube-api-key` | YouTube Data API key |
+| `live-youtube-webhook-secret` | Independently generated WebSub signing secret |
+
+App Service receives the deployment parameters directly as environment
+variables and resolves the Key Vault references for sensitive values.
 StaticHost binds those values at startup; it does not contact Key Vault for
 each snapshot, SSE connection, or provider request. Populate all referenced
-values before using the production feature: an unresolved reference is not
-equivalent to an absent setting and does not fall back to the local defaults.
-After changing values, refresh the App Service references and restart the
-application so its bound configuration is reloaded. Rotating webhook signing
-secrets also requires recreating the corresponding provider subscriptions.
+secrets before using the production feature: an unresolved reference is not
+equivalent to an absent setting. After changing values, refresh the App Service
+references and restart the application so its bound configuration is reloaded.
+Rotating webhook signing secrets also requires recreating the corresponding
+provider subscriptions.
 
 The generated App Service site is limited to one worker because live snapshots
 and webhook subscription state are coordinated in memory.

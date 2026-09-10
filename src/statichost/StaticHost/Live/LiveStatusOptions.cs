@@ -5,8 +5,8 @@ namespace StaticHost.Live;
 /// <summary>
 /// Strongly-typed options for the live-status feature.
 /// Bound from the <c>Live</c> configuration section in <c>appsettings.json</c>
-/// (and overridden by user-secrets in development and environment variables /
-/// Azure Key Vault references in production).
+/// (and overridden by user-secrets in development, or by non-sensitive
+/// environment variables and Azure Key Vault secret references in production).
 /// </summary>
 /// <remarks>
 /// Missing secrets are <b>not</b> fatal. The corresponding background worker
