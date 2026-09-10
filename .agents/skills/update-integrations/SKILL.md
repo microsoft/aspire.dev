@@ -11,6 +11,8 @@ This skill synchronizes the integration package catalog with documentation URL m
 
 ## Overview
 
+The automated flow also reconciles documentation mappings and runs `pnpm test:unit:structured-data` before API regeneration or PR creation. This uses a data-only Vitest configuration so validation does not rewrite Astro's generated assets. Mapping changes are included in the generated PR.
+
 The aspire.dev site maintains three key data locations:
 
 - **`src/frontend/src/data/aspire-integrations.json`** — Package metadata fetched from the configured package feeds (titles, descriptions, icons, versions, download counts).
@@ -61,6 +63,8 @@ pnpm --dir ./src/frontend update:integrations
 
 This writes updated package metadata to `src/frontend/src/data/aspire-integrations.json`. The script queries the NuGet v3 API for packages matching `owner:aspire`, `Aspire.Hosting.`, and `CommunityToolkit.Aspire`, then filters out deprecated, unlisted, and excluded packages.
 
+It also removes documentation mappings for Aspire and Community Toolkit packages absent from the updated catalog. Manually curated third-party mappings are preserved, and new documentation URLs still require manual resolution.
+
 On `release/*` branches, the script queries the branch-specific official Aspire feed for `Aspire.*` packages and continues to query nuget.org for `CommunityToolkit.Aspire.*` packages.
 
 ### 2. Read the updated package data
@@ -76,7 +80,7 @@ Load `src/frontend/src/data/integration-docs.json` and reconcile it with the pac
   - If an entry exists, verify the `href` is correct
   - If no entry exists, determine the appropriate documentation URL
 
-- **Remove stale entries** from `integration-docs.json` that reference packages no longer in `aspire-integrations.json`
+- **Remove stale entries** for catalog-managed Aspire and Community Toolkit packages no longer in `aspire-integrations.json`. Preserve mappings for third-party packages outside the catalog's sources.
 
 - **Preserve existing correct mappings** — do not change entries that are already accurate
 
