@@ -157,17 +157,7 @@ When you publish your app, Aspire generates Bicep alongside the manifest. A Fron
 </Aside>
 
 <Aside type="caution">
-  **Upgrading to Aspire 13.6:** Origin names now include the origin's backend
-  hostname in addition to the resource group ID, so switching an origin's
-  backend produces a new origin name instead of reusing the previous origin's
-  identity. This changes the generated origin name even when the backend
-  hostname hasn't changed, and can result in old and new origins coexisting in
-  the same origin group after an upgrade (incremental ARM deployments don't
-  remove resources omitted from the new template). To keep the previous
-  default origin names, override them with `ConfigureInfrastructure` before
-  the first deployment after upgrading. For more information, see [Breaking
-  changes in Aspire
-  13.6](/whats-new/aspire-13-6/#front-door-origin-names-now-include-the-backend-hostname).
+  **Upgrading from Aspire 13.5 or earlier:** Origin names changed in Aspire 13.6 to include the origin's backend hostname in addition to the resource group ID, so switching an origin's backend produces a new origin name instead of reusing the previous origin's identity. This changes the generated origin name even when the backend hostname hasn't changed, and can result in old and new origins coexisting in the same origin group after an upgrade (incremental ARM deployments don't remove resources omitted from the new template). The recommended approach is to adopt the new naming policy and manually delete the old origins after deploying and confirming that the new origins are healthy and serve the intended backends. If this isn't feasible, preserve the previous default origin names with `ConfigureInfrastructure` before the first deployment after upgrading. For more information, see [Breaking changes in Aspire 13.6](/whats-new/aspire-13-6/#front-door-origin-names-now-include-the-backend-hostname).
 </Aside>
 
 ```bicep title="Generated Bicep — frontdoor.bicep"
@@ -301,32 +291,6 @@ await builder.build().run();
 </Tabs>
 
 For more information, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/). For the full list of configurable properties, see the [Azure.Provisioning.Cdn](https://learn.microsoft.com/dotnet/api/azure.provisioning.cdn) and [Azure.Provisioning.FrontDoor](https://learn.microsoft.com/dotnet/api/azure.provisioning.frontdoor) API documentation.
-
-#### Preserve origin names from before Aspire 13.6
-
-Starting in Aspire 13.6, generated origin names include the origin's backend hostname alongside the resource group ID, so switching an origin's backend produces a new origin name. To keep the origin names Aspire generated before 13.6, override them with `ConfigureInfrastructure` before the first deployment after upgrading:
-
-```csharp title="AppHost.cs"
-using Azure.Provisioning;
-using Azure.Provisioning.Cdn;
-using Azure.Provisioning.Expressions;
-
-builder.AddAzureFrontDoor("frontdoor")
-    .WithOrigin(api)
-    .ConfigureInfrastructure(infrastructure =>
-    {
-        foreach (var origin in infrastructure.GetProvisionableResources()
-            .OfType<FrontDoorOrigin>())
-        {
-            // Match the previous default: remove underscores and hash only the resource-group ID.
-            origin.Name = BicepFunction.Take(
-                BicepFunction.Interpolate($"{origin.BicepIdentifier.Replace("_", "")}-{BicepFunction.GetUniqueString(BicepFunction.GetResourceGroup().Id)}"),
-                origin.GetResourceNameRequirements().MaxLength);
-        }
-    });
-```
-
-This callback runs after the integration's defaults and applies to every configured origin. Opting out this way means the deployed origin's Azure identity no longer changes when its backend hostname changes, so you're responsible for cleaning up any origins left behind by incremental deployments while both naming schemes were in use.
 
 ## See also
 
