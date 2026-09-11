@@ -73,7 +73,7 @@ test('Quickstart uses a static CSS edge texture in both themes and screen sizes'
             animation: style.animationName, pointerEvents: style.pointerEvents,
           };
         });
-        expect(texture.background).toContain('radial-gradient');
+        expect(texture.background).toContain('repeating-conic-gradient');
         expect(texture.mask).toMatch(/^linear-gradient\((?:to left|270deg),/);
         expect(texture.background + texture.mask).not.toContain('url(');
         expect(texture.opacity).toBe('0.12');
@@ -84,6 +84,9 @@ test('Quickstart uses a static CSS edge texture in both themes and screen sizes'
       }
     }
   }
+  await page.emulateMedia({ forcedColors: 'active' });
+  await expect(card).toHaveCSS('forced-color-adjust', 'auto');
+  expect(await card.evaluate((element) => getComputedStyle(element, '::before').display)).toBe('none');
 });
 
 test('Dev Hub introduction and Markdown use the current Aspire positioning', async ({ page, request }) => {
