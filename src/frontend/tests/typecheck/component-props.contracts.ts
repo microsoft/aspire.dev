@@ -16,6 +16,7 @@ import IconAside from '@components/IconAside.astro';
 import IconLinkCard from '@components/IconLinkCard.astro';
 import ImageShowcase from '@components/ImageShowcase.astro';
 import Include from '@components/Include.astro';
+import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import InstallCliModal from '@components/InstallCliModal.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import InstallPackage from '@components/InstallPackage.astro';
@@ -50,6 +51,15 @@ import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 
 type PropsOf<T extends (...args: never[]) => unknown> = ComponentProps<T>;
+
+const validInpageSearchProps = {
+  id: 'glossary',
+  label: 'Find a term',
+  placeholder: 'Try AppHost',
+  kinds: ['Foundations', 'Reference'],
+  kindColors: { Foundations: 'var(--sl-color-purple)' },
+  defaultStatsText: '32 terms',
+} satisfies PropsOf<typeof InpageSearch>;
 
 const capabilityItems = [
   {
@@ -186,6 +196,7 @@ const invalidAsciinemaPlayerProps: PropsOf<typeof AsciinemaPlayer> = {
 
 const validBreadcrumbProps = {
   crumbs: [
+    { label: 'Dev Hub', href: '/dev/', icon: 'dev-hub' },
     { label: 'Docs', href: '/docs/', icon: 'docs' },
     { label: 'Reference', href: '/reference/overview/' },
     { label: 'Aspire.Hosting' },
@@ -745,6 +756,7 @@ void [
   validContainerImagesProps,
   invalidContainerImagesProps,
   validExpandProps,
+  validInpageSearchProps,
   invalidExpandProps,
   validFeatureShowcaseProps,
   invalidFeatureShowcaseProps,

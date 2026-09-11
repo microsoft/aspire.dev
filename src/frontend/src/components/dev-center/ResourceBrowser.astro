@@ -1,0 +1,168 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import InpageSearch from '../api-reference/InpageSearch.astro';
+import ResourceCard from './ResourceCard.astro';
+import BrowseDropdown from './BrowseDropdown.astro';
+import { RESOURCE_TYPES, type DevResource } from '../../utils/dev-center/resource-types';
+import { topics } from '../../utils/dev-center/topics';
+import { RESOURCE_PAGE_SIZE, resourceFacetLabel, resourceFacets, resourceSearchEntry } from '../../utils/dev-center/resource-search';
+
+interface Props { resources: DevResource[] }
+const { resources } = Astro.props;
+const available = resourceFacets(resources.map(resourceSearchEntry));
+const groups = [
+  { name: 'type', label: 'Type', options: RESOURCE_TYPES.filter((type) => available.type.includes(type.id)).map((type) => ({ id: type.id, label: type.label, color: undefined })) },
+  { name: 'topic', label: 'Topic', options: topics.filter((topic) => available.topic.includes(topic.id)).map((topic) => ({ id: topic.id, label: topic.title, color: topic.color })) },
+  { name: 'platform', label: 'Platform', options: available.platform.map((id) => ({ id, label: resourceFacetLabel(id), color: undefined })) },
+  { name: 'language', label: 'Language', options: available.language.map((id) => ({ id, label: resourceFacetLabel(id), color: undefined })) },
+];
+---
+
+<resource-browser class="not-content">
+  <script is:inline>
+    {
+      const browser = document.currentScript.parentElement;
+      // Run before the catalog can paint, without hiding links when JavaScript is disabled.
+      if (!browser.hasAttribute('data-ready')) {
+        browser.setAttribute('data-loading', '');
+        browser.setAttribute('aria-busy', 'true');
+        window.addEventListener('load', () => {
+          if (!browser.hasAttribute('data-loading')) return;
+          const note = browser.querySelector('[data-browse-static]');
+          note.textContent = 'Interactive browsing could not load. All resource links are listed below.';
+          note.hidden = false;
+          browser.querySelectorAll('[data-resource-entry]').forEach((card) => { card.hidden = false; });
+          browser.removeAttribute('data-loading');
+          browser.removeAttribute('aria-busy');
+        }, { once: true });
+      }
+    }
+  </script>
+  <div class="browse-controls">
+    <form role="search" aria-label="Search resources" class="browse-search" hidden>
+      <InpageSearch id="browse" placeholder="Search resources..." kinds={[]} defaultStatsText={`${resources.length} resources`} />
+    </form>
+    <div class="browse-filters" role="group" aria-label="Filter resources" hidden>
+      <div class="browse-filter-content">
+        {groups.filter((group) => group.options.length > 0).map((group) => (
+          <BrowseDropdown {...group} />
+        ))}
+        {available.provider.length > 0 && (
+          <BrowseDropdown name="provider" label="Provider" multiple={false} options={[
+            { id: '', label: 'All providers' },
+            ...available.provider.map((value) => ({ id: value, label: resourceFacetLabel(value) })),
+          ]} />
+        )}
+        <BrowseDropdown name="sort" label="Sort by" multiple={false} options={[
+          { id: 'date', label: 'Date', directions: [
+            { id: 'oldest', label: 'Oldest first', selectionLabel: 'Oldest first', icon: 'i-mdi:sort-calendar-ascending' },
+            { id: 'newest', label: 'Newest first', selectionLabel: 'Newest first', icon: 'i-mdi:sort-calendar-descending' },
+          ] },
+          { id: 'title', label: 'Title', directions: [
+            { id: 'asc', label: 'Title (A-Z)', selectionLabel: 'A-Z', icon: 'i-mdi:sort-alphabetical-ascending' },
+            { id: 'desc', label: 'Title (Z-A)', selectionLabel: 'Z-A', icon: 'i-mdi:sort-alphabetical-descending' },
+          ] },
+        ]} />
+      </div>
+    </div>
+  </div>
+  <p data-browse-static>All resources are listed below. Enable JavaScript to search, filter, and sort them.</p>
+  <div class="browse-layout">
+    <section class="browse-results" aria-labelledby="browse-results-heading">
+      <div class="browse-results-toolbar">
+        <h2 id="browse-results-heading" tabindex="-1" data-results-summary>{resources.length} resources</h2>
+        <button type="button" class="browse-clear" data-reset-filters hidden>Clear all</button>
+      </div>
+      <div class="browse-empty" hidden>
+        <h3>No matching resources</h3>
+        <p>Try a broader search or remove a filter.</p>
+        <button type="button" data-reset-search>Show all resources</button>
+      </div>
+      <ul class="browse-grid">{resources.map((resource) => <ResourceCard resource={resource} />)}</ul>
+      <nav class="browse-pagination" aria-label="Resource pages" hidden>
+        <span class="sr-only" data-page-label></span>
+        <button type="button" class="browse-page-edge" data-page-first aria-label="First page" title="First page"><span class="i-mdi:page-first" aria-hidden="true"></span></button>
+        <button type="button" class="browse-page-direction" data-page-previous aria-label="Previous"><Icon name="left-arrow" size="1rem" /><span>Previous</span></button>
+        <div class="browse-page-numbers" data-page-numbers></div>
+        <button type="button" class="browse-page-direction" data-page-next aria-label="Next"><span>Next</span><Icon name="right-arrow" size="1rem" /></button>
+        <button type="button" class="browse-page-edge" data-page-last aria-label="Last page" title="Last page"><span class="i-mdi:page-last" aria-hidden="true"></span></button>
+      </nav>
+    </section>
+  </div>
+  <div class="browse-loading">
+    <div class="browse-layout">
+      <div class="browse-results-toolbar"><p role="status">Loading resources...</p></div>
+      <ul class="browse-loading-grid" aria-hidden="true">
+        {Array.from({ length: RESOURCE_PAGE_SIZE }, () => (
+          <li class="browse-skeleton">
+            <div class="browse-skeleton-image"></div>
+            <div class="browse-skeleton-copy"><span></span><span></span><span></span></div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+</resource-browser>
+
+<script>
+  import './ResourceBrowser';
+</script>
+
+<style>
+  resource-browser { display: block; padding-top: 0.25rem; }
+  .browse-loading { display: none; }
+  resource-browser[data-loading] > :is(.browse-layout, [data-browse-static]) { display: none; }
+  resource-browser[data-loading] .browse-loading { display: block; }
+  resource-browser[data-loading] :is(.browse-search, .browse-filters) { display: block !important; visibility: hidden; }
+  resource-browser[data-loading] .browse-search, resource-browser[data-loading] .browse-filters :global(summary) { position: relative; }
+  resource-browser[data-loading] .browse-search::after, resource-browser[data-loading] .browse-filters :global(summary)::after { content: ''; position: absolute; inset: 0; visibility: visible; pointer-events: none; background: var(--sl-color-gray-6); border-radius: 0.4rem; }
+  .browse-loading [role='status'] { font-size: 0.875rem; color: var(--sl-color-gray-2); }
+  .browse-skeleton { overflow: hidden; border: 1px solid var(--sl-color-gray-5); border-radius: 0.65rem; }
+  .browse-skeleton-image { aspect-ratio: 16 / 9; background: var(--sl-color-gray-6); }
+  .browse-skeleton-copy { display: flex; flex-direction: column; gap: 0.75rem; padding: 1.1rem 1.25rem; min-height: 11rem; }
+  .browse-skeleton-copy span { height: 0.875rem; background: var(--sl-color-gray-6); border-radius: 0.2rem; }
+  .browse-skeleton-copy span:first-child { width: 75%; height: 1.25rem; margin-bottom: 0.5rem; }
+  .browse-skeleton-copy span:last-child { width: 60%; }
+  .browse-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; }
+  .browse-search { flex: 1 1 20rem; min-width: 0; }
+  .browse-layout { margin-top: 1.25rem; }
+  .browse-filters { min-width: 0; }
+  .browse-filter-content { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+  .browse-clear { padding: 0.4rem 0; background: none; border: 0; color: var(--sl-color-text-accent); font-size: 0.85rem; text-decoration: underline; text-underline-offset: 0.2em; }
+  .browse-results h2 { font-size: 1.1rem; line-height: 1.5; }
+  .browse-results { min-width: 0; }
+  .browse-results-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; min-height: 2.5rem; margin-bottom: 1.25rem; }
+  .browse-results-toolbar h2 { font-size: 0.875rem; font-weight: 400; color: var(--sl-color-gray-2); }
+  .browse-grid, .browse-loading-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; list-style: none; padding: 0; }
+  .browse-empty { padding: 2rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.65rem; }
+  .browse-empty h3 { font-size: 1.25rem; }
+  .browse-empty p { margin-block: 0.5rem 1.25rem; color: var(--sl-color-gray-2); }
+  .browse-empty button { min-height: 2.75rem; padding: 0.6rem 1rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.4rem; background: var(--sl-color-bg); color: var(--sl-color-text); }
+  .browse-empty button:hover { border-color: var(--sl-color-text-accent); color: var(--sl-color-text-accent); }
+  .browse-pagination { display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--sl-color-gray-5); font-size: 0.875rem; }
+  .browse-page-numbers { display: flex; align-items: center; gap: 0.25rem; }
+  .browse-page-edge span { width: 1.125rem; height: 1.125rem; }
+  .browse-pagination :global(button) { display: inline-flex; justify-content: center; align-items: center; gap: 0.5rem; height: 2.5rem; min-width: 2.5rem; padding: 0 0.65rem; border: 1px solid transparent; border-radius: 0.4rem; background: transparent; color: var(--sl-color-text); font: inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
+  .browse-pagination :global(button:not(:disabled):hover) { background: var(--sl-color-gray-6); border-color: var(--sl-color-gray-5); }
+  .browse-pagination :global(button[aria-current='page']) { background: color-mix(in srgb, var(--sl-color-text-accent) 12%, var(--sl-color-bg)); border-color: var(--sl-color-text-accent); color: var(--sl-color-text-accent); font-weight: 600; }
+  .browse-pagination :global(button:focus-visible) { outline: 3px solid var(--aspire-action-focus); outline-offset: 2px; }
+  .browse-pagination :global(button:disabled) { opacity: 0.4; cursor: default; }
+  .browse-page-numbers :global(.browse-page-gap) { display: grid; place-items: center; width: 2.5rem; color: var(--sl-color-gray-2); }
+  :global(resource-browser .inpage-search-stats), :global(resource-browser .inpage-kind-filters) { display: none; }
+  :global(resource-browser .inpage-search-bar) { margin-bottom: 0; }
+  :global(html:has(resource-browser)) { scrollbar-gutter: stable; }
+  @media (max-width: 1199px) { .browse-grid, .browse-loading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 1199px) { .browse-search { flex-basis: 100%; } }
+  @media (max-width: 767px) { .browse-page-direction span { display: none; } }
+  @media (max-width: 599px) {
+    .browse-filters { width: 100%; }
+    .browse-filter-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .browse-grid, .browse-loading-grid { grid-template-columns: minmax(0, 1fr); }
+    .browse-empty { padding: 1.25rem; }
+    .browse-pagination { gap: 0.25rem; }
+    .browse-page-numbers { gap: 0.125rem; }
+    .browse-pagination :global(button) { height: 2.25rem; min-width: 2rem; padding-inline: 0.25rem; }
+    .browse-page-numbers :global(button:not([data-page-neighbor])), .browse-page-numbers :global(.browse-page-gap) { display: none; }
+  }
+  @media (max-width: 359px) { .browse-pagination :global(button) { min-width: 1.75rem; } }
+</style>

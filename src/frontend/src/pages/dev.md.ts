@@ -1,0 +1,31 @@
+import type { APIRoute } from 'astro';
+import { devTitle, devDescription, gettingStartedDescription, topicLinks, resources, languages, cloudLinks, featuredSamples, referenceLinks, dashboardLinks, videos, blogHighlights } from '../data/dev-central';
+
+export const GET: APIRoute = () => new Response([
+  `# ${devTitle}`,
+  devDescription,
+  '[Browse all resources](https://aspire.dev/dev/browse/): Search and filter by resource type, topic, language, or provider.',
+  '## New to Aspire?',
+  gettingStartedDescription,
+  ...resources.map((resource) => `- [${resource.title}](https://aspire.dev${resource.href}): ${resource.description}`),
+  '## Browse by topic',
+  ...topicLinks.map((topic) => `- [${topic.title}](https://aspire.dev${topic.href}): ${topic.description}`),
+  '## Start with your language',
+  ...languages.map((language) => `- [${language.title}](https://aspire.dev${language.href}): ${language.description}`),
+  '## Browse by cloud',
+  ...cloudLinks.map((cloud) => `- [${cloud.title}](${cloud.href.startsWith('/') ? 'https://aspire.dev' : ''}${cloud.href}): ${cloud.description}`),
+  '## Samples to build on',
+  ...featuredSamples.map((sample) => `- [${sample.title}](https://aspire.dev${sample.href}): ${sample.description}`),
+  '## Reference',
+  '[All reference docs](https://aspire.dev/reference/overview/)',
+  ...referenceLinks.map((link) => `- [${link.title}](https://aspire.dev${link.href}): ${link.description}`),
+  '## Dashboard',
+  '[Explore the dashboard](https://aspire.dev/dashboard/)',
+  ...dashboardLinks.map((link) => `- [${link.title}](https://aspire.dev${link.href})`),
+  '## Latest from Aspire on YouTube',
+  '[All videos](https://aspire.dev/community/videos/)',
+  ...videos.map((video) => `- [${video.title}](https://www.youtube.com/watch?v=${video.id})`),
+  '## From the blog',
+  '[All blog posts](https://devblogs.microsoft.com/aspire/)',
+  ...blogHighlights.map((post) => `- [${post.title}](${post.href}) (${post.date}): ${post.description}`),
+].join('\n\n'), { headers: { 'Content-Type': 'text/markdown; charset=utf-8' } });

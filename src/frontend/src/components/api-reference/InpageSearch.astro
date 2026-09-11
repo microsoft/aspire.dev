@@ -15,15 +15,19 @@ interface Props {
   id: string;
   /** Placeholder text for the search input */
   placeholder: string;
+  /** Optional visible label; the placeholder remains the accessible label when omitted. */
+  label?: string;
   /** Unique kind strings to render as filter chips */
   kinds: string[];
+  /** Optional category colors for non-API filters. */
+  kindColors?: Record<string, string>;
   /** Text shown beneath the search bar before any query */
   defaultStatsText: string;
   /** Size variant: "lg" (index page) or "sm" (package page) */
   size?: 'lg' | 'sm';
 }
 
-const { id, placeholder, kinds, defaultStatsText, size = 'lg' } = Astro.props;
+const { id, placeholder, label, kinds, kindColors = {}, defaultStatsText, size = 'lg' } = Astro.props;
 const searchInputId = id + '-search-input';
 const searchStatusId = id + '-search-status';
 const searchClearId = id + '-search-clear';
@@ -38,12 +42,12 @@ const showKindFilters = kinds.length > 1;
 <div class="inpage-search" data-size={size} data-has-kind-filters={showKindFilters ? 'true' : 'false'}>
   <!-- Search bar -->
   <div class="inpage-search-bar">
+    <label class:list={[label ? 'inpage-search-label' : 'sr-only']} for={searchInputId}>{label ?? placeholder}</label>
     <div class="inpage-search-input-wrap">
       <svg class="inpage-search-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"></circle>
         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
       </svg>
-      <label class="sr-only" for={searchInputId}>{placeholder}</label>
       <input
         type="search"
         id={searchInputId}
@@ -75,6 +79,8 @@ const showKindFilters = kinds.length > 1;
         data-kind={kind}
         type="button"
         aria-pressed="false"
+        data-colored={kindColors[kind] ? '' : undefined}
+        style={kindColors[kind] ? `--filter-color: ${kindColors[kind]}` : undefined}
       >
         <span class={getKindClassName(kind)}></span>
         {kind}
@@ -112,6 +118,8 @@ const showKindFilters = kinds.length > 1;
   .inpage-search-bar {
     margin-bottom: 0.25rem;
   }
+
+  .inpage-search-label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; }
 
   .inpage-search-input-wrap {
     position: relative;
@@ -201,6 +209,13 @@ const showKindFilters = kinds.length > 1;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--sl-color-text-accent) 20%, transparent);
   }
 
+  @media (forced-colors: active) {
+    .inpage-search-input:focus-visible {
+      outline: 2px solid Highlight;
+      outline-offset: 2px;
+    }
+  }
+
   /* ── Kind filter chips ──────────────────────────────────────── */
   .inpage-kind-filters {
     display: flex;
@@ -241,6 +256,20 @@ const showKindFilters = kinds.length > 1;
     border-color: currentColor;
     background: color-mix(in srgb, currentColor 12%, transparent);
     font-weight: 600;
+  }
+
+  .api-filter-chip[data-colored] {
+    min-height: 2.75rem;
+    padding-inline: 0.85rem;
+    border-color: color-mix(in srgb, var(--filter-color) 30%, var(--sl-color-bg));
+    /* Keep text and background contrast in sync when the theme or selection changes. */
+    transition: none;
+  }
+  .api-filter-chip[data-colored] .api-filter-dot { background: var(--filter-color); }
+  .api-filter-chip[data-colored].active {
+    color: color-mix(in srgb, var(--filter-color) 65%, var(--sl-color-white));
+    border-color: currentColor;
+    background: color-mix(in srgb, var(--filter-color) 15%, var(--sl-color-bg));
   }
 
   /* Per-kind active colors */

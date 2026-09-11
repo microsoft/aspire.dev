@@ -1,0 +1,150 @@
+---
+import GlossaryCard from './GlossaryCard.astro';
+import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import { topics } from '../../utils/dev-center/topics';
+import { glossaryLetter, legacyGroups, sortGlossary, type GlossaryTerm } from '../../utils/dev-center/glossary';
+
+interface Props { terms: GlossaryTerm[] }
+const terms = sortGlossary(Astro.props.terms);
+const letters = [...new Set(terms.map((term) => glossaryLetter(term.data.title)))];
+const availableTopics = topics.filter((topic) => terms.some((term) => term.data.topics.includes(topic.id)));
+const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => term.data.legacyGroup === id)?.id));
+---
+
+<glossary-browser class="not-content">
+  <form class="glossary-controls" role="search" aria-label="Search the glossary" hidden>
+    <InpageSearch
+      id="glossary"
+      label="Find a term"
+      placeholder="Search glossary"
+      kinds={availableTopics.map((topic) => topic.title)}
+      kindColors={Object.fromEntries(availableTopics.map((topic) => [topic.title, topic.color]))}
+      defaultStatsText={`${terms.length} terms`}
+    />
+  </form>
+  <noscript><p>Search and filters require JavaScript. All terms and their practical examples are available below; use the letters to jump to a section.</p></noscript>
+  <nav class="glossary-alphabet" aria-label="Glossary letters">
+    <a href="#glossary-results" data-letter-filter="" aria-current="true">All</a>
+    {Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ').map((letter) =>
+      letters.includes(letter)
+        ? <a href={`#glossary-${letter}`} data-letter-filter={letter}>{letter}</a>
+        : <span aria-label={`No terms beginning with ${letter}`} aria-disabled="true">{letter}</span>
+    )}
+  </nav>
+  <div id="glossary-results"></div>
+  <div data-glossary-empty hidden>
+    <div>
+      <h2>No matching terms</h2>
+      <p>Try a different search or reset your filters.</p>
+    </div>
+    <button type="button" data-clear-glossary>Show all terms</button>
+  </div>
+  {letters.map((letter) => (
+    <section class="glossary-group" data-glossary-group aria-labelledby={`glossary-${letter}`}>
+      <h2 id={`glossary-${letter}`}>{letter}</h2>
+      <div class="glossary-grid">
+        {terms.filter((term) => glossaryLetter(term.data.title) === letter).map((term) => (
+          <GlossaryCard term={term} legacyGroupAnchor={firstGroupTerms.has(term.id) ? term.data.legacyGroup : undefined} />
+        ))}
+      </div>
+    </section>
+  ))}
+  <p id="see-also">Explore related guides and samples in <a href="/dev/browse/">Resources</a>.</p>
+</glossary-browser>
+
+<script>
+  import './GlossaryBrowser';
+</script>
+
+<style>
+  glossary-browser { display: block; }
+  .glossary-controls { margin-bottom: 1rem; }
+  .glossary-controls :global(.inpage-search) {
+    display: grid; grid-template-columns: minmax(0, 32rem) auto; justify-content: start;
+    gap: 0.75rem 1.5rem;
+  }
+  .glossary-controls :global(.inpage-search-bar) { min-width: 0; margin: 0; }
+  .glossary-controls :global(.inpage-search-label) {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .glossary-controls :global(.inpage-search[data-size] .inpage-search-input) {
+    height: 2.75rem; border-radius: 0.5rem; font-size: 1rem;
+  }
+  .glossary-controls :global(.inpage-search-input::placeholder) { color: var(--sl-color-gray-2); }
+  .glossary-controls :global(.inpage-kind-filters) { grid-column: 1 / -1; grid-row: 2; gap: 0.25rem; margin: 0; }
+  .glossary-controls :global(.api-filter-chip[data-colored]) {
+    min-height: 2.25rem; padding: 0.35rem 0.65rem; border-color: transparent;
+    border-radius: 0.375rem; font-size: 0.8125rem; font-weight: 400;
+  }
+  .glossary-controls :global(.api-filter-chip[data-colored].active) { border-color: currentColor; font-weight: 400; }
+  .glossary-controls :global(.api-filter-chip[data-colored]:not(.active)) {
+    border-color: var(--sl-color-gray-4);
+    background: color-mix(in srgb, var(--sl-color-gray-6) 50%, var(--sl-color-bg));
+  }
+  .glossary-controls :global(.api-filter-chip[data-colored]:not(.active):hover) {
+    border-color: var(--sl-color-gray-3); background: var(--sl-color-gray-6);
+  }
+  .glossary-controls :global(.api-filter-dot) { display: none; }
+  .glossary-controls :global(.inpage-search-stats) {
+    grid-column: 2; grid-row: 1; align-self: end; min-height: 2.75rem; min-width: 12rem;
+    justify-content: flex-start; flex-wrap: wrap; gap: 0.25rem 1rem;
+    padding: 0; font-size: 0.8125rem; color: var(--sl-color-gray-2);
+  }
+  .glossary-controls :global(.inpage-clear-filters) { min-height: 2.25rem; }
+  .glossary-controls :global(button:focus-visible), .glossary-alphabet a:focus-visible {
+    outline: 2px solid var(--sl-color-text-accent); outline-offset: 2px;
+  }
+  [data-clear-glossary] {
+    min-height: 3rem; border: 1px solid var(--sl-color-gray-4); border-radius: 0.5rem;
+    background: var(--sl-color-bg); color: var(--sl-color-text); padding: 0.65rem 1rem;
+    flex-shrink: 0; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  [data-clear-glossary]:hover { border-color: var(--sl-color-text-accent); color: var(--sl-color-text-accent); }
+  [data-clear-glossary]:focus-visible { outline: 2px solid var(--sl-color-text-accent); outline-offset: 3px; }
+  .glossary-alphabet {
+    display: grid; grid-template-columns: 2.75rem repeat(26, minmax(1.5rem, 1fr));
+    gap: 0.125rem; padding: 0.75rem 0;
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+  .glossary-alphabet a, .glossary-alphabet span {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 0;
+    min-height: 2.25rem; border-radius: 0.375rem; font-size: 0.8125rem; text-decoration: none;
+  }
+  .glossary-alphabet a { color: var(--sl-color-text); }
+  .glossary-alphabet a:hover { background: var(--sl-color-gray-6); }
+  .glossary-alphabet a[aria-current] { background: var(--sl-color-text-accent); color: var(--sl-color-bg); font-weight: 600; }
+  .glossary-alphabet span { color: var(--sl-color-gray-3); }
+  .glossary-group { margin-top: 1rem; }
+  #see-also { margin-top: 1.5rem; scroll-margin-top: 7rem; }
+  .glossary-group h2 { scroll-margin-top: 7rem; margin-bottom: 1rem; color: var(--sl-color-text-accent); }
+  .glossary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+  [data-glossary-empty]:not([hidden]) {
+    display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+    padding: 1.5rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--sl-color-gray-6) 50%, var(--sl-color-bg));
+  }
+  [data-glossary-empty] h2 { margin: 0; font-size: 1.25rem; }
+  [data-glossary-empty] p { margin: 0.5rem 0 0; color: var(--sl-color-gray-2); }
+  @media (min-width: 1200px) {
+    .glossary-controls :global(.inpage-search) { display: flex; align-items: center; }
+    .glossary-controls :global(.inpage-search-bar) { flex: 1; max-width: 32rem; }
+    .glossary-controls :global(.inpage-search-stats) { order: 1; flex-shrink: 0; flex-wrap: nowrap; }
+    .glossary-controls :global(.inpage-kind-filters) { order: 2; flex-wrap: nowrap; margin-inline-start: auto; }
+  }
+  @media (max-width: 1100px) { .glossary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 900px) {
+    .glossary-alphabet { grid-template-columns: repeat(14, minmax(0, 1fr)); }
+  }
+  @media (max-width: 600px) {
+    .glossary-controls :global(.inpage-search) { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+    .glossary-controls :global(.inpage-search-stats) { grid-column: 1; grid-row: 3; min-height: 2.25rem; justify-content: space-between; }
+    .glossary-controls :global(.api-filter-chip[data-colored]) { min-height: 2.75rem; }
+    .glossary-alphabet { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+    .glossary-alphabet a, .glossary-alphabet span { min-height: 2.75rem; }
+  }
+  @media (max-width: 767px) {
+    .glossary-grid { grid-template-columns: 1fr; }
+    [data-glossary-empty]:not([hidden]) { flex-direction: column; align-items: flex-start; padding: 1.25rem; gap: 1rem; }
+  }
+</style>

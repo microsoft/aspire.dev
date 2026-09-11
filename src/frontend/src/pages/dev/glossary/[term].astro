@@ -1,0 +1,103 @@
+---
+import { getCollection, render } from 'astro:content';
+import { Icon } from '@astrojs/starlight/components';
+import DevLayout from '@components/dev-center/DevLayout.astro';
+import Breadcrumb from '@components/Breadcrumb.astro';
+import LearnMore from '@components/LearnMore.astro';
+import { glossaryHref, sortGlossary } from '../../../utils/dev-center/glossary';
+import '../../../styles/glossary-term.css';
+
+export async function getStaticPaths() {
+  const terms = sortGlossary(await getCollection('glossary'));
+  return terms.map((term, index) => ({
+    params: { term: term.id },
+    props: {
+      term,
+      related: terms.filter((other) => term.data.related.includes(other.id)),
+      prev: index > 0 ? { label: terms[index - 1].data.title, link: glossaryHref(terms[index - 1].id) } : undefined,
+      next: index < terms.length - 1 ? { label: terms[index + 1].data.title, link: glossaryHref(terms[index + 1].id) } : undefined,
+    },
+  }));
+}
+const { term, related, prev, next } = Astro.props;
+const { Content } = await render(term);
+---
+
+<DevLayout title={term.data.title} description={term.data.description} layout="article" pagefind={true} {prev} {next}>
+  <div class="dev-breadcrumbs">
+    <Breadcrumb crumbs={[
+      { label: 'Dev Hub', href: '/dev/', icon: 'dev-hub' },
+      { label: 'Glossary', href: '/dev/glossary/' },
+      { label: term.data.title },
+    ]} />
+  </div>
+  <article class="term-reading">
+    <div class="term-main">
+      <section class="term-definition not-content" aria-labelledby="term-definition-heading">
+        <h2 id="term-definition-heading">Definition</h2>
+        {(term.data.termType || term.data.pronunciation) && (
+          <dl class="term-meta">
+            {term.data.termType && <div><dt class="sr-only">Term type</dt><dd>{term.data.termType}</dd></div>}
+            {term.data.pronunciation && <div><dt>Pronounced</dt><dd>{term.data.pronunciation}</dd></div>}
+          </dl>
+        )}
+        <p class="term-description">{term.data.description}</p>
+        {term.data.aliases.length > 0 && (
+          <dl class="term-aliases">
+            <dt>Also known as</dt>
+            <dd>{term.data.aliases.join(', ')}</dd>
+          </dl>
+        )}
+      </section>
+      <div class="sl-markdown-content term-body"><Content /></div>
+      <section class="term-example not-content" aria-labelledby="practical-example">
+        <h2 id="practical-example">Practical example</h2>
+        <p>{term.data.context}</p>
+      </section>
+      {term.data.resources.length > 0 && (
+        <div class="term-learn-more sl-markdown-content">
+          <LearnMore>
+            {term.data.resources.map((guide, index) => (
+              <>{index > 0 && '; '}<a href={guide.href}>{guide.title}</a></>
+            ))}
+          </LearnMore>
+        </div>
+      )}
+    </div>
+    {related.length > 0 && (
+      <aside class="term-related not-content" aria-labelledby="related-terms">
+        <h2 id="related-terms">Related terms</h2>
+        <ul>{related.map((other) => (
+          <li>
+            <a href={glossaryHref(other.id)}>
+              <span class="related-term-title"><span>{other.data.title}</span><Icon name="right-arrow" size="1rem" /></span>
+              <span class="related-term-summary">{other.data.description}</span>
+            </a>
+          </li>
+        ))}</ul>
+      </aside>
+    )}
+  </article>
+</DevLayout>
+
+<script>
+  import { glossaryReturnHref } from '../../../utils/dev-center/glossary';
+
+  function updateGlossaryReturnLinks() {
+    const from = glossaryReturnHref(new URLSearchParams(window.location.search).get('from'), window.location.origin);
+    if (from) {
+      for (const back of document.querySelectorAll<HTMLAnchorElement>('.dev-breadcrumbs a[href="/dev/glossary/"]')) {
+        back.href = from;
+        back.setAttribute('aria-label', 'Back to your glossary results');
+      }
+      for (const link of document.querySelectorAll<HTMLAnchorElement>('.pagination-links a[href^="/dev/glossary/"]')) {
+        const destination = new URL(link.href);
+        destination.searchParams.set('from', from);
+        link.href = destination.href;
+      }
+    }
+  }
+
+  updateGlossaryReturnLinks();
+  document.addEventListener('astro:page-load', updateGlossaryReturnLinks);
+</script>

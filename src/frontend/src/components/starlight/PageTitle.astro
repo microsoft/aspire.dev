@@ -1,13 +1,30 @@
 ---
 import PageActionsPageTitle from 'starlight-page-actions/overrides/PageTitle.astro';
+import { Icon } from '@astrojs/starlight/components';
+import DevHubSvg from '@assets/icons/dev-hub.svg';
 
 const currentPath = Astro.url.pathname.replace(/\/$/, '').replace(/^\//, '');
 const isApiSubpage = currentPath.startsWith('reference/api/');
+const isDevDirectory = ['dev', 'dev/browse', 'dev/glossary'].includes(currentPath);
 ---
 
-<PageActionsPageTitle />
+{isDevDirectory ? (
+  <h1 id="_top" data-page-title class="dev-directory-title">
+    {currentPath === 'dev' && <DevHubSvg aria-hidden="true" focusable="false" />}
+    {currentPath === 'dev/glossary' && <Icon name="notes" aria-hidden="true" />}
+    <span>{Astro.locals.starlightRoute.entry.data.title}</span>
+  </h1>
+) : <PageActionsPageTitle />}
 
 <style>
+  .dev-directory-title {
+    display: flex; align-items: center; gap: 0.3em;
+    font-size: clamp(2rem, 4vw, 2.5rem); line-height: 1.15; letter-spacing: -0.04em;
+    color: var(--sl-color-white);
+  }
+  .dev-directory-title :global(svg) {
+    width: 0.9em; height: 0.9em; flex-shrink: 0; color: var(--sl-color-text-accent);
+  }
   :global(.content-panel:has(.actions-container)) {
     position: relative;
     /* Promote the actions panel into its own stacking context that paints

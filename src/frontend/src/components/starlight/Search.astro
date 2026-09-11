@@ -399,8 +399,17 @@ const typescriptHref = `${base}/reference/api/typescript/`;
 
     const nav = new SearchKeyboardNav(dialog);
     const linker = new ApiSearchLinker(dialog);
+    const hubTrigger = document.querySelector<HTMLButtonElement>('[data-open-site-search]');
+    const openButton = siteSearch.querySelector<HTMLButtonElement>('button[data-open-modal]')!;
+    const openFromHub = (event: MouseEvent) => {
+      // Keep the originating click from reaching the dialog's outside-click listener.
+      event.stopPropagation();
+      openButton.click();
+    };
+    hubTrigger?.addEventListener('click', openFromHub);
 
     const setup = () => {
+      if (hubTrigger) hubTrigger.disabled = openButton.disabled;
       injectTemplate(dialogFrame, 'api-search-notice-tpl', '.api-search-notice');
       injectTemplate(dialogFrame, 'search-keyboard-footer-tpl', '.search-keyboard-footer');
       nav.refresh();
@@ -421,11 +430,13 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       });
     };
     const observer = new MutationObserver(scheduleSetup);
-    observer.observe(siteSearch, { childList: true, subtree: true });
+    observer.observe(siteSearch, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
 
     cleanup = () => {
       if (rafId !== null) cancelAnimationFrame(rafId);
       observer.disconnect();
+      hubTrigger?.removeEventListener('click', openFromHub);
+      if (hubTrigger) hubTrigger.disabled = true;
       nav.destroy();
       linker.destroy();
     };
@@ -436,6 +447,10 @@ const typescriptHref = `${base}/reference/api/typescript/`;
 </script>
 
 <style is:global>
+  body:has(.dev-home) site-search > button[data-open-modal] {
+    display: none;
+  }
+
   site-search button[data-open-modal] {
     color: var(--sl-color-gray-1) !important;
   }

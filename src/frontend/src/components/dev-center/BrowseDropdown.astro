@@ -1,0 +1,101 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+
+interface Props {
+  name: string;
+  label: string;
+  multiple?: boolean;
+  options: {
+    id: string;
+    label: string;
+    color?: string;
+    directions?: { id: string; label: string; selectionLabel: string; icon: string }[];
+  }[];
+}
+
+const { name, label, multiple = true, options } = Astro.props;
+---
+
+<details class="browse-filter-group" data-filter-group={name}>
+  <summary aria-label={label}>
+    <span data-dropdown-label>{label}</span>
+    {multiple && <span class="browse-filter-active" data-filter-active={name} aria-hidden="true" hidden></span>}
+    <Icon name="down-caret" size="1rem" />
+  </summary>
+  <div class="browse-filter-panel">
+    <fieldset>
+      <legend class="sr-only">{label}</legend>
+      {options.map((option) => option.directions ? (
+        <div class="browse-sort-row" data-option-label={option.label}>
+          <span class="browse-sort-label">{option.label}<small data-sort-selection={option.id}></small></span>
+          <div class="browse-sort-choices" role="radiogroup" aria-label={`${option.label} order`}>
+            {option.directions.map((direction) => (
+              <label class="browse-sort-choice" title={direction.label}>
+                <input type="radio" name={`${name}-${option.id}`} value={direction.id} aria-label={direction.label} data-sort-label={direction.selectionLabel} />
+                <span class:list={['browse-sort-icon', direction.icon]} aria-hidden="true"></span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <label class="browse-filter-option" data-option-label={option.label}>
+          <input type={multiple ? 'checkbox' : 'radio'} name={name} value={option.id} />
+          {option.color && <span class="browse-topic-dot" style={`background: ${option.color}`} aria-hidden="true"></span>}
+          <span>{option.label}</span>
+          {multiple && <span class="browse-facet-count" data-facet-count={`${name}:${option.id}`} aria-hidden="true"></span>}
+        </label>
+      ))}
+    </fieldset>
+  </div>
+</details>
+
+<style>
+  .browse-filter-group { position: relative; width: 8.5rem; min-width: 0; -webkit-user-select: none; user-select: none; }
+  summary {
+    display: flex; align-items: center; gap: 0.3rem; min-height: 3rem;
+    padding: 0.5rem 0.75rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.4rem;
+    background: var(--sl-color-bg); color: var(--sl-color-text); font-size: 0.85rem;
+    cursor: pointer; list-style: none; white-space: nowrap;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: none; }
+  summary :global(svg) { flex-shrink: 0; width: 1rem; height: 1rem; }
+  [data-dropdown-label] { margin-right: auto; overflow: hidden; text-overflow: ellipsis; }
+  .browse-filter-active { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--sl-color-text-accent); flex-shrink: 0; }
+  .browse-filter-group[open] > summary, .browse-filter-group:not([data-filter-group='sort']):has(input:checked:not([value=''])) > summary {
+    border-color: var(--sl-color-text-accent);
+    background: color-mix(in srgb, var(--sl-color-text-accent) 7%, var(--sl-color-bg));
+  }
+  .browse-filter-panel {
+    position: absolute; top: calc(100% + 0.4rem); left: 0; z-index: 2;
+    width: 15rem; max-width: calc(100vw - 2rem);
+    margin: 0; padding: 0.4rem; min-width: 0; border: 1px solid var(--sl-color-gray-4);
+    border-radius: 0.5rem; background: var(--sl-color-bg);
+    box-shadow: 0 0.4rem 1rem color-mix(in srgb, var(--sl-color-gray-1) 12%, transparent);
+  }
+  fieldset { margin: 0; padding: 0; border: 0; min-width: 0; max-height: min(28rem, var(--browse-options-height, 60dvh)); overflow-y: auto; }
+  .browse-filter-option {
+    display: flex; align-items: center; gap: 0.45rem; min-height: 2rem; padding: 0.2rem 0.35rem;
+    font-size: 0.8125rem; line-height: 1.35; cursor: pointer; border-radius: 0.25rem;
+  }
+  .browse-filter-option:not(:has(input:disabled)):hover { background: var(--sl-color-gray-6); }
+  .browse-filter-option input { margin: 0; width: 0.9rem; height: 0.9rem; accent-color: var(--sl-color-text-accent); flex-shrink: 0; }
+  .browse-filter-option:has(input:disabled) { color: var(--sl-color-gray-3); cursor: default; }
+  .browse-sort-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 2rem; padding: 0.125rem 0.35rem; font-size: 0.8125rem; }
+  .browse-sort-label { display: flex; align-items: baseline; gap: 0.4rem; }
+  .browse-sort-label small { color: var(--sl-color-gray-2); font-size: 0.6875rem; white-space: nowrap; }
+  .browse-sort-choices { display: flex; gap: 0.25rem; flex-shrink: 0; }
+  .browse-sort-choice {
+    position: relative; display: grid; place-items: center; width: 1.75rem; height: 1.75rem;
+    border: 1px solid var(--sl-color-gray-5); border-radius: 0.25rem; color: var(--sl-color-text);
+  }
+  .browse-sort-choice input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+  .browse-sort-choice:hover { border-color: var(--sl-color-text-accent); }
+  .browse-sort-choice:has(input:checked) { color: var(--sl-color-text-accent); border-color: currentColor; background: color-mix(in srgb, var(--sl-color-text-accent) 10%, var(--sl-color-bg)); }
+  .browse-sort-choice:has(input:focus-visible) { outline: 3px solid var(--aspire-action-focus); outline-offset: 2px; }
+  .browse-sort-icon { width: 1.125rem; height: 1.125rem; pointer-events: none; }
+  .browse-facet-count { margin-left: auto; font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--sl-color-gray-2); }
+  .browse-topic-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; flex-shrink: 0; }
+  @media (pointer: coarse) { .browse-filter-option, .browse-sort-row { min-height: 2.25rem; } }
+  @media (max-width: 599px) { .browse-filter-group { width: 100%; } }
+</style>
