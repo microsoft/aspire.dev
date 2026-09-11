@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { dismissCookieConsentIfVisible } from './helpers';
 
@@ -29,6 +29,7 @@ declare global {
       trackFunnelStep: (details: Record<string, string>) => boolean;
     };
     __funnelEvents: FunnelEvent[];
+    __funnelObserverDisconnects: number;
   }
 }
 
@@ -74,6 +75,17 @@ async function readFunnelEvents(page: Page, funnel: string): Promise<FunnelEvent
       window.__funnelEvents.filter((event) => event.properties.funnel === expectedFunnel),
     funnel
   );
+}
+
+async function scrollFunnelViewIntoView(marker: Locator): Promise<void> {
+  await marker.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const observationTarget =
+      bounds.width || bounds.height
+        ? element
+        : element.previousElementSibling || element.nextElementSibling || element;
+    observationTarget.scrollIntoView({ block: 'center' });
+  });
 }
 
 for (const analyticsScript of analyticsScripts) {
@@ -136,6 +148,28 @@ test('direct install visits emit entry and options stages once per navigation', 
     platform: 'macos',
     channel: 'release',
   });
+});
+
+test('view observers disconnect before Astro swaps', async ({ page }) => {
+  await page.goto('/get-started/troubleshooting/');
+  await dismissCookieConsentIfVisible(page);
+  await page.evaluate(() => {
+    const NativeIntersectionObserver = window.IntersectionObserver;
+    window.__funnelObserverDisconnects = 0;
+    window.IntersectionObserver = class extends NativeIntersectionObserver {
+      disconnect(): void {
+        window.__funnelObserverDisconnects++;
+        super.disconnect();
+      }
+    };
+  });
+  await installTracker(page);
+
+  await page.evaluate(() => {
+    document.dispatchEvent(new Event('astro:before-swap'));
+  });
+
+  expect(await page.evaluate(() => window.__funnelObserverDisconnects)).toBe(1);
 });
 
 test('install modal emits ordered entry, options, and command-copy stages', async ({ page }) => {
@@ -209,6 +243,7 @@ test('first-app actions emit the complete getting-started funnel', async ({ page
   await page.goto('/get-started/first-app/');
   await dismissCookieConsentIfVisible(page);
   await installTracker(page);
+  await page.locator('#pivot-selector-aspire-lang [data-pivot-option="csharp"]').click();
 
   await page
     .locator(
@@ -555,7 +590,7 @@ test('deployment guide emits target, prerequisite, deploy, and verification inte
   await installTracker(page);
 
   await page
-    .locator('starlight-tabs[data-sync-key="deploy-target"] [role="tab"]')
+    .locator('starlight-tabs[data-sync-key="deploy-target"]:visible [role="tab"]')
     .filter({ hasText: 'Azure' })
     .first()
     .click();
@@ -571,14 +606,12 @@ test('deployment guide emits target, prerequisite, deploy, and verification inte
     )
     .first()
     .click();
-  await page.evaluate(() => {
-    const marker = Array.from(
-      document.querySelectorAll(
-        '[data-funnel-step="verification_or_troubleshooting"][data-funnel-target="azure_container_apps"]'
-      )
-    ).find((element) => !element.closest('[hidden]'));
-    marker?.scrollIntoView();
-  });
+  const verificationMarker = page
+    .locator(
+      'starlight-tabs[data-sync-key="deploy-target"]:visible [role="tabpanel"]:visible [data-funnel-step="verification_or_troubleshooting"][data-funnel-target="azure_container_apps"]'
+    )
+    .first();
+  await scrollFunnelViewIntoView(verificationMarker);
 
   await expect
     .poll(async () =>
@@ -604,6 +637,19 @@ test('troubleshooting guide records issue discovery and remediation copies', asy
   await page.goto('/get-started/troubleshooting/');
   await dismissCookieConsentIfVisible(page);
   await installTracker(page);
+
+  const portConflictMarker = page.locator(
+    '[data-funnel-step="issue_viewed"][data-funnel-issue="port_conflict"]'
+  );
+  await scrollFunnelViewIntoView(portConflictMarker);
+  await expect
+    .poll(async () =>
+      (await readFunnelEvents(page, 'troubleshooting_recovery')).some(
+        (event) =>
+          event.properties.step === 'issue_viewed' && event.properties.issue === 'port_conflict'
+      )
+    )
+    .toBe(true);
 
   await page
     .locator('figure[data-funnel-issue="port_conflict"]:visible .copy button')
@@ -659,6 +705,40 @@ test('troubleshooting guide records issue discovery and remediation copies', asy
     issue: 'typescript_apphost',
     destination: 'github_issue',
   });
+});
+
+test('troubleshooting return state resets after Astro navigation', async ({ page }) => {
+  await page.goto('/get-started/troubleshooting/');
+  await dismissCookieConsentIfVisible(page);
+  await installTracker(page);
+
+  await page
+    .locator('figure[data-funnel-issue="port_conflict"]:visible .copy button')
+    .first()
+    .click();
+
+  await page.evaluate(() => {
+    history.pushState({}, '', '/docs/');
+    document.dispatchEvent(new Event('astro:page-load'));
+    history.pushState({}, '', '/get-started/troubleshooting/');
+    document.dispatchEvent(new Event('astro:page-load'));
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'hidden',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+
+  const returnEvents = (await readFunnelEvents(page, 'troubleshooting_recovery')).filter(
+    (event) => event.properties.step === 'return_to_task'
+  );
+  expect(returnEvents).toHaveLength(0);
 });
 
 test('existing-app guide records approach, setup, run, and continuation intent', async ({

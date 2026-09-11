@@ -38,6 +38,9 @@
 
     try {
       const url = new URL(value, location.origin);
+      if (isReferrer && url.origin !== location.origin) {
+        return url.origin === 'null' ? '' : url.origin + '/';
+      }
       if (
         url.origin === location.origin &&
         ((isReferrer && previousRouteWasNotFound) ||
@@ -95,6 +98,7 @@
   }
 
   try {
+    const initialReferrerUri = sanitizeTelemetryUrl(document.referrer || '', true);
     const analytics = new oneDS.ApplicationInsights();
     analytics.initialize(
       {
@@ -105,14 +109,17 @@
         webAnalyticsConfiguration: {
           urlCollectQuery: false,
           callback: { pageName: getTelemetryPageName },
+          coreData: { referrerUri: initialReferrerUri },
           autoCapture: {
             scroll: true,
+            // Capture these manually after URL sanitization is registered so the
+            // initial document stays private and Astro routes are not double-counted.
             pageView: false,
             onLoad: false,
             onUnload: true,
             click: true,
             resize: true,
-            jsError: false,
+            jsError: true,
           },
         },
       },
@@ -122,6 +129,7 @@
     analytics.addTelemetryInitializer(sanitizeTelemetryUrls);
 
     let lastPageViewKey = '';
+    let previousPageViewUri = initialReferrerUri;
     let hasCapturedRoute = false;
     const captureRouteView = function () {
       const nextRouteIsNotFound = isNotFoundPage();
@@ -134,11 +142,12 @@
       currentRouteIsNotFound = nextRouteIsNotFound;
       lastPageViewKey = routeKey;
 
-      analytics.capturePageView({ isAuto: true });
+      analytics.capturePageView({ isAuto: true, referrerUri: previousPageViewUri });
       if (hasCapturedRoute) {
         analytics.captureContentUpdate({ isAuto: true, isDomComplete: true });
       }
 
+      previousPageViewUri = routeKey;
       rememberNotFoundRoute(currentRouteIsNotFound);
       hasCapturedRoute = true;
     };

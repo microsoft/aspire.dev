@@ -11,6 +11,7 @@
   var CONTINUATION_MARKER_TTL_MS = 5 * 60 * 1000;
   var lastRoutePath = null;
   var observedFunnelSteps = new WeakSet();
+  var observedStepTargets = new WeakMap();
   var pendingTroubleshootingReturn = null;
   var troubleshootingWasHidden = false;
   var inferredIntegrationContext = null;
@@ -706,13 +707,34 @@
           entries.forEach(function (entry) {
             if (!entry.isIntersecting) return;
             observedStepObserver.unobserve(entry.target);
-            var details = readDeclarativeStep(entry.target);
-            if (!details) return;
-            details.actionType = 'O';
-            trackFunnelStep(details);
+            var stepTargets = observedStepTargets.get(entry.target);
+            observedStepTargets.delete(entry.target);
+            if (!stepTargets || !entry.target.isConnected) return;
+
+            stepTargets.forEach(function (stepTarget) {
+              var details = readDeclarativeStep(stepTarget);
+              if (!details) return;
+              details.actionType = 'O';
+              trackFunnelStep(details);
+            });
           });
         })
       : null;
+
+  function resetObservedFunnelSteps() {
+    if (observedStepObserver) {
+      observedStepObserver.disconnect();
+    }
+    observedFunnelSteps = new WeakSet();
+    observedStepTargets = new WeakMap();
+  }
+
+  function getObservationTarget(element) {
+    var bounds = element.getBoundingClientRect();
+    if (bounds.width || bounds.height) return element;
+
+    return element.previousElementSibling || element.nextElementSibling || element;
+  }
 
   function observeFunnelSteps() {
     if (!observedStepObserver) return;
@@ -722,7 +744,15 @@
       .forEach(function (element) {
         if (observedFunnelSteps.has(element)) return;
         observedFunnelSteps.add(element);
-        observedStepObserver.observe(element);
+
+        var observationTarget = getObservationTarget(element);
+        var stepTargets = observedStepTargets.get(observationTarget);
+        if (!stepTargets) {
+          stepTargets = [];
+          observedStepTargets.set(observationTarget, stepTargets);
+          observedStepObserver.observe(observationTarget);
+        }
+        stepTargets.push(element);
       });
   }
 
@@ -788,6 +818,11 @@
     lastRoutePath = location.pathname;
 
     var path = normalizePath();
+    if (path !== '/get-started/troubleshooting/') {
+      pendingTroubleshootingReturn = null;
+      troubleshootingWasHidden = false;
+    }
+
     if (path === '/get-started/install-cli/') {
       if (!consumeRecentCliEntry()) {
         trackFunnelStep({
@@ -847,6 +882,7 @@
   document.addEventListener('aspire:funnel-step', handleCustomStep);
   document.addEventListener('keydown', handleDeploymentTargetKeydown);
   document.addEventListener('visibilitychange', handleVisibilityChange);
+  document.addEventListener('astro:before-swap', resetObservedFunnelSteps);
   document.addEventListener('astro:page-load', trackRouteSteps);
   document.addEventListener('astro:page-load', observeFunnelSteps);
   trackRouteSteps();

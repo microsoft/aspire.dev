@@ -65,6 +65,9 @@ test('OneDS automatic events use the same query-free canonical URL contract', ()
   type AnalyticsConfig = {
     webAnalyticsConfiguration: {
       autoCapture: Record<string, boolean>;
+      coreData: {
+        referrerUri: string;
+      };
       callback: {
         pageName: () => string;
       };
@@ -74,6 +77,8 @@ test('OneDS automatic events use the same query-free canonical URL contract', ()
   let initializedConfig: AnalyticsConfig | undefined;
   let initializer: ((item: TelemetryItem) => void) | undefined;
   const captureCalls: string[] = [];
+  const pageViewCalls: Array<{ isAuto?: boolean; referrerUri?: string }> = [];
+  let capturedBeforeInitializer = false;
   const documentListeners = new Map<string, () => void>();
   const storage = new Map<string, string>();
   let notFoundPage = true;
@@ -91,15 +96,19 @@ test('OneDS automatic events use the same query-free canonical URL contract', ()
       initializer = callback;
     }
 
-    capturePageView(): void {
+    capturePageView(overrides: { isAuto?: boolean; referrerUri?: string }): void {
+      capturedBeforeInitializer ||= !initializer;
+      pageViewCalls.push(overrides);
       captureCalls.push('pageView');
     }
 
     capturePageViewPerformance(): void {
+      capturedBeforeInitializer ||= !initializer;
       captureCalls.push('pageViewPerformance');
     }
 
     captureContentUpdate(): void {
+      capturedBeforeInitializer ||= !initializer;
       captureCalls.push('contentUpdate');
     }
   }
@@ -125,6 +134,7 @@ test('OneDS automatic events use the same query-free canonical URL contract', ()
         documentListeners.set(name, listener);
       },
       querySelector: () => (notFoundPage ? {} : null),
+      referrer: 'https://search.example/results/?q=private',
       readyState: 'complete',
     },
     location: locationStub,
@@ -134,13 +144,26 @@ test('OneDS automatic events use the same query-free canonical URL contract', ()
   });
 
   expect(initializedConfig?.webAnalyticsConfiguration.autoCapture).toMatchObject({
-    click: true,
-    jsError: false,
+    scroll: true,
     pageView: false,
     onLoad: false,
+    onUnload: true,
+    click: true,
+    resize: true,
+    jsError: true,
   });
   expect(initializedConfig?.webAnalyticsConfiguration.callback.pageName()).toBe('404');
+  expect(initializedConfig?.webAnalyticsConfiguration.coreData.referrerUri).toBe(
+    'https://search.example/'
+  );
+  expect(capturedBeforeInitializer).toBe(false);
   expect(captureCalls).toEqual(['pageView', 'pageViewPerformance', 'contentUpdate']);
+  expect(pageViewCalls).toEqual([
+    {
+      isAuto: true,
+      referrerUri: 'https://search.example/',
+    },
+  ]);
   expect(initializer).toBeTypeOf('function');
   expect(storage.get('aspire-last-route-not-found')).toBe('true');
 
@@ -156,6 +179,16 @@ test('OneDS automatic events use the same query-free canonical URL contract', ()
     'contentUpdate',
     'pageView',
     'contentUpdate',
+  ]);
+  expect(pageViewCalls).toEqual([
+    {
+      isAuto: true,
+      referrerUri: 'https://search.example/',
+    },
+    {
+      isAuto: true,
+      referrerUri: 'https://aspire.dev/404/',
+    },
   ]);
   expect(storage.has('aspire-last-route-not-found')).toBe(false);
 
@@ -178,7 +211,7 @@ test('OneDS automatic events use the same query-free canonical URL contract', ()
       refUri: 'https://aspire.dev/404/',
     },
     data: {
-      referrerUri: 'https://search.example/results/',
+      referrerUri: 'https://search.example/',
     },
   });
 });
