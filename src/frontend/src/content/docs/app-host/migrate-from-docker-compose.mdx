@@ -97,7 +97,14 @@ volumes:
 
 **Aspire equivalent:**
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include the PostgreSQL integration APIs used by this complete migration example.',
+    go: 'The generated Go SDK does not include the PostgreSQL integration APIs used by this complete migration example.',
+    java: 'The generated Java SDK does not include the PostgreSQL integration APIs used by this complete migration example.',
+    rust: 'The generated Rust SDK does not include the PostgreSQL integration APIs used by this complete migration example.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -213,7 +220,14 @@ volumes:
 
 **Aspire equivalent:**
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include the PostgreSQL and Redis integration APIs used by this Dockerfile migration example.',
+    go: 'The generated Go SDK does not include the PostgreSQL and Redis integration APIs used by this Dockerfile migration example.',
+    java: 'The generated Java SDK does not include the PostgreSQL and Redis integration APIs used by this Dockerfile migration example.',
+    rust: 'The generated Rust SDK does not include the PostgreSQL and Redis integration APIs used by this Dockerfile migration example.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -308,7 +322,14 @@ services:
 
 **Aspire approach:**
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include the PostgreSQL and Redis integration APIs required by this parameter migration example.',
+    go: 'The generated Go SDK does not include the PostgreSQL and Redis integration APIs required by this parameter migration example.',
+    java: 'The generated Java SDK does not include the PostgreSQL and Redis integration APIs required by this parameter migration example.',
+    rust: 'The generated Rust SDK does not include the PostgreSQL and Redis integration APIs required by this parameter migration example.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -364,7 +385,14 @@ await builder.build().run();
 If your application expects URL-format variables like `DATABASE_URL` or `REDIS_URL`, construct them manually using the `WithEnvironment` callback:
 </Aside>
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'This validation example depends on PostgreSQL integration resources, which are not present in the generated Python SDK.',
+    go: 'This validation example depends on PostgreSQL integration resources, which are not present in the generated Go SDK.',
+    java: 'This validation example depends on PostgreSQL integration resources, which are not present in the generated Java SDK.',
+    rust: 'This validation example depends on PostgreSQL integration resources, which are not present in the generated Rust SDK.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var dbPassword = builder.AddParameter("dbPassword", secret: true);
@@ -456,6 +484,67 @@ const worker = await builder.addContainer("worker", { image: "myworker", tag: "l
 
 await builder.build().run();
 ```
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+app = builder.add_container("app", "myapp:latest")
+app.with_volume("/data", name="app-data", is_read_only=True)
+app.with_bind_mount("./config", "/app/config", is_read_only=True)
+worker = builder.add_container("worker", "myworker:latest")
+worker.with_volume("/shared", name="app-data")
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+app := builder.
+	AddContainer("app", &aspire.AddContainerOptions{
+		Image: "myapp",
+		Tag:   aspire.StringPtr("latest"),
+	}).
+	WithVolume("/data", &aspire.WithVolumeOptions{
+		Name:       aspire.StringPtr("app-data"),
+		IsReadOnly: aspire.BoolPtr(true),
+	}).
+	WithBindMount("./config", "/app/config", &aspire.WithBindMountOptions{
+		IsReadOnly: aspire.BoolPtr(true),
+	})
+worker := builder.
+	AddContainer("worker", "myworker:latest").
+	WithVolume("/shared", &aspire.WithVolumeOptions{
+		Name: aspire.StringPtr("app-data"),
+	})
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var app = builder.addContainer("app", "myapp:latest");
+app.withVolume(
+    "/data",
+    new WithVolumeOptions().name("app-data").isReadOnly(true));
+app.withBindMount("./config", "/app/config", true);
+var worker = builder.addContainer("worker", "myworker:latest");
+worker.withVolume("/shared", new WithVolumeOptions().name("app-data"));
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let app = builder.add_container("app", serde_json::json!("myapp:latest"))?;
+app.with_volume("/data", Some("app-data"), Some(true))?;
+app.with_bind_mount("./config", "/app/config", Some(true))?;
+let worker = builder.add_container(
+    "worker",
+    serde_json::json!("myworker:latest"),
+)?;
+worker.with_volume("/shared", Some("app-data"), None)?;
+```
+
 </Fragment>
 </AppHostTabs>
 
@@ -561,7 +650,14 @@ Aspire generates .NET-style connection strings (`ConnectionStrings__*`) rather t
 
 **Solution**: If your application expects specific URL formats, construct them manually using `WithEnvironment()`:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'This reference-expression example depends on PostgreSQL integration resources, which are not present in the generated Python SDK.',
+    go: 'This reference-expression example depends on PostgreSQL integration resources, which are not present in the generated Go SDK.',
+    java: 'This reference-expression example depends on PostgreSQL integration resources, which are not present in the generated Java SDK.',
+    rust: 'This reference-expression example depends on PostgreSQL integration resources, which are not present in the generated Rust SDK.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var dbPassword = builder.AddParameter("dbPassword", secret: true);
@@ -615,6 +711,40 @@ const api = await builder.addProject("api", "./Api/Api.csproj", "https")
     .waitFor(database);       // Startup ordering
 ```
 </Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+api = builder.add_project("api", "./Api/Api.csproj")
+api.with_reference(database)
+api.wait_for(database)
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+api := builder.
+	AddProject("api", "./Api/Api.csproj").
+	WithReference(database).
+	WaitFor(database)
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var api = builder.addProject("api", "./Api/Api.csproj");
+api.withReference(database);
+api.waitFor(database);
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let api = builder.add_project("api", "./Api/Api.csproj", None)?;
+api.with_reference(serialize_handle(&database), None, None, None)?;
+
+let database_resource = IResource::new(
+    database.handle().clone(),
+    database.client().clone(),
+);
+api.wait_for(&database_resource, None)?;
+```
+</Fragment>
 </AppHostTabs>
 
 #### Volume mounting issues
@@ -629,7 +759,14 @@ Aspire automatically assigns random ports by default.
 
 **Solution**: Use `WithHostPort()` or `WithHttpEndpoint(port:)` for static port mapping:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include add_redis or the Redis-specific host-port helper.',
+    go: 'The generated Go SDK does not include AddRedis or the Redis-specific WithHostPort helper.',
+    java: 'The generated Java SDK does not include addRedis or the Redis-specific withHostPort helper.',
+    rust: 'The generated Rust SDK does not include add_redis or the Redis-specific with_host_port helper.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var redis = builder.AddRedis("cache")
@@ -663,11 +800,46 @@ const api = await builder.addProject("api", "./Api/Api.csproj", "https")
     .withHttpHealthCheck("/health");
 ```
 </Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+api = builder.add_project("api", "./Api/Api.csproj")
+api.with_http_health_check(path="/health")
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+api := builder.
+	AddProject("api", "./Api/Api.csproj").
+	WithHttpHealthCheck(&aspire.WithHttpHealthCheckOptions{
+		Path: aspire.StringPtr("/health"),
+	})
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+var api = builder.addProject("api", "./Api/Api.csproj");
+api.withHttpHealthCheck(
+    new WithHttpHealthCheckOptions().path("/health"));
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let api = builder.add_project("api", "./Api/Api.csproj", None)?;
+api.with_http_health_check(Some("/health"), None, None)?;
+```
+</Fragment>
 </AppHostTabs>
 
 For custom container health checks that need shell commands (like RabbitMQ), register a custom health check and associate it with the resource:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK can associate a named health check with a resource, but it does not expose the service-registration API needed to define that custom check.',
+    go: 'The generated Go SDK can associate a named health check with a resource, but it does not expose the service-registration API needed to define that custom check.',
+    java: 'The generated Java SDK can associate a named health check with a resource, but it does not expose the service-registration API needed to define that custom check.',
+    rust: 'The generated Rust SDK can associate a named health check with a resource, but it does not expose the service-registration API needed to define that custom check.',
+  }}
+>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 builder.Services.AddHealthChecks()

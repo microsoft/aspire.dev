@@ -6,7 +6,7 @@ next: false
 
 import AppHostTabs from '@components/AppHostTabs.astro';
 
-import { Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
 import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
@@ -592,10 +592,10 @@ Use this approach when Aspire already has a first-class resource type for the wo
 Common examples include Node.js apps, Vite frontends, Python workers, and Uvicorn-based APIs.
 
 <AppHostTabs limitations={{
-  python: 'This multi-workload sample has not yet been validated against the Python generated SDK. Add integrations one at a time and inspect apphost.py plus .aspire/modules after aspire restore.',
-  go: 'This multi-workload sample has not yet been validated against the Go generated SDK. Add integrations one at a time and check Err() after each fluent resource chain.',
-  java: 'This multi-workload sample has not yet been validated against the Java generated SDK. Add integrations one at a time and compile the generated surface with aspire run.',
-  rust: 'This multi-workload sample is not supported as canonical Rust guidance while Rust SDK validation has known non-blocking failures.',
+  python: 'The verified generated Python SDK does not emit add_redis, add_uvicorn_app, add_python_app, or add_vite_app, which this multi-workload sample requires.',
+  go: 'The verified generated Go SDK does not emit AddRedis, AddUvicornApp, AddPythonApp, or AddViteApp, which this multi-workload sample requires.',
+  java: 'The verified generated Java SDK does not emit addRedis, addUvicornApp, addPythonApp, or addViteApp, which this multi-workload sample requires.',
+  rust: 'The verified generated Rust SDK does not emit add_redis, add_uvicorn_app, add_python_app, or add_vite_app, which this multi-workload sample requires.',
 }}>
 <Fragment slot="csharp">
 
@@ -680,10 +680,10 @@ aspire add redis
 ```
 
 <AppHostTabs limitations={{
-  python: 'This container-topology sample has not yet been validated against the Python generated SDK.',
-  go: 'This container-topology sample has not yet been validated against the Go generated SDK.',
-  java: 'This container-topology sample has not yet been validated against the Java generated SDK.',
-  rust: 'This container-topology sample is not supported as canonical Rust guidance while Rust SDK validation has known non-blocking failures.',
+  python: 'The verified generated Python SDK does not emit add_postgres, add_database, or add_redis, which this container-topology sample requires.',
+  go: 'The verified generated Go SDK does not emit AddPostgres, AddDatabase, or AddRedis, which this container-topology sample requires.',
+  java: 'The verified generated Java SDK does not emit addPostgres, addDatabase, or addRedis, which this container-topology sample requires.',
+  rust: 'The verified generated Rust SDK does not emit add_postgres, add_database, or add_redis, which this container-topology sample requires.',
 }}>
 <Fragment slot="csharp">
 
@@ -746,8 +746,7 @@ Use this scenario when Docker Compose already captures the shape of your system.
 
 The goal is not a line-by-line translation of every field, but a clearer resource model of the same relationships.
 
-<Tabs>
-<TabItem label='Docker Compose'>
+#### Docker Compose source
 
 ```yaml title="docker-compose.yml" showLineNumbers
 services:
@@ -774,8 +773,15 @@ services:
       - api
 ```
 
-</TabItem>
-<TabItem label='C#'>
+#### AppHost model
+
+<AppHostTabs limitations={{
+  python: 'The verified generated Python SDK emits add_dockerfile, with_reference, and with_http_endpoint, but not the add_postgres or add_database integration methods this conversion requires.',
+  go: 'The verified generated Go SDK emits AddDockerfile, WithReference, and WithHttpEndpoint, but not the AddPostgres or AddDatabase integration methods this conversion requires.',
+  java: 'The verified generated Java SDK emits addDockerfile, withReference, and withHttpEndpoint, but not the addPostgres or addDatabase integration methods this conversion requires.',
+  rust: 'The verified generated Rust SDK emits add_dockerfile and with_http_endpoint, but not add_postgres or add_database; its with_reference parameter is also emitted as untyped JSON.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="apphost.cs" showLineNumbers
 #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
@@ -797,8 +803,8 @@ var web = builder.AddDockerfile("web", "./web")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" showLineNumbers twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -820,8 +826,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 These scenarios are starting points, not mutually exclusive modes. Most real apps mix workload-specific resources, containers, shared infrastructure, project-path references, and occasional custom commands in a single application model. The key is that dependencies, endpoints, configuration, and startup behavior become explicit.
 

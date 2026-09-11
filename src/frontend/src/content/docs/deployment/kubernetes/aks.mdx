@@ -43,7 +43,12 @@ The Aspire CLI adds the [📦 Aspire.Hosting.Azure.Kubernetes](https://www.nuget
 
 Then add the AKS environment in your AppHost:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export add_azure_kubernetes_environment, so an AKS deployment environment cannot be modeled from a Python AppHost.',
+  go: 'The generated Go SDK does not export AddAzureKubernetesEnvironment, so an AKS deployment environment cannot be modeled from a Go AppHost.',
+  java: 'The generated Java SDK does not export addAzureKubernetesEnvironment, so an AKS deployment environment cannot be modeled from a Java AppHost.',
+  rust: 'The generated Rust SDK does not export add_azure_kubernetes_environment, so an AKS deployment environment cannot be modeled from a Rust AppHost.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs" {3}
 var builder = DistributedApplication.CreateBuilder(args);
@@ -92,7 +97,12 @@ Aspire builds your container images, pushes them to ACR, generates Helm charts, 
 
 Customize the system node pool VM size and scaling using `WithSystemNodePool`:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export AKS system node-pool configuration.',
+  go: 'The generated Go SDK does not export AKS system node-pool configuration.',
+  java: 'The generated Java SDK does not export AKS system node-pool configuration.',
+  rust: 'The generated Rust SDK does not export AKS system node-pool configuration.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 builder.AddAzureKubernetesEnvironment("aks")
@@ -111,7 +121,12 @@ await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
 
 Add additional node pools for workload isolation or specialized hardware, then use `WithNodePool` to schedule workloads on them:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export AKS node-pool resources or workload scheduling to them.',
+  go: 'The generated Go SDK does not export AKS node-pool resources or workload scheduling to them.',
+  java: 'The generated Java SDK does not export AKS node-pool resources or workload scheduling to them.',
+  rust: 'The generated Rust SDK does not export AKS node-pool resources or workload scheduling to them.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var aks = builder.AddAzureKubernetesEnvironment("aks");
@@ -235,7 +250,12 @@ Feature registration can take several minutes the first time. For the latest pre
 
 AGC requires a dedicated subnet for its frontend that is delegated to `Microsoft.ServiceNetworking/trafficControllers`. The AKS node subnet and the AGC subnet must not overlap, and the AKS service CIDR defaults to `10.0.0.0/16` — pick a VNet range that avoids it.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export the Azure virtual-network, subnet, or AKS subnet-attachment APIs used here.',
+  go: 'The generated Go SDK does not export the Azure virtual-network, subnet, or AKS subnet-attachment APIs used here.',
+  java: 'The generated Java SDK does not export the Azure virtual-network, subnet, or AKS subnet-attachment APIs used here.',
+  rust: 'The generated Rust SDK does not export the Azure virtual-network, subnet, or AKS subnet-attachment APIs used here.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREAZURE003 // AddSubnet is evaluation-only
@@ -268,7 +288,12 @@ The AGC frontend subnet must be **/24 or larger**. The AKS node pool subnet shou
 
 `AddLoadBalancer` returns a typed handle that gateways and ingresses attach to. Behind the scenes it delegates the supplied subnet to AGC, grants the controller's managed identity `Network Contributor` on the subnet, and applies the `ApplicationLoadBalancer` custom resource once the `azure-alb-external` GatewayClass is ready in the cluster.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export AKS Application Gateway for Containers load-balancer resources.',
+  go: 'The generated Go SDK does not export AKS Application Gateway for Containers load-balancer resources.',
+  java: 'The generated Java SDK does not export AKS Application Gateway for Containers load-balancer resources.',
+  rust: 'The generated Rust SDK does not export AKS Application Gateway for Containers load-balancer resources.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var publicLb = aks.AddLoadBalancer("public", albSubnet);
@@ -289,7 +314,12 @@ Each AGC `ApplicationLoadBalancer` caps at five frontends (Gateways or Ingresses
 
 `AddGateway` declares a Kubernetes Gateway API `Gateway`. `WithLoadBalancer` attaches it to the AGC ALB you just created and defaults the `gatewayClassName` to `azure-alb-external`. `WithRoute` adds an `HTTPRoute` that forwards a path to the named endpoint on one of your services.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export AKS Gateway API resources, load-balancer attachment, or route configuration.',
+  go: 'The generated Go SDK does not export AKS Gateway API resources, load-balancer attachment, or route configuration.',
+  java: 'The generated Java SDK does not export AKS Gateway API resources, load-balancer attachment, or route configuration.',
+  rust: 'The generated Rust SDK does not export AKS Gateway API resources, load-balancer attachment, or route configuration.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var api = builder.AddProject<Projects.MyApi>("api")
@@ -333,7 +363,12 @@ This first deploy serves plain HTTP only. Continue to the next step before expos
 
 `AddCertManager` installs the upstream cert-manager Helm chart with the CRDs and Gateway API watcher enabled and the `--force-conflicts` flag set so AKS's Azure Policy add-on doesn't break subsequent upgrades. `AddIssuer` adds a typed `ClusterIssuer` parented to that installation, and `WithTls(issuer)` on a gateway adds an HTTPS listener that cert-manager will populate with a real certificate.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export AKS cert-manager, issuer, Gateway, or TLS configuration APIs.',
+  go: 'The generated Go SDK does not export AKS cert-manager, issuer, Gateway, or TLS configuration APIs.',
+  java: 'The generated Java SDK does not export AKS cert-manager, issuer, Gateway, or TLS configuration APIs.',
+  rust: 'The generated Rust SDK does not export AKS cert-manager, issuer, Gateway, or TLS configuration APIs.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var certManager = aks.AddCertManager("cert-manager");
@@ -373,7 +408,12 @@ Calling `WithTls` flips the gateway to an HTTPS-first posture:
 
 To tune or disable these defaults, pass an options callback. The `includeSubDomains` and `preload` HSTS flags are off by default because they're hard to reverse once browsers cache them — opt in explicitly when you're ready to commit to the hostname:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export AKS Gateway TLS and HSTS option configuration.',
+  go: 'The generated Go SDK does not export AKS Gateway TLS and HSTS option configuration.',
+  java: 'The generated Java SDK does not export AKS Gateway TLS and HSTS option configuration.',
+  rust: 'The generated Rust SDK does not export AKS Gateway TLS and HSTS option configuration.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 aks.AddGateway("storefront")
@@ -438,7 +478,12 @@ The `*.alb.azure.com` FQDN is fine for testing but real applications need a host
 
 `WithHostname` adds the hostname to the gateway's `HTTPRoute`s and to the HTTPS listener so cert-manager issues the certificate for the right name. Use the parameter overload when the hostname differs across deployment environments.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export AKS Gateway hostname, routing, or TLS configuration.',
+  go: 'The generated Go SDK does not export AKS Gateway hostname, routing, or TLS configuration.',
+  java: 'The generated Java SDK does not export AKS Gateway hostname, routing, or TLS configuration.',
+  rust: 'The generated Rust SDK does not export AKS Gateway hostname, routing, or TLS configuration.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var hostname = builder.AddParameter("hostname"); // e.g. "api.contoso.com"
@@ -529,7 +574,12 @@ After authentication, `aspire deploy` needs a target subscription and location. 
 
 Use `PublishAsKubernetesService` to customize the Kubernetes resources generated for individual services:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export publish_as_kubernetes_service or the generated-workload customization callback.',
+  go: 'The generated Go SDK does not export PublishAsKubernetesService or the generated-workload customization callback.',
+  java: 'The generated Java SDK does not export publishAsKubernetesService or the generated-workload customization callback.',
+  rust: 'The generated Rust SDK does not export publish_as_kubernetes_service or the generated-workload customization callback.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;

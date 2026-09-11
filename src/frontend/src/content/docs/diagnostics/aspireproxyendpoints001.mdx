@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler error ASPIREPROXYENDPOINTS001
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 9.1"
@@ -25,18 +27,132 @@ Container resources use proxied endpoints by default. Adjusting this setting is 
 
 ## Example
 
-The following code generates `ASPIREPROXYENDPOINTS001`:
+Install the Redis integration used by these examples:
+
+<InstallPackage packageName="Aspire.Hosting.Redis" />
+
+The C# example generates `ASPIREPROXYENDPOINTS001`. The generated SDK examples configure the same Redis endpoint proxy behavior without emitting this C# compiler diagnostic. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const redis = await builder.addRedis("example-redis", { port: 1234 });
+await redis.withEndpointProxySupport(false);
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var redis = builder.AddRedis($"example-redis", 1234)
-                   .WithEndpointProxySupport(false);
+var redis = builder.AddRedis("example-redis", 1234)
+    .WithEndpointProxySupport(false);
+
+builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    redis = builder.add_redis("example-redis", port=1234)
+    redis.with_endpoint_proxy_support(False)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	redis := builder.
+		AddRedis("example-redis", &aspire.AddRedisOptions{
+			Port: aspire.Float64Ptr(1234),
+		}).
+		WithEndpointProxySupport(false)
+	if err := redis.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addRedis("example-redis", new AddRedisOptions().port(1234))
+        .withEndpointProxySupport(false);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let redis = builder.add_redis("example-redis", Some(1234.0), None)?;
+    redis.with_endpoint_proxy_support(false)?;
+
+    builder.build()?.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## To correct this error
 
-Suppress the error with either of the following methods:
+The following suppression options apply to C# AppHosts. For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
+
+Suppress the error with one of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 

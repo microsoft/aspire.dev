@@ -23,7 +23,12 @@ Each resource in the Aspire app model is represented as an `IResource` and when 
 
 Start with an Aspire AppHost project. The walkthrough below registers a `clear-cache` command on a Redis resource. The C# version uses an extension method that wraps the registration; the TypeScript version registers the command inline against a Node service that exposes an admin endpoint. Both flows produce the same dashboard/CLI experience.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python generates a synchronous with_command callback, so the awaitable HTTP implementation in this walkthrough is not directly supported.',
+  go: 'Go generates a synchronous WithCommand callback, so the awaitable HTTP implementation in this walkthrough is not directly supported.',
+  java: 'Java generates a synchronous withCommand callback, so the awaitable HTTP implementation in this walkthrough is not directly supported.',
+  rust: 'Rust generates the callback as Fn(Vec<Value>) -> Value rather than typed command context and result values.',
+}}>
 <Fragment slot="csharp">
 
 Add a new class named _RedisResourceBuilderExtensions.cs_ to the AppHost project and replace its contents with the following code:
@@ -165,7 +170,12 @@ The `WithCommand` API adds the appropriate annotations to the resource, which ar
 
 The `executeCommand` callback is where the command logic is implemented. The `ExecuteCommandContext` it receives gives you access to command-specific data such as the resource being acted on, cancellation, and logging.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python exposes a synchronous ExecuteCommandContext callback rather than the awaitable callback used by this HTTP example.',
+  go: 'Go exposes a synchronous ExecuteCommandContext callback rather than the awaitable callback used by this HTTP example.',
+  java: 'Java exposes a synchronous ExecuteCommandContext callback rather than the awaitable callback used by this HTTP example.',
+  rust: 'Rust emits this callback as Fn(Vec<Value>) -> Value, so the typed context accessors are not available in the callback signature.',
+}}>
 <Fragment slot="csharp">
 
 In C# the parameter is typed as `Func<ExecuteCommandContext, Task<ExecuteCommandResult>>`. `ExecuteCommandContext` exposes:
@@ -251,7 +261,9 @@ The preceding code:
 
 The `updateState` callback decides whether a command is enabled in the dashboard. The dashboard invokes it whenever the resource's state changes — typical use cases are gating destructive commands behind a healthy resource, or only enabling a command after a startup probe has succeeded.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'Rust emits CommandOptions.update_state as an untyped Value callback instead of a typed UpdateCommandStateContext callback.',
+}}>
 <Fragment slot="csharp">
 
 In C# the parameter is typed as `Func<UpdateCommandStateContext, ResourceCommandState>`. `UpdateCommandStateContext` exposes:
@@ -322,13 +334,64 @@ The preceding code:
 The `HealthStatus` and `ResourceCommandState` enums are exported from the generated SDK (`aspire.ts`) and are available to import directly.
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+def update_state(context):
+    snapshot = context.resource_snapshot
+    return (
+        "Enabled"
+        if snapshot.get("HealthStatus") == "Healthy"
+        else "Disabled"
+    )
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import "apphost/modules/aspire"
+
+func updateState(context aspire.UpdateCommandStateContext) aspire.ResourceCommandState {
+	snapshot, err := context.ResourceSnapshot()
+	if err == nil &&
+		snapshot.HealthStatus != nil &&
+		*snapshot.HealthStatus == aspire.HealthStatusHealthy {
+		return aspire.ResourceCommandStateEnabled
+	}
+	return aspire.ResourceCommandStateDisabled
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+ResourceCommandState updateState(UpdateCommandStateContext context) {
+    var snapshot = context.resourceSnapshot();
+    return snapshot.getHealthStatus() == HealthStatus.HEALTHY
+        ? ResourceCommandState.ENABLED
+        : ResourceCommandState.DISABLED;
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ## Test the custom command
 
 To test the custom command, update your AppHost to wire up the resource and the command:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the Redis integration method used by this complete walkthrough, and its command callback is synchronous.',
+  go: 'The verified Go SDK does not include the Redis integration method used by this complete walkthrough, and its command callback is synchronous.',
+  java: 'The verified Java SDK does not include the Redis integration method used by this complete walkthrough, and its command callback is synchronous.',
+  rust: 'The verified Rust SDK does not include the Redis integration method, and its command callback is untyped.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs" {4}
@@ -438,7 +501,12 @@ The most common scenario is to call commands from within other custom command im
 
 The following example shows how to create a custom command that executes other commands. In this case, a "reset-all" command clears the cache and restarts a database:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the Redis and PostgreSQL integration methods used by this orchestration example.',
+  go: 'The verified Go SDK does not include the Redis and PostgreSQL integration methods used by this orchestration example.',
+  java: 'The verified Java SDK does not include the Redis and PostgreSQL integration methods used by this orchestration example.',
+  rust: 'The verified Rust SDK does not include the Redis and PostgreSQL integration methods used by this orchestration example.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -596,6 +664,97 @@ else {
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+def execute_clear_cache(command_service):
+    result = command_service.execute_command("cache", "clear-cache")
+    if result.get("Success"):
+        print("Command executed successfully")
+    elif result.get("Canceled"):
+        print("Command was canceled")
+    else:
+        print(f"Command failed: {result.get('Message')}")
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"fmt"
+
+	"apphost/modules/aspire"
+)
+
+func executeClearCache(commandService aspire.ResourceCommandService) error {
+	result, err := commandService.ExecuteCommandAsync("cache", "clear-cache")
+	if err != nil {
+		return err
+	}
+	if result.Success {
+		fmt.Println("Command executed successfully")
+	} else if result.Canceled != nil && *result.Canceled {
+		fmt.Println("Command was canceled")
+	} else {
+		fmt.Printf("Command failed: %s\n", *result.Message)
+	}
+	return nil
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void executeClearCache(ResourceCommandService commandService) {
+    var result = commandService.executeCommandAsync(
+        "cache", "clear-cache");
+    if (result.getSuccess()) {
+        System.out.println("Command executed successfully");
+    } else if (Boolean.TRUE.equals(result.getCanceled())) {
+        System.out.println("Command was canceled");
+    } else {
+        System.out.printf("Command failed: %s%n", result.getMessage());
+    }
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::json;
+
+fn execute_clear_cache(
+    command_service: &ResourceCommandService,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let result = command_service.execute_command_async(
+        json!("cache"),
+        "clear-cache",
+        None,
+        None,
+    )?;
+    if result.success {
+        println!("Command executed successfully");
+    } else if result.canceled == Some(true) {
+        println!("Command was canceled");
+    } else {
+        println!("Command failed: {}", result.message.unwrap_or_default());
+    }
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 The resource identifier argument (`resourceId` in C#, or the first argument in TypeScript when passing a string) can be either:
@@ -607,6 +766,15 @@ The resource identifier argument (`resourceId` in C#, or the first argument in T
 
 When executing a command on a resource with multiple replicas using the C# `IResource` overload, the command runs in parallel on all instances:
 
+<AppHostTabs limitations={{
+  typescript: 'The TypeScript command service uses a resource identifier string rather than the C# IResource overload.',
+  python: 'The Python command service uses a resource identifier string rather than the C# IResource overload.',
+  go: 'The Go command service uses a resource identifier string rather than the C# IResource overload.',
+  java: 'The Java command service uses a resource identifier string rather than the C# IResource overload.',
+  rust: 'The Rust command service uses a resource identifier string rather than the C# IResource overload.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 // For a resource with replicas, the command executes on all instances
 var result = await commandService.ExecuteCommandAsync(
@@ -614,6 +782,9 @@ var result = await commandService.ExecuteCommandAsync(
     commandName: "clear-cache",
     cancellationToken: cancellationToken);
 ```
+
+</Fragment>
+</AppHostTabs>
 
 In TypeScript, use the resource identifier overload shown earlier: pass a specific replica ID to target one instance, or pass a unique resource name when there are no duplicate names.
 
@@ -676,6 +847,62 @@ return { success: false, message: err instanceof Error ? err.message : String(er
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+def command_result():
+    return {"Success": True, "Message": "Command completed."}
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import "apphost/modules/aspire"
+
+func commandResult() *aspire.ExecuteCommandResult {
+	return &aspire.ExecuteCommandResult{
+		Success: true,
+		Message: aspire.StringPtr("Command completed."),
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+ExecuteCommandResult commandResult() {
+    var result = new ExecuteCommandResult();
+    result.setSuccess(true);
+    result.setMessage("Command completed.");
+    return result;
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn command_result() -> ExecuteCommandResult {
+    ExecuteCommandResult {
+        success: true,
+        message: Some("Command completed.".to_string()),
+        ..Default::default()
+    }
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 <span id="return-structured-output-from-a-command"></span>
@@ -699,7 +926,9 @@ A common scenario is issuing an **access token** from a custom command — devel
 
 Use the `CommandResults.Success(message, result, resultFormat)` overload to attach a payload to a successful result. The `message` is the notification center/CLI status; `result` is the payload string; `resultFormat` controls how the dashboard visualizer interprets it.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'Rust emits WithCommand callbacks as Fn(Vec<Value>) -> Value, so typed structured results cannot be returned through this callback shape.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -828,13 +1057,128 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+import json
+import secrets
+
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    service = builder.add_project(
+        "myservice", "../MyService/MyService.csproj"
+    )
+
+    def issue_token(_context):
+        payload = json.dumps(
+            {"token": secrets.token_urlsafe(24), "scopes": ["read", "write"]}
+        )
+        return {
+            "Success": True,
+            "Message": "Access token issued.",
+            "Data": {"Value": payload, "Format": "Json"},
+        }
+
+    service.with_command(
+        "issue-access-token", "Issue Access Token", issue_token
+    )
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"encoding/json"
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	service := builder.AddProject("myservice", "../MyService/MyService.csproj")
+	service.WithCommand(
+		"issue-access-token",
+		"Issue Access Token",
+		func(_ aspire.ExecuteCommandContext) *aspire.ExecuteCommandResult {
+			payload, _ := json.Marshal(map[string]any{
+				"token": "generated-token",
+				"scopes": []string{"read", "write"},
+			})
+			format := aspire.CommandResultFormatJson
+			return &aspire.ExecuteCommandResult{
+				Success: true,
+				Message: aspire.StringPtr("Access token issued."),
+				Data: &aspire.CommandResultData{
+					Value: string(payload), Format: &format,
+				},
+			}
+		},
+	)
+	if err := service.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+    var service = builder.addProject(
+        "myservice", "../MyService/MyService.csproj");
+
+    service.withCommand(
+        "issue-access-token",
+        "Issue Access Token",
+        context -> {
+            var data = new CommandResultData();
+            data.setValue(
+                "{\"token\":\"generated-token\",\"scopes\":[\"read\",\"write\"]}");
+            data.setFormat(CommandResultFormat.JSON);
+
+            var result = new ExecuteCommandResult();
+            result.setSuccess(true);
+            result.setMessage("Access token issued.");
+            result.setData(data);
+            return result;
+        });
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Return Markdown
 
 When a command needs rich output (for example headings, tables, and lists), use the `CommandResults.Success(string, CommandResultData)` overload to return a `CommandResultData` with `Format = CommandResultFormat.Markdown`. This alternative to the three-parameter string overload gives you full control over the result payload:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'Rust emits WithCommand callbacks as Fn(Vec<Value>) -> Value, so typed Markdown results cannot be returned through this callback shape.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="C# — AppHost.cs"
@@ -927,6 +1271,109 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    service = builder.add_project(
+        "myservice", "../MyService/MyService.csproj"
+    )
+
+    def migrate(_context):
+        return {
+            "Success": True,
+            "Message": "Database migrated.",
+            "Data": {
+                "Value": "# Database migration\n\nAll tables migrated.",
+                "Format": "Markdown",
+            },
+        }
+
+    service.with_command("migrate-database", "Migrate Database", migrate)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	service := builder.AddProject("myservice", "../MyService/MyService.csproj")
+	service.WithCommand(
+		"migrate-database",
+		"Migrate Database",
+		func(_ aspire.ExecuteCommandContext) *aspire.ExecuteCommandResult {
+			format := aspire.CommandResultFormatMarkdown
+			return &aspire.ExecuteCommandResult{
+				Success: true,
+				Message: aspire.StringPtr("Database migrated."),
+				Data: &aspire.CommandResultData{
+					Value: "# Database migration\n\nAll tables migrated.",
+					Format: &format,
+				},
+			}
+		},
+	)
+	if err := service.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+    var service = builder.addProject(
+        "myservice", "../MyService/MyService.csproj");
+
+    service.withCommand(
+        "migrate-database",
+        "Migrate Database",
+        context -> {
+            var data = new CommandResultData();
+            data.setValue("# Database migration\n\nAll tables migrated.");
+            data.setFormat(CommandResultFormat.MARKDOWN);
+
+            var result = new ExecuteCommandResult();
+            result.setSuccess(true);
+            result.setMessage("Database migrated.");
+            result.setData(data);
+            return result;
+        });
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Choose a result format
@@ -970,6 +1417,78 @@ return {
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+def failed_result(error_json):
+    return {
+        "Success": False,
+        "Message": "Migration failed.",
+        "Data": {"Value": error_json, "Format": "Json"},
+    }
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import "apphost/modules/aspire"
+
+func failedResult(errorJSON string) *aspire.ExecuteCommandResult {
+	format := aspire.CommandResultFormatJson
+	return &aspire.ExecuteCommandResult{
+		Success: false,
+		Message: aspire.StringPtr("Migration failed."),
+		Data: &aspire.CommandResultData{Value: errorJSON, Format: &format},
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+ExecuteCommandResult failedResult(String errorJson) {
+    var data = new CommandResultData();
+    data.setValue(errorJson);
+    data.setFormat(CommandResultFormat.JSON);
+
+    var result = new ExecuteCommandResult();
+    result.setSuccess(false);
+    result.setMessage("Migration failed.");
+    result.setData(data);
+    return result;
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn failed_result(error_json: String) -> ExecuteCommandResult {
+    ExecuteCommandResult {
+        success: false,
+        message: Some("Migration failed.".to_string()),
+        data: Some(CommandResultData {
+            value: error_json,
+            format: Some(CommandResultFormat::Json),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Auto-open the result dialog in the dashboard
@@ -1000,6 +1519,86 @@ return {
         displayImmediately: true,
     },
 };
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+def token_result(json_value):
+    return {
+        "Success": True,
+        "Message": "Access token issued.",
+        "Data": {
+            "Value": json_value,
+            "Format": "Json",
+            "DisplayImmediately": True,
+        },
+    }
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import "apphost/modules/aspire"
+
+func tokenResult(jsonValue string) *aspire.ExecuteCommandResult {
+	format := aspire.CommandResultFormatJson
+	return &aspire.ExecuteCommandResult{
+		Success: true,
+		Message: aspire.StringPtr("Access token issued."),
+		Data: &aspire.CommandResultData{
+			Value: jsonValue, Format: &format,
+			DisplayImmediately: aspire.BoolPtr(true),
+		},
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+ExecuteCommandResult tokenResult(String jsonValue) {
+    var data = new CommandResultData();
+    data.setValue(jsonValue);
+    data.setFormat(CommandResultFormat.JSON);
+    data.setDisplayImmediately(true);
+
+    var result = new ExecuteCommandResult();
+    result.setSuccess(true);
+    result.setMessage("Access token issued.");
+    result.setData(data);
+    return result;
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn token_result(json_value: String) -> ExecuteCommandResult {
+    ExecuteCommandResult {
+        success: true,
+        message: Some("Access token issued.".to_string()),
+        data: Some(CommandResultData {
+            value: json_value,
+            format: Some(CommandResultFormat::Json),
+            display_immediately: Some(true),
+        }),
+        ..Default::default()
+    }
+}
 ```
 
 </Fragment>
@@ -1045,7 +1644,9 @@ fi
 
 Commands can declare input arguments that the dashboard renders as a prompt dialog before execution and that the CLI accepts as named `--<name>` options. Arguments are defined by setting `CommandOptions.Arguments` to an array of `InteractionInput` objects.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'Rust emits the command callback as Fn(Vec<Value>) -> Value, so typed command arguments are not usable in this callback shape.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -1119,6 +1720,166 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    service = builder.add_project(
+        "myservice", "../MyService/MyService.csproj"
+    )
+
+    def send_message(context):
+        arguments = context.arguments
+        text = arguments.required_value("text")
+        repeat = int(arguments.value("repeat") or "1")
+        return {
+            "Success": True,
+            "Message": f"Sent '{text}' {repeat} time(s).",
+        }
+
+    service.with_command(
+        "send-message",
+        "Send Message",
+        send_message,
+        command_options={
+            "Arguments": [
+                {
+                    "Name": "text",
+                    "Label": "Message",
+                    "InputType": "Text",
+                    "Required": True,
+                    "MaxLength": 200,
+                },
+                {
+                    "Name": "repeat",
+                    "Label": "Repeat",
+                    "InputType": "Number",
+                    "Value": "1",
+                },
+            ]
+        },
+    )
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"fmt"
+	"log"
+	"strconv"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	textType := aspire.InputTypeText
+	numberType := aspire.InputTypeNumber
+	service := builder.AddProject("myservice", "../MyService/MyService.csproj")
+	service.WithCommand(
+		"send-message",
+		"Send Message",
+		func(context aspire.ExecuteCommandContext) *aspire.ExecuteCommandResult {
+			arguments := context.Arguments()
+			text, _ := arguments.RequiredValue("text")
+			repeatText, _ := arguments.Value("repeat")
+			repeat, _ := strconv.Atoi(repeatText)
+			return &aspire.ExecuteCommandResult{
+				Success: true,
+				Message: aspire.StringPtr(
+					fmt.Sprintf("Sent %q %d time(s).", text, repeat),
+				),
+			}
+		},
+		&aspire.WithCommandOptions{
+			CommandOptions: &aspire.CommandOptions{
+				Arguments: []*aspire.InteractionInput{
+					{
+						Name: "text", Label: aspire.StringPtr("Message"),
+						InputType: textType, Required: aspire.BoolPtr(true),
+						MaxLength: aspire.Float64Ptr(200),
+					},
+					{
+						Name: "repeat", Label: aspire.StringPtr("Repeat"),
+						InputType: numberType, Value: aspire.StringPtr("1"),
+					},
+				},
+			},
+		},
+	)
+	if err := service.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+    var service = builder.addProject(
+        "myservice", "../MyService/MyService.csproj");
+
+    var text = new InteractionInput();
+    text.setName("text");
+    text.setLabel("Message");
+    text.setInputType(InputType.TEXT);
+    text.setRequired(true);
+    text.setMaxLength(200);
+
+    var repeat = new InteractionInput();
+    repeat.setName("repeat");
+    repeat.setLabel("Repeat");
+    repeat.setInputType(InputType.NUMBER);
+    repeat.setValue("1");
+
+    var options = new CommandOptions();
+    options.setArguments(new InteractionInput[] { text, repeat });
+
+    service.withCommand(
+        "send-message",
+        "Send Message",
+        context -> {
+            var arguments = context.arguments();
+            var message = arguments.requiredValue("text");
+            var count = Integer.parseInt(arguments.value("repeat"));
+
+            var result = new ExecuteCommandResult();
+            result.setSuccess(true);
+            result.setMessage(
+                "Sent '%s' %d time(s).".formatted(message, count));
+            return result;
+        },
+        options);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### InteractionInput properties
@@ -1180,6 +1941,65 @@ const must   = await args.requiredValue("text");     // string (throws if absent
 Use `requiredValue` for arguments declared with `required: true` to get a non-nullable string directly. Use `value` when the argument is optional and you want to handle the absent case yourself.
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+def read_arguments(context):
+    arguments = context.arguments
+    return {
+        "all": list(arguments.to_array()),
+        "text": arguments.required_value("text"),
+        "optional": arguments.value("optional"),
+    }
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import "apphost/modules/aspire"
+
+func readArguments(context aspire.ExecuteCommandContext) (string, error) {
+	arguments := context.Arguments()
+	return arguments.RequiredValue("text")
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+String readArguments(ExecuteCommandContext context) {
+    var arguments = context.arguments();
+    return arguments.requiredValue("text");
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn read_argument(
+    context: &ExecuteCommandContext,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let arguments = context.arguments()?.to_array()?;
+    Ok(arguments
+        .into_iter()
+        .find(|input| input.name == "text")
+        .and_then(|input| input.value))
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Pass arguments from the CLI
@@ -1208,7 +2028,9 @@ The CLI parses and validates values before forwarding them to the AppHost as str
 
 Commands can run server-side validation before the callback executes. Declare a `ValidateArguments` callback on `CommandOptions` to add custom rules on top of the built-in required, max-length, and type checks.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'Rust emits validate_arguments as an untyped Value callback, so the typed validation context is not available.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -1291,6 +2113,152 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    service = builder.add_project(
+        "myservice", "../MyService/MyService.csproj"
+    )
+
+    def validate(context):
+        target = context.inputs.value("target")
+        if target.lower() == "prod":
+            context.add_validation_error(
+                "target", "Target must not be 'prod'."
+            )
+
+    service.with_command(
+        "deploy",
+        "Deploy",
+        lambda context: {
+            "Success": True,
+            "Message": (
+                f"Deployed to {context.arguments.required_value('target')}."
+            ),
+        },
+        command_options={
+            "Arguments": [
+                {
+                    "Name": "target",
+                    "Label": "Target",
+                    "InputType": "Text",
+                    "Required": True,
+                }
+            ],
+            "ValidateArguments": validate,
+        },
+    )
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+	"strings"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	inputType := aspire.InputTypeText
+	service := builder.AddProject("myservice", "../MyService/MyService.csproj")
+	service.WithCommand(
+		"deploy",
+		"Deploy",
+		func(context aspire.ExecuteCommandContext) *aspire.ExecuteCommandResult {
+			target, _ := context.Arguments().RequiredValue("target")
+			return &aspire.ExecuteCommandResult{
+				Success: true,
+				Message: aspire.StringPtr("Deployed to " + target + "."),
+			}
+		},
+		&aspire.WithCommandOptions{
+			CommandOptions: &aspire.CommandOptions{
+				Arguments: []*aspire.InteractionInput{{
+					Name: "target", InputType: inputType,
+					Required: aspire.BoolPtr(true),
+				}},
+				ValidateArguments: func(context aspire.InputsDialogValidationContext) {
+					target, _ := context.Inputs().Value("target")
+					if strings.EqualFold(target, "prod") {
+						_ = context.AddValidationError(
+							"target", "Target must not be 'prod'.",
+						)
+					}
+				},
+			},
+		},
+	)
+	if err := service.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+    var service = builder.addProject(
+        "myservice", "../MyService/MyService.csproj");
+
+    var target = new InteractionInput();
+    target.setName("target");
+    target.setInputType(InputType.TEXT);
+    target.setRequired(true);
+
+    var options = new CommandOptions();
+    options.setArguments(new InteractionInput[] { target });
+    options.setValidateArguments(context -> {
+        var value = context.inputs().value("target");
+        if ("prod".equalsIgnoreCase(value)) {
+            context.addValidationError(
+                "target", "Target must not be 'prod'.");
+        }
+    });
+
+    service.withCommand(
+        "deploy",
+        "Deploy",
+        context -> {
+            var value = context.arguments().requiredValue("target");
+            var result = new ExecuteCommandResult();
+            result.setSuccess(true);
+            result.setMessage("Deployed to " + value + ".");
+            return result;
+        },
+        options);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 Built-in validation runs first (required fields, max length, choice membership, and type coercion). If built-in validation passes, the `ValidateArguments` callback runs next. Either kind of validation failure prevents the command callback from executing and returns structured field errors to the caller:
@@ -1311,7 +2279,9 @@ By default, commands registered with `WithCommand` are visible to both the Aspir
 | `ResourceCommandVisibility.UI \| ResourceCommandVisibility.Api` | Both UI and API/MCP (default) |
 | `ResourceCommandVisibility.None` | Hidden from all clients |
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  rust: 'Rust emits the command callback as Fn(Vec<Value>) -> Value, so the typed result callback in this sample is not usable.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -1374,6 +2344,113 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    service = builder.add_project(
+        "myservice", "../MyService/MyService.csproj"
+    )
+    service.with_command(
+        "get-metrics",
+        "Get Metrics",
+        lambda _context: {
+            "Success": True,
+            "Message": "Metrics collected.",
+            "Data": {"Value": "{}", "Format": "Json"},
+        },
+        command_options={"Visibility": "Api"},
+    )
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	format := aspire.CommandResultFormatJson
+	service := builder.AddProject("myservice", "../MyService/MyService.csproj")
+	service.WithCommand(
+		"get-metrics",
+		"Get Metrics",
+		func(_ aspire.ExecuteCommandContext) *aspire.ExecuteCommandResult {
+			return &aspire.ExecuteCommandResult{
+				Success: true,
+				Message: aspire.StringPtr("Metrics collected."),
+				Data: &aspire.CommandResultData{Value: "{}", Format: &format},
+			}
+		},
+		&aspire.WithCommandOptions{
+			CommandOptions: &aspire.CommandOptions{
+				Visibility: aspire.ResourceCommandVisibilityApi,
+			},
+		},
+	)
+	if err := service.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+    var service = builder.addProject(
+        "myservice", "../MyService/MyService.csproj");
+
+    var options = new CommandOptions();
+    options.setVisibility(ResourceCommandVisibility.API);
+
+    service.withCommand(
+        "get-metrics",
+        "Get Metrics",
+        context -> {
+            var data = new CommandResultData();
+            data.setValue("{}");
+            data.setFormat(CommandResultFormat.JSON);
+
+            var result = new ExecuteCommandResult();
+            result.setSuccess(true);
+            result.setMessage("Metrics collected.");
+            result.setData(data);
+            return result;
+        },
+        options);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 <Aside type="tip">
@@ -1384,7 +2461,12 @@ Use `ResourceCommandVisibility.Api` for automation-only commands (diagnostics, s
 
 Commands can display a progress dialog in the dashboard while they execute. The progress dialog shows an indeterminate progress indicator with an optional title, message, and cancel button. Set `CommandOptions.Progress` to a `CommandProgressOptions` value with a `Message` to enable this behavior — the dialog only appears when `Message` is set.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'Python supports progress options, but its generated command callback is synchronous and cannot directly reproduce the awaited seed operation.',
+  go: 'Go supports progress options, but its generated command callback is synchronous and cannot directly reproduce the awaited seed operation.',
+  java: 'Java supports progress options, but its generated command callback is synchronous and cannot directly reproduce the awaited seed operation.',
+  rust: 'Rust emits the command callback as Fn(Vec<Value>) -> Value, so the typed progress-command callback is not usable.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -1467,6 +2549,72 @@ var commandOptions = new CommandOptions
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+command_options = {
+    "Progress": {
+        "Message": "Finalizing...",
+        "HideCancelButton": True,
+    }
+}
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import "apphost/modules/aspire"
+
+var commandOptions = aspire.CommandOptions{
+	Progress: &aspire.CommandProgressOptions{
+		Message:          aspire.StringPtr("Finalizing..."),
+		HideCancelButton: true,
+	},
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+CommandOptions commandOptions() {
+    var progress = new CommandProgressOptions();
+    progress.setMessage("Finalizing...");
+    progress.setHideCancelButton(true);
+
+    var options = new CommandOptions();
+    options.setProgress(progress);
+    return options;
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn command_options() -> CommandOptions {
+    CommandOptions {
+        progress: CommandProgressOptions {
+            message: Some("Finalizing...".to_string()),
+            hide_cancel_button: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 For more control over progress behavior, including custom work callbacks and programmatic dismissal, use `IInteractionService.PromptProgressAsync` directly. For more information, see [Display progress](/extensibility/interaction-service/#display-progress).
@@ -1493,7 +2641,12 @@ The `WithProcessCommand` API provides a reusable helper for the common pattern o
 
 The simplest form takes the executable and an argument array directly:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the Redis integration method used as this process command target.',
+  go: 'The verified Go SDK does not include the Redis integration method used as this process command target.',
+  java: 'The verified Java SDK does not include the Redis integration method used as this process command target.',
+  rust: 'The verified Rust SDK does not include the Redis integration method used as this process command target.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -1541,7 +2694,12 @@ When the command runs in the dashboard or CLI, `dotnet --version` (C#) or `node 
 
 When the command arguments depend on runtime context — for example, a dataset name supplied by the user through the dashboard's argument dialog — build the process specification from the command execution context:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the Redis integration method used as this process command target.',
+  go: 'The verified Go SDK does not include the Redis integration method used as this process command target.',
+  java: 'The verified Java SDK does not include the Redis integration method used as this process command target.',
+  rust: 'The verified Rust SDK does not include the Redis integration method, and its process-spec callback is emitted without a typed context.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"

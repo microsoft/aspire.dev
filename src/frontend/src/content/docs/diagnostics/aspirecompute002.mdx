@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler warning ASPIRECOMPUTE002 and 
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 13.0"
@@ -19,16 +21,168 @@ This diagnostic warning is reported when using the experimental `GetHostAddressE
 
 ## Example
 
-The following code generates `ASPIRECOMPUTE002`:
+The Docker Compose environment exports its host-address expression operation to the generated AppHost SDKs. Pass an endpoint on an application resource, not on the compute environment itself. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
 
-```csharp title="Using GetHostAddressExpression"
+<InstallPackage packageName="Aspire.Hosting.Docker" />
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const computeEnv = await builder.addDockerComposeEnvironment("env");
+const api = await builder.addContainer("api", { image: "nginx" });
+await api.withHttpEndpoint({ targetPort: 80 });
+const endpoint = await api.getEndpoint("http");
+const hostAddress = await computeEnv.getHostAddressExpression(endpoint);
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var computeEnv = builder.AddDockerComposeEnvironment("env");
+var api = builder.AddContainer("api", "nginx")
+    .WithHttpEndpoint(targetPort: 80);
+var endpoint = api.GetEndpoint("http");
+var hostAddress = computeEnv.Resource.GetHostAddressExpression(endpoint);
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    compute_env = builder.add_docker_compose_env("env")
+    api = builder.add_container("api", "nginx")
+    api.with_http_endpoint(target_port=80)
+    endpoint = api.get_endpoint("http")
+    host_address = compute_env.get_host_address_expression(endpoint)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"apphost/modules/aspire"
+	"log"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	computeEnv := builder.AddDockerComposeEnvironment("env")
+	if err := computeEnv.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	api := builder.AddContainer("api", "nginx").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.Float64Ptr(80)})
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	endpoint := api.GetEndpoint("http")
+	if err := endpoint.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	hostAddress := computeEnv.GetHostAddressExpression(endpoint)
+	if err := computeEnv.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	_ = hostAddress
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var computeEnv = builder.addDockerComposeEnvironment("env");
+    var api = builder.addContainer("api", "nginx");
+    api.withHttpEndpoint(new WithHttpEndpointOptions().targetPort(80));
+    var endpoint = api.getEndpoint("http");
+    var hostAddress = computeEnv.getHostAddressExpression(endpoint);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let compute_env = builder.add_docker_compose_environment("env")?;
+    let api = builder.add_container("api", serde_json::json!("nginx"))?;
+    api.with_http_endpoint(None, Some(80.0), None, None, None)?;
+    let endpoint = api.get_endpoint("http")?;
+    let _host_address = compute_env.get_host_address_expression(&endpoint)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+The C# call generates `ASPIRECOMPUTE002`; the operation remains experimental across AppHost languages but the generated language SDKs do not emit this C# compiler diagnostic.
+
+### Azure Container Apps
+
+The Azure Container Apps implementation of `GetHostAddressExpression` is not exported to the TypeScript, Python, Go, Java, or Rust SDKs. This specific implementation requires C#:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.AppContainers" />
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var computeEnv = builder.AddAzureContainerAppEnvironment("env");
-
-// Accessing GetHostAddressExpression on a compute environment resource
-var endpoint = computeEnv.Resource.GetEndpoint("http");
+var api = builder.AddContainer("api", "nginx")
+    .WithHttpEndpoint(targetPort: 80);
+var endpoint = api.GetEndpoint("http");
 var hostAddress = computeEnv.Resource.GetHostAddressExpression(endpoint);
+
+builder.Build().Run();
 ```
 
 ## Understanding GetHostAddressExpression
@@ -48,6 +202,8 @@ This method is useful when you need to configure resources with just the hostnam
 - Configuring load balancers or ingress controllers
 
 ## To suppress this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost). Suppression is only needed for C#.
 
 Suppress the warning with either of the following methods:
 
@@ -74,9 +230,11 @@ Suppress the warning with either of the following methods:
   var builder = DistributedApplication.CreateBuilder(args);
 
   var computeEnv = builder.AddAzureContainerAppEnvironment("env");
+  var api = builder.AddContainer("api", "nginx")
+      .WithHttpEndpoint(targetPort: 80);
 
   #pragma warning disable ASPIRECOMPUTE002
-  var endpoint = computeEnv.Resource.GetEndpoint("http");
+  var endpoint = api.GetEndpoint("http");
   var hostAddress = computeEnv.Resource.GetHostAddressExpression(endpoint);
   #pragma warning restore ASPIRECOMPUTE002
   ```

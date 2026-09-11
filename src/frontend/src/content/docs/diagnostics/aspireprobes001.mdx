@@ -5,6 +5,7 @@ description: Learn what causes the Aspire compiler warning ASPIREPROBES001 and h
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge
   text="Version introduced: 9.5"
@@ -27,7 +28,46 @@ These APIs enable configuring HTTP health probes for resources to monitor startu
 
 ## Example
 
-The following code generates `ASPIREPROBES001`:
+The C# example generates `ASPIREPROBES001`. The generated AppHost SDKs support HTTP probes and probe types without emitting this C# compiler diagnostic. Probe configuration and project resources belong to the core `Aspire.Hosting` SDK; no additional integration package is required for this example. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+Each referenced project must expose an HTTP or HTTPS endpoint and implement the health paths shown.
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder, ProbeType } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withHttpProbe(ProbeType.Readiness, { path: "/health/ready" });
+
+const worker = await builder.addProject("worker", "../Worker/Worker.csproj");
+await worker.withHttpProbe(ProbeType.Liveness, { path: "/health/live" });
+
+const service = await builder.addProject("service", "../Service/Service.csproj");
+await service.withHttpProbe(ProbeType.Startup, {
+  path: "/health/startup",
+  initialDelaySeconds: 15,
+  failureThreshold: 10,
+});
+await service.withHttpProbe(ProbeType.Readiness, {
+  path: "/health/ready",
+  periodSeconds: 5,
+  timeoutSeconds: 3,
+});
+await service.withHttpProbe(ProbeType.Liveness, {
+  path: "/health/live",
+  periodSeconds: 30,
+  failureThreshold: 3,
+});
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="Using HTTP probes"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -52,9 +92,216 @@ var service = builder.AddProject<Projects.Service>("service")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../Api/Api.csproj")
+    api.with_http_probe("Readiness", path="/health/ready")
+
+    worker = builder.add_project("worker", "../Worker/Worker.csproj")
+    worker.with_http_probe("Liveness", path="/health/live")
+
+    service = builder.add_project("service", "../Service/Service.csproj")
+    (
+        service.with_http_probe(
+            "Startup",
+            path="/health/startup",
+            initial_delay_seconds=15,
+            failure_threshold=10,
+        )
+        .with_http_probe(
+            "Readiness",
+            path="/health/ready",
+            period_seconds=5,
+            timeout_seconds=3,
+        )
+        .with_http_probe(
+            "Liveness",
+            path="/health/live",
+            period_seconds=30,
+            failure_threshold=3,
+        )
+    )
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../Api/Api.csproj").
+		WithHttpProbe(aspire.ProbeTypeReadiness, &aspire.WithHttpProbeOptions{
+			Path: aspire.StringPtr("/health/ready"),
+		})
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	worker := builder.AddProject("worker", "../Worker/Worker.csproj").
+		WithHttpProbe(aspire.ProbeTypeLiveness, &aspire.WithHttpProbeOptions{
+			Path: aspire.StringPtr("/health/live"),
+		})
+	if err := worker.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	service := builder.AddProject("service", "../Service/Service.csproj").
+		WithHttpProbe(aspire.ProbeTypeStartup, &aspire.WithHttpProbeOptions{
+			Path:                aspire.StringPtr("/health/startup"),
+			InitialDelaySeconds: aspire.Float64Ptr(15),
+			FailureThreshold:    aspire.Float64Ptr(10),
+		}).
+		WithHttpProbe(aspire.ProbeTypeReadiness, &aspire.WithHttpProbeOptions{
+			Path:           aspire.StringPtr("/health/ready"),
+			PeriodSeconds:  aspire.Float64Ptr(5),
+			TimeoutSeconds: aspire.Float64Ptr(3),
+		}).
+		WithHttpProbe(aspire.ProbeTypeLiveness, &aspire.WithHttpProbeOptions{
+			Path:             aspire.StringPtr("/health/live"),
+			PeriodSeconds:    aspire.Float64Ptr(30),
+			FailureThreshold: aspire.Float64Ptr(3),
+		})
+	if err := service.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var api = builder.addProject("api", "../Api/Api.csproj");
+    api.withHttpProbe(
+        ProbeType.READINESS,
+        new WithHttpProbeOptions().path("/health/ready"));
+
+    var worker = builder.addProject("worker", "../Worker/Worker.csproj");
+    worker.withHttpProbe(
+        ProbeType.LIVENESS,
+        new WithHttpProbeOptions().path("/health/live"));
+
+    var service = builder.addProject(
+        "service",
+        "../Service/Service.csproj");
+    service.withHttpProbe(
+        ProbeType.STARTUP,
+        new WithHttpProbeOptions()
+            .path("/health/startup")
+            .initialDelaySeconds(15)
+            .failureThreshold(10));
+    service.withHttpProbe(
+        ProbeType.READINESS,
+        new WithHttpProbeOptions()
+            .path("/health/ready")
+            .periodSeconds(5)
+            .timeoutSeconds(3));
+    service.withHttpProbe(
+        ProbeType.LIVENESS,
+        new WithHttpProbeOptions()
+            .path("/health/live")
+            .periodSeconds(30)
+            .failureThreshold(3));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+    api.with_http_probe(
+        ProbeType::Readiness,
+        Some("/health/ready"),
+        None, None, None, None, None, None,
+    )?;
+
+    let worker = builder.add_project(
+        "worker",
+        "../Worker/Worker.csproj",
+        None,
+    )?;
+    worker.with_http_probe(
+        ProbeType::Liveness,
+        Some("/health/live"),
+        None, None, None, None, None, None,
+    )?;
+
+    let service = builder.add_project(
+        "service",
+        "../Service/Service.csproj",
+        None,
+    )?;
+    service.with_http_probe(
+        ProbeType::Startup,
+        Some("/health/startup"),
+        Some(15.0), None, None, Some(10.0), None, None,
+    )?;
+    service.with_http_probe(
+        ProbeType::Readiness,
+        Some("/health/ready"),
+        None, Some(5.0), Some(3.0), None, None, None,
+    )?;
+    service.with_http_probe(
+        ProbeType::Liveness,
+        Some("/health/live"),
+        None, Some(30.0), None, Some(3.0), None, None,
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ## Understanding health probes
 
-Health probes allow you to configure monitoring for your resources' health state. Aspire supports three types of probes that align with Kubernetes health check concepts:
+Health probes allow you to configure monitoring for your resources' health state. `WithHttpProbe`/`withHttpProbe` adds both a deployment probe annotation and an HTTP health check used during local runs. Aspire supports three probe types that align with Kubernetes health check concepts. Startup ordering, traffic routing, and automatic restarts described below are deployment-platform behaviors, not promises that the local AppHost will restart or stop routing to an unhealthy resource:
 
 ### Probe types
 
@@ -97,6 +344,29 @@ Health probes allow you to configure monitoring for your resources' health state
 
 ### Custom endpoint targeting
 
+Select an endpoint by name in any supported AppHost language:
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder, ProbeType } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withHttpEndpoint({ port: 8080, name: "management" });
+await api.withHttpProbe(ProbeType.Readiness, {
+  path: "/actuator/health",
+  endpointName: "management",
+});
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
 ```csharp title="Probe specific endpoint"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -106,39 +376,301 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithHttpProbe(ProbeType.Readiness, "/actuator/health",
         endpointName: "management");
 
-// Probe with endpoint selector function
-var service = builder.AddProject<Projects.Service>("service")
-    .WithHttpProbe(ProbeType.Liveness, "/status",
-        endpointSelector: () => service.GetEndpoint("https"));
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../Api/Api.csproj")
+    api.with_http_endpoint(port=8080, name="management")
+    api.with_http_probe(
+        "Readiness",
+        path="/actuator/health",
+        endpoint_name="management",
+    )
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../Api/Api.csproj").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
+			Port: aspire.Float64Ptr(8080),
+			Name: aspire.StringPtr("management"),
+		}).
+		WithHttpProbe(aspire.ProbeTypeReadiness, &aspire.WithHttpProbeOptions{
+			Path:         aspire.StringPtr("/actuator/health"),
+			EndpointName: aspire.StringPtr("management"),
+		})
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var api = builder.addProject("api", "../Api/Api.csproj");
+    api.withHttpEndpoint(new WithHttpEndpointOptions()
+        .port(8080)
+        .name("management"));
+    api.withHttpProbe(
+        ProbeType.READINESS,
+        new WithHttpProbeOptions()
+            .path("/actuator/health")
+            .endpointName("management"));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+    api.with_http_endpoint(
+        Some(8080.0),
+        None,
+        Some("management"),
+        None,
+        None,
+    )?;
+    api.with_http_probe(
+        ProbeType::Readiness,
+        Some("/actuator/health"),
+        None, None, None, None, None,
+        Some("management"),
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+The overload accepting an endpoint-selector callback is C#-only; the generated SDKs use the endpoint-name option instead. When using a C# callback, create the resource before capturing it:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var service = builder.AddProject<Projects.Service>("service");
+service.WithHttpProbe(
+    ProbeType.Liveness,
+    endpointSelector: () => service.GetEndpoint("https"),
+    path: "/status");
 
 builder.Build().Run();
 ```
 
 ### Integration with resource dependencies
 
-Probes work seamlessly with resource wait dependencies:
+The HTTP health checks registered by probes participate in local resource wait dependencies. In this example, the frontend waits until the API's readiness probe succeeds.
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder, ProbeType } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withHttpProbe(ProbeType.Readiness, { path: "/health/ready" });
+
+const frontend = await builder.addProject("frontend", "../Frontend/Frontend.csproj");
+await frontend.waitFor(api);
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="Probes with dependencies"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var database = builder.AddPostgres("postgres");
-var cache = builder.AddRedis("redis");
-
-// API with probes that check dependencies
 var api = builder.AddProject<Projects.Api>("api")
-    .WithHttpProbe(ProbeType.Readiness, "/health/ready")
-    .WaitFor(database)
-    .WaitFor(cache)
-    .WithReference(database)
-    .WithReference(cache);
+    .WithHttpProbe(ProbeType.Readiness, "/health/ready");
 
-// Frontend waits for API to be ready (not just started)
 var frontend = builder.AddProject<Projects.Frontend>("frontend")
-    .WaitFor(api)  // Waits for API readiness probe to pass
-    .WithReference(api);
+    .WaitFor(api);
 
 builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../Api/Api.csproj")
+    api.with_http_probe("Readiness", path="/health/ready")
+
+    frontend = builder.add_project(
+        "frontend",
+        "../Frontend/Frontend.csproj",
+    )
+    frontend.wait_for(api)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../Api/Api.csproj").
+		WithHttpProbe(aspire.ProbeTypeReadiness, &aspire.WithHttpProbeOptions{
+			Path: aspire.StringPtr("/health/ready"),
+		})
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	frontend := builder.AddProject(
+		"frontend",
+		"../Frontend/Frontend.csproj",
+	).WaitFor(api)
+	if err := frontend.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var api = builder.addProject("api", "../Api/Api.csproj");
+    api.withHttpProbe(
+        ProbeType.READINESS,
+        new WithHttpProbeOptions().path("/health/ready"));
+
+    var frontend = builder.addProject(
+        "frontend",
+        "../Frontend/Frontend.csproj");
+    frontend.waitFor(api);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+    api.with_http_probe(
+        ProbeType::Readiness,
+        Some("/health/ready"),
+        None, None, None, None, None, None,
+    )?;
+
+    let frontend = builder.add_project(
+        "frontend",
+        "../Frontend/Frontend.csproj",
+        None,
+    )?;
+    let api_resource = IResource::new(
+        api.handle().clone(),
+        api.client().clone(),
+    );
+    frontend.wait_for(&api_resource, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## Deployment integration
 
@@ -149,6 +681,8 @@ Probes are automatically configured when deploying to supported compute environm
 - **Docker Compose** — Health checks are configured based on probe settings
 
 ## To suppress this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 Suppress the warning with either of the following methods:
 

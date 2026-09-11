@@ -5,6 +5,7 @@ description: Manage the Aspire AppHost lifecycle in your tests — start, dispos
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import Pivot from '@components/Pivot.astro';
 
@@ -141,13 +142,46 @@ Other arguments can be passed to your AppHost `Program` and made available in yo
 
 In the AppHost `Program`, you use configuration to support enabling or disabling volumes:
 
-```csharp
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the PostgreSQL integration APIs used in this example.',
+  go: 'The verified Go SDK does not include the PostgreSQL integration APIs used in this example.',
+  java: 'The verified Java SDK does not include the PostgreSQL integration APIs used in this example.',
+  rust: 'The verified Rust SDK does not include the PostgreSQL integration APIs used in this example.',
+}}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres1');
+const useVolumes =
+  (await builder.getConfiguration().getConfigValue('UseVolumes')) !== 'false';
+if (useVolumes) {
+  await postgres.withDataVolume();
+}
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var postgres = builder.AddPostgres("postgres1");
 if (builder.Configuration.GetValue("UseVolumes", true))
 {
     postgres.WithDataVolume();
 }
+
+builder.Build().Run();
 ```
+
+</Fragment>
+</AppHostTabs>
 
 In test code, you pass `"UseVolumes=false"` in the `args` to the AppHost:
 

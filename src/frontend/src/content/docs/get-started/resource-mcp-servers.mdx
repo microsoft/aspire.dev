@@ -6,9 +6,8 @@ description: Expose MCP tools from Aspire resources and interact with them using
 
 import AppHostTabs from '@components/AppHostTabs.astro';
 
-import { Aside, Code, Steps } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
-import LearnMore from '@components/LearnMore.astro';
 
 Aspire resources can expose their own <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> (Model Context Protocol) servers, enabling AI coding agents to interact directly with databases, APIs, and other services. For example, a PostgreSQL resource can expose SQL query tools, allowing an agent to run queries without leaving the conversation.
 
@@ -23,10 +22,19 @@ When a resource is annotated with `WithMcpServer()` in the AppHost, Aspire disco
 
 Use the `WithMcpServer()` extension method to declare that a resource hosts an MCP server:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The verified generated Python SDK does not emit the PostgreSQL integration methods used by this example: add_postgres, add_database, and with_postgres_mcp.',
+    go: 'The verified generated Go SDK does not emit the PostgreSQL integration methods used by this example: AddPostgres, AddDatabase, and WithPostgresMcp.',
+    java: 'The verified generated Java SDK does not emit the PostgreSQL integration methods used by this example: addPostgres, addDatabase, and withPostgresMcp.',
+    rust: 'The verified generated Rust SDK does not emit the PostgreSQL integration methods used by this example: add_postgres, add_database, and with_postgres_mcp.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREMCP001
+#pragma warning disable ASPIREPOSTGRES001
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -38,27 +46,29 @@ db.WithPostgresMcp();
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const db = await builder
-  .addPostgres("db")
-  .addDatabase("appdata");
+const db = await builder.addPostgres('db').addDatabase('appdata');
 
 // Expose PostgreSQL MCP tools (SQL queries, schema inspection, etc.)
 await db.withPostgresMcp();
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
 <Aside type="note">
-`WithMcpServer()` and `WithPostgresMcp()` are experimental APIs. Suppress the `ASPIREMCP001` or `ASPIREPOSTGRES001` diagnostic to use them.
+  `WithMcpServer()` and `WithPostgresMcp()` are experimental APIs. Suppress the
+  `ASPIREMCP001` or `ASPIREPOSTGRES001` diagnostic to use them.
 </Aside>
 
 <ContainerImages package="Aspire.Hosting.PostgreSQL" only="Postgres MCP" />
@@ -97,6 +107,7 @@ You can add any container that implements the MCP protocol as an MCP-enabled res
 
 <AppHostTabs>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREMCP001
 
@@ -109,8 +120,10 @@ var myMcpServer = builder.AddContainer("my-mcp", "myregistry/my-mcp-server")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -118,20 +131,127 @@ const builder = await createBuilder();
 
 // Add a custom MCP server container
 const myMcpServer = await builder
-  .addContainer("my-mcp", { image: "myregistry/my-mcp-server", tag: "latest" })
+  .addContainer('my-mcp', { image: 'myregistry/my-mcp-server', tag: 'latest' })
   .withHttpEndpoint({ targetPort: 8080 })
-  .withMcpServer("/mcp");
+  .withMcpServer({ path: '/mcp' });
 
 await builder.build().run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    my_mcp_server = (
+        builder.add_container("my-mcp", "myregistry/my-mcp-server:latest")
+        .with_http_endpoint(target_port=8080)
+        .with_mcp_server(path="/mcp")
+    )
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	myMcpServer := builder.
+		AddContainer("my-mcp", "myregistry/my-mcp-server:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
+			TargetPort: aspire.Float64Ptr(8080),
+		}).
+		WithMcpServer(&aspire.WithMcpServerOptions{
+			Path: aspire.StringPtr("/mcp"),
+		})
+	if err := myMcpServer.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var myMcpServer = builder
+        .addContainer("my-mcp", "myregistry/my-mcp-server:latest");
+    myMcpServer
+        .withHttpEndpoint(new WithHttpEndpointOptions().targetPort(8080))
+        .withMcpServer(new WithMcpServerOptions().path("/mcp"));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let my_mcp_server = builder.add_container(
+        "my-mcp",
+        serde_json::json!("myregistry/my-mcp-server:latest"),
+    )?;
+    let my_mcp_server = my_mcp_server.with_http_endpoint(
+        None,
+        Some(8080.0),
+        None,
+        None,
+        None,
+    )?;
+    my_mcp_server.with_mcp_server(Some("/mcp"), None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
 </Fragment>
 </AppHostTabs>
 
-The `WithMcpServer()` method accepts an optional path and endpoint name:
+The MCP server annotation accepts an optional path and endpoint name:
 
-- `WithMcpServer()` — uses the default HTTP endpoint at the root path
-- `WithMcpServer("/mcp")` — uses the default HTTP endpoint at `/mcp`
-- `WithMcpServer("/sse", endpointName: "https")` — uses a named endpoint at `/sse`
+- Omit both options to use the default HTTP endpoint and path.
+- Set the path to `/mcp` to expose that route on the default HTTP endpoint.
+- Set the path to `/sse` and the endpoint name to `https` to expose that route on the named HTTPS endpoint.
 
 ## See also
 
@@ -139,4 +259,3 @@ The `WithMcpServer()` method accepts an optional path and endpoint name:
 - [Aspire MCP server](/get-started/aspire-mcp-server/) — the built-in MCP server tools
 - [ASPIREMCP001 diagnostic](/diagnostics/aspiremcp001/) — experimental MCP server API warning
 - [ASPIREPOSTGRES001 diagnostic](/diagnostics/aspirepostgres001/) — experimental PostgreSQL MCP warning
-

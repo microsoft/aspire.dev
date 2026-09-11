@@ -41,10 +41,10 @@ Many of the certificate features in Aspire rely on a development certificate. Be
 
 The preferred way to manage the development certificate is to use the [Aspire CLI](/get-started/install-cli/). When you run `aspire run` in an interactive session, the CLI automatically ensures the development certificate is created and trusted. No additional manual steps are required.
 
-For non-C# AppHosts (such as [TypeScript](/app-host/typescript-apphost/) or Python AppHosts), the `dotnet` first-run experience that normally creates the HTTPS development certificate never runs, because these AppHosts launch a prebuilt native binary instead of invoking `dotnet`. The Aspire CLI fills this gap when `aspire run` starts and no development certificate exists:
+For generated TypeScript, Python, Go, Java, and Rust AppHosts, the `dotnet` first-run experience that normally creates the HTTPS development certificate never runs, because these AppHosts launch a prebuilt native binary instead of invoking `dotnet`. The Aspire CLI fills this gap when `aspire run` starts and no development certificate exists:
 
-- In an interactive session—and on Linux, where establishing trust doesn't require a prompt—the CLI creates *and* trusts the certificate, just as it does for C# AppHosts.
-- In a non-interactive session on macOS or Windows (for example, in CI), the CLI can't show the macOS Keychain password prompt or the Windows trust dialog, so it *generates* the certificate without trusting it. This lets servers such as Kestrel load the certificate from the personal store, even though it isn't trusted. If the certificate can't be generated, a warning is displayed and the run continues.
+- In an interactive session—and on Linux, where establishing trust doesn't require a prompt—the CLI creates _and_ trusts the certificate, just as it does for C# AppHosts.
+- In a non-interactive session on macOS or Windows (for example, in CI), the CLI can't show the macOS Keychain password prompt or the Windows trust dialog, so it _generates_ the certificate without trusting it. This lets servers such as Kestrel load the certificate from the personal store, even though it isn't trusted. If the certificate can't be generated, a warning is displayed and the run continues.
 
 To opt out of automatic certificate generation, set the `ASPIRE_CLI_GENERATE_HTTPS_CERTIFICATE` environment variable to `false`. This mirrors the .NET SDK's `DOTNET_GENERATE_ASPNET_CERTIFICATE` opt-out:
 
@@ -85,19 +85,20 @@ aspire certs trust
 <Aside type="note" title="Linux certificate trust">
   On Linux, the development certificate is exported to `~/.aspnet/dev-certs/trust`, but applications using OpenSSL won't discover it unless the `SSL_CERT_DIR` environment variable includes that path. You can set `SSL_CERT_DIR` in your shell profile (~/.bashrc, ~/.zshrc, ~/.profile, etc.):
 
-  ```bash title="~/.bashrc, ~/.zshrc, or ~/.profile"
-  # Confirm /usr/lib/ssl/certs is the correct certificate directory for
-  # your Linux distribution. Common alternatives include:
-  #   /etc/ssl/certs
-  #   /etc/pki/tls/certs
-  if [ -z "$SSL_CERT_DIR" ]; then
-      export SSL_CERT_DIR="/usr/lib/ssl/certs:$HOME/.aspnet/dev-certs/trust"
-  else
-      export SSL_CERT_DIR="$SSL_CERT_DIR:$HOME/.aspnet/dev-certs/trust"
-  fi
-  ```
+```bash title="~/.bashrc, ~/.zshrc, or ~/.profile"
+# Confirm /usr/lib/ssl/certs is the correct certificate directory for
+# your Linux distribution. Common alternatives include:
+#   /etc/ssl/certs
+#   /etc/pki/tls/certs
+if [ -z "$SSL_CERT_DIR" ]; then
+    export SSL_CERT_DIR="/usr/lib/ssl/certs:$HOME/.aspnet/dev-certs/trust"
+else
+    export SSL_CERT_DIR="$SSL_CERT_DIR:$HOME/.aspnet/dev-certs/trust"
+fi
+```
 
-  You may need to reload your profile or start a new terminal session for the change to take effect.
+You may need to reload your profile or start a new terminal session for the change to take effect.
+
 </Aside>
 
 ### Developer certificate for DCP communication
@@ -141,8 +142,16 @@ You can control this behavior using the HTTPS endpoint APIs described below.
 
 To explicitly configure a resource to use the development certificate for its HTTPS endpoints:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include add_uvicorn_app or add_vite_app, which this development-certificate example requires.',
+    go: 'The generated Go SDK does not include AddUvicornApp or AddViteApp, which this development-certificate example requires.',
+    java: 'The generated Java SDK does not include addUvicornApp or addViteApp, which this development-certificate example requires.',
+    rust: 'The generated Rust SDK does not include add_uvicorn_app or add_vite_app, which this development-certificate example requires.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -157,24 +166,31 @@ var pythonApp = builder.AddUvicornApp("api", "../api", "app:main")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 // Explicitly use the developer certificate
-const nodeApp = await builder.addViteApp("frontend", "../frontend")
-    .withHttpsDeveloperCertificate();
+const nodeApp = await builder
+  .addViteApp('frontend', '../frontend')
+  .withHttpsDeveloperCertificate();
 
 // Use developer certificate with an encrypted private key
-const certPassword = await builder.addParameter("cert-password", { secret: true });
-const pythonApp = await builder.addUvicornApp("api", "../api", "app:main")
-    .withHttpsDeveloperCertificate({ password: certPassword });
+const certPassword = await builder.addParameter('cert-password', {
+  secret: true,
+});
+const pythonApp = await builder
+  .addUvicornApp('api', '../api', 'app:main')
+  .withHttpsDeveloperCertificate({ password: certPassword });
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -189,8 +205,16 @@ The `WithHttpsDeveloperCertificate` method:
 
 To configure a resource to use a specific X.509 certificate for HTTPS endpoints:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not expose with_https_certificate for supplying certificate and key parameters.',
+    go: 'The generated Go SDK does not expose WithHttpsCertificate for supplying certificate and key parameters.',
+    java: 'The generated Java SDK does not expose withHttpsCertificate for supplying certificate and key parameters.',
+    rust: 'The generated Rust SDK does not expose with_https_certificate for supplying certificate and key parameters.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 using System.Security.Cryptography.X509Certificates;
 
@@ -210,19 +234,22 @@ builder.AddNpmApp("frontend", "../frontend")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
 import { createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const api = await builder.addContainer("api", {
-  image: "my-api",
-  tag: "latest",
+const api = await builder.addContainer('api', {
+  image: 'my-api',
+  tag: 'latest',
 });
 
-api.createExecutionConfiguration()
+api
+  .createExecutionConfiguration()
   .withArgumentsConfig()
   .withEnvironmentVariablesConfig()
   .withHttpsCertificateConfig(async () => ({
@@ -233,6 +260,7 @@ api.createExecutionConfiguration()
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -246,8 +274,16 @@ The certificate must:
 
 To prevent Aspire from configuring any HTTPS certificate for a resource:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK supports without_https_certificate, but it does not include add_redis for the resource used in this example.',
+    go: 'The generated Go SDK supports WithoutHttpsCertificate, but it does not include AddRedis for the resource used in this example.',
+    java: 'The generated Java SDK supports withoutHttpsCertificate, but it does not include addRedis for the resource used in this example.',
+    rust: 'The generated Rust SDK supports without_https_certificate, but it does not include add_redis for the resource used in this example.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -257,19 +293,21 @@ var redis = builder.AddRedis("cache")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 // Disable automatic HTTPS certificate configuration
-const redis = await builder.addRedis("cache")
-    .withoutHttpsCertificate();
+const redis = await builder.addRedis('cache').withoutHttpsCertificate();
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -283,8 +321,14 @@ Use `WithoutHttpsCertificate` when:
 
 For resources that need custom certificate configuration logic, use `WithHttpsCertificateConfiguration` to specify how certificate files should be passed to the resource:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not expose with_https_certificate_configuration.',
+    rust: 'The generated Rust SDK emits this callback as Fn(Vec<Value>) -> Value, so its typed certificate context cannot be used safely.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -315,30 +359,76 @@ builder.AddContainer("api", "my-api:latest")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
 import { createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const api = await builder.addContainer("api", {
-  image: "myimage",
-  tag: "latest",
+const api = await builder.addContainer('api', {
+  image: 'myimage',
+  tag: 'latest',
 });
 
-api.createExecutionConfiguration()
+api
+  .createExecutionConfiguration()
   .withArgumentsConfig()
   .withEnvironmentVariablesConfig()
   .withCertificateTrustConfig(async () => ({
     certificateBundlePath: refExpr`/certs/ca-bundle.crt`,
     certificateDirectoriesPath: refExpr`/certs`,
-    rootCertificatesPath: "/etc/ssl/certs",
+    rootCertificatesPath: '/etc/ssl/certs',
     isContainer: true,
   }));
 
 await builder.build().run();
 ```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+api := builder.
+	AddContainer("api", "my-api:latest").
+	WithHttpsCertificateConfiguration(
+		func(ctx aspire.HttpsCertificateConfigurationCallbackAnnotationContext) {
+			arguments := ctx.Arguments()
+			_ = arguments.Add("--tls-cert")
+			_ = arguments.Add(ctx.CertificatePath())
+			_ = arguments.Add("--tls-key")
+			_ = arguments.Add(ctx.KeyPath())
+
+			environment := ctx.Environment()
+			_ = environment.Set("TLS_CERT_FILE", ctx.CertificatePath())
+			_ = environment.Set("TLS_KEY_FILE", ctx.KeyPath())
+			_ = environment.Set("TLS_PFX_FILE", ctx.PfxPath())
+		},
+	)
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var api = builder.addContainer("api", "my-api:latest");
+api.withHttpsCertificateConfiguration(ctx -> {
+    ctx.arguments().add("--tls-cert");
+    ctx.arguments().add(ctx.certificatePath());
+    ctx.arguments().add("--tls-key");
+    ctx.arguments().add(ctx.keyPath());
+
+    ctx.environment().set("TLS_CERT_FILE", ctx.certificatePath());
+    ctx.environment().set("TLS_KEY_FILE", ctx.keyPath());
+    ctx.environment().set("TLS_PFX_FILE", ctx.pfxPath());
+});
+```
+
 </Fragment>
 </AppHostTabs>
 
@@ -377,8 +467,16 @@ You can control this behavior per resource using the `WithDeveloperCertificateTr
 
 To explicitly enable or disable development certificate trust for a specific resource:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include add_node_app or add_python_app.',
+    go: 'The generated Go SDK does not include AddNodeApp or AddPythonApp.',
+    java: 'The generated Java SDK does not include addNodeApp or addPythonApp.',
+    rust: 'The generated Rust SDK does not include add_node_app or add_python_app.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -392,23 +490,28 @@ var pythonApp = builder.AddPythonApp("api", "../api", "main.py")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 // Explicitly enable development certificate trust
-const nodeApp = await builder.addNodeApp("frontend", "../frontend", "index.js")
-    .withDeveloperCertificateTrust(true);
+const nodeApp = await builder
+  .addNodeApp('frontend', '../frontend', 'index.js')
+  .withDeveloperCertificateTrust(true);
 
 // Disable development certificate trust
-const pythonApp = await builder.addPythonApp("api", "../api", "main.py")
-    .withDeveloperCertificateTrust(false);
+const pythonApp = await builder
+  .addPythonApp('api', '../api', 'main.py')
+  .withDeveloperCertificateTrust(false);
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -417,6 +520,17 @@ await builder.build().run();
 Certificate authority collections allow you to bundle custom certificates and make them available to resources. You create a collection using the `AddCertificateAuthorityCollection` method and then reference it from resources that need to trust those certificates.
 
 #### Create and use a certificate authority collection
+
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK does not export certificate authority collection APIs or X.509 certificate collection values.',
+    python: 'The generated Python SDK does not export certificate authority collection APIs or X.509 certificate collection values.',
+    go: 'The generated Go SDK does not export certificate authority collection APIs or X.509 certificate collection values.',
+    java: 'The generated Java SDK does not export certificate authority collection APIs or X.509 certificate collection values.',
+    rust: 'The generated Rust SDK does not export certificate authority collection APIs or X.509 certificate collection values.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using System.Security.Cryptography.X509Certificates;
@@ -438,9 +552,8 @@ builder.AddNpmApp("my-project", "../myapp")
 builder.Build().Run();
 ```
 
-<Aside type="note">
-  This API is not yet available in TypeScript AppHosts.
-</Aside>
+</Fragment>
+</AppHostTabs>
 
 In the preceding example, the certificate bundle is created with custom certificates and then applied to a Node.js application, enabling it to trust those certificates.
 
@@ -465,8 +578,16 @@ Attempts to append the configured certificates to the default trusted certificat
 
 This is the default scope for most resources. For Python resources, only <abbr title="OpenTelemetry" data-tooltip-placement="top">OTEL</abbr> trust configuration will be applied in this mode.
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK supports with_certificate_trust_scope, but it does not include add_node_app for this resource.',
+    go: 'The generated Go SDK supports WithCertificateTrustScope, but it does not include AddNodeApp for this resource.',
+    java: 'The generated Java SDK supports withCertificateTrustScope, but it does not include addNodeApp for this resource.',
+    rust: 'The generated Rust SDK supports with_certificate_trust_scope, but it does not include add_node_app for this resource.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -475,18 +596,25 @@ builder.AddNodeApp("api", "../api")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
-import { createBuilder, CertificateTrustScope } from './.aspire/modules/aspire.mjs';
+import {
+  createBuilder,
+  CertificateTrustScope,
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-await builder.addNodeApp("api", "../api", "index.js")
-    .withCertificateTrustScope(CertificateTrustScope.Append);
+await builder
+  .addNodeApp('api', '../api', 'index.js')
+  .withCertificateTrustScope(CertificateTrustScope.Append);
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -496,24 +624,35 @@ await builder.build().run();
 </Aside>
 
 <Aside type="note" title="Linux system trust preservation">
-  On Linux, executable resources configured with Append mode preserve access
-  to the system's OpenSSL certificate roots in addition to Aspire's generated
+  On Linux, executable resources configured with Append mode preserve access to
+  the system's OpenSSL certificate roots in addition to Aspire's generated
   development certificate. If `SSL_CERT_DIR` is set in the AppHost process
   environment, Aspire adds those directories after its generated certificate
   directory. An explicitly empty value is preserved by not inferring system
   directories. If `SSL_CERT_DIR` is unset, Aspire adds any well-known system
   certificate directories that exist on the machine (for example,
   `/etc/ssl/certs`) after its own. Aspire reads this value from the AppHost
-  process environment, not from an individual resource's configured
-  environment. This avoids a scenario where Linux workloads launched with
-  `dotnet run` or an IDE lose OpenSSL's implicit system certificate roots and
-  fail outbound HTTPS requests once Aspire configures the resource with only
-  its generated certificate directory.
+  process environment, not from an individual resource's configured environment.
+  This avoids a scenario where Linux workloads launched with `dotnet run` or an
+  IDE lose OpenSSL's implicit system certificate roots and fail outbound HTTPS
+  requests once Aspire configures the resource with only its generated
+  certificate directory.
 </Aside>
 
 #### Override mode
 
 Attempts to override a resource to only trust the configured certificates, replacing the default trusted certificates entirely. This mode is useful when you need strict control over which certificates are trusted.
+
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK exports the Override trust scope, but it does not export certificate authority collection APIs.',
+    python: 'The generated Python SDK exports the Override trust scope, but it does not export certificate authority collection APIs.',
+    go: 'The generated Go SDK exports the Override trust scope, but it does not export certificate authority collection APIs.',
+    java: 'The generated Java SDK exports the Override trust scope, but it does not export certificate authority collection APIs.',
+    rust: 'The generated Rust SDK exports the Override trust scope, but it does not export certificate authority collection APIs.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -528,9 +667,8 @@ builder.AddPythonModule("api", "./api", "uvicorn")
 builder.Build().Run();
 ```
 
-<Aside type="note">
-  This API is not yet available in TypeScript AppHosts.
-</Aside>
+</Fragment>
+</AppHostTabs>
 
 #### System mode
 
@@ -538,8 +676,16 @@ Attempts to combine the configured certificates with the default system root cer
 
 This is the default scope for Python projects because Python only has mechanisms to fully override certificate trust.
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK supports with_certificate_trust_scope, but it does not include add_python_app for this resource.',
+    go: 'The generated Go SDK supports WithCertificateTrustScope, but it does not include AddPythonApp for this resource.',
+    java: 'The generated Java SDK supports withCertificateTrustScope, but it does not include addPythonApp for this resource.',
+    rust: 'The generated Rust SDK supports with_certificate_trust_scope, but it does not include add_python_app for this resource.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -548,18 +694,25 @@ builder.AddPythonApp("worker", "../worker", "main.py")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
-import { createBuilder, CertificateTrustScope } from './.aspire/modules/aspire.mjs';
+import {
+  createBuilder,
+  CertificateTrustScope,
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-await builder.addPythonApp("worker", "../worker", "main.py")
-    .withCertificateTrustScope(CertificateTrustScope.System);
+await builder
+  .addPythonApp('worker', '../worker', 'main.py')
+  .withCertificateTrustScope(CertificateTrustScope.System);
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -571,6 +724,7 @@ This is the default scope for .NET projects on Windows, as there's no way to aut
 
 <AppHostTabs>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -579,18 +733,61 @@ builder.AddContainer("service", "myimage")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
-import { createBuilder, CertificateTrustScope } from './.aspire/modules/aspire.mjs';
+import {
+  createBuilder,
+  CertificateTrustScope,
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-await builder.addContainer("service", { image: "myimage", tag: "latest" })
-    .withCertificateTrustScope(CertificateTrustScope.None);
+await builder
+  .addContainer('service', { image: 'myimage', tag: 'latest' })
+  .withCertificateTrustScope(CertificateTrustScope.None);
 
 await builder.build().run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+service = builder.add_container("service", "myimage")
+service.with_certificate_trust_scope("None")
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+service := builder.
+	AddContainer("service", "myimage").
+	WithCertificateTrustScope(aspire.CertificateTrustScopeNone)
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var service = builder.addContainer("service", "myimage");
+service.withCertificateTrustScope(CertificateTrustScope.NONE);
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let service = builder.add_container(
+    "service",
+    serde_json::json!("myimage"),
+)?;
+service.with_certificate_trust_scope(CertificateTrustScope::None)?;
+```
+
 </Fragment>
 </AppHostTabs>
 
@@ -602,8 +799,16 @@ For advanced scenarios, you can specify custom certificate trust behavior using 
 
 Use `WithCertificateTrustConfiguration` to customize how certificate trust is configured for a resource:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not expose with_certificate_trust_configuration.',
+    go: 'The generated Go SDK does not expose WithCertificateTrustConfiguration.',
+    java: 'The generated Java SDK does not expose withCertificateTrustConfiguration.',
+    rust: 'The generated Rust SDK does not expose with_certificate_trust_configuration.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -625,6 +830,7 @@ builder.AddContainer("api", "myimage")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
 <Aside type="note">
@@ -647,6 +853,9 @@ Default implementations are provided for Node.js, Python, and container resource
 
 For container resources, you can customize where certificates are stored and accessed using `WithContainerCertificatePaths`:
 
+<AppHostTabs>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -659,9 +868,130 @@ builder.AddContainer("api", "myimage")
 builder.Build().Run();
 ```
 
-<Aside type="note">
-  This API is not yet available in TypeScript AppHosts.
-</Aside>
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder
+  .addContainer('api', { image: 'myimage', tag: 'latest' })
+  .withContainerCertificatePaths({
+    customCertificatesDestination: '/custom/certs/path',
+    defaultCertificateBundlePaths: ['/etc/ssl/certs/ca-certificates.crt'],
+    defaultCertificateDirectoryPaths: ['/etc/ssl/certs'],
+  });
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_container("api", "myimage")
+    api.with_container_certificate_paths(
+        custom_certificates_destination="/custom/certs/path",
+        default_certificate_bundle_paths=["/etc/ssl/certs/ca-certificates.crt"],
+        default_certificate_dir_paths=["/etc/ssl/certs"],
+    )
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.
+		AddContainer("api", "myimage").
+		WithContainerCertificatePaths(&aspire.WithContainerCertificatePathsOptions{
+			CustomCertificatesDestination: aspire.StringPtr("/custom/certs/path"),
+			DefaultCertificateBundlePaths: []string{"/etc/ssl/certs/ca-certificates.crt"},
+			DefaultCertificateDirectoryPaths: []string{"/etc/ssl/certs"},
+		})
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var api = builder.addContainer("api", "myimage");
+    api.withContainerCertificatePaths(
+        new WithContainerCertificatePathsOptions()
+            .customCertificatesDestination("/custom/certs/path")
+            .defaultCertificateBundlePaths(
+                new String[] { "/etc/ssl/certs/ca-certificates.crt" })
+            .defaultCertificateDirectoryPaths(
+                new String[] { "/etc/ssl/certs" }));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_container("api", serde_json::json!("myimage"))?;
+    api.with_container_certificate_paths(
+        Some("/custom/certs/path"),
+        Some(vec!["/etc/ssl/certs/ca-certificates.crt".to_string()]),
+        Some(vec!["/etc/ssl/certs".to_string()]),
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 The `WithContainerCertificatePaths` API accepts three optional parameters:
 
@@ -683,8 +1013,16 @@ This section demonstrates common patterns for configuring HTTPS endpoints and ce
 
 A typical scenario is configuring a Node.js service to serve HTTPS traffic while also enabling it to send telemetry to the dashboard:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include add_node_app, so this Node.js HTTPS and telemetry example is unavailable.',
+    go: 'The generated Go SDK does not include AddNodeApp, so this Node.js HTTPS and telemetry example is unavailable.',
+    java: 'The generated Java SDK does not include addNodeApp, so this Node.js HTTPS and telemetry example is unavailable.',
+    rust: 'The generated Rust SDK does not include add_node_app, so this Node.js HTTPS and telemetry example is unavailable.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -696,8 +1034,10 @@ var frontend = builder.AddNpmApp("frontend", "../frontend")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -705,18 +1045,31 @@ const builder = await createBuilder();
 
 // Configure the service to use developer certificate for HTTPS endpoints
 // and trust the developer certificate for outbound connections (like dashboard telemetry)
-const frontend = await builder.addNodeApp("frontend", "../frontend", "index.js")
-    .withHttpsDeveloperCertificate()         // Server cert for HTTPS endpoints
-    .withDeveloperCertificateTrust(true);    // Client trust for dashboard
+const frontend = await builder
+  .addNodeApp('frontend', '../frontend', 'index.js')
+  .withHttpsDeveloperCertificate() // Server cert for HTTPS endpoints
+  .withDeveloperCertificateTrust(true); // Client trust for dashboard
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
 ### Enable HTTPS with custom certificates
 
 When working with corporate or custom CA certificates, you can configure both server and client certificates:
+
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK does not export custom X.509 server certificate or certificate authority collection APIs.',
+    python: 'The generated Python SDK does not export custom X.509 server certificate or certificate authority collection APIs.',
+    go: 'The generated Go SDK does not export custom X.509 server certificate or certificate authority collection APIs.',
+    java: 'The generated Java SDK does not export custom X.509 server certificate or certificate authority collection APIs.',
+    rust: 'The generated Rust SDK does not export custom X.509 server certificate or certificate authority collection APIs.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using System.Security.Cryptography.X509Certificates;
@@ -739,16 +1092,23 @@ builder.AddContainer("api", "my-api:latest")
 builder.Build().Run();
 ```
 
-<Aside type="note">
-  This API is not yet available in TypeScript AppHosts.
-</Aside>
+</Fragment>
+</AppHostTabs>
 
 ### Configure Redis with TLS
 
 Redis resources can be configured to use HTTPS (TLS) for secure connections:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not include add_redis, so this Redis TLS example is unavailable.',
+    go: 'The generated Go SDK does not include AddRedis, so this Redis TLS example is unavailable.',
+    java: 'The generated Java SDK does not include addRedis, so this Redis TLS example is unavailable.',
+    rust: 'The generated Rust SDK does not include add_redis, so this Redis TLS example is unavailable.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -762,23 +1122,26 @@ var redisNoTls = builder.AddRedis("cache-notls")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 // Configure Redis to use the developer certificate for TLS
-const redis = await builder.addRedis("cache")
-    .withHttpsDeveloperCertificate();
+const redis = await builder.addRedis('cache').withHttpsDeveloperCertificate();
 
 // Or disable TLS entirely
-const redisNoTls = await builder.addRedis("cache-notls")
-    .withoutHttpsCertificate();
+const redisNoTls = await builder
+  .addRedis('cache-notls')
+  .withoutHttpsCertificate();
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 
@@ -786,8 +1149,16 @@ await builder.build().run();
 
 To disable both HTTPS endpoint configuration and certificate trust for a resource that manages its own certificates:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK supports certificate trust scope and disabling HTTPS configuration, but it does not include add_python_module for this example.',
+    go: 'The generated Go SDK supports certificate trust scope and disabling HTTPS configuration, but it does not include AddPythonModule for this example.',
+    java: 'The generated Java SDK supports certificate trust scope and disabling HTTPS configuration, but it does not include addPythonModule for this example.',
+    rust: 'The generated Rust SDK supports certificate trust scope and disabling HTTPS configuration, but it does not include add_python_module for this example.',
+  }}
+>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -798,20 +1169,27 @@ builder.AddPythonModule("api", "./api", "uvicorn")
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
-import { createBuilder, CertificateTrustScope } from './.aspire/modules/aspire.mjs';
+import {
+  createBuilder,
+  CertificateTrustScope,
+} from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 // Disable all automatic certificate configuration
-await builder.addPythonModule("api", "./api", "uvicorn")
-    .withoutHttpsCertificate()             // No server cert config
-    .withCertificateTrustScope(CertificateTrustScope.None);    // No client trust config
+await builder
+  .addPythonModule('api', './api', 'uvicorn')
+  .withoutHttpsCertificate() // No server cert config
+  .withCertificateTrustScope(CertificateTrustScope.None); // No client trust config
 
 await builder.build().run();
 ```
+
 </Fragment>
 </AppHostTabs>
 

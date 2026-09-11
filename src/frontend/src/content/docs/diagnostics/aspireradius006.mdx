@@ -5,6 +5,8 @@ description: Learn what causes the Aspire compiler warning ASPIRERADIUS006 and h
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 13.6"
@@ -25,7 +27,121 @@ These APIs declare a Radius secret store and populate it from Aspire secret para
 
 ## Example
 
-The following code generates `ASPIRERADIUS006`:
+Install a version of the Radius hosting integration that includes the 13.6 secret-store APIs:
+
+<InstallPackage packageName="Aspire.Hosting.Radius" />
+
+Creating a Radius environment is supported across AppHost languages. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples). Secret-store configuration is a separate, C#-only operation shown after these setup examples.
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+await builder.addRadiusEnvironment("radius");
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRadiusEnvironment("radius");
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.add_radius_env("radius")
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"apphost/modules/aspire"
+	"log"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	env := builder.AddRadiusEnvironment("radius")
+	if err := env.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addRadiusEnvironment("radius");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    builder.add_radius_environment("radius")?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+### Configure secret stores in C#
+
+`AddRadiusSecretStore`, `WithSecretStore`, their callbacks, and `RadiusSecretStoreType` are not exported to the TypeScript SDK catalog for `Aspire.Hosting.Radius` or to the daily Python, Go, Java, and Rust SDKs used for this documentation. Secret-store configuration requires the C# APIs in the daily build:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -44,6 +160,8 @@ builder.Build().Run();
 ```
 
 ## To correct this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost). The warning is only emitted by C#; the generated language SDKs do not export the secret-store APIs.
 
 Suppress the warning with one of the following methods:
 

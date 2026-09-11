@@ -5,6 +5,7 @@ description: Learn what causes Aspire compiler error ASPIRE006 — invalid AppHo
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge
   text="Version introduced: 8.2.2"
@@ -15,19 +16,143 @@ import { Badge } from '@astrojs/starlight/components';
 
 > The resource name 'NAME' is invalid: CONSTRAINT
 
-This diagnostic error is reported when a resource's name is invalid, such as a name with consecutive hyphen (`-`) characters.
+This C# analyzer diagnostic is reported when a resource's name is invalid, such as a name with consecutive hyphen (`-`) characters. The same resource naming constraints apply across AppHost languages. Generated SDKs reject an invalid name at runtime rather than through this C# analyzer.
 
 This error shouldn't be suppressed, as invalid model names throw an exception at runtime.
 
 ## Example
 
-The following code generates `ASPIRE006`:
+The following examples intentionally use an invalid resource name. The C# example generates `ASPIRE006`; the generated SDK examples fail when the AppHost runs. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const bbsContainer = await builder.addContainer('bbs--server', { image: 'coldwall/mystic' });
+await bbsContainer.withEndpoint({ port: 19991, targetPort: 23 });
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var bbsContainer = builder.AddContainer("bbs--server", "coldwall/mystic")
-                          .WithEndpoint(19991, 23);
+    .WithEndpoint(19991, 23);
+
+builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    bbs_container = builder.add_container("bbs--server", "coldwall/mystic")
+    bbs_container.with_endpoint(port=19991, target_port=23)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	bbsContainer := builder.
+		AddContainer("bbs--server", "coldwall/mystic").
+		WithEndpoint(&aspire.WithEndpointOptions{
+			Port:       aspire.Float64Ptr(19991),
+			TargetPort: aspire.Float64Ptr(23),
+		})
+	if err := bbsContainer.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var bbsContainer = builder.addContainer("bbs--server", "coldwall/mystic");
+    bbsContainer.withEndpoint(
+        new WithEndpointOptions().port(19991).targetPort(23));
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let bbs_container = builder.add_container(
+        "bbs--server",
+        "coldwall/mystic".into(),
+    )?;
+    bbs_container.with_endpoint(
+        Some(19991.0),
+        Some(23.0),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )?;
+
+    builder.build()?.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## To correct this error
 
-Use a valid name. For more information, see [Resource naming conventions](/architecture/resource-model/#resource-basics).
+Use a valid name, such as `bbs-server`, in every AppHost language. For more information, see [Resource naming conventions](/architecture/resource-model/#resource-basics).

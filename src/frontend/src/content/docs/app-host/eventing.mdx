@@ -25,9 +25,13 @@ The following events are available in the AppHost and occur in the following ord
 
 ### Subscribe to AppHost events
 
-To subscribe to built-in AppHost events, use the typed API available for each event. C# provides builder extension methods for selected events and the lower-level `Eventing.Subscribe<T>()` API for others. TypeScript provides named subscription methods:
+To subscribe to built-in AppHost events, use the typed API available for each event. C# provides builder extension methods for selected events and the lower-level `Eventing.Subscribe<T>()` API for others. TypeScript, Python, Go, and Java provide named subscription methods. The generated Rust callbacks are currently untyped, as noted in the language limitation below.
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust SDK emits AppHost event callbacks as Fn(Vec<Value>) -> Value instead of typed event callbacks, so a type-safe equivalent is not available.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -74,6 +78,47 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.subscribe_before_start(
+        lambda event: print("BeforeStartEvent")
+    )
+    builder.subscribe_after_resources_created(
+        lambda event: print("AfterResourcesCreatedEvent")
+    )
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder.SubscribeBeforeStart(func(event aspire.BeforeStartEvent) {
+	log.Println("BeforeStartEvent")
+})
+builder.SubscribeAfterResourcesCreated(
+	func(event aspire.AfterResourcesCreatedEvent) {
+		log.Println("AfterResourcesCreatedEvent")
+	},
+)
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+builder.subscribeBeforeStart(
+    event -> System.out.println("BeforeStartEvent"));
+builder.subscribeAfterResourcesCreated(
+    event -> System.out.println("AfterResourcesCreatedEvent"));
+```
+
+</Fragment>
 </AppHostTabs>
 
 The following C# builder-level helper methods are available for AppHost events:
@@ -88,6 +133,17 @@ For the full API surface, see the [C# `DistributedApplicationEventingExtensions`
 and the [TypeScript `Aspire.Hosting` API reference](/reference/api/typescript/aspire.hosting/).
 
 If you need to subscribe via `IDistributedApplicationEventing` directly (for example, inside an `IDistributedApplicationEventingSubscriber`), you can use the lower-level `Eventing.Subscribe<T>()` API:
+
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK does not export the generic Eventing.Subscribe<TEvent>() API. Use the named subscription methods instead.',
+    python: 'The generated Python SDK does not export the generic Eventing.Subscribe<TEvent>() API. Use the named subscription methods instead.',
+    go: 'The generated Go SDK does not export the generic Eventing.Subscribe<TEvent>() API. Use the named subscription methods instead.',
+    java: 'The generated Java SDK does not export the generic Eventing.Subscribe<TEvent>() API. Use the named subscription methods instead.',
+    rust: 'The generated Rust SDK does not export the generic Eventing.Subscribe<TEvent>() API, and its generated event callbacks are untyped.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 builder.Eventing.Subscribe<BeforeStartEvent>(
@@ -107,12 +163,15 @@ builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(
     });
 ```
 
+</Fragment>
+</AppHostTabs>
+
 <Aside type="note">
-  TypeScript AppHosts don't expose the generic
+  Generated TypeScript, Python, Go, Java, and Rust AppHosts don't expose the generic
   `builder.Eventing.Subscribe<TEvent>()` API. Use the named callback APIs
-  generated for each supported event, such as `subscribeBeforeStart`,
-  `subscribeAfterResourcesCreated`, `addEventingSubscriber`, and resource
-  callbacks like `onResourceReady`.
+  generated for each supported event, using the language's naming convention,
+  such as `subscribeBeforeStart`, `subscribe_before_start`, or
+  `SubscribeBeforeStart`.
 </Aside>
 
 <Aside type="caution">
@@ -165,7 +224,14 @@ In addition to the AppHost events, you can also subscribe to resource events. Re
 
 To subscribe to resource events, use the convenience-based extension methods. After you have a distributed application builder instance, and a resource builder, walk up to the instance and chain a call to the desired event API:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'This resource-event example uses add_redis, which is not included in the generated Python SDK.',
+    go: 'This resource-event example uses AddRedis, which is not included in the generated Go SDK.',
+    java: 'This resource-event example uses addRedis, which is not included in the generated Java SDK.',
+    rust: 'This resource-event example uses add_redis, which is not included in the generated Rust SDK; Rust event callbacks are also emitted as untyped JSON callbacks.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -346,6 +412,13 @@ The default behavior is `EventDispatchBehavior.BlockingSequential`. To override 
 
 In some cases, such as extension libraries, you may need to access lifecycle events from a service rather than directly from the Aspire application model. You can implement `IDistributedApplicationEventingSubscriber` and register the service with `AddEventingSubscriber` (or `TryAddEventingSubscriber` if you want to avoid duplicate registrations).
 
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust SDK emits eventing subscriber callbacks as Fn(Vec<Value>) -> Value instead of typed registration and event callbacks.',
+  }}
+>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Eventing;
 using Aspire.Hosting.Lifecycle;
@@ -389,29 +462,112 @@ internal sealed class LifecycleLoggerSubscriber(ILogger<LifecycleLoggerSubscribe
 }
 ```
 
-<Aside type="note">
-  C# eventing subscriber service classes are specific to the C# AppHost hosting
-  model. TypeScript AppHosts can register callback-based subscribers with
-  `addEventingSubscriber` or `tryAddEventingSubscriber`.
-</Aside>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-builder.addEventingSubscriber(async (events) => {
-  events.onBeforeStart(async () => {
+await builder.addEventingSubscriber(async (events) => {
+  await events.onBeforeStart(async () => {
     console.log('1. BeforeStartEvent');
   });
 
-  events.onAfterResourcesCreated(async () => {
+  await events.onAfterResourcesCreated(async () => {
     console.log('3. AfterResourcesCreatedEvent');
   });
 });
 
 await builder.build().run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    def subscribe(events):
+        events.on_before_start(
+            lambda event: print("1. BeforeStartEvent")
+        )
+        events.on_after_resources_created(
+            lambda event: print("3. AfterResourcesCreatedEvent")
+        )
+
+    builder.add_eventing_subscriber(subscribe)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	err = builder.AddEventingSubscriber(
+		func(events aspire.EventingSubscriberRegistrationContext) {
+			events.OnBeforeStart(func(event aspire.BeforeStartEvent) {
+				log.Print("1. BeforeStartEvent")
+			})
+			events.OnAfterResourcesCreated(
+				func(event aspire.AfterResourcesCreatedEvent) {
+					log.Print("3. AfterResourcesCreatedEvent")
+				},
+			)
+		},
+	)
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addEventingSubscriber(events -> {
+        events.onBeforeStart(
+            event -> System.out.println("1. BeforeStartEvent"));
+        events.onAfterResourcesCreated(
+            event -> System.out.println("3. AfterResourcesCreatedEvent"));
+    });
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 The subscriber approach keeps builder code minimal while still letting you respond to the same lifecycle moments as inline subscriptions:
 
@@ -434,6 +590,17 @@ If you're migrating from the deprecated `IDistributedApplicationLifecycleHook` i
 
 **Before (deprecated):**
 
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK does not use the deprecated IDistributedApplicationLifecycleHook class model.',
+    python: 'The generated Python SDK does not use the deprecated IDistributedApplicationLifecycleHook class model.',
+    go: 'The generated Go SDK does not use the deprecated IDistributedApplicationLifecycleHook class model.',
+    java: 'The generated Java SDK does not use the deprecated IDistributedApplicationLifecycleHook class model.',
+    rust: 'The generated Rust SDK does not use the deprecated IDistributedApplicationLifecycleHook class model.',
+  }}
+>
+<Fragment slot="csharp">
+
 ```csharp title="OldLifecycleHook.cs"
 public class MyHook : IDistributedApplicationLifecycleHook
 {
@@ -450,7 +617,21 @@ public class MyHook : IDistributedApplicationLifecycleHook
 builder.Services.TryAddLifecycleHook<MyHook>();
 ```
 
+</Fragment>
+</AppHostTabs>
+
 **After (recommended):**
+
+<AppHostTabs
+  limitations={{
+    typescript: 'The generated TypeScript SDK supports callback-based eventing subscribers, but it does not export the C# IDistributedApplicationEventingSubscriber service class model.',
+    python: 'The generated Python SDK supports callback-based eventing subscribers, but it does not export the C# IDistributedApplicationEventingSubscriber service class model.',
+    go: 'The generated Go SDK supports callback-based eventing subscribers, but it does not export the C# IDistributedApplicationEventingSubscriber service class model.',
+    java: 'The generated Java SDK supports callback-based eventing subscribers, but it does not export the C# IDistributedApplicationEventingSubscriber service class model.',
+    rust: 'The generated Rust SDK does not export the C# IDistributedApplicationEventingSubscriber service class model, and its callback-based subscriber API is untyped.',
+  }}
+>
+<Fragment slot="csharp">
 
 ```csharp title="NewEventingSubscriber.cs"
 public class MySubscriber : IDistributedApplicationEventingSubscriber
@@ -474,6 +655,9 @@ public class MySubscriber : IDistributedApplicationEventingSubscriber
 builder.Services.TryAddEventingSubscriber<MySubscriber>();
 ```
 
+</Fragment>
+</AppHostTabs>
+
 <Aside type="caution">
   The `IDistributedApplicationLifecycleHook` interface is deprecated as of
   Aspire 9.0 and will be removed in a future release. Migrate to
@@ -493,7 +677,11 @@ When publishing your application (generating deployment manifests), these events
 | `BeforePublishEvent` | Before publishing begins   | Validate or modify resources before manifest generation |
 | `AfterPublishEvent`  | After publishing completes | Perform cleanup or post-publish actions                 |
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust SDK emits publishing callbacks as Fn(Vec<Value>) -> Value instead of typed event callbacks, so a type-safe equivalent is not available.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -530,6 +718,40 @@ await builder.subscribeAfterPublish(async (event) => {
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+builder.subscribe_before_publish(
+    lambda event: print("Publishing application")
+)
+builder.subscribe_after_publish(
+    lambda event: print("Publish completed")
+)
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder.SubscribeBeforePublish(func(event aspire.BeforePublishEvent) {
+	log.Println("Publishing application")
+})
+builder.SubscribeAfterPublish(func(event aspire.AfterPublishEvent) {
+	log.Println("Publish completed")
+})
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+builder.subscribeBeforePublish(
+    event -> System.out.println("Publishing application"));
+builder.subscribeAfterPublish(
+    event -> System.out.println("Publish completed"));
+```
+
+</Fragment>
 </AppHostTabs>
 
 <LearnMore>
@@ -541,7 +763,14 @@ await builder.subscribeAfterPublish(async (event) => {
 
 The `ResourceStoppedEvent` is raised when a resource stops execution:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'This resource-stopped example uses add_redis, which is not included in the generated Python SDK.',
+    go: 'This resource-stopped example uses AddRedis, which is not included in the generated Go SDK.',
+    java: 'This resource-stopped example uses addRedis, which is not included in the generated Java SDK.',
+    rust: 'This resource-stopped example uses add_redis, which is not included in the generated Rust SDK; Rust event callbacks are also emitted as untyped JSON callbacks.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"

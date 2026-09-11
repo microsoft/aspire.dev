@@ -48,6 +48,15 @@ HTTP commands are user-cancelable from the dashboard, so by default the request 
 
 If you want a command to time out after a specific duration, specify `HttpCommandOptions.HttpClientName` with the name of an `HttpClient` you configure with `IHttpClientFactory`, and set its `Timeout` accordingly:
 
+<AppHostTabs limitations={{
+  typescript: 'The TypeScript AppHost SDK does not expose the AppHost service collection used to register a named .NET HttpClient.',
+  python: 'The Python AppHost SDK does not expose the AppHost service collection used to register a named .NET HttpClient.',
+  go: 'The Go AppHost SDK does not expose the AppHost service collection used to register a named .NET HttpClient.',
+  java: 'The Java AppHost SDK does not expose the AppHost service collection used to register a named .NET HttpClient.',
+  rust: 'The Rust AppHost SDK does not expose the AppHost service collection used to register a named .NET HttpClient.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -68,11 +77,23 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
+</Fragment>
+</AppHostTabs>
+
 When `HttpCommandOptions.HttpClientName` is specified, the named `HttpClient` is used as configured, including its `Timeout`.
 
 ## Add a custom HTTP command
 
 In your _AppHost.cs_ file, you add a custom HTTP command using the `WithHttpCommand` API on an `IResourceBuilder<T>` where `T` is an `IResourceWithEndpoints`. Here's an example of how to do this:
+
+<AppHostTabs limitations={{
+  typescript: 'The TypeScript SDK emits withHttpCommand export options, but this complete example also uses a Redis hosting integration and the mutable .NET HttpCommandOptions callback shape, which are not emitted by this SDK.',
+  python: 'The Python SDK emits with_http_command export options, but this complete example also uses a Redis hosting integration and the mutable .NET HttpCommandOptions callback shape, which are not emitted by this SDK.',
+  go: 'The Go SDK emits WithHttpCommand export options, but this complete example also uses a Redis hosting integration and the mutable .NET HttpCommandOptions callback shape, which are not emitted by this SDK.',
+  java: 'The Java SDK emits withHttpCommand export options, but this complete example also uses a Redis hosting integration and the mutable .NET HttpCommandOptions callback shape, which are not emitted by this SDK.',
+  rust: 'The Rust SDK emits with_http_command export options, but this complete example also uses a Redis hosting integration and the mutable .NET HttpCommandOptions callback shape, which are not emitted by this SDK.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -105,6 +126,9 @@ var api = builder.AddProject<Projects.AspireApp_Api>("api")
 
 builder.Build().Run();
 ```
+
+</Fragment>
+</AppHostTabs>
 
 The preceding code:
 
@@ -206,6 +230,109 @@ await builder
   });
 
 await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../Api/Api.csproj")
+    api.with_http_command(
+        "/admin/sync",
+        "Sync now",
+        options={"MethodName": "POST", "ResultMode": "Auto"},
+    )
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.
+		AddProject("api", "../Api/Api.csproj").
+		WithHttpCommand("/admin/sync", "Sync now", &aspire.HttpCommandExportOptions{
+			MethodName: aspire.StringPtr("POST"),
+			ResultMode: aspire.HttpCommandResultModeAuto,
+		})
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var options = new HttpCommandExportOptions();
+    options.setMethodName("POST");
+    options.setResultMode(HttpCommandResultMode.AUTO);
+
+    var api = builder.addProject("api", "../Api/Api.csproj");
+    api.withHttpCommand("/admin/sync", "Sync now", options);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project("api", "../Api/Api.csproj", None)?;
+    api.with_http_command(
+        "/admin/sync",
+        "Sync now",
+        Some(HttpCommandExportOptions {
+            method_name: Some("POST".to_string()),
+            result_mode: HttpCommandResultMode::Auto,
+            ..Default::default()
+        }),
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
 ```
 
 </Fragment>

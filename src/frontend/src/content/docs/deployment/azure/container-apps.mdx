@@ -44,7 +44,12 @@ Learn more about the `aspire add` command in the [reference docs](/reference/cli
 
 Then add the Azure Container Apps environment in your AppHost and a web app you want to place in that environment:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export add_azure_container_app_environment, so this deployment environment cannot be modeled from a Python AppHost.',
+  go: 'The generated Go SDK does not export AddAzureContainerAppEnvironment, so this deployment environment cannot be modeled from a Go AppHost.',
+  java: 'The generated Java SDK does not export addAzureContainerAppEnvironment, so this deployment environment cannot be modeled from a Java AppHost.',
+  rust: 'The generated Rust SDK does not export add_azure_container_app_environment, so this deployment environment cannot be modeled from a Rust AppHost.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -120,7 +125,12 @@ Azure Container Apps uses an Envoy-based HTTP edge proxy for HTTP ingress:
 
 To match the deployed serving scheme, Aspire upgrades external HTTP endpoints in an Azure Container Apps environment to HTTPS when it generates endpoint URLs and service discovery connection strings for dependent resources. If you intentionally need generated endpoint URLs and connection strings to preserve `http://`, disable the upgrade on the environment:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export the Container Apps environment or with_https_upgrade APIs.',
+  go: 'The generated Go SDK does not export the Container Apps environment or WithHttpsUpgrade APIs.',
+  java: 'The generated Java SDK does not export the Container Apps environment or withHttpsUpgrade APIs.',
+  rust: 'The generated Rust SDK does not export the Container Apps environment or with_https_upgrade APIs.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -197,7 +207,12 @@ Probe traffic stays on the internal container network. If a probe is associated 
 
 Use `PublishAsAzureContainerApp` when you want to customize the generated Container App resource for a project, container, or executable. It isn't required for a standard Container Apps deployment.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export publish_as_azure_container_app or its Container App customization callback.',
+  go: 'The generated Go SDK does not export PublishAsAzureContainerApp or its Container App customization callback.',
+  java: 'The generated Java SDK does not export publishAsAzureContainerApp or its Container App customization callback.',
+  rust: 'The generated Rust SDK does not export publish_as_azure_container_app or its Container App customization callback.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -236,7 +251,12 @@ await builder.build().run();
 
 Use `ConfigureCustomDomain` when you want Aspire to configure a custom domain and managed certificate on the generated Container App.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export Azure Container App publishing or custom-domain configuration APIs.',
+  go: 'The generated Go SDK does not export Azure Container App publishing or custom-domain configuration APIs.',
+  java: 'The generated Java SDK does not export Azure Container App publishing or custom-domain configuration APIs.',
+  rust: 'The generated Rust SDK does not export Azure Container App publishing or custom-domain configuration APIs.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -295,6 +315,52 @@ const api = await builder.addProject("api", "../Api/Api.csproj", "http");
 await api.withExternalHttpEndpoints();
 ```
 </Fragment>
+<Fragment slot="python">
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project("api", "../Api/Api.csproj", launch_profile_or_options="http")
+    api.with_external_http_endpoints()
+    builder.run()
+```
+</Fragment>
+<Fragment slot="go">
+```go title="apphost.go"
+api := builder.AddProject("api", "../Api/Api.csproj", &aspire.AddProjectOptions{
+	LaunchProfileOrOptions: "http",
+})
+api.WithExternalHttpEndpoints()
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</Fragment>
+<Fragment slot="java">
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+    var api = builder.addProject("api", "../Api/Api.csproj", "http");
+    api.withExternalHttpEndpoints();
+    builder.build().run();
+}
+```
+</Fragment>
+<Fragment slot="rust">
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+let api = builder.add_project(
+    "api",
+    "../Api/Api.csproj",
+    Some(serde_json::json!("http")),
+)?;
+api.with_external_http_endpoints()?;
+let app = builder.build()?;
+app.run(None)?;
+```
+</Fragment>
 </AppHostTabs>
 
 ## Optional environment settings
@@ -303,7 +369,12 @@ await api.withExternalHttpEndpoints();
 
 By default, Aspire provisions an Azure Container Registry for the environment. If you want to use a shared or explicitly named registry instead, add an Azure Container Registry resource and attach it to the environment:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export Azure Container Registry resources or Container Apps environment registry attachment.',
+  go: 'The generated Go SDK exports a generic container registry, but not Azure Container Registry resources or Container Apps environment registry attachment.',
+  java: 'The generated Java SDK exports a generic container registry, but not Azure Container Registry resources or Container Apps environment registry attachment.',
+  rust: 'The generated Rust SDK exports a generic container registry, but not Azure Container Registry resources or Container Apps environment registry attachment.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -335,7 +406,12 @@ For more information, see [Azure Container Registry integration](/integrations/c
 
 The Azure Container Apps environment includes the Aspire Dashboard by default. It helps you inspect the compute resources deployed into that environment. Managed Azure backing services aren't shown as dashboard resources there. If you don't want to deploy it, disable it on the environment:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'The generated Python SDK does not export the Container Apps environment or with_dashboard deployment setting.',
+  go: 'The generated Go SDK does not export the Container Apps environment or WithDashboard deployment setting.',
+  java: 'The generated Java SDK does not export the Container Apps environment or withDashboard deployment setting.',
+  rust: 'The generated Rust SDK does not export the Container Apps environment or with_dashboard deployment setting.',
+}}>
 <Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);

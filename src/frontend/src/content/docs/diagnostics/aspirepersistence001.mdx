@@ -5,6 +5,7 @@ description: Learn what causes the Aspire compiler error ASPIREPERSISTENCE001 an
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge
   text="Version introduced: 13.4"
@@ -28,7 +29,28 @@ The following APIs and types are protected by this diagnostic:
 
 ## Example
 
-The following code generates `ASPIREPERSISTENCE001`:
+These APIs are included in core Aspire hosting; no additional hosting integration is required.
+
+The C# example generates `ASPIREPERSISTENCE001`. The TypeScript, Python, Go, and Java examples configure the same executable lifetime without emitting this C# compiler diagnostic. The `../worker` directory must contain `server.js` and `helper.js`. Python, Go, and Java examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs limitations={{
+  rust: "The current experimental Rust SDK has a runtime serialization issue with executable argument arrays. These examples require `add_executable` with script arguments, so a Rust variant isn't provided.",
+}}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const worker = await builder.addExecutable("worker", "node", "../worker", ["server.js"]);
+await worker.withPersistentLifetime();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -39,9 +61,214 @@ var worker = builder.AddExecutable("worker", "node", "../worker", "server.js")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    worker = builder.add_executable("worker", "node", "../worker", ["server.js"])
+    worker.with_persistent_lifetime()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	worker := builder.
+		AddExecutable("worker", "node", "../worker", []string{"server.js"}).
+		WithPersistentLifetime()
+	if err := worker.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addExecutable("worker", "node", "../worker", new String[] { "server.js" })
+        .withPersistentLifetime();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+The same shared lifetime APIs also support session, parent-process, and resource-scoped lifetimes. Choose the lifetime appropriate to each resource. Replace `12345` with the ID of the process that should own the parent-process resource.
+
+<AppHostTabs limitations={{
+  rust: "The current experimental Rust SDK has a runtime serialization issue with executable argument arrays. These examples require `add_executable` with script arguments, so a Rust variant isn't provided.",
+}}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const sessionWorker = await builder.addExecutable("session-worker", "node", "../worker", ["server.js"]);
+await sessionWorker.withSessionLifetime();
+
+const parentWorker = await builder.addExecutable("parent-worker", "node", "../worker", ["server.js"]);
+await parentWorker.withParentProcessLifetime(12345);
+
+const helper = await builder.addExecutable("helper", "node", "../worker", ["helper.js"]);
+await helper.withLifetimeOf(sessionWorker);
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sessionWorker = builder.AddExecutable("session-worker", "node", "../worker", "server.js")
+    .WithSessionLifetime();
+
+var parentWorker = builder.AddExecutable("parent-worker", "node", "../worker", "server.js")
+    .WithParentProcessLifetime(12345);
+
+var helper = builder.AddExecutable("helper", "node", "../worker", "helper.js")
+    .WithLifetimeOf(sessionWorker);
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    session_worker = builder.add_executable("session-worker", "node", "../worker", ["server.js"])
+    session_worker.with_session_lifetime()
+
+    parent_worker = builder.add_executable("parent-worker", "node", "../worker", ["server.js"])
+    parent_worker.with_parent_process_lifetime(12345)
+
+    helper = builder.add_executable("helper", "node", "../worker", ["helper.js"])
+    helper.with_lifetime_of(session_worker)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	sessionWorker := builder.
+		AddExecutable("session-worker", "node", "../worker", []string{"server.js"}).
+		WithSessionLifetime()
+	if err := sessionWorker.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	parentWorker := builder.
+		AddExecutable("parent-worker", "node", "../worker", []string{"server.js"}).
+		WithParentProcessLifetime(12345)
+	if err := parentWorker.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	helper := builder.
+		AddExecutable("helper", "node", "../worker", []string{"helper.js"}).
+		WithLifetimeOf(sessionWorker)
+	if err := helper.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var sessionWorker = builder.addExecutable(
+        "session-worker", "node", "../worker", new String[] { "server.js" });
+    sessionWorker.withSessionLifetime();
+
+    builder.addExecutable("parent-worker", "node", "../worker", new String[] { "server.js" })
+        .withParentProcessLifetime(12345);
+
+    builder.addExecutable("helper", "node", "../worker", new String[] { "helper.js" })
+        .withLifetimeOf(sessionWorker);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 ## To correct this error
 
 Suppress the diagnostic when you intentionally opt in to the experimental shared lifetime APIs. For container resources, you can instead use the supported container-specific `WithLifetime(ContainerLifetime.Persistent)` and `WithLifetime(ContainerLifetime.Session)` APIs.
+
+The following suppression options apply to C# AppHosts. For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 Suppress the error with one of the following methods:
 

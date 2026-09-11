@@ -77,6 +77,99 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_executable("api", "node", "./api", ["index.js"])
+    container = builder.add_container("mycontainer", "myimage")
+    container.with_reference(api)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddExecutable("api", "node", "./api", []string{"index.js"})
+	container := builder.AddContainer("mycontainer", "myimage").WithReference(api)
+	if err := container.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var api = builder.addExecutable(
+        "api", "node", "./api", new String[] { "index.js" });
+    var container = builder.addContainer("mycontainer", "myimage");
+    container.withReference(api);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_executable(
+        "api",
+        "node",
+        "./api",
+        vec!["index.js".to_string()],
+    )?;
+    let container = builder.add_container("mycontainer", json!("myimage"))?;
+    container.with_reference(serialize_handle(&api), None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 ## Network identifiers
@@ -90,6 +183,15 @@ The `KnownNetworkIdentifiers` class provides predefined identifiers for common s
 - `KnownNetworkIdentifiers.PublicInternet` — resolves the endpoint as reachable from external networks.
 
 You can use these identifiers when you need to obtain an endpoint for a specific network context:
+
+<AppHostTabs limitations={{
+  typescript: 'The TypeScript SDK exposes getEndpoint(name), but it does not emit the overload that accepts an explicit network identifier.',
+  python: 'The Python SDK exposes get_endpoint(name), but it does not emit the overload that accepts an explicit network identifier.',
+  go: 'The Go SDK exposes GetEndpoint(name), but it does not emit the overload that accepts an explicit network identifier.',
+  java: 'The Java SDK exposes getEndpoint(name), but it does not emit the overload that accepts an explicit network identifier.',
+  rust: 'The Rust SDK exposes get_endpoint(name), but it does not emit the overload that accepts an explicit network identifier.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -107,10 +209,8 @@ var containerEndpoint = api.GetEndpoint(
 builder.Build().Run();
 ```
 
-<Aside type="note">
-  TypeScript AppHost support for resolving endpoints with explicit network
-  identifiers isn't yet available.
-</Aside>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
   In most cases you don't need to use network identifiers directly. When you

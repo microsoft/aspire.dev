@@ -4,6 +4,7 @@ description: Understand how telemetry and the Aspire dashboard work after you de
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 The Aspire dashboard is designed for local development and short-term diagnostics. It stores telemetry in memory, which means telemetry is lost when the dashboard restarts and there are built-in limits on how much data it retains. After deploying your app to a production environment, you need to configure a persistent telemetry backend.
@@ -52,6 +53,40 @@ For more information about how Aspire configures OpenTelemetry, see [Aspire tele
 
 Add the Application Insights resource to your AppHost project:
 
+<AppHostTabs limitations={{
+  python: 'The verified Python SDK does not include the Azure Application Insights integration APIs used in this example.',
+  go: 'The verified Go SDK does not include the Azure Application Insights integration APIs used in this example.',
+  java: 'The verified Java SDK does not include the Azure Application Insights integration APIs used in this example.',
+  rust: 'The verified Rust SDK does not include the Azure Application Insights integration APIs used in this example.',
+}}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const insights = await builder.addAzureApplicationInsights('app-insights');
+
+const apiService = await builder.addProject(
+  'apiservice',
+  '../MyApp.ApiService/MyApp.ApiService.csproj'
+);
+await apiService.withReference(insights);
+
+const webFrontend = await builder.addProject(
+  'webfrontend',
+  '../MyApp.Web/MyApp.Web.csproj'
+);
+await webFrontend.withReference(insights);
+await webFrontend.withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -66,6 +101,9 @@ builder.AddProject<Projects.MyApp_Web>("webfrontend")
 
 builder.Build().Run();
 ```
+
+</Fragment>
+</AppHostTabs>
 
 When you reference Application Insights, Aspire automatically configures the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable for each service. The `Azure.Monitor.OpenTelemetry.AspNetCore` package uses the `UseAzureMonitor()` method to read this variable and send telemetry to Application Insights.
 

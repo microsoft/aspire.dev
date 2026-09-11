@@ -5,6 +5,7 @@ description: Learn what causes the Aspire compiler error ASPIREPIPELINES001 and 
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge
   text="Version introduced: 13.0"
@@ -34,7 +35,146 @@ This diagnostic applies to the following pipeline infrastructure APIs:
 In Aspire 13.5, only the `CompletionState` enumeration graduated from experimental and no longer triggers this diagnostic. The other APIs listed above remain experimental and continue to require suppressing `ASPIREPIPELINES001`.
 :::
 
+## Report progress from a pipeline step
+
+The TypeScript, Python, Go, and Java SDKs export pipeline step registration and reporting-task operations. The following examples create and complete a reporting task. The C# reporting APIs generate `ASPIREPIPELINES001`; these generated SDKs expose the experimental operations without emitting this C# compiler diagnostic. No additional hosting package is required. Python, Go, and Java examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs limitations={{
+  rust: "The generated Rust SDK exposes pipeline-step callbacks as raw `Fn(Vec<Value>) -> Value` callbacks, without converting their arguments to `PipelineStepContext`. This example requires that typed context to obtain the reporting-step and reporting-task handles.",
+}}>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const pipeline = await builder.pipeline();
+await pipeline.addStep("report-status", async context => {
+    const step = await context.reportingStep();
+    const task = await step.createTask("Checking deployment prerequisites");
+    await task.completeTask("Prerequisites checked");
+});
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.Pipeline.AddStep("report-status", async context =>
+{
+    await using var task = await context.ReportingStep.CreateTaskAsync(
+        "Checking deployment prerequisites");
+    await task.CompleteAsync("Prerequisites checked");
+});
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import PipelineStepContext, create_builder
+
+
+def report_status(context: PipelineStepContext) -> None:
+    task = context.reporting_step.create_task(
+        "Checking deployment prerequisites"
+    )
+    task.complete_task(completion_message="Prerequisites checked")
+
+
+with create_builder() as builder:
+    builder.pipeline.add_step("report-status", report_status)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	pipeline := builder.Pipeline()
+	if err := pipeline.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	err = pipeline.AddStep("report-status", func(context aspire.PipelineStepContext) {
+		step := context.ReportingStep()
+		if err := step.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+
+		task := step.CreateTask("Checking deployment prerequisites")
+		if err := task.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+		if err := task.CompleteTask(&aspire.CompleteTaskOptions{
+			CompletionMessage: aspire.StringPtr("Prerequisites checked"),
+		}); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	})
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.pipeline().addStep("report-status", context -> {
+        var task = context.reportingStep().createTask(
+            "Checking deployment prerequisites");
+        task.completeTask(new CompleteTaskOptions()
+            .completionMessage("Prerequisites checked"));
+    });
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+Run the registered step with `aspire do report-status`. Implementing .NET interfaces such as `IPipelineActivityReporter`, or constructing `PublishingContext` and `PublishingCallbackAnnotation` directly, remains a C#-only extensibility operation; the generated SDKs do not expose those construction APIs.
+
 ## To correct this error
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost). Suppression is only needed for C#.
 
 Suppress the error with one of the following methods:
 

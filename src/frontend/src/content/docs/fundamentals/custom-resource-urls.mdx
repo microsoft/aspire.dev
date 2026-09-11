@@ -5,6 +5,7 @@ description: Create custom resource URLs in Aspire so the dashboard, MCP server,
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 In Aspire, resources that expose endpoints only configure host and port, which aren't known until run time. If you need to access a specific path on one of these endpoints—especially from the [dashboard](/dashboard/overview/)—you can define custom resource URLs. You can also add custom URLs that aren't tied to any endpoint. All custom URLs are only available in "run" mode, since they're meant for dashboard use. This article demonstrates how to define custom URLs.
 
@@ -31,6 +32,9 @@ Custom resource URLs are supported for the following resource types:
 
 Use the appropriate `WithUrl` overload, `WithUrls`, or `WithUrlForEndpoint` APIs on any supported resource builder to define custom URLs for a resource. The following example demonstrates how to set a custom URL for a project resource:
 
+<AppHostTabs>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -41,19 +45,135 @@ api.WithUrl("/admin", "Admin Portal");
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../AspireApp.Api/AspireApp.Api.csproj');
+await api.withUrl('/admin', { displayText: 'Admin Portal' });
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_project(
+        "api", "../AspireApp.Api/AspireApp.Api.csproj"
+    )
+    api.with_url("/admin", display_text="Admin Portal")
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.
+		AddProject("api", "../AspireApp.Api/AspireApp.Api.csproj").
+		WithUrl("/admin", &aspire.WithUrlOptions{
+			DisplayText: aspire.StringPtr("Admin Portal"),
+		})
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var api = builder.addProject(
+        "api", "../AspireApp.Api/AspireApp.Api.csproj");
+    api.withUrl("/admin", "Admin Portal");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let api = builder.add_project(
+        "api",
+        "../AspireApp.Api/AspireApp.Api.csproj",
+        None,
+    )?;
+    api.with_url(json!("/admin"), Some("Admin Portal"))?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 <Aside type="tip">
   There's an overload that accepts a `string` allowing you to pass any URL. This
   is useful for defining custom URLs that aren't directly related to the
   resource's endpoint.
 </Aside>
 
-The preceding code assigns a project reference to the `api` variable, which is then used to create a custom URL for the `Admin Portal` route. The `WithUrl` method takes a `ReferenceExpression` and a display name as parameters. The resulting URL is available in the dashboard.
+The preceding code assigns a project reference to the `api` variable, which is then used to create a custom URL for the `Admin Portal` route. The custom URL API accepts either a string or reference expression plus an optional display name. The resulting URL is available in the dashboard.
 
 ### Customize endpoint URL
 
 Both [Scalar](https://scalar.com/) and [Swagger](https://swagger.io/tools/swagger-ui/) are common API services that enhance the usability of endpoints. These services are accessed via URLs tied to declared endpoints.
 
 To customize the URL for the first associated resource endpoint, use the `WithUrlForEndpoint` method. If you want to add a separate URL (even for the same endpoint) you need to call the `WithUrl` overload that takes a `ReferenceExpression` or interpolated string, or call `WithUrls` and add the URL to the `Urls` list on the context.
+
+<AppHostTabs limitations={{
+  rust: 'The Rust SDK emits with_url_for_endpoint only with an untyped transport callback, so typed ResourceUrlAnnotation mutation is not currently usable.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -68,15 +188,121 @@ builder.AddProject<Projects.AspireApp_Api>("api")
 builder.Build().Run();
 ```
 
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../AspireApp.Api/AspireApp.Api.csproj');
+await api.withUrlForEndpoint('https', async (url) => {
+  url.displayText = 'Scalar (HTTPS)';
+  url.url = '/scalar';
+});
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import ResourceUrlAnnotation, create_builder
+
+
+def customize_scalar_url(url: ResourceUrlAnnotation) -> None:
+    url["DisplayText"] = "Scalar (HTTPS)"
+    url["Url"] = "/scalar"
+
+
+with create_builder() as builder:
+    api = builder.add_project(
+        "api", "../AspireApp.Api/AspireApp.Api.csproj"
+    )
+    api.with_url_for_endpoint("https", customize_scalar_url)
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	api := builder.AddProject("api", "../AspireApp.Api/AspireApp.Api.csproj")
+	api.WithUrlForEndpoint("https", func(url *aspire.ResourceUrlAnnotation) {
+		url.DisplayText = aspire.StringPtr("Scalar (HTTPS)")
+		url.Url = "/scalar"
+	})
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var api = builder.addProject(
+        "api", "../AspireApp.Api/AspireApp.Api.csproj");
+    api.withUrlForEndpoint("https", url -> {
+        url.setDisplayText("Scalar (HTTPS)");
+        url.setUrl("/scalar");
+    });
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
 The preceding example assumes that the `api` project resource has an `https` endpoint configured. The `WithUrlForEndpoint` method updates the `ResourceUrlAnnotation` associated with the endpoint. In this case, it assigns the display text to `Scalar (HTTPS)` and assigns the relative `/scalar` path to the URL.
 
 When the resource is started, the URL is available in the dashboard.
 
-Alternatively, you could use the overload that accepts a `Func<EndpointReference, ResourceUrlAnnotation>` as a callback. This allows you to specify deep-links on target `EndpointReference` instances.
+In C#, you can alternatively use the overload that accepts a `Func<EndpointReference, ResourceUrlAnnotation>` callback. This allows you to specify deep-links on target `EndpointReference` instances.
 
 ### Customize multiple resource URLs
 
 To customize multiple URLs for a resource, use the `WithUrls` method. This method allows you to specify multiple URLs for a resource, each with its own display text. The following example demonstrates how to set multiple URLs for a project resource:
+
+<AppHostTabs limitations={{
+  typescript: 'The TypeScript ResourceUrlsEditor can add URLs, but it does not expose iteration over existing URLs for this relabel-all operation.',
+  python: 'The Python ResourceUrlsEditor can add URLs, but it does not expose iteration over existing URLs for this relabel-all operation.',
+  go: 'The Go ResourceUrlsEditor can add URLs, but it does not expose iteration over existing URLs for this relabel-all operation.',
+  java: 'The Java ResourceUrlsEditor can add URLs, but it does not expose iteration over existing URLs for this relabel-all operation.',
+  rust: 'The Rust ResourceUrlsEditor can add URLs, but with_urls uses an untyped transport callback and does not expose iteration over existing URLs for this relabel-all operation.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -95,6 +321,9 @@ builder.AddProject<Projects.AspireApp_Api>("api")
 
 builder.Build().Run();
 ```
+
+</Fragment>
+</AppHostTabs>
 
 The preceding code iterates through the URLs defined for the `api` project resource and assigns a display text with scheme.
 

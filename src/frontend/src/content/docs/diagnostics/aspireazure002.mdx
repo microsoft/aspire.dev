@@ -1,10 +1,12 @@
 ---
 title: Compiler Error ASPIREAZURE002
-seoTitle: "ASPIREAZURE002: Azure Container App Jobs are for evaluation"
+seoTitle: 'ASPIREAZURE002: Azure Container App Jobs are for evaluation'
 description: Learn what causes the Aspire compiler error ASPIREAZURE002 and how to fix it so your AppHost builds cleanly. Resolve or suppress it to keep your Aspire build.
 ---
 
-import { Badge, Aside } from '@astrojs/starlight/components';
+import { Badge, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 9.5"
@@ -14,16 +16,310 @@ import { Badge, Aside } from '@astrojs/starlight/components';
 />
 
 <Aside type="note">
-  As of Aspire 13.4, the `PublishAsAzureContainerAppJob` and `PublishAsScheduledAzureContainerAppJob` APIs are no longer experimental and do not trigger `ASPIREAZURE002`. This diagnostic only applies if you are using an earlier version of Aspire.
+  As of Aspire 13.4, the `PublishAsAzureContainerAppJob` and
+  `PublishAsScheduledAzureContainerAppJob` APIs are no longer experimental and
+  do not trigger `ASPIREAZURE002`. This diagnostic only applies if you are using
+  an earlier version of Aspire.
 </Aside>
 
 > Azure Container App Jobs are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-The Aspire Azure hosting integration now ships with support for Azure Container App Jobs. If you're using any of the `PublishAsAzureContainerAppJob` APIs, you might see a compiler error/warning indicating that the API is experimental. This behavior is expected, as the API is still in preview and the shape of this API is expected to change in the future.
+The Aspire Azure hosting integration supports Azure Container App Jobs. In Aspire versions earlier than 13.4, using the `PublishAsAzureContainerAppJob` APIs in C# can produce this experimental API diagnostic. Current AppHosts can use the stable job APIs without suppressing it.
 
 ## Example
 
-The following code generates `ASPIREAZURE002`:
+Install the Azure Container Apps hosting integration:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.AppContainers" />
+
+For generated AppHost SDK setup, see [Experimental AppHost examples](/diagnostics/overview/#experimental-apphost-examples).
+
+The following examples publish a job scheduled to run daily at midnight with the dedicated scheduled-job API:
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addAzureContainerAppEnvironment('env');
+const processor = await builder.addProject(
+  'data-processor',
+  '../DataProcessor/DataProcessor.csproj'
+);
+await processor.publishAsScheduledAzureContainerAppJob('0 0 * * *');
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("env");
+builder.AddProject<Projects.DataProcessor>("data-processor")
+    .PublishAsScheduledAzureContainerAppJob("0 0 * * *");
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.add_azure_container_app_env("env")
+    processor = builder.add_project(
+        "data-processor",
+        "../DataProcessor/DataProcessor.csproj",
+    )
+    processor.publish_as_scheduled_azure_container_app_job("0 0 * * *")
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	env := builder.AddAzureContainerAppEnvironment("env")
+	processor := builder.
+		AddProject("data-processor", "../DataProcessor/DataProcessor.csproj").
+		PublishAsScheduledAzureContainerAppJob("0 0 * * *")
+	if err := env.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := processor.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addAzureContainerAppEnvironment("env");
+    var processor = builder.addProject(
+        "data-processor",
+        "../DataProcessor/DataProcessor.csproj");
+    processor.publishAsScheduledAzureContainerAppJob("0 0 * * *");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+The generated Rust method requires a callback even when the job doesn't need
+additional configuration, so pass a no-op callback:
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::Value;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    builder.add_azure_container_app_environment("env")?;
+    let processor = builder.add_project(
+        "data-processor",
+        "../DataProcessor/DataProcessor.csproj",
+        None,
+    )?;
+    processor.publish_as_scheduled_azure_container_app_job(
+        "0 0 * * *",
+        |_| Value::Null,
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+For a manually triggered job, use the general job API without a schedule:
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addAzureContainerAppEnvironment('env');
+const processor = await builder.addProject(
+  'data-processor',
+  '../DataProcessor/DataProcessor.csproj'
+);
+await processor.publishAsAzureContainerAppJob();
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("env");
+builder.AddProject<Projects.DataProcessor>("data-processor")
+    .PublishAsAzureContainerAppJob();
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.add_azure_container_app_env("env")
+    processor = builder.add_project(
+        "data-processor",
+        "../DataProcessor/DataProcessor.csproj",
+    )
+    processor.publish_as_azure_container_app_job()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	env := builder.AddAzureContainerAppEnvironment("env")
+	processor := builder.
+		AddProject("data-processor", "../DataProcessor/DataProcessor.csproj").
+		PublishAsAzureContainerAppJob()
+	if err := env.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := processor.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addAzureContainerAppEnvironment("env");
+    var processor = builder.addProject(
+        "data-processor",
+        "../DataProcessor/DataProcessor.csproj");
+    processor.publishAsAzureContainerAppJob();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+The generated Rust method requires a callback even when the job doesn't need
+additional configuration, so pass a no-op callback:
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::Value;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    builder.add_azure_container_app_environment("env")?;
+    let processor = builder.add_project(
+        "data-processor",
+        "../DataProcessor/DataProcessor.csproj",
+        None,
+    )?;
+    processor.publish_as_azure_container_app_job(|_| Value::Null)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+In earlier Aspire versions, the following C# customization generated `ASPIREAZURE002`. Direct Azure provisioning object mutation in this form is C#-only; use the scheduled-job API shown above for the same scheduling behavior in generated AppHost SDKs.
 
 ```csharp title="AppHost.cs"
 builder.AddProject<Projects.DataProcessor>("data-processor")
@@ -35,6 +331,10 @@ builder.AddProject<Projects.DataProcessor>("data-processor")
 ```
 
 ## To correct this error
+
+On Aspire 13.4 or later, remove existing `ASPIREAZURE002` suppressions. The following suppression options apply only to earlier C# AppHosts.
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 Suppress the error with either of the following methods:
 

@@ -5,6 +5,7 @@ description: Learn what causes the Aspire compiler warning ASPIREPROJECTS001 and
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 
 <Badge
   text="Version introduced: 13.5"
@@ -25,7 +26,115 @@ These APIs let a resource opt into the same launch-profile, Kestrel endpoint, an
 
 ## Example
 
-The following code generates `ASPIREPROJECTS001`:
+All AppHost languages can add a project resource. This operation already applies the launch-profile, Kestrel endpoint, and `ASPNETCORE_URLS` wiring. Python, Go, Java, and Rust examples require the [experimental AppHost setup](/diagnostics/overview/#experimental-apphost-examples).
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const web = await builder.addProject("web", "../Web/Web.csproj");
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var web = builder.AddProject<Projects.Web>("web");
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.add_project("web", "../Web/Web.csproj")
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	web := builder.AddProject("web", "../Web/Web.csproj")
+	if err := web.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.addProject("web", "../Web/Web.csproj");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    builder.add_project("web", "../Web/Web.csproj", None)?;
+
+    builder.build()?.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
+
+`WithProjectDefaults` and its annotations aren't exported to the generated AppHost SDKs. They are C#-only APIs for custom .NET integration authors implementing resources that carry `IProjectMetadata`. The following operation generates `ASPIREPROJECTS001` and isn't equivalent to adding a normal project resource:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -36,6 +145,8 @@ builder.AddResource(new MyDotnetResource("resource"))
 ```
 
 ## To correct this warning
+
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost).
 
 Suppress the warning with either of the following methods:
 

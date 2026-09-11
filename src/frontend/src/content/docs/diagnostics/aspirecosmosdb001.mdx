@@ -1,10 +1,12 @@
 ---
 title: Compiler Error ASPIRECOSMOSDB001
-seoTitle: "ASPIRECOSMOSDB001: `RunAsPreviewEmulator` is for evaluation"
+seoTitle: 'ASPIRECOSMOSDB001: `RunAsPreviewEmulator` is for evaluation'
 description: Learn what causes the Aspire compiler error ASPIRECOSMOSDB001 and how to fix it so your AppHost builds cleanly.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+import InstallPackage from '@components/InstallPackage.astro';
 
 <Badge
   text="Version introduced: 9.0"
@@ -25,18 +27,166 @@ Aspire provides a way to use the Cosmos DB Linux-based (preview) emulator and da
 
 ## Example
 
-The following sample generates `ASPIRECOSMOSDB001`:
+Install the Azure Cosmos DB hosting integration:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.CosmosDB" />
+
+For generated AppHost SDK setup, see [Experimental AppHost examples](/diagnostics/overview/#experimental-apphost-examples).
+
+The following examples enable the preview emulator and its data explorer. The C# calls generate `ASPIRECOSMOSDB001`; generated AppHost SDKs expose the same experimental operations without emitting this C# compiler diagnostic.
+
+<AppHostTabs>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB('cosmos');
+await cosmos.runAsPreviewEmulator(async (emulator) => {
+  await emulator.withDataExplorer();
+});
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos")
-                    .RunAsPreviewEmulator(e => e.WithDataExplorer());
+    .RunAsPreviewEmulator(e => e.WithDataExplorer());
+
+builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+
+def configure_emulator(emulator) -> None:
+    emulator.with_data_explorer()
+
+
+with create_builder() as builder:
+    cosmos = builder.add_azure_cosmos_db("cosmos")
+    cosmos.run_as_preview_emulator(
+        configure_container=configure_emulator
+    )
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cosmos := builder.
+		AddAzureCosmosDB("cosmos").
+		RunAsPreviewEmulator(&aspire.RunAsPreviewEmulatorOptions{
+			ConfigureContainer: func(emulator aspire.AzureCosmosDBEmulatorResource) {
+				emulator.WithDataExplorer()
+				if err := emulator.Err(); err != nil {
+					log.Fatal(aspire.FormatError(err))
+				}
+			},
+		})
+	if err := cosmos.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var cosmos = builder.addAzureCosmosDB("cosmos");
+    cosmos.runAsPreviewEmulator(
+        emulator -> emulator.withDataExplorer());
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+The generated Rust callback receives a raw handle value. Reconstruct the public
+`AzureCosmosDBEmulatorResource` wrapper before enabling the data explorer:
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::Value;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let cosmos = builder.add_azure_cosmos_db("cosmos")?;
+    let client = cosmos.client().clone();
+    cosmos.run_as_preview_emulator(move |args| {
+        let handle = serde_json::from_value(args[0].clone())
+            .expect("Cosmos DB emulator callback argument");
+        let emulator = AzureCosmosDBEmulatorResource::new(
+            handle,
+            client.clone(),
+        );
+        emulator
+            .with_data_explorer(None)
+            .expect("enable data explorer");
+        Value::Null
+    })?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 ## To correct this error
 
-Suppress the Error with either of the following methods:
+For a C# file-based AppHost, see [Suppress in a file-based AppHost](/diagnostics/overview/#suppress-in-a-file-based-apphost). Suppression is only needed for C#.
+
+Suppress the error with one of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 

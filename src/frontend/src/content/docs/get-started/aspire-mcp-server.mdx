@@ -19,7 +19,8 @@ For most AI coding-agent workflows, install [Aspire skills](/get-started/aspire-
 :::
 
 <LearnMore>
-  To set up your project for AI coding agents, see [Use AI coding agents](/get-started/ai-coding-agents/).
+  To set up your project for AI coding agents, see [Use AI coding
+  agents](/get-started/ai-coding-agents/).
 </LearnMore>
 
 ## Configuration
@@ -44,6 +45,7 @@ When you select **Install Aspire MCP server**, the `aspire agent init` command c
       }
     }
     ```
+
   </TabItem>
   <TabItem label="Claude Code" id="claude">
     Creates or updates `.mcp.json`:
@@ -61,6 +63,7 @@ When you select **Install Aspire MCP server**, the `aspire agent init` command c
       }
     }
     ```
+
   </TabItem>
   <TabItem label="Copilot CLI" id="copilot-cli">
     Creates or updates `~/.copilot/mcp-config.json`:
@@ -79,6 +82,7 @@ When you select **Install Aspire MCP server**, the `aspire agent init` command c
       }
     }
     ```
+
   </TabItem>
   <TabItem label="OpenCode" id="opencode">
     Creates or updates `opencode.jsonc`:
@@ -98,6 +102,7 @@ When you select **Install Aspire MCP server**, the `aspire agent init` command c
       }
     }
     ```
+
   </TabItem>
 </Tabs>
 
@@ -105,23 +110,23 @@ When you select **Install Aspire MCP server**, the `aspire agent init` command c
 
 The Aspire MCP server provides the following tools to AI agents:
 
-| Tool | Description |
-|------|-------------|
-| `list_resources` | Lists all resources, including state, health status, source, endpoints, and commands |
-| `list_console_logs` | Lists console logs for a resource |
-| `list_structured_logs` | Lists structured logs, optionally filtered by resource name |
-| `list_traces` | Lists distributed traces, optionally filtered by resource name |
-| `list_trace_structured_logs` | Lists structured logs for a specific trace |
-| `execute_resource_command` | Executes a resource command (start, stop, restart) |
-| `list_apphosts` | Lists detected AppHost connections and their scope |
-| `select_apphost` | Selects which AppHost to use when multiple are running |
-| `list_integrations` | Lists available Aspire hosting integration packages |
-| `get_integration_docs` | Gets documentation for a specific integration package |
-| `list_docs` | Lists all available documentation pages from aspire.dev |
-| `search_docs` | Searches aspire.dev documentation using keyword-based search |
-| `get_doc` | Retrieves the full content of a documentation page by slug |
-| `doctor` | Diagnoses Aspire environment issues and verifies setup |
-| `refresh_tools` | Requests the server to re-emit its tool list for clients to re-fetch |
+| Tool                         | Description                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------ |
+| `list_resources`             | Lists all resources, including state, health status, source, endpoints, and commands |
+| `list_console_logs`          | Lists console logs for a resource                                                    |
+| `list_structured_logs`       | Lists structured logs, optionally filtered by resource name                          |
+| `list_traces`                | Lists distributed traces, optionally filtered by resource name                       |
+| `list_trace_structured_logs` | Lists structured logs for a specific trace                                           |
+| `execute_resource_command`   | Executes a resource command (start, stop, restart)                                   |
+| `list_apphosts`              | Lists detected AppHost connections and their scope                                   |
+| `select_apphost`             | Selects which AppHost to use when multiple are running                               |
+| `list_integrations`          | Lists available Aspire hosting integration packages                                  |
+| `get_integration_docs`       | Gets documentation for a specific integration package                                |
+| `list_docs`                  | Lists all available documentation pages from aspire.dev                              |
+| `search_docs`                | Searches aspire.dev documentation using keyword-based search                         |
+| `get_doc`                    | Retrieves the full content of a documentation page by slug                           |
+| `doctor`                     | Diagnoses Aspire environment issues and verifies setup                               |
+| `refresh_tools`              | Requests the server to re-emit its tool list for clients to re-fetch                 |
 
 ### Exclude resources from MCP
 
@@ -129,36 +134,122 @@ By default, all resources, console logs, and telemetry are accessible through th
 
 <AppHostTabs>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var apiservice = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
     .ExcludeFromMcp();
-
-builder.AddProject<Projects.AspireApp_Web>("webfrontend")
-    .WithExternalHttpEndpoints()
-    .WithReference(apiservice);
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
+
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const apiservice = await builder
-  .addProject("apiservice", "./api/ApiService.csproj")
-  .excludeFromMcp();
-
 await builder
-  .addProject("webfrontend", "./web/Web.csproj")
-  .withExternalHttpEndpoints()
-  .withReference(apiservice);
+  .addProject('apiservice', './api/ApiService.csproj')
+  .excludeFromMcp();
 
 await builder.build().run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.add_project(
+        "apiservice", "./api/ApiService.csproj"
+    ).exclude_from_mcp()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	apiservice := builder.
+		AddProject("apiservice", "./api/ApiService.csproj").
+		ExcludeFromMcp()
+	if err := apiservice.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder
+        .addProject("apiservice", "./api/ApiService.csproj")
+        .excludeFromMcp();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let apiservice = builder.add_project(
+        "apiservice",
+        "./api/ApiService.csproj",
+        None,
+    )?;
+    apiservice.exclude_from_mcp()?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
 </Fragment>
 </AppHostTabs>
 
@@ -176,7 +267,9 @@ The MCP server uses the **STDIO transport protocol** when started via `aspire ag
 - Only the parent process (your AI assistant) can communicate with the MCP server.
 
 <Aside type="tip">
-Because STDIO transport uses pipes rather than network sockets, there is no network attack surface. The MCP server is only accessible to the AI assistant process that started it.
+  Because STDIO transport uses pipes rather than network sockets, there is no
+  network attack surface. The MCP server is only accessible to the AI assistant
+  process that started it.
 </Aside>
 
 ### What data is accessible
@@ -188,7 +281,7 @@ The MCP server provides access to:
 - **Structured logs** — log entries via OpenTelemetry
 - **Distributed traces** — request flow across resources
 - **Integration catalog** — available hosting integration packages
-- **Product documentation** — Official LLMS.txt-based `aspire.dev` content 
+- **Product documentation** — Official LLMS.txt-based `aspire.dev` content
 
 The MCP server does **not** expose:
 
@@ -220,10 +313,9 @@ If your AppHost includes dev-only resources, use `ExecutionContext.IsRunMode` to
 
 <AppHostTabs>
 <Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
-
-var api = builder.AddProject<Projects.Api>("api");
 
 if (builder.ExecutionContext.IsRunMode)
 {
@@ -233,23 +325,124 @@ if (builder.ExecutionContext.IsRunMode)
 
 builder.Build().Run();
 ```
+
 </Fragment>
 <Fragment slot="typescript">
-```typescript title="apphost.mts" twoslash
+
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const api = await builder
-  .addProject("api", "./api/Api.csproj");
-
-if (await builder.executionContext.isRunMode()) {
-    // Only available during local development
-    await builder.addContainer("dev-tool", { image: "some-dev-image", tag: "latest" });
+if (await builder.executionContext().isRunMode()) {
+  // Only available during local development
+  await builder.addContainer('dev-tool', {
+    image: 'some-dev-image',
+    tag: 'latest',
+  });
 }
 
 await builder.build().run();
 ```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    if builder.execution_context.is_run_mode:
+        # Only available during local development
+        builder.add_container("dev-tool", "some-dev-image:latest")
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	isRunMode, err := builder.ExecutionContext().IsRunMode()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if isRunMode {
+		// Only available during local development
+		devTool := builder.AddContainer("dev-tool", "some-dev-image:latest")
+		if err := devTool.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main(String[] args) throws Exception {
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    if (builder.executionContext().isRunMode()) {
+        // Only available during local development
+        builder.addContainer("dev-tool", "some-dev-image:latest");
+    }
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    if builder.execution_context()?.is_run_mode()? {
+        // Only available during local development
+        builder.add_container(
+            "dev-tool",
+            serde_json::json!("some-dev-image:latest"),
+        )?;
+    }
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
 </Fragment>
 </AppHostTabs>
 
@@ -273,7 +466,9 @@ The MCP server automatically detects running AppHosts within the working directo
 - Use `select_apphost` to switch between multiple running AppHosts
 
 <Aside type="note">
-If your AI assistant doesn't detect your AppHost, verify it's running with `aspire start` and that the assistant was started from the same workspace directory.
+  If your AI assistant doesn't detect your AppHost, verify it's running with
+  `aspire start` and that the assistant was started from the same workspace
+  directory.
 </Aside>
 
 ### If your agent can't connect

@@ -33,7 +33,14 @@ An `AddX(...)` method executes:
 
 ### Signature pattern
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK exposes resource-creation methods, but not the .NET extension-method authoring pattern shown here.',
+    go: 'The generated Go SDK exposes resource-creation methods, but not the .NET extension-method authoring pattern shown here.',
+    java: 'The generated Java SDK exposes resource-creation methods, but not the .NET extension-method authoring pattern shown here.',
+    rust: 'The generated Rust SDK exposes resource-creation methods, but not the .NET extension-method authoring pattern shown here.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp
@@ -90,7 +97,55 @@ const resource = await builder.addRedis("name" /*, optional params */);
 <Fragment slot="typescript">
 
 ```typescript
-resource.withEndpoint({ port: hostPort, targetPort: containerPort, name: endpointName });
+await resource.withEndpoint({ port: hostPort, targetPort: containerPort, name: endpointName });
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python
+resource.with_endpoint(
+    port=host_port,
+    target_port=container_port,
+    name=endpoint_name,
+)
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go
+resource.WithEndpoint(&aspire.WithEndpointOptions{
+	Port:       aspire.Float64Ptr(float64(hostPort)),
+	TargetPort: aspire.Float64Ptr(float64(containerPort)),
+	Name:       aspire.StringPtr(endpointName),
+})
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java
+resource.withEndpoint(new WithEndpointOptions()
+    .port(hostPort)
+    .targetPort(containerPort)
+    .name(endpointName));
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust
+resource.with_endpoint(
+    Some(host_port),
+    Some(container_port),
+    None,
+    Some(endpoint_name),
+    None,
+    None,
+    None,
+    None,
+)?;
 ```
 
 </Fragment>
@@ -109,7 +164,35 @@ resource.withEndpoint({ port: hostPort, targetPort: containerPort, name: endpoin
 <Fragment slot="typescript">
 
 ```typescript
+await resource.withHealthCheck(healthCheckKey);
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python
+resource.with_health_check(health_check_key)
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go
+resource.WithHealthCheck(healthCheckKey)
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java
 resource.withHealthCheck(healthCheckKey);
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust
+resource.with_health_check(health_check_key)?;
 ```
 
 </Fragment>
@@ -129,8 +212,43 @@ resource.withHealthCheck(healthCheckKey);
 <Fragment slot="typescript">
 
 ```typescript
+await resource.withImage(imageName, { tag: imageTag });
+await resource.withImageRegistry(registryUrl);
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python
+resource.with_image(image_name, tag=image_tag)
+resource.with_image_registry(registry_url)
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go
+resource.WithImage(
+	imageName,
+	&aspire.WithImageOptions{Tag: aspire.StringPtr(imageTag)},
+)
+resource.WithImageRegistry(registryURL)
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java
 resource.withImage(imageName, imageTag);
 resource.withImageRegistry(registryUrl);
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust
+resource.with_image(image_name, Some(image_tag))?;
+resource.with_image_registry(registry_url)?;
 ```
 
 </Fragment>
@@ -150,8 +268,40 @@ resource.withImageRegistry(registryUrl);
 <Fragment slot="typescript">
 
 ```typescript
+await resource.withEntrypoint("/bin/sh");
+await resource.withArgs(["--flag", "value"]);
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python
+resource.with_entrypoint("/bin/sh")
+resource.with_args(["--flag", "value"])
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go
+resource.WithEntrypoint("/bin/sh")
+resource.WithArgs([]string{"--flag", "value"})
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java
 resource.withEntrypoint("/bin/sh");
-resource.withArgs(["--flag", "value"]);
+resource.withArgs(new String[] { "--flag", "value" });
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust
+resource.with_entrypoint("/bin/sh")?;
+resource.with_args(vec!["--flag".to_string(), "value".to_string()])?;
 ```
 
 </Fragment>
@@ -159,7 +309,11 @@ resource.withArgs(["--flag", "value"]);
 
 **Environment variables**:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust SDK accepts only serde_json::Value for with_environment, so it cannot pass an arbitrary typed value provider directly.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp
@@ -170,6 +324,27 @@ resource.withArgs(["--flag", "value"]);
 <Fragment slot="typescript">
 
 ```typescript
+await resource.withEnvironment("ENV_VAR", value);
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python
+resource.with_env("ENV_VAR", value)
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go
+resource.WithEnvironment("ENV_VAR", value)
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java
 resource.withEnvironment("ENV_VAR", value);
 ```
 
@@ -178,7 +353,11 @@ resource.withEnvironment("ENV_VAR", value);
 
 **Event subscriptions**:
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust event callbacks use Vec<Value> -> Value rather than typed event contexts, so this typed event-handling pattern cannot be expressed safely.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp
@@ -189,8 +368,42 @@ builder.Eventing.Subscribe<EventType>(resource, handler);
 <Fragment slot="typescript">
 
 ```typescript
-builder.addEventingSubscriber(async (context) => {
+await builder.addEventingSubscriber(async (context) => {
     context.onBeforeStart(async (event) => {
+        // Handle event
+    });
+});
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python
+def subscribe(context):
+    context.on_before_start(lambda event: None)
+
+builder.add_eventing_subscriber(subscribe)
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go
+if err := builder.AddEventingSubscriber(func(context aspire.EventingSubscriberRegistrationContext) {
+	context.OnBeforeStart(func(event aspire.BeforeStartEvent) {
+		// Handle event
+	})
+}); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java
+builder.addEventingSubscriber(context -> {
+    context.onBeforeStart(event -> {
         // Handle event
     });
 });
@@ -214,7 +427,14 @@ builder.addEventingSubscriber(async (context) => {
 
 ### Signature pattern
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not expose custom annotation types or a public annotation-attachment API.',
+    go: 'The generated Go SDK does not expose custom annotation types or a public annotation-attachment API.',
+    java: 'The generated Java SDK does not expose custom annotation types or a public annotation-attachment API.',
+    rust: 'The generated Rust SDK does not expose custom annotation types or a public annotation-attachment API.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp
@@ -251,7 +471,14 @@ Annotations are **public** metadata types implementing `IResourceAnnotation`. Th
 
 ### Definition and attachment
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not expose custom annotation types or a public annotation-attachment API.',
+    go: 'The generated Go SDK does not expose custom annotation types or a public annotation-attachment API.',
+    java: 'The generated Java SDK does not expose custom annotation types or a public annotation-attachment API.',
+    rust: 'The generated Rust SDK does not expose custom annotation types or a public annotation-attachment API.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp
@@ -301,7 +528,11 @@ Custom value objects defer evaluation and allow the framework to discover depend
 
 ### Attaching to resources
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    rust: 'The generated Rust SDK accepts only serde_json::Value for with_environment, so it cannot pass a typed resource or value-provider handle directly.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp
@@ -313,13 +544,41 @@ builder.WithEnvironment(context =>
 <Fragment slot="typescript">
 
 ```typescript
+await resource.withEnvironment("REDIS_CONNECTION_STRING", redis);
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python
+resource.with_env("REDIS_CONNECTION_STRING", redis)
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go
+resource.WithEnvironment("REDIS_CONNECTION_STRING", redis)
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java
 resource.withEnvironment("REDIS_CONNECTION_STRING", redis);
 ```
 
 </Fragment>
 </AppHostTabs>
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK exposes BicepOutputReference as a handle-backed type, but does not support implementing custom value-provider types.',
+    go: 'The generated Go SDK exposes BicepOutputReference as a handle-backed type, but does not support implementing custom value-provider types.',
+    java: 'The generated Java SDK exposes BicepOutputReference as a handle-backed type, but does not support implementing custom value-provider types.',
+    rust: 'The generated Rust SDK exposes BicepOutputReference as a handle-backed type, but does not support implementing custom value-provider types.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp title="Example: BicepOutputReference"
@@ -344,7 +603,14 @@ In the TypeScript SDK, `BicepOutputReference` and the value provider interfaces 
 </Fragment>
 </AppHostTabs>
 
-<AppHostTabs>
+<AppHostTabs
+  limitations={{
+    python: 'The generated Python SDK does not expose .NET extension-method overloads or EnvironmentVariableAnnotation construction.',
+    go: 'The generated Go SDK does not expose .NET extension-method overloads or EnvironmentVariableAnnotation construction.',
+    java: 'The generated Java SDK does not expose .NET extension-method overloads or EnvironmentVariableAnnotation construction.',
+    rust: 'The generated Rust SDK does not expose .NET extension-method overloads or EnvironmentVariableAnnotation construction.',
+  }}
+>
 <Fragment slot="csharp">
 
 ```csharp
