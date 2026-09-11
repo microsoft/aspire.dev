@@ -83,11 +83,11 @@ test.describe('integrations gallery', () => {
     await dismissCookieConsentIfVisible(page);
 
     const postgresCard = page.locator('.card[data-title="aspire.hosting.postgresql"]');
-    const csharpLink = postgresCard.locator('.lang-button').first();
-    const tsLink = postgresCard.locator('.lang-button').nth(1);
+    const tsLink = postgresCard.locator('.lang-button').first();
+    const csharpLink = postgresCard.locator('.lang-button').nth(1);
 
-    await expect(csharpLink).toHaveAttribute('href', /aspire-lang=csharp/);
     await expect(tsLink).toHaveAttribute('href', /aspire-lang=typescript/);
+    await expect(csharpLink).toHaveAttribute('href', /aspire-lang=csharp/);
 
     // Both links should target the same base docs path — only the lang differs.
     const csharpHref = await csharpLink.getAttribute('href');
@@ -221,7 +221,7 @@ test.describe('integrations gallery', () => {
     await dismissCookieConsentIfVisible(page);
 
     const postgresCard = page.locator('.card[data-title="aspire.hosting.postgresql"]');
-    const csharpLink = postgresCard.locator('.lang-button').first();
+    const csharpLink = postgresCard.locator('.lang-button').nth(1);
     const csharpHref = await csharpLink.getAttribute('href');
     expect(csharpHref).toBeTruthy();
 
@@ -241,7 +241,7 @@ test.describe('integrations gallery', () => {
   });
 });
 
-test('PivotSelector aspire-lang selection bridges to synced-tabs storage', async ({ page }) => {
+test('PivotSelector defaults to TypeScript and bridges to synced-tabs storage', async ({ page }) => {
   await page.goto('/get-started/first-app/');
   await dismissCookieConsentIfVisible(page);
 
@@ -249,7 +249,8 @@ test('PivotSelector aspire-lang selection bridges to synced-tabs storage', async
   await expect(pivotSelector).toBeVisible();
   const typeScriptButton = pivotSelector.getByRole('button', { name: 'TypeScript' });
 
-  await typeScriptButton.click();
+  await expect(pivotSelector.getByRole('button').first()).toHaveText('TypeScript');
+  await expect(typeScriptButton).toHaveClass(/active/);
 
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('aspire-lang')))

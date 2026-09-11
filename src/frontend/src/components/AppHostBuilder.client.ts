@@ -148,11 +148,16 @@ function initializeAppHostBuilder(root: HTMLElement): void {
   let processing = false;
   let caretLineIndex = 0;
   let caretColumn = 0;
+  const examples = document.createElement('template');
 
-  const getTemplate = (language: AppHostLanguage, variant: string): HTMLElement | undefined =>
-    root.querySelector<HTMLElement>(
-      `.code-lang-group[data-code-lang="${language}"] .code-variant[data-variant="${variant}"]`
-    ) ?? undefined;
+  const getTemplate = (language: AppHostLanguage, variant: string): HTMLElement | undefined => {
+    const selector = `.code-lang-group[data-code-lang="${language}"] .code-variant[data-variant="${variant}"]`;
+    return (
+      root.querySelector<HTMLElement>(selector) ??
+      examples.content.querySelector<HTMLElement>(selector) ??
+      undefined
+    );
+  };
 
   const setEditorState = (state: EditorState) => {
     stage.dataset.editorState = state;
@@ -518,6 +523,34 @@ function initializeAppHostBuilder(root: HTMLElement): void {
     processing = true;
     codeDisplay.setAttribute('aria-busy', 'true');
 
+    const examplesUrl = root.dataset.apphostExamples;
+    if (examplesUrl && !examples.content.childElementCount) {
+      try {
+        const response = await fetch(examplesUrl);
+        if (!response.ok) {
+          throw new Error(`AppHost examples request failed: ${response.status}`);
+        }
+        const content = await response.text();
+        const parsed = document.createElement('template');
+        parsed.innerHTML = content;
+        if (
+          !parsed.content.querySelector('[data-code-lang="csharp"] .code-variant') ||
+          !parsed.content.querySelector('[data-code-lang="typescript"] .code-variant')
+        ) {
+          throw new Error('AppHost examples response does not contain both languages.');
+        }
+        examples.content.append(parsed.content);
+      } catch (error) {
+        console.error('Could not load AppHost examples.', error);
+        status.textContent = root.dataset.examplesError ?? 'Could not load AppHost examples.';
+        status.classList.remove('sr-only');
+        codeDisplay.setAttribute('aria-busy', 'false');
+        processing = false;
+        return;
+      }
+    }
+    status.classList.add('sr-only');
+
     try {
       while (
         root.isConnected &&
@@ -617,7 +650,13 @@ function initializeAppHostBuilder(root: HTMLElement): void {
   languageButtons.forEach((button) => {
     button.addEventListener('click', () => {
       const language = button.dataset.lang;
-      if (!isAppHostLanguage(language) || desiredLanguage === language) return;
+      if (!isAppHostLanguage(language)) return;
+      if (desiredLanguage === language) {
+        if (currentLanguage !== desiredLanguage || currentVariant !== desiredVariant) {
+          void processRequestedState();
+        }
+        return;
+      }
 
       languageButtons.forEach((candidate) => {
         const isSelected = candidate === button;

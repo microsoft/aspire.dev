@@ -1,37 +1,39 @@
 ---
 title: Migrate from Docker Compose to Aspire
-description: Migrate your Docker Compose applications to Aspire — map services, volumes, networks, and environment variables to AppHost APIs and modernize your developer workflow.
+description: Compare Aspire and Docker Compose for local development, service discovery, and observability. Map Compose services and dependencies to TypeScript or C# AppHosts.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-This guide helps you understand how to migrate applications from Docker Compose to Aspire, highlighting the key conceptual differences and providing accurate, practical examples for common migration scenarios.
+Docker Compose and Aspire both describe and run multi-service applications. This guide compares their local development workflows and maps Compose services, dependencies, and configuration to an Aspire AppHost written in TypeScript or C#.
 
 ## Understand the differences
 
-While Docker Compose and Aspire might seem similar at first glance, they serve different purposes and operate at different levels of abstraction.
+Keep Docker Compose when a container-focused YAML workflow meets your needs. Consider Aspire when you want to compose containers with processes running directly on the host, manage service references in code, and inspect application telemetry alongside resource health.
 
 ### Docker Compose vs Aspire
 
-|  | Docker Compose | Aspire |
-|--|--|--|
-| **Primary purpose** | Container orchestration | Development-time orchestration and app composition |
-| **Scope** | Container-focused | Multi-resource (containers, .NET projects, cloud resources) |
-| **Configuration** | YAML-based | C#-based, strongly typed |
-| **Target environment** | Any Docker runtime | Development and cloud deployment |
-| **Service discovery** | DNS-based container discovery | Built-in service discovery with environment variables |
-| **Development experience** | Manual container management | Integrated tooling, dashboard, and telemetry |
+| Feature | Docker Compose | Aspire |
+| ------- | -------------- | ------ |
+| **Primary purpose** | Define and run multi-container applications | Compose application resources for development and deployment |
+| **Scope** | Containers | Containers, Python and Node.js apps, .NET projects, executables, and cloud resources |
+| **Configuration** | Declarative YAML | Strongly typed TypeScript or C# AppHost |
+| **Target environment** | Docker environments | Local development and deployment through publishing integrations, including Docker Compose |
+| **Service discovery** | Service names and DNS on Compose networks | Service references and connection information passed to resources |
+| **Local observability** | Container logs and health checks; add OpenTelemetry tooling for application telemetry | Integrated resource health, console logs, and an OpenTelemetry dashboard; application instrumentation is still required |
 
 ### Key conceptual shifts
 
 When migrating from Docker Compose to Aspire, consider these conceptual differences:
 
-- **From YAML to C#** — Configuration moves from declarative YAML to imperative, strongly-typed C# code
-- **From containers to resources** — Aspire manages not just containers, but .NET projects, executables, parameters, and cloud resources
-- **From manual networking to service discovery** — Aspire automatically configures service discovery and connection strings
-- **From development gaps to integrated experience** — Aspire provides dashboard, telemetry, and debugging integration
-- **Startup orchestration differs** — Docker Compose `depends_on` controls startup order, while Aspire `WithReference` only configures service discovery; use `WaitFor` for startup ordering
+- **From YAML to an AppHost** — Express configuration in strongly typed TypeScript or C# code
+- **From containers to resources** — Compose containers with local application processes, parameters, and cloud resources
+- **From container DNS to resource references** — Pass service endpoints and connection information to dependent resources
+- **From separate tools to a shared dashboard** — Inspect resource health and instrumented application logs, traces, and metrics together
+- **Startup orchestration differs** — Compose `depends_on` supports startup order and health conditions; Aspire references supply connection information, while wait relationships control startup dependencies
+
+You don't need to migrate orchestration just to view OpenTelemetry. Point instrumented Compose services at the [standalone Aspire dashboard](/dashboard/standalone/) to inspect logs, traces, and metrics, including through [coding-agent CLI or MCP workflows](/dashboard/ai-coding-agents/#standalone-mode). Standalone mode doesn't add AppHost resource controls to Compose.
 
 <LearnMore>
 For detailed API mappings, see [Docker Compose to Aspire AppHost API reference](/app-host/docker-compose-to-apphost-reference/).

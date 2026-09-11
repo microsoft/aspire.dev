@@ -1,4 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { select, selectAll } from 'hast-util-select';
+import rehypeParse from 'rehype-parse';
+import { unified } from 'unified';
+import { FALLBACK_DESCRIPTION } from '../../src/utils/page-metadata';
 
 /**
  * Smoke tests for the page-specific Open Graph metadata wired up in
@@ -35,6 +39,85 @@ const PAGES: PageExpectation[] = [
     ogImagePath: '/og/dashboard/enable-browser-telemetry.png',
   },
 ];
+
+for (const url of [
+  '/',
+  '/dashboard/overview/',
+  '/dashboard/standalone/',
+  '/dashboard/ai-coding-agents/',
+  '/dashboard/standalone-for-python/',
+  '/dashboard/standalone-for-nodejs/',
+  '/get-started/ai-coding-agents/',
+  '/get-started/aspire-mcp-server/',
+  '/fundamentals/telemetry/',
+  '/app-host/migrate-from-docker-compose/',
+  '/da/',
+  '/uk/',
+]) {
+  test(`uses the page description in standard and social metadata for ${url}`, async ({
+    request,
+  }) => {
+    const response = await request.get(url);
+    expect(response.ok()).toBe(true);
+    const tree = unified()
+      .use(rehypeParse)
+      .parse(await response.text());
+    const descriptions = selectAll('meta[name="description"]', tree);
+    const ogDescriptions = selectAll('meta[property="og:description"]', tree);
+
+    expect(descriptions).toHaveLength(1);
+    expect(ogDescriptions).toHaveLength(1);
+    const description = descriptions[0].properties.content;
+    expect(description).toBeTruthy();
+    expect(description).toBe(ogDescriptions[0].properties.content);
+    expect(description).not.toBe(
+      'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.'
+    );
+  });
+}
+
+test('preserves Starlight content languages and canonical links for translations and fallbacks', async ({
+  request,
+}) => {
+  for (const [url, locale, contentLanguage] of [
+    ['/da/', 'da', 'da'],
+    ['/uk/', 'uk', 'uk'],
+    ['/ja/fundamentals/telemetry/', 'ja', 'ja'],
+    ['/da/fundamentals/telemetry/', 'da', 'en'],
+    ['/uk/fundamentals/telemetry/', 'uk', 'en'],
+  ]) {
+    const response = await request.get(url);
+    expect(response.ok()).toBe(true);
+    const tree = unified()
+      .use(rehypeParse)
+      .parse(await response.text());
+    expect(select('html', tree)?.properties.lang).toBe(locale);
+    expect(select('main', tree)?.properties.lang).toBe(contentLanguage);
+    expect(select('link[rel="canonical"]', tree)?.properties.href).toBe(`https://aspire.dev${url}`);
+    expect(select(`link[hreflang="${locale}"]`, tree)?.properties.href).toBe(
+      `https://aspire.dev${url}`
+    );
+  }
+});
+
+test('uses Starlight site description only when page frontmatter has no description', async ({
+  request,
+}) => {
+  const response = await request.get('/ja/architecture/resource-publishing/');
+  expect(response.ok()).toBe(true);
+  const tree = unified()
+    .use(rehypeParse)
+    .parse(await response.text());
+  const descriptions = selectAll('meta[name="description"]', tree);
+  const ogDescriptions = selectAll('meta[property="og:description"]', tree);
+
+  expect(descriptions).toHaveLength(1);
+  expect(descriptions[0].properties.content).toBe(
+    'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.'
+  );
+  expect(ogDescriptions).toHaveLength(1);
+  expect(ogDescriptions[0].properties.content).toBe(FALLBACK_DESCRIPTION);
+});
 
 function escape(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

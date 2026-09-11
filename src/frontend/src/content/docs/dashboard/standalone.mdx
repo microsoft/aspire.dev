@@ -1,6 +1,6 @@
 ---
-title: Run the Aspire dashboard standalone
-description: Run the Aspire dashboard as a standalone container or executable — collect OTLP telemetry from any language, then view logs, traces, and metrics without the AppHost.
+title: Standalone Aspire dashboard as an OTLP viewer
+description: Run a local OpenTelemetry viewer without an AppHost. Send OTLP logs, traces, and metrics from Python, Node.js, or another instrumented app to the Aspire dashboard.
 ---
 
 import { Image } from 'astro:assets';
@@ -11,12 +11,14 @@ import standaloneModeImage from '@assets/dashboard/standalone/standalone-mode.pn
 import standaloneModeImageLight from '@assets/dashboard/standalone/standalone-mode-light.png';
 import containerLogImage from '@assets/dashboard/standalone/aspire-dashboard-container-log.png';
 
-The [Aspire dashboard](/dashboard/overview/) provides a great UI for viewing telemetry. You can run the dashboard in standalone mode in two ways:
+Run the [Aspire dashboard](/dashboard/overview/) as a standalone OTLP viewer to inspect local application logs, distributed traces, and metrics without an AppHost. Keep your existing application startup workflow, including Docker Compose, and configure your apps to export OpenTelemetry to the dashboard.
+
+You can start the dashboard in two ways:
 
 - Use the [Aspire CLI](/reference/cli/overview/) to start the dashboard with default local endpoints.
 - Use the standalone dashboard container image when you want to run it with Docker or another OCI-compliant container runtime.
 
-Both options work without the rest of Aspire and can receive telemetry from any OpenTelemetry-enabled app.
+Both options receive telemetry from OpenTelemetry-enabled apps. Instrumentation and export configuration are required in each application; starting the dashboard doesn't instrument your code. For language-specific setup, see [Python telemetry](/dashboard/standalone-for-python/) or [JavaScript and Node.js telemetry](/dashboard/standalone-for-nodejs/).
 
 <ThemeImage
   light={standaloneModeImageLight}
@@ -148,7 +150,7 @@ Although there is no restriction on where the dashboard is run, the dashboard is
 
 ### Unavailable features when standalone
 
-The dashboard has functionality for viewing Aspire resources. The dashboard resource features are disabled when it is run in standalone mode. To enable the resources UI, [add configuration for a resource service](/dashboard/configuration/#resources).
+Telemetry service names aren't AppHost-managed resources. In standalone mode, the dashboard doesn't provide process health, console output capture, or start/stop/restart controls through the resources UI. To enable those resource features, [configure a resource service](/dashboard/configuration/#resources).
 
 AI coding agents can still use the standalone dashboard via the Aspire CLI and MCP server. See [Dashboard and AI coding agents](/dashboard/ai-coding-agents/#standalone-mode) for details.
 
@@ -202,9 +204,19 @@ For more details, see the [`aspire otel logs`](/reference/cli/commands/aspire-ot
 
 The [`aspire agent mcp`](/reference/cli/commands/aspire-agent-mcp/) command starts an MCP (Model Context Protocol) server that AI assistants can connect to. When used with `--dashboard-url`, it runs in dashboard-only mode and exposes telemetry tools (structured logs and traces) to MCP-compatible clients:
 
+Unlike `aspire otel`, the MCP command doesn't exchange the browser token from a login URL. Start the dashboard with an explicit telemetry API key:
+
 ```bash title="Aspire CLI"
-aspire agent mcp --dashboard-url "http://localhost:18888/login?t=<token>"
+aspire dashboard run --Dashboard:Api:AuthMode=ApiKey --Dashboard:Api:PrimaryApiKey="<api-key>"
 ```
+
+Then start the MCP server in a separate terminal with the dashboard base URL and the same key:
+
+```bash title="Aspire CLI"
+aspire agent mcp --dashboard-url "http://localhost:18888" --api-key "<api-key>"
+```
+
+Use a high-entropy key and don't commit or share it. For more information, see [Secure the telemetry API endpoint](/dashboard/security-considerations/#telemetry-api-endpoint).
 
 ## Sample
 

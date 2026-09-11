@@ -9,6 +9,7 @@ import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
 import { aspireVersionPlaceholdersIntegration } from './config/aspire-version-placeholders-integration.mjs';
 import { remarkAspireVersionPlaceholders } from './config/remark-aspire-version-placeholders.mjs';
+import { remarkTypeScriptFirstAppHostTabs } from './config/remark-typescript-first-apphost-tabs.mjs';
 import catppuccin from '@catppuccin/starlight';
 import lunaria from './config/lunaria-starlight.mjs';
 import mermaid from 'astro-mermaid';
@@ -29,6 +30,8 @@ const modeArgIndex = process.argv.indexOf('--mode');
 const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
 const outDir = process.env.ASTRO_OUT_DIR;
 const isBuildTimingEnabled = process.env.BUILD_TIMING === '1';
+const siteDescription =
+  'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.';
 
 // Under `aspire run` the frontend dev server (Vite) and StaticHost are separate
 // origins. The live-status client fetches same-origin `/api/live` and streams
@@ -59,7 +62,7 @@ export default defineConfig({
   trailingSlash: 'always',
   markdown: {
     processor: unified({
-      remarkPlugins: [remarkAspireVersionPlaceholders],
+      remarkPlugins: [remarkTypeScriptFirstAppHostTabs, remarkAspireVersionPlaceholders],
     }),
   },
   redirects: redirects,
@@ -70,6 +73,7 @@ export default defineConfig({
       starlight: {
         pagefind: !isSkipSearchBuild,
         title: 'Aspire',
+        description: siteDescription,
         routeMiddleware: ['./src/route-data-middleware'],
         defaultLocale: 'root',
         locales,
@@ -99,6 +103,7 @@ export default defineConfig({
           PageTitle: './src/components/starlight/PageTitle.astro',
           Search: './src/components/starlight/Search.astro',
           Sidebar: './src/components/starlight/Sidebar.astro',
+          SkipLink: './src/components/starlight/SkipLink.astro',
           SocialIcons: './src/components/starlight/SocialIcons.astro',
         },
         plugins: [
@@ -158,8 +163,7 @@ export default defineConfig({
           starlightGitHubAlerts(),
           starlightLlmsTxt({
             projectName: 'Aspire',
-            description:
-              'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
+            description: siteDescription,
             // Strip transient annotations injected by expressive-code-twoslash from the
             // rendered HTML before it's converted back to Markdown. Without this, the
             // TypeScript hover popovers (type signatures, JSDoc, error boxes, etc.)

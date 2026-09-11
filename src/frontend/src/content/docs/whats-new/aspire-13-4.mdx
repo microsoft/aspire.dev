@@ -768,13 +768,13 @@ After migrating, `aspire run` behaves exactly the same as before — the CLI now
 
 Aspire 13.4 includes several breaking changes. Most are small renames or configuration moves, but a few affect deployment and the non-C# AppHost SDK layout. Review the subsections that apply to your app before upgrading.
 
-#### `aspire exec` command removed
+### `aspire exec` command removed
 
 The experimental `aspire exec` command — along with its AppHost backchannel and feature flag — has been removed.
 
 Remove scripts or workflows that call `aspire exec`. For resource-specific actions, use [`aspire resource`](/reference/cli/commands/aspire-resource/) when the resource exposes a command.
 
-#### Generated TypeScript modules consolidated under `.aspire/modules/`
+### Generated TypeScript modules consolidated under `.aspire/modules/`
 
 Generated non-C# SDK modules now live under a single `.aspire/modules/` directory instead of being split across `.modules/` and `.aspire/`. Generated language references — TypeScript imports, Go replace directives, Python editable paths, Java source lists, and Rust module paths — are updated automatically to point at the new location.
 
@@ -785,55 +785,55 @@ Re-run `aspire run` (or your code-generation step) to regenerate references, and
   layout for compatibility; new projects use `.aspire/modules/`.
 </Aside>
 
-#### Persistent executable and project lifetimes
+### Persistent executable and project lifetimes
 
 Support for persistent lifetimes on executables and projects updates the underlying DCP executable model (new `persistent`, `start`, and `stop` fields). Persistent executables and projects default to proxyless endpoints, require concrete ports for executables, don't support replicas, and aren't compatible with Aspire IDE debugging sessions. Persistent containers use proxied endpoints by default, matching session container behavior, so integrations that depend on endpoint allocation before startup work correctly without changes.
 
 If you adopt `WithPersistentLifetime()`, review endpoint and port configuration. Tooling pinned to the previous DCP executable schema may need to be updated. See [Configure resource lifetimes](/app-host/resource-lifetimes/).
 
-#### Kubernetes `Ingress` `WithRoute(...)` renamed to `WithPath(...)`
+### Kubernetes `Ingress` `WithRoute(...)` renamed to `WithPath(...)`
 
 The Kubernetes `Ingress` routing API has been renamed from `WithRoute(...)` to `WithPath(...)` to match Kubernetes Ingress path-rule terminology and disambiguate it from the Gateway API. The shared `IngressPathType` enum is also split into `KubernetesIngressPathType` (Ingress) and `KubernetesGatewayPathType` (Gateway API).
 
 Update `ingress.WithRoute(...)` calls to `ingress.WithPath(...)`, and switch any `IngressPathType` references to the appropriate split enum. The Gateway API `gateway.WithRoute(...)` is unchanged.
 
-#### Kubernetes ingress and gateway routes require external endpoints
+### Kubernetes ingress and gateway routes require external endpoints
 
 Routing a non-external endpoint through a Kubernetes ingress or gateway now throws an `InvalidOperationException` at publish time instead of generating routes that can't resolve.
 
 Call `WithExternalHttpEndpoints()` (or otherwise mark the endpoint external) on any resource whose endpoint you route through an ingress or gateway.
 
-#### Kubernetes Helm configuration consolidated on `WithHelm(...)`
+### Kubernetes Helm configuration consolidated on `WithHelm(...)`
 
 Helm chart name, version, description, release name, and namespace are now configured through the `WithHelm(...)` extension method, replacing the parallel property-based configuration surface on `KubernetesEnvironmentResource`.
 
 Move property assignments into the `WithHelm(...)` builder. See the [Kubernetes integration](/integrations/compute/kubernetes/#configure-helm-chart-options).
 
-#### Azure Front Door uses Azure.Provisioning name generation
+### Azure Front Door uses Azure.Provisioning name generation
 
 Azure Front Door CDN resources now use Azure.Provisioning's built-in name-generation algorithm instead of Aspire's custom logic. Upgrading an existing deployment can produce duplicate endpoint, origin group, or route names.
 
 Remove and re-add the affected resource, or set its `Name` explicitly with `ConfigureInfrastructure`, to avoid conflicts.
 
-#### Foundry hosted agents: `WithComputeEnvironment` and `AddPromptAgent`
+### Foundry hosted agents: `WithComputeEnvironment` and `AddPromptAgent`
 
 The Azure AI Foundry hosted-agent API has been aligned with the rest of the app model: `PublishAsHostedAgent` is renamed to `WithComputeEnvironment`, `AddPromptAgent` now takes the resource name as its first parameter (before the model), and the preview-only `AsHostedAgent` / `RunAsHostedAgent` methods were removed.
 
 Update hosted-agent registrations to call `WithComputeEnvironment` and pass the resource name first to `AddPromptAgent`.
 
-#### `PublishAsNpmPackageScript` renamed to `PublishAsPackageScript`
+### `PublishAsNpmPackageScript` renamed to `PublishAsPackageScript`
 
 The npm-specific publish helper has been generalized to support npm, pnpm, Yarn, and Bun. `PublishAsNpmPackageScript` is renamed to `PublishAsPackageScript`, and its `startScriptName` parameter is renamed to `scriptName`.
 
 Rename call sites from `PublishAsNpmPackageScript(...)` to `PublishAsPackageScript(...)` and update the parameter name.
 
-#### Keycloak exposes an HTTPS primary endpoint
+### Keycloak exposes an HTTPS primary endpoint
 
 The primary Keycloak endpoint is now HTTPS when the developer certificate is enabled, which fixes token invalidation on restart.
 
 Update references that assumed an HTTP primary endpoint to use the HTTPS endpoint.
 
-#### PostgreSQL default image bumped to 18.3, breaking existing data volumes
+### PostgreSQL default image bumped to 18.3, breaking existing data volumes
 
 The default PostgreSQL container image used by `AddPostgres` moved from 17.6 to 18.3. PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`.
 
@@ -855,7 +855,7 @@ You have two ways to recover:
 
 For full guidance and the container path mapping, see [PostgreSQL 18 data directory change](/integrations/databases/postgres/postgres-host/#postgresql-18-data-directory-change).
 
-#### Behavior changes to audit
+### Behavior changes to audit
 
 - `aspire update` now requires `--yes` in non-interactive mode, matching `aspire destroy`.
 - Resource command arguments are named options in the CLI instead of positional values.
@@ -865,7 +865,7 @@ For full guidance and the container path mapping, see [PostgreSQL 18 data direct
 - The default PostgreSQL container image moved from 17.6 to 18.3, which changes the on-disk data layout and breaks PostgreSQL 17 data persisted with `WithDataVolume()` or `WithDataBindMount()`.
 - `AddNatsClient` now also registers `INatsClient` and a default serializer registry; user-provided registries still take precedence.
 
-#### Migration from Aspire 13.3 to 13.4
+### Migration from Aspire 13.3 to 13.4
 
 <Steps>
 
