@@ -206,8 +206,60 @@ await builder.build().run();
   examples, see [Connect Blazor apps and APIs](../blazor-connect/).
 </Aside>
 
+## Add a Blazor Gateway for a C# project resource
+
+`AddDotnetProjectBlazorGateway` / `addDotnetProjectBlazorGateway` adds a Blazor Gateway that hosts a [`DotnetProjectResource`](/integrations/frameworks/dotnet/dotnet-host/) (a C# project or file-based app added with `AddDotnetProject` / `addDotnetProject`) instead of the standard `ProjectResource`-based gateway. Use the distinct `WithBlazorClientApp` overload on this resource to attach a Blazor WebAssembly client app:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var client = builder.AddBlazorWasmProject<Projects.Client>("client");
+
+builder.AddDotnetProjectBlazorGateway("gateway")
+    .WithBlazorClientApp(client);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const client = await builder.addBlazorWasmProject(
+  'client',
+  '../Client/Client.csproj'
+);
+const gateway = await builder.addDotnetProjectBlazorGateway('gateway');
+
+await gateway.withBlazorClientApp(client);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution" title="Experimental">
+  `AddDotnetProjectBlazorGateway` and its `WithBlazorClientApp` overload are
+  gated behind the `ASPIREDOTNETPROJECT001` diagnostic. This gateway variant
+  only supports `aspire run`; publishing it currently fails fast because
+  `DotnetProjectResource` doesn't yet support the container-files pipeline
+  used for publish. Use the standard `AddBlazorGateway` API shown earlier for
+  publish scenarios. For details on suppressing the diagnostic, see
+  [ASPIREDOTNETPROJECT001](/diagnostics/aspiredotnetproject001/).
+</Aside>
+
 ## See also
 
 - [Get started with Blazor hosting](/integrations/dotnet/blazor-get-started/)
 - [Connect Blazor apps and APIs](/integrations/dotnet/blazor-connect/)
+- [Set up .NET / C# apps in the AppHost](/integrations/frameworks/dotnet/dotnet-host/)
+- [ASPIREDOTNETPROJECT001](/diagnostics/aspiredotnetproject001/)
 - [Aspire integrations overview](/integrations/overview/)
