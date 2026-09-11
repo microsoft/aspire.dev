@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import appHostLanguageConfig from '../../src/data/apphost-languages.json' with { type: 'json' };
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 const SHOW_CLIENT = process.env.PUBLIC_SHOW_CLIENT_INTEGRATIONS === 'true';
@@ -84,12 +85,18 @@ test.describe('integrations gallery', () => {
 
     const postgresCard = page.locator('.card[data-title="aspire.hosting.postgresql"]');
     const languageLinks = postgresCard.locator('.lang-button');
-    const tsLink = languageLinks.first();
-    const csharpLink = languageLinks.nth(1);
+    const enabledLanguages = appHostLanguageConfig.languages.filter(
+      (language) => language.enabled
+    );
+    const tsLink = postgresCard.locator('.lang-button[href*="aspire-lang=typescript"]');
+    const csharpLink = postgresCard.locator('.lang-button[href*="aspire-lang=csharp"]');
 
-    await expect(languageLinks).toHaveCount(2);
-    await expect(tsLink).toHaveAttribute('href', /aspire-lang=typescript/);
-    await expect(csharpLink).toHaveAttribute('href', /aspire-lang=csharp/);
+    await expect(languageLinks).toHaveCount(enabledLanguages.length);
+    for (const language of enabledLanguages) {
+      await expect(
+        postgresCard.locator(`.lang-button[href*="aspire-lang=${language.id}"]`)
+      ).toHaveAttribute('href', new RegExp(`aspire-lang=${language.id}`));
+    }
 
     // Both links should target the same base docs path — only the lang differs.
     const csharpHref = await csharpLink.getAttribute('href');

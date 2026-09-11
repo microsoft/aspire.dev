@@ -15,6 +15,7 @@ import {
 import { memberKindSlugs, resolveMemberAnchors } from '@utils/packages';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import type { TsApiDocument, TsHandleType } from '@utils/ts-modules';
+import { appHostLanguageConfig } from '@utils/apphost-languages';
 
 vi.mock('astro:content', async (importOriginal) => {
   const actual = await importOriginal<typeof import('astro:content')>();
@@ -156,11 +157,16 @@ describe('API markdown routes', () => {
     const markdown = await readMarkdown(appHostItemRoute.GET?.({ props: route.props } as any));
 
     expect(markdown).toContain(`# ${route.props.item.name}`);
-    expect(markdown).toContain('## TypeScript');
-    expect(markdown).not.toContain('## Python');
-    expect(markdown).not.toContain('## Go');
-    expect(markdown).not.toContain('## Java');
-    expect(markdown).not.toContain('## Rust');
+    for (const language of appHostLanguageConfig.languages.filter(
+      (candidate) => candidate.generatedApi
+    )) {
+      const heading = `## ${language.label}`;
+      if (language.enabled) {
+        expect(markdown).toContain(heading);
+      } else {
+        expect(markdown).not.toContain(heading);
+      }
+    }
   });
 
   it('returns markdown for a canonical AppHost member route', async () => {
