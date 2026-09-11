@@ -1,4 +1,4 @@
-import type { APIRoute } from 'astro';
+import type { APIRoute, InferGetStaticPropsType } from 'astro';
 import { getCollection } from 'astro:content';
 import { glossaryHref, sortGlossary } from '../../utils/dev-center/glossary';
 
@@ -39,6 +39,6 @@ export async function getStaticPaths() {
   ];
 }
 
-export const GET: APIRoute = ({ props }) => new Response(props.markdown, {
+export const GET: APIRoute<InferGetStaticPropsType<typeof getStaticPaths>> = ({ props }) => new Response(props.markdown, {
   headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
 });
