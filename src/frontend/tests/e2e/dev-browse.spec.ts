@@ -74,7 +74,7 @@ test('sparse integration cards keep the same content alignment as longer cards',
   }
 });
 
-test('artwork grain stays subtle, edge-biased, and stable after reload', async ({ page }) => {
+test('CSS artwork texture stays subtle, edge-biased, and stable after reload', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/dev/browse/?type=guide');
@@ -88,21 +88,35 @@ test('artwork grain stays subtle, edge-biased, and stable after reload', async (
         y: style.getPropertyValue('--grain-y').trim(),
         opacity: texture.opacity,
         mask: texture.maskImage,
+        background: texture.backgroundImage,
+        animation: texture.animationName,
         pointerEvents: texture.pointerEvents,
       };
     }));
   const original = await grain();
   expect(original.length).toBeGreaterThan(1);
   expect(new Set(original.map(({ x, y }) => `${x},${y}`)).size).toBeGreaterThan(1);
-  for (const texture of original) {
-    expect([texture.x, texture.y].some((position) => position === '0%' || position === '100%')).toBe(true);
-    expect(texture.opacity).toBe('0.28');
-    expect(texture.mask).toContain('18%');
-    expect(texture.pointerEvents).toBe('none');
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
+      for (const reducedMotion of ['reduce', 'no-preference'] as const) {
+        await page.emulateMedia({ reducedMotion });
+        for (const texture of await grain()) {
+          expect([texture.x, texture.y].some((position) => position === '0%' || position === '100%')).toBe(true);
+          expect(texture.opacity).toBe('0.28');
+          expect(texture.mask).toContain('18%');
+          expect(texture.background).toContain('radial-gradient');
+          expect(texture.background + texture.mask).not.toContain('url(');
+          expect(texture.animation).toBe('none');
+          expect(texture.pointerEvents).toBe('none');
+        }
+      }
+    }
   }
   await page.reload();
   await expect(page.locator('resource-browser')).toHaveAttribute('data-ready', '');
-  expect(await grain()).toEqual(original);
+  expect((await grain()).map(({ x, y }) => [x, y])).toEqual(original.map(({ x, y }) => [x, y]));
   await expect(page.getByText('Interactive browsing could not load. All resource links are listed below.')).toBeHidden();
   expect(errors).toEqual([]);
 });

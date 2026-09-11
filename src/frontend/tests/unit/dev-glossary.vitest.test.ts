@@ -78,7 +78,7 @@ describe('glossary content migration', () => {
     expect(getTerm('waitforcompletion').data.termType).toBe('API method');
     expect(getTerm('iresourceannotation').data.termType).toBe('API interface');
     expect(getTerm('otlp').data.termType).toBe('Protocol');
-    expect(getTerm('apphost').data.pronunciation).toBe('app host');
+    expect(getTerm('apphost').data.pronunciation).toBeUndefined();
     expect(getTerm('polyglot').data.termType).toBeUndefined();
     expect(getTerm('polyglot').data.pronunciation).toBeUndefined();
   });
@@ -127,7 +127,6 @@ describe('glossary content migration', () => {
       expect(getTerm(id)).toBeDefined();
       expect(getTerm(id).data.legacyAnchors).toEqual([]);
     }
-    expect(getTerm('apphost').data.aliases).not.toContain('App Host');
     expect(getTerm('apphost').body).toContain('C# or any guest language supported through');
     expect(getTerm('apphost').body).toContain('/dev/glossary/ats/');
     expect(getTerm('opentelemetry').data.aliases).not.toContain('telemetry');

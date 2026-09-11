@@ -1,7 +1,6 @@
 ---
 title: AppHost
 termType: Concept
-pronunciation: app host
 description: The executable application model that declares your services, resources, connections, and local orchestration.
 aliases: [orchestration project]
 topics: [foundations]

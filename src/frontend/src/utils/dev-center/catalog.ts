@@ -5,7 +5,6 @@ import integrationDocs from '@data/integration-docs.json';
 import blogPosts from '@data/aspire-blog-posts.json';
 import { allCommunityVideos } from '@data/community-videos';
 import { blogHighlights, videos } from '@data/dev-central';
-import { redirects } from '../../../config/redirects.mjs';
 import { socialConfig } from '../../../config/socials.config';
 import { buildResourceCatalog } from '@utils/dev-center/catalog-normalization';
 import type { DevResource } from '@utils/dev-center/resource-types';
@@ -36,6 +35,6 @@ export async function getResourceCatalog(): Promise<DevResource[]> {
             ? 'Watch the official Aspire Twitch channel for live streams with the team.'
             : 'Explore videos and live streams on the official Aspire YouTube channel.' }]
         : []),
-    redirectPaths: Object.keys(redirects),
+    redirectPaths: __ASPIRE_REDIRECT_PATHS__,
   });
 }

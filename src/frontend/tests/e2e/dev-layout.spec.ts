@@ -1,6 +1,49 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+test('Quickstart uses a static CSS edge texture in both themes and screen sizes', async ({ page }) => {
+  await page.goto('/dev/');
+  const card = page.locator('.resource-primary .resource-card');
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
+      for (const reducedMotion of ['reduce', 'no-preference'] as const) {
+        await page.emulateMedia({ reducedMotion });
+        const texture = await card.evaluate((element) => {
+          const style = getComputedStyle(element, '::before');
+          return {
+            background: style.backgroundImage, mask: style.maskImage, opacity: style.opacity,
+            animation: style.animationName, pointerEvents: style.pointerEvents,
+          };
+        });
+        expect(texture.background).toContain('radial-gradient');
+        expect(texture.mask).toContain('linear-gradient(to left');
+        expect(texture.background + texture.mask).not.toContain('url(');
+        expect(texture.opacity).toBe('0.12');
+        expect(texture.animation).toBe('none');
+        expect(texture.pointerEvents).toBe('none');
+        await expect(card).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      }
+    }
+  }
+});
+
+test('Dev Hub introduction and Markdown use the current Aspire positioning', async ({ page, request }) => {
+  const description = 'Aspire is the tool for code-first, extensible, observable dev and deploy.';
+  await page.goto('/dev/');
+  await expect(page.locator('section[aria-labelledby="getting-started-heading"]')).toContainText(description);
+  const markdown = await request.get('/dev.md');
+  expect(markdown.ok()).toBe(true);
+  expect(await markdown.text()).toContain(description);
+  await expect(page.locator('a[href="https://github.com/dotnet/aspire"]')).toHaveCount(0);
+  await page.goto('/community/contributors/');
+  await expect(page.getByRole('link', { name: 'microsoft/aspire', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'microsoft/aspire', exact: true })).toHaveAttribute('href', 'https://github.com/microsoft/aspire');
+  await expect(page.getByRole('link', { name: 'dotnet/aspire', exact: true })).toHaveCount(0);
+});
+
 test('Dev Hub links share animated underlines and topic cards use the concept-card hover treatment', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/dev/');
