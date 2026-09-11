@@ -106,7 +106,7 @@ test('CSS artwork texture stays subtle, edge-biased, and stable after reload', a
           expect([texture.x, texture.y].some((position) => position === '0%' || position === '100%')).toBe(true);
           expect(texture.opacity).toBe('0.28');
           expect(texture.mask).toContain('18%');
-          expect(texture.background).toContain('radial-gradient');
+          expect(texture.background).toContain('repeating-conic-gradient');
           expect(texture.background + texture.mask).not.toContain('url(');
           expect(texture.animation).toBe('none');
           expect(texture.pointerEvents).toBe('none');
@@ -119,6 +119,8 @@ test('CSS artwork texture stays subtle, edge-biased, and stable after reload', a
   expect((await grain()).map(({ x, y }) => [x, y])).toEqual(original.map(({ x, y }) => [x, y]));
   await expect(page.getByText('Interactive browsing could not load. All resource links are listed below.')).toBeHidden();
   expect(errors).toEqual([]);
+  await page.emulateMedia({ forcedColors: 'active' });
+  for (const texture of await grain()) expect(texture.background).toMatch(/^none(?:, none)*$/);
 });
 
 for (const query of ['', '?type=blog&sort=oldest&title=desc&page=2', '?q=zzzz-no-matching-resource']) {
