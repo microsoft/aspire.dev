@@ -3,6 +3,13 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
+// Production supplies the vault reference; local Aspire runs intentionally do not.
+if (builder.Configuration.GetConnectionString("siteconfig") is not null)
+{
+    builder.Configuration.AddAzureKeyVaultSecrets("siteconfig");
+}
+
 builder.AddLiveStatus();
 
 builder.Services.AddHsts(options =>

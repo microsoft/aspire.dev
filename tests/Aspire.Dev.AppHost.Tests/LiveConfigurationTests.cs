@@ -6,7 +6,7 @@ namespace Aspire.Dev.AppHost.Tests;
 public sealed class LiveConfigurationTests
 {
     [Fact]
-    public async Task ProductionConfiguration_UsesParametersForConfigurationAndKeyVaultForSecrets()
+    public async Task ProductionConfiguration_UsesParametersAndReferencesKeyVault()
     {
         var builder = DistributedApplication.CreateBuilder(new DistributedApplicationOptions
         {
@@ -64,28 +64,25 @@ public sealed class LiveConfigurationTests
         }
 
         Assert.Contains("ConnectionStrings__livecache", environment);
+        Assert.Contains("ConnectionStrings__siteconfig", environment);
 
         foreach (var (key, parameterName) in expectedConfiguration)
         {
             Assert.Same(parameters[parameterName], environment[key]);
         }
 
-        var expectedSecrets = new Dictionary<string, string>
-        {
-            ["Live__Twitch__ClientSecret"] = "live-twitch-client-secret",
-            ["Live__Twitch__WebhookSecret"] = "live-twitch-webhook-secret",
-            ["Live__YouTube__ApiKey"] = "live-youtube-api-key",
-            ["Live__YouTube__WebhookSecret"] = "live-youtube-webhook-secret",
-        };
         Assert.Equal(
-            expectedConfiguration.Count + expectedSecrets.Count,
+            expectedConfiguration.Count,
             environment.Keys.Count(key => key.StartsWith("Live__", StringComparison.Ordinal)));
-        foreach (var (key, secretName) in expectedSecrets)
+        foreach (var key in new[]
         {
-            var reference = Assert.IsAssignableFrom<IAzureKeyVaultSecretReference>(environment[key]);
-            Assert.Equal(secretName, reference.SecretName);
-            Assert.Same(vault, reference.Resource);
-            Assert.Null(reference.SecretOwner);
+            "Live__Twitch__ClientSecret",
+            "Live__Twitch__WebhookSecret",
+            "Live__YouTube__ApiKey",
+            "Live__YouTube__WebhookSecret",
+        })
+        {
+            Assert.DoesNotContain(key, environment);
         }
 
         var assignment = Assert.Single(

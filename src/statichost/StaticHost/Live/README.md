@@ -76,10 +76,11 @@ deployment parameters. It provisions an empty, shared `siteconfig` Azure Key
 Vault for credentials and signing secrets, plus an Azure Managed Redis
 instance for live state and coordination.
 
-The scalable StaticHost receives read-only references to the four `live-*`
-secrets and the **Key Vault Secrets User** role. Neither the AppHost nor
-StaticHost creates, updates, or deletes secret values, and the AppHost does not
-accept secret-value deployment parameters.
+The scalable StaticHost receives the vault connection and the **Key Vault
+Secrets User** role. At startup, it loads the vault through
+`AddAzureKeyVaultSecrets`. Neither the AppHost nor StaticHost creates, updates,
+or deletes secret values, and the AppHost does not accept secret-value
+deployment parameters.
 
 The following non-sensitive deployment parameters configure the production
 feature. Parameters with a default can be overridden. Supply the Twitch client
@@ -101,15 +102,16 @@ ID and both channel IDs when deploying.
 
 An authorized operator must populate the following secrets separately in the
 provisioned vault. Use the actual Azure vault name from deployment outputs,
-not the Aspire resource name. Keep unrelated site secrets under their own
-names; the live feature references only this list.
+not the Aspire resource name. The default Key Vault configuration provider
+maps `--` in a secret name to `:` in a .NET configuration key, so use these
+names exactly.
 
 | Secret name | Value to supply |
 | --- | --- |
-| `live-twitch-client-secret` | Twitch application client secret |
-| `live-twitch-webhook-secret` | Independently generated EventSub signing secret |
-| `live-youtube-api-key` | YouTube Data API key |
-| `live-youtube-webhook-secret` | Independently generated WebSub signing secret |
+| `Live--Twitch--ClientSecret` | Twitch application client secret |
+| `Live--Twitch--WebhookSecret` | Independently generated EventSub signing secret |
+| `Live--YouTube--ApiKey` | YouTube Data API key |
+| `Live--YouTube--WebhookSecret` | Independently generated WebSub signing secret |
 
 The production deployment creates one horizontally scalable `aspiredev` App
 Service website. Aspire provisions Azure Managed Redis with Microsoft Entra
@@ -126,16 +128,15 @@ Redis stores only live-status and coordination data:
 - A short-lived YouTube confirmation coalescing key.
 
 API keys, OAuth client secrets, and webhook signing secrets remain in Key
-Vault. Every StaticHost worker receives those references because any worker can
-accept and verify a webhook callback.
+Vault. Every StaticHost worker loads the same configuration because any worker
+can accept and verify a webhook callback.
 
-StaticHost resolves Key Vault references at startup; it does not contact Key
-Vault for each snapshot, SSE connection, or provider request.
-Populate all referenced secrets before using the production feature: an
-unresolved reference is not equivalent to an absent setting. After changing
-values, refresh the App Service references and restart it so its
-bound configuration is reloaded. Rotating webhook signing secrets also
-requires recreating the corresponding provider subscriptions.
+StaticHost loads Key Vault configuration at startup; it does not contact Key
+Vault for each snapshot, SSE connection, or provider request. Missing provider
+credentials leave that provider idle, and missing signing secrets cause its
+webhook endpoint to reject requests. After changing a value, restart the App
+Service so its bound configuration is reloaded. Rotating webhook signing
+secrets also requires recreating the corresponding provider subscriptions.
 
 `EnableDevEndpoint` and `DevCommandSecret` are intentionally excluded from the
 vault. The AppHost creates those values only for local dashboard-command

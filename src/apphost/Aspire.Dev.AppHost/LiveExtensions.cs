@@ -62,11 +62,7 @@ internal static class LiveExtensions
             .WithEnvironment("Live__YouTube__ChannelId", youtubeChannelId)
             .WithEnvironment("Live__YouTube__PollingIntervalSeconds", youtubePollingInterval)
             .WithEnvironment("Live__YouTube__DiscoveryPollingIntervalSeconds", youtubeDiscoveryPollingInterval)
-            .WithEnvironment("Live__YouTube__OfflineConfirmationCount", youtubeOfflineConfirmationCount)
-            .WithEnvironment("Live__Twitch__ClientSecret", siteSecrets.GetSecret("live-twitch-client-secret"))
-            .WithEnvironment("Live__Twitch__WebhookSecret", siteSecrets.GetSecret("live-twitch-webhook-secret"))
-            .WithEnvironment("Live__YouTube__ApiKey", siteSecrets.GetSecret("live-youtube-api-key"))
-            .WithEnvironment("Live__YouTube__WebhookSecret", siteSecrets.GetSecret("live-youtube-webhook-secret"));
+            .WithEnvironment("Live__YouTube__OfflineConfirmationCount", youtubeOfflineConfirmationCount);
     }
 
     public static IResourceBuilder<ProjectResource> WithLocalLiveStatusDevCommands(this IResourceBuilder<ProjectResource> staticHostWebsite)
