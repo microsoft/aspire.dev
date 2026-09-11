@@ -113,6 +113,39 @@ await ingress.withPath('/', web.getEndpoint('http'));
   the `HTTPRoute` resource it generates.
 </Aside>
 
+## Hostname inheritance for paths and routes
+
+`WithHostname(...)` on the Ingress or Gateway sets the hostname that applies
+to any path (`WithPath`) or route (`WithRoute`) you add **without** an
+explicit hostname of its own. This lets you set the hostname once and reuse it
+across every hostless path or route:
+
+```csharp title="AppHost.cs"
+var ingress = k8s.AddIngress("public")
+    .WithHostname("app.example.com")
+    .WithTls();
+
+// Both paths inherit "app.example.com" from WithHostname(...).
+ingress.WithPath("/api", api.GetEndpoint("http"));
+ingress.WithPath("/", web.GetEndpoint("http"));
+```
+
+If a path or route specifies its own hostname — via the host-scoped
+`WithPath("api.example.com", "/", endpoint)` overload, or the equivalent on
+`WithRoute` — that explicit hostname takes precedence over the one from
+`WithHostname(...)`.
+
+`WithDefaultBackend(endpoint)` is unaffected by `WithHostname(...)`: the
+default backend always generates a catch-all rule (no `host` restriction) so
+it keeps accepting any traffic that doesn't match a more specific path or
+route, including the TLS compatibility rule Aspire generates for it.
+
+<Aside type="note">
+  This inheritance behavior applies from Aspire 13.6 onward. In earlier
+  versions, hostless paths and routes were generated as catch-all rules even
+  when `WithHostname(...)` was set on the Ingress or Gateway.
+</Aside>
+
 ## TLS and certificates
 
 When you configure TLS with `WithTls()`, Aspire handles the initial bootstrapping:
