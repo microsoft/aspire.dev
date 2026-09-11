@@ -28,7 +28,7 @@ internal static class GenerateCommand
         Description = "Package name override. Defaults to inferring from the input file name.",
     };
 
-    private static readonly Option<string?> s_versionOption = new("--version")
+    private static readonly Option<string?> s_packageVersionOption = new("--package-version")
     {
         Description = "Package version to include in the output metadata.",
     };
@@ -45,7 +45,27 @@ internal static class GenerateCommand
 
     private static readonly Option<string?> s_baseOption = new("--base")
     {
-        Description = "Path to the core Aspire.Hosting docs-site JSON. When provided, capabilities and types already present in the base are excluded from the output.",
+        Description = "Path to a base semantic package JSON. ATS identities already present in the base are excluded from the output.",
+    };
+
+    private static readonly Option<string?> s_supportOutputOption = new("--support-output")
+    {
+        Description = "Optional path to write the package support matrix generated from all language projections.",
+    };
+
+    private static readonly Option<string?> s_dumpCliVersionOption = new("--dump-cli-version")
+    {
+        Description = "Optional Aspire CLI version that produced the input dump.",
+    };
+
+    private static readonly Option<string?> s_dumpProductCommitOption = new("--dump-product-commit")
+    {
+        Description = "Optional Aspire product commit represented by the input dump.",
+    };
+
+    private static readonly Option<string?> s_dumpGeneratedAtOption = new("--dump-generated-at")
+    {
+        Description = "Optional timestamp supplied by the dump-producing workflow.",
     };
 
     public static RootCommand GetCommand()
@@ -55,10 +75,14 @@ internal static class GenerateCommand
             s_inputOption,
             s_outputOption,
             s_packageNameOption,
-            s_versionOption,
+            s_packageVersionOption,
             s_sourceRepoOption,
             s_sourceCommitOption,
             s_baseOption,
+            s_supportOutputOption,
+            s_dumpCliVersionOption,
+            s_dumpProductCommitOption,
+            s_dumpGeneratedAtOption,
         };
 
         command.SetAction(static parseResult =>
@@ -66,12 +90,27 @@ internal static class GenerateCommand
             var input = parseResult.GetValue(s_inputOption)!;
             var output = parseResult.GetValue(s_outputOption)!;
             var packageName = parseResult.GetValue(s_packageNameOption);
-            var version = parseResult.GetValue(s_versionOption);
+            var version = parseResult.GetValue(s_packageVersionOption);
             var sourceRepo = parseResult.GetValue(s_sourceRepoOption);
             var sourceCommit = parseResult.GetValue(s_sourceCommitOption);
             var basePath = parseResult.GetValue(s_baseOption);
+            var supportOutputPath = parseResult.GetValue(s_supportOutputOption);
+            var dumpCliVersion = parseResult.GetValue(s_dumpCliVersionOption);
+            var dumpProductCommit = parseResult.GetValue(s_dumpProductCommitOption);
+            var dumpGeneratedAt = parseResult.GetValue(s_dumpGeneratedAtOption);
 
-            return TransformFile(input, output, packageName, version, sourceRepo, sourceCommit, basePath);
+            return TransformFile(
+                input,
+                output,
+                packageName,
+                version,
+                sourceRepo,
+                sourceCommit,
+                basePath,
+                supportOutputPath,
+                dumpCliVersion,
+                dumpProductCommit,
+                dumpGeneratedAt);
         });
 
         return command;
@@ -84,7 +123,11 @@ internal static class GenerateCommand
         string? version,
         string? sourceRepo,
         string? sourceCommit,
-        string? basePath = null)
+        string? basePath = null,
+        string? supportOutputPath = null,
+        string? dumpCliVersion = null,
+        string? dumpProductCommit = null,
+        string? dumpGeneratedAt = null)
     {
         if (!File.Exists(inputPath))
         {
@@ -103,7 +146,26 @@ internal static class GenerateCommand
             return 1;
         }
 
-        var result = AtsTransformer.Transform(dump, packageName, version, sourceRepo, sourceCommit);
+        AppHostModuleModel result;
+        try
+        {
+            var dumpProvenance = CreateDumpProvenance(
+                dumpCliVersion,
+                dumpProductCommit,
+                dumpGeneratedAt);
+            result = AtsTransformer.Transform(
+                dump,
+                packageName,
+                version,
+                sourceRepo,
+                sourceCommit,
+                dumpProvenance);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"Failed to transform '{inputPath}': {exception.Message}");
+            return 1;
+        }
 
         // Deduplicate against the base (core) package
         if (basePath is not null)
@@ -115,24 +177,10 @@ internal static class GenerateCommand
             }
 
             var baseJson = File.ReadAllText(basePath);
-            var baseModel = JsonSerializer.Deserialize<TsPackageModel>(baseJson);
+            var baseModel = JsonSerializer.Deserialize<AppHostModuleModel>(baseJson);
             if (baseModel is not null)
             {
-                var baseFuncIds = new HashSet<string>(baseModel.Functions.Select(f => f.CapabilityId));
-                var baseHandleIds = new HashSet<string>(baseModel.HandleTypes.Select(h => h.FullName));
-                var baseDtoIds = new HashSet<string>(baseModel.DtoTypes.Select(d => d.FullName));
-                var baseEnumIds = new HashSet<string>(baseModel.EnumTypes.Select(e => e.FullName));
-
-                result.Functions.RemoveAll(f => baseFuncIds.Contains(f.CapabilityId));
-                result.HandleTypes.RemoveAll(h => baseHandleIds.Contains(h.FullName));
-                result.DtoTypes.RemoveAll(d => baseDtoIds.Contains(d.FullName));
-                result.EnumTypes.RemoveAll(e => baseEnumIds.Contains(e.FullName));
-
-                // Also strip base capabilities from handle type capabilities lists
-                foreach (var handle in result.HandleTypes)
-                {
-                    handle.Capabilities.RemoveAll(c => baseFuncIds.Contains(c.CapabilityId));
-                }
+                AtsTransformer.DeduplicateAgainstBase(result, baseModel);
             }
         }
 
@@ -154,7 +202,52 @@ internal static class GenerateCommand
         };
         var wroteFile = StableFileWriter.WriteIfChanged(outputPath, JsonSerializer.Serialize(result, options));
 
-        Console.WriteLine($"{(wroteFile ? "Generated" : "Unchanged")}: {outputPath} ({result.Functions.Count} functions, {result.HandleTypes.Count} handles, {result.DtoTypes.Count} DTOs, {result.EnumTypes.Count} enums)");
+        if (supportOutputPath is not null)
+        {
+            var supportDirectory = Path.GetDirectoryName(supportOutputPath);
+            if (!string.IsNullOrEmpty(supportDirectory))
+            {
+                Directory.CreateDirectory(supportDirectory);
+            }
+
+            var matrix = AtsTransformer.CreateSupportMatrix(result);
+            StableFileWriter.WriteIfChanged(supportOutputPath, JsonSerializer.Serialize(matrix, options));
+        }
+
+        var counts = result.Items
+            .GroupBy(item => item.Kind, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+        Console.WriteLine(
+            $"{(wroteFile ? "Generated" : "Unchanged")}: {outputPath} " +
+            $"({counts.GetValueOrDefault("capability")} capabilities, " +
+            $"{counts.GetValueOrDefault("handle")} handles, " +
+            $"{counts.GetValueOrDefault("dto")} DTOs, " +
+            $"{counts.GetValueOrDefault("enum")} enums, " +
+            $"{counts.GetValueOrDefault("exportedValue")} exported values)");
         return 0;
     }
+
+    private static AppHostDumpProvenanceModel? CreateDumpProvenance(
+        string? cliVersion,
+        string? productCommit,
+        string? generatedAt)
+    {
+        cliVersion = NormalizeOptionalValue(cliVersion);
+        productCommit = NormalizeOptionalValue(productCommit);
+        generatedAt = NormalizeOptionalValue(generatedAt);
+        if (cliVersion is null && productCommit is null && generatedAt is null)
+        {
+            return null;
+        }
+
+        return new AppHostDumpProvenanceModel
+        {
+            CliVersion = cliVersion,
+            ProductCommit = productCommit,
+            GeneratedAt = generatedAt,
+        };
+    }
+
+    private static string? NormalizeOptionalValue(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

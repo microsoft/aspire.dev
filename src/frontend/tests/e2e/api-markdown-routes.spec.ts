@@ -22,39 +22,39 @@ const markdownRoutes = [
     path: '/reference/api/csharp/communitytoolkit.aspire.hosting.activemq/activemqartemisserverresource/constructors.md',
   },
   {
-    expectedText: '# TypeScript API Reference',
-    name: 'TypeScript API index',
-    path: '/reference/api/typescript.md',
+    expectedText: '# AppHost API Reference',
+    name: 'AppHost API index',
+    path: '/reference/api/apphost.md',
   },
   {
     expectedText: '# Aspire.Hosting',
-    name: 'TypeScript module route',
-    path: '/reference/api/typescript/aspire.hosting.md',
+    name: 'AppHost module route',
+    path: '/reference/api/apphost/aspire.hosting.md',
   },
   {
     expectedText: '# IDistributedApplicationBuilder',
-    name: 'TypeScript handle route',
-    path: '/reference/api/typescript/aspire.hosting/idistributedapplicationbuilder.md',
+    name: 'AppHost handle route',
+    path: '/reference/api/apphost/aspire.hosting/idistributedapplicationbuilder.md',
   },
   {
     expectedText: '# CommandOptions',
-    name: 'TypeScript DTO route',
-    path: '/reference/api/typescript/aspire.hosting/commandoptions.md',
+    name: 'AppHost DTO route',
+    path: '/reference/api/apphost/aspire.hosting/commandoptions.md',
   },
   {
     expectedText: '# CertificateTrustScope',
-    name: 'TypeScript enum route',
-    path: '/reference/api/typescript/aspire.hosting/certificatetrustscope.md',
+    name: 'AppHost enum route',
+    path: '/reference/api/apphost/aspire.hosting/certificatetrustscope.md',
   },
   {
     expectedText: '# addConnectionString',
-    name: 'TypeScript function route',
-    path: '/reference/api/typescript/aspire.hosting/addconnectionstring.md',
+    name: 'AppHost function route',
+    path: '/reference/api/apphost/aspire.hosting/addconnectionstring.md',
   },
   {
     expectedText: '# IDistributedApplicationBuilder.addConnectionString',
-    name: 'TypeScript member route',
-    path: '/reference/api/typescript/aspire.hosting/idistributedapplicationbuilder/addconnectionstring.md',
+    name: 'AppHost member route',
+    path: '/reference/api/apphost/aspire.hosting/idistributedapplicationbuilder/addconnectionstring.md',
   },
   {
     // Samples reuse the same shared `markdownResponse` helper as the API
@@ -86,3 +86,37 @@ for (const route of markdownRoutes) {
     expect(body).not.toContain('<!DOCTYPE html>');
   });
 }
+
+test('legacy TypeScript markdown routes preserve the exact canonical target', async ({ request }) => {
+  const legacyPath = '/reference/api/typescript/aspire.hosting.md';
+  const canonicalPath = '/reference/api/apphost/aspire.hosting.md';
+  const response = await request.get(legacyPath, {
+    maxRedirects: 0,
+  });
+
+  if (response.status() === 308) {
+    // Astro dev executes the endpoint and preserves its permanent redirect.
+    expect(response.headers().location).toBe(canonicalPath);
+    return;
+  }
+
+  // Astro preview serves prerendered redirects as static files, so the
+  // endpoint status and Location header become a 200 redirect document.
+  expect(response.status()).toBe(200);
+  expect(response.headers()['content-type']).toContain('text/markdown');
+
+  const body = await response.text();
+
+  expect(body).toContain(`<meta http-equiv="refresh" content="0;url=${canonicalPath}">`);
+  expect(body).toContain(
+    `<link rel="canonical" href="https://aspire.dev${canonicalPath}">`
+  );
+  expect(body).toContain(`<a href="${canonicalPath}">`);
+  expect(body).not.toContain('# Aspire.Hosting');
+
+  const canonicalResponse = await request.get(canonicalPath);
+
+  expect(canonicalResponse.ok(), `${canonicalPath} should return 200.`).toBe(true);
+  expect(canonicalResponse.headers()['content-type']).toContain('text/markdown');
+  expect(await canonicalResponse.text()).toContain('# Aspire.Hosting');
+});

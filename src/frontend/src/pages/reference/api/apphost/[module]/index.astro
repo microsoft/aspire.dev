@@ -1,0 +1,90 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+import AppHostApiLanguageSelector from '@components/api-reference/AppHostApiLanguageSelector.astro';
+import Breadcrumb from '@components/Breadcrumb.astro';
+import { getGeneratedApiLanguages } from '@utils/apphost-languages';
+import { getAppHostApiSidebar } from '@utils/apphost-api-sidebar';
+import { getAppHostItemSlug, getAppHostTopLevelItems } from '@utils/apphost-api-routes';
+import {
+  appHostModuleSlug,
+  getAppHostModules,
+  getSupportedProjection,
+} from '@utils/apphost-modules';
+
+export async function getStaticPaths() {
+  return (await getAppHostModules()).map((entry) => ({
+    params: { module: appHostModuleSlug(entry.data.package.name) },
+    props: { document: entry.data },
+  }));
+}
+
+const { document } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const sidebar = await getAppHostApiSidebar(document.package.name);
+const moduleSlug = appHostModuleSlug(document.package.name);
+const items = getAppHostTopLevelItems(document);
+const languages = getGeneratedApiLanguages();
+---
+
+<StarlightPage
+  frontmatter={{
+    title: document.package.name,
+    description: `Generated AppHost API reference for ${document.package.name}.`,
+    tableOfContents: false,
+    prev: false,
+    next: false,
+    pagefind: false,
+    pageActions: true,
+  }}
+  sidebar={sidebar}
+  headings={[]}
+>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search AppHost APIs', href: `${base}/reference/api/apphost/` },
+    { label: document.package.name },
+  ]} />
+
+  <AppHostApiLanguageSelector />
+
+  <div class="api-hero pkg-hero not-content">
+    <code>📦 {document.package.name}</code>
+    {document.package.version && <code>v{document.package.version}</code>}
+  </div>
+
+  <div class="api-list not-content">
+    {items.map((item) => {
+      const href = `${base}/reference/api/apphost/${moduleSlug}/${getAppHostItemSlug(item, items)}/`;
+      return (
+        <a href={href} class="api-list-item">
+          <div class="api-list-header">
+            {languages.map((language) => {
+              const projection = getSupportedProjection(item, language.id);
+              return (
+                <span data-api-language={language.id}>
+                  {projection?.identifier
+                    ? <code>{projection.identifier}</code>
+                    : <span class="api-mini-badge">Unsupported</span>}
+                </span>
+              );
+            })}
+            <span class="api-kind-pill">{item.kind}</span>
+          </div>
+          {item.description && <div>{item.description}</div>}
+        </a>
+      );
+    })}
+  </div>
+</StarlightPage>
+
+<style>
+  [data-api-language] { display: none; }
+  :global(html:not([data-apphost-lang])) [data-api-language='typescript'],
+  :global(html[data-apphost-lang='typescript']) [data-api-language='typescript'],
+  :global(html[data-apphost-lang='python']) [data-api-language='python'],
+  :global(html[data-apphost-lang='go']) [data-api-language='go'],
+  :global(html[data-apphost-lang='java']) [data-api-language='java'],
+  :global(html[data-apphost-lang='rust']) [data-api-language='rust'] { display: inline; }
+</style>

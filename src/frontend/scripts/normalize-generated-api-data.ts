@@ -1,9 +1,9 @@
 /**
  * normalize-generated-api-data.ts — Enforces Aspire terminology in the generated
- * C#/TypeScript API reference JSON (`src/data/pkgs/*.json`, `src/data/ts-modules/*.json`).
+ * C#/AppHost API reference JSON (`src/data/pkgs/*.json`, `src/data/apphost-modules/*.json`).
  *
- * The C# API JSON is produced by the .NET `PackageJsonGenerator`; the TS API JSON
- * by `AtsJsonGenerator`. Both copy XML/JSDoc documentation text verbatim from the
+ * The C# API JSON is produced by the .NET `PackageJsonGenerator`; the semantic
+ * AppHost API JSON by `AtsJsonGenerator`. Both copy documentation text verbatim from the
  * upstream packages, so deprecated Aspire terminology leaks into the committed
  * data and trips the Forbidden Words CI check (see `.github/forbidden-words.json`).
  * This pass rewrites only prose fields, reusing the single source of truth in
@@ -20,7 +20,7 @@
  * Usage:
  *   tsx ./scripts/normalize-generated-api-data.ts                 # both areas
  *   tsx ./scripts/normalize-generated-api-data.ts --pkgs          # C# API only
- *   tsx ./scripts/normalize-generated-api-data.ts --ts-modules    # TS API only
+ *   tsx ./scripts/normalize-generated-api-data.ts --apphost-modules # AppHost API only
  */
 
 import fs from 'fs';
@@ -32,7 +32,12 @@ import { normalizeAspireTerminology } from './aspire-terminology';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, '..', 'src', 'data');
 export const PKGS_DIR = path.join(DATA_DIR, 'pkgs');
-export const TS_MODULES_DIR = path.join(DATA_DIR, 'ts-modules');
+export const APPHOST_MODULES_DIR = path.join(DATA_DIR, 'apphost-modules');
+export const APPHOST_LANGUAGE_SUPPORT_FILE = path.join(
+  DATA_DIR,
+  'apphost-language-support.json'
+);
+export const TS_MODULES_DIR = APPHOST_MODULES_DIR;
 
 // Per-line matcher (multiline) for EITHER a documentation node's `kind` marker
 // OR a prose string field. Groups:
@@ -46,12 +51,13 @@ export const TS_MODULES_DIR = path.join(DATA_DIR, 'ts-modules');
 // The `text` field is prose only inside `kind:"text"` nodes; code-bearing nodes
 // (code, codeblock, cref, langword, paramref, ...) also carry `text` and must be
 // left intact, hence the kind gating below. `description`/`returns`/`remarks`
-// are always prose (and appear as string values only in the TS API + member
+// are always prose (and appear as string values only in the AppHost API + member
 // summaries; the C# doc arrays open with `[` and are skipped, their inner text
 // nodes handled by the `text` rule). `Reason` is the prose payload of
-// `AspireExportIgnoreAttribute`.
+// `AspireExportIgnoreAttribute`; lowercase `reason` is used by generated
+// language-projection limitations and the support matrix.
 const nodeLine =
-  /^[ \t]*"kind"[ \t]*:[ \t]*"([^"]*)"|^([ \t]*")(text|description|returns|remarks|Reason)("[ \t]*:[ \t]*")((?:[^"\\]|\\.)*)(")/gm;
+  /^[ \t]*"kind"[ \t]*:[ \t]*"([^"]*)"|^([ \t]*")(text|description|returns|remarks|Reason|reason)("[ \t]*:[ \t]*")((?:[^"\\]|\\.)*)(")/gm;
 
 /**
  * Rewrite deprecated Aspire terminology in the prose fields of a generated API
@@ -133,7 +139,11 @@ export function normalizeApiDir(dir: string): {
 
 function main(): void {
   const args = process.argv.slice(2);
-  const explicit = args.includes('--pkgs') || args.includes('--ts-modules');
+  const explicit =
+    args.includes('--pkgs') ||
+    args.includes('--apphost-modules') ||
+    args.includes('--ts-modules') ||
+    args.includes('--support-matrix');
   const targets: Array<{ label: string; dir: string }> = [];
   if (!explicit || args.includes('--pkgs')) {
     targets.push({
@@ -143,12 +153,14 @@ function main(): void {
         : PKGS_DIR,
     });
   }
-  if (!explicit || args.includes('--ts-modules')) {
+  if (!explicit || args.includes('--apphost-modules') || args.includes('--ts-modules')) {
     targets.push({
-      label: 'ts-modules',
-      dir: process.env.ASPIRE_API_TS_MODULES_DIR
-        ? path.resolve(process.env.ASPIRE_API_TS_MODULES_DIR)
-        : TS_MODULES_DIR,
+      label: 'apphost-modules',
+      dir: process.env.ASPIRE_API_APPHOST_MODULES_DIR
+        ? path.resolve(process.env.ASPIRE_API_APPHOST_MODULES_DIR)
+        : process.env.ASPIRE_API_TS_MODULES_DIR
+          ? path.resolve(process.env.ASPIRE_API_TS_MODULES_DIR)
+          : APPHOST_MODULES_DIR,
     });
   }
 
@@ -161,6 +173,16 @@ function main(): void {
     );
     for (const file of changedFiles) {
       console.log(`      • ${file}`);
+    }
+  }
+  if (!explicit || args.includes('--support-matrix')) {
+    const supportFile = process.env.ASPIRE_API_LANGUAGE_SUPPORT_FILE
+      ? path.resolve(process.env.ASPIRE_API_LANGUAGE_SUPPORT_FILE)
+      : APPHOST_LANGUAGE_SUPPORT_FILE;
+    if (fs.existsSync(supportFile)) {
+      const changes = normalizeApiFile(supportFile);
+      total += changes;
+      console.log(`  apphost-language-support: normalized ${changes} occurrence(s)`);
     }
   }
 

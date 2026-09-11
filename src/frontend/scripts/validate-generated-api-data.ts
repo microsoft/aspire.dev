@@ -77,6 +77,90 @@ interface TsModuleJson {
   handleTypes?: HandleType[];
 }
 
+type GeneratedLanguage = 'typescript' | 'python' | 'go' | 'java' | 'rust';
+type ProjectionValidation =
+  | 'source-derived'
+  | 'upstream-test-validated'
+  | 'sdk-output-validated';
+
+interface SemanticProjection {
+  status: 'supported' | 'unsupported';
+  validation: ProjectionValidation;
+  reason?: string;
+  identifier?: string;
+  parameters?: Array<{
+    name: string;
+    type: string;
+    isOptional?: boolean;
+    isNullable?: boolean;
+    defaultValue?: string;
+    isCallback?: boolean;
+    callbackSignature?: string;
+  }>;
+  return?: { type: string };
+  fields?: DtoField[];
+}
+
+interface SemanticItem {
+  id: string;
+  kind: 'capability' | 'handle' | 'dto' | 'enum' | 'exportedValue';
+  name: string;
+  fullName?: string;
+  capabilityKind?: string;
+  targetTypeId?: string;
+  expandedTargetTypes?: string[];
+  implementedInterfaces?: string[];
+  baseTypeHierarchy?: string[];
+  projections: Record<GeneratedLanguage, SemanticProjection>;
+}
+
+interface SemanticModuleJson {
+  schemaVersion: string;
+  generatorProvenance: {
+    repository: string;
+    commit: string;
+    lockFile: string;
+  };
+  dumpProvenance?: {
+    cliVersion?: string;
+    productCommit?: string;
+    generatedAt?: string;
+  };
+  package: PackageMetadata;
+  items: SemanticItem[];
+}
+
+interface AppHostLanguageSupportMatrix {
+  schemaVersion: string;
+  generatedFrom: {
+    repository: string;
+    commit: string;
+    lockFile: string;
+    dumpProvenance?: SemanticModuleJson['dumpProvenance'];
+  };
+  packages: Record<
+    string,
+    {
+      package: { name: string; version?: string };
+      items: Record<
+        string,
+        {
+          kind: SemanticItem['kind'];
+          name: string;
+          languages: Record<
+            GeneratedLanguage,
+            {
+              supported: boolean;
+              validation: ProjectionValidation;
+              reason?: string;
+            }
+          >;
+        }
+      >;
+    }
+  >;
+}
+
 export interface GeneratedFile<T> {
   fileName: string;
   data: T;
@@ -88,6 +172,8 @@ export interface ValidationInput {
   packages: GeneratedFile<PackageJson>[];
   modules: GeneratedFile<TsModuleJson>[];
   declarations: string;
+  semanticModules?: GeneratedFile<SemanticModuleJson>[];
+  supportMatrix?: AppHostLanguageSupportMatrix;
 }
 
 export interface ValidationResult {
@@ -360,6 +446,12 @@ function resolveBaseHierarchy(
 
 export function validateGeneratedApiData(input: ValidationInput): ValidationResult {
   const errors: string[] = [];
+  const projectionChecks = validateSemanticModules(input.semanticModules ?? [], errors);
+  const supportChecks = validateSupportMatrix(
+    input.semanticModules ?? [],
+    input.supportMatrix,
+    errors
+  );
   const catalogByName = new Map<string, CatalogEntry>();
   for (const entry of input.catalog) {
     if (catalogByName.has(entry.title)) {
@@ -370,7 +462,12 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
   }
 
   const packageByIdentity = addUnique(input.packages, (pkg) => pkg.package, 'pkgs', errors);
-  const moduleByIdentity = addUnique(input.modules, (module) => module.package, 'ts-modules', errors);
+  const moduleByIdentity = addUnique(
+    input.modules,
+    (module) => module.package,
+    'AppHost TypeScript projections',
+    errors
+  );
 
   for (const entry of input.catalog) {
     if (!isPackageOutputExpected(entry.title)) continue;
@@ -420,19 +517,19 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
     const metadata = file.data.package;
     const catalogEntry = catalogByName.get(metadata.name);
     if (!catalogEntry) {
-      errors.push(`TypeScript API output ${identity(metadata)} is not present in the integration catalog.`);
+      errors.push(`AppHost TypeScript projection ${identity(metadata)} is not present in the integration catalog.`);
     } else if (catalogEntry.version !== metadata.version) {
       errors.push(
-        `Stale TypeScript API output ${identity(metadata)}; catalog version is ${catalogEntry.version}.`
+        `Stale AppHost TypeScript projection ${identity(metadata)}; catalog version is ${catalogEntry.version}.`
       );
     }
     if ((file.data.functions?.length ?? 0) === 0) {
-      errors.push(`TypeScript API output ${identity(metadata)} contains no exported functions.`);
+      errors.push(`AppHost TypeScript projection ${identity(metadata)} contains no exported functions.`);
     }
 
     const matchingPackage = packageByIdentity.get(identity(metadata))?.data;
     if (!matchingPackage) {
-      errors.push(`TypeScript API output ${identity(metadata)} has no exact C# API output.`);
+      errors.push(`AppHost TypeScript projection ${identity(metadata)} has no exact C# API output.`);
       continue;
     }
     if (metadata.sourceRepository !== matchingPackage.package.sourceRepository) {
@@ -449,7 +546,7 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
 
   for (const file of input.packages) {
     if (hasExportedApi(file.data) && !moduleByIdentity.has(identity(file.data.package))) {
-      errors.push(`Missing TypeScript API output for exported package ${identity(file.data.package)}.`);
+      errors.push(`Missing AppHost TypeScript projection for exported package ${identity(file.data.package)}.`);
     }
   }
 
@@ -486,7 +583,7 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
         errors.push(`Twoslash DTO ${dto.name} is missing property ${propertyName}.`);
       } else if (!property.optional) {
         errors.push(
-          `Twoslash DTO ${dto.name}.${propertyName} optionality does not match ts-modules metadata.`
+          `Twoslash DTO ${dto.name}.${propertyName} optionality does not match AppHost TypeScript projection metadata.`
         );
       }
       if (
@@ -494,7 +591,7 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
         normalizeTypeScriptType(property.type) !== normalizeTypeScriptType(field.type)
       ) {
         errors.push(
-          `Twoslash DTO ${dto.name}.${propertyName} type ${property.type} does not match ts-modules metadata ${field.type}.`
+          `Twoslash DTO ${dto.name}.${propertyName} type ${property.type} does not match AppHost TypeScript projection metadata ${field.type}.`
         );
       }
     }
@@ -556,11 +653,185 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
     errors,
     checks: [
       `${catalogByName.size} catalog package identities reconciled`,
-      `${moduleByIdentity.size} TypeScript modules matched to C# provenance`,
+      `${moduleByIdentity.size} AppHost TypeScript projections matched to C# provenance`,
       `${selectedDtos.size} DTO shapes checked`,
       `${selectedHandles.size} handle inheritance chains checked`,
+      `${projectionChecks} semantic AppHost items fully accounted for`,
+      `${supportChecks} support-matrix items reconciled with semantic modules`,
       'attribute payload regressions checked against HEAD',
     ],
+  };
+}
+
+export function validateSemanticModules(
+  modules: GeneratedFile<SemanticModuleJson>[],
+  errors: string[] = []
+): number {
+  const languages: GeneratedLanguage[] = ['typescript', 'python', 'go', 'java', 'rust'];
+  const validations = new Set<ProjectionValidation>([
+    'source-derived',
+    'upstream-test-validated',
+    'sdk-output-validated',
+  ]);
+  let itemCount = 0;
+  for (const file of modules) {
+    if (file.data.schemaVersion !== '1.0') {
+      errors.push(`${file.fileName} has unsupported AppHost module schema ${file.data.schemaVersion}.`);
+    }
+    if (
+      file.data.generatorProvenance.repository !== 'microsoft/aspire' ||
+      file.data.generatorProvenance.commit !==
+        '62028348b5d02dfc8f8baf03a4472946537b0d16' ||
+      file.data.generatorProvenance.lockFile !==
+        'src/tools/AtsJsonGenerator/upstream-sources.lock.json'
+    ) {
+      errors.push(`${file.fileName} has unexpected AppHost generator provenance.`);
+    }
+    const ids = new Set<string>();
+    for (const item of file.data.items) {
+      itemCount++;
+      if (ids.has(item.id)) {
+        errors.push(`${file.fileName} contains duplicate semantic item ${item.id}.`);
+      }
+      ids.add(item.id);
+      for (const language of languages) {
+        const projection = item.projections[language];
+        if (!projection) {
+          errors.push(`${file.fileName} item ${item.id} has no ${language} projection.`);
+          continue;
+        }
+        if (projection.status === 'unsupported' && !projection.reason?.trim()) {
+          errors.push(`${file.fileName} item ${item.id} has no ${language} limitation reason.`);
+        }
+        if (projection.status === 'supported' && !projection.identifier?.trim()) {
+          errors.push(`${file.fileName} item ${item.id} has a supported ${language} projection without an identifier.`);
+        }
+        if (!validations.has(projection.validation)) {
+          errors.push(
+            `${file.fileName} item ${item.id} has invalid ${language} validation evidence ${String(projection.validation)}.`
+          );
+        }
+      }
+    }
+  }
+  return itemCount;
+}
+
+export function validateSupportMatrix(
+  modules: GeneratedFile<SemanticModuleJson>[],
+  matrix: AppHostLanguageSupportMatrix | undefined,
+  errors: string[] = []
+): number {
+  if (modules.length === 0) return 0;
+  if (!matrix) {
+    errors.push('Missing AppHost language support matrix.');
+    return 0;
+  }
+  if (matrix.schemaVersion !== '1.0') {
+    errors.push(`Unsupported AppHost language support schema ${matrix.schemaVersion}.`);
+  }
+
+  const firstModule = modules[0].data;
+  if (
+    matrix.generatedFrom.repository !== firstModule.generatorProvenance.repository ||
+    matrix.generatedFrom.commit !== firstModule.generatorProvenance.commit ||
+    matrix.generatedFrom.lockFile !== firstModule.generatorProvenance.lockFile
+  ) {
+    errors.push('AppHost language support generator provenance does not match semantic modules.');
+  }
+
+  const expectedPackageIds = new Set(modules.map((file) => identity(file.data.package)));
+  for (const packageId of Object.keys(matrix.packages)) {
+    if (!expectedPackageIds.has(packageId)) {
+      errors.push(`AppHost language support contains stale package ${packageId}.`);
+    }
+  }
+
+  const languages: GeneratedLanguage[] = ['typescript', 'python', 'go', 'java', 'rust'];
+  let itemCount = 0;
+  for (const file of modules) {
+    const packageId = identity(file.data.package);
+    const supportPackage = matrix.packages[packageId];
+    if (!supportPackage) {
+      errors.push(`Missing AppHost language support for package ${packageId}.`);
+      continue;
+    }
+
+    const expectedItemIds = new Set(file.data.items.map((item) => item.id));
+    for (const itemId of Object.keys(supportPackage.items)) {
+      if (!expectedItemIds.has(itemId)) {
+        errors.push(`AppHost language support contains stale item ${packageId}/${itemId}.`);
+      }
+    }
+
+    for (const item of file.data.items) {
+      itemCount++;
+      const supportItem = supportPackage.items[item.id];
+      if (!supportItem) {
+        errors.push(`Missing AppHost language support for item ${packageId}/${item.id}.`);
+        continue;
+      }
+      if (supportItem.kind !== item.kind || supportItem.name !== item.name) {
+        errors.push(`AppHost language support identity mismatch for ${packageId}/${item.id}.`);
+      }
+      for (const language of languages) {
+        const projection = item.projections[language];
+        if (!projection) continue;
+        const support = supportItem.languages[language];
+        if (!support) {
+          errors.push(`Missing ${language} support status for ${packageId}/${item.id}.`);
+          continue;
+        }
+        if (
+          support.supported !== (projection.status === 'supported') ||
+          support.reason !== projection.reason ||
+          support.validation !== projection.validation
+        ) {
+          errors.push(`AppHost language support mismatch for ${packageId}/${item.id}/${language}.`);
+        }
+      }
+    }
+  }
+
+  return itemCount;
+}
+
+function projectTypeScriptModule(module: SemanticModuleJson): TsModuleJson {
+  const functions = module.items.flatMap((item) => {
+    const projection = item.projections.typescript;
+    if (item.kind !== 'capability' || projection.status !== 'supported' || !projection.identifier) {
+      return [];
+    }
+    return [{
+      name: projection.identifier,
+      kind: item.capabilityKind,
+      targetTypeId: item.targetTypeId,
+      expandedTargetTypes: item.expandedTargetTypes,
+      parameters: projection.parameters,
+      returnType: projection.return?.type,
+    }];
+  });
+
+  return {
+    package: module.package,
+    functions,
+    dtoTypes: module.items.flatMap((item): DtoType[] => {
+      const projection = item.projections.typescript;
+      return item.kind === 'dto' && projection.status === 'supported' && projection.identifier
+        ? [{ name: projection.identifier, fields: projection.fields ?? [] }]
+        : [];
+    }),
+    handleTypes: module.items.flatMap((item): HandleType[] => {
+      const projection = item.projections.typescript;
+      return item.kind === 'handle' && projection.status === 'supported' && projection.identifier
+        ? [{
+            name: projection.identifier,
+            fullName: item.fullName ?? item.id,
+            implementedInterfaces: item.implementedInterfaces,
+            baseTypeHierarchy: item.baseTypeHierarchy,
+          }]
+        : [];
+    }),
   };
 }
 
@@ -644,18 +915,31 @@ function main(): void {
   const packageDir = process.env.ASPIRE_API_PKGS_DIR
     ? path.resolve(process.env.ASPIRE_API_PKGS_DIR)
     : canonicalPackageDir;
-  const moduleDir = process.env.ASPIRE_API_TS_MODULES_DIR
-    ? path.resolve(process.env.ASPIRE_API_TS_MODULES_DIR)
-    : path.join(dataDir, 'ts-modules');
+  const moduleDir = process.env.ASPIRE_API_APPHOST_MODULES_DIR
+    ? path.resolve(process.env.ASPIRE_API_APPHOST_MODULES_DIR)
+    : process.env.ASPIRE_API_TS_MODULES_DIR
+      ? path.resolve(process.env.ASPIRE_API_TS_MODULES_DIR)
+      : path.join(dataDir, 'apphost-modules');
   const declarationsFile = process.env.ASPIRE_API_TWOSLASH_FILE
     ? path.resolve(process.env.ASPIRE_API_TWOSLASH_FILE)
     : path.join(dataDir, 'twoslash', 'aspire.d.ts');
+  const supportFile = process.env.ASPIRE_API_LANGUAGE_SUPPORT_FILE
+    ? path.resolve(process.env.ASPIRE_API_LANGUAGE_SUPPORT_FILE)
+    : path.join(dataDir, 'apphost-language-support.json');
+  const semanticModules = loadJsonFiles<SemanticModuleJson>(moduleDir);
   const result = validateGeneratedApiData({
     catalog: JSON.parse(
       fs.readFileSync(path.join(dataDir, 'aspire-integrations.json'), 'utf8')
     ) as CatalogEntry[],
     packages: loadJsonFiles<PackageJson>(packageDir, canonicalPackageDir),
-    modules: loadJsonFiles<TsModuleJson>(moduleDir),
+    modules: semanticModules.map((file) => ({
+      fileName: file.fileName,
+      data: projectTypeScriptModule(file.data),
+    })),
+    semanticModules,
+    supportMatrix: JSON.parse(
+      fs.readFileSync(supportFile, 'utf8')
+    ) as AppHostLanguageSupportMatrix,
     declarations: fs.readFileSync(declarationsFile, 'utf8'),
   });
 

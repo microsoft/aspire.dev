@@ -72,7 +72,7 @@ describe('normalizeApiJsonText — C# API (pkgs) shape', () => {
   });
 });
 
-describe('normalizeApiJsonText — TypeScript API (ts-modules) shape', () => {
+describe('normalizeApiJsonText — semantic AppHost API projection shape', () => {
   const doc = crlf([
     '{',
     `  "description": "Adds a first-class ${NET_ASPIRE} resource.",`,
@@ -90,6 +90,18 @@ describe('normalizeApiJsonText — TypeScript API (ts-modules) shape', () => {
     expect(text).toContain('"returns": "The Aspire resource builder."');
     expect(text).toContain('"remarks": "Only for an Aspire app."');
     expect(changes).toBe(3);
+  });
+
+  test('normalizes projection limitation reasons', () => {
+    const reason = crlf([
+      '{',
+      `  "reason": "Not available in polyglot ${APP_HOST}s."`,
+      '}',
+    ]);
+
+    expect(normalizeApiJsonText(reason).text).toContain(
+      '"reason": "Not available in polyglot AppHosts."'
+    );
   });
 
   test('never rewrites code identifiers (signature, returnType, ids)', () => {

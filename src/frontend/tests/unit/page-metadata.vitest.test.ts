@@ -300,15 +300,15 @@ describe('resolveOgImage', () => {
 
   it('falls back to the global image for generated pages routes', () => {
     const route = createRoute({
-      entryId: 'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
-      filePath: 'src/pages/reference/api/typescript/[module]/[item]/index.astro',
+      entryId: 'reference/api/apphost/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+      filePath: 'src/pages/reference/api/apphost/[module]/[item]/index.astro',
       title: 'addOllamaLocal',
     });
 
     expect(
       resolveOgImage(
         route,
-        'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+        'reference/api/apphost/communitytoolkit.aspire.hosting.ollama/addollamalocal',
         siteUrl,
         true
       )
@@ -317,7 +317,7 @@ describe('resolveOgImage', () => {
 
   it('falls back to the global image for virtual API reference routes without file paths', () => {
     const route = createRoute({
-      entryId: 'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+      entryId: 'reference/api/apphost/communitytoolkit.aspire.hosting.ollama/addollamalocal',
       filePath: '',
       title: 'addOllamaLocal',
     });
@@ -325,7 +325,7 @@ describe('resolveOgImage', () => {
     expect(
       resolveOgImage(
         route,
-        'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+        'reference/api/apphost/communitytoolkit.aspire.hosting.ollama/addollamalocal',
         siteUrl,
         true
       )
@@ -403,28 +403,28 @@ describe('shouldSkipDynamicOgImage', () => {
 
   it('skips generated pages routes', () => {
     const route = createRoute({
-      entryId: 'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
-      filePath: 'src/pages/reference/api/typescript/[module]/[item]/index.astro',
+      entryId: 'reference/api/apphost/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+      filePath: 'src/pages/reference/api/apphost/[module]/[item]/index.astro',
     });
 
     expect(
       shouldSkipDynamicOgImage(
         route,
-        'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal'
+        'reference/api/apphost/communitytoolkit.aspire.hosting.ollama/addollamalocal'
       )
     ).toBe(true);
   });
 
   it('skips virtual API reference routes without file paths', () => {
     const route = createRoute({
-      entryId: 'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+      entryId: 'reference/api/apphost/communitytoolkit.aspire.hosting.ollama/addollamalocal',
       filePath: '',
     });
 
     expect(
       shouldSkipDynamicOgImage(
         route,
-        'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal'
+        'reference/api/apphost/communitytoolkit.aspire.hosting.ollama/addollamalocal'
       )
     ).toBe(true);
   });
@@ -552,16 +552,16 @@ describe('getOgMetadata', () => {
 
   it('falls back to the static image for generated pages routes', () => {
     const route = createRoute({
-      entryId: 'reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal',
-      filePath: 'src/pages/reference/api/typescript/[module]/[item]/index.astro',
+      entryId: 'reference/api/apphost/communitytoolkit.aspire.hosting.ollama/addollamalocal',
+      filePath: 'src/pages/reference/api/apphost/[module]/[item]/index.astro',
       title: 'addOllamaLocal',
       description:
-        'Method — TypeScript API reference for addOllamaLocal in CommunityToolkit.Aspire.Hosting.Ollama',
+        'Method — AppHost API reference for addOllamaLocal in CommunityToolkit.Aspire.Hosting.Ollama',
     });
     const meta = getOgMetadata(
       route,
       new URL(
-        'https://aspire.dev/reference/api/typescript/communitytoolkit.aspire.hosting.ollama/addollamalocal/'
+        'https://aspire.dev/reference/api/apphost/communitytoolkit.aspire.hosting.ollama/addollamalocal/'
       ),
       site
     );

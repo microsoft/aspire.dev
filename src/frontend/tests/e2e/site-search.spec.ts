@@ -118,7 +118,7 @@ test.describe('site search dialog', () => {
     await expect(input).toHaveAttribute('aria-expanded', 'false');
   });
 
-  test('arrow nav also cycles through the C#/TypeScript API buttons', async ({ page }) => {
+  test('arrow nav also cycles through the C# and generated AppHost API buttons', async ({ page }) => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
@@ -129,29 +129,28 @@ test.describe('site search dialog', () => {
 
     const dialog = page.locator('site-search dialog[open]');
     const results = dialog.locator('.pagefind-ui__result-link');
-    const csharpBtn = dialog.locator('a[data-api-search-link][data-api-lang="csharp"]');
-    const tsBtn = dialog.locator('a[data-api-search-link][data-api-lang="typescript"]');
+    const apiButtons = dialog.locator('a[data-api-search-link]');
+    const csharpBtn = apiButtons.filter({ has: page.getByText('C# API Reference', { exact: true }) });
+    const lastApiButton = apiButtons.last();
 
     await expect(results.first()).toBeVisible({ timeout: 15000 });
     await expect(csharpBtn).toBeVisible();
 
     // Press End to jump to the last keyboard target — that should be the
-    // TypeScript API button (last item in DOM order: results → load-more
-    // → C# button → TS button). Home/End are deliberately ignored while
+    // final generated-language API button. Home/End are deliberately ignored while
     // the caret is in the input (they keep native text-editing behaviour
     // there), so we ArrowDown into the results first to move focus out
     // of the search field.
     const input = dialog.locator('input.pagefind-ui__search-input');
     await input.press('ArrowDown');
     await page.keyboard.press('End');
-    await expect(tsBtn).toHaveAttribute('data-search-active', 'true');
-    await expect(tsBtn).toBeFocused();
+    await expect(lastApiButton).toHaveAttribute('data-search-active', 'true');
+    await expect(lastApiButton).toBeFocused();
 
-    // ArrowUp from TS button should land on the C# button.
+    // ArrowUp from the last generated language should land on the preceding API button.
     await page.keyboard.press('ArrowUp');
-    await expect(csharpBtn).toHaveAttribute('data-search-active', 'true');
-    await expect(csharpBtn).toBeFocused();
-    await expect(tsBtn).not.toHaveAttribute('data-search-active', 'true');
+    await expect(apiButtons.nth((await apiButtons.count()) - 2)).toBeFocused();
+    await expect(lastApiButton).not.toHaveAttribute('data-search-active', 'true');
 
     // Press Home to jump back to the very first result; the API buttons
     // release the active marker.
@@ -180,7 +179,7 @@ test.describe('site search dialog', () => {
     await expect(results.first()).toBeVisible({ timeout: 15000 });
 
     // Pressing Home/End while focus is in the input must NOT move the
-    // active marker to the C#/TypeScript API buttons (or any other
+    // active marker to the dedicated API buttons (or any other
     // out-of-listbox target). This is the regression that previously
     // stole the caret away from the search field whenever the user
     // tried to jump to the start/end of their query text.
@@ -197,7 +196,7 @@ test.describe('site search dialog', () => {
     await expect(tsBtn).not.toBeFocused();
   });
 
-  test('typed query is forwarded to the C# and TypeScript API buttons', async ({ page }) => {
+  test('typed query is forwarded to C# and generated AppHost API buttons', async ({ page }) => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
@@ -211,28 +210,34 @@ test.describe('site search dialog', () => {
     await expect(csharpBtn).toBeVisible();
     await expect(tsBtn).toBeVisible();
 
-    // Pre-typing: hrefs should be the bare landing pages.
+    // Pre-typing: hrefs should preserve each landing page's language selection.
     await expect(csharpBtn).toHaveAttribute('href', /\/reference\/api\/csharp\/$/);
-    await expect(tsBtn).toHaveAttribute('href', /\/reference\/api\/typescript\/$/);
+    await expect(tsBtn).toHaveAttribute(
+      'href',
+      /\/reference\/api\/apphost\/\?aspire-lang=typescript$/
+    );
 
     // Use a query the TS API search index actually contains so the hand-off
     // can be verified end-to-end.
     await typeSearchQuery(page, 'withBun');
 
     await expect(csharpBtn).toHaveAttribute('href', /\/reference\/api\/csharp\/\?q=withBun$/);
-    await expect(tsBtn).toHaveAttribute('href', /\/reference\/api\/typescript\/\?q=withBun$/);
+    await expect(tsBtn).toHaveAttribute(
+      'href',
+      /\/reference\/api\/apphost\/\?aspire-lang=typescript&q=withBun$/
+    );
 
-    // Click the TypeScript button — it should land on the TS API landing
+    // Click the TypeScript button — it should land on the canonical AppHost API landing
     // page with the query pre-applied via InpageSearchSync.
     await tsBtn.click();
-    await page.waitForURL(/\/reference\/api\/typescript\/\?q=withBun/);
+    await page.waitForURL(/\/reference\/api\/apphost\/\?aspire-lang=typescript&q=withBun/);
 
     await dismissCookieConsentIfVisible(page);
 
-    const tsInput = page.locator('#ts-api-search-input');
+    const tsInput = page.locator('#apphost-api-search-input');
     await expect(tsInput).toHaveValue('withBun');
 
-    const tsResults = page.locator('#ts-api-search-results .api-search-result');
+    const tsResults = page.locator('#apphost-api-search-results .api-search-result');
     await expect(tsResults.first()).toBeVisible({ timeout: 10000 });
   });
 
@@ -252,6 +257,9 @@ test.describe('site search dialog', () => {
 
     await typeSearchQuery(page, '');
     await expect(csharpBtn).toHaveAttribute('href', /\/reference\/api\/csharp\/$/);
-    await expect(tsBtn).toHaveAttribute('href', /\/reference\/api\/typescript\/$/);
+    await expect(tsBtn).toHaveAttribute(
+      'href',
+      /\/reference\/api\/apphost\/\?aspire-lang=typescript$/
+    );
   });
 });

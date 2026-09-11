@@ -1,34 +1,39 @@
 import type { APIRoute } from 'astro';
 
-import { markdownResponse } from '@utils/api-markdown-shared';
-import { renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
-import type { TsApiDocument } from '@utils/ts-modules';
-import { getTsModules, tsModuleSlug } from '@utils/ts-modules';
+import { appHostModuleSlug, getAppHostModules } from '@utils/apphost-modules';
+import {
+  getAppHostTypeScriptMarkdownTarget,
+  getAppHostTypeScriptRouteAliases,
+} from '@utils/apphost-typescript-route-aliases';
 
 export const prerender = true;
 
-type RouteProps = {
-  pkg: TsApiDocument;
-};
-
-type StaticPath = {
-  params: { module: string };
-  props: RouteProps;
-};
-
-export async function getStaticPaths(): Promise<StaticPath[]> {
-  const packages = await getTsModules();
-
-  return packages.map((entry) => ({
-    params: { module: tsModuleSlug(entry.data.package.name) },
+export async function getStaticPaths() {
+  const paths = (await getAppHostModules()).map((entry) => ({
+    params: { module: appHostModuleSlug(entry.data.package.name) },
     props: {
-      pkg: entry.data,
+      target: `/reference/api/apphost/${appHostModuleSlug(entry.data.package.name)}/`,
     },
   }));
+  const routeKeys = new Set(paths.map((path) => path.params.module));
+  for (const alias of getAppHostTypeScriptRouteAliases(1)) {
+    if (routeKeys.has(alias.source)) continue;
+    paths.push({
+      params: { module: alias.source },
+      props: { target: alias.target },
+    });
+    routeKeys.add(alias.source);
+  }
+  return paths;
 }
 
 export const GET: APIRoute = ({ props }) => {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  const routeProps = props as RouteProps;
-  return markdownResponse(renderTypeScriptModuleMarkdown(routeProps.pkg, base));
+  if (typeof props.target !== 'string') {
+    throw new TypeError('Missing TypeScript API Markdown redirect target.');
+  }
+
+  return new Response(null, {
+    status: 308,
+    headers: { Location: getAppHostTypeScriptMarkdownTarget(props.target) },
+  });
 };

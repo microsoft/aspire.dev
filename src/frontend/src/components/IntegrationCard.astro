@@ -13,6 +13,7 @@ import {
   getEnabledAppHostLanguages,
   type AppHostLanguageId,
 } from '@utils/apphost-languages';
+import { getAppHostPackageLanguageSupport } from '@utils/apphost-modules';
 
 // Helper to abbreviate download counts
 function formatDownloads(n?: number) {
@@ -83,6 +84,19 @@ const appHostLanguageIcons = {
   rust: rustIcon,
 };
 const enabledAppHostLanguages = getEnabledAppHostLanguages();
+const packageLanguageSupport = supportsLangTabs
+  ? await getAppHostPackageLanguageSupport(pkg.title)
+  : undefined;
+const visibleAppHostLanguages = enabledAppHostLanguages.filter((language) => {
+  if (language.id === 'csharp') {
+    return true;
+  }
+  if (!language.generatedApi) {
+    return false;
+  }
+  const status = packageLanguageSupport?.languages[language.id]?.status;
+  return status === 'supported' || status === 'limited';
+});
 
 // Title links to the integration's get-started landing page (or external docs
 // page when the integration ships docs off-site). The docs map already points
@@ -180,7 +194,7 @@ const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
           </div>
           {supportsLangTabs ? (
             <div class="lang-buttons" role="group" aria-label={Astro.locals.t('integrations.viewLanguageDocs', { title: pkg.title })}>
-              {enabledAppHostLanguages.map((language) => {
+              {visibleAppHostLanguages.map((language) => {
                 const languageLabel = `${Astro.locals.t('integrations.viewLanguageDocs', {
                   title: pkg.title,
                 })}: ${language.label}`;

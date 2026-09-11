@@ -225,6 +225,8 @@ const basicRenderCases: BasicRenderCase[] = [
       'Redis Commander',
       'RedisInsight',
       'Companion',
+      'data-lang="csharp"',
+      'AddRedis()',
       'ghcr.io',
       'Copy to clipboard',
       'Source',

@@ -3,7 +3,7 @@
  * TypeScript SDK surface, consumed by the twoslash plugin so TS code blocks
  * in the docs get accurate hover tooltips.
  *
- * Reads: src/data/ts-modules/*.json (produced by update-ts-api.ts)
+ * Reads: src/data/apphost-modules/*.json (produced by update-ts-api.ts)
  * Writes: src/data/twoslash/aspire.d.ts (source-controlled — commit updates
  * after regenerating).
  */
@@ -13,9 +13,11 @@ import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const MODULES_DIR = process.env.ASPIRE_API_TS_MODULES_DIR
-  ? resolve(process.env.ASPIRE_API_TS_MODULES_DIR)
-  : resolve(__dirname, '..', 'src', 'data', 'ts-modules');
+const MODULES_DIR = process.env.ASPIRE_API_APPHOST_MODULES_DIR
+  ? resolve(process.env.ASPIRE_API_APPHOST_MODULES_DIR)
+  : process.env.ASPIRE_API_TS_MODULES_DIR
+    ? resolve(process.env.ASPIRE_API_TS_MODULES_DIR)
+    : resolve(__dirname, '..', 'src', 'data', 'apphost-modules');
 const PKGS_DIR = process.env.ASPIRE_API_PKGS_DIR
   ? resolve(process.env.ASPIRE_API_PKGS_DIR)
   : resolve(__dirname, '..', 'src', 'data', 'pkgs');
@@ -35,6 +37,7 @@ interface Parameter {
 }
 
 interface FunctionEntry {
+  id: string;
   name: string;
   description?: string;
   kind: 'Method' | 'InstanceMethod' | 'PropertyGetter' | 'PropertySetter';
@@ -89,6 +92,43 @@ interface ModuleJson {
   handleTypes?: HandleType[];
 }
 
+interface SemanticProjection {
+  status: 'supported' | 'unsupported';
+  identifier?: string;
+  signature?: string;
+  declaration?: string;
+  parameters?: Parameter[];
+  return?: { type: string };
+  fields?: DtoField[];
+  members?: Array<{ name: string }>;
+}
+
+interface SemanticItem {
+  id: string;
+  kind: 'capability' | 'handle' | 'dto' | 'enum' | 'exportedValue';
+  name: string;
+  fullName?: string;
+  capabilityKind?: FunctionEntry['kind'];
+  qualifiedName?: string;
+  capabilityId?: string;
+  targetTypeId?: string;
+  expandedTargetTypes?: string[];
+  returnsBuilder?: boolean;
+  description?: string;
+  isInterface?: boolean;
+  exposeProperties?: boolean;
+  implementedInterfaces?: string[];
+  baseTypeHierarchy?: string[];
+  projections: {
+    typescript?: SemanticProjection;
+  };
+}
+
+interface SemanticModuleJson {
+  package: PackageMetadata;
+  items: SemanticItem[];
+}
+
 interface PkgTypeEntry {
   name: string;
   fullName: string;
@@ -119,6 +159,135 @@ function withoutAssemblyPrefix(id: string): string {
 
 function packageIdentity(metadata: PackageMetadata): string {
   return `${metadata.name}@${metadata.version}`;
+}
+
+function normalizeTypeIdentity(typeId: string): string {
+  return typeId.includes('/') ? typeId.slice(typeId.indexOf('/') + 1) : typeId;
+}
+
+function expandGeneratedOptions(
+  parameters: Parameter[],
+  declaration: string | undefined
+): Parameter[] {
+  if (!declaration) return parameters;
+
+  return parameters.flatMap((parameter) => {
+    const escapedType = parameter.type.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = declaration.match(
+      new RegExp(`export interface\\s+${escapedType}\\s*\\{([\\s\\S]*?)\\}`)
+    );
+    if (!match) return [parameter];
+
+    const fields = match[1]
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .map((line): Parameter | undefined => {
+        const field = line.match(/^([A-Za-z_$][\w$]*)(\?)?:\s*(.+);$/);
+        if (!field) return undefined;
+        return {
+          name: field[1],
+          type: field[3],
+          isOptional: field[2] === '?',
+        };
+      })
+      .filter((field): field is Parameter => field !== undefined);
+    if (fields.length === 0) return [parameter];
+
+    return fields;
+  });
+}
+
+function unwrapProjectedReturnType(returnType: string | undefined): string {
+  const type = returnType?.trim() ?? 'void';
+  const promise = type.match(/^Promise<(.+)>$/);
+  return promise?.[1] ?? type;
+}
+
+function projectTypeScriptModule(module: SemanticModuleJson): ModuleJson {
+  const functions: FunctionEntry[] = module.items.flatMap((item) => {
+    const projection = item.projections.typescript;
+    if (
+      item.kind !== 'capability' ||
+      projection?.status !== 'supported' ||
+      !projection.identifier
+    ) {
+      return [];
+    }
+    return [{
+      id: item.id,
+      name: projection.identifier,
+      description: item.description,
+      kind: item.capabilityKind ?? 'Method',
+      signature: projection.signature ?? projection.identifier,
+      parameters: expandGeneratedOptions(
+        projection.parameters ?? [],
+        projection.declaration
+      ),
+      // The generated SDK exposes thenable wrapper objects for handle results.
+      // Twoslash models those as their resolved handle so fluent docs chains
+      // retain the concrete surface, matching the legacy TypeScript API data.
+      returnType: unwrapProjectedReturnType(projection.return?.type),
+      returnsBuilder: item.returnsBuilder,
+      targetTypeId: item.targetTypeId ?? '',
+      expandedTargetTypes: item.expandedTargetTypes ?? [],
+    }];
+  });
+
+  const capabilitiesByTarget = new Map<string, FunctionEntry[]>();
+  for (const fn of functions) {
+    for (const target of [fn.targetTypeId, ...fn.expandedTargetTypes].filter(Boolean)) {
+      const key = normalizeTypeIdentity(target);
+      const entries = capabilitiesByTarget.get(key) ?? [];
+      if (!entries.some((entry) => entry.id === fn.id)) {
+        entries.push(fn);
+      }
+      capabilitiesByTarget.set(key, entries);
+    }
+  }
+
+  return {
+    package: module.package,
+    functions,
+    handleTypes: module.items.flatMap((item): HandleType[] => {
+      const projection = item.projections.typescript;
+      if (item.kind !== 'handle' || projection?.status !== 'supported' || !projection.identifier) {
+        return [];
+      }
+      return [{
+        name: projection.identifier,
+        fullName: item.fullName ?? item.id,
+        kind: 'handle',
+        exposeProperties: item.exposeProperties,
+        implementedInterfaces: item.implementedInterfaces,
+        baseTypeHierarchy: item.baseTypeHierarchy,
+        capabilities: capabilitiesByTarget.get(normalizeTypeIdentity(item.fullName ?? item.id)) ?? [],
+      }];
+    }),
+    dtoTypes: module.items.flatMap((item): DtoType[] => {
+      const projection = item.projections.typescript;
+      if (item.kind !== 'dto' || projection?.status !== 'supported' || !projection.identifier) {
+        return [];
+      }
+      return [{
+        name: projection.identifier,
+        fullName: item.fullName ?? item.id,
+        kind: 'dto',
+        fields: projection.fields ?? [],
+      }];
+    }),
+    enumTypes: module.items.flatMap((item): EnumType[] => {
+      const projection = item.projections.typescript;
+      if (item.kind !== 'enum' || projection?.status !== 'supported' || !projection.identifier) {
+        return [];
+      }
+      return [{
+        name: projection.identifier,
+        fullName: item.fullName ?? item.id,
+        kind: 'enum',
+        members: (projection.members ?? []).map((member) => member.name),
+      }];
+    }),
+  };
 }
 
 function cleanType(raw: string | undefined): string {
@@ -250,7 +419,7 @@ const PARAM_TYPE_OVERRIDES: Record<string, Record<string, string>> = {
     resourceGroup: 'string | ParameterResource',
   },
   // Current Aspire TS SDKs accept connection-string resources as wait
-  // dependencies; the 13.3 ts-modules snapshot still reports IResource only.
+  // dependencies; the 13.3 TypeScript projection snapshot still reports IResource only.
   waitFor: {
     dependency: 'IResource | IResourceWithConnectionString',
   },
@@ -288,10 +457,8 @@ function applyParamOverrides(fnName: string, params: Parameter[]): Parameter[] {
 // optional-primitive params into an options object. Returns the split index
 // (number of leading required params to keep positional) or -1 to skip.
 // Rules:
-//  - `add*` / `with*` / `publish*` methods: any trailing optional tail (≥1) gets
-//    collapsed — docs consistently surface these as `addX/withX/publishX(..., options?)`.
-//  - other methods: require ≥2 trailing optional params to avoid noisy
-//    single-field options overloads.
+//  - Any nonempty trailing optional-primitive tail gets an options overload,
+//    matching the SDK even for single-field methods such as DockerfileBuilder.from.
 //  - `with*` / `add*` tails must all be primitive-typed (callback-heavy tails
 //    stay positional for readability). `publish*` tails may include callbacks
 //    — the docs consistently pass `{ configure: ..., configureSlot: ... }`.
@@ -306,8 +473,6 @@ function optionsOverloadSplit(fnName: string, params: Parameter[]): number {
   if (firstOpt < 0) return -1;
   const tail = params.slice(firstOpt);
   if (tail.length === 1 && tail[0].name === 'options') return -1;
-  const minTail = /^(add|with|publish)[A-Z0-9]/.test(fnName) ? 1 : 2;
-  if (tail.length < minTail) return -1;
   // `with*` methods that take a callback (e.g. `withPgAdmin(configureContainer?)`)
   // are consistently invoked in docs as `withX({ configureContainer: cb })`.
   const allowCallbacks = /^(publish|with)[A-Z0-9]/.test(fnName);
@@ -342,14 +507,17 @@ const files = readdirSync(MODULES_DIR)
   .filter((f) => f.endsWith('.json'))
   .sort();
 
-const modules: ModuleJson[] = files.map(
-  (f) => JSON.parse(readFileSync(resolve(MODULES_DIR, f), 'utf8')) as ModuleJson
-);
+const modules: ModuleJson[] = files.map((fileName) => {
+  const raw = JSON.parse(readFileSync(resolve(MODULES_DIR, fileName), 'utf8')) as
+    | ModuleJson
+    | SemanticModuleJson;
+  return 'items' in raw ? projectTypeScriptModule(raw) : raw;
+});
 
 console.log(`📚 Loaded ${modules.length} module JSON files`);
 
 // Load class-inheritance metadata from the richer pkgs/*.json dumps. Older
-// ts-modules snapshots omitted BaseTypeHierarchy, so this remains the fallback.
+// older TypeScript projections omitted BaseTypeHierarchy, so this remains the fallback.
 // Scope full type names to their package: separate integrations can export the
 // same namespace/type identity with different inheritance.
 const classBasesByPackage = new Map<string, Map<string, string>>();
@@ -408,9 +576,9 @@ const genericArity = new Map<string, number>();
 const FREE_FUNCTION_NAMES = new Set(['createBuilder', 'createBuilderWithOptions']);
 
 // Confirmed Aspire 13.4 API surface that may be absent from the checked-in
-// 13.3 ts-modules snapshot until package data is refreshed. Keep these shims
+// 13.3 TypeScript projection snapshot until package data is refreshed. Keep these shims
 // narrow and remove them when update-ts-api brings the APIs into
-// src/data/ts-modules.
+// src/data/apphost-modules.
 const POST_SNAPSHOT_FREE_FUNCTIONS = [
   `/**
  * Creates a reference expression from a tagged template literal
