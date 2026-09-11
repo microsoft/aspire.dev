@@ -40,6 +40,23 @@ The telemetry endpoint accepts incoming <abbr title="OpenTelemetry Protocol" dat
 
 For information about securing the telemetry when running the dashboard in standalone mode, see [Securing the telemetry endpoint](#secure-telemetry-endpoint).
 
+## Protect persisted data
+
+The dashboard stores resources, console logs, structured logs, traces, and metrics in SQLite. Depending on the configured [persistence mode](/dashboard/data-persistence/#persistence-modes), these files can remain after the dashboard stops.
+
+Persisted data can contain sensitive application-supplied values, including environment variables, resource properties, console output, log bodies and attributes, trace attributes and events, metric dimensions, and exemplars. Resource property values marked as sensitive are stored without redaction or encryption. The sensitivity marker is retained so the dashboard masks those values in current and historical views, but masking doesn't protect values read directly from the database, write-ahead log files, backups, or copies.
+
+The SQLite database has no independent authorization or encryption layer. Its security boundary is the local file system. Application-name partitioning organizes data but isn't an authorization boundary.
+
+- Configure `ASPIRE_HOME` or `Dashboard:Data:Directory` so only the dashboard's account and authorized administrators can read or modify the entire data directory.
+- Apply equivalent access restrictions to backups, snapshots, and copies of the data directory.
+- On Unix-like systems, the dashboard creates the application-specific directory with owner-only permissions (`0700`) and changes an existing application directory to that mode.
+- On Windows, the dashboard uses the directory's inherited access control list (ACL) and doesn't set or validate a specific ACL. Verify that the configured data root doesn't grant access to unauthorized users.
+
+Don't modify dashboard data files with non-Aspire tools. The files don't have cryptographic integrity protection, and external changes can display misleading data, prevent runs from opening, or cause unexpected behavior.
+
+For storage locations and operational details, see [Aspire dashboard data persistence](/dashboard/data-persistence/).
+
 ## Anonymous access
 
 By default, the dashboard requires browser token authentication because it can display sensitive information, including resource configuration, logs, and telemetry.
@@ -74,7 +91,7 @@ When the dashboard is launched by an Aspire AppHost, the OTLP and telemetry API 
 
 ### Incoming OTLP endpoint
 
-The dashboard collects telemetry through an [OTLP (OpenTelemetry protocol)](https://opentelemetry.io/docs/specs/otel/protocol/) endpoint. Apps send telemetry to this endpoint, and the dashboard stores the external information it receives in memory, which is then accessible via the UI.
+The dashboard collects telemetry through an [OTLP (OpenTelemetry protocol)](https://opentelemetry.io/docs/specs/otel/protocol/) endpoint. Apps send telemetry to this endpoint, and the dashboard stores the external information it receives in SQLite, which is then accessible via the UI.
 
 :::danger[Accept telemetry only from trusted sources]
 Treat the OTLP endpoint as an ingestion service, not as a public telemetry collector. A malicious or compromised sender can submit large volumes of telemetry or maliciously shaped telemetry, such as data with many attributes, long values, large numbers of span events, or high-cardinality metrics. Receiving, decoding, validating, and processing this data consumes network bandwidth, CPU, and memory, even when the dashboard later rejects, truncates, or evicts it.
@@ -208,13 +225,13 @@ When API key authentication is configured, each request to the telemetry API mus
 
 ## Resource exhaustion
 
-The dashboard uses resources for every telemetry payload it receives. Stored resource details and telemetry consume memory, while ingesting telemetry also consumes network bandwidth and CPU. A burst of telemetry, many concurrent senders, or payloads designed to require excessive processing can degrade dashboard availability or exhaust resources on the host.
+The dashboard uses resources for every telemetry payload it receives. Stored resource details and telemetry consume disk space, while queries and ingestion also consume memory, network bandwidth, and CPU. A burst of telemetry, many concurrent senders, or payloads designed to require excessive processing can degrade dashboard availability or exhaust resources on the host.
 
 ### Telemetry limits
 
 The dashboard limits the count and size of telemetry it stores. For example, there is a maximum of 10,000 structured log entries shared across resources. Once the limit is reached, each new log entry received causes an old entry to be removed. Configurable limits also constrain attributes, span events, tracked resources, traces, and metric data points.
 
-Storage limits reduce long-lived memory use, but they aren't admission-control or rate limits. The dashboard still incurs some cost to receive and process telemetry before applying storage limits, and the limits don't cap the total amount of telemetry that senders can transmit over time. Consequently, storage limits reduce but don't eliminate the risk of resource exhaustion.
+Storage limits reduce retained data, but they aren't admission-control, rate, or disk-quota limits. The dashboard still incurs some cost to receive and process telemetry before applying storage limits, and the limits don't cap console logs, database file size, or the total amount of telemetry that senders can transmit over time. Consequently, storage limits reduce but don't eliminate the risk of resource exhaustion.
 
 Use defense in depth when accepting telemetry:
 
@@ -222,6 +239,6 @@ Use defense in depth when accepting telemetry:
 - Limit OTLP endpoint access with network controls such as firewall rules or private networks.
 - Apply request-size, rate, and concurrency limits at a gateway or reverse proxy when senders aren't fully trusted.
 - [Configure telemetry limits](/dashboard/configuration/#telemetry-limits), including attribute length and span event count, for the expected workload.
-- Monitor the dashboard host's CPU and memory use, and isolate the dashboard from critical workloads when appropriate.
+- Monitor the dashboard host's CPU, memory, and disk use, and isolate the dashboard from critical workloads when appropriate.
 
 Review these controls whenever the expected telemetry volume or the set of trusted senders changes.

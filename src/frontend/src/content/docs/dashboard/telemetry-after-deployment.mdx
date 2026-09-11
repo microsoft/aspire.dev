@@ -6,7 +6,7 @@ description: Understand how telemetry and the Aspire dashboard work after you de
 import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-The Aspire dashboard is designed for local development and short-term diagnostics. It stores telemetry in memory, which means telemetry is lost when the dashboard restarts and there are built-in limits on how much data it retains. After deploying your app to a production environment, you need to configure a persistent telemetry backend.
+The Aspire dashboard is designed for local development and short-term diagnostics. It offers configurable persistence and built-in limits on how much data it retains, but it isn't intended for long-term production observability. After deploying your app to a production environment, configure a durable telemetry backend.
 
 This article explains what changes when you deploy your app, how to configure production telemetry with Azure Monitor, and how to access the Aspire dashboard if it's included in your deployment.
 
@@ -16,13 +16,14 @@ During development, Aspire automatically starts the dashboard and configures you
 
 | | Aspire dashboard | Production telemetry backend |
 |---|---|---|
-| **Storage** | In-memory only | Persistent (database, cloud service) |
-| **Retention** | Lost on restart | Configurable (days, months, indefinitely) |
+| **Data durability** | Configurable for development and short-term diagnostics | Designed for durable, long-term telemetry |
+| **Retention** | Temporary by default; persistence is configurable | Configurable (days, months, indefinitely) |
 | **Telemetry limits** | Default 10,000 log entries, 10,000 traces | Configurable or unlimited |
+| **Scalability** | Fast access to development session telemetry | Scales to production telemetry volume and application lifetimes |
 | **Access** | Local or private | Secured, multi-user |
 | **Alerting** | None | Configurable alerts and dashboards |
 
-After deploying, configure your app to send telemetry to a persistent backend. Any OTEL-compatible backend will work. For Azure-hosted apps, Azure Monitor with Application Insights is the recommended production telemetry solution.
+After deploying, configure your app to send telemetry to a production telemetry backend. Any OTEL-compatible backend will work. For Azure-hosted apps, Azure Monitor with Application Insights is the recommended production telemetry solution.
 
 ## Export to an OpenTelemetry-compatible backend
 
@@ -138,7 +139,7 @@ The Aspire dashboard supports both gRPC OTLP (port 18889) and HTTP OTLP (port 18
 When you deploy an Aspire app to Azure Container Apps using `aspire deploy`, the Aspire dashboard is included as a Container Apps environment in your deployment. This gives you a familiar UI for viewing telemetry from your deployed app.
 
 <Aside type="caution">
-The deployed Aspire dashboard stores telemetry in memory. Telemetry is lost each time the dashboard container restarts. For persistent telemetry, configure Azure Monitor in addition to the dashboard.
+The deployed Aspire dashboard uses temporary storage by default, so telemetry is lost each time the dashboard container restarts. Dashboard persistence can preserve local diagnostic data across restarts, but it isn't a replacement for a production telemetry backend. Configure Azure Monitor in addition to the dashboard for durable production telemetry.
 </Aside>
 
 ### Find the dashboard URL

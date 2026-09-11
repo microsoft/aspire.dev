@@ -141,10 +141,10 @@ The dashboard offers a UI for viewing telemetry. Refer to the documentation to e
 - [Traces page](/dashboard/explore/#traces-page)
 - [Metrics page](/dashboard/explore/#metrics-page)
 
-Although there is no restriction on where the dashboard is run, the dashboard is designed as a development and short-term diagnostic tool. The dashboard persists telemetry in-memory which creates some limitations:
+Although there is no restriction on where the dashboard is run, the dashboard is designed for development and short-term diagnostics rather than production telemetry retention:
 
 - Telemetry is automatically removed if [telemetry limits](/dashboard/configuration/#telemetry-limits) are exceeded.
-- No telemetry is persisted when the dashboard is restarted.
+- The dashboard can be configured to persist telemetry, but it is intended for development history and a limited number of diagnostics, not long-term production observability.
 
 ### Unavailable features when standalone
 
@@ -205,6 +205,70 @@ The [`aspire agent mcp`](/reference/cli/commands/aspire-agent-mcp/) command star
 ```bash title="Aspire CLI"
 aspire agent mcp --dashboard-url "http://localhost:18888/login?t=<token>"
 ```
+
+## Enable persistence
+
+The standalone dashboard defaults to no persistence and telemetry is lost when the dashboard shuts down. To retain data, choose one of the persistent modes:
+
+- `Run` preserves each dashboard session as a separate run and enables selection of historical runs.
+- `Resume` continues the same telemetry history across dashboard restarts. New telemetry is appended.
+
+For more information about persistence modes, run history, and retention, see [Aspire dashboard data persistence](/dashboard/data-persistence/).
+
+### Aspire CLI persistence
+
+Pass a persistent mode and a stable application name to `aspire dashboard run`.
+
+```bash title="Aspire CLI"
+aspire dashboard run --application-name my-app --persistence run
+```
+
+The application name partitions persisted data.
+
+### Persist data between container runs
+
+For a dashboard container more configuration is required because the local filesystem is ephemeral. You must mount persistent storage.
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash title="Create the volume and run the dashboard"
+docker volume create aspire-dashboard-data
+
+docker run --rm -d --name aspire-dashboard \
+  -p 18888:18888 \
+  -p 4317:18889 \
+  -p 4318:18890 \
+  --mount type=volume,source=aspire-dashboard-data,target=/dashboard-data \
+  -e ASPIRE_DASHBOARD_APPLICATION_NAME=my-app \
+  -e ASPIRE_DASHBOARD_DATA_DIRECTORY=/dashboard-data \
+  -e ASPIRE_DASHBOARD_PERSISTENCE_MODE=run \
+  mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```
+
+</div>
+<div slot="windows">
+
+```powershell title="Create the volume and run the dashboard"
+docker volume create aspire-dashboard-data
+
+docker run --rm -d --name aspire-dashboard `
+  -p 18888:18888 `
+  -p 4317:18889 `
+  -p 4318:18890 `
+  --mount type=volume,source=aspire-dashboard-data,target=/dashboard-data `
+  -e ASPIRE_DASHBOARD_APPLICATION_NAME=my-app `
+  -e ASPIRE_DASHBOARD_DATA_DIRECTORY=/dashboard-data `
+  -e ASPIRE_DASHBOARD_PERSISTENCE_MODE=run `
+  mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```
+
+</div>
+</OsAwareTabs>
+
+Stop the container and run the same `docker run` command again to access the retained data. Keep the volume, application name, and persistence mode unchanged between container runs.
+
+Persisted telemetry can contain sensitive data. Restrict access to the volume and see [Aspire dashboard data persistence](/dashboard/data-persistence/) for persistence behavior and [Dashboard security considerations](/dashboard/security-considerations/#protect-persisted-data) for security requirements.
 
 ## Sample
 
