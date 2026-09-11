@@ -83,7 +83,19 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
       data-tooltip-placement="top"
       type="button"
     >
-      <svg class="type-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.521 2.624a2 2 0 0 1 2.958 0l1.02 1.12a2 2 0 0 0 1.572.651l1.513-.07a2 2 0 0 1 2.092 2.09l-.071 1.514a2 2 0 0 0 .651 1.572l1.12 1.02a2 2 0 0 1 0 2.958l-1.12 1.02a2 2 0 0 0-.651 1.572l.07 1.513a2 2 0 0 1-2.09 2.092l-1.514-.071a2 2 0 0 0-1.572.651l-1.02 1.12a2 2 0 0 1-2.958 0l-1.02-1.12a2 2 0 0 0-1.572-.651l-1.513.07a2 2 0 0 1-2.092-2.09l.071-1.514a2 2 0 0 0-.651-1.572l-1.12-1.02a2 2 0 0 1 0-2.958l1.12-1.02a2 2 0 0 0 .651-1.572l-.07-1.513a2 2 0 0 1 2.09-2.092l1.514.071a2 2 0 0 0 1.572-.651z"/><path stroke-linecap="round" stroke-linejoin="round" d="m9 12l2 2l4-4"/></svg>
+      <svg
+        class="type-icon"
+        aria-hidden="true"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        ><path
+          d="M10.521 2.624a2 2 0 0 1 2.958 0l1.02 1.12a2 2 0 0 0 1.572.651l1.513-.07a2 2 0 0 1 2.092 2.09l-.071 1.514a2 2 0 0 0 .651 1.572l1.12 1.02a2 2 0 0 1 0 2.958l-1.12 1.02a2 2 0 0 0-.651 1.572l.07 1.513a2 2 0 0 1-2.09 2.092l-1.514-.071a2 2 0 0 0-1.572.651l-1.02 1.12a2 2 0 0 1-2.958 0l-1.02-1.12a2 2 0 0 0-1.572-.651l-1.513.07a2 2 0 0 1-2.092-2.09l.071-1.514a2 2 0 0 0-.651-1.572l-1.12-1.02a2 2 0 0 1 0-2.958l1.12-1.02a2 2 0 0 0 .651-1.572l-.07-1.513a2 2 0 0 1 2.09-2.092l1.514.071a2 2 0 0 0 1.572-.651z"
+        ></path><path stroke-linecap="round" stroke-linejoin="round" d="m9 12l2 2l4-4"></path></svg
+      >
       {Astro.locals.t('integrations.official')}
     </button>
     <button
@@ -93,7 +105,21 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
       data-tooltip-placement="top"
       type="button"
     >
-      <svg class="type-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M7 18v-1a5 5 0 0 1 5-5v0a5 5 0 0 1 5 5v1M1 18v-1a3 3 0 0 1 3-3v0m19 4v-1a3 3 0 0 0-3-3v0m-8-2a3 3 0 1 0 0-6a3 3 0 0 0 0 6m-8 2a2 2 0 1 0 0-4a2 2 0 0 0 0 4m16 0a2 2 0 1 0 0-4a2 2 0 0 0 0 4"/></svg>
+      <svg
+        class="type-icon"
+        aria-hidden="true"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+        ><path
+          d="M7 18v-1a5 5 0 0 1 5-5v0a5 5 0 0 1 5 5v1M1 18v-1a3 3 0 0 1 3-3v0m19 4v-1a3 3 0 0 0-3-3v0m-8-2a3 3 0 1 0 0-6a3 3 0 0 0 0 6m-8 2a2 2 0 1 0 0-4a2 2 0 0 0 0 4m16 0a2 2 0 1 0 0-4a2 2 0 0 0 0 4"
+        ></path></svg
+      >
       {Astro.locals.t('integrations.community')}
     </button>
   </div>
@@ -629,6 +655,8 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
     }
 
     if (updateUrl) updateURL();
+
+    return visibleCount;
   }
 
   // Debounce helper
@@ -641,7 +669,47 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   }
 
   // Replace direct filterCards call with debounced version for input
-  const debouncedFilterCards = debounce(() => filterCards(), 500);
+  function bucketQueryLength(value) {
+    const length = value.trim().length;
+    if (length <= 3) return 'one_to_three';
+    if (length <= 10) return 'four_to_ten';
+    if (length <= 30) return 'eleven_to_thirty';
+    return 'thirty_plus';
+  }
+
+  function bucketResultCount(count) {
+    if (count === 0) return 'zero';
+    if (count <= 5) return 'one_to_five';
+    if (count <= 20) return 'six_to_twenty';
+    return 'twenty_plus';
+  }
+
+  function trackFilterUsed(filterType, visibleCount) {
+    document.dispatchEvent(
+      new CustomEvent('aspire:funnel-step', {
+        detail: {
+          funnel: 'integration_adoption',
+          step: 'filter_used',
+          surface: 'integrations_gallery',
+          filterType,
+          ...(filterType === 'search'
+            ? {
+                queryLength: bucketQueryLength(searchBox.value),
+                resultCount: bucketResultCount(visibleCount),
+              }
+            : {}),
+          actionType: 'CL',
+        },
+      })
+    );
+  }
+
+  const debouncedFilterCards = debounce(() => {
+    const visibleCount = filterCards();
+    if (searchBox.value.trim()) {
+      trackFilterUsed('search', visibleCount);
+    }
+  }, 500);
 
   searchBox.addEventListener('input', () => {
     updateClearButton();
@@ -653,27 +721,31 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   officialToggle.addEventListener('click', () => {
     showOfficial = !showOfficial;
     officialToggle.classList.toggle('active', showOfficial);
-    filterCards();
+    const visibleCount = filterCards();
+    trackFilterUsed('official', visibleCount);
   });
 
   communityToggle.addEventListener('click', () => {
     showCommunity = !showCommunity;
     communityToggle.classList.toggle('active', showCommunity);
-    filterCards();
+    const visibleCount = filterCards();
+    trackFilterUsed('community', visibleCount);
   });
 
   hostingToggle &&
     hostingToggle.addEventListener('click', () => {
       showHosting = !showHosting;
       hostingToggle.classList.toggle('active', showHosting);
-      filterCards();
+      const visibleCount = filterCards();
+      trackFilterUsed('hosting', visibleCount);
     });
 
   clientToggle &&
     clientToggle.addEventListener('click', () => {
       showClient = !showClient;
       clientToggle.classList.toggle('active', showClient);
-      filterCards();
+      const visibleCount = filterCards();
+      trackFilterUsed('client', visibleCount);
     });
 
   // Also clear when user presses Escape in the search box

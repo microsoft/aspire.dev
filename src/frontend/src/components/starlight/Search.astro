@@ -25,6 +25,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
         data-api-search-link
         data-api-lang="csharp"
         data-api-base-href={csharpHref}
+        data-bi-dnt="true"
       >
         <Image src={csharpIcon} alt="" width={50} height={50} />
         <span>C# API Reference</span>
@@ -35,6 +36,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
         data-api-search-link
         data-api-lang="typescript"
         data-api-base-href={typescriptHref}
+        data-bi-dnt="true"
       >
         <Image src={typescriptIcon} alt="" width={50} height={50} />
         <span>TypeScript API Reference</span>
@@ -85,6 +87,174 @@ const typescriptHref = `${base}/reference/api/typescript/`;
     const tpl = document.getElementById(templateId);
     if (!(tpl instanceof HTMLTemplateElement)) return;
     parent.appendChild(tpl.content.cloneNode(true));
+  }
+
+  function bucketSearchQueryLength(value: string): string {
+    const length = value.trim().length;
+    if (length <= 3) return 'one_to_three';
+    if (length <= 10) return 'four_to_ten';
+    if (length <= 30) return 'eleven_to_thirty';
+    return 'thirty_plus';
+  }
+
+  function bucketSearchResultCount(count: number): string {
+    if (count === 0) return 'zero';
+    if (count <= 5) return 'one_to_five';
+    if (count <= 20) return 'six_to_twenty';
+    return 'twenty_plus';
+  }
+
+  function bucketSearchRank(index: number): string {
+    if (index === 0) return 'first';
+    if (index <= 4) return 'two_to_five';
+    return 'six_plus';
+  }
+
+  function normalizeSearchResultPath(pathname: string): string {
+    const segments = pathname.split('/').filter(Boolean);
+    const locale = (document.documentElement.lang || 'en').toLowerCase();
+    const firstSegment = (segments[0] || '').toLowerCase();
+    if (firstSegment === locale || firstSegment === locale.split('-')[0]) {
+      segments.shift();
+    }
+    return segments.length ? `/${segments.join('/')}/` : '/';
+  }
+
+  function emitSearchStep(step: string, details: Record<string, string> = {}): void {
+    document.dispatchEvent(
+      new CustomEvent('aspire:funnel-step', {
+        detail: {
+          funnel: 'search_success',
+          step,
+          surface: 'site_search',
+          actionType: 'CL',
+          ...details,
+        },
+      })
+    );
+  }
+
+  class SearchFunnelTracker {
+    private dialog: HTMLDialogElement;
+    private input: HTMLInputElement | null = null;
+    private wired = false;
+    private resultTimer: number | undefined;
+    private queryRevision = 0;
+    private lastResultSignature = '';
+    private wasOpen: boolean;
+    private readonly dialogObserver: MutationObserver;
+    private readonly inputHandler: () => void;
+    private readonly clickHandler: (event: MouseEvent) => void;
+
+    constructor(dialog: HTMLDialogElement) {
+      this.dialog = dialog;
+      this.wasOpen = dialog.open;
+      this.inputHandler = () => {
+        this.queryRevision++;
+        this.scheduleResultStep();
+      };
+      this.clickHandler = (event) => this.trackSelection(event);
+      this.dialogObserver = new MutationObserver(() => {
+        if (this.dialog.open && !this.wasOpen) {
+          emitSearchStep('search_opened');
+        } else if (!this.dialog.open && this.wasOpen) {
+          window.clearTimeout(this.resultTimer);
+          this.resultTimer = undefined;
+        }
+        this.wasOpen = this.dialog.open;
+      });
+      this.dialogObserver.observe(dialog, { attributes: true, attributeFilter: ['open'] });
+      dialog.addEventListener('click', this.clickHandler, true);
+    }
+
+    refresh(): void {
+      if (!this.wired) {
+        const input = this.dialog.querySelector<HTMLInputElement>('.pagefind-ui__search-input');
+        if (input) {
+          this.input = input;
+          input.addEventListener('input', this.inputHandler);
+          this.wired = true;
+        }
+      }
+
+      if (this.input?.value.trim()) {
+        this.scheduleResultStep();
+      }
+    }
+
+    private scheduleResultStep(): void {
+      window.clearTimeout(this.resultTimer);
+      const revision = this.queryRevision;
+      this.resultTimer = window.setTimeout(() => {
+        if (!this.dialog.open || revision !== this.queryRevision) return;
+        const query = this.input?.value.trim() ?? '';
+        if (!query) return;
+
+        const results = this.dialog.querySelector('.pagefind-ui__results');
+        if (!results || results.querySelector('.pagefind-ui__loading')) return;
+
+        const count = results.querySelectorAll('.pagefind-ui__result-link').length;
+        const signature = `${revision}:${count}`;
+        if (signature === this.lastResultSignature) return;
+        this.lastResultSignature = signature;
+        emitSearchStep(count > 0 ? 'results_shown' : 'no_results', {
+          queryLength: bucketSearchQueryLength(query),
+          resultCount: bucketSearchResultCount(count),
+        });
+      }, 500);
+    }
+
+    private trackSelection(event: MouseEvent): void {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const link = target.closest<HTMLAnchorElement>(
+        '.pagefind-ui__result-link, a[data-api-search-link]'
+      );
+      if (!link) return;
+
+      const query = this.input?.value.trim() ?? '';
+      if (!query) return;
+
+      const url = new URL(link.href, window.location.href);
+      const normalizedPath = normalizeSearchResultPath(url.pathname);
+      const isApiTarget = link.hasAttribute('data-api-search-link');
+      const resultLinks = Array.from(
+        this.dialog.querySelectorAll<HTMLAnchorElement>('.pagefind-ui__result-link')
+      );
+      const selectedIndex = resultLinks.indexOf(link);
+      let resultType = 'docs';
+
+      if (isApiTarget) {
+        resultType = 'api_reference';
+      } else if (normalizedPath.startsWith('/integrations/')) {
+        resultType = 'integration';
+      } else if (normalizedPath.startsWith('/reference/')) {
+        resultType = 'reference';
+      } else if (url.origin !== window.location.origin) {
+        resultType = 'other';
+      }
+
+      emitSearchStep('result_selected', {
+        queryLength: bucketSearchQueryLength(query),
+        resultCount: bucketSearchResultCount(resultLinks.length),
+        selectedRank: isApiTarget ? 'api_reference' : bucketSearchRank(selectedIndex),
+        resultType,
+        searchTarget: isApiTarget
+          ? link.dataset.apiLang === 'typescript'
+            ? 'typescript_api'
+            : 'csharp_api'
+          : 'docs',
+        destinationHref: `${url.origin}${url.pathname}`,
+      });
+    }
+
+    destroy(): void {
+      window.clearTimeout(this.resultTimer);
+      this.dialogObserver.disconnect();
+      this.input?.removeEventListener('input', this.inputHandler);
+      this.dialog.removeEventListener('click', this.clickHandler, true);
+    }
   }
 
   class SearchKeyboardNav {
@@ -399,12 +569,14 @@ const typescriptHref = `${base}/reference/api/typescript/`;
 
     const nav = new SearchKeyboardNav(dialog);
     const linker = new ApiSearchLinker(dialog);
+    const funnelTracker = new SearchFunnelTracker(dialog);
 
     const setup = () => {
       injectTemplate(dialogFrame, 'api-search-notice-tpl', '.api-search-notice');
       injectTemplate(dialogFrame, 'search-keyboard-footer-tpl', '.search-keyboard-footer');
       nav.refresh();
       linker.refresh();
+      funnelTracker.refresh();
     };
 
     setup();
@@ -428,6 +600,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       observer.disconnect();
       nav.destroy();
       linker.destroy();
+      funnelTracker.destroy();
     };
   }
 
