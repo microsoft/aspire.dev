@@ -3,6 +3,8 @@ title: Aspire dashboard data persistence
 description: Learn how SQLite persistence modes, run history, retention, storage limits, and data protection work in the Aspire dashboard.
 ---
 
+import { FileTree } from '@astrojs/starlight/components';
+
 The Aspire dashboard stores resource snapshots and telemetry in SQLite. Persistence keeps completed application runs available after the AppHost and dashboard processes stop, while the active run continues to update in real time.
 
 The dashboard is intended for development and short-term diagnostics. Its persistence is useful for comparing runs or resuming a standalone dashboard, but it isn't a durable production telemetry backend. It doesn't provide replication, backups, database-level authentication, encryption at rest, or a disk-space quota.
@@ -74,26 +76,30 @@ Persistent data is partitioned by application. The application directory name co
 
 `Run` mode stores each run in a timestamped directory:
 
-```text title="Run mode data layout"
-<data-root>/
-└── <application-directory>/
-    └── runs/
-        ├── <run-id>.lock
-        └── <run-id>/
-            ├── dashboard.db
-            └── run.json
-```
+**Run mode data layout**
+
+<FileTree>
+- \<data-root\>/
+  - \<application-directory\>/
+    - runs/
+      - \<run-id\>.lock
+      - \<run-id\>/
+        - dashboard.db
+        - run.json
+</FileTree>
 
 The metadata in _run.json_ includes the schema version, run ID, start and end times, application name, database file name, pin state, and whether the dashboard shut down cleanly. A run that doesn't shut down cleanly remains available after its process releases the lock.
 
 `Resume` mode stores one database for the application:
 
-```text title="Resume mode data layout"
-<data-root>/
-├── <application-directory>.lock
-└── <application-directory>/
-    └── dashboard.db
-```
+**Resume mode data layout**
+
+<FileTree>
+- \<data-root\>/
+  - \<application-directory\>.lock
+  - \<application-directory\>/
+    - dashboard.db
+</FileTree>
 
 SQLite can create _dashboard.db-wal_ and _dashboard.db-shm_ beside a writable database. Include these files when inspecting, protecting, or copying live data.
 
