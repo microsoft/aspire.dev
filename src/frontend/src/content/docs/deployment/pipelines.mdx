@@ -200,11 +200,11 @@ The pipeline system uses fine-grained steps to provide precise control and visib
 
 Aspire registers a default set of well-known steps that serve as integration points for the deployment pipeline. These steps provide a standardized way for resources and applications to participate in common deployment workflows.
 
-### Entry point steps
+### Command completion steps
 
-- **`WellKnownPipelineSteps.Deploy`**: The primary entry point for the `aspire deploy` command. This step orchestrates the complete deployment process including infrastructure provisioning, image building, and application deployment.
+- **`WellKnownPipelineSteps.Deploy`**: The final command-completion aggregate for `aspire deploy`. The command finishes after every step required by this aggregate completes.
 
-- **`WellKnownPipelineSteps.Publish`**: The entry point for the `aspire publish` command, which typically generates deployment artifacts without executing the actual deployment.
+- **`WellKnownPipelineSteps.Publish`**: The final command-completion aggregate for `aspire publish`, which typically generates deployment artifacts without executing the deployment.
 
 - **`WellKnownPipelineSteps.Build`**: The entry point for the `aspire do build` command, which builds container images for compute resources defined in the application.
 
@@ -214,13 +214,39 @@ Aspire registers a default set of well-known steps that serve as integration poi
 
 - **`WellKnownPipelineSteps.BuildPrereq`**: Defines steps that are pre-requisites for building, such as dependency resolution, environment setup, and build tool validation.
 
-- **`WellKnownPipelineSteps.DeployPrereqs`**: Defines steps that are pre-requisites for deployment, such as authentication, environment validation, and prerequisite resource checks.
+- **`WellKnownPipelineSteps.DeployPrereq`**: Defines steps that are prerequisites for deployment, such as authentication, environment validation, and prerequisite resource checks.
 
-- **`WellKnownPipelineSteps.PublishPrereqs`**: Defines steps that are pre-requisites for publishing, such as build environment setup and artifact preparation.
+- **`WellKnownPipelineSteps.PublishPrereq`**: Defines steps that are prerequisites for publishing, such as build environment setup and artifact preparation.
 
 - **`WellKnownPipelineSteps.PushPrereq`**: Defines steps that are pre-requisites for pushing container images, such as registry authentication and connection validation.
 
-These well-known steps create a contract that allows different parts of the system to integrate predictably. For example, a custom authentication step can declare itself as required by `DeployPrereqs`, ensuring it runs before any deployment operations begin.
+These well-known steps create a contract that allows different parts of the system to integrate predictably. For example, a custom authentication step can declare itself as required by `DeployPrereq`, ensuring it runs before any deployment operations begin.
+
+### Finalization steps
+
+- **`WellKnownPipelineSteps.DeployFinalize`**: A barrier that runs after ordinary deployment work and before post-finalize hooks.
+- **`WellKnownPipelineSteps.PublishFinalize`**: A barrier that runs after ordinary publishing work and before post-finalize hooks.
+
+The publish and deploy commands use the same finalization structure:
+
+```mermaid
+flowchart LR
+    publishPrereq["publish-prereq"] --> publishWork["normal publish work"]
+    publishWork --> publishFinalize["publish-finalize"]
+    publishFinalize --> publishHooks["post-finalize hooks"]
+    publishHooks --> publish["publish"]
+
+    deployPrereq["deploy-prereq"] --> deployWork["normal deploy work"]
+    deployWork --> deployFinalize["deploy-finalize"]
+    deployFinalize --> deployHooks["post-finalize hooks"]
+    deployHooks --> deploy["deploy"]
+```
+
+Attach ordinary publish or deploy work to the corresponding finalizer with `requiredBy`. For example, a deployment step that must finish before finalization is required by `WellKnownPipelineSteps.DeployFinalize`.
+
+For a post-finalize hook, use both dependency directions: depend on the corresponding finalizer, then make the hook required by the final command aggregate. The dependency places the hook after ordinary command work, while the requirement makes the final `publish` or `deploy` aggregate wait for it.
+
+Existing integrations that attach steps directly to `WellKnownPipelineSteps.Publish` or `WellKnownPipelineSteps.Deploy` remain compatible. These legacy steps can run in parallel with the finalizer branch, so use the finalization pattern when a step needs a defined position before or after finalization.
 
 ### Resource-contributed steps
 
@@ -287,7 +313,7 @@ builder.Pipeline.AddStep("validate-deployment", async context =>
 // Custom validation logic
 await ValidateApiHealth(context);
 await ValidateDatabaseConnection(context);
-}, requiredBy: WellKnownPipelineSteps.Deploy);
+}, requiredBy: WellKnownPipelineSteps.DeployFinalize);
 #pragma warning restore ASPIREPIPELINES001
 
 // Define resources
@@ -307,7 +333,7 @@ builder.pipeline.addStep("validate-deployment", async (context) => {
   // Custom validation logic
   await validateApiHealth(context);
   await validateDatabaseConnection(context);
-}, { requiredBy: ["deploy"] });
+}, { requiredBy: ["deploy-finalize"] });
 
 // Define resources
 const database = await builder.addPostgres("myapp-db");
@@ -450,7 +476,8 @@ aspire do deploy --include-exception-details
 ```
 
 <LearnMore>
-For complete command reference, see [aspire do command](/reference/cli/commands/aspire-do/).
+  For complete command reference, see [aspire do
+  command](/reference/cli/commands/aspire-do/).
 </LearnMore>
 
 ### Discovering available steps
@@ -497,13 +524,13 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.Pipeline.AddStep("validate", async (context) =>
 {
     context.Logger.LogInformation("Running validation checks...");
-    
+
     // Your custom validation logic
     await ValidateApiEndpoints(context);
     await CheckDatabaseConnection(context);
-    
+
     context.Logger.LogInformation("Validation completed successfully");
-}, requiredBy: WellKnownPipelineSteps.Deploy);
+}, requiredBy: WellKnownPipelineSteps.DeployFinalize);
 
 // Define resources
 var database = builder.AddPostgres("db");
@@ -533,13 +560,13 @@ var api = builder.AddProject<Projects.Api>("api")
             {
                 // Custom deployment logic for this resource
                 pipelineContext.Logger.LogInformation("Custom API deployment starting...");
-                
+
                 // Your deployment logic here
                 await DeployApiAsync(pipelineContext, cancellationToken);
-                
+
                 pipelineContext.Logger.LogInformation("Custom API deployment completed");
             },
-            RequiredBySteps = [WellKnownPipelineSteps.Deploy]
+            RequiredBySteps = [WellKnownPipelineSteps.DeployFinalize]
         };
     });
 ```
@@ -554,7 +581,7 @@ builder.Pipeline.AddStep("database-migration", async (context) =>
 {
     context.Logger.LogInformation("Running database migrations...");
     await RunMigrations(context);
-}, 
+},
 dependsOn: ["provision-database"],
 requiredBy: ["deploy-apiservice"]);
 ```
@@ -569,7 +596,10 @@ You can choose from two dependency types to fix the step order:
 Resources can also customize how they participate in the pipeline using `WithPipelineConfiguration`, which provides control over step ordering and resource-specific pipeline behavior.
 
 <Aside type="note">
-The `WithPipelineConfiguration` API is experimental and may change in future releases. Refer to the [aspire do command reference](/reference/cli/commands/aspire-do/) for the latest details on pipeline configuration.
+  The `WithPipelineConfiguration` API is experimental and may change in future
+  releases. Refer to the [aspire do command
+  reference](/reference/cli/commands/aspire-do/) for the latest details on
+  pipeline configuration.
 </Aside>
 
 ## Common use cases
@@ -591,15 +621,17 @@ builder.Pipeline.AddStep("validate-production", async (context) =>
         context.Logger.LogInformation("Running production-specific validations...");
         await ValidateProductionReadiness(context);
     }
-}, requiredBy: WellKnownPipelineSteps.Deploy);
+}, requiredBy: WellKnownPipelineSteps.DeployFinalize);
 
 // Add post-deployment smoke tests
-builder.Pipeline.AddStep("smoke-tests", async (context) =>
-{
-    context.Logger.LogInformation("Running smoke tests...");
-    await RunSmokeTests(context);
-}, 
-dependsOn: [WellKnownPipelineSteps.Deploy]);
+builder.Pipeline.AddStep(
+    "smoke-tests",
+    async context =>
+    {
+        await RunSmokeTestsAsync(context.CancellationToken);
+    },
+    dependsOn: WellKnownPipelineSteps.DeployFinalize,
+    requiredBy: WellKnownPipelineSteps.Deploy);
 
 builder.Build().Run();
 ```
@@ -633,7 +665,7 @@ builder.Pipeline.AddStep("optimize-images", async (context) =>
 {
     context.Logger.LogInformation("Optimizing container images...");
     await OptimizeImages(context);
-}, 
+},
 dependsOn: [WellKnownPipelineSteps.Build],
 requiredBy: [WellKnownPipelineSteps.Push]);
 
@@ -653,15 +685,15 @@ var database = builder.AddPostgres("db");
 builder.Pipeline.AddStep("migrate-database", async (context) =>
 {
     context.Logger.LogInformation("Running database migrations...");
-    
+
     // Get database connection string from context
     var connectionString = await GetConnectionString(context, database);
-    
+
     // Run migrations
     await RunDatabaseMigrations(connectionString, context.Logger);
-    
+
     context.Logger.LogInformation("Database migrations completed");
-}, 
+},
 dependsOn: ["provision-database"],
 requiredBy: ["deploy-apiservice"]);
 
@@ -679,12 +711,14 @@ Aspire 13.0 replaces the publishing callback system with the more flexible pipel
 The old publishing callback system has been removed and replaced with pipeline steps:
 
 **Removed APIs:**
+
 - `WithPublishingCallback` extension method
 - `PublishingContext` and `PublishingCallbackAnnotation`
 - `DeployingContext` and `DeployingCallbackAnnotation`
 - `IDistributedApplicationPublisher` interface
 
 **New APIs:**
+
 - `WithPipelineStepFactory` extension method
 - `PipelineStep` class
 - `builder.Pipeline.AddStep` method
@@ -733,7 +767,7 @@ var api = builder.AddProject<Projects.Api>("api")
                 // Custom deployment logic
                 await CustomDeployAsync(pipelineContext, cancellationToken);
             },
-            RequiredBySteps = [WellKnownPipelineSteps.Deploy]
+            RequiredBySteps = [WellKnownPipelineSteps.DeployFinalize]
         };
     });
 ```
@@ -764,9 +798,12 @@ builder.Pipeline.AddStep("notify-deployment", async (context) =>
 {
     // Custom logic
     await SendDeploymentNotification(context);
-}, 
-dependsOn: [WellKnownPipelineSteps.Deploy]);
+},
+dependsOn: WellKnownPipelineSteps.DeployFinalize,
+requiredBy: WellKnownPipelineSteps.Deploy);
 ```
+
+Depending on `DeployFinalize` places the notification after ordinary deployment work. Making the notification required by `Deploy` ensures the command waits for it before reporting completion.
 
 #### Complex deployment workflow
 
@@ -797,7 +834,7 @@ builder.Pipeline.AddStep("provision-infra", async (context) =>
 builder.Pipeline.AddStep("migrate-database", async (context) =>
 {
     await RunDatabaseMigrations(context);
-}, 
+},
 dependsOn: ["provision-infra"],
 requiredBy: ["deploy-application"]);
 
@@ -830,5 +867,6 @@ The pipeline system provides several advantages over publishing callbacks:
 - **Reusability**: Steps can be reused across different deployment scenarios.
 
 <Aside type="tip">
-After migrating, use `aspire deploy --list-steps` to verify that your pipeline steps are correctly configured and that dependencies are properly declared.
+  After migrating, use `aspire deploy --list-steps` to verify that your pipeline
+  steps are correctly configured and that dependencies are properly declared.
 </Aside>
