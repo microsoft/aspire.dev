@@ -3,7 +3,9 @@ title: JavaScript monorepo hosting extensions
 description: Add Nx and Turborepo workspaces to Aspire with Community Toolkit decorators for package managers, child apps, and mapped ports.
 ---
 
-import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Badge } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import nodejsIcon from '@assets/icons/nodejs-icon.png';
@@ -36,13 +38,13 @@ The extensions add:
 
 ## Hosting integration
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.JavaScript.Extensions" />
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.JavaScript.Extensions
@@ -50,15 +52,15 @@ aspire add CommunityToolkit.Aspire.Hosting.JavaScript.Extensions
 
 This command adds the package to `aspire.config.json` so Aspire can generate its TypeScript bindings.
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add an Nx workspace app
 
 `AddNxApp` / `addNxApp` models the workspace. Add each runnable project with `AddApp` / `addApp`, then decorate that child app with the official JavaScript resource APIs it needs.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -74,8 +76,8 @@ nx.AddApp("blog")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -95,15 +97,15 @@ await blog.withMappedEndpointPort();
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add a Turborepo workspace app
 
 Use `AddTurborepoApp` / `addTurborepoApp` for a Turborepo workspace. The optional `filter` selects the workspace package to run.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -119,8 +121,8 @@ turbo.AddApp("web", filter: "web")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -140,8 +142,8 @@ await web.withMappedEndpointPort();
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 :::note[Use the official package for individual apps]
 `AddNodeApp`, `AddViteApp`, `AddNextJsApp`, and `AddBunApp`, together with the generic `WithNpm`, `WithYarn`, `WithPnpm`, and `WithBun` decorators for individual JavaScript resources, are provided by `Aspire.Hosting.JavaScript`. They aren't APIs from this Community Toolkit package.

@@ -4,6 +4,8 @@ seoTitle: "Set up SQL Server in the Aspire AppHost: hosting integration"
 description: Learn how to use the Aspire SQL Server Hosting integration to orchestrate and configure a SQL Server database in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
@@ -27,8 +29,8 @@ If you're new to the SQL Server integration, start with the [Get started with SQ
 
 To start building an Aspire app that uses SQL Server, install the [📦 Aspire.Hosting.SqlServer](https://www.nuget.org/packages/Aspire.Hosting.SqlServer) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add sql-server
@@ -48,8 +50,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.SqlServer" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add sql-server
@@ -69,15 +71,15 @@ This updates your `aspire.config.json` with the SQL Server hosting integration p
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add SQL Server resource
 
 Once you've installed the hosting integration in your AppHost project, you can add a SQL Server resource and then add a database resource as shown in the following examples:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -93,8 +95,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
 
@@ -112,8 +114,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Steps>
 
@@ -148,8 +150,8 @@ IF (NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = @DatabaseName))
 
 To supply a custom creation script, call `WithCreationScript` (or `withCreationScript`) on the database resource builder:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -186,8 +188,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
 
@@ -223,8 +225,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding example creates a database named `app-db` with a single `todos` table. The script is executed when the database resource is created in the context of the SQL Server resource.
 
@@ -232,8 +234,8 @@ The preceding example creates a database named `app-db` with a single `todos` ta
 
 Add a data volume to the SQL Server resource as shown in the following examples:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -249,8 +251,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -268,8 +270,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The data volume is used to persist the SQL Server data outside the lifecycle of its container. The data volume is mounted at the `/var/opt/mssql` path in the SQL Server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-sql-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
@@ -281,8 +283,8 @@ The password is stored in the data volume. When using a data volume and if the p
 
 Add a data bind mount to the SQL Server resource as shown in the following examples:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -298,8 +300,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -317,8 +319,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
     Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
@@ -330,8 +332,8 @@ Data bind mounts rely on the host machine's filesystem to persist the SQL Server
 
 When you want to explicitly provide the password used by the container image, you can provide it as a parameter:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -347,8 +349,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -366,8 +368,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When no `password` parameter is provided, Aspire generates a strong password automatically using the `CreateDefaultPasswordParameter` method. For more information on providing parameters, see [External parameters](/get-started/resources/).
 
@@ -375,8 +377,8 @@ When no `password` parameter is provided, Aspire generates a strong password aut
 
 To pin the SQL Server container to a specific release, call `WithImageTag` (or `withImageTag`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -392,8 +394,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -411,8 +413,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For a list of available tags, see [SQL Server container image tags](https://mcr.microsoft.com/en-us/artifact/mar/mssql/server/tags).
 
@@ -420,8 +422,8 @@ For a list of available tags, see [SQL Server container image tags](https://mcr.
 
 By default, Aspire injects the SQL Server connection information using variable names derived from the resource name (for example, `DATABASE_URI`, `DATABASE_HOST`, `DATABASE_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -440,8 +442,8 @@ var app = builder.AddExecutable("my-app", "node", "app.js", ".")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -459,15 +461,15 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Connect to an existing SQL Server instance
 
 To reference an externally managed SQL Server instance instead of running one as a container, use `AddConnectionString`:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -479,8 +481,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -494,8 +496,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The connection string is resolved from the `ConnectionStrings` configuration section of the AppHost project:
 

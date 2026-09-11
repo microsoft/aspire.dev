@@ -4,7 +4,15 @@ import { Code } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import csharpIcon from '@assets/icons/csharp.svg';
 import typescriptIcon from '@assets/icons/typescript.svg';
+import pythonIcon from '@assets/icons/python.svg';
+import goIcon from '@assets/icons/go.svg';
+import javaIcon from '@assets/icons/java.svg';
+import rustIcon from '@assets/icons/rust.svg';
 import { generateFriendlyName } from '@utils/helpers';
+import {
+  getEnabledAppHostLanguages,
+  type AppHostLanguageId,
+} from '@utils/apphost-languages';
 
 // Helper to abbreviate download counts
 function formatDownloads(n?: number) {
@@ -56,7 +64,7 @@ function hostingDocsUrl(docs: string): string {
 // Append the global aspire-lang query param so the destination page's synced
 // Tabs (and any PivotSelector with key="aspire-lang") pre-select the right
 // language without depending on prior browser state.
-function withLang(docs: string, lang: 'csharp' | 'typescript'): string {
+function withLang(docs: string, lang: AppHostLanguageId): string {
   const url = hostingDocsUrl(docs);
   const sep = url.includes('?') ? '&' : '?';
   return `${url}${sep}aspire-lang=${lang}`;
@@ -66,6 +74,15 @@ function withLang(docs: string, lang: 'csharp' | 'typescript'): string {
 // that can render `<Tabs syncKey="aspire-lang">`. External hrefs (AWS, etc.)
 // are skipped.
 const supportsLangTabs = !!pkg.docs && pkg.docs.startsWith('/');
+const appHostLanguageIcons = {
+  typescript: typescriptIcon,
+  csharp: csharpIcon,
+  python: pythonIcon,
+  go: goIcon,
+  java: javaIcon,
+  rust: rustIcon,
+};
+const enabledAppHostLanguages = getEnabledAppHostLanguages();
 
 // Title links to the integration's get-started landing page (or external docs
 // page when the integration ships docs off-site). The docs map already points
@@ -163,24 +180,28 @@ const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
           </div>
           {supportsLangTabs ? (
             <div class="lang-buttons" role="group" aria-label={Astro.locals.t('integrations.viewLanguageDocs', { title: pkg.title })}>
-              <a
-                class="lang-button"
-                href={withLang(pkg.docs!, 'typescript')}
-                aria-label={Astro.locals.t('integrations.viewTypescriptDocs', { title: pkg.title })}
-                data-tooltip-placement="top"
-                title={Astro.locals.t('integrations.viewTypescriptDocs', { title: pkg.title })}
-              >
-                <Image src={typescriptIcon} alt="" width={22} height={22} aria-hidden="true" />
-              </a>
-              <a
-                class="lang-button"
-                href={withLang(pkg.docs!, 'csharp')}
-                aria-label={Astro.locals.t('integrations.viewCsharpDocs', { title: pkg.title })}
-                data-tooltip-placement="top"
-                title={Astro.locals.t('integrations.viewCsharpDocs', { title: pkg.title })}
-              >
-                <Image src={csharpIcon} alt="" width={22} height={22} aria-hidden="true" />
-              </a>
+              {enabledAppHostLanguages.map((language) => {
+                const languageLabel = `${Astro.locals.t('integrations.viewLanguageDocs', {
+                  title: pkg.title,
+                })}: ${language.label}`;
+                return (
+                  <a
+                    class="lang-button"
+                    href={withLang(pkg.docs!, language.id)}
+                    aria-label={languageLabel}
+                    data-tooltip-placement="top"
+                    title={languageLabel}
+                  >
+                    <Image
+                      src={appHostLanguageIcons[language.icon]}
+                      alt=""
+                      width={22}
+                      height={22}
+                      aria-hidden="true"
+                    />
+                  </a>
+                );
+              })}
             </div>
           ) : (
             pkg.docs && (
@@ -478,4 +499,3 @@ const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
     }
   </style>
 </article>
-

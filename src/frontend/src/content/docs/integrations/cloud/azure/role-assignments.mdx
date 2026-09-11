@@ -3,8 +3,10 @@ title: Manage Azure role assignments
 description: Learn how to configure Azure role-based access control (RBAC) for Aspire AppHost projects so resources get the minimum permissions they need.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Tabs } from '@astrojs/starlight/components';
 import azureIcon from '@assets/icons/azure-icon.png';
 
 <Image
@@ -24,8 +26,8 @@ When you add an Azure resource to the [AppHost](/get-started/app-host/), it's as
 
 Consider a scenario where an API project resource references an [Azure Search](/integrations/cloud/azure/azure-ai-search/azure-ai-search-get-started/) resource. The API project is given the default role assignments, as shown in the following example:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -35,8 +37,8 @@ var api = builder.AddProject<Projects.Api>("api")
 .WithReference(search);
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -49,8 +51,8 @@ const api = await builder.addProject("api", "../Api/Api.csproj");
 await api.withReference(search);
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 In the example code, the `api` project resource depends on the Azure `search` resource, meaning it references the `search` resource. By default, the `search` resource is assigned the following built-in roles:
 
@@ -63,8 +65,8 @@ These role assignments allow the API project to read and write data to the Azure
 
 To override the default role assignment, use the [WithRoleAssignments APIs](https://learn.microsoft.com/dotnet/api/?preserve-view=true&view=dotnet-aspire-13.0&term=WithRoleAssignments) and assign built-in roles as shown in the following example:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -75,8 +77,8 @@ var api = builder.AddProject<Projects.Api>("api")
 .WithReference(search);
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { AzureSearchRole, createBuilder } from './.aspire/modules/aspire.mjs';
@@ -90,8 +92,8 @@ await api.withSearchRoleAssignments(search, [AzureSearchRole.SearchIndexDataRead
 await api.withReference(search);
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When you use the `WithRoleAssignments` method in C# or a resource-specific TypeScript role assignment method such as `withSearchRoleAssignments`, it replaces the default role assignments with the specified ones. This method requires two parameters: the resource to which the role assignment applies and the built-in role to assign. In the preceding example, the `search` resource is assigned the `Azure.Provisioning.Search.SearchBuiltInRole.SearchIndexDataReader` role.
 

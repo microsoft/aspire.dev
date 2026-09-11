@@ -4,13 +4,9 @@ seoTitle: 'Set up Mailpit in the Aspire AppHost: hosting integration'
 description: Learn how to use the Aspire Mailpit Hosting integration to orchestrate and configure a Mailpit resource in an Aspire solution.
 ---
 
-import {
-  Aside,
-  Badge,
-  Steps,
-  TabItem,
-  Tabs,
-} from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside, Badge, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import mailpitIcon from '@assets/icons/mailpit-icon.svg';
@@ -59,8 +55,8 @@ Or, choose a manual installation approach:
 
 Once you've installed the hosting integration in your AppHost project, you can add a Mailpit resource as shown in the following example:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -74,8 +70,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -93,8 +89,8 @@ await api.withReference(mailpit);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Steps>
 
@@ -125,8 +121,8 @@ You can open the Mailpit web UI from the Aspire dashboard by clicking the HTTP e
 
 Add a data volume to the Mailpit resource to persist captured emails across container restarts:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -141,8 +137,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -161,8 +157,8 @@ await api.withReference(mailpit);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The data volume is mounted at `/data` and the integration configures Mailpit to store its database at `/data/mailpit.db`. For more information on data volumes and details on why they're preferred over bind mounts, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
@@ -170,8 +166,8 @@ The data volume is mounted at `/data` and the integration configures Mailpit to 
 
 Use a bind mount when you need direct access to Mailpit's database files from the host:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -182,8 +178,8 @@ var mailpit = builder.AddMailPit("mailpit")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -196,8 +192,8 @@ await mailpit.withDataBindMount('./mailpit-data');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The bind mount uses the same `/data` container path and `/data/mailpit.db` database location as a data volume.
 
@@ -205,8 +201,8 @@ The bind mount uses the same `/data` container path and `/data/mailpit.db` datab
 
 Pass `httpPort` and `smtpPort` to bind Mailpit's endpoints to fixed host ports:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -219,8 +215,8 @@ var mailpit = builder.AddMailPit(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -235,8 +231,8 @@ const mailpit = await builder.addMailPit('mailpit', {
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When these values are omitted, Aspire assigns random host ports while Mailpit continues to listen on ports `8025` and `1025` inside the container.
 

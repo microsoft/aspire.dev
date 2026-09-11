@@ -3,8 +3,10 @@ title: Set up LavinMQ in the Aspire AppHost
 description: Install the Community Toolkit LavinMQ hosting integration, configure broker ports, persist data, and open the management endpoint.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Badge } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import lavinmqIcon from '@assets/icons/lavinmq-icon.png';
 
@@ -24,8 +26,8 @@ This article is the AppHost API reference for the [📦 CommunityToolkit.Aspire.
 
 ## Installation
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.LavinMQ
@@ -41,8 +43,8 @@ Or add the package manually:
 <PackageReference Include="CommunityToolkit.Aspire.Hosting.LavinMQ" Version="*" />
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.LavinMQ
@@ -50,8 +52,8 @@ aspire add CommunityToolkit.Aspire.Hosting.LavinMQ
 
 This adds the package to `aspire.config.json`. After `aspire restore`, `.aspire/modules/aspire.mjs` includes `addLavinMQ`, the persistence APIs, and the exported endpoint properties.
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <LearnMore>
   Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) and
@@ -60,8 +62,8 @@ This adds the package to `aspire.config.json`. After `aspire restore`, `.aspire/
 
 ## Add a LavinMQ resource
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -74,8 +76,8 @@ builder.AddProject<Projects.Worker>("worker")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -91,8 +93,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The integration runs `docker.io/cloudamqp/lavinmq:2.1.0`. The AMQP endpoint uses container port `5672`, and the management endpoint uses `15672`. The default username and password are both `guest`.
 
@@ -105,8 +107,8 @@ The integration runs `docker.io/cloudamqp/lavinmq:2.1.0`. The AMQP endpoint uses
 
 Pass fixed host ports when another process needs stable endpoints:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -119,8 +121,8 @@ var lavinmq = builder.AddLavinMQ(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -135,8 +137,8 @@ const lavinmq = await builder.addLavinMQ('lavinmq', {
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When you omit these parameters, the integration binds host ports `5672` and
 `15672`. Pass alternative values when either port is already occupied.
@@ -145,8 +147,8 @@ When you omit these parameters, the integration binds host ports `5672` and
 
 `WithDataVolume` and `withDataVolume` require a volume name and mount it at `/var/lib/lavinmq`:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -157,8 +159,8 @@ var lavinmq = builder.AddLavinMQ("lavinmq")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -171,15 +173,15 @@ await lavinmq.withDataVolume('lavinmq-data');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Persist data in a bind mount
 
 Use a bind mount when you need direct access to broker files on the host:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -190,8 +192,8 @@ var lavinmq = builder.AddLavinMQ("lavinmq")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -204,8 +206,8 @@ await lavinmq.withDataBindMount('./lavinmq-data');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Both persistence methods accept an optional `isReadOnly` value. A read-only mount isn't suitable for a broker that needs to write data.
 
@@ -213,8 +215,8 @@ Both persistence methods accept an optional `isReadOnly` value. A read-only moun
 
 The resource exports its AMQP endpoint and connection expressions for use in custom AppHost expressions:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -229,8 +231,8 @@ var connectionString = lavinmq.Resource.ConnectionStringExpression;
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -247,8 +249,8 @@ const connectionString = await lavinmq.connectionStringExpression();
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Management UI
 

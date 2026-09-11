@@ -4,7 +4,9 @@ seoTitle: Aspire interaction service for AppHost authors
 description: Use the Aspire interaction service to prompt users for input, request confirmation, and display messages from AppHost extensions, integrations, and custom resources.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside, Steps } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import messageDialog from '@assets/extensibility/interaction-service-message-dialog.png';
 import messageBar from '@assets/extensibility/interaction-service-message-bar.png';
@@ -31,8 +33,8 @@ Commands can also display a [progress dialog](/fundamentals/custom-resource-comm
 
 The `IInteractionService` interface provides methods for prompting users. In C#, it's retrieved from the dependency injection container. In TypeScript, it's resolved from the command context's service provider. Always check if the service is available before use — if you attempt to call a method when it's not available, an exception is thrown. For example, the interaction service isn't available when a command is triggered from the CLI.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var interactionService = serviceProvider.GetRequiredService<IInteractionService>();
@@ -49,8 +51,8 @@ if (interactionService.IsAvailable)
 }
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const interactionService = await context.services().getInteractionService();
@@ -67,8 +69,8 @@ if (await interactionService.isAvailable()) {
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The interaction service has several methods that you use to interact with users or display messages. The behavior of these methods depends on the execution context:
 
@@ -166,8 +168,8 @@ Dialog messages provide important information that requires user attention.
 
 The `PromptMessageBoxAsync` method displays a message with customizable response options.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var interactionService = services.GetRequiredService<IInteractionService>();
@@ -201,8 +203,8 @@ else
 }
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const interactionService = await context.services().getInteractionService();
@@ -224,8 +226,8 @@ if (!result.canceled) {
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 **Dashboard view:**
 
@@ -252,8 +254,8 @@ Notification messages provide non-modal notifications.
 
 The `PromptNotificationAsync` method displays informational messages with optional action links in the dashboard context. You don't have to await the result of a notification message if you don't need to. This is especially useful for notifications, since you might want to display a notification and continue without waiting for user to dismiss it.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var interactionService = services.GetRequiredService<IInteractionService>();
@@ -279,8 +281,8 @@ await interactionService.PromptNotificationAsync(
     });
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const interactionService = await context.services().getInteractionService();
@@ -306,8 +308,8 @@ await interactionService.promptNotification(
 );
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The previous example demonstrates how to use the notification API with different intents and optional action links.
 
@@ -330,8 +332,8 @@ Use the interaction service when you need the user to confirm an action before p
 
 For operations that can't be undone, such as deleting resources, always prompt for confirmation:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var interactionService = services.GetRequiredService<IInteractionService>();
@@ -354,8 +356,8 @@ if (resetConfirmation.Data)
 }
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const interactionService = await context.services().getInteractionService();
@@ -377,8 +379,8 @@ if (!resetConfirmation.canceled) {
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 **Dashboard view:**
 
@@ -422,8 +424,8 @@ You can prompt for a single value using the `PromptInputAsync` method, or collec
 
 Consider the following example, which prompts the user for multiple input values:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var interactionService = services.GetRequiredService<IInteractionService>();
@@ -495,8 +497,8 @@ if (!appConfigurationInput.Canceled)
 }
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const interactionService = await context.services().getInteractionService();
@@ -546,8 +548,8 @@ if (!(await result.canceled())) {
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 **Dashboard view:**
 
@@ -613,8 +615,8 @@ Environment:
 
 The interaction service supports dynamic inputs so you can populate options based on earlier responses. This enables cascading dropdowns and other dependent prompts in both the dashboard and CLI experiences.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 To configure a dynamic input, set the `InteractionInput.DynamicLoading` property to an instance of `InputLoadOptions`. `InputLoadOptions` has a range of properties:
 
@@ -669,8 +671,8 @@ if (!result.Canceled)
 }
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 Use `withDynamicLoading` to populate options based on other inputs. The callback runs server-side, receives a `loadContext`, and updates the loading input through `loadContext.input()`:
 
@@ -713,8 +715,8 @@ if (!(await result.canceled())) {
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 In the preceding example, the database version input is dynamically populated based on the selected database type.
 
@@ -722,8 +724,8 @@ In the preceding example, the database version input is dynamically populated ba
 
 Basic input validation is available by configuring inputs with `Required` and `MaxLength` properties. For complex scenarios, you can provide a custom validation callback that runs server-side when the user submits the dialog.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 Use the `InputsDialogInteractionOptions.ValidationCallback` property:
 
@@ -800,8 +802,8 @@ if (!dbResult.Canceled && dbResult.Data != null)
 }
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 Supply a `validationCallback` on the options object. The callback reads submitted values through `validationContext.inputs().value(name)` and registers per-field errors through `validationContext.addValidationError(field, message)`:
 
@@ -853,8 +855,8 @@ if (!(await result.canceled())) {
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Prompting the user for a password and confirming they match is referred to as "dual independent verification" input. This approach is common in scenarios where you want to ensure the user enters the same password twice to avoid typos or mismatches.
 
@@ -873,8 +875,8 @@ File upload functionality is a common source of exploitable vulnerabilities. Use
 
 :::
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var interactionService = services.GetRequiredService<IInteractionService>();
@@ -914,8 +916,8 @@ var content = await file.ReadAllBytesAsync(cancellationToken);
 await using var stream = file.OpenRead();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const interactionService = await context.services().getInteractionService();
@@ -948,8 +950,8 @@ const file = files[0];
 // file.filePath - path to uploaded file on disk
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The `InteractionInput` for file uploads supports these additional properties:
 
@@ -988,8 +990,8 @@ The `PromptProgressAsync` method is only available in dashboard contexts. It thr
 
 The simplest approach is to provide a `Work` callback via `ProgressInteractionOptions`. The progress dialog opens when `PromptProgressAsync` is called and closes automatically when the callback completes:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREINTERACTION001
@@ -1014,8 +1016,8 @@ if (result.Canceled)
 }
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const interactionService = await context.services().getInteractionService();
@@ -1038,8 +1040,8 @@ if (result.canceled) {
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When a `Work` callback is provided:
 

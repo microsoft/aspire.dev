@@ -5,7 +5,9 @@ sidebar:
   badge: Preview
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 When you deploy an Aspire application to Kubernetes, your services are accessible only within the cluster by default. To expose services to external traffic — such as a web frontend that users access from the internet — you need to configure an **Ingress** or **Gateway** resource that routes traffic from outside the cluster to your services.
@@ -68,8 +70,8 @@ When you use `AddIngress()` or `AddGateway()`, Aspire generates additional Kuber
 
 Use `WithPath` on an Ingress (or `WithRoute` on a Gateway) to forward traffic for a URL path to one of your Aspire services. Each call adds a rule to the generated `Ingress` (or `HTTPRoute`) resource pointing at the named endpoint's backing Kubernetes service.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var k8s = builder.AddKubernetesEnvironment("k8s");
 
@@ -85,8 +87,8 @@ var ingress = k8s.AddIngress("public")
 ingress.WithPath("/api", api.GetEndpoint("http"));
 ingress.WithPath("/", web.GetEndpoint("http"));
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const k8s = await builder.addKubernetesEnvironment('k8s');
 
@@ -102,8 +104,8 @@ await ingress.withTls();
 await ingress.withPath('/api', api.getEndpoint('http'));
 await ingress.withPath('/', web.getEndpoint('http'));
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `WithPath` defaults to a `Prefix` match — pass an `IngressPathType` argument to request `Exact` or `ImplementationSpecific` matching when your controller supports it. There's also a host-scoped overload (`WithPath("api.example.com", "/", endpoint)`) for routing different hostnames to different backends from the same Ingress. If you'd rather forward all unmatched traffic to a single service without enumerating paths, call `WithDefaultBackend(endpoint)` instead — the two APIs can be combined.
 
@@ -135,8 +137,8 @@ When you configure TLS with `WithTls()`, Aspire handles the initial bootstrappin
 
 Aspire's Ingress and Gateway APIs accept parameters, allowing you to reuse the same AppHost across multiple deployment environments (development, staging, production) with different hostnames, TLS secrets, and controller configurations:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var hostname = builder.AddParameter("hostname");
 var ingressClass = builder.AddParameter("ingressclass");
@@ -146,8 +148,8 @@ var ingress = k8s.AddIngress("ingress")
     .WithHostname(hostname)
     .WithTls();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const hostname = builder.addParameter('hostname');
 const ingressClass = builder.addParameter('ingressclass');
@@ -157,8 +159,8 @@ ingress.withIngressClass(ingressClass);
 ingress.withHostname(hostname);
 ingress.withTls();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Parameter values are provided at deploy time via the Aspire CLI or configuration files, keeping environment-specific details out of your source code.
 

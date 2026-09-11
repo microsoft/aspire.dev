@@ -4,6 +4,8 @@ seoTitle: Aspire external parameters and secrets in the AppHost
 description: Express secrets, connection strings, and configuration as Aspire external parameters that flow into resources at run, publish, and deploy time across environments.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import dashboardUnresolvedParams from '@assets/fundamentals/dashboard-unresolved-parameters-message.png';
@@ -17,8 +19,8 @@ Parameter values are read from the `Parameters` section of the AppHost's configu
 
 Consider the following example AppHost _AppHost.cs_ file:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -30,8 +32,8 @@ builder.AddProject<Projects.ApiService>("api")
        .WithEnvironment("ENVIRONMENT_VARIABLE_NAME", parameter);
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -45,8 +47,8 @@ const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
 await api.withEnvironment('ENVIRONMENT_VARIABLE_NAME', parameter);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code adds a parameter named `example-parameter-name` to the AppHost. The parameter is then passed to the `Projects.ApiService` project as an environment variable named `ENVIRONMENT_VARIABLE_NAME`.
 
@@ -66,8 +68,8 @@ Consider the following AppHost configuration file _appsettings.json_:
 
 The preceding JSON configures a parameter in the `Parameters` section of the AppHost configuration. In other words, that AppHost is able to find the parameter as it's configured. For example, you could access the value using the `Parameters:example-parameter-name` key:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -76,8 +78,8 @@ var key = $"Parameters:example-parameter-name";
 var value = builder.Configuration[key]; // value = "local-value"
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -88,8 +90,8 @@ const key = 'Parameters:example-parameter-name';
 const value = builder.getConfiguration().getConfigValue(key); // value = "local-value"
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
   You usually don't need to read this value yourself. Prefer passing parameter
@@ -115,8 +117,8 @@ Parameters can be set using environment variables, which is particularly useful 
 
 Consider the following example AppHost _AppHost.cs_ file:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -130,8 +132,8 @@ builder.AddContainerRegistry("container-registry", endpoint, repository);
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -147,8 +149,8 @@ await builder.addContainerRegistry('container-registry', endpoint, repository);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 These parameters can be provided via environment variables:
 
@@ -206,8 +208,8 @@ You can also control how the dashboard displays these parameters, by using these
 
 This code shows how to set a description and use the callback:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -230,8 +232,8 @@ var externalService = builder.AddExternalService("external-service", externalSer
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { InputType, createBuilder } from './.aspire/modules/aspire.mjs';
@@ -255,8 +257,8 @@ await builder.addExternalService('external-service', externalServiceUrl);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The code renders this control in the dashboard:
 
@@ -298,8 +300,8 @@ Parameters can be used to model secrets. When a parameter is marked as a secret,
 
 Consider the following example AppHost _AppHost.cs_ file:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -313,8 +315,8 @@ builder.AddProject<Projects.ApiService>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -330,8 +332,8 @@ await api.withEnvironment('SECRET', secret);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Now consider the following AppHost configuration file _appsettings.json_:
 
@@ -391,8 +393,8 @@ public static IResourceBuilder<ParameterResource> AddParameterFromConfiguration(
 
 Consider a scenario where you have configuration values stored in a custom section:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -409,8 +411,8 @@ builder.AddProject<Projects.ApiService>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -430,8 +432,8 @@ await api.withEnvironment('DB_PASSWORD', dbPassword);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The corresponding configuration file would look like:
 
@@ -464,8 +466,8 @@ If you're connecting to a local database, and want to use Integrated Security or
 
 Consider the following example AppHost _AppHost.cs_ file:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -479,8 +481,8 @@ builder.AddProject<Projects.WebApplication>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -498,8 +500,8 @@ await api.withReference(redis).waitFor(redis);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
   Using `WaitFor` with a connection string will implicitly wait for the resource
@@ -524,8 +526,8 @@ If you want to construct a connection string from parameters and ensure that it'
 
 For example, if you have a secret parameter that stores a small part of a connection string, use this code to insert it:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var secretKey = builder.AddParameter("secretkey", secret: true);
@@ -539,8 +541,8 @@ builder.AddProject<Projects.AspireReferenceExpressions_CatalogAPI>("catalogapi")
        .WaitFor(connectionString);
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
@@ -563,13 +565,13 @@ const catalogApi = await builder.addProject(
 await catalogApi.withReference(connectionString).waitFor(connectionString);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 You can also use reference expressions to append text to connection strings created by Aspire resources. For example, when you add a PostgreSQL resource to your Aspire solution, the database server runs in a container and a connection string is formulated for it. In the following code, the extra property `Include Error Details` is appended to that connection string before it's passed to consuming projects:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var postgres = builder.AddPostgres("postgres");
@@ -584,8 +586,8 @@ builder.AddProject<Projects.AspireReferenceExpressions_CustomerAPI>("customerapi
        .WaitFor(pgConnectionString);
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
@@ -606,15 +608,15 @@ const customerApi = await builder.addProject(
 await customerApi.withReference(pgConnectionString).waitFor(pgConnectionString);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Parameter example
 
 To express a parameter, consider the following example code:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -634,8 +636,8 @@ builder.AddProject<Projects.Parameters_ApiService>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -662,8 +664,8 @@ await api.withReference(db);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The following steps are performed:
 

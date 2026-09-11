@@ -259,13 +259,13 @@ A few rules to follow:
 - Do **not** wrap a Bash + PowerShell pairing in bare `<Tabs syncKey="shell-lang">` — convert it to `OsAwareTabs` instead. This is the canonical pattern used across the dashboard, install-cli, container-networking, and AKS deployment guides.
 - Always set `syncKey="terminal"` unless there is a specific reason to scope the persistence differently. The site-wide convention is a single shared key so a reader who picks PowerShell once continues to see PowerShell on every page that offers the choice.
 - Keep the leading and trailing blank lines around the inner code fences (as shown above). MDX requires the blank lines so the fenced code block is parsed correctly inside the slotted `<div>`.
-- `OsAwareTabs` is **only** for the Bash + PowerShell pairing. Continue to use bare `<Tabs>` / `<TabItem>` for non-OS choices such as C#/TypeScript AppHost samples (`syncKey='aspire-lang'`), CLI vs IDE, deployment targets, or package managers.
+- `OsAwareTabs` is **only** for the Bash + PowerShell pairing. Use `AppHostTabs` for AppHost-language choices. Continue to use bare `<Tabs>` / `<TabItem>` for other concerns such as CLI vs IDE, deployment targets, or package managers.
 
 #### Pivot/PivotSelector
 
 Use `Pivot` and `PivotSelector` sparingly, only for **key landing-page-style articles** where the choice should persist across page navigations and where sharing the page through a URL should land the reader on a specific variant. Pivots support query string values to set the selected option (for example, `?aspire-lang=typescript`). Examples in use today include the [Build your first Aspire app](/get-started/first-app/) and [Deploy your first Aspire app](/get-started/deploy-first-app/) tutorials.
 
-For most pages — including AppHost C# and TypeScript code samples within a guide — prefer synced `Tabs` / `TabItem` blocks at the snippet level instead. See [AppHost Language Parity (C# and TypeScript)](#apphost-language-parity-c-and-typescript).
+For most pages — including AppHost code samples within a guide — prefer `AppHostTabs` at the snippet level instead. See [AppHost Language Parity](#apphost-language-parity).
 
 ```mdx
 <PivotSelector
@@ -290,18 +290,20 @@ When a page shows the **On this page** table of contents (the default behavior u
 
 If your opening section is truly introductory, keep it as body copy without an `Overview` heading. If that section has a more specific purpose, use a descriptive heading such as `Key concepts`, `Prerequisites`, or another topic-specific label.
 
-For Aspire AppHost code examples, use synced `Tabs` / `TabItem` blocks with `syncKey='aspire-lang'` at each code snippet. List TypeScript first so `apphost.mts` is the default experience for readers without a saved preference. Do **not** add a page-level `PivotSelector` just to switch AppHost code samples between TypeScript and C#. Readers should be able to switch the language at the specific snippet they are reading.
+For Aspire AppHost code examples, use `AppHostTabs` at each code snippet. The component reads language order, visibility, labels, and Experimental status from `src/data/apphost-languages.json`. Provide a named `Fragment` slot for each supported language and a precise `limitations` entry for each enabled language that cannot express the operation. Do **not** hard-code `syncKey='aspire-lang'` or language order.
 
 ```mdx
-<Tabs syncKey='aspire-lang'>
-<TabItem id='typescript' label='TypeScript'>
-TypeScript example content here.
-</TabItem>
+import AppHostTabs from '@components/AppHostTabs.astro';
 
-<TabItem id='csharp' label='C#'>
+<AppHostTabs limitations={{ rust: 'This operation is not emitted by the Rust AppHost SDK.' }}>
+<Fragment slot='typescript'>
+TypeScript example content here.
+</Fragment>
+
+<Fragment slot='csharp'>
 C# example content here.
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 ```
 
 #### CardGrid and LinkCard
@@ -445,27 +447,32 @@ For client/library packages:
 <InstallDotNetPackage package="Aspire.StackExchange.Redis" />
 ```
 
-## AppHost Language Parity (TypeScript and C#)
+## AppHost Language Parity
 
-Aspire supports both **TypeScript AppHosts** (`apphost.mts`) and **C# AppHosts** (`AppHost.cs`). Documentation must treat both languages as first-class citizens. **Always show both TypeScript and C# code samples for AppHost code unless the feature is genuinely language-specific or TypeScript support does not exist yet.** Never write AppHost or hosting-integration documentation with a C#-only bias.
+Aspire supports AppHost authoring in **TypeScript**, **C#**, **Python**, **Go**, **Java**, and **Rust**. The central registry at `src/frontend/src/data/apphost-languages.json` controls which languages are visible. Documentation must be ready for every registry language before its `enabled` bit is turned on.
 
 ### Core Principles
 
-1. **Always show both languages**: Every AppHost-focused example, walkthrough, and AppHost code sample must include both TypeScript and C# variants unless the feature is genuinely language-specific.
-2. **Show implementations, not availability notes**: When a TypeScript AppHost API exists, demonstrate it in a complete TypeScript tab beside the C# example. A note or callout that only names the available TypeScript methods does not satisfy language parity.
-3. **Use neutral framing**: Write prose that applies to both languages. Say "In your AppHost" not "In your C# project". Say "Add a Redis resource" not "Call `builder.AddRedis()`".
-4. **Default to TypeScript**: Put the TypeScript tab first so `apphost.mts` is on the left and selected for readers without a saved preference. Keep C# as an equal peer and preserve the reader's explicit language selection.
-5. **Verify TypeScript APIs exist**: Before writing a TypeScript example, confirm the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples — if you are unsure whether an API is available, flag it for review.
+1. **Account for every language**: Every AppHost-focused example must provide a verified slot or an explicit operation-level limitation for every enabled registry language.
+2. **Show implementations, not availability notes**: When a generated API exists, demonstrate it in a complete language slot. A note that merely names generated methods does not satisfy parity.
+3. **Use neutral framing**: Write prose that applies across languages. Say "In your AppHost" not "In your C# project". Say "Add a Redis resource" not "Call `builder.AddRedis()`".
+4. **Use registry order**: Do not order or label tabs manually. `AppHostTabs` keeps TypeScript as the default and preserves the reader's explicit selection.
+5. **Verify generated APIs**: Check the exact generated SDK for each language. Naming, optional arguments, unions, callbacks, fluent returns, and errors differ by generator; never infer one language from another.
 
 ### AppHost tabs pattern for AppHost content
 
-Use synced `Tabs` for AppHost-specific content that changes between TypeScript and C#. Each AppHost code snippet should provide its own language tabs, list TypeScript first, and use `syncKey='aspire-lang'` so the user's language choice stays synchronized across snippets on the page.
+Use `AppHostTabs` for AppHost-specific content. The component synchronizes the selected language and suppresses fallback code when the selected language has an explicit limitation.
 
 ````mdx
-import { Tabs, TabItem } from "@astrojs/starlight/components";
+import AppHostTabs from "@components/AppHostTabs.astro";
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='typescript' label='TypeScript'>
+<AppHostTabs limitations={{
+  python: "This operation is not emitted by the Python AppHost SDK.",
+  go: "This operation is not emitted by the Go AppHost SDK.",
+  java: "This operation is not emitted by the Java AppHost SDK.",
+  rust: "This operation is not emitted by the Rust AppHost SDK.",
+}}>
+<Fragment slot='typescript'>
 
 ```typescript title="apphost.mts"
 import { createBuilder } from "./.aspire/modules/aspire.mjs";
@@ -480,8 +487,8 @@ await api.withReference(cache);
 await builder.build().run();
 ```
 
-</TabItem>
-<TabItem id='csharp' label='C#'>
+</Fragment>
+<Fragment slot='csharp'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -494,27 +501,24 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 ````
 
-Use the same synced tabs pattern for more than code blocks when needed. Entire paragraphs, lists, asides, or multi-step sections can live inside the `csharp` and `typescript` tab items when the workflows differ.
+Replace each limitation with a language slot when the generated API is available. Entire paragraphs, lists, asides, or multi-step sections can live inside language slots when workflows differ.
 
-Use different `syncKey` values for other concerns such as CLI vs IDE, deployment targets, platform choices, or package managers. For AppHost language tabs, use exactly `syncKey='aspire-lang'`.
-
-If a section heading should appear in the **On this page** table of contents, keep that heading outside `Tabs`. Headings inside `TabItem` content may be skipped by the TOC generator, so the recommended pattern is a shared heading followed by tabs containing only the language-specific body content.
+If a section heading should appear in the **On this page** table of contents, keep that heading outside `AppHostTabs`. The recommended pattern is a shared heading followed by language-specific body content.
 
 ### Conventions
 
-| Aspect           | TypeScript                                                                                                          | C#                                              |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| File title       | `title="apphost.mts"`                                                                                                | `title="AppHost.cs"`                            |
-| Tab wrapper      | Shared `<Tabs syncKey='aspire-lang'>` container                                                                     | Shared `<Tabs syncKey='aspire-lang'>` container |
-| Tab item         | `<TabItem id='typescript' label='TypeScript'>`                                                                      | `<TabItem id='csharp' label='C#'>`              |
-| Builder creation | `import { createBuilder } from './.aspire/modules/aspire.mjs';` then newline for space followed by `await createBuilder();` | `DistributedApplication.CreateBuilder(args)`    |
-| Method casing    | camelCase (`addRedis`)                                                                                              | PascalCase (`AddRedis`)                         |
-| Async pattern    | `await` each builder call                                                                                           | Synchronous fluent calls                        |
-| Build & run      | `await builder.build().run()`                                                                                       | `builder.Build().Run()`                         |
+| Language   | File title      | Typical method style | Runtime/error style |
+| ---------- | --------------- | -------------------- | ------------------- |
+| TypeScript | `apphost.mts`   | camelCase            | async/`await`        |
+| C#         | `AppHost.cs` or `apphost.cs` | PascalCase | synchronous fluent calls |
+| Python     | `apphost.py`    | `snake_case`         | exceptions and context manager |
+| Go         | `apphost.go`    | PascalCase           | returned errors and fluent `Err()` |
+| Java       | `AppHost.java`  | camelCase            | synchronous runtime exceptions |
+| Rust       | `apphost.rs`    | `snake_case`         | `Result`, `Option`, and `?` |
 
 ### Prose Guidelines
 
@@ -523,23 +527,27 @@ When writing narrative text around AppHost examples:
 - ✅ "Add a Redis resource to your AppHost"
 - ✅ "The following example shows how to configure a PostgreSQL resource"
 - ❌ "Call `builder.AddRedis()` in your _Program.cs_" (C#-specific)
-- ❌ "Add the following C# code to your AppHost" (when both languages should be shown)
+- ❌ "Add the following C# code to your AppHost" (when multiple AppHost languages are supported)
 
-When a concept differs between languages (e.g., configuration files, async patterns), explain both within the AppHost language tabs or in language-neutral prose above the tabs.
+When a concept differs between languages (for example, configuration files, async patterns, options, or errors), explain each relevant behavior inside `AppHostTabs` or in language-neutral prose above it.
 
-### When TypeScript Is Not Yet Supported
+### When a Language Is Not Supported
 
-If a hosting integration does not yet have TypeScript AppHost support, show only the C# example without language tabs and add a note:
+If a generated AppHost SDK does not expose an operation, omit that language's code slot and add an operation-level limitation:
 
 ```mdx
-<Aside type="note">
-  TypeScript AppHost support for this integration is not yet available.
-</Aside>
+<AppHostTabs limitations={{
+  rust: "This operation is not emitted by the Rust AppHost SDK.",
+}}>
+  <Fragment slot="typescript">...</Fragment>
+  <Fragment slot="csharp">...</Fragment>
+  <Fragment slot="python">...</Fragment>
+  <Fragment slot="go">...</Fragment>
+  <Fragment slot="java">...</Fragment>
+</AppHostTabs>
 ```
 
-Do **not** wrap a single language in a single-language `<Tabs>` component — that creates a misleading UI suggesting another option exists.
-
-Use this exception at the operation level, not as a shortcut for the whole page. If some APIs are exported to TypeScript and others are not, provide synchronized C# and TypeScript tabs for every supported operation and place the limitation beside only the unsupported operation.
+Use limitations at the operation level, not as a shortcut for the whole page. The selected unsupported language displays its limitation without silently falling back to another language.
 
 ## Integration Documentation
 
@@ -570,7 +578,8 @@ title: [Technology] integration
 description: Learn how to use the [Technology] integration with Aspire.
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
+import AppHostTabs from "@components/AppHostTabs.astro";
 import InstallPackage from "@components/InstallPackage.astro";
 import { Image } from "astro:assets";
 
@@ -594,8 +603,13 @@ Brief description of the technology and what the integration enables.
 
 ### Add [Technology] resource
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='typescript' label='TypeScript'>
+<AppHostTabs limitations={{
+  python: "Verify the Python generated API or replace this limitation.",
+  go: "Verify the Go generated API or replace this limitation.",
+  java: "Verify the Java generated API or replace this limitation.",
+  rust: "Verify the Rust generated API or replace this limitation.",
+}}>
+<Fragment slot='typescript'>
 
 ```typescript title="apphost.mts"
 import { createBuilder } from "./.aspire/modules/aspire.mjs";
@@ -607,8 +621,8 @@ const tech = await builder.addTechnology("tech");
 await builder.build().run();
 ```
 
-</TabItem>
-<TabItem id='csharp' label='C#'>
+</Fragment>
+<Fragment slot='csharp'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -619,8 +633,8 @@ var tech = builder.AddTechnology("tech");
 builder.Build().Run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Configuration options
 
@@ -643,8 +657,13 @@ Include both hosting and client sections:
 
 ### Add [Technology] resource
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='typescript' label='TypeScript'>
+<AppHostTabs limitations={{
+  python: "Verify the Python generated API or replace this limitation.",
+  go: "Verify the Go generated API or replace this limitation.",
+  java: "Verify the Java generated API or replace this limitation.",
+  rust: "Verify the Rust generated API or replace this limitation.",
+}}>
+<Fragment slot='typescript'>
 
 ```typescript title="apphost.mts"
 import { createBuilder } from "./.aspire/modules/aspire.mjs";
@@ -659,8 +678,8 @@ await api.withReference(tech);
 await builder.build().run();
 ```
 
-</TabItem>
-<TabItem id='csharp' label='C#'>
+</Fragment>
+<Fragment slot='csharp'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -673,8 +692,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Hosting integration health checks
 

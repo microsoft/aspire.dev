@@ -3,7 +3,9 @@ title: Install external Helm charts
 description: Learn how to install external Helm charts alongside your Aspire application during Kubernetes deployment using AddHelmChart.
 ---
 
-import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Install pre-existing Helm charts — such as cert-manager, NGINX ingress controller, or monitoring tools — as part of your Aspire Kubernetes deployment. Aspire runs `helm upgrade --install` for each configured external chart after deploying your application's own generated Helm chart.
@@ -29,8 +31,8 @@ When you use `aspire deploy`, Aspire deploys your application as a Helm chart an
 
 Add the chart to a Kubernetes or AKS environment resource, passing the chart name (used as both the resource name and the default Helm release name), a chart reference, and a chart version:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -44,8 +46,8 @@ var api = builder.AddProject<Projects.MyApi>("api");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -65,8 +67,8 @@ const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The `chartReference` parameter accepts:
 
@@ -82,8 +84,8 @@ Pass the chart version string expected by the chart repository, such as `1.17.0`
 
 Set Helm values to pass `--set key=value` arguments to the Helm install command:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 k8s.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "1.17.0")
@@ -91,8 +93,8 @@ k8s.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "
     .WithHelmValue("config.enableGatewayAPI", "true");
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -111,8 +113,8 @@ await certManager.withHelmValue('crds.enabled', 'true');
 await certManager.withHelmValue('config.enableGatewayAPI', 'true');
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Value keys support dot-notation (`config.enableGatewayAPI`) and indexed array paths (`args[0]`). Values are passed to Helm with `--set` flags.
 
@@ -120,8 +122,8 @@ Value keys support dot-notation (`config.enableGatewayAPI`) and indexed array pa
 
 By default, the chart is installed in a namespace named after the chart resource and uses the chart resource name as the Helm release name. Override these in your AppHost when you need a different namespace or release name:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 k8s.AddHelmChart("ingress-nginx", "oci://ghcr.io/nginx/helm/nginx-ingress", "2.0.0")
@@ -129,8 +131,8 @@ k8s.AddHelmChart("ingress-nginx", "oci://ghcr.io/nginx/helm/nginx-ingress", "2.0
     .WithReleaseName("ingress-nginx");
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -149,8 +151,8 @@ await ingressNginx.withHelmChartNamespace('ingress-nginx');
 await ingressNginx.withHelmChartReleaseName('ingress-nginx');
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 - Namespace overrides must follow [RFC 1123 DNS label](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names) rules (lowercase alphanumerics and hyphens, max 63 characters).
 - Release name overrides must follow Helm's release-name rules (DNS label format, max 53 characters).
@@ -161,8 +163,8 @@ By default, external charts are not uninstalled when you run `aspire destroy`. T
 
 To opt in to uninstall-on-destroy, enable destroy-time uninstall in your AppHost:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 k8s.AddHelmChart("podinfo", "oci://ghcr.io/stefanprodan/charts/podinfo", "6.7.1")
@@ -170,8 +172,8 @@ k8s.AddHelmChart("podinfo", "oci://ghcr.io/stefanprodan/charts/podinfo", "6.7.1"
     .WithDestroy();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -190,8 +192,8 @@ await podinfo.withHelmValue('replicaCount', '2');
 await podinfo.withHelmChartDestroy();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When destroy-time uninstall is enabled, `aspire destroy` runs `helm uninstall` for the chart in addition to removing your application's resources.
 
@@ -203,8 +205,8 @@ Enable destroy-time uninstall for charts that are tightly coupled to the specifi
 
 The same `AddHelmChart` API is available on AKS environments through the `Aspire.Hosting.Azure.Kubernetes` package:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -220,8 +222,8 @@ var api = builder.AddProject<Projects.MyApi>("api");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -243,8 +245,8 @@ const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The AKS environment delegates external chart installation to its inner Kubernetes environment, so the same Helm value, namespace, release name, and destroy-time uninstall options apply.
 
@@ -252,8 +254,8 @@ The AKS environment delegates external chart installation to its inner Kubernete
 
 The following example installs cert-manager and a custom podinfo chart alongside an Aspire application on Kubernetes:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -275,8 +277,8 @@ var api = builder.AddProject<Projects.MyApi>("api");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -308,8 +310,8 @@ const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## See also
 

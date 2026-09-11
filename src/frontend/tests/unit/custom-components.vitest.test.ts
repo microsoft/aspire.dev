@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest';
 import heroImage from '@assets/aspire-hero.png';
 import AccessibleCodeButtons from '@components/AccessibleCodeButtons.astro';
 import AppHostBuilder from '@components/AppHostBuilder.astro';
+import AppHostLanguageEvidence from '@components/AppHostLanguageEvidence.astro';
+import AppHostLanguagePivot from '@components/AppHostLanguagePivot.astro';
+import AppHostLanguageSelector from '@components/AppHostLanguageSelector.astro';
+import AppHostProjectLink from '@components/AppHostProjectLink.astro';
+import AppHostTabs from '@components/AppHostTabs.astro';
 import AspireMap from '@components/AspireMap.astro';
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
@@ -56,6 +61,7 @@ import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 import samplesData from '@data/samples.json';
+import { appHostLanguageConfig, getEnabledAppHostLanguages } from '@utils/apphost-languages';
 import daTranslations from '../../src/content/i18n/da.json';
 import deTranslations from '../../src/content/i18n/de.json';
 import enTranslations from '../../src/content/i18n/en.json';
@@ -616,7 +622,7 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['AccessibleCodeButtons.astro?astro&type=script'],
   },
   {
-    name: 'AppHostBuilder renders both language groups and code display container',
+    name: 'AppHostBuilder renders enabled language groups and code display container',
     Component: AppHostBuilder,
     includes: [
       'data-code-lang="csharp"',
@@ -916,6 +922,96 @@ describe('custom Astro component render coverage', () => {
     expect(genericHtml.indexOf(csharpOption)).toBeLessThan(genericHtml.indexOf(typeScriptOption));
   });
 
+  it('renders enabled AppHost languages from the shared registry', async () => {
+    const selectorHtml = normalizeHtml(await renderComponent(AppHostLanguageSelector));
+    const tabsHtml = normalizeHtml(
+      await renderComponent(AppHostTabs, {
+        slots: {
+          typescript: '<p>TypeScript AppHost content</p>',
+          csharp: '<p>C# AppHost content</p>',
+        },
+      })
+    );
+
+    expect(selectorHtml).toContain('data-pivot-option="typescript"');
+    expect(selectorHtml).toContain('data-pivot-option="csharp"');
+    expect(selectorHtml).not.toContain('data-pivot-option="python"');
+    expect(tabsHtml).toContain('data-apphost-tabs');
+    expect(tabsHtml).toContain('data-supports-typescript');
+    expect(tabsHtml).toContain('data-supports-csharp');
+    expect(tabsHtml).toContain('TypeScript AppHost content');
+    expect(tabsHtml).toContain('C# AppHost content');
+  });
+
+  it('removes disabled AppHost language pivots from rendered output', async () => {
+    const enabledHtml = normalizeHtml(
+      await renderComponent(AppHostLanguagePivot, {
+        props: { id: 'typescript' },
+        slots: { default: '<p>Enabled language content</p>' },
+      })
+    );
+    const disabledHtml = normalizeHtml(
+      await renderComponent(AppHostLanguagePivot, {
+        props: { id: 'python' },
+        slots: { default: '<p>Disabled language content</p>' },
+      })
+    );
+
+    expect(enabledHtml).toContain('Enabled language content');
+    expect(disabledHtml).not.toContain('Disabled language content');
+  });
+
+  it('renders project links only for enabled AppHost languages', async () => {
+    const enabledHtml = normalizeHtml(
+      await renderComponent(AppHostProjectLink, {
+        props: { id: 'typescript' },
+        slots: { default: 'TypeScript project structure' },
+      })
+    );
+    const disabledHtml = normalizeHtml(
+      await renderComponent(AppHostProjectLink, {
+        props: { id: 'python' },
+        slots: { default: 'Python project structure' },
+      })
+    );
+
+    expect(enabledHtml).toContain('href="/app-host/typescript-apphost/"');
+    expect(enabledHtml).toContain('TypeScript project structure');
+    expect(disabledHtml).not.toContain('href=');
+    expect(disabledHtml).toContain('Python project structure');
+  });
+
+  it('renders verified AppHost evidence for an enabled language', async () => {
+    const html = normalizeHtml(
+      await renderComponent(AppHostLanguageEvidence, {
+        props: { language: 'typescript' },
+      })
+    );
+
+    expect(html).toContain('/casts/apphost-typescript.cast');
+    expect(html).toContain('apphost.mts');
+    expect(html).toContain('TypeScript AppHost dashboard');
+  });
+
+  it('renders an explicit limitation when an enabled language has no slot', async () => {
+    const html = normalizeHtml(
+      await renderComponent(AppHostTabs, {
+        props: {
+          limitations: {
+            csharp: 'This example is available only in generated AppHost SDKs.',
+          },
+        },
+        slots: {
+          typescript: '<p>TypeScript AppHost content</p>',
+        },
+      })
+    );
+
+    expect(html).toContain('data-apphost-limitation="csharp"');
+    expect(html).toContain('C# AppHost limitation');
+    expect(html).toContain('This example is available only in generated AppHost SDKs.');
+  });
+
   it('renders the canonical TypeScript tab and apphost.mts before C#', async () => {
     const html = normalizeHtml(
       await renderComponent(SimpleAppHostCode, {
@@ -933,6 +1029,36 @@ describe('custom Astro component render coverage', () => {
     const html = normalizeHtml(await renderComponent(AppHostBuilder));
 
     expect(html).not.toMatch(/withNpmPackageInstallation/i);
+  });
+
+  it('AppHostBuilder renders registry-enabled languages in order with every variant covered', async () => {
+    const html = normalizeHtml(await renderComponent(AppHostBuilder));
+    const enabledLanguages = getEnabledAppHostLanguages();
+    const disabledLanguages = appHostLanguageConfig.languages.filter(
+      (language) => !language.enabled
+    );
+    const renderedLanguageIds = Array.from(
+      html.matchAll(/class="lang-toggle[^"]*"[^>]*data-lang="([^"]+)"/g),
+      (match) => match[1]
+    );
+    const renderedLanguageButtons = html.match(/<button[^>]*class="lang-toggle[^>]*>/g) ?? [];
+
+    expect(renderedLanguageIds).toEqual(enabledLanguages.map((language) => language.id));
+    expect(renderedLanguageButtons).toHaveLength(enabledLanguages.length);
+    for (const button of renderedLanguageButtons) {
+      expect(button).toContain('role="radio"');
+      expect(button).toContain('aria-checked=');
+      expect(button).not.toContain('aria-pressed=');
+    }
+    expect(html.match(/data-variant="/g)).toHaveLength(enabledLanguages.length * 31);
+
+    for (const language of enabledLanguages) {
+      expect(html).toContain(`data-code-lang="${language.id}"`);
+    }
+    for (const language of disabledLanguages) {
+      expect(html).not.toContain(`data-lang="${language.id}"`);
+      expect(html).not.toContain(`data-code-lang="${language.id}"`);
+    }
   });
 
   it('ThemeImage contains non-square artwork via the optimizer, not rendered markup', async () => {
@@ -1069,7 +1195,8 @@ describe('custom Astro component render coverage', () => {
     );
     expect(html).toContain('+1');
     expect(html).toContain('data-apphost="csproj"');
-    expect(html).toContain('C# (csproj) AppHost');
+    expect(html).toContain('C# project AppHost');
+    expect(html).toContain('--apphost-color: #512bd4');
 
     // The AppHost pill must live in the footer next to the "View on GitHub"
     // link rather than higher up in the card body, so the badge sits on the
@@ -1134,6 +1261,7 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('Aspire sample');
     expect(html).toContain('TypeScript AppHost');
     expect(html).toContain('data-apphost="typescript"');
+    expect(html).toContain('--apphost-color: #3178c6');
     expect(html).toContain('This sample shows how to connect an API and dashboard to Redis.');
     expect(html).not.toContain('**This sample**');
     expect(html).toContain('Running the app');
@@ -1238,6 +1366,39 @@ describe('custom Astro component render coverage', () => {
     expect(ctaIconIndex).toBeLessThan(ctaLabelIndex);
   });
 
+  it('keeps disabled AppHost languages out of authored sample UI', async () => {
+    const disabledLanguageSample = {
+      ...sampleDetailFixture,
+      appHost: 'python' as const,
+      appHostPath: 'apphost.py',
+      appHostCode: 'print("disabled AppHost metadata remains ingestible")',
+      tags: [],
+    };
+
+    const [cardHtml, detailHtml] = await Promise.all([
+      renderComponent(SampleCard, {
+        props: {
+          sample: {
+            ...disabledLanguageSample,
+            resolvedThumbnail: null,
+          },
+        },
+      }).then(normalizeHtml),
+      renderComponent(SampleDetail, {
+        props: {
+          sample: disabledLanguageSample,
+          samplesHref: '/reference/samples/',
+        },
+      }).then(normalizeHtml),
+    ]);
+
+    expect(cardHtml).not.toContain('data-apphost="python"');
+    expect(cardHtml).not.toContain('Python AppHost');
+    expect(detailHtml).not.toContain('data-apphost="python"');
+    expect(detailHtml).not.toContain('Python AppHost');
+    expect(detailHtml).not.toContain('disabled AppHost metadata remains ingestible');
+  });
+
   it('strips emphasized first paragraphs and long emphasized labels (paragraphPlainText doubling regression)', async () => {
     // Regression for the marked-token doubling bug in SampleDetail's
     // paragraphPlainText: marked carries both a `text` field and a `tokens`
@@ -1332,6 +1493,23 @@ describe('custom Astro component render coverage', () => {
     );
     expect(markdown).toContain('![External](https://example.com/x.png)');
     expect(markdown.endsWith('\n')).toBe(true);
+
+    const disabledAppHostMarkdown = buildSampleMarkdown(
+      {
+        name: 'python-apphost-sample',
+        title: 'Python AppHost sample',
+        description: null,
+        href: 'https://github.com/dotnet/aspire-samples/tree/main/samples/python-apphost-sample',
+        readme: '# Python AppHost sample',
+        tags: ['python'],
+        thumbnail: null,
+        appHost: 'python',
+      },
+      { appHostLabel }
+    );
+
+    expect(disabledAppHostMarkdown).not.toContain('**AppHost:**');
+    expect(disabledAppHostMarkdown).toContain('**Tags:** python');
   });
 
   it('renders SessionCard speaker metadata and time badge', async () => {

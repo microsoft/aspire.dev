@@ -4,6 +4,8 @@ description: Add Aspire to an existing application — use aspire init with an A
 next: false
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import { Kbd } from 'starlight-kbd/components';
@@ -27,20 +29,47 @@ Before you begin, make sure you have:
 
 ### AppHost-specific requirements
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 - [.NET SDK 10.0 or later](/get-started/prerequisites/)
 - Visual Studio 2022 17.13 or later, Visual Studio Code, or JetBrains Rider (optional)
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
-- [Node.js 22.x or 24.x LTS](https://nodejs.org/)
+- [Node.js 20.19+, 22.13+, or 24+](https://nodejs.org/)
 - A [supported AppHost-root package manager](/app-host/typescript-apphost/#package-managers): npm, pnpm, Yarn 4+, or Bun
 
-</TabItem>
-</Tabs>
+</Fragment>
+<Fragment slot="python">
+
+- Python 3.11 or later
+- Optional: [uv](https://docs.astral.sh/uv/). Aspire falls back to `.venv` and `pip`.
+- `experimentalPolyglot:python` enabled
+
+</Fragment>
+<Fragment slot="go">
+
+- The Go toolchain used by the current scaffold (`go 1.26` in the generated `go.mod`)
+- `experimentalPolyglot:go` enabled
+
+</Fragment>
+<Fragment slot="java">
+
+- JDK 25
+- `experimentalPolyglot:java` enabled
+- Optional: a checked-in Maven or Gradle wrapper when the AppHost joins an existing build-tool project
+
+</Fragment>
+<Fragment slot="rust">
+
+- Rust and Cargo
+- `experimentalPolyglot:rust` enabled
+- Awareness that Rust SDK validation currently has known non-blocking failures
+
+</Fragment>
+</AppHostTabs>
 
 ## Recommended: Use an AI coding agent with the "aspireify" skill
 
@@ -54,11 +83,11 @@ The fastest way to add Aspire to an existing app is to let `aspire init` scaffol
    aspire init
    ```
 
-   Choose your AppHost language (C# or TypeScript) when prompted, or pass `--language csharp` / `--language typescript`. The command creates a minimal AppHost, an `aspire.config.json`, and installs the `aspireify` skill into your agent's skill directory. For existing JavaScript or TypeScript apps with a root `package.json`, the TypeScript AppHost is created in an `aspire-apphost/` subfolder so Aspire doesn't change the existing app package's module settings.
+   Choose your AppHost language when prompted, or pass `--language csharp`, `typescript`, `python`, `go`, `java`, or `rust`. Experimental languages appear only after you enable their feature flag. The command creates a minimal AppHost, an `aspire.config.json`, and installs the `aspireify` skill into your agent's skill directory. For existing JavaScript or TypeScript apps with a root `package.json`, the TypeScript AppHost is created in an `aspire-apphost/` subfolder so Aspire doesn't change the existing app package's module settings.
 
-    :::note[The AppHost language doesn't limit what you can orchestrate]
-    Whether you choose a C# or TypeScript AppHost, Aspire can orchestrate services written in any language — C#, JavaScript, Python, Go, Rust, Java, containers, and more. The AppHost language is just how you express the orchestration, not a constraint on the workloads.
-    :::
+   :::note[The AppHost language doesn't limit what you can orchestrate]
+   Aspire can orchestrate services written in any language regardless of the AppHost language. The AppHost language controls how you express orchestration, not which workloads you can run.
+   :::
 
 2. Ask your AI coding agent to run the `aspireify` skill. The agent will:
 
@@ -72,9 +101,9 @@ The fastest way to add Aspire to an existing app is to let `aspire init` scaffol
 
 </Steps>
 
-
 <LearnMore>
-For more details on the `aspire init` command and the aspireify skill, see the [CLI reference: `aspire init`](/reference/cli/commands/aspire-init/).
+  For more details on the `aspire init` command and the aspireify skill, see the
+  [CLI reference: `aspire init`](/reference/cli/commands/aspire-init/).
 </LearnMore>
 
 :::tip[Works with any AI coding agent]
@@ -91,8 +120,8 @@ If you prefer full control over the wiring, or want to understand what the aspir
 
 The AppHost is the orchestration layer. Your choice here changes how you express orchestration, not what Aspire can orchestrate.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 Aspire offers two C# AppHost styles:
 
@@ -102,8 +131,8 @@ Aspire offers two C# AppHost styles:
 
 Both styles use the same `Aspire.AppHost.Sdk` and the same hosting APIs.
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 Use a TypeScript AppHost when your repo already centers on a Node.js workspace or when you prefer path-based orchestration in TypeScript.
 
@@ -111,8 +140,50 @@ Use a TypeScript AppHost when your repo already centers on a Node.js workspace o
 - Runs under supported package managers including npm, pnpm, Yarn 4+, and Bun
 - Fits naturally into existing package-manager and monorepo workflows
 
-</TabItem>
-</Tabs>
+</Fragment>
+<Fragment slot="python">
+
+Use a Python AppHost when you want orchestration expressed with Python `snake_case` APIs and a Python 3.11+ toolchain.
+
+- Entry point: `apphost.py`
+- Generated package: `.aspire/modules/aspire_app.py`
+- Dependency metadata: `pylock.apphost.toml`, with `apphost_requirements.txt` as the pip fallback
+- Runtime: uv when available, otherwise `.venv` and pip
+
+</Fragment>
+<Fragment slot="go">
+
+Use a Go AppHost when you want compiled, strongly typed orchestration with explicit Go error handling.
+
+- Entry point: `apphost.go`
+- Generated module: `.aspire/modules`
+- Local import: `apphost/modules/aspire`
+- Runtime: `go run .`
+
+</Fragment>
+<Fragment slot="java">
+
+Use a Java AppHost when you want Java-style fluent APIs and JDK tooling.
+
+- Entry point: `AppHost.java`
+- Generated package: `.aspire/modules/aspire`
+- Default build: `javac --release 25`
+- Optional build-tool integration: Maven or Gradle through a checked-in wrapper
+
+</Fragment>
+<Fragment slot="rust">
+
+Use a Rust AppHost when you want `snake_case` APIs and `Result`-based error handling.
+
+- Entry point: `apphost.rs`
+- Generated module: `.aspire/modules/mod.rs`
+- Manifest: `Cargo.toml`
+- Runtime: `cargo run --bin apphost --`
+
+Rust AppHost SDK validation still has known non-blocking failures, so verify every generated API you adopt.
+
+</Fragment>
+</AppHostTabs>
 
 :::tip[No runtime lock-in]
 Both AppHost styles can orchestrate multi-language systems. You can mix C#, Node.js, Python, Go, Rust, Java, containers, and supported integrations in the same application model. Pick the AppHost that best fits your repo and team, not the one that matches a single workload.
@@ -120,8 +191,8 @@ Both AppHost styles can orchestrate multi-language systems. You can mix C#, Node
 
 ### Set up your AppHost
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 #### File-based AppHost (default)
 
@@ -168,13 +239,15 @@ Use a file-based AppHost when you want a lightweight single-file orchestrator wi
 After setup, a typical repo layout looks like this:
 
 <FileTree>
-    - apphost.cs (new)
-    - aspire.config.json (new)
-    - src/
-        - Api/
-            - MyApp.Api.csproj
-        - Worker/
-            - MyApp.Worker.csproj
+
+- apphost.cs new
+- aspire.config.json new
+- src/
+  - Api/
+    - MyApp.Api.csproj
+  - Worker/
+    - MyApp.Worker.csproj
+
 </FileTree>
 
 :::caution[AddCSharpApp is experimental]
@@ -241,17 +314,19 @@ Use this approach when your repo is already a .NET solution (`.sln` or `.slnx`) 
 After setup, a typical solution layout looks like this:
 
 <FileTree>
-    - MyApp.sln
-    - MyApp.AppHost/
-        - MyApp.AppHost.csproj
-        - AppHost.cs
-    - src/
-        - Api/
-            - MyApp.Api.csproj
-        - Web/
-            - MyApp.Web.csproj
-        - Worker/
-            - MyApp.Worker.csproj
+
+- MyApp.sln
+- MyApp.AppHost/
+  - MyApp.AppHost.csproj
+  - AppHost.cs
+- src/
+  - Api/
+    - MyApp.Api.csproj
+  - Web/
+    - MyApp.Web.csproj
+  - Worker/
+    - MyApp.Worker.csproj
+
 </FileTree>
 
 :::note[ProjectReference wiring]
@@ -259,11 +334,13 @@ Each `ProjectReference` in the AppHost triggers a source generator that creates 
 :::
 
 <LearnMore>
-For the full `AddProject` workflow including custom type names, multi-project solutions, and launch profiles, see [Project resources](/integrations/dotnet/project-resources/).
+  For the full `AddProject` workflow including custom type names, multi-project
+  solutions, and launch profiles, see [Project
+  resources](/integrations/dotnet/project-resources/).
 </LearnMore>
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 <Steps>
 
@@ -292,15 +369,15 @@ For the full `AddProject` workflow including custom type names, multi-project so
    const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
 
    const api = await builder
-       .addProject('api', '../src/Api/MyApp.Api.csproj')
-       .withReference(db)
-       .withReference(cache)
-       .waitFor(db);
+     .addProject('api', '../src/Api/MyApp.Api.csproj')
+     .withReference(db)
+     .withReference(cache)
+     .waitFor(db);
 
    await builder
-       .addViteApp('web', '../services/web')
-       .withReference(api)
-       .waitFor(api);
+     .addViteApp('web', '../services/web')
+     .withReference(api)
+     .waitFor(api);
 
    await builder.build().run();
    ```
@@ -310,20 +387,22 @@ For the full `AddProject` workflow including custom type names, multi-project so
 After setup, a typical workspace layout looks like this:
 
 <FileTree>
-    - aspire.config.json (new)
-    - package.json (updated with Aspire delegate scripts)
-    - aspire-apphost/ (new)
-        - apphost.mts
-        - .aspire/modules/
-        - package.json
-        - tsconfig.apphost.json
-    - services/
-        - web/
-            - package.json
-            - src/
+
+- aspire.config.json new
+- package.json updated with Aspire delegate scripts
+- aspire-apphost/ new
+  - apphost.mts
+  - .aspire/modules/
+  - package.json
+  - tsconfig.apphost.json
+- services/
+  - web/
+    - package.json
     - src/
-        - Api/
-            - MyApp.Api.csproj
+- src/
+  - Api/
+    - MyApp.Api.csproj
+
 </FileTree>
 
 :::note[The .aspire folder is generated]
@@ -342,28 +421,30 @@ aspire init --language typescript --non-interactive
 The resulting layout looks like this:
 
 <FileTree>
-    - apps/
-        - my-app/
-            - aspire-apphost/ (new)
-                - apphost.mts (new)
-                - package.json (new)
-                - tsconfig.apphost.json (new)
-                - .aspire/ (new)
-                    - modules/ (new)
-            - aspire.config.json (new)
-            - package.json (updated with delegate scripts)
-            - src/
+
+- apps/
+  - my-app/
+    - aspire-apphost/ new
+      - apphost.mts new
+      - package.json new
+      - tsconfig.apphost.json new
+      - .aspire/ new
+        - modules/ new
+    - aspire.config.json new
+    - package.json updated with delegate scripts
+    - src/
+
 </FileTree>
 
 #### Root package.json delegate scripts
 
 `aspire init` adds delegate scripts to the root `package.json` so you can run the AppHost from the workspace root without `cd`-ing into `aspire-apphost/`:
 
-| Script | What it does |
-|---|---|
+| Script         | What it does                                              |
+| -------------- | --------------------------------------------------------- |
 | `aspire:start` | Starts the Aspire dashboard and all orchestrated services |
-| `aspire:build` | Compiles the TypeScript AppHost |
-| `aspire:dev` | Watches the AppHost for changes |
+| `aspire:build` | Compiles the TypeScript AppHost                           |
+| `aspire:dev`   | Watches the AppHost for changes                           |
 
 These scripts delegate to the AppHost subdirectory using your package manager. For example, with pnpm and an AppHost at `aspire-apphost/`:
 
@@ -372,7 +453,7 @@ These scripts delegate to the AppHost subdirectory using your package manager. F
   "scripts": {
     "aspire:start": "pnpm --dir aspire-apphost run aspire:start",
     "aspire:build": "pnpm --dir aspire-apphost run aspire:build",
-    "aspire:dev":   "pnpm --dir aspire-apphost run aspire:dev"
+    "aspire:dev": "pnpm --dir aspire-apphost run aspire:dev"
   }
 }
 ```
@@ -385,8 +466,124 @@ If your root `package.json` already contains any `aspire:`-prefixed scripts (for
 
 The AppHost package and your guest apps can use different package managers. The AppHost directory takes precedence for running AppHost scripts — if the AppHost's `package.json` declares `"packageManager": "pnpm@..."` or contains a `pnpm-lock.yaml`, pnpm is used for AppHost operations regardless of the toolchain in the parent workspace.
 
-</TabItem>
-</Tabs>
+</Fragment>
+<Fragment slot="python">
+
+<Steps>
+
+1. Enable and initialize a Python AppHost:
+
+   ```bash title="Initialize a Python AppHost"
+   aspire config set features:experimentalPolyglot:python true --global
+   aspire init --language python
+   ```
+
+1. Add Redis and define the first shared resource:
+
+   ```bash title="Add Redis"
+   aspire add redis
+   ```
+
+   ```python title="apphost.py"
+   from aspire_app import create_builder
+
+   with create_builder() as builder:
+       cache = builder.add_redis("cache")
+       builder.run()
+   ```
+
+</Steps>
+
+The generated Python SDK is installed from `.aspire/modules` through uv or the `.venv`/pip fallback.
+
+</Fragment>
+<Fragment slot="go">
+
+<Steps>
+
+1. Enable and initialize a Go AppHost:
+
+   ```bash title="Initialize a Go AppHost"
+   aspire config set features:experimentalPolyglot:go true --global
+   aspire init --language go
+   ```
+
+1. Add Redis and define the first shared resource:
+
+   ```bash title="Add Redis"
+   aspire add redis
+   ```
+
+   ```go title="apphost.go"
+   cache := builder.AddRedis("cache")
+   if err := cache.Err(); err != nil {
+       log.Fatal(aspire.FormatError(err))
+   }
+   ```
+
+</Steps>
+
+Check `Err()` after fluent resource chains. Builder creation, `Build`, and `Run` return errors directly.
+
+</Fragment>
+<Fragment slot="java">
+
+<Steps>
+
+1. Enable and initialize a Java AppHost:
+
+   ```bash title="Initialize a Java AppHost"
+   aspire config set features:experimentalPolyglot:java true --global
+   aspire init --language java
+   ```
+
+1. Add Redis and define the first shared resource:
+
+   ```bash title="Add Redis"
+   aspire add redis
+   ```
+
+   ```java title="AppHost.java"
+   import aspire.*;
+
+   void main() throws Exception {
+       var builder = DistributedApplication.CreateBuilder();
+       var cache = builder.addRedis("cache");
+       builder.build().run();
+   }
+   ```
+
+</Steps>
+
+</Fragment>
+<Fragment slot="rust">
+
+<Steps>
+
+1. Enable and initialize a Rust AppHost:
+
+   ```bash title="Initialize a Rust AppHost"
+   aspire config set features:experimentalPolyglot:rust true --global
+   aspire init --language rust
+   ```
+
+1. Add Redis and define the first shared resource:
+
+   ```bash title="Add Redis"
+   aspire add redis
+   ```
+
+   ```rust title="apphost.rs"
+   let builder = create_builder(None)?;
+   let cache = builder.add_redis("cache", None, None)?;
+   let app = builder.build()?;
+   app.run(None)?;
+   ```
+
+</Steps>
+
+</Fragment>
+</AppHostTabs>
 
 ### Scenario: Existing services with hosting integrations
 
@@ -394,8 +591,13 @@ Use this approach when Aspire already has a first-class resource type for the wo
 
 Common examples include Node.js apps, Vite frontends, Python workers, and Uvicorn-based APIs.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs limitations={{
+  python: 'This multi-workload sample has not yet been validated against the Python generated SDK. Add integrations one at a time and inspect apphost.py plus .aspire/modules after aspire restore.',
+  go: 'This multi-workload sample has not yet been validated against the Go generated SDK. Add integrations one at a time and check Err() after each fluent resource chain.',
+  java: 'This multi-workload sample has not yet been validated against the Java generated SDK. Add integrations one at a time and compile the generated surface with aspire run.',
+  rust: 'This multi-workload sample is not supported as canonical Rust guidance while Rust SDK validation has known non-blocking failures.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="apphost.cs — Existing services with hosting integrations"
 #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
@@ -422,8 +624,8 @@ var web = builder.AddViteApp("web", "../services/web")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts — Existing services with hosting integrations" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -433,30 +635,33 @@ const builder = await createBuilder();
 const cache = await builder.addRedis('cache');
 
 const api = await builder
-    .addUvicornApp('api', '../services/api', 'main:app')
-    .withUv()
-    .withReference(cache)
-    .withExternalHttpEndpoints();
+  .addUvicornApp('api', '../services/api', 'main:app')
+  .withUv()
+  .withReference(cache)
+  .withExternalHttpEndpoints();
 
 await builder
-    .addPythonApp('worker', '../workers/inventory-sync', 'worker.py')
-    .withReference(cache);
+  .addPythonApp('worker', '../workers/inventory-sync', 'worker.py')
+  .withReference(cache);
 
 await builder
-    .addViteApp('web', '../services/web')
-    .withReference(api)
-    .waitFor(api);
+  .addViteApp('web', '../services/web')
+  .withReference(api)
+  .waitFor(api);
 
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 If a workload does not have a dedicated hosting API yet, model it as an executable resource with `AddExecutable` or `addExecutable` so it can still participate in the same application model.
 
 <LearnMore>
-For first-class workload guidance, see [JavaScript integration](/integrations/frameworks/javascript/), [Python integration](/integrations/frameworks/python/), and [Multi-language architecture](/architecture/multi-language-architecture/).
+  For first-class workload guidance, see [JavaScript
+  integration](/integrations/frameworks/javascript/), [Python
+  integration](/integrations/frameworks/python/), and [Multi-language
+  architecture](/architecture/multi-language-architecture/).
 </LearnMore>
 
 :::caution[Frontend deployment note]
@@ -474,8 +679,13 @@ aspire add postgres
 aspire add redis
 ```
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs limitations={{
+  python: 'This container-topology sample has not yet been validated against the Python generated SDK.',
+  go: 'This container-topology sample has not yet been validated against the Go generated SDK.',
+  java: 'This container-topology sample has not yet been validated against the Java generated SDK.',
+  rust: 'This container-topology sample is not supported as canonical Rust guidance while Rust SDK validation has known non-blocking failures.',
+}}>
+<Fragment slot="csharp">
 
 ```csharp title="apphost.cs — Existing containers and shared infrastructure"
 #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
@@ -501,8 +711,8 @@ var web = builder.AddContainer("web", "ghcr.io/contoso/orders-web:latest")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts — Existing containers and shared infrastructure" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -514,22 +724,21 @@ const db = (await builder.addPostgres('postgres')).addDatabase('orders');
 const cache = await builder.addRedis('cache');
 
 const api = await builder
-    .addContainer('api', { image: 'ghcr.io/contoso/orders-api', tag: 'latest' })
-    .withReference(db)
-    .withReference(cache)
-    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
+  .addContainer('api', { image: 'ghcr.io/contoso/orders-api', tag: 'latest' })
+  .withReference(db)
+  .withReference(cache)
+  .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
 
 await builder
-    .addContainer('web', { image: 'ghcr.io/contoso/orders-web', tag: 'latest' })
-    .withReference(api)
-    .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
+  .addContainer('web', { image: 'ghcr.io/contoso/orders-web', tag: 'latest' })
+  .withReference(api)
+  .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
 
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
-
+</Fragment>
+</AppHostTabs>
 
 ### Scenario: Docker Compose
 
@@ -548,7 +757,7 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=mydb
     ports:
-      - "5432:5432"
+      - '5432:5432'
 
   api:
     build: ./api
@@ -599,14 +808,14 @@ const builder = await createBuilder();
 const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
 
 const api = await builder
-    .addDockerfile('api', '../api')
-    .withReference(db)
-    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
+  .addDockerfile('api', '../api')
+  .withReference(db)
+  .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
 
 await builder
-    .addDockerfile('web', '../web')
-    .withReference(api)
-    .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
+  .addDockerfile('web', '../web')
+  .withReference(api)
+  .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
 
 await builder.build().run();
 ```
@@ -617,15 +826,24 @@ await builder.build().run();
 These scenarios are starting points, not mutually exclusive modes. Most real apps mix workload-specific resources, containers, shared infrastructure, project-path references, and occasional custom commands in a single application model. The key is that dependencies, endpoints, configuration, and startup behavior become explicit.
 
 <LearnMore>
-For more examples, see [Project resources](/integrations/dotnet/project-resources/), [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/), [Executable resources](/app-host/executable-resources/), and [Migrate from Docker Compose](/app-host/migrate-from-docker-compose/).
+  For more examples, see [Project
+  resources](/integrations/dotnet/project-resources/), [C# file-based
+  apps](/integrations/dotnet/csharp-file-based-apps/), [Executable
+  resources](/app-host/executable-resources/), and [Migrate from Docker
+  Compose](/app-host/migrate-from-docker-compose/).
 </LearnMore>
 
 ## Add telemetry configuration (optional)
 
 Telemetry is configured inside the workloads that emit it, not in the AppHost itself. Aspire gives those workloads an OTLP destination and a shared dashboard during local orchestration, but each service still uses the observability libraries that fit its runtime.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs limitations={{
+  python: 'Configure OpenTelemetry in the Python workload. This section does not define an AppHost-language-specific telemetry API.',
+  go: 'Configure OpenTelemetry in the Go workload. This section does not define an AppHost-language-specific telemetry API.',
+  java: 'Configure OpenTelemetry in the Java workload. This section does not define an AppHost-language-specific telemetry API.',
+  rust: 'Configure OpenTelemetry in the Rust workload. This section does not define an AppHost-language-specific telemetry API.',
+}}>
+<Fragment slot="csharp">
 
 If your app includes C# services, ServiceDefaults is the standard way to add observability, resilience, and health checks.
 
@@ -655,11 +873,12 @@ If your app includes C# services, ServiceDefaults is the standard way to add obs
 </Steps>
 
 <LearnMore>
-For more information, see [Service Defaults](/get-started/csharp-service-defaults/).
+  For more information, see [Service
+  Defaults](/get-started/csharp-service-defaults/).
 </LearnMore>
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 If your app includes Node.js or TypeScript services, configure OpenTelemetry inside the service and point it at the Aspire <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint.
 
@@ -681,7 +900,7 @@ If your app includes Node.js or TypeScript services, configure OpenTelemetry ins
    import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 
    const sdk = new NodeSDK({
-       instrumentations: [getNodeAutoInstrumentations()],
+     instrumentations: [getNodeAutoInstrumentations()],
    });
 
    sdk.start();
@@ -699,8 +918,8 @@ If your app includes Node.js or TypeScript services, configure OpenTelemetry ins
 
 </Steps>
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For other runtimes, use the OpenTelemetry SDK or instrumentation library that matches the runtime you are already using, then export telemetry to the OTLP endpoint Aspire provides during local orchestration.
 

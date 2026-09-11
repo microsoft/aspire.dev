@@ -4,7 +4,9 @@ seoTitle: Grafana k6 hosting integration for Aspire
 description: Configure the Community Toolkit k6 resource in Aspire, including scripts, browser testing, endpoints, health checks, and OpenTelemetry.
 ---
 
-import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Badge } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import k6Icon from '@assets/icons/k6-icon.svg';
@@ -27,8 +29,8 @@ This reference describes the Community Toolkit k6 hosting integration APIs for t
 
 Add [📦 CommunityToolkit.Aspire.Hosting.k6](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.k6) to the AppHost:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add k6
@@ -40,8 +42,8 @@ Or add the package manually:
 #:package CommunityToolkit.Aspire.Hosting.k6@*
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add k6
@@ -57,8 +59,8 @@ The command adds the package to `aspire.config.json`:
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <LearnMore>
   Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
@@ -69,8 +71,8 @@ The command adds the package to `aspire.config.json`:
 
 Use `AddK6` / `addK6` to add a Grafana k6 container resource. The resource uses the `docker.io/grafana/k6` image, exposes its HTTP API as the `http` endpoint, and is visible in the dashboard.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -80,8 +82,8 @@ var k6 = builder.AddK6("k6");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -93,8 +95,8 @@ const k6 = await builder.addK6('k6');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `name` identifies the resource and is used as its connection name when another resource references it.
 
@@ -113,8 +115,8 @@ The examples read `PrimaryEndpoint` / `primaryEndpoint()` when an AppHost API ne
 
 The optional `enableBrowserExtensions` parameter selects the k6 image variant with browser support. The optional `port` parameter selects the host port for the HTTP API.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var k6 = builder.AddK6(
@@ -125,8 +127,8 @@ var k6 = builder.AddK6(
 var endpoint = k6.Resource.PrimaryEndpoint;
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const k6 = await builder.addK6('browser-tests', true, 6565);
@@ -134,8 +136,8 @@ const k6 = await builder.addK6('browser-tests', true, 6565);
 const endpoint = await k6.primaryEndpoint();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The default image does not include browser support. Enable it only for tests that use the [k6 browser module](https://grafana.com/docs/k6/latest/using-k6-browser/).
 
@@ -145,8 +147,8 @@ The default image does not include browser support. Enable it only for tests tha
 
 Mount the script directory with the standard container `WithBindMount` / `withBindMount` API before selecting a path in the container:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var k6 = builder.AddK6("load-test")
@@ -154,8 +156,8 @@ var k6 = builder.AddK6("load-test")
     .WithScript("/scripts/main.js", virtualUsers: 25, duration: "45s");
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const k6 = await builder.addK6('load-test');
@@ -163,8 +165,8 @@ await k6.withBindMount('./scripts', '/scripts', { isReadOnly: true });
 await k6.withScript('/scripts/main.js', 25, '45s');
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 `scriptPath` must be a path the container can read. The integration doesn't set a container working directory, so use an absolute container path or a path valid for the configured image. `WithScript` / `withScript` rejects a null script path and a zero or negative virtual-user count.
 
@@ -172,24 +174,24 @@ await k6.withScript('/scripts/main.js', 25, '45s');
 
 `WithK6OtlpEnvironment` / `withK6OtlpEnvironment` copies every existing `OTEL_*` environment variable for the resource to a corresponding `K6_OTEL_*` variable. This enables the k6 OpenTelemetry output to use the OTLP configuration that Aspire has already set for the resource.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var k6 = builder.AddK6("load-test")
     .WithK6OtlpEnvironment();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const k6 = await builder.addK6('load-test');
 await k6.withK6OtlpEnvironment();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## References and publishing
 

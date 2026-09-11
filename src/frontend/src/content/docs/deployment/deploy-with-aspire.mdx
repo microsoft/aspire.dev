@@ -3,12 +3,9 @@ title: How Aspire deployment works
 description: Learn how Aspire deployment works — targets add pipeline steps, commands enter the pipeline, and components compose into a publishable artifact for any environment.
 ---
 
-import {
-  CardGrid,
-  LinkCard,
-  TabItem,
-  Tabs,
-} from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Aspire deployment is pipeline-based. Add a deployment target to your AppHost, and Aspire gains the steps needed for that target. `aspire publish`, `aspire deploy`, and `aspire do <step>` are different ways of entering that pipeline.
@@ -19,8 +16,8 @@ Deployment behavior doesn't live outside the AppHost. It comes from resources in
 
 ### Resources add pipeline steps
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -31,8 +28,8 @@ builder.AddProject<Projects.Api>("api");
 builder.Build().Run();
 
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -45,8 +42,8 @@ await builder.addProject('api', '../Api/Api.csproj');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 In this example, the Docker Compose environment resource contributes the steps needed to publish or deploy compatible compute resources for Docker Compose. Other resources can contribute different steps, but they all plug into the same pipeline model.
 
@@ -95,8 +92,8 @@ Parameters are the external values the pipeline needs from outside the AppHost, 
 
 Parameters connect AppHost code to pipeline behavior. In the publish path, the target preserves that requirement in emitted artifacts so another tool or manual step can provide the value later. In the deploy path, Aspire resolves the value internally while it generates and applies the deployment.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -109,8 +106,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -125,8 +122,8 @@ await api.withEnvironment('API_KEY', apiKey);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 In this example:
 

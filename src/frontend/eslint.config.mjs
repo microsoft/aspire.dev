@@ -54,6 +54,10 @@ export default [
     ...tseslint.configs.disableTypeChecked,
   },
   {
+    files: ['tests/fixtures/apphost-languages/typescript/**/*.mts'],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
     files: ['tests/unit/**/*.ts', 'tests/typecheck/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',

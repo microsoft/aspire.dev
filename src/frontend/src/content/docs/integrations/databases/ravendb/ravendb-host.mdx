@@ -4,8 +4,10 @@ seoTitle: "Set up RavenDB in the Aspire AppHost: hosting integration"
 description: Learn how to use the Aspire RavenDB Hosting integration to orchestrate and configure a RavenDB database in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Badge, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Badge, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ravendbIcon from '@assets/icons/ravendb-icon.png';
 
@@ -29,8 +31,8 @@ If you're new to the RavenDB integration, start with the [Get started with Raven
 
 The Aspire RavenDB hosting integration models the RavenDB server as the `RavenDBServerResource` type and the database as the `RavenDBDatabaseResource` type. To start building an Aspire app that uses RavenDB, install the [📦 CommunityToolkit.Aspire.Hosting.RavenDB](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.RavenDB) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.RavenDB
@@ -50,8 +52,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="CommunityToolkit.Aspire.Hosting.RavenDB" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.RavenDB
@@ -71,15 +73,15 @@ This updates your `aspire.config.json` with the RavenDB hosting integration pack
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add RavenDB server resource and database resource
 
 Once you've installed the hosting integration in your AppHost project, you can add a RavenDB server resource and then add a database resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -94,8 +96,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -112,8 +114,8 @@ await apiService.waitFor(ravendb);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Steps>
 
@@ -141,8 +143,8 @@ await builder.build().run();
 
 By default, `AddDatabase` registers the database in the Aspire model but does not create it in RavenDB automatically. Pass `ensureCreated: true` to have Aspire create the database on startup if it does not already exist:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -157,8 +159,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -175,15 +177,15 @@ await apiService.waitFor(ravendb);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add RavenDB server resource with data volume
 
 Add a data volume to the RavenDB server resource to persist data outside the lifecycle of its container:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -200,8 +202,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -220,8 +222,8 @@ await apiService.waitFor(ravendb);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The data volume is mounted at the `/var/lib/ravendb/data` path in the RavenDB container. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-ravendb-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
@@ -229,8 +231,8 @@ The data volume is mounted at the `/var/lib/ravendb/data` path in the RavenDB co
 
 Add a data bind mount to the RavenDB server resource as an alternative to a named volume:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -247,8 +249,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -267,8 +269,8 @@ await apiService.waitFor(ravendb);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Data bind mounts rely on the host machine's filesystem to persist the RavenDB data across container restarts. The bind mount maps the host path `C:\RavenDb\Data` (on Windows, or the equivalent Unix path) to the `/var/lib/ravendb/data` directory inside the RavenDB container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
@@ -280,8 +282,8 @@ Data bind mounts rely on the host machine's filesystem to persist the RavenDB da
 
 Add a named volume for the RavenDB logs directory:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -299,8 +301,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -320,8 +322,8 @@ await apiService.waitFor(ravendb);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The log volume is mounted at the `/var/log/ravendb/logs` path in the RavenDB container. You can also use `WithLogBindMount(source: @"C:\RavenDb\Logs")` to bind-mount a host directory for logs.
 

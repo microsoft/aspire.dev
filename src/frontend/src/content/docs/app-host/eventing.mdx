@@ -4,7 +4,9 @@ seoTitle: AppHost eventing APIs in your Aspire AppHost project
 description: Use the Aspire AppHost eventing APIs for lifecycle events, custom event publishing, and reactive integrations that respond to resource state transitions at runtime.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 In Aspire, eventing allows you to publish and subscribe to events during various AppHost life cycles. Eventing is more flexible than life cycle events. Both let you run arbitrary code during event callbacks, but eventing offers finer control of event timing, publishing, and provides supports for custom events.
@@ -25,8 +27,8 @@ The following events are available in the AppHost and occur in the following ord
 
 To subscribe to built-in AppHost events, use the typed API available for each event. C# provides builder extension methods for selected events and the lower-level `Eventing.Subscribe<T>()` API for others. TypeScript provides named subscription methods:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using Microsoft.Extensions.DependencyInjection;
@@ -52,8 +54,8 @@ builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -71,8 +73,8 @@ await builder.subscribeAfterResourcesCreated(async () => {
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The following C# builder-level helper methods are available for AppHost events:
 
@@ -163,8 +165,8 @@ In addition to the AppHost events, you can also subscribe to resource events. Re
 
 To subscribe to resource events, use the convenience-based extension methods. After you have a distributed application builder instance, and a resource builder, walk up to the instance and chain a call to the desired event API:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using Microsoft.Extensions.DependencyInjection;
@@ -231,8 +233,8 @@ builder.AddProject<Projects.AspireApp_Web>("webfrontend")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -268,8 +270,8 @@ await cache.onResourceReady(async () => {
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code subscribes to the `InitializeResourceEvent`, `ResourceReadyEvent`, `ResourceEndpointsAllocatedEvent`, `ConnectionStringAvailableEvent`, and `BeforeResourceStartedEvent` events on the `cache` resource. Chain calls to the event methods to subscribe to multiple events on the same resource.
 
@@ -491,8 +493,8 @@ When publishing your application (generating deployment manifests), these events
 | `BeforePublishEvent` | Before publishing begins   | Validate or modify resources before manifest generation |
 | `AfterPublishEvent`  | After publishing completes | Perform cleanup or post-publish actions                 |
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 builder.OnBeforePublish((@event, ct) =>
@@ -508,8 +510,8 @@ builder.OnAfterPublish((@event, ct) =>
 });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -527,8 +529,8 @@ await builder.subscribeAfterPublish(async (event) => {
 });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <LearnMore>
   For details on what happens during publishing, see [Publishing and deployment
@@ -539,8 +541,8 @@ await builder.subscribeAfterPublish(async (event) => {
 
 The `ResourceStoppedEvent` is raised when a resource stops execution:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using Microsoft.Extensions.DependencyInjection;
@@ -561,8 +563,8 @@ cache.OnResourceStopped(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -577,8 +579,8 @@ await cache.onResourceStopped(async (event) => {
 });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
   Event publishing is **synchronous and blocking** — event handlers can delay

@@ -1,0 +1,127 @@
+---
+title: Java AppHost project structure
+seoTitle: Aspire Java AppHost project structure overview
+description: Learn the files, JDK requirements, generated sources, build-tool integration, and error conventions in an experimental Aspire Java AppHost.
+topic: docs
+---
+
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
+
+:::caution[Experimental AppHost]
+Java AppHost authoring is experimental. Enable `experimentalPolyglot:java` before using its template, generated SDK, or runtime.
+:::
+
+Create an empty Java AppHost with:
+
+```bash title="Create a Java AppHost"
+aspire config set features:experimentalPolyglot:java true --global
+aspire new aspire-java-empty -n my-apphost -o my-apphost
+```
+
+The CLI scaffolds this structure:
+
+<FileTree>
+
+- my-apphost/
+  - .aspire/
+    - modules/ Generated Java sources; do not edit
+      - aspire/
+        - Aspire.java
+        - Base.java
+        - Transport.java
+        - ... additional generated types
+      - sources.txt
+  - .vscode/
+    - settings.json Adds the generated SDK to the Java source path
+  - .gitignore Excludes generated and compiled AppHost output
+  - AppHost.java AppHost entry point
+  - aspire.config.json AppHost language, packages, and launch profiles
+
+</FileTree>
+
+## Runtime requirements
+
+Java AppHosts require **JDK 25**. The generated AppHost and SDK compile with:
+
+```bash title="Java AppHost compilation"
+javac --release 25
+```
+
+Aspire can also detect Maven or Gradle projects. Commit the Maven or Gradle wrapper when the AppHost depends on build-tool-managed artifacts so the CLI can resolve them consistently.
+
+## aspire.config.json
+
+The AppHost configuration identifies the entry point and language:
+
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "AppHost.java",
+    "language": "java"
+  },
+  "packages": {
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+`aspire add` records hosting integrations in `packages`. `aspire restore` resolves those packages and regenerates `.aspire/modules`.
+
+## Generated Java SDK
+
+`.aspire/modules/aspire` contains the Java projection of ATS exports. `sources.txt` lists the generated source files that are compiled with the AppHost. The scaffolded VS Code setting adds that directory to the Java source path.
+
+Don't edit generated sources. Regenerate them instead:
+
+```bash title="Restore a Java AppHost"
+aspire restore
+```
+
+## AppHost.java
+
+The scaffold uses the compact source-file form available with JDK 25:
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var cache = builder.addRedis("cache");
+
+    builder.build().run();
+}
+```
+
+Add Redis before using this example:
+
+```bash title="Add Redis"
+aspire add redis
+```
+
+Generated Java APIs use `camelCase` fluent methods. Guest/host call failures surface as exceptions, so the entry point can declare `throws Exception` or handle failures explicitly.
+
+## Templates
+
+| Template              | Purpose                                           |
+| --------------------- | ------------------------------------------------- |
+| `aspire-java-empty`   | Empty experimental Java AppHost                   |
+| `aspire-java-starter` | Spring Boot and React starter with a Java AppHost |
+
+## Run the AppHost
+
+```bash title="Run the Java AppHost"
+aspire run
+```
+
+Aspire restores and compiles the generated SDK when needed, launches the Java guest process, starts the .NET orchestration host, and prints the dashboard URL.
+
+## Source control
+
+Keep the scaffolded `.gitignore`. Generated `.aspire` content and compiled AppHost output can be recreated from the source and `aspire.config.json`.
+
+## See also
+
+- [Build your first Aspire app](/get-started/first-app/?lang=java)
+- [Multi-language architecture](/architecture/multi-language-architecture/)
+- [Author multi-language integrations](/extensibility/multi-language-integration-authoring/)

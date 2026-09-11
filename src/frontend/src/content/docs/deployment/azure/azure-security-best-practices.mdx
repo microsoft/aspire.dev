@@ -4,7 +4,9 @@ next: false
 description: Harden Aspire deployments to Azure with private networking, managed identities, secret stores, Key Vault references, and policy guardrails for production workloads.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+
 import LearnMore from '@components/LearnMore.astro';
 
 When you deploy Aspire apps to Azure, the base security posture comes from the deployment target you choose and the Azure resources you provision. This guide explains what Aspire configures for you by default and how to work with either the standard public networking model or the private-networked model, then harden the deployment with managed identities, Key Vault, and monitoring.
@@ -43,8 +45,8 @@ If you're staying on the default public model, focus on identities, secrets, RBA
 
 For Azure Container Apps, a common production pattern is to place the environment in a delegated subnet and put private endpoints for backing Azure services in a separate subnet:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -60,8 +62,8 @@ peSubnet.AddPrivateEndpoint(keyVault);
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -79,8 +81,8 @@ await peSubnet.addPrivateEndpoint(keyVault);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 This pattern has a few important behaviors:
 
@@ -109,8 +111,8 @@ For service-specific requirements such as Service Bus Premium tier support and A
 
 Store sensitive configuration data and secrets in Azure Key Vault instead of source control or container images:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -121,8 +123,8 @@ builder.AddProject<Projects.Api>("api")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -134,8 +136,8 @@ await api.withReference(keyVault);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For more information, see [Aspire Azure Key Vault integration](/integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started/).
 
@@ -143,8 +145,8 @@ For more information, see [Aspire Azure Key Vault integration](/integrations/clo
 
 For more granular control over permissions and role assignments, attach a user-assigned managed identity to the compute resource that needs it:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -155,8 +157,8 @@ builder.AddProject<Projects.Api>("api")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -168,8 +170,8 @@ await api.withAzureUserAssignedIdentity(identity);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For detailed guidance, see [Aspire Azure user-assigned managed identity integration](/integrations/cloud/azure/user-assigned-identity/).
 
@@ -177,8 +179,8 @@ For detailed guidance, see [Aspire Azure user-assigned managed identity integrat
 
 Use the deployed Aspire Dashboard to inspect the compute resources that Aspire places in Azure Container Apps or Azure App Service, then use Application Insights and Azure Monitor alerts to detect suspicious behavior, repeated failures, or unusual traffic patterns after deployment:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -189,8 +191,8 @@ builder.AddProject<Projects.Api>("api")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -202,8 +204,8 @@ await api.withReference(appInsights);
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The dashboard helps you inspect deployed compute resources, but it doesn't surface managed Azure backing services as dashboard resources. Create Azure Monitor alerts for authentication failures, unexpected restarts, unusual latency spikes, and abnormal resource consumption across the app and its dependent Azure services.
 

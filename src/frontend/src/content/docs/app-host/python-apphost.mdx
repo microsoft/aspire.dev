@@ -1,0 +1,123 @@
+---
+title: Python AppHost project structure
+seoTitle: Aspire Python AppHost project structure overview
+description: Learn the files, Python runtime, generated SDK, dependency setup, and error conventions in an experimental Aspire Python AppHost.
+topic: docs
+---
+
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
+
+:::caution[Experimental AppHost]
+Python AppHost authoring is experimental. Enable `experimentalPolyglot:python` before using its template, generated SDK, or runtime.
+:::
+
+Create an empty Python AppHost with:
+
+```bash title="Create a Python AppHost"
+aspire config set features:experimentalPolyglot:python true --global
+aspire new aspire-py-empty -n my-apphost -o my-apphost
+```
+
+The CLI scaffolds this structure:
+
+<FileTree>
+
+- my-apphost/
+  - .aspire/
+    - modules/ Generated Python SDK; do not edit
+      - aspire_app.py
+      - pyproject.toml
+  - apphost.py AppHost entry point
+  - apphost_requirements.txt pip fallback dependencies
+  - aspire.config.json AppHost language, packages, and launch profiles
+  - pylock.apphost.toml uv lock for AppHost dependencies
+
+</FileTree>
+
+## Runtime requirements
+
+Python AppHosts require **Python 3.11 or later**. Aspire prefers [uv](https://docs.astral.sh/uv/) when it is available. Otherwise, the CLI:
+
+1. Creates a `.venv` virtual environment.
+1. Bootstraps pip when needed.
+1. Installs the packages in `apphost_requirements.txt`.
+1. Runs `apphost.py` in that environment.
+
+The environment belongs to the AppHost toolchain. Python workloads orchestrated by the AppHost can use their own environments and dependency managers.
+
+## aspire.config.json
+
+The AppHost configuration identifies the entry point and language:
+
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.py",
+    "language": "python"
+  },
+  "packages": {
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+`aspire add` records hosting integrations in `packages`. `aspire restore` resolves those packages and regenerates `.aspire/modules`.
+
+## Generated Python SDK
+
+`.aspire/modules/aspire_app.py` contains the Python projection of the ATS APIs exported by the installed hosting packages. The generated SDK uses `snake_case` names and raises exceptions for guest/host call failures.
+
+Don't edit `.aspire/modules`. Regenerate it instead:
+
+```bash title="Restore a Python AppHost"
+aspire restore
+```
+
+`pylock.apphost.toml` locks the generated SDK dependency when uv is available. `apphost_requirements.txt` provides the venv and pip fallback.
+
+## apphost.py
+
+The entry point creates the builder as a context manager, declares resources, and runs the model:
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    cache = builder.add_redis("cache")
+    builder.run()
+```
+
+The `create_builder()` context manager owns the connection to the orchestration host. Keep resource declarations inside the `with` block.
+
+Add Redis before using this example:
+
+```bash title="Add Redis"
+aspire add redis
+```
+
+## Templates
+
+| Template            | Purpose                                               |
+| ------------------- | ----------------------------------------------------- |
+| `aspire-py-empty`   | Empty experimental Python AppHost                     |
+| `aspire-py-starter` | Python workload starter with a **TypeScript AppHost** |
+
+`aspire-py-starter` does not demonstrate a Python AppHost. Use `aspire-py-empty` when you need Python for the orchestration entry point.
+
+## Run the AppHost
+
+```bash title="Run the Python AppHost"
+aspire run
+```
+
+Aspire restores the generated SDK when needed, launches the Python guest process, starts the .NET orchestration host, and prints the dashboard URL.
+
+## Source control
+
+Add `.aspire/` and the AppHost virtual environment to `.gitignore`. Both can be recreated from `aspire.config.json` and the generated dependency files.
+
+## See also
+
+- [Build your first Aspire app](/get-started/first-app/?lang=python)
+- [Multi-language architecture](/architecture/multi-language-architecture/)
+- [Author multi-language integrations](/extensibility/multi-language-integration-authoring/)

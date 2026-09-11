@@ -4,7 +4,9 @@ seoTitle: Aspire resource API patterns for AppHost integrations
 description: Discover common API resource patterns in Aspire, including how to add and configure resources, use annotations, and compose hosting and client integrations.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Aside, Steps } from '@astrojs/starlight/components';
 
 Aspire's resource model allows you to define and configure resources in a structured way, enabling seamless integration and management of your application's components. This guide provides details the common patterns for adding and configuring resources in Aspire.
 
@@ -31,8 +33,8 @@ An `AddX(...)` method executes:
 
 ### Signature pattern
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 public static IResourceBuilder<TResource> AddX(
@@ -53,8 +55,8 @@ public static IResourceBuilder<TResource> AddX(
 }
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript
 // Resources are added via async builder methods:
@@ -70,121 +72,121 @@ const resource = await builder.addRedis("name" /*, optional params */);
 //    builder.addEventingSubscriber(...)
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Optional wiring examples
 
 **Endpoints**:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 .WithEndpoint(port: hostPort, targetPort: containerPort, name: endpointName)
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript
 resource.withEndpoint({ port: hostPort, targetPort: containerPort, name: endpointName });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 **Health checks**:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 .WithHealthCheck(healthCheckKey)
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript
 resource.withHealthCheck(healthCheckKey);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 **Container images / registries**:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 .WithImage(imageName, imageTag)
 .WithImageRegistry(registryUrl)
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript
 resource.withImage(imageName, imageTag);
 resource.withImageRegistry(registryUrl);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 **Entrypoint and args**:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 .WithEntrypoint("/bin/sh")
 .WithArgs(context => { /* build args */ return Task.CompletedTask; })
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript
 resource.withEntrypoint("/bin/sh");
 resource.withArgs(["--flag", "value"]);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 **Environment variables**:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 .WithEnvironment(context => new("ENV_VAR", valueProvider))
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript
 resource.withEnvironment("ENV_VAR", value);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 **Event subscriptions**:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 builder.Eventing.Subscribe<EventType>(resource, handler);
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript
 builder.addEventingSubscriber(async (context) => {
@@ -194,8 +196,8 @@ builder.addEventingSubscriber(async (context) => {
 });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Summary table
 
@@ -212,8 +214,8 @@ builder.addEventingSubscriber(async (context) => {
 
 ### Signature pattern
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 public static IResourceBuilder<TResource> WithX(
@@ -222,15 +224,15 @@ public static IResourceBuilder<TResource> WithX(
     builder.WithAnnotation(new FooAnnotation(options));
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 :::note
 The TypeScript SDK doesn't expose `withAnnotation(...)` directly. Configuration methods like `withEndpoint(...)` and `withEnvironment(...)` handle annotation attachment internally.
 :::
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 - **Target**: `IResourceBuilder<TResource>`.
 - **Action**: `WithAnnotation(...)`.
@@ -249,8 +251,8 @@ Annotations are **public** metadata types implementing `IResourceAnnotation`. Th
 
 ### Definition and attachment
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 public sealed record PersistenceAnnotation(
@@ -262,15 +264,15 @@ builder.WithAnnotation(new PersistenceAnnotation(
     100));
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 :::note
 The TypeScript SDK doesn't expose annotations as a user-facing pattern. Resource metadata is managed internally by the SDK's configuration methods.
 :::
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Summary table
 
@@ -299,26 +301,26 @@ Custom value objects defer evaluation and allow the framework to discover depend
 
 ### Attaching to resources
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 builder.WithEnvironment(context =>
     new("REDIS_CONNECTION_STRING", redis.GetConnectionStringAsync));
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript
 resource.withEnvironment("REDIS_CONNECTION_STRING", redis);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="Example: BicepOutputReference"
 public sealed partial class BicepOutputReference : 
@@ -332,18 +334,18 @@ public sealed partial class BicepOutputReference :
 }
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 :::note
 In the TypeScript SDK, `BicepOutputReference` and the value provider interfaces exist as read-only types. Users consume these types (e.g., via `resource.getOutput("name")`) but don't implement custom value objects.
 :::
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp
 public static IResourceBuilder<T> WithEnvironment<T>(
@@ -357,15 +359,15 @@ public static IResourceBuilder<T> WithEnvironment<T>(
 }
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 :::note
 In the TypeScript SDK, `withEnvironment()` handles value binding directly without requiring custom annotation types.
 :::
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ### Summary table
 

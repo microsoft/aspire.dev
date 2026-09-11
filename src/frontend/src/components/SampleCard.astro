@@ -4,8 +4,11 @@ import { Image } from 'astro:assets';
 import ThemeAwareImage from '@components/ThemeImage.astro';
 import { tagLabel } from '@utils/sample-tags';
 import {
+  appHostBrandColor,
+  appHostFallbackGlyph,
   appHostIconName,
   appHostShortLabel,
+  isAppHostEnabled,
   isResolvedThemeAwareSampleImage,
   sampleDescriptionText,
   type ResolvedSample,
@@ -82,7 +85,10 @@ const visibleTags = sample.tags.slice(0, 5);
 const remaining = Math.max(sample.tags.length - 5, 0);
 const overflowTags = sample.tags.slice(5);
 
-const appHostIcon = appHostIconName(sample.appHost);
+const appHostKind = sample.appHost && isAppHostEnabled(sample.appHost) ? sample.appHost : null;
+const appHostIcon = appHostIconName(appHostKind);
+const appHostGlyph = appHostKind ? appHostFallbackGlyph(appHostKind) : null;
+const appHostColor = appHostKind ? appHostBrandColor(appHostKind) : null;
 ---
 
 <article
@@ -162,25 +168,20 @@ const appHostIcon = appHostIconName(sample.appHost);
     }
     <div class="footer">
       {
-        sample.appHost && (
-          <div class="apphost-pill" data-apphost={sample.appHost}>
+        appHostKind && (
+          <div
+            class="apphost-pill"
+            data-apphost={appHostKind}
+            style={`--apphost-color: ${appHostColor}`}
+          >
             {appHostIcon ? (
               <Icon name={appHostIcon} size="0.85rem" />
             ) : (
-              <svg
-                class="apphost-glyph"
-                aria-hidden="true"
-                viewBox="0 0 16 16"
-                width="12"
-                height="12"
-              >
-                <path
-                  d="M5.6 4.2 2.2 7.6c-.22.22-.22.58 0 .8L5.6 11.8c.22.22.58.22.8 0a.566.566 0 0 0 0-.8L3.42 8l3-3a.566.566 0 0 0 0-.8.566.566 0 0 0-.82 0Zm4.8 0a.566.566 0 0 0-.8.8l3 3-3 3a.566.566 0 0 0 0 .8c.22.22.58.22.8 0l3.4-3.4a.566.566 0 0 0 0-.8l-3.4-3.4Z"
-                  fill="currentColor"
-                />
-              </svg>
+              <span class="apphost-glyph" aria-hidden="true">
+                {appHostGlyph}
+              </span>
             )}
-            <span>{appHostShortLabel(sample.appHost)} AppHost</span>
+            <span>{appHostShortLabel(appHostKind)}</span>
           </div>
         )
       }
@@ -359,17 +360,14 @@ const appHostIcon = appHostIconName(sample.appHost);
   }
 
   .apphost-glyph {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
-  }
-
-  .apphost-pill[data-apphost='typescript'] {
-    --apphost-color: #3178c6;
-  }
-
-  .apphost-pill[data-apphost='csproj'],
-  .apphost-pill[data-apphost='file-based'] {
-    --apphost-color: #512bd4;
+    min-width: 1rem;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
   }
 
   :global([data-theme='light']) .apphost-pill {

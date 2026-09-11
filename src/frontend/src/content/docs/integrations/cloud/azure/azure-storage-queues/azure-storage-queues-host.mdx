@@ -3,8 +3,10 @@ title: Set up Azure Queue Storage in the AppHost
 description: Learn how to use the Aspire Azure Queue Storage Hosting integration to orchestrate and configure an Azure Queue Storage resource in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import InstallPackage from '@components/InstallPackage.astro';
@@ -28,8 +30,8 @@ If you're new to the Azure Queue Storage integration, start with the [Get starte
 
 To start building an Aspire app that uses Azure Queue Storage, install the [📦 Aspire.Hosting.Azure.Storage](https://www.nuget.org/packages/Aspire.Hosting.Azure.Storage) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add azure-storage
@@ -49,8 +51,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Azure.Storage" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add azure-storage
@@ -70,15 +72,15 @@ This updates your `aspire.config.json` with the Azure Storage hosting integratio
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add Azure Queue Storage resource
 
 Once you've installed the hosting integration in your AppHost project, you can add an Azure Storage resource and attach a queue resource to it:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -94,8 +96,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -113,8 +115,8 @@ await builder.addNodeApp("apiservice", "./api", "index.js")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code adds an Azure Storage resource named `storage`, attaches a queue storage resource named `queues` to it, and passes the queue's connection information to the consuming project.
 
@@ -130,8 +132,8 @@ When you reference the queue resource from the AppHost, Aspire makes several con
 
 For local development, Aspire can run the [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) emulator in a container to avoid requiring an Azure subscription. Call `RunAsEmulator` (C#) or `runAsEmulator` (TypeScript) on the storage resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -148,8 +150,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -168,8 +170,8 @@ await builder.addNodeApp("apiservice", "./api", "index.js")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When running as an emulator, Aspire pulls the `mcr.microsoft.com/azure-storage/azurite` container image and starts a local Azurite instance.
 
@@ -187,8 +189,8 @@ By default, the Azurite container exposes the following endpoints:
 
 The host port is dynamic by default. To fix the ports, pass a configuration callback to `RunAsEmulator` (C#) or `runAsEmulator` (TypeScript):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -205,8 +207,8 @@ var storage = builder.AddAzureStorage("storage")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -226,8 +228,8 @@ const storage = await builder.addAzureStorage("storage")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The resulting port mappings (`container:host`) are:
 
@@ -241,8 +243,8 @@ The resulting port mappings (`container:host`) are:
 
 To keep the Azurite container alive across AppHost restarts, call `WithLifetime` with `ContainerLifetime.Persistent`:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -257,8 +259,8 @@ var storage = builder.AddAzureStorage("storage")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
@@ -276,15 +278,15 @@ const storage = await builder.addAzureStorage("storage")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Configure Azurite container with data volume
 
 To persist Azurite data outside the container lifecycle, add a data volume:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -299,8 +301,8 @@ var storage = builder.AddAzureStorage("storage")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -318,8 +320,8 @@ const storage = await builder.addAzureStorage("storage")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The data volume is mounted at the `/data` path in the Azurite container. When a `name` parameter isn't provided, the name is formatted as `.azurite/{resource name}`. For more information on data volumes and details on why they're preferred over [bind mounts](#configure-azurite-container-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
@@ -327,8 +329,8 @@ The data volume is mounted at the `/data` path in the Azurite container. When a 
 
 To use a bind mount instead of a volume, call `WithDataBindMount`:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -343,8 +345,8 @@ var storage = builder.AddAzureStorage("storage")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -362,8 +364,8 @@ const storage = await builder.addAzureStorage("storage")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
 Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
@@ -375,8 +377,8 @@ Data bind mounts rely on the host machine's filesystem to persist Azurite data a
 
 You might have an existing Azure Storage account that you want to connect to. Call `AsExisting` (or `asExisting`) to annotate the resource as already provisioned:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -395,8 +397,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -416,8 +418,8 @@ await builder.addNodeApp("apiservice", "./api", "index.js")
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="caution">
 When you call `RunAsExisting`, `PublishAsExisting`, or `AsExisting` to work with resources that are already present in your Azure subscription, you must add certain configuration values to your AppHost so that Aspire can locate them. The necessary configuration values include **SubscriptionId**, **AllowResourceGroupCreation**, **ResourceGroup**, and **Location**. If you don't set them, "Missing configuration" errors appear in the Aspire dashboard. For more information about how to set them, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).

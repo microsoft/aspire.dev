@@ -3,8 +3,10 @@ title: Set up Azure Database for PostgreSQL in the AppHost
 description: Learn how to use the Aspire Azure PostgreSQL Hosting integration to orchestrate and configure an Azure Database for PostgreSQL flexible server in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import postgresqlIcon from '@assets/icons/azure-postgresql-icon.png';
 
@@ -25,8 +27,8 @@ If you're new to the Azure PostgreSQL integration, start with the [Get started w
 
 To start building an Aspire app that uses Azure Database for PostgreSQL, install the [📦 Aspire.Hosting.Azure.PostgreSQL](https://www.nuget.org/packages/Aspire.Hosting.Azure.PostgreSQL) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add azure-postgres
@@ -47,8 +49,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Azure.PostgreSQL" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add azure-postgres
@@ -69,15 +71,15 @@ This updates your `aspire.config.json` with the Azure PostgreSQL hosting integra
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add an Azure Database for PostgreSQL resource
 
 Once you've installed the hosting integration in your AppHost project, you can add a PostgreSQL flexible server resource and then add a database resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -93,8 +95,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -110,8 +112,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code adds an Azure PostgreSQL flexible server resource named `postgres` with a database named `postgresdb`. The `withReference` / `WithReference` call injects the connection information into the consuming project.
 
@@ -136,8 +138,8 @@ The preceding code adds an Azure PostgreSQL flexible server resource named `post
 
 You can add multiple named databases to the same flexible server resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -156,8 +158,8 @@ builder.AddProject<Projects.OrdersService>("orders")
 // After adding all resources, run the app...
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -178,30 +180,30 @@ await builder.addNodeApp("orders", "./orders", "index.js")
 // After adding all resources, run the app...
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 You can also customize the underlying database name (as distinct from the Aspire resource name) by passing `databaseName` in the options:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var postgresdb = postgres.AddDatabase("postgresdb", databaseName: "app_catalog");
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const postgresdb = await postgres.addDatabase("postgresdb", { databaseName: "app_catalog" });
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Run as a local container during development
 
 The Azure PostgreSQL hosting integration supports running the PostgreSQL server as a local Docker container. This is beneficial for local development and testing — you get a real PostgreSQL server without needing an Azure subscription or connection to an existing Azure PostgreSQL instance.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -219,8 +221,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -238,8 +240,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When `RunAsContainer` / `runAsContainer` is called, Aspire uses the [`docker.io/library/postgres`](https://hub.docker.com/_/postgres) container image and generates credentials automatically. The same consuming app code and environment variable names work in both local-container and Azure modes.
 
@@ -262,8 +264,8 @@ For a comparison of the two hosting integrations, see [PostgreSQL Hosting integr
 
 If you have an existing Azure Database for PostgreSQL Flexible Server that you want to connect to rather than provisioning a new one, use `AsExisting` / `asExisting`:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -281,8 +283,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -300,8 +302,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For more information on treating Azure resources as existing, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
@@ -309,8 +311,8 @@ For more information on treating Azure resources as existing, see [Use existing 
 
 By default, the Azure PostgreSQL flexible server is configured to use [Microsoft Entra ID](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-azure-ad-authentication) authentication — no username or password is stored in your app configuration. If you need password authentication (for example, to connect with a legacy client that doesn't support Entra tokens), call `WithPasswordAuthentication` / `withPasswordAuthentication`:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -331,8 +333,8 @@ builder.AddProject<Projects.ExampleProject>("apiservice")
 builder.Build().Run();
 
 ````
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -353,8 +355,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ````
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 When password authentication is enabled, the `Username` and `Password` connection properties are also injected into consuming apps. See [Connect to Azure PostgreSQL](../azure-postgresql-connect/#connection-properties) for the full property reference.
 

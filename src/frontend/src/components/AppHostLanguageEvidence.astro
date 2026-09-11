@@ -1,0 +1,79 @@
+---
+import { Image } from 'astro:assets';
+import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
+import csharpDashboard from '@assets/get-started/apphost-csharp-dashboard.png';
+import goDashboard from '@assets/get-started/apphost-go-dashboard.png';
+import javaDashboard from '@assets/get-started/apphost-java-dashboard.png';
+import pythonDashboard from '@assets/get-started/apphost-python-dashboard.png';
+import rustDashboard from '@assets/get-started/apphost-rust-dashboard.png';
+import typescriptDashboard from '@assets/get-started/apphost-typescript-dashboard.png';
+import {
+  getAppHostLanguage,
+  type AppHostLanguageId,
+} from '@utils/apphost-languages';
+
+interface Props {
+  language: AppHostLanguageId;
+}
+
+const { language } = Astro.props;
+const metadata = getAppHostLanguage(language);
+const dashboards = {
+  typescript: typescriptDashboard,
+  csharp: csharpDashboard,
+  python: pythonDashboard,
+  go: goDashboard,
+  java: javaDashboard,
+  rust: rustDashboard,
+};
+const isRustFallback = language === 'rust';
+---
+
+<div class="apphost-language-evidence">
+  {
+    isRustFallback ? (
+      <p>
+        The Rust preview SDK currently fails to invoke <code>add_executable</code> when it
+        serializes the required <code>String[]</code> argument. This verified run uses the
+        generated <code>add_external_service</code> API instead and keeps the runtime limitation
+        visible.
+      </p>
+    ) : (
+      <p>
+        This verified run uses <code>{metadata.appHostFile}</code> to orchestrate the same small
+        Node.js HTTP executable. The recording shows the real start, resource description, proxied
+        request, and cleanup output.
+      </p>
+    )
+  }
+
+  <AsciinemaPlayer
+    src={`/casts/apphost-${language}.cast`}
+    poster="npt:0:08"
+    rows={24}
+    autoPlay={false}
+    loop={false}
+    speed={1}
+  />
+
+  <Image
+    src={dashboards[language]}
+    alt={`${metadata.label} AppHost dashboard showing the verified resource in a healthy running state`}
+    widths={[720, 1200, 1440]}
+    sizes="(min-width: 72rem) 60rem, 100vw"
+    loading="lazy"
+  />
+</div>
+
+<style>
+  .apphost-language-evidence {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .apphost-language-evidence :global(img) {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    box-shadow: var(--sl-shadow-md);
+  }
+</style>

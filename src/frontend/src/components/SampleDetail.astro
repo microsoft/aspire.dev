@@ -11,10 +11,13 @@ import { getStandaloneImageNodes, getThemeImageNodePair } from '@utils/sample-re
 import { tagLabel } from '@utils/sample-tags';
 import { stripReadmeTitle } from '@utils/sample-readme-headings';
 import {
+  appHostBrandColor,
   appHostCodeLang,
   appHostCodeTitle,
+  appHostFallbackGlyph,
   appHostIconName,
   appHostLabel,
+  isAppHostEnabled,
   normalizeThemeImageAlt,
   sampleDescriptionText,
   stripSampleImageUrlSuffix,
@@ -266,11 +269,13 @@ const readmeBlocks = filterDanglingLabels(
 const readmeImages = collectStandaloneImages(readmeBlocks);
 const visibleTags = sample.tags;
 
-const appHostKind = sample.appHost ?? null;
+const appHostKind = sample.appHost && isAppHostEnabled(sample.appHost) ? sample.appHost : null;
 const appHostIcon = appHostIconName(appHostKind);
-const appHostCode = sample.appHostCode ?? null;
+const appHostGlyph = appHostKind ? appHostFallbackGlyph(appHostKind) : null;
+const appHostColor = appHostKind ? appHostBrandColor(appHostKind) : null;
+const appHostCode = appHostKind ? (sample.appHostCode ?? null) : null;
 const appHostCodeFilename = appHostCodeTitle(sample.appHostPath);
-const appHostCodeLanguage = appHostCodeLang(sample.appHostPath);
+const appHostCodeLanguage = appHostCodeLang(appHostKind, sample.appHostPath);
 const appHostSourceUrl =
   appHostCode && sample.appHostPath
     ? `${sample.href.replace('/tree/', '/blob/')}/${sample.appHostPath}`
@@ -332,22 +337,17 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
         </div>
         {
           appHostKind && (
-            <div class="sample-hero-tag sample-hero-apphost" data-apphost={appHostKind}>
+            <div
+              class="sample-hero-tag sample-hero-apphost"
+              data-apphost={appHostKind}
+              style={`--apphost-color: ${appHostColor}`}
+            >
               {appHostIcon ? (
                 <Icon name={appHostIcon} size="0.95rem" />
               ) : (
-                <svg
-                  class="apphost-glyph"
-                  aria-hidden="true"
-                  viewBox="0 0 16 16"
-                  width="14"
-                  height="14"
-                >
-                  <path
-                    d="M5.6 4.2 2.2 7.6c-.22.22-.22.58 0 .8L5.6 11.8c.22.22.58.22.8 0a.566.566 0 0 0 0-.8L3.42 8l3-3a.566.566 0 0 0 0-.8.566.566 0 0 0-.82 0Zm4.8 0a.566.566 0 0 0-.8.8l3 3-3 3a.566.566 0 0 0 0 .8c.22.22.58.22.8 0l3.4-3.4a.566.566 0 0 0 0-.8l-3.4-3.4Z"
-                    fill="currentColor"
-                  />
-                </svg>
+                <span class="apphost-glyph" aria-hidden="true">
+                  {appHostGlyph}
+                </span>
               )}
               <span>{appHostLabel(appHostKind)}</span>
             </div>
@@ -625,8 +625,14 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
   }
 
   .apphost-glyph {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    min-width: 1.1rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
   }
 
   :global([data-theme='light']) .sample-hero-tag {
@@ -644,19 +650,10 @@ const primaryNodeIndex = hashString(sample.name) % nodeCount;
     color: var(--aspire-color-primary);
   }
 
-  /* AppHost flavour pills follow the canonical C# and TypeScript brand colors so
-     the language signal reads clearly without leaning on the page accent. */
+  /* AppHost pills use their language brand color so the signal stays distinct
+     from the page accent. */
   .sample-hero-apphost {
     --apphost-color: var(--aspire-color-primary);
-  }
-
-  .sample-hero-apphost[data-apphost='typescript'] {
-    --apphost-color: #3178c6;
-  }
-
-  .sample-hero-apphost[data-apphost='csproj'],
-  .sample-hero-apphost[data-apphost='file-based'] {
-    --apphost-color: #512bd4;
   }
 
   .sample-hero-apphost {

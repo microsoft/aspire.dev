@@ -1,0 +1,66 @@
+---
+import { TabItem, Tabs } from '@astrojs/starlight/components';
+import {
+  getEnabledAppHostLanguages,
+  type AppHostLanguageId,
+} from '@utils/apphost-languages';
+
+interface Props {
+  limitations?: Partial<Record<AppHostLanguageId, string>>;
+}
+
+const { limitations = {} } = Astro.props;
+const languages = getEnabledAppHostLanguages();
+const entries = await Promise.all(
+  languages.map(async (language) => {
+    const supported = Astro.slots.has(language.id);
+    const limitation = limitations[language.id];
+
+    if (!supported && !limitation) {
+      throw new Error(
+        `AppHostTabs requires either a "${language.id}" slot or a "${language.id}" limitation.`
+      );
+    }
+
+    return {
+      language,
+      supported,
+      limitation,
+      content: supported ? await Astro.slots.render(language.id) : '',
+    };
+  })
+);
+const supportedEntries = entries.filter((entry) => entry.supported);
+const limitationEntries = entries.filter((entry) => !entry.supported);
+const supportAttributes = Object.fromEntries(
+  supportedEntries.map((entry) => [`data-supports-${entry.language.id}`, ''])
+);
+---
+
+<div class="apphost-tabs" data-apphost-tabs {...supportAttributes}>
+  {
+    supportedEntries.length > 0 && (
+      <div class="apphost-tabs__tabs">
+        <Tabs syncKey="aspire-lang">
+          {supportedEntries.map(({ language, content }) => (
+            <TabItem id={language.id} label={language.label}>
+              <Fragment set:html={content} />
+            </TabItem>
+          ))}
+        </Tabs>
+      </div>
+    )
+  }
+  {
+    limitationEntries.map(({ language, limitation }) => (
+      <aside
+        class="apphost-tabs__limitation"
+        data-apphost-limitation={language.id}
+        role="note"
+      >
+        <strong>{language.label} AppHost limitation</strong>
+        <p>{limitation}</p>
+      </aside>
+    ))
+  }
+</div>

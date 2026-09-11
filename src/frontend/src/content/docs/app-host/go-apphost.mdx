@@ -1,0 +1,141 @@
+---
+title: Go AppHost project structure
+seoTitle: Aspire Go AppHost project structure overview
+description: Learn the files, Go module layout, generated SDK, runtime flow, and error conventions in an experimental Aspire Go AppHost.
+topic: docs
+---
+
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
+
+:::caution[Experimental AppHost]
+Go AppHost authoring is experimental. Enable `experimentalPolyglot:go` before using its template, generated SDK, or runtime.
+:::
+
+Create an empty Go AppHost with:
+
+```bash title="Create a Go AppHost"
+aspire config set features:experimentalPolyglot:go true --global
+aspire new aspire-go-empty -n my-apphost -o my-apphost
+```
+
+The CLI scaffolds this structure:
+
+<FileTree>
+
+- my-apphost/
+  - .aspire/
+    - modules/ Generated Go module; do not edit
+      - aspire.go
+      - base.go
+      - go.mod
+      - transport.go
+  - apphost.go AppHost entry point
+  - aspire.config.json AppHost language, packages, and launch profiles
+  - go.mod AppHost module and local generated-SDK replacement
+
+</FileTree>
+
+## Runtime requirements
+
+Install the Go toolchain required by the generated root `go.mod`. The current scaffold declares **Go 1.26**. Aspire executes the AppHost with:
+
+```bash title="Go AppHost runtime"
+go run .
+```
+
+The AppHost toolchain is independent from the workloads it orchestrates.
+
+## aspire.config.json
+
+The AppHost configuration identifies the entry point and language:
+
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.go",
+    "language": "go"
+  },
+  "packages": {
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+`aspire add` records hosting integrations in `packages`. `aspire restore` resolves those packages and regenerates `.aspire/modules`.
+
+## Go module layout
+
+The root `go.mod` imports the generated SDK as `apphost/modules/aspire` and replaces that module with the local `./.aspire/modules` directory. The generated directory has its own `go.mod`.
+
+Don't edit the replacement target. Regenerate it instead:
+
+```bash title="Restore a Go AppHost"
+aspire restore
+```
+
+## apphost.go
+
+The entry point creates the builder, declares resources, builds the model, and runs it:
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cache := builder.AddRedis("cache")
+	if err := cache.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+Add Redis before using this example:
+
+```bash title="Add Redis"
+aspire add redis
+```
+
+Generated Go APIs use exported `PascalCase` names. Fluent resource methods accumulate errors on the returned receiver; check `Err()` after a chain. Builder creation, `Build`, and `Run` return errors directly. Format Aspire errors with `aspire.FormatError`.
+
+## Templates
+
+| Template            | Purpose                                    |
+| ------------------- | ------------------------------------------ |
+| `aspire-go-empty`   | Empty experimental Go AppHost              |
+| `aspire-go-starter` | Go API and Redis starter with a Go AppHost |
+
+## Run the AppHost
+
+```bash title="Run the Go AppHost"
+aspire run
+```
+
+Aspire restores the generated SDK when needed, runs the Go guest process, starts the .NET orchestration host, and prints the dashboard URL.
+
+## Source control
+
+Add `.aspire/` to `.gitignore`. The generated Go module can be recreated from `aspire.config.json`.
+
+## See also
+
+- [Build your first Aspire app](/get-started/first-app/?lang=go)
+- [Multi-language architecture](/architecture/multi-language-architecture/)
+- [Author multi-language integrations](/extensibility/multi-language-integration-authoring/)

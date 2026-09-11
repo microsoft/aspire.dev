@@ -3,8 +3,10 @@ title: Set up Data API Builder in the AppHost
 description: Install the Data API Builder hosting integration, mount configuration files, reference databases, customize the image, and inspect health.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Badge } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import dabIcon from '@assets/icons/data-api-builder-icon.png';
 
@@ -24,8 +26,8 @@ This article is the AppHost API reference for the [📦 CommunityToolkit.Aspire.
 
 ## Installation
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder
@@ -41,8 +43,8 @@ Or add the package manually:
 <PackageReference Include="CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder" Version="*" />
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder
@@ -50,8 +52,8 @@ aspire add CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder
 
 This adds the package to `aspire.config.json`. After `aspire restore`, `.aspire/modules/aspire.mjs` includes `addDataAPIBuilder` and the exported resource properties.
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <LearnMore>
   Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) and
@@ -62,8 +64,8 @@ This adds the package to `aspire.config.json`. After `aspire restore`, `.aspire/
 
 The integration uses `dab-config.json` by default. The file must exist when the AppHost builds the application model.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -80,8 +82,8 @@ builder.AddProject<Projects.Web>("web")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -98,8 +100,8 @@ await builder.addNodeApp('web', './web', 'index.js').withReference(dab);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The integration runs `mcr.microsoft.com/azure-databases/data-api-builder:1.6.77`, maps the container's port `5000` to an Aspire-managed HTTP endpoint, enables OTLP export, and checks `/health`.
 
@@ -149,8 +151,8 @@ The REST route for this entity is `/api/Product`; GraphQL requests use `/graphql
 
 Pass every configuration path to `AddDataAPIBuilder` or `addDataAPIBuilder`. Each file is mounted read-only under `/App` in the container.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -162,8 +164,8 @@ var dab = builder.AddDataAPIBuilder(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -177,15 +179,15 @@ const dab = await builder.addDataAPIBuilder('dab', {
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Customize the container image
 
 The DAB resource is a standard container resource, so you can replace the registry, image, or tag:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -198,8 +200,8 @@ var dab = builder.AddDataAPIBuilder("dab")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -214,15 +216,15 @@ await dab.withImageTag('1.0.0');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Use endpoint properties
 
 The resource exports its primary endpoint, host, port, and URI expression for use in custom AppHost expressions:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -236,8 +238,8 @@ var uri = dab.Resource.UriExpression;
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -253,8 +255,8 @@ const uri = await dab.uriExpression();
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Hosting integration health checks
 

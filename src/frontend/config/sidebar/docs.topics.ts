@@ -1,6 +1,16 @@
 import type { StarlightSidebarTopicsUserConfig } from 'starlight-sidebar-topics';
+import appHostLanguageConfig from '../../src/data/apphost-languages.json';
+
+const guestAppHostProjectPages = appHostLanguageConfig.languages
+  .filter((language) => language.enabled)
+  .filter((language) => language.id !== 'csharp')
+  .map((language) => ({
+    label: language.label,
+    slug: `app-host/${language.id}-apphost`,
+  }));
 
 export const docsTopics: StarlightSidebarTopicsUserConfig = {
+  id: 'docs',
   label: {
     da: 'Grundlag',
     de: 'Grundlagen',
@@ -1006,10 +1016,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
                 },
               ],
             },
-            {
-              label: 'TypeScript',
-              slug: 'app-host/typescript-apphost',
-            },
+            ...guestAppHostProjectPages,
           ],
         },
         {

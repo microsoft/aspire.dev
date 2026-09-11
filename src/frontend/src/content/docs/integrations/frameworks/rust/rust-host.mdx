@@ -3,7 +3,9 @@ title: Configure Rust apps in the AppHost
 description: Configure Cargo and Bacon applications, arguments, endpoints, health checks, telemetry, environment settings, and publishing in Aspire.
 ---
 
-import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
+
+import { Badge } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import rustIcon from '@assets/icons/rust-icon.png';
 
@@ -27,8 +29,8 @@ Install [Rust and Cargo](https://www.rust-lang.org/tools/install). Install [Baco
 
 ## Install the package
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add communitytoolkit-rust
@@ -36,8 +38,8 @@ aspire add communitytoolkit-rust
 
 Or add [📦 CommunityToolkit.Aspire.Hosting.Rust](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Rust) to the AppHost project.
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add communitytoolkit-rust
@@ -45,15 +47,15 @@ aspire add communitytoolkit-rust
 
 This adds the package to `aspire.config.json` and generates the TypeScript AppHost module.
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add a Cargo app
 
 `AddRustApp` / `addRustApp` starts `cargo run` in the supplied working directory. The path is resolved relative to the AppHost directory, so it normally contains the Rust project's `Cargo.toml`.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -63,8 +65,8 @@ var api = builder.AddRustApp("rust-api", "../rust-api");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -76,15 +78,15 @@ const api = await builder.addRustApp('rust-api', '../rust-api');
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Pass Cargo arguments and choose a working directory
 
 The optional `args` are appended after `cargo run`. For example, `--release` produces `cargo run --release`; use `--` before arguments intended for your Rust application. The working directory is normalized to the current platform after Aspire combines it with the AppHost directory.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -97,8 +99,8 @@ var api = builder.AddRustApp(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -115,15 +117,15 @@ const api = await builder.addRustApp('rust-api', '../rust-api', [
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add a Bacon app
 
 `AddBaconApp` / `addBaconApp` runs the [Bacon](https://dystroy.org/bacon/) CLI from the working directory. Without arguments it runs `bacon run`; supply `args` to use another Bacon command.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -136,8 +138,8 @@ var checks = builder.AddBaconApp(
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -151,15 +153,15 @@ const checks = await builder.addBaconApp('rust-checks', '../rust-api', [
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Configure endpoints, environment, and health checks
 
 Rust app resources support standard executable-resource configuration. Use `WithHttpEndpoint` / `withHttpEndpoint` to allocate a port and put it in an environment variable that the application reads. Use `WithHttpHealthCheck` / `withHttpHealthCheck` when the application exposes an HTTP health endpoint. `WithExternalHttpEndpoints` / `withExternalHttpEndpoints` makes an HTTP endpoint externally accessible.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -173,8 +175,8 @@ var api = builder.AddRustApp("rust-api", "../rust-api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -190,8 +192,8 @@ await api.withHttpHealthCheck({ path: '/health' });
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The integration configures the Rust app with the OpenTelemetry Protocol exporter. Add OpenTelemetry instrumentation to the Rust application to emit telemetry to Aspire. You can also use standard resource references to model dependencies and provide their configuration to the Rust process.
 

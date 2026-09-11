@@ -3,8 +3,10 @@ title: Set up Azure SignalR Service in the AppHost
 description: Learn how to use the Aspire Azure SignalR Service hosting integration to orchestrate and configure an Azure SignalR Service resource in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import signalrIcon from '@assets/icons/azure-signalr-icon.png';
@@ -26,8 +28,8 @@ If you're new to the Azure SignalR Service integration, start with the [Get star
 
 To start building an Aspire app that uses Azure SignalR Service, install the [📦 Aspire.Hosting.Azure.SignalR](https://www.nuget.org/packages/Aspire.Hosting.Azure.SignalR) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add azure-signalr
@@ -47,8 +49,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Azure.SignalR" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add azure-signalr
@@ -68,15 +70,15 @@ This updates your `aspire.config.json` with the Azure SignalR Service hosting in
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add Azure SignalR Service resource
 
 Once you've installed the hosting integration in your AppHost project, you can add an Azure SignalR Service resource as shown in the following examples:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -89,8 +91,8 @@ var api = builder.AddProject<Projects.ApiService>("api")
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -105,8 +107,8 @@ await builder.addProject("api", "../ApiService/ApiService.csproj")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="caution">
   When you call `AddAzureSignalR` (or `addAzureSignalR`), it implicitly calls
@@ -134,8 +136,8 @@ For more information, see [Azure SignalR Service modes](https://learn.microsoft.
 
 ### Set service mode
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 Pass the `AzureSignalRServiceMode` enum value when adding the resource:
 
@@ -161,8 +163,8 @@ The available modes are:
 - `AzureSignalRServiceMode.Default` — the default hub-server proxy mode.
 - `AzureSignalRServiceMode.Serverless` — no hub server; clients negotiate directly with the service.
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 The TypeScript `addAzureSignalR` API doesn't expose a service mode parameter. To configure Serverless mode in a TypeScript AppHost, use `configureInfrastructure` to modify the generated Bicep:
 
@@ -187,8 +189,8 @@ await builder.build().run();
   infrastructure](#customize-provisioning-infrastructure) for an example.
 </Aside>
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 :::important
 The Azure SignalR Service emulator only works in _Serverless_ mode. The `AddNamedAzureSignalR` method (used for Default mode hub servers) does not support the emulator.
@@ -200,8 +202,8 @@ The Azure SignalR Service emulator allows local development and testing without 
 
 To use the emulator, chain a call to `RunAsEmulator` (or `runAsEmulator`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Azure;
 
@@ -217,8 +219,8 @@ builder.AddProject<Projects.ApiService>("api")
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -234,8 +236,8 @@ await builder.addProject("api", "../ApiService/ApiService.csproj")
 // After adding all resources, run the app...
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The `RunAsEmulator` call configures the Azure SignalR Service resource to use the `mcr.microsoft.com/signalr/signalr-emulator:latest` container image for local development. The emulator is started when the AppHost runs and stopped when it stops.
 
@@ -245,8 +247,8 @@ The `RunAsEmulator` call configures the Azure SignalR Service resource to use th
 
 You might have an existing Azure SignalR Service that you want to connect to. Use `AsExisting` (or `asExisting`) to annotate that your `AzureSignalRResource` is an existing resource:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -262,8 +264,8 @@ builder.AddProject<Projects.ApiService>("api")
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -280,8 +282,8 @@ await builder.addProject("api", "../ApiService/ApiService.csproj")
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For more information on treating Azure SignalR resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
@@ -364,8 +366,8 @@ The generated Bicep is a starting point and is influenced by changes to the prov
 
 All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables customization of the generated Bicep through the `ConfigureInfrastructure` API:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -385,8 +387,8 @@ builder.AddAzureSignalR("signalr")
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -399,8 +401,8 @@ await builder.addAzureSignalR("signalr")
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding C# code:
 

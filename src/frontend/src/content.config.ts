@@ -1,12 +1,13 @@
 import { defineCollection } from 'astro:content';
-import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
+import { i18nLoader } from '@astrojs/starlight/loaders';
 import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { appHostLanguageDocsLoader } from '../config/apphost-language-docs-loader.mjs';
 
 export const collections = {
   docs: defineCollection({
-    loader: docsLoader(),
+    loader: appHostLanguageDocsLoader(),
     schema: docsSchema({
       extend: () =>
         z.object({

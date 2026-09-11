@@ -3,8 +3,10 @@ title: Set up Azure Web PubSub in the AppHost
 description: Learn how to use the Aspire Azure Web PubSub hosting integration to orchestrate and configure an Azure Web PubSub resource in an Aspire solution.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import webPubSubIcon from '@assets/icons/azure-webpubsub-icon.png';
 
@@ -25,8 +27,8 @@ If you're new to the Azure Web PubSub integration, start with the [Get started w
 
 To start building an Aspire app that uses Azure Web PubSub, install the [📦 Aspire.Hosting.Azure.WebPubSub](https://www.nuget.org/packages/Aspire.Hosting.Azure.WebPubSub) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add azure-web-pubsub
@@ -46,8 +48,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Azure.WebPubSub" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add azure-web-pubsub
@@ -67,15 +69,15 @@ This updates your `aspire.config.json` with the Azure Web PubSub hosting integra
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add Azure Web PubSub resource
 
 Once you've installed the hosting integration in your AppHost project, you can add an Azure Web PubSub resource as shown in the following examples:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -86,8 +88,8 @@ builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -100,8 +102,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Steps>
 
@@ -127,8 +129,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 A hub is a logical grouping of connections and event handlers in Azure Web PubSub. To add a hub to a Web PubSub resource, chain a call to `AddHub` (or `addHub`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -137,8 +139,8 @@ var messagesHub = webPubSub.AddHub(name: "messages", hubName: "messageHub");
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -149,8 +151,8 @@ const messagesHub = await webPubSub.addHub("messages", { hubName: "messageHub" }
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code adds a hub resource named `messages` with a hub name of `messageHub` to the `web-pubsub` resource.
 
@@ -158,8 +160,8 @@ The preceding code adds a hub resource named `messages` with a hub name of `mess
 
 Event handlers allow your backend services to receive events from Azure Web PubSub. To add an event handler to a hub, chain a call to `AddEventHandler` (or `addEventHandler`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -175,8 +177,8 @@ messagesHub.AddEventHandler(
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -195,8 +197,8 @@ await messagesHub.addEventHandler(workerEndpoint, {
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code registers an event handler URL pointing to the worker service's external HTTPS endpoint. For more information, see [Azure Web PubSub event handlers](https://learn.microsoft.com/azure-web-pubsub/howto-develop-eventhandler).
 
@@ -204,8 +206,8 @@ The preceding code registers an event handler URL pointing to the worker service
 
 By default, Azure Web PubSub resources are provisioned with the `WebPubSubServiceOwner` role assigned to the consuming service's identity. To customize role assignments, call `WithRoleAssignments` (or `withRoleAssignments`):
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -220,8 +222,8 @@ builder.AddAzureWebPubSub("web-pubsub")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder, AzureWebPubSubRole } from './.aspire/modules/aspire.mjs';
 
@@ -238,8 +240,8 @@ await builder.addAzureEnvironment()
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The available roles for Azure Web PubSub are:
 
@@ -253,8 +255,8 @@ The available roles for Azure Web PubSub are:
 
 You might have an existing Azure Web PubSub service that you want to connect to. Chain a call to `AsExisting` (or `asExisting`) to annotate that your resource is externally managed:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -269,8 +271,8 @@ builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -286,8 +288,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 For more information on treating Azure resources as existing, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
@@ -381,8 +383,8 @@ The generated Bicep is a starting point and is influenced by changes to the prov
 
 All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -400,8 +402,8 @@ builder.AddAzureWebPubSub("web-pubsub")
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
@@ -419,8 +421,8 @@ await webPubSub.configureInfrastructure(async (infra) => {
 
 // After adding all resources, run the app...
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The preceding code:
 

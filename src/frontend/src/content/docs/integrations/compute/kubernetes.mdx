@@ -4,8 +4,10 @@ seoTitle: "Kubernetes integration for Aspire: hosting and client wiring"
 description: Learn how to add Kubernetes deployment support to your Aspire application using the Aspire.Hosting.Kubernetes hosting integration.
 ---
 
+import AppHostTabs from '@components/AppHostTabs.astro';
+
 import { Image } from 'astro:assets';
-import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import { Tabs, Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import kubernetesIcon from '@assets/icons/kubernetes.svg';
 
@@ -28,8 +30,8 @@ Aspire's Kubernetes deployment pipeline shells out to `helm upgrade --install` a
 
 To start building an Aspire app with Kubernetes deployment support, install the [📦 Aspire.Hosting.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Kubernetes) NuGet package:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```bash title="Terminal"
 aspire add kubernetes
@@ -49,8 +51,8 @@ Or, choose a manual installation approach:
 <PackageReference Include="Aspire.Hosting.Kubernetes" Version="*" />
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```bash title="Terminal"
 aspire add kubernetes
@@ -70,15 +72,15 @@ This updates your `aspire.config.json` with the Kubernetes hosting integration p
 }
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add Kubernetes environment
 
 After installing the package, add a Kubernetes environment to your AppHost:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -90,8 +92,8 @@ var api = builder.AddProject<Projects.MyApi>("api");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -108,8 +110,8 @@ const api = await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="tip">
   With the `k8s` variable assigned, you can pass it to the compute environment API to
@@ -117,32 +119,32 @@ await builder.build().run();
   variable isn't required. This API is named `WithComputeEnvironment` in C# AppHosts and
   `withComputeEnvironment` in TypeScript AppHosts.
 
-  <Tabs syncKey="aspire-lang">
-  <TabItem id="csharp" label="C#">
+  <AppHostTabs>
+  <Fragment slot="csharp">
   ```csharp title="AppHost.cs"
   var k8s = builder.AddKubernetesEnvironment("k8s");
 
   builder.AddProject<Projects.MyApi>("api")
       .WithComputeEnvironment(k8s);
   ```
-  </TabItem>
-  <TabItem id="typescript" label="TypeScript">
+  </Fragment>
+  <Fragment slot="typescript">
   ```typescript title="apphost.mts"
   const k8s = await builder.addKubernetesEnvironment('k8s');
 
   const api = await builder.addNodeApp('api', './api', 'src/index.ts');
   await api.withComputeEnvironment(k8s);
   ```
-  </TabItem>
-  </Tabs>
+  </Fragment>
+  </AppHostTabs>
 </Aside>
 
 ## Configure Helm chart options
 
 You can configure the generated Helm chart using the `WithHelm` method, which provides a fluent `HelmChartOptions` builder:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 builder.AddKubernetesEnvironment("k8s")
@@ -156,8 +158,8 @@ builder.AddKubernetesEnvironment("k8s")
     });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const k8s = await builder.addKubernetesEnvironment('k8s');
@@ -170,8 +172,8 @@ await k8s.withHelm(async (helm) => {
 });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 Helm is the default deployment engine. Call `WithHelm` only when you need to customize the defaults.
 
@@ -189,16 +191,16 @@ The `WithHelm` method is the single configuration entry point for Helm chart set
 
 A vanilla Kubernetes cluster doesn't know which container registry to use for your application images. Use `AddContainerRegistry` and `WithContainerRegistry` to specify a registry that is accessible from both your local machine and from the cluster:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 var registry = builder.AddContainerRegistry("registry", "myregistry.example.com:5000");
 builder.AddKubernetesEnvironment("k8s").WithContainerRegistry(registry);
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const registry = await builder.addContainerRegistry('registry', 'myregistry.example.com:5000');
@@ -206,8 +208,8 @@ const k8s = await builder.addKubernetesEnvironment('k8s');
 await k8s.withContainerRegistry(registry);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <Aside type="note">
   The container registry APIs are currently in preview. In C#, suppress the `ASPIRECOMPUTE003` diagnostic to use them.
@@ -217,8 +219,8 @@ await k8s.withContainerRegistry(registry);
 
 To create durable storage in a Kubernetes cluster, model it as a first-class `KubernetesPersistentVolumeResource` with `AddPersistentVolume`. Then configure its storage class, capacity, and access modes, and bind it to workloads. At publish time, the volume renders as a `v1.PersistentVolumeClaim`, and any workload bound to it is promoted to a `StatefulSet`.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes;
@@ -234,8 +236,8 @@ builder.AddPostgres("pg")
     .WithPersistentVolume(pgData);
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const k8s = await builder.addKubernetesEnvironment('k8s');
@@ -249,8 +251,8 @@ await pg.withDataVolume({ name: 'pg-data' });
 await pg.withKubernetesPersistentVolume(pgData);
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 <LearnMore>
   For the full configuration surface, binding overloads, access modes, and generated output, see [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/).
@@ -260,8 +262,8 @@ await pg.withKubernetesPersistentVolume(pgData);
 
 Use `PublishAsKubernetesService` to modify the generated Kubernetes resources for individual services:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
+<AppHostTabs>
+<Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
@@ -277,8 +279,8 @@ builder.AddContainer("service", "nginx")
     });
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
+</Fragment>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 const service = await builder.addContainer('service', 'nginx');
@@ -288,8 +290,8 @@ await service.publishAsKubernetesService(async (resource) => {
 });
 ```
 
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 ## Add custom Kubernetes manifests
 
@@ -300,8 +302,8 @@ The API surface differs by language:
 - **C#**: add subclasses of `BaseKubernetesResource` directly to the `AdditionalResources` collection. Several built-in types (such as `ConfigMap`) are available in the `Aspire.Hosting.Kubernetes.Resources` namespace, and you can subclass `BaseKubernetesResource` to model any custom resource definition (CRD).
 - **TypeScript**: call `addManifest` on the resource. It takes the manifest's `apiVersion`, `kind`, and `metadata.name`, and returns a handle for setting labels, annotations, a namespace, and arbitrary field values using dot-notation paths.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostTabs>
+<Fragment slot="csharp">
 
 Define a class for the custom resource by deriving from `BaseKubernetesResource`, then add an instance to `AdditionalResources`. The example below models a cert-manager `Certificate` CRD:
 
@@ -356,8 +358,8 @@ public sealed class IssuerRef
 
 For simple cases that map to a built-in type, instantiate the type directly — for example, `new ConfigMap { Metadata = { Name = "extra-config" }, Data = { ["key"] = "value" } }` — and add it to `AdditionalResources`.
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Fragment>
+<Fragment slot="typescript">
 ```typescript title="apphost.mts"
 const service = await builder.addContainer('service', 'nginx');
 await service.publishAsKubernetesService(async (resource) => {
@@ -372,8 +374,8 @@ await service.publishAsKubernetesService(async (resource) => {
     });
 });
 ```
-</TabItem>
-</Tabs>
+</Fragment>
+</AppHostTabs>
 
 The manifest handle returned by `addManifest` supports the following configuration methods:
 
