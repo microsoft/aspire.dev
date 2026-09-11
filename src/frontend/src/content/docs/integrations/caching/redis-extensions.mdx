@@ -57,6 +57,34 @@ This updates your `aspire.config.json` with the Redis extensions package:
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Redis.Extensions
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Redis.Extensions
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Redis.Extensions
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Redis.Extensions
+```
+
+</Fragment>
 </AppHostTabs>
 
 ## Add management UI
@@ -101,6 +129,112 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    redis = builder.add_redis("redis").with_db_gate()
+
+    builder.add_project(
+        "example-project",
+        "../ExampleProject/ExampleProject.csproj",
+    ).with_reference(redis)
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	redis := builder.AddRedis("redis").WithDbGate()
+	if err := redis.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	project := builder.
+		AddProject("example-project", "../ExampleProject/ExampleProject.csproj").
+		WithReference(redis)
+	if err := project.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var redis = builder.addRedis("redis").withDbGate();
+    builder.addProject(
+        "example-project",
+        "../ExampleProject/ExampleProject.csproj")
+        .withReference(redis);
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::Value;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let redis = builder
+        .add_redis("redis", None, None)?
+        .with_db_gate(|_| Value::Null, None)?;
+    builder
+        .add_project(
+            "example-project",
+            "../ExampleProject/ExampleProject.csproj",
+            None,
+        )?
+        .with_reference(redis.handle().to_json(), None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
 This adds a new DbGate resource to the app host which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your Redis databases.
@@ -139,9 +273,90 @@ await builder.build().run();
 ```
 
 </Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.add_redis("redis").with_dbx()
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	redis := builder.AddRedis("redis").WithDbx()
+	if err := redis.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    builder.addRedis("redis").withDbx();
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    builder
+        .add_redis("redis", None, None)?
+        .with_dbx(None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
 </AppHostTabs>
 
-The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
+The C# overload accepts an optional container configuration callback and `containerName`. The generated AppHost bindings accept optional container-name and image-tag values using each language's options shape.
 
 ## See also
 

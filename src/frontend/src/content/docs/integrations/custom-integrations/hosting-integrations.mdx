@@ -26,6 +26,12 @@ Aspire improves the development experience by providing reusable building blocks
 
 Consider the code below:
 
+<AppHostTabs limitations={{
+  go: 'The available Go SDK module does not include the Redis and PostgreSQL packages used by this introductory AppHost model.',
+  rust: 'The available Rust SDK module does not include the Redis and PostgreSQL packages used by this introductory AppHost model.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -38,6 +44,65 @@ builder.AddProject<Projects.InventoryService>("inventoryservice")
     .WithReference(redis)
     .WithReference(db);
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const redis = await builder.addRedis('cache');
+const postgres = await builder.addPostgres('pgserver');
+const db = await postgres.addDatabase('inventorydb');
+
+const inventory = await builder.addProject(
+  'inventoryservice',
+  '../InventoryService/InventoryService.csproj'
+);
+await inventory.withReference(redis);
+await inventory.withReference(db);
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    redis = builder.add_redis("cache")
+    postgres = builder.add_postgres("pgserver")
+    db = postgres.add_database("inventorydb")
+    inventory = builder.add_project(
+        "inventoryservice",
+        "../InventoryService/InventoryService.csproj",
+    )
+    inventory.with_reference(redis).with_reference(db)
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var redis = builder.addRedis("cache");
+    var db = builder.addPostgres("pgserver").addDatabase("inventorydb");
+    var inventory = builder.addProject(
+        "inventoryservice",
+        "../InventoryService/InventoryService.csproj")
+        .withReference(redis)
+        .withReference(db);
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 In the preceding code there are four resources represented:
 
@@ -184,6 +249,15 @@ This is because Aspire treats project references in the AppHost as if they're se
 
 The `MailDev.Hosting` class library contains the resource type and extension methods for adding the resource to the AppHost. You should first think about the experience that you want to give developers when using your custom resource. In the case of this custom resource, you would want developers to be able to write code like the following:
 
+<AppHostTabs limitations={{
+  typescript: 'This conceptual API-design example shows the C# hosting extension before its ATS exports and generated TypeScript API are implemented.',
+  python: 'This conceptual API-design example shows the C# hosting extension before its ATS exports and generated Python API are implemented.',
+  go: 'This conceptual API-design example shows the C# hosting extension before its ATS exports and generated Go API are implemented.',
+  java: 'This conceptual API-design example shows the C# hosting extension before its ATS exports and generated Java API are implemented.',
+  rust: 'This conceptual API-design example shows the C# hosting extension before its ATS exports and generated Rust API are implemented.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -192,6 +266,9 @@ var maildev = builder.AddMailDev("maildev");
 builder.AddProject<Projects.NewsletterService>("newsletterservice")
     .WithReference(maildev);
 ```
+
+</Fragment>
+</AppHostTabs>
 
 To achieve this, you need a custom resource named `MailDevResource` which implements `IResourceWithConnectionString` so that consumers can use it with the `WithReference` extension to inject the connection details for the MailDev server as a connection string.
 
@@ -311,7 +388,12 @@ This example uses MailDev version 2.2.1. Be sure to check the [MailDev Docker Hu
 
 Now that the basic structure for the custom resource is complete, test it in an AppHost. The `[AspireExport]` attributes make the same C# implementation available to both AppHost languages.
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  python: 'This custom MailDev hosting integration sample has not been generated and validated for the Python AppHost SDK.',
+  go: 'This custom MailDev hosting integration sample has not been generated and validated for the Go AppHost SDK.',
+  java: 'This custom MailDev hosting integration sample has not been generated and validated for the Java AppHost SDK.',
+  rust: 'This custom MailDev hosting integration sample has not been generated and validated for the Rust AppHost SDK.',
+}}>
 <Fragment slot="csharp">
 
 Open the `AppHost.cs` file in the `MailDevResource.AppHost` project and update it with the following code:
@@ -414,6 +496,14 @@ In order to test the end-to-end scenario, you need a .NET project which we can i
 
 After the project has been added and references have been updated, open the `AppHost.cs` of the `MailDevResource.AppHost.csproj` project, and update the source file to look like the following:
 
+<AppHostTabs limitations={{
+  python: 'The custom MailDev hosting integration in this tutorial has not been generated and validated for the Python AppHost SDK.',
+  go: 'The custom MailDev hosting integration in this tutorial has not been generated and validated for the Go AppHost SDK.',
+  java: 'The custom MailDev hosting integration in this tutorial has not been generated and validated for the Java AppHost SDK.',
+  rust: 'The custom MailDev hosting integration in this tutorial has not been generated and validated for the Rust AppHost SDK.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -424,6 +514,29 @@ builder.AddProject<Projects.MailDevResource_NewsletterService>("newsletterservic
 
 builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+After referencing the local integration from `aspire.config.json`, run `aspire restore` to generate its TypeScript API:
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const maildev = await builder.addMailDev('maildev');
+const newsletter = await builder.addProject(
+  'newsletterservice',
+  '../MailDevResource.NewsletterService/MailDevResource.NewsletterService.csproj'
+);
+await newsletter.withReference(maildev);
+
+await builder.build().run();
+```
+
+</Fragment>
+</AppHostTabs>
 
 After updating the `AppHost.cs` file, launch the AppHost again. Then verify that the Newsletter Service started and that the environment variable `ConnectionStrings__maildev` was added to the process. From the **Resources** page, find the `newsletterservice` row, and select the **...** button on the **Actions** column, then select **View details**. In the **Environment Variables** section, you should see the following:
 

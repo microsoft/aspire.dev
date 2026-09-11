@@ -14,6 +14,10 @@ import { renderAppHostTabsInMarkdown } from '../../config/apphost-language-markd
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const componentsDirectory = path.resolve(testsDirectory, '..', '..', 'src', 'components');
 const docsDirectory = path.resolve(testsDirectory, '..', '..', 'src', 'content', 'docs');
+const integrationParityDirectories = [
+  path.join(docsDirectory, 'integrations', 'ai'),
+  path.join(docsDirectory, 'integrations', 'cloud'),
+];
 const excludedTopLevel = new Set([
   'da',
   'de',
@@ -57,6 +61,25 @@ function getActiveEnglishDocs(): string[] {
 
   visit(docsDirectory);
   return files;
+}
+
+function getMdxFiles(directory: string): string[] {
+  const files: string[] = [];
+
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const resolved = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...getMdxFiles(resolved));
+    } else if (entry.isFile() && entry.name.endsWith('.mdx')) {
+      files.push(resolved);
+    }
+  }
+
+  return files;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 describe('AppHost language registry', () => {
@@ -153,6 +176,186 @@ describe('AppHost language registry', () => {
     expect(builderClientSource).toContain("template?.dataset.variantKind === 'limitation'");
     expect(builderClientSource).not.toContain("type AppHostLanguage = 'csharp' | 'typescript'");
     expect(homeSource).not.toContain("type AppHostLanguage = 'csharp' | 'typescript'");
+  });
+
+  test('cloud and AI AppHost tabs account for all six languages', () => {
+    const violations: string[] = [];
+    const appHostTabsPattern =
+      /<AppHostTabs\b(?<attributes>[\s\S]*?)>(?<content>[\s\S]*?)<\/AppHostTabs>/g;
+
+    for (const directory of integrationParityDirectories) {
+      for (const file of getMdxFiles(directory)) {
+        const source = fs.readFileSync(file, 'utf8');
+        let tabIndex = 0;
+
+        for (const match of source.matchAll(appHostTabsPattern)) {
+          tabIndex += 1;
+          const attributes = match.groups?.attributes ?? '';
+          const content = match.groups?.content ?? '';
+
+          for (const language of appHostLanguageConfig.languages) {
+            const slotPattern = new RegExp(
+              `<Fragment\\b[^>]*\\bslot\\s*=\\s*(['"])${language.id}\\1`,
+              'i'
+            );
+            const limitationPattern = new RegExp(`\\b${language.id}\\s*:`, 'i');
+
+            if (!slotPattern.test(content) && !limitationPattern.test(attributes)) {
+              violations.push(
+                `${path.relative(docsDirectory, file)} AppHostTabs #${tabIndex} does not account for ${language.id}`
+              );
+            }
+          }
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  test('cloud and AI AppHost code uses language containers', () => {
+    const violations: string[] = [];
+    const appHostContainerPattern =
+      /<(?:AppHostTabs|AppHostLanguagePivot)\b[\s\S]*?<\/(?:AppHostTabs|AppHostLanguagePivot)>/g;
+    const codeFencePattern = /```(?<language>\w+)(?<metadata>[^\n]*)\n(?<code>[\s\S]*?)```/g;
+    const appHostBuilderPatterns = [
+      /DistributedApplication\.CreateBuilder\s*\(/,
+      /\bcreateBuilder\s*\(/,
+      /\bcreate_builder\s*\(/,
+      /\baspire\.CreateBuilder\s*\(/,
+    ];
+    const appHostFileTitlePattern =
+      /\btitle\s*=\s*(['"])(?:apphost\.mts|AppHost\.cs|apphost\.py|apphost\.go|AppHost\.java|apphost\.rs)\1/i;
+
+    for (const directory of integrationParityDirectories) {
+      for (const file of getMdxFiles(directory)) {
+        const source = fs.readFileSync(file, 'utf8');
+        const containerRanges = [...source.matchAll(appHostContainerPattern)].map((match) => ({
+          start: match.index ?? 0,
+          end: (match.index ?? 0) + match[0].length,
+        }));
+
+        for (const match of source.matchAll(codeFencePattern)) {
+          const code = match.groups?.code ?? '';
+          const metadata = match.groups?.metadata ?? '';
+          const isBuilderExample = appHostBuilderPatterns.some((pattern) => pattern.test(code));
+          const isAppHostFile = appHostFileTitlePattern.test(metadata);
+          const isPackageDirectives = code
+            .trim()
+            .split(/\r?\n/)
+            .filter(Boolean)
+            .every((line) => line.trimStart().startsWith('#:package '));
+          const isProjectFile =
+            match.groups?.language.toLowerCase() === 'xml' ||
+            /\btitle\s*=\s*(['"])[^'"]+\.(?:csproj|fsproj|vbproj)\1/i.test(metadata);
+
+          if ((!isBuilderExample && !isAppHostFile) || isPackageDirectives || isProjectFile) {
+            continue;
+          }
+
+          const index = match.index ?? 0;
+          const inLanguageContainer = containerRanges.some(
+            (range) => index >= range.start && index < range.end
+          );
+          if (!inLanguageContainer) {
+            const line = source.slice(0, index).split('\n').length;
+            violations.push(
+              `${path.relative(docsDirectory, file)}:${line} has a standalone AppHost code example`
+            );
+          }
+        }
+      }
+    }
+    expect(violations).toEqual([]);
+    expect(violations).toEqual([]);
+  });
+
+  test('cloud and AI Go AppHost resources check errors before use', () => {
+    const violations: string[] = [];
+    const goFencePattern = /```go[^\n]*\n(?<code>[\s\S]*?)```/g;
+
+    for (const directory of integrationParityDirectories) {
+      for (const file of getMdxFiles(directory)) {
+        const source = fs.readFileSync(file, 'utf8');
+
+        for (const match of source.matchAll(goFencePattern)) {
+          const code = match.groups?.code ?? '';
+          const lines = code.split(/\r?\n/);
+
+          for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+            const assignment = lines[lineIndex].match(
+              /^\s*(?<variable>[A-Za-z_]\w*)\s*:=\s*(?<expression>.+)$/
+            );
+            if (!assignment?.groups) {
+              continue;
+            }
+
+            const variable = assignment.groups.variable;
+            let expression = assignment.groups.expression;
+            let statementEnd = lineIndex;
+            let parenthesisDepth =
+              (expression.match(/\(/g) ?? []).length - (expression.match(/\)/g) ?? []).length;
+
+            while (
+              statementEnd + 1 < lines.length &&
+              (parenthesisDepth > 0 || expression.trimEnd().endsWith('.'))
+            ) {
+              statementEnd += 1;
+              expression += `\n${lines[statementEnd]}`;
+              parenthesisDepth +=
+                (lines[statementEnd].match(/\(/g) ?? []).length -
+                (lines[statementEnd].match(/\)/g) ?? []).length;
+            }
+
+            const createsGeneratedResource =
+              /\b(?:builder|[A-Za-z_]\w*)\.Add[A-Z]\w*\s*\(/.test(expression) &&
+              !/\bbuilder\.AddProject\s*\(/.test(expression);
+            if (!createsGeneratedResource) {
+              lineIndex = statementEnd;
+              continue;
+            }
+
+            const resourceCreationCount = (expression.match(/\.(?:Add[A-Z]\w*)\s*\(/g) ?? [])
+              .length;
+            if (resourceCreationCount > 1) {
+              violations.push(
+                `${path.relative(docsDirectory, file)}:${
+                  source.slice(0, (match.index ?? 0) + match[0].indexOf(code)).split('\n').length +
+                  lineIndex
+                } chains generated resources without exposing each parent for an Err check`
+              );
+            }
+
+            const escapedVariable = escapeRegExp(variable);
+            const errorPattern = new RegExp(`\\b${escapedVariable}\\.Err\\s*\\(`);
+            const usagePattern = new RegExp(`\\b${escapedVariable}\\b`);
+
+            for (let nextLine = statementEnd + 1; nextLine < lines.length; nextLine += 1) {
+              const candidate = lines[nextLine].trim();
+              if (!candidate || candidate.startsWith('//')) {
+                continue;
+              }
+              if (errorPattern.test(candidate)) {
+                break;
+              }
+              if (usagePattern.test(candidate) || /\bbuilder\.Build\s*\(/.test(candidate)) {
+                violations.push(
+                  `${path.relative(docsDirectory, file)}:${
+                    source.slice(0, (match.index ?? 0) + match[0].indexOf(code)).split('\n')
+                      .length + lineIndex
+                  } uses ${variable} before checking ${variable}.Err()`
+                );
+                break;
+              }
+            }
+
+            lineIndex = statementEnd;
+          }
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
   });
 });
 

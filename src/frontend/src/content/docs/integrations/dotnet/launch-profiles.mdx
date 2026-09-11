@@ -6,6 +6,7 @@ description: Learn how Aspire integrates with .NET launch profiles for C# AppHos
 
 import { Image } from 'astro:assets';
 import { Aside, Steps } from '@astrojs/starlight/components';
+import AppHostTabs from '@components/AppHostTabs.astro';
 import dotnetIcon from '@assets/icons/dotnet.svg';
 
 <Image
@@ -115,6 +116,9 @@ Other settings, such as `environmentVariables`, are passed to the application wi
 
 Ideally, you can align the launch profile names between the AppHost and its service projects so that switching profiles in the AppHost switches them across all coordinated projects at once. However, you can also specify which profile a particular project uses by passing `launchProfileName` to `AddProject`:
 
+<AppHostTabs>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -124,6 +128,121 @@ builder.AddProject<Projects.InventoryService>(
 
 builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addProject(
+  'inventoryservice',
+  '../InventoryService/InventoryService.csproj',
+  { launchProfileOrOptions: 'mylaunchprofile' }
+);
+
+await builder.build().run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.add_project(
+        "inventoryservice",
+        "../InventoryService/InventoryService.csproj",
+        launch_profile_or_options="mylaunchprofile",
+    )
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	inventory := builder.AddProject(
+		"inventoryservice",
+		"../InventoryService/InventoryService.csproj",
+		&aspire.AddProjectOptions{LaunchProfileOrOptions: "mylaunchprofile"},
+	)
+	if err := inventory.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</Fragment>
+<Fragment slot="java">
+
+```java title="AppHost.java"
+import aspire.*;
+
+void main() throws Exception {
+    var builder = DistributedApplication.CreateBuilder();
+
+    var inventory = builder.addProject(
+        "inventoryservice",
+        "../InventoryService/InventoryService.csproj",
+        "mylaunchprofile");
+
+    builder.build().run();
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+#[path = ".aspire/modules/mod.rs"]
+mod aspire;
+
+use aspire::*;
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = create_builder(None)?;
+
+    let _inventory = builder.add_project(
+        "inventoryservice",
+        "../InventoryService/InventoryService.csproj",
+        Some(json!("mylaunchprofile")),
+    )?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    Ok(())
+}
+```
+
+</Fragment>
+</AppHostTabs>
 
 The preceding code launches the `inventoryservice` resource using the options from the `mylaunchprofile` launch profile. The launch profile precedence logic is as follows:
 
@@ -142,6 +261,14 @@ To force a service project to launch without a launch profile, set the `launchPr
 
 When adding an ASP.NET Core project to the AppHost, Aspire parses the _launchSettings.json_ file, selects the appropriate launch profile, and automatically generates endpoints in the application model based on the URLs in the `applicationUrl` field. To modify the automatically injected endpoints, use `WithEndpoint`:
 
+<AppHostTabs limitations={{
+  python: 'The endpoint mutation callback in this example has not been validated against the generated Python callback model.',
+  go: 'The endpoint mutation callback in this example has not been validated against the generated Go callback model.',
+  java: 'The endpoint mutation callback in this example has not been validated against the generated Java callback model.',
+  rust: 'The endpoint mutation callback in this example has not been validated against the generated Rust callback model.',
+}}>
+<Fragment slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -150,6 +277,29 @@ builder.AddProject<Projects.InventoryService>("inventoryservice")
 
 builder.Build().Run();
 ```
+
+</Fragment>
+<Fragment slot="typescript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder
+  .addProject(
+    'inventoryservice',
+    '../InventoryService/InventoryService.csproj'
+  )
+  .withEndpointCallback('https', async endpoint => {
+    await endpoint.isProxied.set(false);
+  });
+
+await builder.build().run();
+```
+
+</Fragment>
+</AppHostTabs>
 
 The preceding code disables the reverse proxy that Aspire deploys in front of the .NET application and allows the application to respond directly to requests over HTTP(S).
 

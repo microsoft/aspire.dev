@@ -21,7 +21,7 @@ import jsIcon from '@assets/icons/javascript.svg';
   data-zoom-off
 />
 
-This article is the reference for the Aspire JavaScript hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to orchestrate JavaScript and TypeScript applications in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire JavaScript hosting integration. It shows the equivalent generated APIs for TypeScript, Python, Go, Java, and Rust AppHosts alongside C# examples.
 
 ## Hosting integration
 
@@ -39,7 +39,7 @@ The integration exposes a number of app resource types:
 
 ## Framework examples
 
-The following TypeScript AppHost examples show validated ways to wire common JavaScript frameworks into Aspire for both local development and Docker Compose deployment. Each sample assumes:
+The following AppHost example shows validated ways to wire common JavaScript frameworks into Aspire for both local development and Docker Compose deployment. It assumes:
 
 - A backend API app lives in `./frameworks/api` and listens on the `PORT` environment variable.
 - The framework app lives in `./frameworks/<framework-name>`.
@@ -47,7 +47,12 @@ The following TypeScript AppHost examples show validated ways to wire common Jav
 
 For production deployment choices, see [Deploy JavaScript apps](/deployment/javascript-apps/).
 
-Start with a shared builder, Docker Compose deployment target, and API resource:
+The complete AppHost configuration is shown together because every framework resource shares the same builder, Docker Compose deployment target, and API resource:
+
+<AppHostTabs limitations={{
+  java: 'The generated Java SDK cannot pass a NodeAppResource to PublishAsStaticWebsite as the required IResourceWithServiceDiscovery type, so the static-site API proxy scenarios are not currently expressible in a Java AppHost.',
+}}>
+<Fragment slot="typescript">
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -61,18 +66,459 @@ const api = await builder
   .withExternalHttpEndpoints();
 
 const apiEndpoint = await api.getEndpoint('http');
+
+await builder
+  .addViteApp('vite', './frameworks/vite', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+
+await builder
+  .addViteApp('react', './frameworks/react', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+
+await builder
+  .addViteApp('vue', './frameworks/vue', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+
+await builder
+  .addViteApp('astro', './frameworks/astro', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+
+await builder
+  .addViteApp('angular', './frameworks/angular', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+
+await builder
+  .addNextJsApp('nextjs', './frameworks/nextjs', { runScriptName: 'dev' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+
+await builder
+  .addViteApp('nuxt', './frameworks/nuxt', { runScriptName: 'dev' })
+  .publishAsPackageScript({ scriptName: 'start' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withEnvironment('NUXT_API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+
+await builder
+  .addViteApp('sveltekit', './frameworks/sveltekit', {
+    runScriptName: 'dev',
+  })
+  .publishAsNodeServer('build/index.js', { outputPath: 'build' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+
+await builder
+  .addViteApp('tanstack-start', './frameworks/tanstack-start', {
+    runScriptName: 'dev',
+  })
+  .publishAsNodeServer('.output/server/index.mjs', { outputPath: '.output' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+
+await builder
+  .addViteApp('astro-ssr', './frameworks/astro-ssr', {
+    runScriptName: 'dev',
+  })
+  .publishAsPackageScript({ scriptName: 'start' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+
+await builder
+  .addViteApp('remix', './frameworks/remix', { runScriptName: 'dev' })
+  .publishAsPackageScript({
+    scriptName: 'start',
+    runScriptArguments: '-- --port "$PORT"',
+  })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+
+await builder
+  .addViteApp('qwik', './frameworks/qwik', { runScriptName: 'dev' })
+  .publishAsPackageScript({ scriptName: 'start' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+
+await builder.build().run();
 ```
+
+</Fragment>
+<Fragment slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("compose");
+
+var api = builder.AddNodeApp("api", "./frameworks/api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+var apiEndpoint = api.GetEndpoint("http");
+
+#pragma warning disable ASPIREJAVASCRIPT001
+builder.AddViteApp("vite", "./frameworks/vite", runScriptName: "dev")
+    .PublishAsStaticWebsite(apiPath: "/api", apiTarget: api)
+    .WithExternalHttpEndpoints();
+
+builder.AddViteApp("react", "./frameworks/react", runScriptName: "dev")
+    .PublishAsStaticWebsite(apiPath: "/api", apiTarget: api)
+    .WithExternalHttpEndpoints();
+
+builder.AddViteApp("vue", "./frameworks/vue", runScriptName: "dev")
+    .PublishAsStaticWebsite(apiPath: "/api", apiTarget: api)
+    .WithExternalHttpEndpoints();
+
+builder.AddViteApp("astro", "./frameworks/astro", runScriptName: "dev")
+    .PublishAsStaticWebsite(apiPath: "/api", apiTarget: api)
+    .WithExternalHttpEndpoints();
+
+builder.AddViteApp("angular", "./frameworks/angular", runScriptName: "dev")
+    .PublishAsStaticWebsite(apiPath: "/api", apiTarget: api)
+    .WithExternalHttpEndpoints();
+
+builder.AddNextJsApp("nextjs", "./frameworks/nextjs", runScriptName: "dev")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+
+builder.AddViteApp("nuxt", "./frameworks/nuxt", runScriptName: "dev")
+    .PublishAsPackageScript(scriptName: "start")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithEnvironment("NUXT_API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+
+builder.AddViteApp("sveltekit", "./frameworks/sveltekit", runScriptName: "dev")
+    .PublishAsNodeServer(entryPoint: "build/index.js", outputPath: "build")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+
+builder.AddViteApp(
+        "tanstack-start",
+        "./frameworks/tanstack-start",
+        runScriptName: "dev")
+    .PublishAsNodeServer(
+        entryPoint: ".output/server/index.mjs",
+        outputPath: ".output")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+
+builder.AddViteApp("astro-ssr", "./frameworks/astro-ssr", runScriptName: "dev")
+    .PublishAsPackageScript(scriptName: "start")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+
+builder.AddViteApp("remix", "./frameworks/remix", runScriptName: "dev")
+    .PublishAsPackageScript(
+        scriptName: "start",
+        runScriptArguments: "-- --port \"$PORT\"")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+
+builder.AddViteApp("qwik", "./frameworks/qwik", runScriptName: "dev")
+    .PublishAsPackageScript(scriptName: "start")
+    .WithEnvironment("API_URL", apiEndpoint)
+    .WithExternalHttpEndpoints();
+#pragma warning restore ASPIREJAVASCRIPT001
+
+builder.Build().Run();
+```
+
+</Fragment>
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    builder.add_docker_compose_env("compose")
+
+    api = builder.add_node_app("api", "./frameworks/api", "server.js")
+    api.with_http_endpoint(port=3001, env="PORT")
+    api.with_external_http_endpoints()
+    api_endpoint = api.get_endpoint("http")
+
+    for name in ("vite", "react", "vue", "astro", "angular"):
+        app = builder.add_vite_app(name, f"./frameworks/{name}")
+        app.publish_as_static_website(api_path="/api", api_target=api)
+        app.with_external_http_endpoints()
+
+    nextjs = builder.add_next_js_app("nextjs", "./frameworks/nextjs")
+    nextjs.with_environment("API_URL", api_endpoint)
+    nextjs.with_external_http_endpoints()
+
+    nuxt = builder.add_vite_app("nuxt", "./frameworks/nuxt")
+    nuxt.publish_as_package_script(script_name="start")
+    nuxt.with_environment("API_URL", api_endpoint)
+    nuxt.with_environment("NUXT_API_URL", api_endpoint)
+    nuxt.with_external_http_endpoints()
+
+    sveltekit = builder.add_vite_app("sveltekit", "./frameworks/sveltekit")
+    sveltekit.publish_as_node_server("build/index.js", output_path="build")
+    sveltekit.with_environment("API_URL", api_endpoint)
+    sveltekit.with_external_http_endpoints()
+
+    tanstack = builder.add_vite_app(
+        "tanstack-start", "./frameworks/tanstack-start"
+    )
+    tanstack.publish_as_node_server(
+        ".output/server/index.mjs", output_path=".output"
+    )
+    tanstack.with_environment("API_URL", api_endpoint)
+    tanstack.with_external_http_endpoints()
+
+    astro_ssr = builder.add_vite_app("astro-ssr", "./frameworks/astro-ssr")
+    astro_ssr.publish_as_package_script(script_name="start")
+    astro_ssr.with_environment("API_URL", api_endpoint)
+    astro_ssr.with_external_http_endpoints()
+
+    remix = builder.add_vite_app("remix", "./frameworks/remix")
+    remix.publish_as_package_script(
+        script_name="start",
+        run_script_arguments='-- --port "$PORT"',
+    )
+    remix.with_environment("API_URL", api_endpoint)
+    remix.with_external_http_endpoints()
+
+    qwik = builder.add_vite_app("qwik", "./frameworks/qwik")
+    qwik.publish_as_package_script(script_name="start")
+    qwik.with_environment("API_URL", api_endpoint)
+    qwik.with_external_http_endpoints()
+
+    builder.run()
+```
+
+</Fragment>
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+compose := builder.AddDockerComposeEnvironment("compose")
+if err := compose.Err(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddNodeApp("api", "./frameworks/api", "server.js").
+    WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
+        Port: aspire.Float64Ptr(3001),
+        Env:  aspire.StringPtr("PORT"),
+    }).
+    WithExternalHttpEndpoints()
+if err := api.Err(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+
+apiEndpoint := api.GetEndpoint("http")
+var apiTarget aspire.ResourceWithServiceDiscovery = api
+
+for _, name := range []string{"vite", "react", "vue", "astro", "angular"} {
+    app := builder.AddViteApp(
+        name,
+        "./frameworks/"+name,
+        &aspire.AddViteAppOptions{RunScriptName: aspire.StringPtr("dev")},
+    ).PublishAsStaticWebsite(&aspire.PublishAsStaticWebsiteOptions{
+        ApiPath:   aspire.StringPtr("/api"),
+        ApiTarget: &apiTarget,
+    }).WithExternalHttpEndpoints()
+    if err := app.Err(); err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+
+
+}
+
+nextjs := builder.AddNextJsApp(
+    "nextjs",
+    "./frameworks/nextjs",
+    &aspire.AddNextJsAppOptions{RunScriptName: aspire.StringPtr("dev")},
+).WithEnvironment("API_URL", apiEndpoint).WithExternalHttpEndpoints()
+if err := nextjs.Err(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+
+nuxt := builder.AddViteApp(
+    "nuxt",
+    "./frameworks/nuxt",
+    &aspire.AddViteAppOptions{RunScriptName: aspire.StringPtr("dev")},
+).PublishAsPackageScript(&aspire.PublishAsPackageScriptOptions{
+    ScriptName: aspire.StringPtr("start"),
+}).WithEnvironment("API_URL", apiEndpoint).
+    WithEnvironment("NUXT_API_URL", apiEndpoint).
+    WithExternalHttpEndpoints()
+if err := nuxt.Err(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+
+sveltekit := builder.AddViteApp(
+    "sveltekit",
+    "./frameworks/sveltekit",
+    &aspire.AddViteAppOptions{RunScriptName: aspire.StringPtr("dev")},
+).PublishAsNodeServer(
+    "build/index.js",
+    &aspire.PublishAsNodeServerOptions{OutputPath: aspire.StringPtr("build")},
+).WithEnvironment("API_URL", apiEndpoint).WithExternalHttpEndpoints()
+if err := sveltekit.Err(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+
+tanstack := builder.AddViteApp(
+    "tanstack-start",
+    "./frameworks/tanstack-start",
+    &aspire.AddViteAppOptions{RunScriptName: aspire.StringPtr("dev")},
+).PublishAsNodeServer(
+    ".output/server/index.mjs",
+    &aspire.PublishAsNodeServerOptions{OutputPath: aspire.StringPtr(".output")},
+).WithEnvironment("API_URL", apiEndpoint).WithExternalHttpEndpoints()
+if err := tanstack.Err(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+
+astroSSR := builder.AddViteApp(
+    "astro-ssr",
+    "./frameworks/astro-ssr",
+    &aspire.AddViteAppOptions{RunScriptName: aspire.StringPtr("dev")},
+).PublishAsPackageScript(&aspire.PublishAsPackageScriptOptions{
+    ScriptName: aspire.StringPtr("start"),
+}).WithEnvironment("API_URL", apiEndpoint).WithExternalHttpEndpoints()
+if err := astroSSR.Err(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+
+remix := builder.AddViteApp(
+    "remix",
+    "./frameworks/remix",
+    &aspire.AddViteAppOptions{RunScriptName: aspire.StringPtr("dev")},
+).PublishAsPackageScript(&aspire.PublishAsPackageScriptOptions{
+    ScriptName:         aspire.StringPtr("start"),
+    RunScriptArguments: aspire.StringPtr(`-- --port "$PORT"`),
+}).WithEnvironment("API_URL", apiEndpoint).WithExternalHttpEndpoints()
+if err := remix.Err(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+
+qwik := builder.AddViteApp(
+    "qwik",
+    "./frameworks/qwik",
+    &aspire.AddViteAppOptions{RunScriptName: aspire.StringPtr("dev")},
+).PublishAsPackageScript(&aspire.PublishAsPackageScriptOptions{
+    ScriptName: aspire.StringPtr("start"),
+}).WithEnvironment("API_URL", apiEndpoint).WithExternalHttpEndpoints()
+if err := qwik.Err(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+
+
+app, err := builder.Build()
+if err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+    log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+builder.add_docker_compose_environment("compose")?;
+
+let api = builder.add_node_app("api", "./frameworks/api", "server.js")?;
+api.with_http_endpoint(Some(3001.0), None, None, Some("PORT"), None)?;
+api.with_external_http_endpoints()?;
+let api_endpoint = api.get_endpoint("http")?;
+let api_target =
+    IResourceWithServiceDiscovery::new(api.handle().clone(), api.client().clone());
+
+for name in ["vite", "react", "vue", "astro", "angular"] {
+    let app = builder.add_vite_app(
+        name,
+        &format!("./frameworks/{name}"),
+        Some("dev"),
+    )?;
+    app.publish_as_static_website(
+        Some("/api"),
+        Some(&api_target),
+        None,
+        None,
+        None,
+    )?;
+    app.with_external_http_endpoints()?;
+}
+
+let nextjs =
+    builder.add_next_js_app("nextjs", "./frameworks/nextjs", Some("dev"))?;
+nextjs.with_environment("API_URL", api_endpoint.handle().to_json())?;
+nextjs.with_external_http_endpoints()?;
+
+let nuxt = builder.add_vite_app("nuxt", "./frameworks/nuxt", Some("dev"))?;
+nuxt.publish_as_package_script(Some("start"), None)?;
+nuxt.with_environment("API_URL", api_endpoint.handle().to_json())?;
+nuxt.with_environment("NUXT_API_URL", api_endpoint.handle().to_json())?;
+nuxt.with_external_http_endpoints()?;
+
+let sveltekit =
+    builder.add_vite_app("sveltekit", "./frameworks/sveltekit", Some("dev"))?;
+sveltekit.publish_as_node_server("build/index.js", Some("build"))?;
+sveltekit.with_environment("API_URL", api_endpoint.handle().to_json())?;
+sveltekit.with_external_http_endpoints()?;
+
+let tanstack = builder.add_vite_app(
+    "tanstack-start",
+    "./frameworks/tanstack-start",
+    Some("dev"),
+)?;
+tanstack.publish_as_node_server(
+    ".output/server/index.mjs",
+    Some(".output"),
+)?;
+tanstack.with_environment("API_URL", api_endpoint.handle().to_json())?;
+tanstack.with_external_http_endpoints()?;
+
+let astro_ssr =
+    builder.add_vite_app("astro-ssr", "./frameworks/astro-ssr", Some("dev"))?;
+astro_ssr.publish_as_package_script(Some("start"), None)?;
+astro_ssr.with_environment("API_URL", api_endpoint.handle().to_json())?;
+astro_ssr.with_external_http_endpoints()?;
+
+let remix =
+    builder.add_vite_app("remix", "./frameworks/remix", Some("dev"))?;
+remix.publish_as_package_script(Some("start"), Some(r#"-- --port "$PORT""#))?;
+remix.with_environment("API_URL", api_endpoint.handle().to_json())?;
+remix.with_external_http_endpoints()?;
+
+let qwik = builder.add_vite_app("qwik", "./frameworks/qwik", Some("dev"))?;
+qwik.publish_as_package_script(Some("start"), None)?;
+qwik.with_environment("API_URL", api_endpoint.handle().to_json())?;
+qwik.with_external_http_endpoints()?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
+</AppHostTabs>
 
 ### Vite
 
 Plain Vite apps that produce static browser files use `addViteApp` and `publishAsStaticWebsite`. The `apiPath` / `apiTarget` options configure the deployed static website to proxy `/api` requests to the backend.
 
-```typescript title="apphost.mts"
-await builder
-  .addViteApp('vite', './frameworks/vite', { runScriptName: 'dev' })
-  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
-  .withExternalHttpEndpoints();
-```
 
 ```typescript title="Vite — src/weather.ts"
 export async function loadWeather() {
@@ -85,12 +531,6 @@ export async function loadWeather() {
 
 React apps created with Vite use the same static website pattern as other Vite browser apps.
 
-```typescript title="apphost.mts"
-await builder
-  .addViteApp('react', './frameworks/react', { runScriptName: 'dev' })
-  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
-  .withExternalHttpEndpoints();
-```
 
 ```tsx title="React — src/App.tsx"
 export async function loadWeather() {
@@ -103,12 +543,6 @@ export async function loadWeather() {
 
 Vue apps created with Vite also use `publishAsStaticWebsite`.
 
-```typescript title="apphost.mts"
-await builder
-  .addViteApp('vue', './frameworks/vue', { runScriptName: 'dev' })
-  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
-  .withExternalHttpEndpoints();
-```
 
 ```vue title="Vue — src/App.vue"
 <script setup lang="ts">
@@ -121,23 +555,11 @@ const weather = await response.json();
 
 Static Astro apps use `addViteApp` and `publishAsStaticWebsite`.
 
-```typescript title="apphost.mts"
-await builder
-  .addViteApp('astro', './frameworks/astro', { runScriptName: 'dev' })
-  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
-  .withExternalHttpEndpoints();
-```
 
 ### Angular
 
 Angular 17+ uses Vite internally. Use `addViteApp` with the Angular app's dev script, then publish the build output as a static website.
 
-```typescript title="apphost.mts"
-await builder
-  .addViteApp('angular', './frameworks/angular', { runScriptName: 'dev' })
-  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
-  .withExternalHttpEndpoints();
-```
 
 ```javascript title="Angular — proxy.conf.js"
 const target = process.env.API_HTTPS || process.env.API_HTTP;
@@ -172,12 +594,6 @@ Next.js standalone apps use the dedicated `addNextJsApp` helper, not a generic V
 `AddNextJsApp` is marked `[Experimental]`. In C# AppHosts, suppress the `ASPIREJAVASCRIPT001` diagnostic when you use this API.
 :::
 
-```typescript title="apphost.mts"
-await builder
-  .addNextJsApp('nextjs', './frameworks/nextjs', { runScriptName: 'dev' })
-  .withEnvironment('API_URL', apiEndpoint)
-  .withExternalHttpEndpoints();
-```
 
 ```tsx title="Next.js — app/page.tsx"
 export default async function Home() {
@@ -200,14 +616,6 @@ export default async function Home() {
 
 Nuxt apps need `node_modules` at runtime for server-side rendering, so publish them with `publishAsPackageScript`. Set both `API_URL` for direct server-side code and `NUXT_API_URL` for Nuxt runtime config.
 
-```typescript title="apphost.mts"
-await builder
-  .addViteApp('nuxt', './frameworks/nuxt', { runScriptName: 'dev' })
-  .publishAsPackageScript({ scriptName: 'start' })
-  .withEnvironment('API_URL', apiEndpoint)
-  .withEnvironment('NUXT_API_URL', apiEndpoint)
-  .withExternalHttpEndpoints();
-```
 
 ```typescript title="Nuxt — nuxt.config.ts"
 export default defineNuxtConfig({
@@ -237,13 +645,6 @@ export default defineEventHandler(async () => {
 
 SvelteKit with `@sveltejs/adapter-node` produces a self-contained Node server artifact, so publish it with `publishAsNodeServer`.
 
-```typescript title="apphost.mts"
-await builder
-  .addViteApp('sveltekit', './frameworks/sveltekit', { runScriptName: 'dev' })
-  .publishAsNodeServer('build/index.js', { outputPath: 'build' })
-  .withEnvironment('API_URL', apiEndpoint)
-  .withExternalHttpEndpoints();
-```
 
 ```typescript title="SvelteKit — src/routes/+page.server.ts"
 import type { PageServerLoad } from './$types';
@@ -267,60 +668,24 @@ export const load: PageServerLoad = async ({ fetch }) => {
 
 TanStack Start uses Nitro's Node server output and works with `publishAsNodeServer`.
 
-```typescript title="apphost.mts"
-await builder
-  .addViteApp('tanstack-start', './frameworks/tanstack-start', {
-    runScriptName: 'dev',
-  })
-  .publishAsNodeServer('.output/server/index.mjs', { outputPath: '.output' })
-  .withEnvironment('API_URL', apiEndpoint)
-  .withExternalHttpEndpoints();
-```
 
 ### Astro SSR
 
 Astro SSR apps using `@astrojs/node` need runtime dependencies, so publish them with `publishAsPackageScript`.
 
-```typescript title="apphost.mts"
-await builder
-  .addViteApp('astro-ssr', './frameworks/astro-ssr', { runScriptName: 'dev' })
-  .publishAsPackageScript({ scriptName: 'start' })
-  .withEnvironment('API_URL', apiEndpoint)
-  .withExternalHttpEndpoints();
-```
 
 ### Remix
 
 Remix / React Router apps need `node_modules` at runtime. Pass the port argument through the package script so the server listens on Aspire's assigned port.
 
-```typescript title="apphost.mts"
-await builder
-  .addViteApp('remix', './frameworks/remix', { runScriptName: 'dev' })
-  .publishAsPackageScript({
-    scriptName: 'start',
-    runScriptArguments: '-- --port "$PORT"',
-  })
-  .withEnvironment('API_URL', apiEndpoint)
-  .withExternalHttpEndpoints();
-```
 
 ### Qwik City
 
 Qwik City apps need runtime dependencies and the Node server adapter, so publish them with `publishAsPackageScript`.
 
-```typescript title="apphost.mts"
-await builder
-  .addViteApp('qwik', './frameworks/qwik', { runScriptName: 'dev' })
-  .publishAsPackageScript({ scriptName: 'start' })
-  .withEnvironment('API_URL', apiEndpoint)
-  .withExternalHttpEndpoints();
-```
 
 After adding the framework resources your app needs, build and run the AppHost:
 
-```typescript title="apphost.mts"
-await builder.build().run();
-```
 
 ## Add JavaScript application
 
@@ -361,6 +726,84 @@ const frontend = await builder
   .withReference(api);
 
 // After adding all resources, run the app...
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_node_app("api", "./api", "server.js")
+    api.with_http_endpoint(port=3001, env="PORT")
+    frontend = builder.add_java_script_app("frontend", "./frontend")
+    frontend.with_http_endpoint(port=3000, env="PORT").with_reference(api)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddNodeApp("api", "./api", "server.js").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(3001), Env: aspire.StringPtr("PORT")})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+frontend := builder.AddJavaScriptApp("frontend", "./frontend").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(3000), Env: aspire.StringPtr("PORT")}).WithReference(api)
+if err := frontend.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addNodeApp("api", "./api", "server.js")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(3001).env("PORT"));
+var frontend = builder.addJavaScriptApp("frontend", "./frontend")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(3000).env("PORT"))
+    .withReference(api);
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_node_app("api", "./api", "server.js")?;
+api.with_http_endpoint(Some(3001.0), None, None, Some("PORT"), None)?;
+let frontend = builder.add_java_script_app("frontend", "./frontend", None)?;
+frontend.with_http_endpoint(Some(3000.0), None, None, Some("PORT"), None)?;
+frontend.with_reference(api.handle().to_json(), None, None, None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -409,6 +852,71 @@ const api = await builder
   .withHttpEndpoint({ port: 3000, env: 'PORT' });
 
 // After adding all resources, run the app...
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_node_app("api", "./api", "server.js")
+    api.with_http_endpoint(port=3000, env="PORT")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddNodeApp("api", "./api", "server.js").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(3000), Env: aspire.StringPtr("PORT")})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addNodeApp("api", "./api", "server.js")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(3000).env("PORT"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_node_app("api", "./api", "server.js")?;
+api.with_http_endpoint(Some(3000.0), None, None, Some("PORT"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -466,6 +974,82 @@ const nextApp = await builder
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_node_app("api", "./api", "server.js")
+    api.with_http_endpoint(port=3001, env="PORT")
+    next_app = builder.add_next_js_app("next-app", "./next-app")
+    next_app.with_reference(api)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddNodeApp("api", "./api", "server.js").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(3001), Env: aspire.StringPtr("PORT")})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+nextApp := builder.AddNextJsApp("next-app", "./next-app").WithReference(api)
+if err := nextApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addNodeApp("api", "./api", "server.js")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(3001).env("PORT"));
+var nextApp = builder.addNextJsApp("next-app", "./next-app")
+    .withReference(api);
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_node_app("api", "./api", "server.js")?;
+api.with_http_endpoint(Some(3001.0), None, None, Some("PORT"), None)?;
+let next_app = builder.add_next_js_app("next-app", "./next-app", None)?;
+next_app.with_reference(api.handle().to_json(), None, None, None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 `AddNextJsApp` configures:
@@ -507,6 +1091,71 @@ var nextApp = builder.AddNextJsApp("next-app", "./next-app")
 const nextApp = await builder
   .addNextJsApp('next-app', './next-app')
   .disableBuildValidation();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    next_app = builder.add_next_js_app("next-app", "./next-app")
+    next_app.disable_build_validation()
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+nextApp := builder.AddNextJsApp("next-app", "./next-app").DisableBuildValidation()
+if err := nextApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var nextApp = builder.addNextJsApp("next-app", "./next-app")
+    .disableBuildValidation();
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let next_app = builder.add_next_js_app("next-app", "./next-app", None)?;
+let _next_app = next_app.disable_build_validation()?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -555,6 +1204,82 @@ const viteApp = await builder
   .withReference(api);
 
 // After adding all resources, run the app...
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_node_app("api", "./api", "server.js")
+    api.with_http_endpoint(port=3001, env="PORT")
+    vite_app = builder.add_vite_app("vite-app", "./vite-app")
+    vite_app.with_reference(api)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddNodeApp("api", "./api", "server.js").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(3001), Env: aspire.StringPtr("PORT")})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+viteApp := builder.AddViteApp("vite-app", "./vite-app").WithReference(api)
+if err := viteApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addNodeApp("api", "./api", "server.js")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(3001).env("PORT"));
+var viteApp = builder.addViteApp("vite-app", "./vite-app")
+    .withReference(api);
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_node_app("api", "./api", "server.js")?;
+api.with_http_endpoint(Some(3001.0), None, None, Some("PORT"), None)?;
+let vite_app = builder.add_vite_app("vite-app", "./vite-app", None)?;
+vite_app.with_reference(api.handle().to_json(), None, None, None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -639,6 +1364,79 @@ const customApp = await builder
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    app = builder.add_java_script_app("app", "./app")
+    custom_app = builder.add_java_script_app("custom-app", "./custom-app")
+    custom_app.with_npm(install_command="ci", install_args=["--legacy-peer-deps"])
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app := builder.AddJavaScriptApp("app", "./app")
+if err := app.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+customApp := builder.AddJavaScriptApp("custom-app", "./custom-app").WithNpm(&aspire.WithNpmOptions{InstallCommand: aspire.StringPtr("ci"), InstallArgs: []string{"--legacy-peer-deps"}})
+if err := customApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var app = builder.addJavaScriptApp("app", "./app");
+var customApp = builder.addJavaScriptApp("custom-app", "./custom-app")
+    .withNpm(new WithNpmOptions().installCommand("ci").installArgs(new String[] { "--legacy-peer-deps" }));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let _app = builder.add_java_script_app("app", "./app", None)?;
+let custom_app = builder.add_java_script_app("custom-app", "./custom-app", None)?;
+custom_app.with_npm(None, Some("ci"), Some(vec!["--legacy-peer-deps".into()]))?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 When publishing (production mode), Aspire automatically uses `npm ci` if `package-lock.json` exists, otherwise it uses `npm install` for deterministic builds.
@@ -679,6 +1477,80 @@ const customApp = await builder
   .withYarn({ installArgs: ['--immutable'] });
 
 // After adding all resources, run the app...
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    app = builder.add_java_script_app("app", "./app").with_yarn()
+    custom_app = builder.add_java_script_app("custom-app", "./custom-app")
+    custom_app.with_yarn(install_args=["--immutable"])
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app := builder.AddJavaScriptApp("app", "./app").WithYarn()
+if err := app.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+customApp := builder.AddJavaScriptApp("custom-app", "./custom-app").WithYarn(&aspire.WithYarnOptions{InstallArgs: []string{"--immutable"}})
+if err := customApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var app = builder.addJavaScriptApp("app", "./app").withYarn();
+var customApp = builder.addJavaScriptApp("custom-app", "./custom-app")
+    .withYarn(new WithYarnOptions().installArgs(new String[] { "--immutable" }));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let app = builder.add_java_script_app("app", "./app", None)?;
+app.with_yarn(None, None)?;
+let custom_app = builder.add_java_script_app("custom-app", "./custom-app", None)?;
+custom_app.with_yarn(None, Some(vec!["--immutable".into()]))?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -729,6 +1601,80 @@ const customApp = await builder
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    app = builder.add_java_script_app("app", "./app").with_pnpm()
+    custom_app = builder.add_java_script_app("custom-app", "./custom-app")
+    custom_app.with_pnpm(install_args=["--immutable" if "Pnpm" == "Yarn" else "--frozen-lockfile"])
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app := builder.AddJavaScriptApp("app", "./app").WithPnpm()
+if err := app.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+customApp := builder.AddJavaScriptApp("custom-app", "./custom-app").WithPnpm(&aspire.WithPnpmOptions{InstallArgs: []string{"--frozen-lockfile"}})
+if err := customApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var app = builder.addJavaScriptApp("app", "./app").withPnpm();
+var customApp = builder.addJavaScriptApp("custom-app", "./custom-app")
+    .withPnpm(new WithPnpmOptions().installArgs(new String[] { "--frozen-lockfile" }));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let app = builder.add_java_script_app("app", "./app", None)?;
+app.with_pnpm(None, None)?;
+let custom_app = builder.add_java_script_app("custom-app", "./custom-app", None)?;
+custom_app.with_pnpm(None, Some(vec!["--frozen-lockfile".into()]))?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 When publishing, Aspire uses `pnpm install --frozen-lockfile` if `pnpm-lock.yaml` exists, otherwise it uses `pnpm install`.
@@ -772,6 +1718,80 @@ const customApp = await builder
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    app = builder.add_vite_app("app", "./app").with_bun()
+    custom_app = builder.add_vite_app("custom-app", "./custom-app")
+    custom_app.with_bun(install_args=["--frozen-lockfile"])
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app := builder.AddViteApp("app", "./app").WithBun()
+if err := app.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+customApp := builder.AddViteApp("custom-app", "./custom-app").WithBun(&aspire.WithBunOptions{InstallArgs: []string{"--frozen-lockfile"}})
+if err := customApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var app = builder.addViteApp("app", "./app").withBun();
+var customApp = builder.addViteApp("custom-app", "./custom-app")
+    .withBun(new WithBunOptions().installArgs(new String[] { "--frozen-lockfile" }));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let app = builder.add_vite_app("app", "./app", None)?;
+app.with_bun(None, None)?;
+let custom_app = builder.add_vite_app("custom-app", "./custom-app", None)?;
+custom_app.with_bun(None, Some(vec!["--frozen-lockfile".into()]))?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 When publishing, Aspire uses `bun install --frozen-lockfile` if `bun.lock` or `bun.lockb` exists, otherwise it uses `bun install`.
@@ -809,6 +1829,73 @@ const app = await builder
   .withDockerfileBaseImage({ buildImage: 'oven/bun:1.1' });
 
 // After adding all resources, run the app...
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    app = builder.add_vite_app("app", "./app")
+    app.with_bun().with_dockerfile_base_image(build_image="oven/bun:1.1")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app := builder.AddViteApp("app", "./app").WithBun().WithDockerfileBaseImage(&aspire.WithDockerfileBaseImageOptions{BuildImage: aspire.StringPtr("oven/bun:1.1")})
+if err := app.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var app = builder.addViteApp("app", "./app")
+    .withBun()
+    .withDockerfileBaseImage(new WithDockerfileBaseImageOptions().buildImage("oven/bun:1.1"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let app = builder.add_vite_app("app", "./app", None)?;
+app.with_bun(None, None)?;
+app.with_dockerfile_base_image(Some("oven/bun:1.1"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -850,6 +1937,73 @@ const app = await builder
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    app = builder.add_java_script_app("app", "./app")
+    app.with_run_script("start").with_build_script("prod")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app := builder.AddJavaScriptApp("app", "./app").WithRunScript("start").WithBuildScript("prod")
+if err := app.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var app = builder.addJavaScriptApp("app", "./app")
+    .withRunScript("start")
+    .withBuildScript("prod");
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let app = builder.add_java_script_app("app", "./app", None)?;
+app.with_run_script("start", None)?;
+app.with_build_script("prod", None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 ### Pass arguments to scripts
@@ -883,6 +2037,73 @@ const app = await builder
   .withArgs(['--port', '3000', '--host']);
 
 // After adding all resources, run the app...
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    app = builder.add_java_script_app("app", "./app")
+    app.with_run_script("dev").with_args(["--port", "3000", "--host"])
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app := builder.AddJavaScriptApp("app", "./app").WithRunScript("dev").WithArgs([]string{"--port", "3000", "--host"})
+if err := app.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var app = builder.addJavaScriptApp("app", "./app")
+    .withRunScript("dev")
+    .withArgs(new String[] { "--port", "3000", "--host" });
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let app = builder.add_java_script_app("app", "./app", None)?;
+app.with_run_script("dev", None)?;
+app.with_args(vec!["--port".into(), "3000".into(), "--host".into()])?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -929,6 +2150,70 @@ const app = await builder
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    app = builder.add_java_script_app("app", "./app")
+    app.with_run_script("dev:custom")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app := builder.AddJavaScriptApp("app", "./app").WithRunScript("dev:custom")
+if err := app.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var app = builder.addJavaScriptApp("app", "./app").withRunScript("dev:custom");
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let app = builder.add_java_script_app("app", "./app", None)?;
+app.with_run_script("dev:custom", None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 ## Configure endpoints
@@ -967,6 +2252,71 @@ const app = await builder
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    app = builder.add_java_script_app("app", "./app")
+    app.with_http_endpoint(port=3000, env="PORT")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app := builder.AddJavaScriptApp("app", "./app").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(3000), Env: aspire.StringPtr("PORT")})
+if err := app.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var app = builder.addJavaScriptApp("app", "./app")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(3000).env("PORT"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let app = builder.add_java_script_app("app", "./app", None)?;
+app.with_http_endpoint(Some(3000.0), None, None, Some("PORT"), None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 Common environment variables for JavaScript frameworks:
@@ -979,7 +2329,10 @@ Common environment variables for JavaScript frameworks:
 
 When you reference a resource that exposes a connection string, Aspire injects the connection string into the JavaScript app's environment:
 
-<AppHostTabs>
+<AppHostTabs limitations={{
+  go: 'This example also requires Aspire.Hosting.PostgreSQL, which is not present in the restored generated Go AppHost SDK.',
+  rust: 'This example also requires Aspire.Hosting.PostgreSQL, which is not present in the restored generated Rust AppHost SDK.',
+}}>
 <Fragment slot="csharp">
 
 ```csharp title="AppHost.cs"
@@ -1013,6 +2366,37 @@ await app.withReference(db);
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    postgres = builder.add_postgres("postgres")
+    db = postgres.add_database("mydb")
+    app = builder.add_java_script_app("app", "./app")
+    app.with_http_endpoint(port=3000, env="PORT").with_reference(db)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var postgres = builder.addPostgres("postgres");
+var db = postgres.addDatabase("mydb");
+var app = builder.addJavaScriptApp("app", "./app")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(3000).env("PORT"))
+    .withReference(db);
+
+builder.build().run();
 ```
 
 </Fragment>
@@ -1060,6 +2444,71 @@ const viteApp = await builder
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    vite_app = builder.add_vite_app("vite-app", "./vite-app")
+    vite_app.with_vite_config("./vite.production.config.js")
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+viteApp := builder.AddViteApp("vite-app", "./vite-app").WithViteConfig("./vite.production.config.js")
+if err := viteApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var viteApp = builder.addViteApp("vite-app", "./vite-app")
+    .withViteConfig("./vite.production.config.js");
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let vite_app = builder.add_vite_app("vite-app", "./vite-app", None)?;
+vite_app.with_vite_config("./vite.production.config.js")?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 The `WithViteConfig` / `withViteConfig` configuration accepts:
@@ -1101,6 +2550,73 @@ const viteApp = await builder
   .withHttpsDeveloperCertificate();
 
 // After adding all resources, run the app...
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    vite_app = builder.add_vite_app("vite-app", "./vite-app")
+    vite_app.with_https_endpoint(env="PORT").with_https_developer_certificate()
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+viteApp := builder.AddViteApp("vite-app", "./vite-app").WithHttpsEndpoint(&aspire.WithHttpsEndpointOptions{Env: aspire.StringPtr("PORT")}).WithHttpsDeveloperCertificate()
+if err := viteApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var viteApp = builder.addViteApp("vite-app", "./vite-app")
+    .withHttpsEndpoint(new WithHttpsEndpointOptions().env("PORT"))
+    .withHttpsDeveloperCertificate();
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let vite_app = builder.add_vite_app("vite-app", "./vite-app", None)?;
+vite_app.with_https_endpoint(None, None, None, Some("PORT"), None)?;
+vite_app.with_https_developer_certificate(None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -1151,6 +2667,87 @@ const viteApp = await builder
   .withEnvironment('VITE_API_BASE_URL', await api.getEndpoint('http'));
 
 // After adding all resources, run the app...
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_node_app("api", "./api", "server.js")
+    api.with_http_endpoint(port=3001, env="PORT").with_external_http_endpoints()
+    vite_app = builder.add_vite_app("vite-app", "./vite-app")
+    vite_app.with_reference(api).with_environment("VITE_API_BASE_URL", api.get_endpoint("http"))
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddNodeApp("api", "./api", "server.js").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(3001), Env: aspire.StringPtr("PORT")}).WithExternalHttpEndpoints()
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+viteApp := builder.AddViteApp("vite-app", "./vite-app").WithReference(api).WithEnvironment("VITE_API_BASE_URL", api.GetEndpoint("http"))
+if err := viteApp.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addNodeApp("api", "./api", "server.js")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(3001).env("PORT"))
+    .withExternalHttpEndpoints();
+var viteApp = builder.addViteApp("vite-app", "./vite-app")
+    .withReference(api)
+    .withEnvironment("VITE_API_BASE_URL", api.getEndpoint("http"));
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_node_app("api", "./api", "server.js")?;
+api.with_http_endpoint(Some(3001.0), None, None, Some("PORT"), None)?;
+api.with_external_http_endpoints()?;
+let endpoint = api.get_endpoint("http")?;
+let vite_app = builder.add_vite_app("vite-app", "./vite-app", None)?;
+vite_app.with_reference(api.handle().to_json(), None, None, None)?;
+vite_app.with_environment("VITE_API_BASE_URL", endpoint.handle().to_json())?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
@@ -1230,7 +2827,94 @@ To bridge this gap, pass the parameter to your API app as a standard environment
     ```
 
           </Fragment>
-          </AppHostTabs>
+
+    <Fragment slot="python">
+
+    ```python title="apphost.py"
+    from aspire_app import create_builder
+
+    with create_builder() as builder:
+        google_client_id = builder.add_parameter("google-client-id")
+        api = builder.add_node_app("api", "./api", "server.js")
+        api.with_http_endpoint(port=3001, env="PORT").with_environment("GOOGLE_CLIENT_ID", google_client_id)
+        frontend = builder.add_vite_app("frontend", "./frontend")
+        frontend.with_pnpm().with_reference(api)
+        builder.run()
+    ```
+
+    </Fragment>
+
+    <Fragment slot="go">
+
+    ```go title="apphost.go"
+    builder, err := aspire.CreateBuilder()
+    if err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+
+    googleClientID := builder.AddParameter("google-client-id")
+    if err := googleClientID.Err(); err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+
+    api := builder.AddNodeApp("api", "./api", "server.js").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(3001), Env: aspire.StringPtr("PORT")}).WithEnvironment("GOOGLE_CLIENT_ID", googleClientID)
+    if err := api.Err(); err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+
+    frontend := builder.AddViteApp("frontend", "./frontend").WithPnpm().WithReference(api)
+    if err := frontend.Err(); err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+
+    distributedApp, err := builder.Build()
+    if err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+    if err := distributedApp.Run(); err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+    ```
+
+    </Fragment>
+
+    <Fragment slot="java">
+
+    ```java title="AppHost.java"
+    var builder = DistributedApplication.CreateBuilder();
+
+    var googleClientId = builder.addParameter("google-client-id");
+    var api = builder.addNodeApp("api", "./api", "server.js")
+        .withHttpEndpoint(new WithHttpEndpointOptions().port(3001).env("PORT"))
+        .withEnvironment("GOOGLE_CLIENT_ID", googleClientId);
+    var frontend = builder.addViteApp("frontend", "./frontend")
+        .withPnpm()
+        .withReference(api);
+
+    builder.build().run();
+    ```
+
+    </Fragment>
+
+    <Fragment slot="rust">
+
+    ```rust title="apphost.rs"
+    let builder = create_builder(None)?;
+
+    let google_client_id = builder.add_parameter("google-client-id", None, None, None)?;
+    let api = builder.add_node_app("api", "./api", "server.js")?;
+    api.with_http_endpoint(Some(3001.0), None, None, Some("PORT"), None)?;
+    api.with_environment("GOOGLE_CLIENT_ID", google_client_id.handle().to_json())?;
+    let frontend = builder.add_vite_app("frontend", "./frontend", None)?;
+    frontend.with_pnpm(None, None)?;
+    frontend.with_reference(api.handle().to_json(), None, None, None)?;
+
+    let app = builder.build()?;
+    app.run(None)?;
+    ```
+
+    </Fragment>
+    </AppHostTabs>
 
 2.  **Expose a config endpoint in the API**
 
@@ -1354,6 +3038,91 @@ const dashboard = await builder
 ```
 
 </Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_node_app("api", "./apps/api", "server.js")
+    api.with_http_endpoint(port=3001, env="PORT")
+    frontend = builder.add_vite_app("frontend", "./apps/frontend")
+    frontend.with_pnpm().with_reference(api)
+    dashboard = builder.add_vite_app("dashboard", "./apps/dashboard")
+    dashboard.with_pnpm().with_reference(api)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddNodeApp("api", "./apps/api", "server.js").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(3001), Env: aspire.StringPtr("PORT")})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+frontend := builder.AddViteApp("frontend", "./apps/frontend").WithPnpm().WithReference(api)
+if err := frontend.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+dashboard := builder.AddViteApp("dashboard", "./apps/dashboard").WithPnpm().WithReference(api)
+if err := dashboard.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addNodeApp("api", "./apps/api", "server.js")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(3001).env("PORT"));
+var frontend = builder.addViteApp("frontend", "./apps/frontend").withPnpm().withReference(api);
+var dashboard = builder.addViteApp("dashboard", "./apps/dashboard").withPnpm().withReference(api);
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_node_app("api", "./apps/api", "server.js")?;
+api.with_http_endpoint(Some(3001.0), None, None, Some("PORT"), None)?;
+let frontend = builder.add_vite_app("frontend", "./apps/frontend", None)?.with_pnpm(None, None)?;
+frontend.with_reference(api.handle().to_json(), None, None, None)?;
+let dashboard = builder.add_vite_app("dashboard", "./apps/dashboard", None)?.with_pnpm(None, None)?;
+dashboard.with_reference(api.handle().to_json(), None, None, None)?;
+
+let app = builder.build()?;
+app.run(None)?;
+```
+
+</Fragment>
 </AppHostTabs>
 
 <Aside type="note">
@@ -1411,6 +3180,84 @@ const frontend = await builder
   .withReference(api);
 
 // After adding all resources, run the app...
+```
+
+</Fragment>
+
+<Fragment slot="python">
+
+```python title="apphost.py"
+from aspire_app import create_builder
+
+with create_builder() as builder:
+    api = builder.add_node_app("api", "./apps/api", "server.js")
+    api.with_http_endpoint(port=3001, env="PORT")
+    frontend = builder.add_java_script_app("frontend", "./apps/frontend")
+    frontend.with_pnpm().with_run_script("dev").with_reference(api)
+    builder.run()
+```
+
+</Fragment>
+
+<Fragment slot="go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddNodeApp("api", "./apps/api", "server.js").WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(3001), Env: aspire.StringPtr("PORT")})
+if err := api.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+frontend := builder.AddJavaScriptApp("frontend", "./apps/frontend").WithPnpm().WithRunScript("dev").WithReference(api)
+if err := frontend.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+
+distributedApp, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := distributedApp.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</Fragment>
+
+<Fragment slot="java">
+
+```java title="AppHost.java"
+var builder = DistributedApplication.CreateBuilder();
+
+var api = builder.addNodeApp("api", "./apps/api", "server.js")
+    .withHttpEndpoint(new WithHttpEndpointOptions().port(3001).env("PORT"));
+var frontend = builder.addJavaScriptApp("frontend", "./apps/frontend")
+    .withPnpm()
+    .withRunScript("dev")
+    .withReference(api);
+
+builder.build().run();
+```
+
+</Fragment>
+
+<Fragment slot="rust">
+
+```rust title="apphost.rs"
+let builder = create_builder(None)?;
+
+let api = builder.add_node_app("api", "./apps/api", "server.js")?;
+api.with_http_endpoint(Some(3001.0), None, None, Some("PORT"), None)?;
+let frontend = builder.add_java_script_app("frontend", "./apps/frontend", None)?.with_pnpm(None, None)?.with_run_script("dev", None)?;
+frontend.with_reference(api.handle().to_json(), None, None, None)?;
+
+let app = builder.build()?;
+app.run(None)?;
 ```
 
 </Fragment>
