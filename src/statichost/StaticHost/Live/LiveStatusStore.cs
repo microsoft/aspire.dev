@@ -225,11 +225,11 @@ internal static class LiveStatusRedisKeys
 {
     private const string Prefix = "aspiredev:live:";
 
-    public const string State = Prefix + "{state}:v2";
-    public const string UpdatesChannel = Prefix + "updates:v2";
+    public const string State = Prefix + "{state}";
+    public const string UpdatesChannel = Prefix + "updates";
     public const string TwitchMessagePrefix = Prefix + "twitch-message:";
-    public const string YouTubeConfirmation = Prefix + "youtube-confirmation:v1";
-    public const string YouTubeSubscription = Prefix + "{youtube-subscription}:v2";
-    public const string TwitchLeader = Prefix + "twitch-leader:v1";
-    public const string YouTubeLeader = Prefix + "youtube-leader:v1";
+    public const string YouTubeConfirmation = Prefix + "youtube-confirmation";
+    public const string YouTubeSubscription = Prefix + "{youtube-subscription}";
+    public const string TwitchLeader = Prefix + "twitch-leader";
+    public const string YouTubeLeader = Prefix + "youtube-leader";
 }

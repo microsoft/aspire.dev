@@ -30,6 +30,25 @@ public sealed class RedisLiveStatusStoreTests
     }
 
     [Fact]
+    public void RedisKeys_AreStableAndUnversioned()
+    {
+        Assert.Equal("aspiredev:live:{state}", LiveStatusRedisKeys.State);
+        Assert.Equal("aspiredev:live:updates", LiveStatusRedisKeys.UpdatesChannel);
+        Assert.Equal(
+            "aspiredev:live:youtube-confirmation",
+            LiveStatusRedisKeys.YouTubeConfirmation);
+        Assert.Equal(
+            "aspiredev:live:{youtube-subscription}",
+            LiveStatusRedisKeys.YouTubeSubscription);
+        Assert.Equal(
+            "aspiredev:live:twitch-leader",
+            LiveStatusRedisKeys.TwitchLeader);
+        Assert.Equal(
+            "aspiredev:live:youtube-leader",
+            LiveStatusRedisKeys.YouTubeLeader);
+    }
+
+    [Fact]
     public async Task GetAsync_ConditionallyCreatesOneCanonicalEpoch()
     {
         var redis = new TestLiveStatusRedis();
