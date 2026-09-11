@@ -1,6 +1,61 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+test('production Dev Hub scripts, styles, and Pagefind load from static assets', async ({ page, request }) => {
+  const pagefind = await request.get('/pagefind/pagefind.js');
+  test.skip(!process.env.CI && !pagefind.ok(), 'Requires the production static-site artifact.');
+  expect(pagefind.ok()).toBe(true);
+  const errors: string[] = [];
+  const assetTypes = new Set<string>();
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('response', (response) => {
+    const type = response.request().resourceType();
+    if (!['script', 'stylesheet'].includes(type) || new URL(response.url()).origin !== new URL(page.url()).origin) return;
+    assetTypes.add(type);
+    if (!response.ok()) errors.push(`${response.status()}: ${response.url()}`);
+  });
+  page.on('requestfailed', (failed) => {
+    if (['script', 'stylesheet'].includes(failed.resourceType()) && new URL(failed.url()).origin === new URL(page.url()).origin) {
+      errors.push(`${failed.failure()?.errorText}: ${failed.url()}`);
+    }
+  });
+  for (const route of ['/dev/', '/dev/browse/', '/dev/glossary/', '/dev/glossary/apphost/']) {
+    const response = await page.goto(route);
+    expect(response?.status()).toBe(200);
+    expect(await response!.text()).not.toContain('/@vite/client');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    if (route === '/dev/browse/') await expect(page.locator('resource-browser')).toHaveAttribute('data-ready', '');
+    if (route === '/dev/glossary/') await expect(page.getByRole('searchbox', { name: 'Find a term' })).toBeVisible();
+  }
+  await page.goto('/dev/');
+  await page.getByRole('button', { name: 'Search Aspire documentation' }).click();
+  const dialog = page.locator('site-search dialog');
+  await dialog.locator('input.pagefind-ui__search-input').fill('AppHost');
+  await expect(dialog.locator('.pagefind-ui__result-link').first()).toBeVisible();
+  expect(assetTypes.has('script')).toBe(true);
+  expect(assetTypes.has('stylesheet')).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('custom destinations excluded from the Markdown validator exist with their bookmark targets', async ({ page, request }) => {
+  for (const [route, title] of [
+    ['/dev/', 'Dev Hub'],
+    ['/dev/glossary/ats/', 'Aspire Type System'],
+  ]) {
+    const response = await page.goto(route);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(title);
+  }
+  const legacy = await request.get('/get-started/glossary/');
+  expect(legacy.status()).toBe(200);
+  const html = await legacy.text();
+  expect(html).toContain('id="polyglot"');
+  expect(html).toContain('href="/dev/glossary/polyglot/"');
+  await page.goto('/get-started/glossary/#polyglot');
+  await expect(page).toHaveURL(/\/dev\/glossary\/#polyglot$/);
+  await expect(page.locator('#polyglot')).toHaveCount(1);
+});
+
 test('Quickstart uses a static CSS edge texture in both themes and screen sizes', async ({ page }) => {
   await page.goto('/dev/');
   const card = page.locator('.resource-primary .resource-card');
