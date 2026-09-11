@@ -349,6 +349,115 @@ await foundry
 
 `AddProject` creates a default Azure Container Registry for hosted agents only in publish mode (when deploying to Azure). In local run mode, no default registry is created. Use `WithContainerRegistry` when you want to point the project at a specific registry.
 
+## Add a Toolbox
+
+A [Toolbox](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox) is a Foundry data-plane resource that bundles reusable tools behind a single MCP endpoint. Toolboxes don't have an ARM or Bicep representation — Aspire manages them directly through the Foundry data-plane API. Use `AddToolbox` on a Foundry project to declare one:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var foundry = builder.AddFoundry("foundry");
+var project = foundry.AddProject("project");
+var search = builder.AddAzureSearch("search");
+
+var toolbox = project.AddToolbox("field-tools")
+    .WithDescription("Tools for field technicians.")
+    .WithWebSearchTool("web-search", "Search the public web.")
+    .WithMcpTool(
+        "inventory",
+        "https://inventory.example.com/mcp",
+        new FoundryToolboxMcpToolOptions
+        {
+            ServerDescription = "Inventory MCP server.",
+            ApprovalPolicy = new()
+            {
+                Global = FoundryToolboxMcpGlobalApprovalMode.Always
+            }
+        })
+    .WithAISearchTool("knowledge-base", search, "docs");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(toolbox)
+    .WaitFor(toolbox);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import { FoundryToolboxMcpGlobalApprovalMode } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry('foundry');
+const project = await foundry.addProject('project');
+const search = await builder.addAzureSearch('search');
+
+const toolbox = await project.addToolbox('field-tools');
+await toolbox.withDescription('Tools for field technicians.');
+await toolbox.withWebSearchTool({
+  name: 'web-search',
+  description: 'Search the public web.',
+});
+await toolbox.withMcpTool('inventory', 'https://inventory.example.com/mcp', {
+  serverDescription: 'Inventory MCP server.',
+  approvalPolicy: {
+    global: FoundryToolboxMcpGlobalApprovalMode.Always,
+  },
+});
+await toolbox.withAISearchTool('knowledge-base', search, 'docs');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(toolbox);
+await api.waitFor(toolbox);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Parameter details:
+
+| API | Parameter | Description |
+| --- | --- | --- |
+| `AddToolbox(...)` | `name` | The Aspire resource name and the Toolbox name. |
+| `WithDescription(...)` | `description` | A description persisted with each Toolbox version. |
+| `WithWebSearchTool(...)` | `name`, `description` | Adds a web search tool definition to the Toolbox. |
+| `WithMcpTool(...)` | `name`, `endpoint`, `options` | Adds an MCP tool definition. `endpoint` accepts a string URI, an `EndpointReference`, or a `ReferenceExpression` for composed URLs. `options` configures the MCP server label, description, and approval policy. |
+| `WithAISearchTool(...)` | `name`, `search`, `indexName`, `description` | Adds an Azure AI Search tool backed by an `AddAzureSearch` resource and an existing search index. |
+
+<Aside type="caution">
+MCP endpoints must be reachable from the Foundry data plane over HTTPS. Localhost and loopback addresses aren't reachable, so use a development tunnel for local testing. URI credentials, inline headers, and connection-authenticated MCP servers aren't supported.
+</Aside>
+
+<Aside type="note">
+MCP approval policies are discovery metadata only. The Toolbox service doesn't enforce approval when a client calls `tools/call` — the consuming application is responsible for inspecting the returned policy and obtaining approval before invoking a tool.
+</Aside>
+
+Aspire reuses the current default Toolbox version when its configuration matches. Otherwise, it creates and promotes a new immutable version, using a deterministic configuration fingerprint to detect changes. The default consumer endpoint always serves the promoted version; set `Version` on the Toolbox options only when a consumer must pin a specific immutable version.
+
+### Use an existing Toolbox
+
+Use the existing-resource methods to validate a remote Toolbox without resolving modeled tools, creating versions, or changing the default:
+
+| Method | `aspire run` | `aspire deploy` |
+| --- | --- | --- |
+| `RunAsExisting()` | Validate existing | Reconcile managed |
+| `PublishAsExisting()` | Reconcile managed | Validate existing |
+| `AsExisting()` | Validate existing | Validate existing |
+
+```csharp title="AppHost.cs"
+var toolbox = project.AddToolbox("field-tools")
+    .AsExisting();
+```
+
 ## Add a hosted agent to Azure AI Foundry
 
 Use `AsHostedAgent` in C# or `asHostedAgent` in TypeScript to configure an executable or containerized app as a hosted agent in a Foundry project:
