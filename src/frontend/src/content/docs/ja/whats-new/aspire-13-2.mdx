@@ -892,9 +892,9 @@ await builder.build().run();
 この領域の新しい API には、`AddProject`、`AddModelDeployment`、`WithAppInsights`、`WithKeyVault`、`WithContainerRegistry`、`PublishAsHostedAgent`、`AddAndPublishPromptAgent` があります。 `RunAsFoundryLocal` は引き続きローカル モデル開発に使用できますが、親リソースが Foundry Local として構成されている場合、Foundry プロジェクトはサポートされません。
 
 <Aside type="caution">
-これは破壊的な変更です。 `Aspire.Hosting.Azure.AIFoundry` が `Aspire.Hosting.Foundry` 
-に置き換えられました。移行手順における破壊的な変更については [AIFoundry から Foundry への
-移行](#aifoundry-から-foundry-への移行) を
+これは破壊的な変更です。`Aspire.Hosting.Azure.AIFoundry` が `Aspire.Hosting.Foundry`
+に置き換えられました。移行手順における破壊的な変更については [Foundry パッケージと名前空間の
+移行](#foundry-パッケージと名前空間の移行) を
 参照してください。
 </Aside>
 
@@ -1227,22 +1227,29 @@ AppHost に統合されたダッシュボード シナリオは、As​​pire.H
 
 接続プロパティのサフィックスが追加されました。接続プロパティに直接アクセスするコードの更新が必要になる場合があります。
 
-### AIFoundry から Foundry への移行
+### Foundry パッケージと名前空間の移行
 
-`Aspire.Hosting.Azure.AIFoundry` は、より広い `Aspire.Hosting.Foundry` サーフェスに置き換えられました。
+Aspire 13.2 では、Foundry ホスティング サーフェスが `Aspire.Hosting.Foundry` に統一されました。
 
-アップグレードする場合は、次の両方の変更を加えます:
+| 以前の 13.1 名称 | 13.2 の名称 |
+| ---------------- | ----------- |
+| ホスティング パッケージ: `Aspire.Hosting.Azure.AIFoundry` | ホスティング パッケージ: `Aspire.Hosting.Foundry` |
+| リソース型とモデル型の名前空間: `Aspire.Hosting.Azure` | リソース型とモデル型の名前空間: `Aspire.Hosting.Foundry` |
+| `AddAzureAIFoundry(...)` | `AddFoundry(...)` |
+| `AzureAIFoundryResource` | `FoundryResource` |
+| `AzureAIFoundryExtensions` | `FoundryExtensions` |
+| `AzureAIFoundryDeploymentResource` | `FoundryDeploymentResource` |
+| `AIFoundryModel` | `FoundryModel` |
 
-- `Aspire.Hosting.Azure.AIFoundry` パッケージ参照を `Aspire.Hosting.Foundry` に置き換えます。
-- `AddAzureAIFoundry()` から `AddFoundry()` に移行し、`AddDeployment()` または `AddModelDeployment()` を使用してデプロイメントを明示的に追加します。
+移行のヒント: パッケージ参照を更新し、リソース型またはモデル型を直接参照する場合は `using Aspire.Hosting.Foundry;` を追加し、`AddAzureAIFoundry(...)` を `AddFoundry(...)` に変更してください。`using Aspire.Hosting.Azure;` は、コードでその名前空間の他の型を使用しなくなった場合にのみ削除してください。拡張メソッドの名前空間は引き続き `Aspire.Hosting` です。
 
-```xml title="AppHost project file"
+```xml title="XML — AppHost project file"
 <ItemGroup>
   <PackageReference Include="Aspire.Hosting.Foundry" Version="13.2.0" />
 </ItemGroup>
 ```
 
-```csharp title="移行例"
+```csharp title="C# — 移行例"
 // 移行前
 var ai = builder.AddAzureAIFoundry("ai");
 
