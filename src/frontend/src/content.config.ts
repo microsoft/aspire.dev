@@ -3,6 +3,7 @@ import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
 import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { topicIds } from './utils/dev-center/topics';
 
 export const collections = {
   docs: defineCollection({
@@ -49,6 +50,11 @@ export const collections = {
            * build-time generated `/og/<slug>.png`.
            */
           ogImage: z.string().optional(),
+          /** Featured Browse artwork; local assets use ~/assets/, with optional light/dark variants. */
+          resourceImage: z.union([
+            z.string(),
+            z.object({ light: z.string(), dark: z.string() }),
+          ]).optional(),
           /**
            * Opt out of dynamic Open Graph image generation for this page. When
            * `false`, the build skips generating a per-page OG image and the
@@ -80,6 +86,22 @@ export const collections = {
   i18n: defineCollection({
     loader: i18nLoader(),
     schema: i18nSchema(),
+  }),
+  glossary: defineCollection({
+    loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/glossary' }),
+    schema: z.object({
+      title: z.string(),
+      description: z.string(),
+      aliases: z.array(z.string()).default([]),
+      termType: z.string().trim().min(1).optional(),
+      pronunciation: z.string().trim().min(1).optional(),
+      topics: z.array(z.enum(topicIds)).min(1),
+      context: z.string(),
+      related: z.array(z.string()).default([]),
+      resources: z.array(z.object({ title: z.string(), href: z.string() })).default([]),
+      legacyAnchors: z.array(z.string()).default([]),
+      legacyGroup: z.string().optional(),
+    }),
   }),
 
   /**

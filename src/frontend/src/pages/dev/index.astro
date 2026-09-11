@@ -1,0 +1,239 @@
+---
+import DevLayout from '@components/dev-center/DevLayout.astro';
+import '../../styles/link-underline.css';
+import { Icon } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import { Zoom } from 'starlight-image-zoom/components';
+import ThemeImage from '@components/ThemeImage.astro';
+import dashboardLight from '@assets/get-started/javascript-aspire-dashboard-light.png';
+import dashboardDark from '@assets/get-started/javascript-aspire-dashboard-dark.png';
+import traceDetails from '@assets/dashboard/explore/trace-span-details.png';
+import shopLight from '@assets/samples/aspire-shop/aspireshop-frontend-light.png';
+import shopDark from '@assets/samples/aspire-shop/aspireshop-frontend-dark.png';
+import javascriptLight from '@assets/samples/aspire-with-javascript/reactvite-app-light.png';
+import javascriptDark from '@assets/samples/aspire-with-javascript/reactvite-app-dark.png';
+import pythonLight from '@assets/samples/aspire-with-python/aspire-with-python-primary-page-light.png';
+import pythonDark from '@assets/samples/aspire-with-python/aspire-with-python-primary-page-dark.png';
+import goImage from '@assets/samples/golang-api/golang-api.png';
+import volumeLight from '@assets/samples/volume-mount/volume-mount-frontend-login-light.png';
+import volumeDark from '@assets/samples/volume-mount/volume-mount-frontend-login-dark.png';
+import nodeLight from '@assets/samples/aspire-with-node/aspire-with-node-primary-page-light.png';
+import nodeDark from '@assets/samples/aspire-with-node/aspire-with-node-primary-page-dark.png';
+import awsDark from '@assets/icons/aws-icon.png';
+import awsLight from '@assets/icons/aws-light-icon.png';
+import azureIcon from '@assets/icons/azure-icon.png';
+import kubernetesIcon from '@assets/icons/kubernetes.svg';
+import { tagLabel } from '@utils/sample-tags';
+import { devTitle, devDescription, gettingStartedDescription, topicLinks, resources, languages, cloudLinks, featuredSamples, referenceLinks, dashboardLinks, videos, blogHighlights } from '../../data/dev-central';
+
+const sampleImages: Record<string, { light: ImageMetadata; dark: ImageMetadata }> = {
+  'aspire-shop': { light: shopLight, dark: shopDark },
+  'aspire-with-javascript': { light: javascriptLight, dark: javascriptDark },
+  'aspire-with-python': { light: pythonLight, dark: pythonDark },
+  'golang-api': { light: goImage, dark: goImage },
+  'volume-mount': { light: volumeLight, dark: volumeDark },
+  'aspire-with-node': { light: nodeLight, dark: nodeDark },
+};
+const cloudImages = {
+  aws: { light: awsLight, dark: awsDark },
+  azure: { light: azureIcon, dark: azureIcon },
+  kubernetes: { light: kubernetesIcon, dark: kubernetesIcon },
+};
+const blogDateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
+---
+
+<DevLayout title={devTitle} description={devDescription} pageActions={false} pagefind={false}>
+  <div class="dev-home not-content">
+    <div class="dev-discovery">
+      <button class="dev-search" type="button" data-open-site-search aria-haspopup="dialog" disabled>
+        <Icon name="magnifier" size="1.25rem" />
+        <span>Search Aspire documentation</span>
+      </button>
+      <a class="dev-browse-link" href="/dev/browse/" data-underline-trigger><span data-link-underline>Browse all resources</span><Icon name="right-arrow" size="1rem" /></a>
+    </div>
+    <section aria-labelledby="getting-started-heading">
+      <h2 id="getting-started-heading">New to Aspire?</h2>
+      <p class="section-description">{gettingStartedDescription}</p>
+      <ul class="resource-links">
+        {resources.map((resource) => (
+          <li class:list={{ 'resource-primary': resource.title === 'Quickstart' }} style={`--card-color: ${resource.color}`}>
+            <a href={resource.href} class="resource-card" data-underline-trigger>
+              <span class="resource-icon"><Icon name={resource.icon} size="1.35rem" /></span>
+              <div class="resource-copy">
+                <h3>{resource.title === 'Quickstart' ? resource.title : <><span data-link-underline>{resource.title}</span><Icon name="right-arrow" size="1rem" /></>}</h3>
+                <p>{resource.description}</p>
+              </div>
+              {resource.title === 'Quickstart' && <span class="resource-action"><span data-link-underline>Start building</span><Icon name="right-arrow" size="1rem" /></span>}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <nav class="topic-links" aria-labelledby="topics-heading">
+      <h2 id="topics-heading">Browse by topic</h2>
+      <ul>
+        {topicLinks.map((topic) => (
+          <li style={`--card-color: ${topic.color}`}>
+            <a href={topic.href} data-underline-trigger>
+              <span class="topic-icon"><Icon name={topic.icon} size="1.5rem" /></span>
+              <h3>{topic.title}</h3>
+              <p>{topic.description}</p>
+              <span class="topic-action"><span data-link-underline>{topic.action}</span><Icon name="right-arrow" size="1.1rem" /></span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+    <section aria-labelledby="languages-heading">
+      <h2 id="languages-heading">Start with your language</h2>
+      <ul class="language-links">
+        {languages.map((language) => (
+          <li style={`--card-color: ${language.color}`}>
+            <a href={language.href} data-underline-trigger>
+              <Icon name={language.icon} size="1.8rem" />
+              <div><h3><span data-link-underline>{language.title}</span></h3><p>{language.description}</p></div>
+              <Icon name="right-arrow" size="1rem" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section id="clouds" aria-labelledby="clouds-heading">
+      <h2 id="clouds-heading">Browse by cloud</h2>
+      <p class="section-description">Explore AWS and Azure integrations, or deploy to Kubernetes.</p>
+      <ul class="cloud-links">
+        {cloudLinks.map((cloud) => (
+          <li style={`--card-color: ${cloud.color}`}>
+            <a href={cloud.href} data-underline-trigger>
+              <ThemeImage {...cloudImages[cloud.id]} width={48} height={48} alt="" zoomable={false} />
+              <div><h3><span data-link-underline>{cloud.title}</span></h3><p>{cloud.description}</p></div>
+              <Icon name={cloud.href.startsWith('https://') ? 'external' : 'right-arrow'} size="1rem" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section aria-labelledby="samples-heading">
+      <div class="section-heading">
+        <h2 id="samples-heading">Samples to build on</h2>
+        <a class="channel-link" href="/reference/samples/" data-underline-trigger><span data-link-underline>All samples</span><Icon name="right-arrow" size="1rem" /></a>
+      </div>
+      <ul class="featured-samples">
+        {featuredSamples.map((sample) => (
+          <li>
+            <a href={sample.href} data-underline-trigger>
+              <div class="sample-preview">
+                <ThemeImage
+                  {...sampleImages[sample.name]}
+                  width={520}
+                  height={Math.round(520 * sampleImages[sample.name].dark.height / sampleImages[sample.name].dark.width)}
+                  alt={`Screenshot of the ${sample.title} sample`}
+                  zoomable={false}
+                />
+              </div>
+              <div class="sample-copy">
+                <h3><span data-link-underline>{sample.title}</span><Icon name="right-arrow" size="1rem" /></h3>
+                <p>{sample.description}</p>
+                <div class="sample-tags">{sample.tags.slice(0, 4).map((tag) => <span>{tagLabel(tag)}</span>)}</div>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section id="reference" aria-labelledby="reference-heading" class="reference-section">
+      <div class="section-heading">
+        <h2 id="reference-heading">Find an API or command</h2>
+        <a class="channel-link" href="/reference/overview/" data-underline-trigger><span data-link-underline>All reference docs</span><Icon name="right-arrow" size="1rem" /></a>
+      </div>
+      <ul class="reference-links">
+        {referenceLinks.map((link) => (
+          <li>
+            <a href={link.href} data-underline-trigger>
+              <span class="reference-icon"><Icon name={link.icon} size="1.5rem" /></span>
+              <div><h3><span data-link-underline>{link.title}</span></h3><p>{link.description}</p></div>
+              <Icon name="right-arrow" size="1rem" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section id="dashboard" aria-label="Dashboard">
+      <div class="section-heading">
+        <h2 id="dashboard-heading">Explore the dashboard</h2>
+        <a class="channel-link" href="/dashboard/" data-underline-trigger><span data-link-underline>Dashboard docs</span><Icon name="right-arrow" size="1rem" /></a>
+      </div>
+      <p class="section-description">Follow your app from a running resource to the logs, traces, and metrics that explain its behavior.</p>
+      <div class="dashboard-previews">
+        <figure>
+          <div class="dashboard-preview">
+            <ThemeImage
+              light={dashboardLight}
+              dark={dashboardDark}
+              alt="Aspire dashboard showing a JavaScript app and frontend, their running state, and local endpoints."
+            />
+          </div>
+          <figcaption>
+            <a href={dashboardLinks[0].href} data-underline-trigger><span data-link-underline>{dashboardLinks[0].title}</span><Icon name="right-arrow" size="1rem" /></a>
+            <p>Check running services, health, and endpoints.</p>
+          </figcaption>
+        </figure>
+        <figure>
+          <div class="dashboard-preview">
+            <Zoom label="Enlarge the distributed trace screenshot">
+              <Image src={traceDetails} width={1000} loading="lazy" alt="Aspire dashboard trace details showing a request waterfall across the frontend and API, with span attributes." />
+            </Zoom>
+          </div>
+          <figcaption>
+            <a href={dashboardLinks[1].href} data-underline-trigger><span data-link-underline>{dashboardLinks[1].title}</span><Icon name="right-arrow" size="1rem" /></a>
+            <p>Follow a request across services and inspect its spans.</p>
+          </figcaption>
+        </figure>
+      </div>
+      <ul class="dashboard-links">
+        {dashboardLinks.slice(2).map((link) => <li><a href={link.href}><span>{link.title}</span><Icon name="right-arrow" size="1rem" /></a></li>)}
+      </ul>
+    </section>
+    <section aria-labelledby="videos-heading">
+      <div class="section-heading">
+        <h2 id="videos-heading">Latest from Aspire on YouTube</h2>
+        <a class="channel-link" href="/community/videos/" data-underline-trigger><span data-link-underline>All videos</span><Icon name="right-arrow" size="1rem" /></a>
+      </div>
+      <ul class="video-links">
+        {videos.map((video) => (
+          <li>
+            <a href={`https://www.youtube.com/watch?v=${video.id}`} data-underline-trigger>
+              <div class="video-thumbnail">
+                <img src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`} width="480" height="360" loading="lazy" alt="" />
+              </div>
+              <div class="video-caption">
+                <p>{video.series}</p>
+                <h3><span data-link-underline>{video.title}</span><Icon name="external" size="1rem" /></h3>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section id="blog" aria-labelledby="blog-heading">
+      <div class="section-heading">
+        <h2 id="blog-heading">From the blog</h2>
+        <a class="channel-link" href="https://devblogs.microsoft.com/aspire/" data-underline-trigger><span data-link-underline>All blog posts</span><Icon name="external" size="1rem" /></a>
+      </div>
+      <ul class="blog-links">
+        {blogHighlights.map((post) => (
+          <li>
+            <a href={post.href} data-underline-trigger>
+              <img src={post.image} width="768" height="432" loading="lazy" alt="" />
+              <div class="blog-copy">
+                <time datetime={post.date}>{blogDateFormat.format(new Date(post.date))}</time>
+                <h3><span data-link-underline>{post.title}</span><Icon name="external" size="1rem" /></h3>
+                <p>{post.description}</p>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  </div>
+</DevLayout>

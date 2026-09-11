@@ -4,6 +4,8 @@
 
 export const TAG_LABELS: Record<string, string> = {
   'csharp': 'C#',
+  'fsharp': 'F#',
+  'cpp': 'C++',
   'python': 'Python',
   'javascript': 'JavaScript',
   'typescript': 'TypeScript',
