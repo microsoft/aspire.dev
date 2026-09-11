@@ -25,7 +25,9 @@ public sealed class YouTubeWebSubServiceTests
                 },
             }),
             NullLogger<YouTubeWebSubService>.Instance,
-            new FakeTimeProvider(DateTimeOffset.UnixEpoch));
+            new FakeTimeProvider(DateTimeOffset.UnixEpoch),
+            new YouTubeWebSubSubscriptionState(),
+            new SingleInstanceLiveStatusCoordination());
 
         await service.TickAsync(CancellationToken.None);
 
@@ -61,7 +63,9 @@ public sealed class YouTubeWebSubServiceTests
                 },
             }),
             NullLogger<YouTubeWebSubService>.Instance,
-            time);
+            time,
+            new YouTubeWebSubSubscriptionState(),
+            new SingleInstanceLiveStatusCoordination());
 
         await service.TickAsync(CancellationToken.None);
         time.Advance(TimeSpan.FromMinutes(30));
@@ -92,7 +96,9 @@ public sealed class YouTubeWebSubServiceTests
                 },
             }),
             NullLogger<YouTubeWebSubService>.Instance,
-            new FakeTimeProvider(DateTimeOffset.UnixEpoch));
+            new FakeTimeProvider(DateTimeOffset.UnixEpoch),
+            new YouTubeWebSubSubscriptionState(),
+            new SingleInstanceLiveStatusCoordination());
 
         await service.TickAsync(CancellationToken.None);
 
@@ -125,7 +131,9 @@ public sealed class YouTubeWebSubServiceTests
                 },
             }),
             NullLogger<YouTubeWebSubService>.Instance,
-            new FakeTimeProvider(DateTimeOffset.UnixEpoch));
+            new FakeTimeProvider(DateTimeOffset.UnixEpoch),
+            new YouTubeWebSubSubscriptionState(),
+            new SingleInstanceLiveStatusCoordination());
 
         await service.TickAsync(CancellationToken.None);
 
@@ -153,7 +161,9 @@ public sealed class YouTubeWebSubServiceTests
                 },
             }),
             NullLogger<YouTubeWebSubService>.Instance,
-            new FakeTimeProvider(DateTimeOffset.UnixEpoch));
+            new FakeTimeProvider(DateTimeOffset.UnixEpoch),
+            new YouTubeWebSubSubscriptionState(),
+            new SingleInstanceLiveStatusCoordination());
 
         await Assert.ThrowsAsync<HttpRequestException>(() => service.TickAsync(CancellationToken.None));
         await service.TickAsync(CancellationToken.None);
@@ -183,7 +193,9 @@ public sealed class YouTubeWebSubServiceTests
                 },
             }),
             NullLogger<YouTubeWebSubService>.Instance,
-            new FakeTimeProvider(DateTimeOffset.UnixEpoch));
+            new FakeTimeProvider(DateTimeOffset.UnixEpoch),
+            new YouTubeWebSubSubscriptionState(),
+            new SingleInstanceLiveStatusCoordination());
 
         await service.TickAsync(CancellationToken.None);
         broadcaster.Update(new LiveStatusUpdate { YouTube = new YouTubeStatus(true, "video-new") });

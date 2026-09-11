@@ -2,11 +2,17 @@ namespace StaticHost.Tests.Live;
 
 internal static class LiveTestHelpers
 {
-    public static LiveStatusBroadcaster CreateBroadcaster(int coalesceMs = 0, TimeProvider? timeProvider = null) =>
-        new(
+    public static LiveStatusBroadcaster CreateBroadcaster(
+        int coalesceMs = 0,
+        TimeProvider? timeProvider = null)
+    {
+        var clock = timeProvider ?? TimeProvider.System;
+        return new LiveStatusBroadcaster(
             Options.Create(new LiveStatusOptions { CoalesceWindowMs = coalesceMs }),
             NullLogger<LiveStatusBroadcaster>.Instance,
-            timeProvider);
+            clock,
+            new InMemoryLiveStatusStore(clock));
+    }
 
     public static HttpResponseMessage JsonResponse(string json, HttpStatusCode statusCode = HttpStatusCode.OK) =>
         new(statusCode)

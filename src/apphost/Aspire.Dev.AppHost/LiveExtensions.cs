@@ -9,7 +9,7 @@ internal static class LiveExtensions
     public static IResourceBuilder<ProjectResource> WithProductionLiveStatus(
         this IResourceBuilder<ProjectResource> staticHostWebsite,
         IDistributedApplicationBuilder builder,
-        IResourceBuilder<AzureKeyVaultResource> siteSecrets)
+        IResourceBuilder<AzureKeyVaultResource> secrets)
     {
         var publicBaseUrl = builder.AddParameter(
             "live-public-base-url",
@@ -50,8 +50,8 @@ internal static class LiveExtensions
             publishValueAsDefault: true);
 
         return staticHostWebsite
-            .WithRoleAssignments(siteSecrets, KeyVaultBuiltInRole.KeyVaultSecretsUser)
-            .WithReference(siteSecrets)
+            .WithRoleAssignments(secrets, KeyVaultBuiltInRole.KeyVaultSecretsUser)
+            .WithReference(secrets)
             .WithEnvironment("Live__PublicBaseUrl", publicBaseUrl)
             .WithEnvironment("Live__CoalesceWindowMs", coalesceWindow)
             .WithEnvironment("Live__Twitch__ClientId", twitchClientId)

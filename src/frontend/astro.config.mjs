@@ -88,7 +88,6 @@ export default defineConfig({
         head: headAttrs,
         social: socialConfig,
         customCss: [
-          '@fontsource-variable/outfit',
           'starlight-plugin-icons/styles/main.css',
           './src/styles/site.css',
         ],

@@ -6,7 +6,11 @@ public sealed class LiveStatusBroadcasterTests
     {
         var time = new FakeTimeProvider(startDateTime: DateTimeOffset.UnixEpoch);
         var opts = Options.Create(new LiveStatusOptions { CoalesceWindowMs = coalesceMs });
-        var b = new LiveStatusBroadcaster(opts, NullLogger<LiveStatusBroadcaster>.Instance, time);
+        var b = new LiveStatusBroadcaster(
+            opts,
+            NullLogger<LiveStatusBroadcaster>.Instance,
+            time,
+            new InMemoryLiveStatusStore(time));
         return (b, time);
     }
 

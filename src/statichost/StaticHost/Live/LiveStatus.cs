@@ -60,6 +60,7 @@ public sealed record YouTubeStatus(bool Live, string? VideoId);
 [JsonSerializable(typeof(TwitchStatus))]
 [JsonSerializable(typeof(YouTubeStatus))]
 [JsonSerializable(typeof(YouTube.YouTubeWebSubSubscriptionData))]
+[JsonSerializable(typeof(YouTube.YouTubeWebSubSubscriptionStateRecord))]
 [JsonSerializable(typeof(YouTube.YouTubeWebSubSubscriptionRequest))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

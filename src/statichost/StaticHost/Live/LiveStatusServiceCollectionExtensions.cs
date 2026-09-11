@@ -29,9 +29,8 @@ public static class LiveStatusServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        builder.AddRedisClientBuilder("livecache")
-            .WithAzureAuthentication()
-            .WithDistributedCache();
+        builder.AddRedisClientBuilder("cache")
+            .WithAzureAuthentication();
 
         builder.Services
             .AddOptions<LiveStatusOptions>()
@@ -39,7 +38,7 @@ public static class LiveStatusServiceCollectionExtensions
             .ValidateDataAnnotations();
 
         builder.Services.AddSingleton(TimeProvider.System);
-        builder.Services.AddSingleton<RedisDistributedLock>();
+        builder.Services.AddSingleton<ILiveStatusRedis, LiveStatusRedis>();
         builder.Services.AddSingleton<ILiveStatusStore, RedisLiveStatusStore>();
         builder.Services.AddSingleton<ILiveStatusCoordination, RedisLiveStatusCoordination>();
         builder.Services.AddSingleton<LiveStatusBroadcaster>();

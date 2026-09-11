@@ -18,15 +18,13 @@ public sealed class YouTubeWebSubService(
     LiveStatusBroadcaster broadcaster,
     IOptionsMonitor<LiveStatusOptions> options,
     ILogger<YouTubeWebSubService> logger,
-    TimeProvider? timeProvider = null,
-    IYouTubeWebSubSubscriptionState? subscriptionState = null,
-    ILiveStatusCoordination? coordination = null) : BackgroundService
+    TimeProvider timeProvider,
+    IYouTubeWebSubSubscriptionState subscriptionState,
+    ILiveStatusCoordination coordination) : BackgroundService
 {
-    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
-    private readonly IYouTubeWebSubSubscriptionState _subscriptions =
-        subscriptionState ?? new YouTubeWebSubSubscriptionState();
-    private readonly ILiveStatusCoordination _coordination =
-        coordination ?? new SingleInstanceLiveStatusCoordination();
+    private readonly TimeProvider _time = timeProvider;
+    private readonly IYouTubeWebSubSubscriptionState _subscriptions = subscriptionState;
+    private readonly ILiveStatusCoordination _coordination = coordination;
 
     private DateTimeOffset _nextDiscoveryPollAt = DateTimeOffset.MinValue;
     private int _consecutiveOfflinePolls;

@@ -13,8 +13,8 @@ can watch immediately.
  Browser requests -+            |
                                 v
                          Azure Managed Redis
-                    canonical state, locks, leases,
-                         replay keys, and pub/sub
+                   canonical state, optimistic CAS,
+                    leases, replay keys, and pub/sub
                                 |
                                 v
                     per-worker SSE fan-out + coalescing
@@ -72,7 +72,7 @@ The SSE endpoint reports offline unless a local simulation sets live state.
 ### Production configuration and secrets
 
 In publish mode, the AppHost passes non-sensitive settings as ordinary
-deployment parameters. It provisions an empty, shared `siteconfig` Azure Key
+deployment parameters. It provisions an empty, shared `secrets` Azure Key
 Vault for credentials and signing secrets, plus an Azure Managed Redis
 instance for live state and coordination.
 
@@ -115,16 +115,16 @@ names exactly.
 
 The production deployment creates one horizontally scalable `aspiredev` App
 Service website. Aspire provisions Azure Managed Redis with Microsoft Entra
-authentication and access keys disabled. `WithReference(livecache)` grants the
+authentication and access keys disabled. `WithReference(cache)` grants the
 website's managed identity the Redis data access it needs; no Redis password is
 stored in Key Vault.
 
 Redis stores only live-status and coordination data:
 
 - The complete versioned Twitch and YouTube snapshot.
-- Provider leadership leases and state-update locks.
+- Provider leadership leases.
 - Twitch replay-detection keys with an 11-minute expiry.
-- The pending and active YouTube WebSub subscription state.
+- The versioned pending and active YouTube WebSub subscription state.
 - A short-lived YouTube confirmation coalescing key.
 
 API keys, OAuth client secrets, and webhook signing secrets remain in Key
@@ -154,8 +154,9 @@ testing, and the production host never enables the dev endpoint.
 | POST   | `/api/live/_dev/set`            | **Dev-only** override for local dashboard commands/Playwright fallback. |
 
 In Development the API is browseable via Scalar at `/scalar/v1`. The
-custom theme lives in `wwwroot/scalar/aspire-theme.css` and matches the
-Aspire brand kit (purple `#7455dd`, light `#dcd5f6`, dark `#1f1e33`).
+Scalar-specific mappings live in `wwwroot/scalar/aspire-theme.css`; both
+Scalar and the frontend consume the colors and Poppins font stack from
+`src/frontend/src/styles/aspire-brand.css`.
 
 ## Mesh logic — when both fire
 
@@ -163,9 +164,13 @@ YouTube and Twitch usually fire near-simultaneously when a single "going
 live" announcement happens. A Redis-backed state store:
 
 - Aggregates: `isLive = twitch.live || youtube.live`.
-- Serializes updates under a short distributed lock and fences the Redis write
-  against lock ownership, so simultaneous or delayed callbacks cannot
-  overwrite newer state.
+- Stores application-owned JSON strings directly in Redis rather than relying
+  on the `IDistributedCache` storage format.
+- Applies each record change with a byte-exact Lua compare-and-set. A
+  contending writer re-applies its provider-specific update to the winning
+  state, with eight bounded attempts and capped exponential jitter between
+  conflicts, so simultaneous callbacks merge without a lease expiring
+  underneath either writer.
 - Scopes each monotonic version sequence to a random state epoch. Workers use
   the epoch and version, rather than clocks that may differ between App Service
   instances, to ignore duplicate or out-of-order pub/sub messages and recover
@@ -174,6 +179,12 @@ live" announcement happens. A Redis-backed state store:
   goes offline. Prevents the UI from flapping when the second platform's
   webhook arrives a few seconds late.
 - Publishes the complete versioned snapshot through Redis pub/sub.
+
+Only a successful compare-and-set publishes an update. If all attempts
+conflict, provider callbacks return `503` so Twitch or the WebSub hub retries;
+leadership and webhook replay reservations continue to use renewable or
+expiring Redis leases because those are coordination operations rather than
+short record updates.
 
 Each worker's local broadcaster:
 

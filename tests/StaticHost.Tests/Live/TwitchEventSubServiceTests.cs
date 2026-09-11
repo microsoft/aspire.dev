@@ -40,7 +40,9 @@ public sealed class TwitchEventSubServiceTests
                     ChannelLogin = "aspiredotdev",
                 },
             }),
-            NullLogger<TwitchEventSubService>.Instance);
+            NullLogger<TwitchEventSubService>.Instance,
+            TimeProvider.System,
+            new SingleInstanceLiveStatusCoordination());
 
         await service.ReconcileAsync(CancellationToken.None);
 
@@ -76,7 +78,9 @@ public sealed class TwitchEventSubServiceTests
                     ChannelLogin = "aspiredotdev",
                 },
             }),
-            NullLogger<TwitchEventSubService>.Instance);
+            NullLogger<TwitchEventSubService>.Instance,
+            TimeProvider.System,
+            new SingleInstanceLiveStatusCoordination());
 
         await service.ReconcileAsync(CancellationToken.None);
         await service.ReconcileAsync(CancellationToken.None);
@@ -107,7 +111,9 @@ public sealed class TwitchEventSubServiceTests
                     ChannelLogin = "aspiredotdev",
                 },
             }),
-            NullLogger<TwitchEventSubService>.Instance);
+            NullLogger<TwitchEventSubService>.Instance,
+            TimeProvider.System,
+            new SingleInstanceLiveStatusCoordination());
 
         await service.ReconcileAsync(CancellationToken.None);
 
@@ -154,7 +160,9 @@ public sealed class TwitchEventSubServiceTests
                     ChannelLogin = "aspiredotdev",
                 },
             }),
-            NullLogger<TwitchEventSubService>.Instance);
+            NullLogger<TwitchEventSubService>.Instance,
+            TimeProvider.System,
+            new SingleInstanceLiveStatusCoordination());
 
         await service.ReconcileAsync(CancellationToken.None);
 

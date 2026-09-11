@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Microsoft.Extensions.Caching.Distributed;
 using StackExchange.Redis;
 
 namespace StaticHost.Live;
@@ -14,120 +13,143 @@ public interface ILiveStatusStore
         CancellationToken cancellationToken = default);
 }
 
-internal sealed class InMemoryLiveStatusStore : ILiveStatusStore
-{
-    private readonly Lock _lock = new();
-    private readonly TimeProvider _timeProvider;
-    private LiveStatusState _state = LiveStatusState.CreateInitial();
-
-    public InMemoryLiveStatusStore(TimeProvider? timeProvider = null) =>
-        _timeProvider = timeProvider ?? TimeProvider.System;
-
-    public ValueTask<LiveStatusState> GetAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (_lock)
-        {
-            return ValueTask.FromResult(_state);
-        }
-    }
-
-    public ValueTask<LiveStatusState> UpdateAsync(
-        LiveStatusUpdate update,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (_lock)
-        {
-            var next = LiveStatusReducer.Apply(_state.Snapshot, update, _timeProvider.GetUtcNow());
-            if (next == _state.Snapshot)
-            {
-                return ValueTask.FromResult(_state);
-            }
-
-            _state = new LiveStatusState(_state.Epoch, _state.Version + 1, next);
-            return ValueTask.FromResult(_state);
-        }
-    }
-}
-
 internal sealed class RedisLiveStatusStore(
-    IDistributedCache cache,
-    IConnectionMultiplexer connectionMultiplexer,
-    RedisDistributedLock distributedLock,
+    ILiveStatusRedis redis,
     TimeProvider timeProvider,
     ILogger<RedisLiveStatusStore> logger) : ILiveStatusStore
 {
     public async ValueTask<LiveStatusState> GetAsync(CancellationToken cancellationToken = default)
     {
-        var payload = await cache.GetAsync(
+        var payload = await redis.GetAsync(
             LiveStatusRedisKeys.State,
             cancellationToken).ConfigureAwait(false);
 
-        return payload is null
-            ? LiveStatusState.CreateInitial()
-            : JsonSerializer.Deserialize(payload, LiveStatusJsonContext.Default.LiveStatusState)
-                ?? throw new InvalidOperationException("The distributed live-status state was empty.");
+        if (!payload.IsNull)
+        {
+            return Deserialize(payload);
+        }
+
+        var initial = LiveStatusState.CreateInitial();
+        var initialPayload = Serialize(initial);
+        var exchange = await redis.CompareExchangeAsync(
+            LiveStatusRedisKeys.State,
+            RedisValue.Null,
+            initialPayload,
+            cancellationToken).ConfigureAwait(false);
+
+        if (exchange.Succeeded)
+        {
+            return initial;
+        }
+
+        logger.LogDebug(
+            "Another worker initialized the canonical live status first.");
+        return Deserialize(exchange.Current);
     }
 
     public async ValueTask<LiveStatusState> UpdateAsync(
         LiveStatusUpdate update,
         CancellationToken cancellationToken = default)
     {
-        var result = await distributedLock.ExecuteAsync(
-            LiveStatusRedisKeys.StateLock,
-            async (lockLease, lockCancellationToken) =>
-            {
-                var current = await GetAsync(lockCancellationToken).ConfigureAwait(false);
-                var snapshot = LiveStatusReducer.Apply(
-                    current.Snapshot,
-                    update,
-                    timeProvider.GetUtcNow());
-
-                if (snapshot == current.Snapshot)
-                {
-                    return new PersistedUpdate(current, Payload: null);
-                }
-
-                var next = new LiveStatusState(
-                    current.Epoch,
-                    current.Version + 1,
-                    snapshot);
-                var payload = JsonSerializer.SerializeToUtf8Bytes(
-                    next,
-                    LiveStatusJsonContext.Default.LiveStatusState);
-
-                await lockLease.SetCacheValueAsync(
-                    LiveStatusRedisKeys.State,
-                    payload).ConfigureAwait(false);
-
-                return new PersistedUpdate(next, payload);
-            },
+        var payload = await redis.GetAsync(
+            LiveStatusRedisKeys.State,
             cancellationToken).ConfigureAwait(false);
 
-        if (result.Payload is not null)
+        for (var attempt = 1; attempt <= RedisOptimisticConcurrency.MaxAttempts; attempt++)
         {
-            try
+            var current = payload.IsNull
+                ? LiveStatusState.CreateInitial()
+                : Deserialize(payload);
+            var snapshot = LiveStatusReducer.Apply(
+                current.Snapshot,
+                update,
+                timeProvider.GetUtcNow());
+            var changed = snapshot != current.Snapshot;
+
+            if (!changed && !payload.IsNull)
             {
-                await connectionMultiplexer.GetSubscriber().PublishAsync(
-                    RedisChannel.Literal(LiveStatusRedisKeys.UpdatesChannel),
-                    result.Payload).ConfigureAwait(false);
+                return current;
             }
-            catch (RedisException exception)
+
+            var next = changed
+                ? new LiveStatusState(
+                    current.Epoch,
+                    current.Version + 1,
+                    snapshot)
+                : current;
+            var nextPayload = Serialize(next);
+            var exchange = await redis.CompareExchangeAsync(
+                LiveStatusRedisKeys.State,
+                payload,
+                nextPayload,
+                cancellationToken).ConfigureAwait(false);
+
+            if (exchange.Succeeded)
             {
-                logger.LogWarning(
-                    exception,
-                    "Persisted live status version {Version}, but could not publish its update.",
-                    result.State.Version);
+                if (changed)
+                {
+                    try
+                    {
+                        await redis.PublishAsync(
+                            RedisChannel.Literal(LiveStatusRedisKeys.UpdatesChannel),
+                            nextPayload).ConfigureAwait(false);
+                    }
+                    catch (RedisException exception)
+                    {
+                        logger.LogWarning(
+                            exception,
+                            "Persisted live status version {Version}, but could not publish its update.",
+                            next.Version);
+                    }
+                }
+
+                return next;
+            }
+
+            LogContention(attempt);
+            payload = exchange.Current;
+            if (attempt < RedisOptimisticConcurrency.MaxAttempts)
+            {
+                await RedisOptimisticConcurrency.DelayAsync(
+                    attempt,
+                    timeProvider,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
-        return result.State;
+        throw CreateConcurrencyException();
     }
 
-    private readonly record struct PersistedUpdate(LiveStatusState State, byte[]? Payload);
+    private static LiveStatusState Deserialize(RedisValue payload)
+    {
+        byte[]? bytes = payload;
+        return bytes is null
+            ? throw new InvalidOperationException("The distributed live-status state was empty.")
+            : JsonSerializer.Deserialize(bytes, LiveStatusJsonContext.Default.LiveStatusState)
+                ?? throw new InvalidOperationException("The distributed live-status state was empty.");
+    }
+
+    private static byte[] Serialize(LiveStatusState state) =>
+        JsonSerializer.SerializeToUtf8Bytes(
+            state,
+            LiveStatusJsonContext.Default.LiveStatusState);
+
+    private void LogContention(int attempt)
+    {
+        logger.LogDebug(
+            "Live status compare-and-set conflicted on attempt {Attempt} of {MaxAttempts}.",
+            attempt,
+            RedisOptimisticConcurrency.MaxAttempts);
+    }
+
+    private LiveStatusConcurrencyException CreateConcurrencyException()
+    {
+        logger.LogWarning(
+            "Live status compare-and-set did not succeed after {MaxAttempts} attempts.",
+            RedisOptimisticConcurrency.MaxAttempts);
+        return new LiveStatusConcurrencyException(
+            $"Could not update live status after {RedisOptimisticConcurrency.MaxAttempts} compare-and-set attempts.");
+    }
 }
 
 internal static class LiveStatusReducer
@@ -203,13 +225,11 @@ internal static class LiveStatusRedisKeys
 {
     private const string Prefix = "aspiredev:live:";
 
-    public const string State = Prefix + "{state}:v1";
-    public const string StateLock = Prefix + "{state}:lock:v1";
-    public const string UpdatesChannel = Prefix + "updates:v1";
+    public const string State = Prefix + "{state}:v2";
+    public const string UpdatesChannel = Prefix + "updates:v2";
     public const string TwitchMessagePrefix = Prefix + "twitch-message:";
     public const string YouTubeConfirmation = Prefix + "youtube-confirmation:v1";
-    public const string YouTubeSubscription = Prefix + "{youtube-subscription}:v1";
-    public const string YouTubeSubscriptionLock = Prefix + "{youtube-subscription}:lock:v1";
+    public const string YouTubeSubscription = Prefix + "{youtube-subscription}:v2";
     public const string TwitchLeader = Prefix + "twitch-leader:v1";
     public const string YouTubeLeader = Prefix + "youtube-leader:v1";
 }

@@ -34,94 +34,6 @@ public interface IYouTubeWebSubSubscriptionState
     ValueTask<DateTimeOffset> GetRenewAtAsync(CancellationToken cancellationToken = default);
 }
 
-/// <summary>Single-process subscription state used by focused unit tests.</summary>
-public sealed class YouTubeWebSubSubscriptionState : IYouTubeWebSubSubscriptionState
-{
-    private readonly Lock _gate = new();
-    private YouTubeWebSubSubscriptionData _state = YouTubeWebSubSubscriptionData.Empty;
-
-    public ValueTask<YouTubeWebSubSubscriptionRequest?> TryBeginSubscriptionAsync(
-        string channelId,
-        DateTimeOffset now,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (_gate)
-        {
-            var request = YouTubeWebSubSubscriptionTransitions.TryBegin(_state, channelId, now, out _state);
-            return ValueTask.FromResult(request);
-        }
-    }
-
-    public ValueTask MarkRequestFailedAsync(
-        YouTubeWebSubSubscriptionRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (_gate)
-        {
-            _state = YouTubeWebSubSubscriptionTransitions.MarkRequestFailed(_state, request);
-        }
-
-        return ValueTask.CompletedTask;
-    }
-
-    public ValueTask MarkRequestSentAsync(
-        YouTubeWebSubSubscriptionRequest request,
-        DateTimeOffset sentAt,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (_gate)
-        {
-            _state = YouTubeWebSubSubscriptionTransitions.MarkRequestSent(
-                _state,
-                request,
-                sentAt);
-        }
-
-        return ValueTask.CompletedTask;
-    }
-
-    public ValueTask<bool> TryConfirmSubscriptionAsync(
-        string mode,
-        string topic,
-        string verifyToken,
-        int leaseSeconds,
-        DateTimeOffset now,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (_gate)
-        {
-            var confirmed = YouTubeWebSubSubscriptionTransitions.TryConfirm(
-                _state,
-                mode,
-                topic,
-                verifyToken,
-                leaseSeconds,
-                now,
-                out _state);
-
-            return ValueTask.FromResult(confirmed);
-        }
-    }
-
-    public ValueTask<DateTimeOffset> GetRenewAtAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (_gate)
-        {
-            return ValueTask.FromResult(_state.RenewAt);
-        }
-    }
-}
-
 public sealed record YouTubeWebSubSubscriptionRequest(
     string Topic,
     string VerifyToken,
@@ -137,6 +49,14 @@ internal sealed record YouTubeWebSubSubscriptionData(
         Pending: null,
         ActiveTopic: null,
         RenewAt: DateTimeOffset.MinValue);
+}
+
+internal sealed record YouTubeWebSubSubscriptionStateRecord(
+    long Version,
+    YouTubeWebSubSubscriptionData Data)
+{
+    public static YouTubeWebSubSubscriptionStateRecord Empty { get; } =
+        new(0, YouTubeWebSubSubscriptionData.Empty);
 }
 
 internal static class YouTubeWebSubSubscriptionTransitions

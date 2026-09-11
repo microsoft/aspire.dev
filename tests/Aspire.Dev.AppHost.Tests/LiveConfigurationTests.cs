@@ -13,24 +13,24 @@ public sealed class LiveConfigurationTests
             Args = ["--publisher", "manifest"],
             DisableDashboard = true,
         });
-        var siteSecrets = builder.AddAzureKeyVault("siteconfig");
-        var cache = builder.AddAzureManagedRedis("livecache")
+        var secrets = builder.AddAzureKeyVault("secrets");
+        var cache = builder.AddAzureManagedRedis("cache")
             .RunAsContainer();
         var website = builder.AddProject<Projects.StaticHost>("aspiredev")
             .WithReference(cache)
             .WithExternalHttpEndpoints()
-            .WithProductionLiveStatus(builder, siteSecrets);
+            .WithProductionLiveStatus(builder, secrets);
         await using var app = builder.Build();
 
         var redis = Assert.Single(builder.Resources.OfType<AzureManagedRedisResource>());
         Assert.Same(cache.Resource, redis);
-        Assert.Equal("livecache", redis.Name);
+        Assert.Equal("cache", redis.Name);
         Assert.False(redis.UseAccessKeyAuthentication);
         Assert.Single(builder.Resources.OfType<ProjectResource>());
 
         var vault = Assert.Single(builder.Resources.OfType<AzureKeyVaultResource>());
-        Assert.Same(siteSecrets.Resource, vault);
-        Assert.Equal("siteconfig", vault.Name);
+        Assert.Same(secrets.Resource, vault);
+        Assert.Equal("secrets", vault.Name);
         Assert.Empty(builder.Resources.OfType<AzureKeyVaultSecretResource>());
         var template = vault.GetBicepTemplateString();
         Assert.Contains("Microsoft.KeyVault/vaults@", template, StringComparison.Ordinal);
@@ -63,8 +63,8 @@ public sealed class LiveConfigurationTests
             await annotation.Callback(context);
         }
 
-        Assert.Contains("ConnectionStrings__livecache", environment);
-        Assert.Contains("ConnectionStrings__siteconfig", environment);
+        Assert.Contains("ConnectionStrings__cache", environment);
+        Assert.Contains("ConnectionStrings__secrets", environment);
 
         foreach (var (key, parameterName) in expectedConfiguration)
         {

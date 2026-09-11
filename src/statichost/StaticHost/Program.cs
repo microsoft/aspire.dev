@@ -5,9 +5,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Production supplies the vault reference; local Aspire runs intentionally do not.
-if (builder.Configuration.GetConnectionString("siteconfig") is not null)
+if (builder.Configuration.GetConnectionString("secrets") is not null)
 {
-    builder.Configuration.AddAzureKeyVaultSecrets("siteconfig");
+    builder.Configuration.AddAzureKeyVaultSecrets("secrets");
 }
 
 builder.AddLiveStatus();
@@ -19,7 +19,10 @@ builder.Services.AddHsts(options =>
     options.MaxAge = TimeSpan.FromDays(180);
 });
 
-builder.Services.AddOpenApi("v1");
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddOpenApi("v1");
+}
 
 await using var app = builder.Build();
 
@@ -42,16 +45,7 @@ app.UseCanonicalPathRedirects();
 // LinkHeaderMiddleware attaches a Link header on HTML 2xx responses via OnStarting.
 app.UseAgentReadiness();
 
-var staticAssetsManifest = Path.Combine(
-    AppContext.BaseDirectory,
-    $"{app.Environment.ApplicationName}.staticwebassets.endpoints.json");
-var hasStaticAssetsManifest = File.Exists(staticAssetsManifest);
-
 app.UseDefaultFiles();
-if (!hasStaticAssetsManifest)
-{
-    app.UseStaticFiles();
-}
 
 // add routing after default files, so the default file middleware can modify the path first
 app.UseRouting();
@@ -108,11 +102,12 @@ if (app.Environment.IsDevelopment())
         options.WithTitle("aspire.dev API")
                .WithTheme(ScalarTheme.None);
 
+        var brandPath = Path.Combine(AppContext.BaseDirectory, "aspire-brand.css");
         var themePath = Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "scalar", "aspire-theme.css");
-        if (File.Exists(themePath))
-        {
-            options.WithCustomCss(File.ReadAllText(themePath));
-        }
+        options.WithCustomCss(string.Concat(
+            File.ReadAllText(brandPath),
+            Environment.NewLine,
+            File.ReadAllText(themePath)));
     });
 }
 
@@ -130,15 +125,6 @@ app.MapGet("/install.sh", (HttpContext context, OneDSTelemetryService telemetry)
     return Results.Redirect("https://aka.ms/aspire/get/install.sh");
 });
 
-if (hasStaticAssetsManifest)
-{
-    app.MapStaticAssets();
-}
-else
-{
-    app.Logger.LogInformation(
-        "Static web assets manifest '{StaticAssetsManifest}' was not found; serving physical wwwroot files only.",
-        staticAssetsManifest);
-}
+app.MapStaticAssets();
 
 await app.RunAsync();

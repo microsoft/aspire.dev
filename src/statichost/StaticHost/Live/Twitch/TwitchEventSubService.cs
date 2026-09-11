@@ -19,12 +19,11 @@ public sealed class TwitchEventSubService(
     LiveStatusBroadcaster broadcaster,
     IOptionsMonitor<LiveStatusOptions> options,
     ILogger<TwitchEventSubService> logger,
-    TimeProvider? timeProvider = null,
-    ILiveStatusCoordination? coordination = null) : BackgroundService
+    TimeProvider timeProvider,
+    ILiveStatusCoordination coordination) : BackgroundService
 {
-    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
-    private readonly ILiveStatusCoordination _coordination =
-        coordination ?? new SingleInstanceLiveStatusCoordination();
+    private readonly TimeProvider _time = timeProvider;
+    private readonly ILiveStatusCoordination _coordination = coordination;
     private string? _resolvedChannelLogin;
     private string? _resolvedChannelId;
 

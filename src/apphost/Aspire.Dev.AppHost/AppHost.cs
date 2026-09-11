@@ -3,7 +3,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // For deployment: We want to pick AppService as the environment to publish to.
 builder.AddAzureAppServiceEnvironment("production");
 
-var cache = builder.AddAzureManagedRedis("livecache")
+var cache = builder.AddAzureManagedRedis("cache")
     .RunAsContainer();
 
 var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
@@ -26,8 +26,8 @@ if (builder.ExecutionContext.IsRunMode)
 }
 else
 {
-    var siteSecrets = builder.AddAzureKeyVault("siteconfig");
-    staticHostWebsite.WithProductionLiveStatus(builder, siteSecrets);
+    var secrets = builder.AddAzureKeyVault("secrets");
+    staticHostWebsite.WithProductionLiveStatus(builder, secrets);
 }
 
 builder.AddAzureFrontDoor(staticHostWebsite);

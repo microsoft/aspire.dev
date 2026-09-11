@@ -58,11 +58,11 @@ public sealed class LiveStatusEvent(LiveStatus snapshot)
 public sealed class LiveStatusBroadcaster(
     IOptions<LiveStatusOptions> options,
     ILogger<LiveStatusBroadcaster> logger,
-    TimeProvider? timeProvider = null,
-    ILiveStatusStore? store = null) : IDisposable
+    TimeProvider timeProvider,
+    ILiveStatusStore store) : IDisposable
 {
-    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
-    private readonly ILiveStatusStore _store = store ?? new InMemoryLiveStatusStore(timeProvider);
+    private readonly TimeProvider _time = timeProvider;
+    private readonly ILiveStatusStore _store = store;
     private readonly TimeSpan _coalesceWindow = TimeSpan.FromMilliseconds(options.Value.CoalesceWindowMs);
 
     private readonly Lock _gate = new();

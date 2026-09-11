@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using StackExchange.Redis;
@@ -40,85 +39,6 @@ public readonly record struct TwitchMessageAcquisition(
 public interface ITwitchMessageLease : IAsyncDisposable
 {
     ValueTask CompleteAsync();
-}
-
-internal sealed class SingleInstanceLiveStatusCoordination : ILiveStatusCoordination
-{
-    private const string CompletedMessage = "completed";
-
-    private readonly ConcurrentDictionary<string, string> _twitchMessageIds =
-        new(StringComparer.Ordinal);
-
-    public ValueTask<TwitchMessageAcquisition> AcquireTwitchMessageAsync(
-        string messageId,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var ownerToken = Guid.NewGuid().ToString("N");
-
-        if (_twitchMessageIds.TryAdd(messageId, ownerToken))
-        {
-            return ValueTask.FromResult(new TwitchMessageAcquisition(
-                TwitchMessageAcquisitionStatus.Acquired,
-                new SingleInstanceTwitchMessageLease(
-                    _twitchMessageIds,
-                    messageId,
-                    ownerToken)));
-        }
-
-        return ValueTask.FromResult(new TwitchMessageAcquisition(
-            _twitchMessageIds.TryGetValue(messageId, out var current) &&
-                string.Equals(current, CompletedMessage, StringComparison.Ordinal)
-                    ? TwitchMessageAcquisitionStatus.Completed
-                    : TwitchMessageAcquisitionStatus.Processing));
-    }
-
-    public ValueTask<bool> TryQueueYouTubeConfirmationAsync(
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return ValueTask.FromResult(true);
-    }
-
-    public Task RunAsLeaderAsync(
-        string leaseKey,
-        Func<CancellationToken, Task> action,
-        CancellationToken cancellationToken) =>
-        action(cancellationToken);
-
-    private sealed class SingleInstanceTwitchMessageLease(
-        ConcurrentDictionary<string, string> messageIds,
-        string messageId,
-        string ownerToken) : ITwitchMessageLease
-    {
-        private bool _completed;
-
-        public ValueTask CompleteAsync()
-        {
-            if (!messageIds.TryUpdate(messageId, CompletedMessage, ownerToken))
-            {
-                throw new InvalidOperationException(
-                    $"Twitch message lease '{messageId}' expired before processing completed.");
-            }
-
-            _completed = true;
-            return ValueTask.CompletedTask;
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            if (!_completed)
-            {
-                if (messageIds.TryGetValue(messageId, out var current) &&
-                    string.Equals(current, ownerToken, StringComparison.Ordinal))
-                {
-                    messageIds.TryRemove(messageId, out _);
-                }
-            }
-
-            return ValueTask.CompletedTask;
-        }
-    }
 }
 
 internal sealed class RedisLiveStatusCoordination(

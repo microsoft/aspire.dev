@@ -245,13 +245,25 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
         await using var ownedMessageLease = messageLease;
         var bodyJson = Encoding.UTF8.GetString(bodyBytes);
-        var result = await TwitchWebhookHandler.HandleAsync(
-            messageType,
-            bodyJson,
-            broadcaster,
-            twitch,
-            logger,
-            context.RequestAborted).ConfigureAwait(false);
+        IResult result;
+        try
+        {
+            result = await TwitchWebhookHandler.HandleAsync(
+                messageType,
+                bodyJson,
+                broadcaster,
+                twitch,
+                logger,
+                context.RequestAborted).ConfigureAwait(false);
+        }
+        catch (LiveStatusConcurrencyException exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Twitch webhook state update exhausted its optimistic-concurrency retries.");
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        }
+
         if (ownedMessageLease is not null)
         {
             await ownedMessageLease.CompleteAsync().ConfigureAwait(false);
@@ -296,13 +308,27 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             return Results.NotFound();
         }
 
-        if (!await subscriptions.TryConfirmSubscriptionAsync(
-                mode,
-                topic,
-                verifyToken,
-                leaseSeconds,
-                time.GetUtcNow(),
-                context.RequestAborted).ConfigureAwait(false))
+        bool confirmed;
+        try
+        {
+            confirmed = await subscriptions.TryConfirmSubscriptionAsync(
+                    mode,
+                    topic,
+                    verifyToken,
+                    leaseSeconds,
+                    time.GetUtcNow(),
+                    context.RequestAborted)
+                .ConfigureAwait(false);
+        }
+        catch (LiveStatusConcurrencyException exception)
+        {
+            logger.LogWarning(
+                exception,
+                "YouTube WebSub verification exhausted its optimistic-concurrency retries.");
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        }
+
+        if (!confirmed)
         {
             logger.LogWarning("Rejected unexpected YouTube WebSub {Mode} verification for {Topic}.", mode, topic);
             return Results.NotFound();
@@ -401,7 +427,8 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         [FromBody] DevSetBody body,
         IHostEnvironment env,
         IOptions<LiveStatusOptions> options,
-        LiveStatusBroadcaster broadcaster)
+        LiveStatusBroadcaster broadcaster,
+        ILoggerFactory loggerFactory)
     {
         if (!env.IsDevelopment() || !options.Value.EnableDevEndpoint)
         {
@@ -422,9 +449,21 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         {
             update.YouTube = new YouTubeStatus(body.YouTube.Live, body.YouTube.VideoId);
         }
-        var snapshot = await broadcaster.UpdateAsync(
-            update,
-            context.RequestAborted).ConfigureAwait(false);
+        LiveStatus snapshot;
+        try
+        {
+            snapshot = await broadcaster.UpdateAsync(
+                update,
+                context.RequestAborted).ConfigureAwait(false);
+        }
+        catch (LiveStatusConcurrencyException exception)
+        {
+            loggerFactory.CreateLogger("StaticHost.Live.DevSet").LogWarning(
+                exception,
+                "Live-status dev update exhausted its optimistic-concurrency retries.");
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        }
+
         broadcaster.FlushNow();
         return Results.Ok(snapshot);
     }
