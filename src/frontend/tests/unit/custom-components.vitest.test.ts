@@ -21,6 +21,7 @@ import GitHubRepoStats from '@components/GitHubRepoStats.astro';
 import HeroSection from '@components/HeroSection.astro';
 import IconAside from '@components/IconAside.astro';
 import IconLinkCard from '@components/IconLinkCard.astro';
+import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import ImageShowcase from '@components/ImageShowcase.astro';
 import InstallAspireCLI from '@components/InstallAspireCLI.astro';
 import InstallCliModal from '@components/InstallCliModal.astro';
@@ -247,6 +248,22 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['<details', 'Expandable summary', 'Expanded body'],
   },
   {
+    name: 'InpageSearch keeps its API defaults',
+    Component: InpageSearch,
+    props: { id: 'api', placeholder: 'Search API', kinds: ['class', 'interface'], defaultStatsText: '20 types' },
+    includes: ['id="api-search-input"', '<label class="sr-only', 'Search API', 'data-kind="class"', '20 types'],
+  },
+  {
+    name: 'InpageSearch supports labeled discovery search and colored topic toggles',
+    Component: InpageSearch,
+    props: {
+      id: 'glossary', label: 'Find a term', placeholder: 'Try AppHost',
+      kinds: ['Foundations', 'Reference'], kindColors: { Foundations: 'var(--sl-color-purple)' },
+      defaultStatsText: '32 terms',
+    },
+    includes: ['<label class="inpage-search-label', 'Find a term', 'data-kind="Foundations"', '--filter-color: var(--sl-color-purple)', 'aria-pressed="false"'],
+  },
+  {
     name: 'CTABanner renders calls to action',
     Component: CTABanner,
     props: {
@@ -341,6 +358,17 @@ const basicRenderCases: BasicRenderCase[] = [
       ],
     },
     includes: ['aria-label="Breadcrumb"', '/docs/', 'Reference', 'Aspire.Hosting'],
+  },
+  {
+    name: 'Breadcrumb renders the shared Dev Hub logo',
+    Component: Breadcrumb,
+    props: {
+      crumbs: [
+        { label: 'Dev Hub', href: '/dev/', icon: 'dev-hub' },
+        { label: 'Glossary' },
+      ],
+    },
+    includes: ['Dev Hub', '/dev/', 'M3.875 22.125', 'bc-inline', 'bc-dropdown'],
   },
   {
     name: 'FeatureShowcase renders feature cards',

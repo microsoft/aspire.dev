@@ -144,6 +144,12 @@ describe('Community Toolkit documentation mappings', () => {
   });
 });
 
+test('AWS package documentation points to the first-party overview', () => {
+  const mapping = integrationDocs.find(({ match }) => match === 'Aspire.Hosting.AWS');
+  expect(mapping?.href).toBe('/integrations/cloud/aws/overview/');
+  expect(docsPageExists(mapping!.href)).toBe(true);
+});
+
 describe('docsPageExists markdown resolution', () => {
   // The mapping guardrail resolves each documentation destination to an
   // on-disk page. Markdown pages can be authored as either `.md` or `.mdx`

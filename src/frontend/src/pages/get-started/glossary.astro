@@ -1,0 +1,50 @@
+---
+import { getCollection } from 'astro:content';
+import { glossaryHref, legacyGroups, sortGlossary } from '../../utils/dev-center/glossary';
+
+const terms = sortGlossary(await getCollection('glossary'));
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex, follow" />
+    <link rel="canonical" href="https://aspire.dev/dev/glossary/" />
+    <title>Aspire glossary has moved</title>
+    <!-- Static meta-refresh redirects discard bookmarked fragments. -->
+    <script is:inline>
+      window.location.replace('/dev/glossary/' + window.location.search + window.location.hash);
+    </script>
+  </head>
+  <body data-pagefind-ignore>
+    <main>
+      <h1>The Aspire glossary has moved</h1>
+      <p><a href="/dev/glossary/">Open the Aspire glossary</a>, or follow a definition below.</p>
+      {legacyGroups.map(([id, title]) => (
+        <section aria-labelledby={id}>
+          <h2 id={id}>{title}</h2>
+          <ul>
+            {terms.filter((term) => term.data.legacyGroup === id).map((term) => (
+              <li id={term.data.legacyAnchors[0]}>
+                {term.data.legacyAnchors.slice(1).map((anchor) => <span id={anchor} />)}
+                <a href={glossaryHref(term.id)}>{term.data.title}</a>
+                <p>{term.data.description}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      <h2 id="see-also">See also</h2>
+      <p><a href="/dev/browse/">Browse Aspire resources</a></p>
+    </main>
+  </body>
+</html>
+
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; line-height: 1.6; }
+  main { max-width: 65ch; margin: 2rem auto; padding: 0 1rem; }
+  a { text-underline-offset: 0.2em; }
+  a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+</style>
