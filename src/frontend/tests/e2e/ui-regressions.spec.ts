@@ -246,10 +246,13 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const banner = page.getByRole('banner');
     const searchButton = banner.getByRole('button', { name: 'Search' });
+    const hubLink = banner.getByRole('link', { name: 'Dev Hub', exact: true });
     const tryLink = banner.locator('.try-aspire-btn-mobile');
     const menuButton = page.locator('starlight-menu-button').getByRole('button', { name: 'Menu' });
 
     await expect(searchButton).toBeVisible();
+    await expect(hubLink).toBeVisible();
+    await expect(hubLink).toHaveAttribute('href', '/dev/');
     await expect(tryLink).toBeVisible();
     await expect(menuButton).toBeVisible();
     await expect(banner.locator('.right-group-mobile .docs-btn-mobile')).toBeHidden();
@@ -259,9 +262,9 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const headerBox = await banner.boundingBox();
     const controlBoxes = await Promise.all(
-      [searchButton, tryLink, menuButton].map((control) => control.boundingBox())
+      [searchButton, hubLink, tryLink, menuButton].map((control) => control.boundingBox())
     );
-    const menuButtonBox = controlBoxes[2];
+    const menuButtonBox = controlBoxes[3];
     expect(headerBox).not.toBeNull();
     expect(controlBoxes.every((box) => box !== null)).toBe(true);
     expect(
