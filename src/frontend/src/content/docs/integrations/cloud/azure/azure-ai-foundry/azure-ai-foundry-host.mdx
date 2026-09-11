@@ -693,7 +693,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-When the AppHost starts, Aspire automatically starts the Foundry Local service using the `foundry` CLI (`foundry service start`). It then discovers the service endpoint, downloads and loads the specified models via CLI commands, and stops the service (`foundry service stop`) when the AppHost shuts down or is disposed. You do not need to pre-start Foundry Local manually.
+When the AppHost starts, Aspire automatically starts the Foundry Local service using the `foundry` CLI (supporting both the legacy `foundry service` and the current `foundry server` command generations). It then discovers the service endpoint, loads any cached models before downloading new ones, and stops the service when the AppHost shuts down or is disposed. You do not need to pre-start Foundry Local manually.
 
 This requires the `foundry` CLI to be installed and available on `PATH`. For installation instructions, see [Foundry Local get started](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started).
 
@@ -704,6 +704,54 @@ The `RunAsFoundryLocal` method configures the resource to use the local service.
   `RunAsFoundryLocal()`. Use account-level deployments for local emulator
   scenarios.
 </Aside>
+
+### Connect to a remote Foundry Local service
+
+WSL2 and Linux AppHosts can't manage the Foundry Local lifecycle directly because
+the `foundry` CLI targets Windows or macOS. To connect from one of these hosts
+to a Foundry Local service that's already running elsewhere (for example, on the
+Windows host), pass the service's reachable endpoint to `RunAsFoundryLocal`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var foundry = builder.AddFoundry("foundry")
+                     .RunAsFoundryLocal("http://windows-host:5273");
+
+var chat = foundry.AddDeployment("chat", FoundryModel.Local.Phi4Mini)
+                  .WithProperties(deployment =>
+                  {
+                      deployment.LocalModelId = "Phi-4-mini-instruct-generic-gpu:5";
+                  });
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const foundry = await builder.addFoundry('foundry')
+    .runAsFoundryLocal({ endpoint: 'http://windows-host:5273' });
+
+const chat = await foundry
+    .addDeployment('chat', 'Phi-3.5-mini-instruct', { modelVersion: '1', format: 'Microsoft' })
+    .withProperties(async (deployment) => {
+        await deployment.localModelId.set('Phi-3.5-mini-instruct-generic-gpu:1');
+    });
+```
+
+</TabItem>
+</Tabs>
+
+When you pass an endpoint, Aspire treats the service as unmanaged: it observes
+the remote service's health and loaded models but doesn't start, stop,
+download, or load models on that host. The model must already be downloaded
+and loaded on the remote service.
+
+The endpoint must be reachable from the AppHost and every consuming resource.
+Set `LocalModelId` (C#) or `localModelId` (TypeScript) to the model identifier
+reported by the remote service when the deployment's model name is an alias
+rather than the exact identifier the remote service expects.
 
 ## Assign roles to resources
 
