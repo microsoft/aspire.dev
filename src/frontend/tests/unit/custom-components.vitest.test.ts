@@ -379,8 +379,15 @@ const basicRenderCases: BasicRenderCase[] = [
   {
     name: 'TwitchEmbed uses the request host for the parent parameter',
     Component: TwitchEmbed,
-    props: { channel: 'aspiredotdev', title: 'Twitch stream' },
-    includes: ['player.twitch.tv/?channel=aspiredotdev', 'parent=aspire.dev', 'Twitch stream'],
+    props: { channel: 'aspiredotdev', autoplay: true, title: 'Twitch stream' },
+    includes: [
+      'player.twitch.tv/?channel=aspiredotdev',
+      'parent=aspire.dev',
+      'autoplay=true',
+      'muted=true',
+      'picture-in-picture',
+      'Twitch stream',
+    ],
   },
   {
     name: 'IconLinkCard renders title, description and href',

@@ -660,6 +660,7 @@ const invalidTopicHeroProps: PropsOf<typeof TopicHero> = {
 
 const validTwitchEmbedProps = {
   channel: 'aspiredotdev',
+  autoplay: true,
   title: 'Twitch stream',
 } satisfies PropsOf<typeof TwitchEmbed>;
 // @ts-expect-error TwitchEmbed should reject unknown props.

@@ -107,7 +107,13 @@ test('homepage header matches the compact mobile action geometry at reflow width
   // compact header hides it rather than relying on WCP to do so.
   await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
 
-  const expectedCompactHeaderOrder = ['Aspire', 'Search', 'Docs', 'Try'];
+  const expectedCompactHeaderOrder = [
+    'Aspire',
+    'Search',
+    'Watch Aspire live streams',
+    'Docs',
+    'Try',
+  ];
 
   for (const width of [640, 440, 320]) {
     await page.setViewportSize({ width, height: 900 });
@@ -152,6 +158,10 @@ test('homepage header matches the compact mobile action geometry at reflow width
                 return 'Start site tour';
               }
 
+              if (tourTarget === 'live-status') {
+                return 'Watch Aspire live streams';
+              }
+
               if (tourTarget === 'cookie-preferences') {
                 return 'Open cookie preferences dialog';
               }
@@ -193,6 +203,7 @@ test('homepage header matches the compact mobile action geometry at reflow width
 
     const controls = [
       banner.getByRole('button', { name: 'Search' }),
+      banner.locator('.right-group-mobile .live-btn'),
       banner.getByRole('link', { name: 'Docs', exact: true }),
       banner.getByRole('link', { name: 'Try Aspire', exact: true }),
     ];
@@ -217,6 +228,29 @@ test('homepage header matches the compact mobile action geometry at reflow width
   }
 });
 
+test('homepage carousel reinitializes after client navigation', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'This client-navigation regression is covered once from the desktop project.'
+  );
+
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const carousel = page.locator('[data-dashboard-carousel]');
+  await expect(carousel).toHaveAttribute('data-initialized', 'true');
+  await expect(carousel).toHaveClass(/is-ready/);
+
+  await page.locator('a.docs-btn:visible').click();
+  await expect(page).toHaveURL(/\/docs\/$/);
+  await page.getByRole('banner').getByRole('link', { name: 'Aspire', exact: true }).click();
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/);
+
+  const returnedCarousel = page.locator('[data-dashboard-carousel]');
+  await expect(returnedCarousel).toHaveAttribute('data-initialized', 'true');
+  await expect(returnedCarousel).toHaveClass(/is-ready/);
+});
+
 test('mobile docs chrome prioritizes reading and keeps navigation geometry consistent', async ({
   page,
 }) => {
@@ -237,10 +271,12 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const banner = page.getByRole('banner');
     const searchButton = banner.getByRole('button', { name: 'Search' });
+    const liveLink = banner.locator('.right-group-mobile .live-btn');
     const tryLink = banner.locator('.try-aspire-btn-mobile');
     const menuButton = page.locator('starlight-menu-button').getByRole('button', { name: 'Menu' });
 
     await expect(searchButton).toBeVisible();
+    await expect(liveLink).toBeVisible();
     await expect(tryLink).toBeVisible();
     await expect(menuButton).toBeVisible();
     await expect(banner.locator('.right-group-mobile .docs-btn-mobile')).toBeHidden();
@@ -250,9 +286,9 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const headerBox = await banner.boundingBox();
     const controlBoxes = await Promise.all(
-      [searchButton, tryLink, menuButton].map((control) => control.boundingBox())
+      [searchButton, liveLink, tryLink, menuButton].map((control) => control.boundingBox())
     );
-    const menuButtonBox = controlBoxes[2];
+    const menuButtonBox = controlBoxes[3];
     expect(headerBox).not.toBeNull();
     expect(controlBoxes.every((box) => box !== null)).toBe(true);
     expect(

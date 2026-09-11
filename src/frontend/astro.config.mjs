@@ -28,9 +28,18 @@ import Icons from 'starlight-plugin-icons';
 
 const modeArgIndex = process.argv.indexOf('--mode');
 const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
+const outDir = process.env.ASTRO_OUT_DIR;
 const isBuildTimingEnabled = process.env.BUILD_TIMING === '1';
 const siteDescription =
   'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.';
+
+// Under `aspire run` the frontend dev server (Vite) and StaticHost are separate
+// origins. The live-status client fetches same-origin `/api/live` and streams
+// `/api/live/stream`, so in dev those must be proxied to StaticHost. The AppHost
+// injects its origin as ASPIRE_STATICHOST_URL; unset in CI/production builds
+// (where StaticHost serves both the site and the API from one origin), so the
+// proxy is simply omitted then.
+const staticHostUrl = process.env.ASPIRE_STATICHOST_URL;
 
 // Astro renders pages mostly on the main JS thread. Default `build.concurrency`
 // is 1, so a multi-vCPU CI runner is largely idle during the generate phase.
@@ -47,6 +56,7 @@ const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 
 // https://astro.build/config
 export default defineConfig({
+  ...(outDir ? { outDir } : {}),
   prefetch: true,
   site: 'https://aspire.dev',
   trailingSlash: 'always',
@@ -78,7 +88,6 @@ export default defineConfig({
         head: headAttrs,
         social: socialConfig,
         customCss: [
-          '@fontsource-variable/outfit',
           'starlight-plugin-icons/styles/main.css',
           './src/styles/site.css',
         ],
@@ -236,4 +245,21 @@ export default defineConfig({
   build: {
     concurrency: buildConcurrency,
   },
+  ...(staticHostUrl
+    ? {
+        vite: {
+          server: {
+            proxy: {
+              // A regular-expression context bypasses Astro's trailing-slash
+              // routing for both the JSON snapshot and SSE stream.
+              '^/api/live(?:/.*)?$': {
+                target: staticHostUrl,
+                changeOrigin: true,
+                secure: false,
+              },
+            },
+          },
+        },
+      }
+    : {}),
 });
