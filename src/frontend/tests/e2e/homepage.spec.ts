@@ -38,7 +38,7 @@ test('section 08 pairs getting started with Dev Hub discovery and stacks on mobi
   await expect(page.locator('.home-testimonials + .home-closing')).toHaveCount(1);
   await expect(section.locator('.section-index span')).toHaveText('08');
   await expect(page.locator('.closing-actions a')).toHaveCount(2);
-  await expect(section.getByRole('link', { name: 'View on GitHub', exact: true })).toHaveAttribute('href', 'https://github.com/dotnet/aspire');
+  await expect(section.getByRole('link', { name: 'View on GitHub', exact: true })).toHaveAttribute('href', 'https://github.com/microsoft/aspire');
   await expect(section.getByRole('heading', { level: 3, name: 'Find your next step.' })).toBeVisible();
   expect(await link.locator('.dev-hub-mark').innerHTML()).toBe(
     await page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true }).locator('svg').innerHTML(),

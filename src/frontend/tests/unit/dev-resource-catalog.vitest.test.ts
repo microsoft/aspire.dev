@@ -300,6 +300,7 @@ describe('current source coverage', () => {
       throw new Error(`Unexpected collection: ${name}`);
     });
     const { getResourceCatalog } = await import('../../src/utils/dev-center/catalog');
+    expect(__ASPIRE_REDIRECT_PATHS__).toEqual(Object.keys(redirects));
     const actual = await getResourceCatalog();
     const officialSources = {
       ...sources,

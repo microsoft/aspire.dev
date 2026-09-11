@@ -1,9 +1,10 @@
 import fs from 'fs';
+import { aspireProject } from '../src/data/aspire-project';
 
 import { fetchWithProxy as fetch } from './fetch-with-proxy';
 
 const REPOS = [
-  'microsoft/aspire',
+  aspireProject.name,
   'microsoft/aspire-samples',
   'CommunityToolkit/Aspire',
   'microsoft/aspire.dev',
@@ -73,12 +74,12 @@ async function fetchRepoStats(repo: string): Promise<GitHubRepoStat> {
   }
 
   return {
-    name: data.full_name,
+    name: repo,
     stars: data.stargazers_count,
-    description: data.description ?? null,
+    description: repo === aspireProject.name ? aspireProject.description : data.description ?? null,
     license: licenseUrl,
     licenseName: data.license?.name ?? null,
-    repo: data.html_url,
+    repo: `https://github.com/${repo}`,
   };
 }
 

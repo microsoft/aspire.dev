@@ -84,12 +84,12 @@ describe('getStructuredData', () => {
       expect(org?.sameAs).toEqual(
         expect.arrayContaining([
           'https://github.com/microsoft/aspire',
-          'https://github.com/dotnet/aspire',
           'https://x.com/aspiredotdev',
           'https://bsky.app/profile/aspire.dev',
           'https://www.youtube.com/@aspiredotdev',
         ])
       );
+      expect(org?.sameAs).not.toContain('https://github.com/dotnet/aspire');
 
       const website = graph.find((node) => node['@type'] === 'WebSite');
       expect(website).toBeDefined();
@@ -116,6 +116,7 @@ describe('getStructuredData', () => {
       expect(app?.author).toEqual({ '@id': 'https://aspire.dev/#org' });
       expect(app?.publisher).toEqual({ '@id': 'https://aspire.dev/#org' });
       expect(app?.sameAs).toBe('https://github.com/microsoft/aspire');
+      expect(app?.description).toBe('Aspire is the tool for code-first, extensible, observable dev and deploy.');
 
       const source = graph.find((node) => node['@type'] === 'SoftwareSourceCode');
       expect(source).toBeDefined();

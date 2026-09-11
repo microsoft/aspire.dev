@@ -1,10 +1,11 @@
 import samples from './samples.json';
+import { aspireProject } from './aspire-project';
 import { sampleDetailHref } from '../utils/samples';
 import { topics } from '../utils/dev-center/topics';
 
 export const devTitle = 'Dev Hub';
 export const devDescription = 'Find guides, working samples, and reference docs for your next Aspire app.';
-export const gettingStartedDescription = 'Not sure where to begin? Start with the Quickstart, or choose a path that fits what you want to do.';
+export const gettingStartedDescription = `${aspireProject.description} Start with the Quickstart, or choose a path that fits what you want to do.`;
 
 const topicDestinations = {
   foundations: { href: '/docs/', description: 'AppHosts, resources, and the concepts behind your app.', action: 'Learn the fundamentals' },

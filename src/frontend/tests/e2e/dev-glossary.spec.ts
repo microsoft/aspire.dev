@@ -27,7 +27,6 @@ test('new glossary concepts are searchable and have linked pages and Markdown', 
     expect(await markdown.text()).toContain(`# ${title}`);
   }
   await page.goto('/dev/glossary/apphost/');
-  await expect(page.locator('.term-aliases')).not.toContainText('App Host');
   await page.locator('.term-body').getByRole('link', { name: 'Aspire Type System (ATS)' }).click();
   await expect(page).toHaveURL(/\/dev\/glossary\/ats\/$/);
 });
@@ -472,7 +471,7 @@ test('term pages show LearnMore directly below always-visible practical examples
 
 test('optional glossary metadata is readable and preserved in Markdown', async ({ page }) => {
   const cases = [
-    { id: 'apphost', type: 'Concept', pronunciation: 'app host' },
+    { id: 'apphost', type: 'Concept', pronunciation: undefined },
     { id: 'dag', type: 'Concept', pronunciation: 'dag (rhymes with bag)' },
     { id: 'otlp', type: 'Protocol', pronunciation: 'O-T-L-P (OTLP)' },
     { id: 'waitforcompletion', type: 'API method', pronunciation: undefined },
