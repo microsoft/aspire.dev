@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'astro/types';
 
 import heroImage from '@assets/aspire-hero.png';
+import ApiReference from '@components/ApiReference.astro';
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
@@ -170,6 +171,19 @@ const integrationsFixture = [
 ];
 
 const availableDocs = [{ match: 'Higher Priority Package', href: '/integrations/higher/docs/' }];
+
+const validApiReferenceProps = {
+  name: 'Aspire.Hosting.JavaScriptHostingExtensions.WithNpm',
+  package: 'Aspire.Hosting.JavaScript',
+} satisfies PropsOf<typeof ApiReference>;
+const validUnqualifiedApiReferenceProps = {
+  name: 'Aspire.Hosting.PostgresBuilderExtensions.AddPostgres',
+} satisfies PropsOf<typeof ApiReference>;
+// @ts-expect-error ApiReference package must be a string.
+const invalidApiReferenceProps: PropsOf<typeof ApiReference> = {
+  name: 'Aspire.Hosting.JavaScriptHostingExtensions.WithNpm',
+  package: 42,
+};
 
 const validAsciinemaPlayerProps = {
   src: '/casts/aspire-help.cast',
@@ -732,6 +746,9 @@ const invalidYouTubeGridProps: PropsOf<typeof YouTubeGrid> = {
 };
 
 void [
+  validApiReferenceProps,
+  validUnqualifiedApiReferenceProps,
+  invalidApiReferenceProps,
   validAsciinemaPlayerProps,
   invalidAsciinemaPlayerProps,
   validBreadcrumbProps,

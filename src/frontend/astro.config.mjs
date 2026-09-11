@@ -47,6 +47,7 @@ const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 
 // https://astro.build/config
 export default defineConfig({
+  cacheDir: './.astro',
   prefetch: true,
   site: 'https://aspire.dev',
   trailingSlash: 'always',
