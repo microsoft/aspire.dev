@@ -12,7 +12,7 @@ test('production Dev Hub scripts, styles, and Pagefind load from static assets',
     const type = response.request().resourceType();
     if (!['script', 'stylesheet'].includes(type) || new URL(response.url()).origin !== new URL(page.url()).origin) return;
     assetTypes.add(type);
-    if (!response.ok()) errors.push(`${response.status()}: ${response.url()}`);
+    if (!response.ok() && response.status() !== 304) errors.push(`${response.status()}: ${response.url()}`);
   });
   page.on('requestfailed', (failed) => {
     if (['script', 'stylesheet'].includes(failed.resourceType()) && new URL(failed.url()).origin === new URL(page.url()).origin) {
@@ -26,6 +26,7 @@ test('production Dev Hub scripts, styles, and Pagefind load from static assets',
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     if (route === '/dev/browse/') await expect(page.locator('resource-browser')).toHaveAttribute('data-ready', '');
     if (route === '/dev/glossary/') await expect(page.getByRole('searchbox', { name: 'Find a term' })).toBeVisible();
+    await page.waitForLoadState('networkidle');
   }
   await page.goto('/dev/');
   await page.getByRole('button', { name: 'Search Aspire documentation' }).click();
@@ -73,7 +74,7 @@ test('Quickstart uses a static CSS edge texture in both themes and screen sizes'
           };
         });
         expect(texture.background).toContain('radial-gradient');
-        expect(texture.mask).toContain('linear-gradient(to left');
+        expect(texture.mask).toMatch(/^linear-gradient\((?:to left|270deg),/);
         expect(texture.background + texture.mask).not.toContain('url(');
         expect(texture.opacity).toBe('0.12');
         expect(texture.animation).toBe('none');
