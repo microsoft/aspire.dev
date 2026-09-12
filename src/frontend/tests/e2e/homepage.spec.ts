@@ -1562,6 +1562,17 @@ test('keeps the environment frame stable while each topology changes', async ({ 
       )
     )
     .toBeGreaterThan(0.5);
+  // The observer updates the factor before the 140ms transform transition renders.
+  await expect
+    .poll(() =>
+      productionPanel.locator('.topology-node').evaluateAll((nodes) =>
+        nodes.some((node) => {
+          const transform = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+          return Math.hypot(transform.m41, transform.m42) > 1;
+        })
+      )
+    )
+    .toBe(true);
   const enteringTransforms = await productionPanel
     .locator('.topology-node')
     .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transform));
@@ -1578,6 +1589,16 @@ test('keeps the environment frame stable while each topology changes', async ({ 
       )
     )
     .toBeLessThan(0.1);
+  await expect
+    .poll(() =>
+      productionPanel.locator('.topology-node').evaluateAll((nodes) =>
+        nodes.every((node) => {
+          const transform = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+          return Math.hypot(transform.m41, transform.m42) < 1;
+        })
+      )
+    )
+    .toBe(true);
   const centeredTransforms = await productionPanel
     .locator('.topology-node')
     .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transform));
