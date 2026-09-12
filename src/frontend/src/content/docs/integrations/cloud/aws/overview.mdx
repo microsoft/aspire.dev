@@ -1,0 +1,88 @@
+---
+title: AWS integrations overview
+description: Learn how Aspire connects to AWS with shared SDK configuration, CloudFormation and CDK resources, DynamoDB Local, and Lambda development tools.
+---
+
+import ThemeImage from '@components/ThemeImage.astro';
+import awsLight from '@assets/icons/aws-light-icon.png';
+import awsDark from '@assets/icons/aws-icon.png';
+
+<ThemeImage
+  light={awsLight}
+  dark={awsDark}
+  alt="AWS logo"
+  width={96}
+  height={54}
+  classOverride="float-inline-left borderless"
+  zoomable={false}
+/>
+
+AWS maintains the [Aspire.Hosting.AWS](https://www.nuget.org/packages/Aspire.Hosting.AWS) integration. Use it to connect your application to Amazon Web Services, provision infrastructure, and develop against local service emulators alongside your app.
+
+Your [AppHost](/get-started/app-host/) describes the resources and their relationships. The AWS integration supplies the provider-specific configuration and tooling; your application uses the appropriate AWS SDK to work with those services.
+
+## Choose a starting point
+
+| Your goal | Start here |
+| --------- | ---------- |
+| Share an AWS profile and region with your app | [Credentials and configuration](#credentials-and-configuration) |
+| Create infrastructure or connect to an existing stack | [CloudFormation and AWS CDK](#cloudformation-and-aws-cdk) |
+| Develop with DynamoDB without a cloud database | [DynamoDB Local](#dynamodb-local) |
+| Run and debug Lambda functions alongside your services | [Lambda and API Gateway](#lambda-and-api-gateway) |
+| Publish and deploy your application to AWS | [Deployment preview](#deployment-preview) |
+
+## Credentials and configuration
+
+Configure an AWS credential profile and choose a region before accessing cloud resources. Use permissions appropriate to the services your app needs, and keep credentials out of your AppHost source. See [AWS configuration and credential files](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html) for setup.
+
+The integration can share an SDK configuration with consuming resources through the `AWS_PROFILE` and `AWS_REGION` environment variables. AWS SDK clients that use the standard credential and region resolution can pick up this configuration without hardcoded settings.
+
+For the AppHost setup, see [Configure the AWS SDK](https://github.com/aws/integrations-on-dotnet-aspire-for-aws/blob/main/src/Aspire.Hosting.AWS/README.md#configuring-the-aws-sdk-for-net).
+
+## CloudFormation and AWS CDK
+
+Use **AWS CloudFormation** when you already have a JSON or YAML infrastructure template. The integration can provision a stack during AppHost startup, pass template parameters, and expose stack outputs to your application. You can also reference an existing CloudFormation stack without defining a new template.
+
+Use **AWS Cloud Development Kit (CDK)** when you want to describe infrastructure with constructs in code. The integration includes helpers for resources such as S3 buckets, DynamoDB tables, SQS queues, and SNS topics. CDK synthesizes CloudFormation templates and requires Node.js.
+
+In both workflows, resource references make values such as names, URLs, and Amazon Resource Names (ARNs) available to consuming application resources. The default configuration section for these values is `AWS:Resources`.
+
+:::caution[Provisioning creates real AWS resources]
+CloudFormation and CDK workflows can create resources in your AWS account even when you start the AppHost locally. Review the target account, region, permissions, and potential charges before running them.
+:::
+
+Follow AWS's guides for [CloudFormation templates](https://github.com/aws/integrations-on-dotnet-aspire-for-aws/blob/main/src/Aspire.Hosting.AWS/README.md#provisioning-application-resources-with-aws-cloudformation), [existing stacks](https://github.com/aws/integrations-on-dotnet-aspire-for-aws/blob/main/src/Aspire.Hosting.AWS/README.md#importing-existing-aws-resources), or [CDK resources](https://github.com/aws/integrations-on-dotnet-aspire-for-aws/blob/main/src/Aspire.Hosting.AWS/README.md#provisioning-application-resources-with-aws-cdk).
+
+## Develop locally
+
+### DynamoDB Local
+
+Run DynamoDB Local as a container managed by your AppHost. Referencing it supplies the local service endpoint through `AWS_ENDPOINT_URL_DYNAMODB`, so compatible SDK clients can connect to the container instead of the cloud service.
+
+Tables and data are stored in memory by default. Configure local storage when you need them to persist between runs. See [DynamoDB Local setup and options](https://github.com/aws/integrations-on-dotnet-aspire-for-aws/blob/main/src/Aspire.Hosting.AWS/README.md#integrating-amazon-dynamodb-local).
+
+### Lambda and API Gateway
+
+Develop and debug .NET Lambda functions alongside the rest of your application. The integration manages the Lambda Test Tool for local invocation and supports both executable and class-library function projects.
+
+Add the API Gateway emulator when you want to invoke those functions through local HTTP routes. This is a local development workflow, not a deployment of an API Gateway service in AWS.
+
+See [Lambda local development](https://github.com/aws/integrations-on-dotnet-aspire-for-aws/blob/main/src/Aspire.Hosting.AWS/README.md#integrating-aws-lambda-local-development) for function registration and routing examples.
+
+## AppHost language support
+
+The integration supports TypeScript and C# AppHosts, but their available APIs are not identical. TypeScript exports include SDK configuration, DynamoDB Local, Lambda functions, and API Gateway emulation. Some AWS reference methods have different names in TypeScript.
+
+Check the provider's [supported features and method-name differences](https://github.com/aws/integrations-on-dotnet-aspire-for-aws/blob/main/src/Aspire.Hosting.AWS/README.md#supported-features-and-method-name-differences) before adapting an example between languages. The Lambda integration described here runs .NET functions regardless of the AppHost language.
+
+## Deployment preview
+
+AWS also provides a **preview deployment integration**. It converts supported Aspire resources into CDK constructs and CloudFormation templates. With an AWS deployment environment configured, `aspire publish` produces deployment artifacts and `aspire deploy` deploys them to your account.
+
+This workflow requires the AWS CDK tooling and a bootstrapped target account and region. Review the provider's [deployment guide](https://github.com/aws/integrations-on-dotnet-aspire-for-aws/blob/main/src/Aspire.Hosting.AWS/README.md#deployment-to-aws-preview) for opt-in requirements, supported resource mappings, and customization. Do not assume every resource in your local app has an AWS deployment mapping.
+
+## See also
+
+- [AWS integration documentation](https://docs.aws.amazon.com/sdk-for-net/v4/developer-guide/aspire-integrations.html)
+- [AWS integration source and examples](https://github.com/aws/integrations-on-dotnet-aspire-for-aws)
+- [Aspire deployment environments](/deployment/environments/)

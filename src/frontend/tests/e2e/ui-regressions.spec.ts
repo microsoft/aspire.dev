@@ -107,7 +107,7 @@ test('homepage header matches the compact mobile action geometry at reflow width
   // compact header hides it rather than relying on WCP to do so.
   await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
 
-  const expectedCompactHeaderOrder = ['Aspire', 'Search', 'Docs', 'Try'];
+  const expectedCompactHeaderOrder = ['Aspire', 'Search', 'Dev', 'Docs', 'Try'];
 
   for (const width of [640, 440, 320]) {
     await page.setViewportSize({ width, height: 900 });
@@ -161,6 +161,9 @@ test('homepage header matches the compact mobile action geometry at reflow width
               }
 
               if (element instanceof HTMLAnchorElement) {
+                if (element.pathname === '/dev/') {
+                  return 'Dev';
+                }
                 if (element.pathname.endsWith('/docs/')) {
                   return 'Docs';
                 }
@@ -184,6 +187,11 @@ test('homepage header matches the compact mobile action geometry at reflow width
 
     await expect(banner.getByRole('link', { name: 'Aspire', exact: true })).toBeVisible();
     await expect(banner.getByRole('button', { name: 'Search' })).toBeVisible();
+    const hubLink = banner.getByRole('link', { name: 'Dev Hub', exact: true });
+    await expect(hubLink).toBeVisible();
+    await expect(hubLink).toHaveAttribute('aria-label', 'Dev Hub');
+    await expect(hubLink.locator('svg')).toBeVisible();
+    await expect(hubLink).toHaveCSS('border-width', '0px');
     await expect(banner.getByRole('link', { name: 'Docs', exact: true })).toBeVisible();
     await expect(banner.getByRole('link', { name: 'Try Aspire', exact: true })).toBeVisible();
 
@@ -193,6 +201,7 @@ test('homepage header matches the compact mobile action geometry at reflow width
 
     const controls = [
       banner.getByRole('button', { name: 'Search' }),
+      hubLink,
       banner.getByRole('link', { name: 'Docs', exact: true }),
       banner.getByRole('link', { name: 'Try Aspire', exact: true }),
     ];
@@ -237,10 +246,13 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const banner = page.getByRole('banner');
     const searchButton = banner.getByRole('button', { name: 'Search' });
+    const hubLink = banner.getByRole('link', { name: 'Dev Hub', exact: true });
     const tryLink = banner.locator('.try-aspire-btn-mobile');
     const menuButton = page.locator('starlight-menu-button').getByRole('button', { name: 'Menu' });
 
     await expect(searchButton).toBeVisible();
+    await expect(hubLink).toBeVisible();
+    await expect(hubLink).toHaveAttribute('href', '/dev/');
     await expect(tryLink).toBeVisible();
     await expect(menuButton).toBeVisible();
     await expect(banner.locator('.right-group-mobile .docs-btn-mobile')).toBeHidden();
@@ -250,9 +262,9 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const headerBox = await banner.boundingBox();
     const controlBoxes = await Promise.all(
-      [searchButton, tryLink, menuButton].map((control) => control.boundingBox())
+      [searchButton, hubLink, tryLink, menuButton].map((control) => control.boundingBox())
     );
-    const menuButtonBox = controlBoxes[2];
+    const menuButtonBox = controlBoxes[3];
     expect(headerBox).not.toBeNull();
     expect(controlBoxes.every((box) => box !== null)).toBe(true);
     expect(

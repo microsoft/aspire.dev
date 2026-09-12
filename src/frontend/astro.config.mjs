@@ -7,6 +7,7 @@ import { iconPacks } from './config/icon-packs.mjs';
 import { locales } from './config/locales.ts';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
+import { aspireProject } from './src/data/aspire-project.ts';
 import { aspireVersionPlaceholdersIntegration } from './config/aspire-version-placeholders-integration.mjs';
 import { remarkAspireVersionPlaceholders } from './config/remark-aspire-version-placeholders.mjs';
 import { remarkTypeScriptFirstAppHostTabs } from './config/remark-typescript-first-apphost-tabs.mjs';
@@ -29,8 +30,7 @@ import Icons from 'starlight-plugin-icons';
 const modeArgIndex = process.argv.indexOf('--mode');
 const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
 const isBuildTimingEnabled = process.env.BUILD_TIMING === '1';
-const siteDescription =
-  'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.';
+const siteDescription = aspireProject.description;
 
 // Astro renders pages mostly on the main JS thread. Default `build.concurrency`
 // is 1, so a multi-vCPU CI runner is largely idle during the generate phase.
@@ -47,6 +47,12 @@ const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 
 // https://astro.build/config
 export default defineConfig({
+  vite: {
+    define: {
+      // Resolve filesystem-backed redirects before prerender modules are bundled.
+      __ASPIRE_REDIRECT_PATHS__: JSON.stringify(Object.keys(redirects)),
+    },
+  },
   prefetch: true,
   site: 'https://aspire.dev',
   trailingSlash: 'always',
@@ -123,7 +129,11 @@ export default defineConfig({
           starlightLinksValidator({
             errorOnRelativeLinks: false,
             errorOnFallbackPages: false,
-            exclude: ['/i18n/', '/reference/api', '/reference/api/**'],
+            exclude: [
+              '/i18n/', '/reference/api', '/reference/api/**',
+              // Custom Astro destinations checked by the Dev Hub browser tests.
+              '/dev/', '/dev/glossary/ats/', '/get-started/glossary/#polyglot',
+            ],
           }),
           starlightScrollToTop({
             // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/

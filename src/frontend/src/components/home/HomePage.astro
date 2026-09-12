@@ -1,10 +1,12 @@
 ---
 import { Image } from 'astro:assets';
 import { Code, Icon } from '@astrojs/starlight/components';
+import '../../styles/link-underline.css';
 
 import aspireLogo from '@assets/aspire-logo-32.svg';
 import csharpIcon from '@assets/icons/csharp.svg';
 import dockerIcon from '@assets/icons/docker.svg';
+import DevHubIcon from '@assets/icons/dev-hub.svg';
 import garnetIcon from '@assets/icons/garnet-icon.png';
 import goIcon from '@assets/icons/go-light-icon.png';
 import javaIcon from '@assets/icons/java.svg';
@@ -29,6 +31,7 @@ import HomeIntegrationRail from './HomeIntegrationRail.astro';
 import HomeTestimonials from './HomeTestimonials.astro';
 import { localizedHref } from '@utils/helpers';
 import { getLocaleFromPath } from '@utils/locale-routes';
+import { aspireProject } from '../../data/aspire-project';
 
 const languages = [
   { name: 'C#', icon: csharpIcon },
@@ -665,20 +668,31 @@ const localizedPrinciples = principles.map((principle) => ({
     <div class="closing-orbit orbit-a" aria-hidden="true"></div>
     <div class="closing-orbit orbit-b" aria-hidden="true"></div>
     <div class="home-shell closing-content" data-home-reveal data-home-reveal-distance="major">
-      <p class="section-index"><span>08</span> {t('home.closing.index')}</p>
-      <h2 id="home-closing-title">{t('home.closing.title')}</h2>
-      <p>{t('home.closing.body')}</p>
-      <div class="closing-actions">
-        <a class="closing-action primary" href={localizedHref('/get-started/install-cli/', locale)}>
-          {t('home.closing.install')}
-          <Icon name="right-arrow" size="1rem" />
+      <div class="closing-start">
+        <p class="section-index"><span>08</span> {t('home.closing.index')}</p>
+        <h2 id="home-closing-title">{t('home.closing.title')}</h2>
+        <p>{t('home.closing.body')}</p>
+        <div class="closing-actions">
+          <a class="closing-action primary" href={localizedHref('/get-started/install-cli/', locale)}>
+            {t('home.closing.install')}
+            <Icon name="right-arrow" size="1rem" />
+          </a>
+          <a class="closing-action secondary" href={localizedHref('/get-started/first-app/', locale)}>
+            {t('home.closing.firstApp')}
+          </a>
+        </div>
+        <a class="text-link closing-source" href={aspireProject.repo} data-underline-trigger>
+          <Icon name="github" size="1.1rem" aria-hidden="true" />
+          <span data-link-underline>{t('home.closing.github')}</span>
         </a>
-        <a class="closing-action secondary" href={localizedHref('/get-started/first-app/', locale)}>
-          {t('home.closing.firstApp')}
-        </a>
-        <a class="closing-action tertiary" href="https://github.com/dotnet/aspire">
-          <Icon name="github" size="1.1rem" />
-          {t('home.closing.github')}
+      </div>
+      <div class="closing-discovery" role="region" aria-labelledby="closing-discovery-title">
+        <h3 id="closing-discovery-title">{t('home.devHub.title')}</h3>
+        <p>{t('home.devHub.body')}</p>
+        <a class="closing-action secondary closing-dev-hub" href="/dev/">
+          <DevHubIcon class="dev-hub-mark" aria-hidden="true" focusable="false" />
+          <span>{t('home.devHub.link')}</span>
+          <Icon name="right-arrow" size="1rem" aria-hidden="true" />
         </a>
       </div>
     </div>
@@ -1399,7 +1413,7 @@ const localizedPrinciples = principles.map((principle) => ({
   .section-heading > p:not(.section-index),
   .language-heading > div > p,
   .split-heading > div > p,
-  .closing-content > p:not(.section-index) {
+  .closing-start > p:not(.section-index) {
     margin: 1.4rem 0 0;
     color: var(--home-muted);
     font-size: clamp(1.02rem, 1.45vw, 1.22rem);
@@ -1414,32 +1428,6 @@ const localizedPrinciples = principles.map((principle) => ({
     font-size: 0.96rem;
     font-weight: 750;
     text-decoration: none;
-  }
-
-  :global([data-home-link]) {
-    position: relative;
-  }
-
-  :global([data-home-link]::after) {
-    position: absolute;
-    right: 0;
-    bottom: -0.18rem;
-    left: 0;
-    height: 2px;
-    background: currentColor;
-    content: '';
-    pointer-events: none;
-    transform: scaleX(0);
-    transform-origin: right;
-  }
-
-  :global([data-home-link][data-home-link-icon]::after) {
-    right: 1.4rem;
-  }
-
-  :global([data-home-link]:is(:hover, :focus-visible)::after) {
-    transform: scaleX(1);
-    transform-origin: left;
   }
 
   .text-link:focus-visible,
@@ -2897,12 +2885,14 @@ const localizedPrinciples = principles.map((principle) => ({
   .closing-content {
     position: relative;
     z-index: 2;
-    width: min(100%, 69rem);
-    text-align: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.65fr);
+    align-items: center;
+    gap: clamp(3rem, 6vw, 6rem);
+    text-align: start;
   }
 
   .closing-content .section-index {
-    justify-content: center;
     color: var(--home-muted);
   }
 
@@ -2913,21 +2903,70 @@ const localizedPrinciples = principles.map((principle) => ({
   .closing-content h2 {
     margin-top: 1.2rem;
     color: var(--home-text);
-    font-size: clamp(3rem, 5vw, 4.75rem);
+    font-size: clamp(2.75rem, 4.4vw, 4.25rem);
+    text-wrap: balance;
   }
 
-  .closing-content > p:not(.section-index) {
-    max-width: 47rem;
-    margin-inline: auto;
+  .closing-start > p:not(.section-index) {
+    max-width: 52ch;
     color: var(--home-muted);
   }
 
   .closing-actions {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
     gap: 0.8rem;
     margin-top: 2rem;
+  }
+
+  .closing-source {
+    min-height: 2.75rem;
+    margin-top: 1rem;
+    color: var(--home-muted);
+    font-weight: 500;
+  }
+
+  .closing-discovery {
+    display: grid;
+    justify-items: start;
+    gap: 1.25rem;
+    padding: clamp(1.5rem, 3vw, 2.5rem);
+    border: 1px solid color-mix(in srgb, var(--home-purple) 30%, var(--home-border));
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--home-surface) 88%, transparent);
+  }
+
+  .closing-discovery h3 {
+    margin: 0;
+    color: var(--home-text);
+    font-size: clamp(1.5rem, 2.3vw, 2rem);
+    font-weight: 620;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  .closing-discovery p {
+    max-width: 52ch;
+    margin: 0;
+    color: var(--home-muted);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    text-wrap: pretty;
+  }
+
+  .closing-discovery .closing-dev-hub {
+    width: auto;
+    max-width: 100%;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    white-space: nowrap;
+  }
+
+  .closing-dev-hub :global(.dev-hub-mark) {
+    width: 1.5rem;
+    height: 1.5rem;
+    flex-shrink: 0;
+    color: var(--home-purple);
   }
 
   .closing-action {
@@ -2942,7 +2981,7 @@ const localizedPrinciples = principles.map((principle) => ({
     color: var(--home-text);
     font-size: 0.94rem;
     font-weight: 750;
-    line-height: 1;
+    line-height: 1.35;
     text-decoration: none;
   }
 
@@ -2971,19 +3010,17 @@ const localizedPrinciples = principles.map((principle) => ({
     background: var(--home-surface);
   }
 
-  .closing-action.tertiary {
-    background: transparent;
+  @media (forced-colors: none) {
+    .closing-action.closing-dev-hub:is(:hover, :focus-visible) {
+      background: color-mix(in srgb, var(--home-purple) 14%, var(--home-surface));
+    }
   }
 
-  :global([data-theme='dark']) .closing-action.tertiary {
-    color: #1f1e33;
-    border-color: #c9c8d4;
-    background: #c9c8d4;
-  }
-
-  :global([data-theme='dark']) .closing-action.tertiary:hover {
-    border-color: #d8d7e1;
-    background: #d8d7e1;
+  @media (max-width: 1023px) {
+    .closing-content {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2.5rem;
+    }
   }
 
   .closing-grid {
@@ -3028,10 +3065,6 @@ const localizedPrinciples = principles.map((principle) => ({
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    :global([data-home-link]::after) {
-      transition: transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
     .terminal-line {
       transition:
         opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),
@@ -3278,7 +3311,11 @@ const localizedPrinciples = principles.map((principle) => ({
       display: grid;
       grid-template-columns: 1fr;
       width: min(100%, 24rem);
-      margin-inline: auto;
+      margin-inline: 0;
+    }
+
+    .closing-content h2 {
+      font-size: clamp(2rem, 9vw, 3rem);
     }
 
     .closing-action {
@@ -3287,6 +3324,11 @@ const localizedPrinciples = principles.map((principle) => ({
   }
 
   @media (max-width: 24rem) {
+    .closing-discovery .closing-dev-hub {
+      gap: 0.5rem;
+      padding-inline: 0.75rem;
+    }
+
     .model-window-bar small {
       display: none;
     }
@@ -3323,10 +3365,6 @@ const localizedPrinciples = principles.map((principle) => ({
   }
 
   @media (prefers-reduced-motion: reduce) {
-    :global([data-home-link]::after) {
-      transition: none;
-    }
-
     :global(html[data-home-js='true']) [data-home-reveal] {
       opacity: 1;
       transform: none;
@@ -3390,15 +3428,6 @@ const localizedPrinciples = principles.map((principle) => ({
   }
 
   @media (forced-colors: active) {
-    :global([data-home-link]::after) {
-      display: none;
-    }
-
-    :global([data-home-link]:is(:hover, :focus-visible)) {
-      text-decoration: underline;
-      text-underline-offset: 0.22rem;
-    }
-
     .home-section,
     .language-list,
     .language-list li,

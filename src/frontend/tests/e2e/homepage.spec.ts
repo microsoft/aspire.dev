@@ -1,6 +1,9 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
+import { locales } from '../../config/locales';
+import en from '../../src/content/i18n/en.json' with { type: 'json' };
 import { dismissCookieConsentIfVisible } from './helpers';
 
 test.beforeEach(async ({ page }) => {
@@ -25,6 +28,132 @@ test('links directly to local observability and agent debugging guides', async (
     '/dashboard/ai-coding-agents/',
   ]);
 });
+
+test('section 08 pairs getting started with Dev Hub discovery and stacks on mobile', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const section = page.getByRole('region', { name: 'Start building with less friction.' });
+  const link = section.getByRole('link', { name: 'Explore Dev Hub', exact: true });
+  await expect(link).toHaveAttribute('href', '/dev/');
+  await expect(page.locator('.home-dev-hub')).toHaveCount(0);
+  await expect(page.locator('.home-testimonials + .home-closing')).toHaveCount(1);
+  await expect(section.locator('.section-index span')).toHaveText('08');
+  await expect(page.locator('.closing-actions a')).toHaveCount(2);
+  await expect(section.getByRole('link', { name: 'View on GitHub', exact: true })).toHaveAttribute('href', 'https://github.com/microsoft/aspire');
+  await expect(section.getByRole('heading', { level: 3, name: 'Find your next step.' })).toBeVisible();
+  expect(await link.locator('.dev-hub-mark').innerHTML()).toBe(
+    await page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true }).locator('svg').innerHTML(),
+  );
+  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
+      await section.scrollIntoViewIfNeeded();
+      const start = (await section.locator('.closing-start').boundingBox())!;
+      const discovery = (await section.locator('.closing-discovery').boundingBox())!;
+      const bounds = (await link.boundingBox())!;
+      if (width >= 1024) {
+        expect(discovery.x).toBeGreaterThan(start.x + start.width);
+        expect(discovery.y + discovery.height / 2).toBeCloseTo(start.y + start.height / 2, 0);
+        const wordLines = await section.locator('h2').evaluate((el) => {
+          const node = el.firstChild!;
+          return [...node.textContent!.matchAll(/\S+/g)].map((word) => {
+            const range = document.createRange();
+            range.setStart(node, word.index);
+            range.setEnd(node, word.index + word[0].length);
+            return range.getBoundingClientRect().y;
+          });
+        });
+        expect(new Set(wordLines).size).toBeLessThanOrEqual(2);
+        expect(wordLines.filter((y) => y === wordLines.at(-1)).length).toBeGreaterThan(1);
+      } else {
+        expect(discovery.y).toBeGreaterThan(start.y + start.height);
+        expect(discovery.x).toBeCloseTo(start.x, 0);
+        expect(discovery.width).toBeCloseTo(start.width, 0);
+      }
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+      expect(await link.locator('span').evaluate((el) => el.getClientRects().length)).toBe(1);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      for (const action of await section.locator('.closing-action').all()) {
+        expect(await action.evaluate((el) => {
+          const text = el.querySelector('span') ?? el;
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          return Array.from(range.getClientRects()).filter((rect) => rect.height > 0).map((rect) => rect.y);
+        }).then((positions) => Math.max(...positions) - Math.min(...positions))).toBeLessThan(10);
+      }
+      if (width === 1440) {
+        await page.mouse.move(0, 0);
+        const background = await link.evaluate((el) => getComputedStyle(el).backgroundColor);
+        await link.hover();
+        await expect.poll(() => link.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(background);
+        await expect(link).toHaveCSS('text-decoration-line', 'none');
+        await expect(link.locator('span')).toHaveCSS('text-decoration-line', 'none');
+        expect(await link.locator('span').evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+        const results = await new AxeBuilder({ page }).include('.home-closing').withTags(['wcag2a', 'wcag2aa']).analyze();
+        expect(results.violations).toEqual([]);
+      }
+    }
+  }
+  await link.focus();
+  await expect(link).toBeFocused();
+  await expect(link).toHaveCSS('outline-style', 'solid');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/dev\/$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dev Hub');
+});
+
+for (const [route, { lang }] of Object.entries(locales).filter(([route]) => route !== 'root')) {
+  test(`section 08 is translated and fits narrow and wide screens in ${lang}`, async ({ page }) => {
+    const messages: typeof en = JSON.parse(
+      readFileSync(new URL(`../../src/content/i18n/${lang}.json`, import.meta.url), 'utf8'),
+    );
+    for (const group of ['devHub', 'closing'] as const) {
+      expect(Object.keys(messages.home[group]).sort()).toEqual(Object.keys(en.home[group]).sort());
+      for (const [key, text] of Object.entries(messages.home[group])) {
+        expect(text.trim(), `${lang}: home.${group}.${key}`).not.toBe('');
+        expect(Object.values(en.home[group]), `${lang}: home.${group}.${key}`).not.toContain(text);
+      }
+    }
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(`/${route}/`);
+    const section = page.locator('.home-closing');
+    const discovery = section.locator('.closing-discovery');
+    await expect(section.locator('h2')).toHaveText(messages.home.closing.title);
+    await expect(section.locator('.section-index')).toHaveText(`08 ${messages.home.closing.index}`);
+    await expect(section.locator('.closing-start > p:not(.section-index)')).toHaveText(messages.home.closing.body);
+    await expect(section.locator('.closing-actions a')).toHaveText([
+      messages.home.closing.install,
+      messages.home.closing.firstApp,
+    ]);
+    await expect(section.locator('.closing-source')).toHaveText(messages.home.closing.github);
+    await expect(discovery.locator('h3')).toHaveText(messages.home.devHub.title);
+    await expect(discovery.locator('p')).toHaveText(messages.home.devHub.body);
+    await expect(discovery.locator('a')).toHaveText(messages.home.devHub.link);
+    await expect(discovery.locator('a')).toHaveAttribute('href', '/dev/');
+
+    for (const width of [320, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await section.scrollIntoViewIfNeeded();
+      for (const block of await section.locator('.closing-start, .closing-discovery, .closing-action').all()) {
+        expect(await block.evaluate((el) => {
+          const bounds = el.getBoundingClientRect();
+          return bounds.left >= 0 && bounds.right <= innerWidth && el.scrollWidth <= el.clientWidth;
+        }), `${lang} at ${width}px`).toBe(true);
+      }
+      for (const label of await section.locator('.closing-action').all()) {
+        const lines = await label.evaluate((el) => {
+          const range = document.createRange();
+          range.selectNodeContents(el.querySelector('span') ?? el);
+          return Array.from(range.getClientRects()).filter((rect) => rect.height > 0).map((rect) => rect.y);
+        });
+        if (width >= 1024 || await label.evaluate((el) => el.classList.contains('closing-dev-hub'))) {
+          expect(Math.max(...lines) - Math.min(...lines), `${lang} CTA at ${width}px`).toBeLessThan(10);
+        }
+      }
+    }
+  });
+}
 
 test('renders a complete semantic landing page without horizontal overflow', async ({ page }) => {
   await expect(page.locator('main h1')).toHaveCount(1);
@@ -198,11 +327,11 @@ test('uses concise section copy and a compact editorial rhythm', async ({ page }
 
   if (layout.width >= 1200) {
     expect(layout.modelHeadingOffset).toBeLessThanOrEqual(2);
-    expect(layout.pageHeight).toBeLessThanOrEqual(11_250);
+    expect(layout.pageHeight).toBeLessThanOrEqual(11_550);
     expect(Math.max(...layout.headingLines)).toBeLessThanOrEqual(2);
     expect(Math.max(...layout.sectionHeights)).toBeLessThanOrEqual(1575);
   } else if (layout.width <= 500) {
-    expect(layout.pageHeight).toBeLessThanOrEqual(12_400);
+    expect(layout.pageHeight).toBeLessThanOrEqual(12_700);
   }
 });
 
@@ -1433,6 +1562,17 @@ test('keeps the environment frame stable while each topology changes', async ({ 
       )
     )
     .toBeGreaterThan(0.5);
+  // The observer updates the factor before the 140ms transform transition renders.
+  await expect
+    .poll(() =>
+      productionPanel.locator('.topology-node').evaluateAll((nodes) =>
+        nodes.some((node) => {
+          const transform = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+          return Math.hypot(transform.m41, transform.m42) > 1;
+        })
+      )
+    )
+    .toBe(true);
   const enteringTransforms = await productionPanel
     .locator('.topology-node')
     .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transform));
@@ -1449,6 +1589,16 @@ test('keeps the environment frame stable while each topology changes', async ({ 
       )
     )
     .toBeLessThan(0.1);
+  await expect
+    .poll(() =>
+      productionPanel.locator('.topology-node').evaluateAll((nodes) =>
+        nodes.every((node) => {
+          const transform = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+          return Math.hypot(transform.m41, transform.m42) < 1;
+        })
+      )
+    )
+    .toBe(true);
   const centeredTransforms = await productionPanel
     .locator('.topology-node')
     .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transform));
