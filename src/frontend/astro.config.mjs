@@ -132,7 +132,7 @@ export default defineConfig({
             exclude: [
               '/i18n/', '/reference/api', '/reference/api/**',
               // Custom Astro destinations checked by the Dev Hub browser tests.
-              '/dev/', '/dev/glossary/ats/', '/get-started/glossary/#polyglot',
+              '/hub/', '/hub/glossary/ats/', '/get-started/glossary/#polyglot',
             ],
           }),
           starlightScrollToTop({

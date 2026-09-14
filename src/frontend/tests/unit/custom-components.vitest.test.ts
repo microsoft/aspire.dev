@@ -364,11 +364,11 @@ const basicRenderCases: BasicRenderCase[] = [
     Component: Breadcrumb,
     props: {
       crumbs: [
-        { label: 'Dev Hub', href: '/dev/', icon: 'dev-hub' },
+        { label: 'Dev Hub', href: '/hub/', icon: 'dev-hub' },
         { label: 'Glossary' },
       ],
     },
-    includes: ['Dev Hub', '/dev/', 'M3.875 22.125', 'bc-inline', 'bc-dropdown'],
+    includes: ['Dev Hub', '/hub/', 'M3.875 22.125', 'bc-inline', 'bc-dropdown'],
   },
   {
     name: 'FeatureShowcase renders feature cards',

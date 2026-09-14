@@ -161,7 +161,7 @@ test('homepage header matches the compact mobile action geometry at reflow width
               }
 
               if (element instanceof HTMLAnchorElement) {
-                if (element.pathname === '/dev/') {
+                if (element.pathname === '/hub/') {
                   return 'Dev';
                 }
                 if (element.pathname.endsWith('/docs/')) {
@@ -252,7 +252,7 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     await expect(searchButton).toBeVisible();
     await expect(hubLink).toBeVisible();
-    await expect(hubLink).toHaveAttribute('href', '/dev/');
+    await expect(hubLink).toHaveAttribute('href', '/hub/');
     await expect(tryLink).toBeVisible();
     await expect(menuButton).toBeVisible();
     await expect(banner.locator('.right-group-mobile .docs-btn-mobile')).toBeHidden();

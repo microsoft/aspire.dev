@@ -570,7 +570,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Glossary',
-              link: '/dev/glossary/',
+              link: '/hub/glossary/',
               translations: {
                 da: 'Ordliste',
                 de: 'Glossar',

@@ -33,7 +33,7 @@ test('section 08 pairs getting started with Dev Hub discovery and stacks on mobi
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const section = page.getByRole('region', { name: 'Start building with less friction.' });
   const link = section.getByRole('link', { name: 'Explore Dev Hub', exact: true });
-  await expect(link).toHaveAttribute('href', '/dev/');
+  await expect(link).toHaveAttribute('href', '/hub/');
   await expect(page.locator('.home-dev-hub')).toHaveCount(0);
   await expect(page.locator('.home-testimonials + .home-closing')).toHaveCount(1);
   await expect(section.locator('.section-index span')).toHaveText('08');
@@ -98,7 +98,7 @@ test('section 08 pairs getting started with Dev Hub discovery and stacks on mobi
   await expect(link).toBeFocused();
   await expect(link).toHaveCSS('outline-style', 'solid');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/dev\/$/);
+  await expect(page).toHaveURL(/\/hub\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dev Hub');
 });
 
@@ -130,7 +130,7 @@ for (const [route, { lang }] of Object.entries(locales).filter(([route]) => rout
     await expect(discovery.locator('h3')).toHaveText(messages.home.devHub.title);
     await expect(discovery.locator('p')).toHaveText(messages.home.devHub.body);
     await expect(discovery.locator('a')).toHaveText(messages.home.devHub.link);
-    await expect(discovery.locator('a')).toHaveAttribute('href', '/dev/');
+    await expect(discovery.locator('a')).toHaveAttribute('href', '/hub/');
 
     for (const width of [320, 1024, 1440]) {
       await page.setViewportSize({ width, height: 1000 });

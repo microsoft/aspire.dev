@@ -4,10 +4,10 @@ import { dismissCookieConsentIfVisible } from './helpers';
 
 const routes = [
   '/',
-  '/dev/',
-  '/dev/browse/',
-  '/dev/glossary/',
-  '/dev/glossary/apphost/',
+  '/hub/',
+  '/hub/browse/',
+  '/hub/glossary/',
+  '/hub/glossary/apphost/',
   '/integrations/cloud/aws/overview/',
 ];
 
@@ -67,7 +67,7 @@ test('every glossary article has accessible content in both themes', async ({ pa
   test.skip(testInfo.project.name !== 'desktop-chromium', 'The shared article template is covered on mobile separately.');
   test.setTimeout(240_000);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/dev/glossary/');
+  await page.goto('/hub/glossary/');
   await dismissCookieConsentIfVisible(page);
   const paths = await page.locator('[data-term-link]').evaluateAll((links) =>
     [...new Set(links.map((link) => new URL((link as HTMLAnchorElement).href).pathname))],
@@ -85,7 +85,7 @@ test('every glossary article has accessible content in both themes', async ({ pa
 
 test('new navigation keeps keyboard focus visible in forced colors', async ({ page }) => {
   await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
-  for (const route of ['/dev/', '/dev/browse/', '/dev/glossary/', '/dev/glossary/apphost/']) {
+  for (const route of ['/hub/', '/hub/browse/', '/hub/glossary/', '/hub/glossary/apphost/']) {
     await page.goto(route);
     await dismissCookieConsentIfVisible(page);
     const skip = page.getByRole('link', { name: 'Skip to content', exact: true });

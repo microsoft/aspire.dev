@@ -21,7 +21,7 @@ export const resources = [
   { title: 'Quickstart', description: 'Create and run your first app.', href: '/get-started/first-app/', icon: 'rocket', color: 'var(--sl-color-purple)' },
   { title: 'Tutorial', description: 'Have an app running locally? Deploy it to the cloud, step by step.', href: '/get-started/deploy-first-app/', icon: 'open-book', color: 'var(--sl-color-orange)' },
   { title: 'How-to', description: 'Already have a project? Add Aspire without starting over.', href: '/get-started/add-aspire-existing-app/', icon: 'pencil', color: 'var(--sl-color-green)' },
-  { title: 'Glossary', description: 'Learning the vocabulary? Explore key concepts with practical examples.', href: '/dev/glossary/', icon: 'notes', color: 'var(--color-cyan)' },
+  { title: 'Glossary', description: 'Learning the vocabulary? Explore key concepts with practical examples.', href: '/hub/glossary/', icon: 'notes', color: 'var(--color-cyan)' },
 ] as const;
 
 export const languages = [

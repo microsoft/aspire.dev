@@ -118,10 +118,10 @@ describe('resource browser rendering', () => {
   });
 
   it('keeps all resource links in initial HTML and progressively enables controls', async () => {
-    const resources = [base, { ...base, id: 'glossary:apphost', title: 'AppHost', href: '/dev/glossary/apphost/', type: 'glossary' as const }];
+    const resources = [base, { ...base, id: 'glossary:apphost', title: 'AppHost', href: '/hub/glossary/apphost/', type: 'glossary' as const }];
     const html = await renderComponent(ResourceBrowser, { props: { resources } });
     expect(html).toContain('href="/get-started/first-app/"');
-    expect(html).toContain('href="/dev/glossary/apphost/"');
+    expect(html).toContain('href="/hub/glossary/apphost/"');
     expect(html).toContain('name="type" value="guide"');
     expect(html).toContain('name="type" value="glossary"');
     expect(html).toContain('name="topic" value="foundations"');

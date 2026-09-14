@@ -4,7 +4,7 @@ import { devTitle, devDescription, gettingStartedDescription, topicLinks, resour
 export const GET: APIRoute = () => new Response([
   `# ${devTitle}`,
   devDescription,
-  '[Browse all resources](https://aspire.dev/dev/browse/): Search and filter by resource type, topic, language, or provider.',
+  '[Browse all resources](https://aspire.dev/hub/browse/): Search and filter by resource type, topic, language, or provider.',
   '## New to Aspire?',
   gettingStartedDescription,
   ...resources.map((resource) => `- [${resource.title}](https://aspire.dev${resource.href}): ${resource.description}`),

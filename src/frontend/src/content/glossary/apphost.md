@@ -12,7 +12,7 @@ resources:
 legacyAnchors: [apphost]
 legacyGroup: core-concepts
 ---
-You can write an AppHost in C# or any guest language supported through the [Aspire Type System (ATS)](/dev/glossary/ats/). It declares your resources and how they connect, orchestrates local development, and supplies an application model to deployment integrations.
+You can write an AppHost in C# or any guest language supported through the [Aspire Type System (ATS)](/hub/glossary/ats/). It declares your resources and how they connect, orchestrates local development, and supplies an application model to deployment integrations.
 
 Guest languages use generated SDKs to access exported hosting APIs. The available AppHost languages and APIs depend on your Aspire version and integrations.
 

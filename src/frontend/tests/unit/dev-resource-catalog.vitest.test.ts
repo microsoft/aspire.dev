@@ -367,7 +367,12 @@ describe('current source coverage', () => {
 
   it('includes glossary and every official and curated blog destination exactly once', () => {
     expect(catalog.filter(({ type }) => type === 'glossary')).toHaveLength(glossary.length);
-    for (const term of glossary) expect(catalog.find(({ id }) => id === `glossary:${term.id}`)?.tags).toEqual(expect.arrayContaining(term.data.aliases));
+    for (const term of glossary) {
+      expect(catalog.find(({ id }) => id === `glossary:${term.id}`)).toMatchObject({
+        href: `/hub/glossary/${term.id}/`,
+        tags: expect.arrayContaining(term.data.aliases),
+      });
+    }
     const blogDestinations = new Set([...blogPosts, ...blogHighlights].map(({ href }) => canonicalDestination(href)));
     const actual = catalog.filter(({ type, href }) => type === 'blog' && href.startsWith('https://'));
     expect(actual).toHaveLength(blogDestinations.size);

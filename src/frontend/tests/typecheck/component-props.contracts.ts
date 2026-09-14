@@ -196,7 +196,7 @@ const invalidAsciinemaPlayerProps: PropsOf<typeof AsciinemaPlayer> = {
 
 const validBreadcrumbProps = {
   crumbs: [
-    { label: 'Dev Hub', href: '/dev/', icon: 'dev-hub' },
+    { label: 'Dev Hub', href: '/hub/', icon: 'dev-hub' },
     { label: 'Docs', href: '/docs/', icon: 'docs' },
     { label: 'Reference', href: '/reference/overview/' },
     { label: 'Aspire.Hosting' },

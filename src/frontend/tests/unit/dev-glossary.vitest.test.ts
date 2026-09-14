@@ -128,7 +128,7 @@ describe('glossary content migration', () => {
       expect(getTerm(id).data.legacyAnchors).toEqual([]);
     }
     expect(getTerm('apphost').body).toContain('C# or any guest language supported through');
-    expect(getTerm('apphost').body).toContain('/dev/glossary/ats/');
+    expect(getTerm('apphost').body).toContain('/hub/glossary/ats/');
     expect(getTerm('opentelemetry').data.aliases).not.toContain('telemetry');
     expect(getTerm('opentelemetry').data.related).toContain('otlp');
   });
@@ -152,7 +152,7 @@ describe('glossary helpers', () => {
     expect(sortGlossary(input).map((term) => term.id)).toEqual(['apphost', 'waitfor']);
     expect(input[0].id).toBe('waitfor');
     expect(glossaryLetter('AppHost')).toBe('A');
-    expect(glossaryHref('apphost')).toBe('/dev/glossary/apphost/');
+    expect(glossaryHref('apphost')).toBe('/hub/glossary/apphost/');
   });
 
   it('searches technical labels and pronunciation without requiring either field', () => {
@@ -163,8 +163,8 @@ describe('glossary helpers', () => {
   });
 
   it('accepts only valid same-origin return links to the glossary', () => {
-    expect(glossaryReturnHref('/dev/glossary/?q=wait&letter=W', 'https://aspire.dev')).toBe('/dev/glossary/?q=wait&letter=W');
-    for (const input of [null, 'http://[', 'https://example.com/dev/glossary/', '/dev/', 'javascript:alert(1)']) {
+    expect(glossaryReturnHref('/hub/glossary/?q=wait&letter=W', 'https://aspire.dev')).toBe('/hub/glossary/?q=wait&letter=W');
+    for (const input of [null, 'http://[', 'https://example.com/hub/glossary/', '/hub/', '/dev/glossary/', 'javascript:alert(1)']) {
       expect(glossaryReturnHref(input, 'https://aspire.dev')).toBeUndefined();
     }
   });
@@ -180,7 +180,7 @@ describe('glossary helpers', () => {
 describe('glossary component rendering', () => {
   it('renders semantic cards with in-card examples and no-JS context', async () => {
     const html = await renderComponent(GlossaryCard, { props: { term: getTerm('apphost') } });
-    expect(html).toContain('href="/dev/glossary/apphost/"');
+    expect(html).toContain('href="/hub/glossary/apphost/"');
     expect(html).toContain('id="apphost"');
     expect(html).toContain('data-glossary-context');
     expect(html).toMatch(/<button[^>]+data-glossary-context[^>]+aria-expanded="false"/);

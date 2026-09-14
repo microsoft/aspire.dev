@@ -52,7 +52,7 @@ describe('resource discovery', () => {
     expect(filterResources(multilingual, selected).map(({ id }) => id)).toEqual(['both', 'csharp', 'typescript']);
     expect(filterResources(multilingual, { ...selected, provider: ['azure'] }).map(({ id }) => id)).toEqual(['both', 'csharp']);
     expect(multilingual.filter((entry) => matchesResource(entry, { ...selected, provider: ['azure'] }, 'language'))).toHaveLength(3);
-    expect(readBrowseState(writeBrowseState(new URL('https://aspire.dev/dev/browse/'), selected).searchParams, available)).toEqual(selected);
+    expect(readBrowseState(writeBrowseState(new URL('https://aspire.dev/hub/browse/'), selected).searchParams, available)).toEqual(selected);
     expect(readBrowseState(new URLSearchParams('language=csharp'), available).language).toEqual(['csharp']);
   });
 
@@ -123,7 +123,7 @@ describe('resource discovery', () => {
     ['newest', 'asc'], ['newest', 'desc'], ['oldest', 'asc'], ['oldest', 'desc'],
   ] as const)('round-trips the combined %s / %s ordering', (sort, titleSort) => {
     const selected = state({ sort, titleSort });
-    const url = writeBrowseState(new URL('https://aspire.dev/dev/browse/'), selected);
+    const url = writeBrowseState(new URL('https://aspire.dev/hub/browse/'), selected);
     expect(readBrowseState(url.searchParams, facets)).toEqual(selected);
     expect(url.searchParams.get('sort')).toBe(sort === 'newest' ? null : sort);
     expect(url.searchParams.get('title')).toBe(titleSort === 'asc' ? null : titleSort);
@@ -132,7 +132,7 @@ describe('resource discovery', () => {
   it('normalizes old title-only URLs into combined sorting', () => {
     const selected = readBrowseState(new URLSearchParams('sort=title-desc'), facets);
     expect(selected).toEqual(state({ titleSort: 'desc' }));
-    expect(writeBrowseState(new URL('https://aspire.dev/dev/browse/?sort=title-desc'), selected).search).toBe('?title=desc');
+    expect(writeBrowseState(new URL('https://aspire.dev/hub/browse/?sort=title-desc'), selected).search).toBe('?title=desc');
     expect(readBrowseState(new URLSearchParams('sort=title'), facets)).toEqual(state());
     expect(readBrowseState(new URLSearchParams('sort=title-desc&title=asc'), facets)).toEqual(state());
     expect(readBrowseState(new URLSearchParams('title=unknown'), facets)).toEqual(state());
@@ -141,7 +141,7 @@ describe('resource discovery', () => {
   it('normalizes obsolete relevance URLs to the date default', () => {
     const selected = readBrowseState(new URLSearchParams('q=redis&sort=relevance'), facets);
     expect(selected.sort).toBe('newest');
-    expect(writeBrowseState(new URL('https://aspire.dev/dev/browse/'), selected).search).toBe('?q=redis');
+    expect(writeBrowseState(new URL('https://aspire.dev/hub/browse/'), selected).search).toBe('?q=redis');
   });
 
   describe('resource pagination', () => {
@@ -179,7 +179,7 @@ describe('resource discovery', () => {
 
   it('round-trips valid shareable state while retaining unrelated URL parameters', () => {
     const initial = state({ q: ' redis ', type: ['integration', 'guide'], topic: ['integrations'], language: ['C#'], sort: 'newest', page: 2 });
-    const url = writeBrowseState(new URL('https://aspire.dev/dev/browse/?campaign=docs#old'), initial);
+    const url = writeBrowseState(new URL('https://aspire.dev/hub/browse/?campaign=docs#old'), initial);
     expect(url.searchParams.get('campaign')).toBe('docs');
     expect(url.hash).toBe('');
     expect(readBrowseState(url.searchParams, facets)).toEqual({ ...initial, q: 'redis' });
@@ -212,6 +212,6 @@ describe('resource discovery', () => {
     expect(filterResources(media, selected).map(({ id }) => id)).toEqual(['twitch']);
     const both = readBrowseState(new URLSearchParams('platform=twitch&platform=youtube'), available);
     expect(filterResources(media, both)).toHaveLength(2);
-    expect(readBrowseState(writeBrowseState(new URL('https://aspire.dev/dev/browse/'), both).searchParams, available)).toEqual(both);
+    expect(readBrowseState(writeBrowseState(new URL('https://aspire.dev/hub/browse/'), both).searchParams, available)).toEqual(both);
   });
 });

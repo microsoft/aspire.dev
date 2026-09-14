@@ -13,27 +13,27 @@ test('new glossary concepts are searchable and have linked pages and Markdown', 
     ['otlp', 'OpenTelemetry Protocol', 'OTLP'],
     ['resource-command', 'Resource command', 'Resource command'],
   ]) {
-    await page.goto('/dev/glossary/');
+    await page.goto('/hub/glossary/');
     await page.getByRole('searchbox', { name: 'Find a term' }).fill(query);
     const card = page.locator('[data-glossary-card]:visible')
       .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
     await expect(card).toHaveCount(1);
     await card.getByRole('link', { name: `Read the full definition of ${title}` }).click();
-    await expect(page).toHaveURL(new RegExp(`/dev/glossary/${slug}/`));
+    await expect(page).toHaveURL(new RegExp(`/hub/glossary/${slug}/`));
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
     await expect(page.getByRole('complementary', { name: 'Related terms' })).toBeVisible();
-    const markdown = await page.request.get(`/dev/glossary/${slug}.md`);
+    const markdown = await page.request.get(`/hub/glossary/${slug}.md`);
     expect(markdown.status()).toBe(200);
     expect(await markdown.text()).toContain(`# ${title}`);
   }
-  await page.goto('/dev/glossary/apphost/');
+  await page.goto('/hub/glossary/apphost/');
   await page.locator('.term-body').getByRole('link', { name: 'Aspire Type System (ATS)' }).click();
-  await expect(page).toHaveURL(/\/dev\/glossary\/ats\/$/);
+  await expect(page).toHaveURL(/\/hub\/glossary\/ats\/$/);
 });
 
 test('topic filter colors retain contrast across selection and theme changes', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/dev/glossary/');
+  await page.goto('/hub/glossary/');
   const chips = page.locator('.api-filter-chip[data-colored]');
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -59,7 +59,7 @@ test('topic filter colors retain contrast across selection and theme changes', a
 
 test('glossary toolbar keeps search compact and every letter reachable in both themes', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/dev/glossary/');
+  await page.goto('/hub/glossary/');
   const alphabet = page.getByRole('navigation', { name: 'Glossary letters' });
   const heading = page.getByRole('heading', { name: 'Aspire glossary', level: 1 });
   await expect(heading.locator('svg')).toBeVisible();
@@ -141,7 +141,7 @@ test('topic selection keeps the search input and filter buttons stationary', asy
   for (const width of [390, 640, 1200, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const theme of ['light', 'dark']) {
-      await page.goto('/dev/glossary/');
+      await page.goto('/hub/glossary/');
       await page.locator('html').evaluate((html, value) => html.dataset.theme = value, theme);
       await page.evaluate(() => document.fonts.ready);
       const controls = page.locator('.glossary-controls input, .glossary-controls [data-kind]');
@@ -165,7 +165,7 @@ test('topic selection keeps the search input and filter buttons stationary', asy
 });
 
 test('searches aliases, definitions, and context with combined letter/topic filters', async ({ page }) => {
-  await page.goto('/dev/glossary/');
+  await page.goto('/hub/glossary/');
   const search = page.getByRole('searchbox', { name: 'Find a term' });
   const cards = page.locator('[data-glossary-card]:visible');
   await expect(cards).toHaveCount(40);
@@ -190,7 +190,7 @@ test('searches aliases, definitions, and context with combined letter/topic filt
 
 test('empty results stay compact and offer one reset action in both themes', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/dev/glossary/?q=abd&topic=reference&letter=W');
+  await page.goto('/hub/glossary/?q=abd&topic=reference&letter=W');
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
@@ -210,12 +210,12 @@ test('empty results stay compact and offer one reset action in both themes', asy
   await page.getByRole('button', { name: 'Show all terms', exact: true }).press('Enter');
   await expect(page.getByRole('searchbox', { name: 'Find a term' })).toBeFocused();
   await expect(page.locator('[data-glossary-card]:visible')).toHaveCount(40);
-  await expect(page).toHaveURL(/\/dev\/glossary\/$/);
+  await expect(page).toHaveURL(/\/hub\/glossary\/$/);
   await expect(page.locator('[data-glossary-empty]')).toBeHidden();
 });
 
 test('restores filters on reload and Back, and supports keyboard return to the same results', async ({ page }) => {
-  await page.goto('/dev/glossary/?q=wait&topic=reference&letter=W');
+  await page.goto('/hub/glossary/?q=wait&topic=reference&letter=W');
   await expect(page.locator('[data-glossary-card]:visible')).toHaveCount(4);
   await page.reload();
   await expect(page.getByRole('searchbox')).toHaveValue('wait');
@@ -234,7 +234,7 @@ test('restores filters on reload and Back, and supports keyboard return to the s
 });
 
 test('supports accessible in-card previews without layout shifts, with pinning and dismissal', async ({ page }, testInfo) => {
-  await page.goto('/dev/glossary/?q=AppHost&letter=A');
+  await page.goto('/hub/glossary/?q=AppHost&letter=A');
   const card = page.locator('[data-glossary-card]').filter({ has: page.getByRole('heading', { name: 'AppHost', exact: true }) });
   const button = card.getByRole('button', { name: /^(In practice|Show definition)\s*:\s*AppHost$/ });
   const panel = card.locator('[data-context-panel]');
@@ -292,19 +292,19 @@ test('supports accessible in-card previews without layout shifts, with pinning a
 });
 
 test('uses page actions without duplicate sharing controls on term pages', async ({ page }) => {
-  await page.goto('/dev/glossary/withreference/?from=%2Fdev%2Fglossary%2F%3Fq%3Dwait');
+  await page.goto('/hub/glossary/withreference/?from=%2Fhub%2Fglossary%2F%3Fq%3Dwait');
   for (const name of ['Copy Markdown', 'Open', 'Share']) {
     await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
   }
   await expect(page.locator('glossary-permalink, .term-sharing')).toHaveCount(0);
   await expect(page.locator('.term-reading').getByRole('link', { name: 'Permalink', exact: true })).toHaveCount(0);
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/dev\/glossary\/withreference\/$/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/hub\/glossary\/withreference\/$/);
 });
 
 test('term pages use the article heading, actions, divider and breadcrumb layout', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const term of ['apphost', 'resourcenotificationservice']) {
-    await page.goto(`/dev/glossary/${term}/`);
+    await page.goto(`/hub/glossary/${term}/`);
     const panels = page.locator('main > .content-panel');
     await expect(panels).toHaveCount(2);
     const header = panels.first();
@@ -347,12 +347,12 @@ test('static glossary compatibility HTML preserves bookmarked fragments and quer
   }));
   for (const anchor of ['polyglot', 'apis-and-patterns', 'execution-modes', 'api-reference-terms', 'see-also']) {
     await page.goto(`/get-started/glossary/#${anchor}`);
-    await expect(page).toHaveURL(new RegExp(`/dev/glossary/#${anchor}$`));
+    await expect(page).toHaveURL(new RegExp(`/hub/glossary/#${anchor}$`));
     await expect(page.locator(`[id="${anchor}"]`)).toHaveCount(1);
     await expect(page.locator(`[id="${anchor}"]`)).toBeInViewport();
   }
   await page.goto('/get-started/glossary/?q=withreference#withreference');
-  await expect(page).toHaveURL(/\/dev\/glossary\/\?q=withreference#withreference$/);
+  await expect(page).toHaveURL(/\/hub\/glossary\/\?q=withreference#withreference$/);
   await expect(page.locator('#glossary-search-input')).toHaveValue('withreference');
   await expect(page.locator('#withreference')).toBeInViewport();
 });
@@ -373,13 +373,13 @@ test('old glossary bookmarks retain usable definition links without JavaScript',
     'dashboard-and-observability', 'common-patterns', 'api-reference-terms', 'see-also',
   ]) await expect(page.locator(`[id="${id}"]`)).toHaveCount(1);
   await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://aspire.dev/dev/glossary/');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://aspire.dev/hub/glossary/');
   await expect(page.locator('#withreference')).toBeInViewport();
   await expect(page.locator('#withreference').getByRole('link', { name: 'WithReference', exact: true }))
-    .toHaveAttribute('href', '/dev/glossary/withreference/');
+    .toHaveAttribute('href', '/hub/glossary/withreference/');
   await page.locator('#withreference').getByRole('link', { name: 'WithReference', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'WithReference', exact: true })).toBeVisible();
-  await page.goto('/dev/glossary/');
+  await page.goto('/hub/glossary/');
   await expect(page.locator('[data-glossary-card]')).toHaveCount(40);
   await expect(page.locator('[data-glossary-card]').first().locator('.glossary-noscript-context')).toBeVisible();
   await page.getByRole('link', { name: 'Read the full definition of AppHost' }).click();
@@ -389,7 +389,7 @@ test('old glossary bookmarks retain usable definition links without JavaScript',
 
 test('glossary cards keep bounded widths beneath keyboard-focusable letter controls in both themes', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/dev/glossary/');
+  await page.goto('/hub/glossary/');
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
@@ -434,16 +434,16 @@ test('glossary cards keep bounded widths beneath keyboard-focusable letter contr
 });
 
 test('has accessible controls and no horizontal overflow', async ({ page }) => {
-  await page.goto('/dev/glossary/');
+  await page.goto('/hub/glossary/');
   const result = await new AxeBuilder({ page }).include('glossary-browser').analyze();
   expect(result.violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.goto('/dev/glossary/resourcenotificationservice/');
+  await page.goto('/hub/glossary/resourcenotificationservice/');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('term pages show LearnMore directly below always-visible practical examples', async ({ page }) => {
-  await page.goto('/dev/glossary/apphost/');
+  await page.goto('/hub/glossary/apphost/');
   await expect(page.getByRole('complementary', { name: 'Continue learning' })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Next step', exact: true })).toHaveCount(0);
   const learning = page.locator('.term-main .term-learn-more .learn-more');
@@ -463,7 +463,7 @@ test('term pages show LearnMore directly below always-visible practical examples
   for (const link of await related.getByRole('link').all()) {
     await expect(link.locator('.related-term-summary')).not.toBeEmpty();
   }
-  await page.goto('/dev/glossary/otlp/');
+  await page.goto('/hub/glossary/otlp/');
   await expect(learning.getByRole('link')).toHaveCount(2);
   await expect(learning.getByRole('link').nth(0)).toHaveAttribute('href', '/fundamentals/telemetry/#export-opentelemetry-data-for-monitoring');
   await expect(learning.getByRole('link').nth(1)).toHaveAttribute('href', '/dashboard/configuration/#otlp');
@@ -477,12 +477,12 @@ test('optional glossary metadata is readable and preserved in Markdown', async (
     { id: 'waitforcompletion', type: 'API method', pronunciation: undefined },
     { id: 'polyglot', type: undefined, pronunciation: undefined },
   ];
-  const directoryMarkdown = await (await page.request.get('/dev/glossary.md')).text();
+  const directoryMarkdown = await (await page.request.get('/hub/glossary.md')).text();
   for (const entry of cases) {
-    await page.goto(`/dev/glossary/${entry.id}/`);
+    await page.goto(`/hub/glossary/${entry.id}/`);
     const metadata = page.locator('.term-meta');
     await expect(metadata).toHaveCount(entry.type || entry.pronunciation ? 1 : 0);
-    const response = await page.request.get(`/dev/glossary/${entry.id}.md`);
+    const response = await page.request.get(`/hub/glossary/${entry.id}.md`);
     expect(response.status()).toBe(200);
     expect(response.headers()['content-type']).toContain('text/markdown');
     const markdown = await response.text();
@@ -524,7 +524,7 @@ test('optional glossary metadata is readable and preserved in Markdown', async (
 
 test('term definitions, aliases and examples have a readable hierarchy in both themes', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/dev/glossary/waitforcompletion/');
+  await page.goto('/hub/glossary/waitforcompletion/');
   const definition = page.getByRole('region', { name: 'Definition', exact: true });
   await expect(definition.locator('.term-description')).toContainText('exits with the expected exit code');
   await expect(definition.locator('.term-aliases dt')).toHaveText('Also known as');
@@ -547,7 +547,7 @@ test('term definitions and practical examples remain visible without JavaScript'
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
   try {
     const page = await context.newPage();
-    await page.goto('/dev/glossary/waitforcompletion/');
+    await page.goto('/hub/glossary/waitforcompletion/');
     await expect(page.getByRole('region', { name: 'Definition', exact: true }).locator('p')).toBeVisible();
     await expect(page.getByRole('region', { name: 'Practical example', exact: true }).locator('p')).toBeVisible();
     await expect(page.locator('.term-example details')).toHaveCount(0);
@@ -562,7 +562,7 @@ test('term definitions and practical examples remain visible without JavaScript'
 
 test('term navigation follows glossary order after the reading content', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/dev/glossary/');
+  await page.goto('/hub/glossary/');
   const terms = await page.locator('[data-glossary-card] h3 a').evaluateAll((links) =>
     links.map((link) => ({ href: new URL(link.getAttribute('href')!, location.href).pathname, title: link.textContent! })));
   expect(terms.length).toBeGreaterThan(2);
@@ -592,8 +592,8 @@ test('term navigation follows glossary order after the reading content', async (
 
 test('previous and next terms preserve the return to filtered glossary results', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  const from = '/dev/glossary/?q=wait&topic=reference';
-  await page.goto(`/dev/glossary/waitforcompletion/?from=${encodeURIComponent(from)}`);
+  const from = '/hub/glossary/?q=wait&topic=reference';
+  await page.goto(`/hub/glossary/waitforcompletion/?from=${encodeURIComponent(from)}`);
   await page.locator('.pagination-links a[rel="next"]').click();
   await expect(page.locator('h1#_top')).toHaveText('WaitForStart');
   expect(new URL(page.url()).searchParams.get('from')).toBe(from);
@@ -603,7 +603,7 @@ test('previous and next terms preserve the return to filtered glossary results',
   const collapsedBreadcrumb = page.locator('.bc-collapse summary');
   if (await collapsedBreadcrumb.isVisible()) await collapsedBreadcrumb.click();
   await page.getByRole('link', { name: 'Back to your glossary results' }).click();
-  await expect(page).toHaveURL(new RegExp('/dev/glossary/\\?q=wait&topic=reference$'));
+  await expect(page).toHaveURL(new RegExp('/hub/glossary/\\?q=wait&topic=reference$'));
   await expect(page.getByRole('searchbox')).toHaveValue('wait');
 });
 
@@ -626,7 +626,7 @@ test('glossary inline code inherits the shared documentation prose styles', asyn
     await page.goto('/fundamentals/service-discovery/');
     await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
     const expected = await page.locator('.sl-markdown-content p > code').first().evaluate(inlineStyle);
-    await page.goto('/dev/glossary/withreference/');
+    await page.goto('/hub/glossary/withreference/');
     await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
     const code = page.locator('.term-body p > code').first();
     expect(await code.evaluate(inlineStyle)).toEqual(expected);
@@ -639,7 +639,7 @@ test('glossary inline code inherits the shared documentation prose styles', asyn
 });
 
 test('term pages place related terms beside the reading column on tablets and desktops', async ({ page }) => {
-  for (const route of ['/dev/glossary/withreference/', '/dev/glossary/resourcenotificationservice/']) {
+  for (const route of ['/hub/glossary/withreference/', '/hub/glossary/resourcenotificationservice/']) {
     await page.goto(route);
     for (const width of [320, 390, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
@@ -665,7 +665,7 @@ test('term pages place related terms beside the reading column on tablets and de
 });
 
 test('topic pills support multiple selections, keyboard toggling, and persistent return links', async ({ page }) => {
-  await page.goto('/dev/glossary/');
+  await page.goto('/hub/glossary/');
   const cards = page.locator('[data-glossary-card]:visible');
   const expected = await cards.evaluateAll((elements) => elements.filter((element) =>
     element.getAttribute('data-topics')?.split(' ').some((topic) => ['foundations', 'reference'].includes(topic))).length);
@@ -687,6 +687,7 @@ test('topic pills support multiple selections, keyboard toggling, and persistent
   await expect(cards).toHaveCount(expected);
   await expect(foundations).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('link', { name: 'Read the full definition of AppHost' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'AppHost', exact: true })).toBeVisible();
   const collapsed = page.locator('.bc-collapse summary');
   if (await collapsed.isVisible()) await collapsed.press('Enter');
   await page.getByRole('link', { name: 'Back to your glossary results' }).press('Enter');

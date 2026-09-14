@@ -29,8 +29,8 @@ function textureStats(pixels: number[], size: number) {
 
 for (const theme of ['light', 'dark']) {
   for (const [surface, route, selector] of [
-    ['Browse', '/dev/browse/?type=guide', '.browse-card-artwork:visible'],
-    ['Quickstart', '/dev/', '.resource-primary .resource-card'],
+    ['Browse', '/hub/browse/?type=guide', '.browse-card-artwork:visible'],
+    ['Quickstart', '/hub/', '.resource-primary .resource-card'],
   ]) {
     test(`${surface} ${theme} grain is fine, irregular, restrained, and edge-biased`, async ({ page }, testInfo) => {
       await page.emulateMedia({ reducedMotion: 'reduce' });

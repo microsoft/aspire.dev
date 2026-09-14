@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('card title underlines animate from the left for hover and keyboard focus', async ({ page }) => {
-  await page.goto('/dev/browse/?provider=aws');
+  await page.goto('/hub/browse/?provider=aws');
   const link = results(page).first().locator('a');
   const title = link.locator('[data-link-underline]');
   const underline = () => title.evaluate((element) => {
@@ -36,7 +36,7 @@ test('card title underlines animate from the left for hover and keyboard focus',
 });
 
 test('AWS artwork switches to a legible logo for each theme', async ({ page }) => {
-  await page.goto('/dev/browse/?provider=aws');
+  await page.goto('/hub/browse/?provider=aws');
   const card = results(page).filter({ has: page.getByRole('heading', { name: 'AWS integrations overview', exact: true }) });
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
@@ -50,7 +50,7 @@ test('AWS artwork switches to a legible logo for each theme', async ({ page }) =
 });
 
 test('sparse integration cards keep the same content alignment as longer cards', async ({ page }) => {
-  await page.goto('/dev/browse/?type=integration&q=Aspire.Hosting.');
+  await page.goto('/hub/browse/?type=integration&q=Aspire.Hosting.');
   await expect(page.locator('resource-browser')).toHaveAttribute('data-ready', '');
   for (const width of [390, 1558]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -77,7 +77,7 @@ test('sparse integration cards keep the same content alignment as longer cards',
 test('CSS artwork texture stays subtle, edge-biased, and stable after reload', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/dev/browse/?type=guide');
+  await page.goto('/hub/browse/?type=guide');
   await expect(page.locator('resource-browser')).toHaveAttribute('data-ready', '');
   const grain = () => page.locator('.browse-card-artwork:visible').evaluateAll((cards) =>
     cards.map((card) => {
@@ -145,7 +145,7 @@ for (const query of ['', '?type=blog&sort=oldest&title=desc&page=2', '?q=zzzz-no
       requestAnimationFrame(observe);
     });
     try {
-      await page.goto(`/dev/browse/${query}`, { waitUntil: 'commit' });
+      await page.goto(`/hub/browse/${query}`, { waitUntil: 'commit' });
       const browser = page.locator('resource-browser');
       await expect(browser).toHaveAttribute('aria-busy', 'true');
       await expect(page.getByRole('status', { name: '' }).filter({ hasText: 'Loading resources...' })).toBeVisible();
@@ -185,7 +185,7 @@ for (const query of ['', '?type=blog&sort=oldest&title=desc&page=2', '?q=zzzz-no
 
 test('resource links remain usable if the browser controller fails to load', async ({ page }) => {
   await page.route('**/*ResourceBrowser*', (route) => route.request().resourceType() === 'script' ? route.abort() : route.continue());
-  await page.goto('/dev/browse/?type=blog');
+  await page.goto('/hub/browse/?type=blog');
   await expect(page.getByText('Interactive browsing could not load. All resource links are listed below.')).toBeVisible();
   await expect(page.locator('.browse-loading')).toBeHidden();
   expect(await page.locator('.browse-result:visible').count()).toBeGreaterThan(100);
@@ -193,9 +193,9 @@ test('resource links remain usable if the browser controller fails to load', asy
 });
 
 test('Dev Hub leads to the complete paginated resource directory', async ({ page }) => {
-  await page.goto('/dev/');
+  await page.goto('/hub/');
   await page.getByRole('link', { name: 'Browse all resources', exact: true }).click();
-  await expect(page).toHaveURL(/\/dev\/browse\/$/);
+  await expect(page).toHaveURL(/\/hub\/browse\/$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Browse resources' })).toBeVisible();
   await expect(results(page)).toHaveCount(24);
   const total = await page.locator('.browse-result').count();
@@ -210,7 +210,7 @@ test('Dev Hub leads to the complete paginated resource directory', async ({ page
 });
 
 test('search, type and topic filters combine and survive reload and browser history', async ({ page }) => {
-  await page.goto('/dev/browse/?q=redis&type=integration&topic=integrations');
+  await page.goto('/hub/browse/?q=redis&type=integration&topic=integrations');
   await expect(page.getByRole('searchbox', { name: 'Search resources...' })).toHaveValue('redis');
   expect(await results(page).count()).toBeGreaterThan(0);
   for (const card of await results(page).all()) await expect(card).toHaveAttribute('data-resource-type', 'integration');
@@ -232,7 +232,7 @@ test('search, type and topic filters combine and survive reload and browser hist
 });
 
 test('search highlights card matches through typing, pagination, reload and history', async ({ page }) => {
-  await page.goto('/dev/browse/?q=aspire');
+  await page.goto('/hub/browse/?q=aspire');
   const input = page.getByRole('searchbox', { name: 'Search resources...' });
   const marks = page.locator('mark.browse-search-match');
   const assertHighlights = async (query: string) => {
@@ -278,18 +278,18 @@ test('search highlights card matches through typing, pagination, reload and hist
 });
 
 test('tutorials and quickstarts keep their integration topic, while includes stay excluded', async ({ page }) => {
-  await page.goto('/dev/browse/?type=tutorial&topic=integrations');
+  await page.goto('/hub/browse/?type=tutorial&topic=integrations');
   for (const article of ['hosting-integrations', 'client-integrations', 'secure-communication']) {
     await expect(results(page).locator(`a[href="/integrations/custom-integrations/${article}/"]`)).toBeVisible();
   }
-  await page.goto('/dev/browse/?type=quickstart&topic=integrations');
+  await page.goto('/hub/browse/?type=quickstart&topic=integrations');
   await expect(results(page).locator('a[href="/integrations/frameworks/rust/rust-get-started/"]')).toBeVisible();
   await expect(results(page).locator('a[href="/integrations/devtools/k6/k6-get-started/"]')).toBeVisible();
   for (const card of await results(page).all()) {
     await expect(card).toHaveAttribute('data-resource-type', 'quickstart');
     await expect(card.locator('.browse-card-kind')).toHaveText('Quickstart');
   }
-  await page.goto('/dev/browse/?type=quickstart');
+  await page.goto('/hub/browse/?type=quickstart');
   await expect(results(page).locator('a[href="/get-started/github-codespaces/"]')).toBeVisible();
   await expect(results(page).locator('a[href="/get-started/dev-containers/"]')).toBeVisible();
   await expect(page.locator('.browse-result a[href*="/includes/"]')).toHaveCount(0);
@@ -297,17 +297,17 @@ test('tutorials and quickstarts keep their integration topic, while includes sta
 
 test('article language filters include AppHost and consuming-client examples', async ({ page }) => {
   for (const language of ['csharp', 'typescript']) {
-    await page.goto(`/dev/browse/?q=first%20app&type=quickstart&language=${language}`);
+    await page.goto(`/hub/browse/?q=first%20app&type=quickstart&language=${language}`);
     await expect(results(page).locator('a[href="/get-started/first-app/"]')).toBeVisible();
   }
   for (const language of ['csharp', 'typescript', 'python', 'go']) {
-    await page.goto(`/dev/browse/?q=connect%20openai&type=integration&language=${language}`);
+    await page.goto(`/hub/browse/?q=connect%20openai&type=integration&language=${language}`);
     await expect(results(page).locator('a[href="/integrations/ai/openai/openai-connect/"]')).toBeVisible();
   }
 });
 
 test('every ingested official blog post is reachable across resource pages', async ({ page }) => {
-  await page.goto('/dev/browse/?type=blog&sort=newest');
+  await page.goto('/hub/browse/?type=blog&sort=newest');
   await expect(results(page).first()).toBeVisible();
   const seen = new Set<string>();
   while (true) {
@@ -324,7 +324,7 @@ test('every ingested official blog post is reachable across resource pages', asy
 
 test('reference identities and release imagery stay distinct in both themes', async ({ page }) => {
   for (const theme of ['light', 'dark']) {
-    await page.goto('/dev/browse/?q=aspire%20docs%20api%20search&type=reference');
+    await page.goto('/hub/browse/?q=aspire%20docs%20api%20search&type=reference');
     await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
     const command = results(page).filter({ has: page.locator('a[href="/reference/cli/commands/aspire-docs-api-search/"]') });
     await expect(command.locator('.browse-artwork-detail code')).toHaveText('aspire docs api search');
@@ -332,9 +332,9 @@ test('reference identities and release imagery stay distinct in both themes', as
     const detail = await command.locator('.browse-artwork-detail').boundingBox();
     const badge = await command.locator('.browse-card-kind').boundingBox();
     expect(detail!.y + detail!.height).toBeLessThanOrEqual(badge!.y);
-    await page.goto('/dev/browse/?q=ASPIRE001&type=diagnostic');
+    await page.goto('/hub/browse/?q=ASPIRE001&type=diagnostic');
     await expect(results(page).locator('.browse-artwork-detail code')).toHaveText('ASPIRE001');
-    await page.goto('/dev/browse/?type=release-notes');
+    await page.goto('/hub/browse/?type=release-notes');
     await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
     const release = results(page).filter({ has: page.locator('a[href="/whats-new/aspire-13-2/"]') });
     const image = release.locator(`.browse-image-${theme}`);
@@ -349,20 +349,20 @@ test('reference identities and release imagery stay distinct in both themes', as
 });
 
 test('empty results reset completely and unknown URL state is normalized', async ({ page }) => {
-  await page.goto('/dev/browse/?q=not-a-real-resource-555&type=glossary');
+  await page.goto('/hub/browse/?q=not-a-real-resource-555&type=glossary');
   await expect(page.getByRole('heading', { name: 'No matching resources' })).toBeVisible();
   await expect(results(page)).toHaveCount(0);
   await page.getByRole('button', { name: 'Show all resources' }).click();
-  await expect(page).toHaveURL(/\/dev\/browse\/$/);
+  await expect(page).toHaveURL(/\/hub\/browse\/$/);
   await expect(results(page)).toHaveCount(24);
   await expect(page.getByRole('searchbox', { name: 'Search resources...' })).toBeFocused();
-  await page.goto('/dev/browse/?type=unknown&topic=unknown&page=999999999&sort=unknown');
+  await page.goto('/hub/browse/?type=unknown&topic=unknown&page=999999999&sort=unknown');
   await expect(results(page).first()).toBeVisible();
   await expect(page).not.toHaveURL(/unknown|999999999/);
 });
 
 test('provider, multi-type filters and sorting reflect their URL state', async ({ page }) => {
-  await page.goto('/dev/browse/?type=video&type=blog');
+  await page.goto('/hub/browse/?type=video&type=blog');
   const types = await results(page).evaluateAll((cards) => cards.map((card) => card.getAttribute('data-resource-type')));
   expect(types.every((type) => type === 'video' || type === 'blog')).toBe(true);
   await expect(page.locator('[data-filter-group="sort"] summary')).toHaveAccessibleName('Sort by: Date Newest first, then Title A-Z');
@@ -371,7 +371,7 @@ test('provider, multi-type filters and sorting reflect their URL state', async (
   expect(dates.length).toBeGreaterThan(0);
   expect(dates).toEqual([...dates].sort().reverse());
   for (const name of ['provider']) {
-    await page.goto('/dev/browse/');
+    await page.goto('/hub/browse/');
     await openFacet(page, name);
     const option = page.locator(`.browse-filters input[name="${name}"]`).nth(1);
     const value = await option.getAttribute('value');
@@ -386,7 +386,7 @@ test('provider, multi-type filters and sorting reflect their URL state', async (
 });
 
 test('multiple languages combine with other filters and survive reload, history, and clearing', async ({ page }) => {
-  await page.goto('/dev/browse/?type=sample&language=csharp&language=typescript');
+  await page.goto('/hub/browse/?type=sample&language=csharp&language=typescript');
   await openFacet(page, 'language');
   const csharp = page.locator('input[name="language"][value="csharp"]');
   const typescript = page.locator('input[name="language"][value="typescript"]');
@@ -418,18 +418,18 @@ test('multiple languages combine with other filters and survive reload, history,
   await expect(csharp).not.toBeChecked();
   await expect(typescript).not.toBeChecked();
   await expect(page.locator('[data-filter-active="language"]')).toBeHidden();
-  await expect(page).toHaveURL(/\/dev\/browse\/$/);
+  await expect(page).toHaveURL(/\/hub\/browse\/$/);
 });
 
 test('all resource variants render, with bounded cards and no horizontal overflow', async ({ page }) => {
   for (const type of ['video', 'sample', 'integration', 'glossary', 'diagnostic', 'blog']) {
-    await page.goto(`/dev/browse/?type=${type}`);
+    await page.goto(`/hub/browse/?type=${type}`);
     expect(await results(page).count()).toBeGreaterThan(0);
     await expect(results(page).first()).toHaveAttribute('data-resource-type', type);
   }
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto('/dev/browse/?q=AppHost&type=glossary');
+    await page.goto('/hub/browse/?q=AppHost&type=glossary');
     const columns = await page.locator('.browse-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
     expect(columns).toBe(width < 600 ? 1 : width < 1200 ? 2 : 3);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -444,11 +444,11 @@ test('all resource variants render, with bounded cards and no horizontal overflo
 for (const width of [390, 768, 1440]) {
   test(`shared breadcrumbs and uniform image headers at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto('/dev/browse/');
+    await page.goto('/hub/browse/');
     await expect(page.locator('.dev-breadcrumbs .breadcrumb')).toHaveCount(1);
     const hubMark = await page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true }).locator('svg').innerHTML();
-    await expect(page.locator('.dev-breadcrumbs a[href="/dev/"] svg')).toHaveCount(2);
-    for (const mark of await page.locator('.dev-breadcrumbs a[href="/dev/"] svg').all()) {
+    await expect(page.locator('.dev-breadcrumbs a[href="/hub/"] svg')).toHaveCount(2);
+    for (const mark of await page.locator('.dev-breadcrumbs a[href="/hub/"] svg').all()) {
       await expect(mark).toHaveAttribute('aria-hidden', 'true');
       expect(await mark.innerHTML()).toBe(hubMark);
     }
@@ -458,7 +458,7 @@ for (const width of [390, 768, 1440]) {
       await expect(page.locator('.bc-dropdown').getByRole('link', { name: 'Dev Hub' })).toBeVisible();
     }
     for (const type of ['guide', 'integration', 'video', 'sample', 'glossary', 'blog']) {
-      await page.goto(`/dev/browse/?type=${type}`);
+      await page.goto(`/hub/browse/?type=${type}`);
       await expect(results(page).first()).toBeVisible();
       await expect(page.locator('.browse-card-preview')).toHaveCount(await page.locator('.browse-result').count());
       for (const card of (await results(page).all()).slice(0, 3)) {
@@ -478,12 +478,12 @@ for (const width of [390, 768, 1440]) {
 }
 
 test('official YouTube and Twitch filters are shareable and community videos are excluded', async ({ page }) => {
-  await page.goto('/dev/browse/?platform=twitch');
+  await page.goto('/hub/browse/?platform=twitch');
   await expect(results(page)).toHaveCount(1);
   await expect(results(page).getByRole('link')).toHaveAttribute('href', 'https://www.twitch.tv/aspiredotdev');
   await page.reload();
   await expect(results(page)).toHaveCount(1);
-  await page.goto('/dev/browse/?platform=youtube');
+  await page.goto('/hub/browse/?platform=youtube');
   expect(await results(page).count()).toBeGreaterThan(1);
   await expect(page.locator('[data-resource-entry*="video:QvSDRRGv8cs"]')).toHaveCount(0);
   for (const card of await results(page).all()) {
@@ -492,7 +492,7 @@ test('official YouTube and Twitch filters are shareable and community videos are
 });
 
 test('top filters support keyboard dismissal and stay within the viewport', async ({ page }) => {
-  await page.goto('/dev/browse/');
+  await page.goto('/hub/browse/');
   const search = await page.locator('.browse-search').boundingBox();
   const filters = await page.locator('.browse-filters').boundingBox();
   const grid = await page.locator('.browse-grid').boundingBox();
@@ -540,7 +540,7 @@ test('top filters support keyboard dismissal and stay within the viewport', asyn
 });
 
 test('every dropdown shows compact options without a separate search input', async ({ page }) => {
-  await page.goto('/dev/browse/?page=2');
+  await page.goto('/hub/browse/?page=2');
   await expect(results(page)).toHaveCount(24);
   await expect(page.locator('.browse-filters select')).toHaveCount(0);
   await expect(page.locator('.dev-description, .browse-search .inpage-search-label')).toHaveCount(0);
@@ -579,7 +579,7 @@ test('every dropdown shows compact options without a separate search input', asy
 });
 
 test('filter changes preserve control and result positions', async ({ page }) => {
-  await page.goto('/dev/browse/');
+  await page.goto('/hub/browse/');
   const measure = () => page.locator('.browse-search, .browse-filters, .browse-grid, .browse-filter-group > summary').evaluateAll((elements) =>
     elements.map((element) => {
       const box = element.getBoundingClientRect();
@@ -604,7 +604,7 @@ test('filter changes preserve control and result positions', async ({ page }) =>
 
 test('type options use available height without unnecessary scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/dev/browse/');
+  await page.goto('/hub/browse/');
   await openFacet(page, 'type');
   const list = page.locator('[data-filter-group="type"] fieldset');
   const dimensions = await list.evaluate((element) => ({ content: element.scrollHeight, visible: element.clientHeight }));
@@ -617,7 +617,7 @@ test('type options use available height without unnecessary scrolling', async ({
 });
 
 test('filtered selections persist, including single-select history and clearing', async ({ page }) => {
-  await page.goto('/dev/browse/?language=csharp');
+  await page.goto('/hub/browse/?language=csharp');
   await openFacet(page, 'language');
   const group = page.locator('[data-filter-group="language"]');
   await group.getByRole('checkbox', { name: 'TypeScript', exact: true }).check();
@@ -637,11 +637,11 @@ test('filtered selections persist, including single-select history and clearing'
   await expect(provider.locator('summary')).toHaveText('Azure');
   await page.getByRole('button', { name: 'Clear all', exact: true }).click();
   await expect(provider.locator('summary')).toHaveText('Provider');
-  await expect(page).toHaveURL(/\/dev\/browse\/$/);
+  await expect(page).toHaveURL(/\/hub\/browse\/$/);
 });
 
 test('date and title directions persist across searches, reloads and history', async ({ page }) => {
-  await page.goto('/dev/browse/?type=blog&page=2');
+  await page.goto('/hub/browse/?type=blog&page=2');
   const checkOrder = async (dateSort: 'newest' | 'oldest', titleSort: 'asc' | 'desc') => {
     const entries = await page.locator('[data-resource-type="blog"]').evaluateAll((cards) =>
       cards.map((card) => JSON.parse(card.getAttribute('data-resource-entry')!) as { id: string; title: string; date: string }));
@@ -702,12 +702,12 @@ test('date and title directions persist across searches, reloads and history', a
   await expect(sort.locator('summary')).toHaveAccessibleName('Sort by: Date Oldest first, then Title Z-A');
   await expect(page.getByRole('searchbox', { name: 'Search resources...' })).toHaveValue('aspire');
   await page.getByRole('button', { name: 'Clear all', exact: true }).click();
-  await expect(page).toHaveURL(/\/dev\/browse\/$/);
+  await expect(page).toHaveURL(/\/hub\/browse\/$/);
   await expect(sort.locator('summary')).toHaveAccessibleName('Sort by: Date Newest first, then Title A-Z');
 });
 
 test('history returns focus from hidden pagination and closed filter options without stealing it', async ({ page }) => {
-  await page.goto('/dev/browse/');
+  await page.goto('/hub/browse/');
   const search = page.getByRole('searchbox', { name: 'Search resources...' });
   const nav = page.getByRole('navigation', { name: 'Resource pages' });
   await openFacet(page, 'type');
@@ -737,7 +737,7 @@ test('history returns focus from hidden pagination and closed filter options wit
 });
 
 test('numbered pagination preserves combined sorting, keyboard focus, history, and page boundaries', async ({ page }) => {
-  await page.goto('/dev/browse/?sort=oldest&title=desc&page=8');
+  await page.goto('/hub/browse/?sort=oldest&title=desc&page=8');
   const nav = page.getByRole('navigation', { name: 'Resource pages' });
   const pages = Math.ceil(await page.locator('.browse-result').count() / 24);
   const active = nav.locator('[aria-current="page"]');
@@ -797,7 +797,7 @@ test('numbered pagination preserves combined sorting, keyboard focus, history, a
 });
 
 test('pagination keeps the controls at the same viewport position across different page heights', async ({ page }) => {
-  await page.goto('/dev/browse/?page=2');
+  await page.goto('/hub/browse/?page=2');
   const nav = page.getByRole('navigation', { name: 'Resource pages' });
   const pages = Math.ceil(await page.locator('.browse-result').count() / 24);
   await nav.scrollIntoViewIfNeeded();
@@ -824,7 +824,7 @@ test('pagination keeps the controls at the same viewport position across differe
 });
 
 test('language icons show article coverage opposite the type badge in both themes', async ({ page }) => {
-  await page.goto('/dev/browse/?q=connect%20openai');
+  await page.goto('/hub/browse/?q=connect%20openai');
   const card = results(page).filter({ has: page.locator('a[href="/integrations/ai/openai/openai-connect/"]') });
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
@@ -850,7 +850,7 @@ test('language icons show article coverage opposite the type badge in both theme
 
 test('filters and cards remain accessible in both themes', async ({ page }) => {
   for (const theme of ['light', 'dark']) {
-    await page.goto('/dev/browse/?type=sample');
+    await page.goto('/hub/browse/?type=sample');
     await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
     await expect(results(page).first()).toBeVisible();
     for (const name of ['language', 'sort']) {
@@ -865,7 +865,7 @@ test('filters and cards remain accessible in both themes', async ({ page }) => {
 test('all resource destinations remain available without JavaScript', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
-  await page.goto(`${baseURL}/dev/browse/`);
+  await page.goto(`${baseURL}/hub/browse/`);
   expect(await page.locator('.browse-result a').count()).toBeGreaterThan(100);
   await expect(page.getByText('All resources are listed below.', { exact: false })).toBeVisible();
   await expect(page.locator('.browse-search')).toBeHidden();

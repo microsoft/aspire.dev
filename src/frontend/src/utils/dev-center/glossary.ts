@@ -30,14 +30,14 @@ export const legacyGroups = [
 ] as const;
 
 export function glossaryHref(id: string): string {
-  return `/dev/glossary/${id}/`;
+  return `/hub/glossary/${id}/`;
 }
 
 export function glossaryReturnHref(value: string | null, origin: string): string | undefined {
   if (!value) return undefined;
   try {
     const target = new URL(value, origin);
-    if (target.origin === origin && target.pathname === '/dev/glossary/') {
+    if (target.origin === origin && target.pathname === '/hub/glossary/') {
       return `${target.pathname}${target.search}`;
     }
   } catch {
