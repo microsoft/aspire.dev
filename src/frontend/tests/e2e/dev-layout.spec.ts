@@ -70,36 +70,41 @@ test('custom destinations excluded from the Markdown validator exist with their 
   await expect(page.locator('#polyglot')).toHaveCount(1);
 });
 
-test('Quickstart uses a static CSS edge texture in both themes and screen sizes', async ({ page }) => {
+test('onboarding offers native task links with visible focus in both themes and accessibility modes', async ({ page }) => {
   await page.goto('/hub/');
-  const card = page.locator('.resource-primary .resource-card');
-  for (const width of [390, 1440]) {
+  const section = page.getByRole('region', { name: 'New to Aspire?' });
+  const links = section.getByRole('link');
+  await expect(links).toHaveCount(4);
+  await expect(section.locator('.resource-card, .resource-icon')).toHaveCount(0);
+  for (const width of [320, 390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
       for (const reducedMotion of ['reduce', 'no-preference'] as const) {
         await page.emulateMedia({ reducedMotion });
-        const texture = await card.evaluate((element) => {
-          const style = getComputedStyle(element, '::before');
-          return {
-            background: style.backgroundImage, mask: style.maskImage, opacity: style.opacity,
-            animation: style.animationName, pointerEvents: style.pointerEvents,
-          };
-        });
-        expect(texture.background).toContain('repeating-conic-gradient');
-        expect(texture.mask).toMatch(/^linear-gradient\((?:to left|270deg),/);
-        expect(texture.background + texture.mask).not.toContain('url(');
-        expect(texture.opacity).toBe('0.12');
-        expect(texture.animation).toBe('none');
-        expect(texture.pointerEvents).toBe('none');
-        await expect(card).toBeVisible();
+        for (const link of await links.all()) {
+          await link.focus();
+          await expect(link).toBeFocused();
+          await expect(link).toHaveCSS('outline-style', 'solid');
+          expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+          await expect(link).toHaveCSS('animation-name', 'none');
+          if (reducedMotion === 'reduce') await expect(link.locator('svg')).toHaveCSS('transition-duration', '0s');
+        }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       }
+      const result = await new AxeBuilder({ page }).include('.onboarding').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+      expect(result.violations).toEqual([]);
     }
   }
   await page.emulateMedia({ forcedColors: 'active' });
-  await expect(card).toHaveCSS('forced-color-adjust', 'auto');
-  expect(await card.evaluate((element) => getComputedStyle(element, '::before').display)).toBe('none');
+  for (const link of await links.all()) {
+    await expect(link).toHaveCSS('forced-color-adjust', 'auto');
+    await link.focus();
+    await expect(link).toHaveCSS('outline-style', 'solid');
+  }
+  await expect(section.locator('.onboarding-cta')).toHaveCSS('border-width', '1px');
+  await links.first().press('Enter');
+  await expect(page).toHaveURL(/\/get-started\/first-app\/$/);
 });
 
 test('Dev Hub introduction and Markdown use the current Aspire positioning', async ({ page, request }) => {
@@ -123,7 +128,7 @@ test('Dev Hub links share animated underlines and topic cards use the concept-ca
   for (const link of await page.locator('.dev-home a:not(.dashboard-links a)').all()) {
     await expect(link.locator('[data-link-underline]')).toHaveCount(1);
   }
-  for (const selector of ['.dev-browse-link', '.resource-primary a', '.resource-links li:not(.resource-primary) a', '.topic-links a', '.language-links a', '.cloud-links a', '.featured-samples a', '.reference-links a', '.dashboard-previews a', '.channel-link', '.video-links a', '.blog-links a']) {
+  for (const selector of ['.dev-browse-link', '.onboarding-cta', '.onboarding-options a', '.topic-links a', '.language-links a', '.cloud-links a', '.featured-samples a', '.reference-links a', '.dashboard-previews a', '.channel-link', '.video-links a', '.blog-links a']) {
     const link = page.locator(selector).first();
     const underline = link.locator('[data-link-underline]');
     await link.scrollIntoViewIfNeeded();
@@ -248,8 +253,8 @@ test('Developer Hub links directly to existing resources and the latest featured
   await page.goto('/hub/');
   const links = page.getByRole('region', { name: 'New to Aspire?' }).getByRole('link');
   const destinations = [
-    '/get-started/first-app/', '/get-started/deploy-first-app/',
-    '/get-started/add-aspire-existing-app/', '/hub/glossary/',
+    '/get-started/first-app/', '/get-started/add-aspire-existing-app/',
+    '/get-started/deploy-first-app/', '/hub/glossary/',
   ];
   await expect(links).toHaveCount(destinations.length);
   for (const [index, href] of destinations.entries()) {
@@ -267,9 +272,10 @@ test('newcomer paths precede three-column topic cards with responsive layouts', 
   await page.goto('/hub/');
   const newcomers = page.getByRole('region', { name: 'New to Aspire?' });
   const topics = page.getByRole('navigation', { name: 'Browse by topic' });
-  await expect(newcomers.locator('.section-description')).toContainText('Start with the Quickstart');
-  await expect(newcomers.getByRole('heading', { level: 3 })).toHaveText(['Quickstart', 'Tutorial', 'How-to', 'Glossary']);
-  const descriptions = await newcomers.locator('.resource-copy p').allTextContents();
+  await expect(newcomers.locator('.section-description')).toHaveText('Aspire is the tool for code-first, extensible, observable dev and deploy.');
+  await expect(newcomers.getByRole('heading', { level: 3 })).toHaveText(['Get your first app running.', 'Add Aspire to your project', 'Deploy your app', 'Understand the concepts']);
+  await expect(newcomers.locator('.onboarding-format')).toHaveText(['Quickstart', 'How-to', 'Tutorial', 'Glossary']);
+  const descriptions = await newcomers.locator('.onboarding-start p, .onboarding-options p').allTextContents();
   await expect(topics.getByRole('link')).toHaveCount(6);
   const markdown = await (await page.request.get('/hub.md')).text();
   expect(markdown.indexOf('## New to Aspire?')).toBeLessThan(markdown.indexOf('## Browse by topic'));
@@ -284,17 +290,27 @@ test('newcomer paths precede three-column topic cards with responsive layouts', 
     expect(start.y + start.height).toBeLessThan(browse.y);
     const columns = await topics.locator('ul').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
     expect(columns).toBe(width >= 1024 ? 3 : width >= 640 ? 2 : 1);
-    const starterColumns = await newcomers.locator('ul').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
+    const starterColumns = await newcomers.locator('.onboarding-start').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
     expect(starterColumns).toBe(width >= 768 ? 2 : 1);
+    const optionColumns = await newcomers.locator('ul').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
+    expect(optionColumns).toBe(width >= 768 ? 3 : 1);
+    const startRow = (await newcomers.locator('.onboarding-start').boundingBox())!;
     const primary = (await newcomers.getByRole('link').first().boundingBox())!;
-    const tutorial = (await newcomers.getByRole('link').nth(1).boundingBox())!;
+    const existingProject = (await newcomers.getByRole('link').nth(1).boundingBox())!;
     const glossary = (await newcomers.getByRole('link').last().boundingBox())!;
+    expect(startRow.y + startRow.height).toBeLessThan(existingProject.y);
+    expect(primary.width).toBeLessThan(startRow.width);
     if (width >= 768) {
-      expect(primary.x + primary.width).toBeLessThan(tutorial.x);
-      expect(primary.y).toBeCloseTo(tutorial.y, 0);
-      expect(primary.y + primary.height).toBeCloseTo(glossary.y + glossary.height, 0);
+      expect(existingProject.x + existingProject.width).toBeLessThan(glossary.x);
+      expect(existingProject.y).toBeCloseTo(glossary.y, 0);
+      const labelLines = await newcomers.locator('.onboarding-cta span').evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return range.getClientRects().length;
+      });
+      expect(labelLines).toBe(1);
     } else {
-      expect(primary.y + primary.height).toBeLessThanOrEqual(tutorial.y);
+      expect(existingProject.y + existingProject.height).toBeLessThan(glossary.y);
     }
     await expect(newcomers.getByRole('link').first()).toHaveCSS('border-width', '1px');
     for (const link of (await newcomers.getByRole('link').all()).slice(1)) {
@@ -303,13 +319,13 @@ test('newcomer paths precede three-column topic cards with responsive layouts', 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
   const starter = newcomers.getByRole('link').first();
-  await expect(starter.locator('.resource-action')).toHaveText('Start building');
+  await expect(starter).toHaveText('Create your first app');
   await starter.focus();
   await expect(starter).toBeFocused();
   await expect(starter).not.toHaveCSS('outline-style', 'none');
-  await expect(starter).toHaveCSS('outline-offset', '-4px');
+  await expect(starter).toHaveCSS('outline-offset', '3px');
   await starter.hover();
-  for (const element of [starter, starter.locator('h3'), starter.locator('p'), starter.locator('.resource-action')]) {
+  for (const element of [starter, starter.locator('span')]) {
     await expect(element).toHaveCSS('text-decoration-line', 'none');
   }
   const first = topics.getByRole('link').first();
@@ -335,13 +351,13 @@ test('Dev Hub uses consistent heading, body, and action sizes across viewports',
     expect(icon.width).toBeGreaterThan(24);
     expect(icon.x + icon.width).toBeLessThan(label.x);
     expect(icon.y + icon.height / 2).toBeCloseTo(label.y + label.height / 2, 0);
-    for (const heading of await page.locator('.dev-home h3').all()) {
+    for (const heading of await page.locator('.dev-home h3:not(.onboarding-start h3)').all()) {
       await expect(heading).toHaveCSS('font-size', '18px');
     }
-    for (const body of await page.locator('.topic-links p, .resource-links > li:not(.resource-primary) p, .language-links p, .sample-copy p, .cloud-links p, .reference-links p, .blog-copy p, .dashboard-previews figcaption p, .topic-action, .resource-action').all()) {
+    for (const body of await page.locator('.topic-links p, .onboarding p, .language-links p, .sample-copy p, .cloud-links p, .reference-links p, .blog-copy p, .dashboard-previews figcaption p, .topic-action, .onboarding-cta').all()) {
       await expect(body).toHaveCSS('font-size', '16px');
     }
-    const quickstartSize = await page.locator('.resource-primary p').evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+    const quickstartSize = await page.locator('.onboarding-start h3').evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
     expect(quickstartSize).toBeGreaterThanOrEqual(22);
     expect(quickstartSize).toBeLessThanOrEqual(26);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -488,7 +504,7 @@ test('discovery arrows, dashboard panels, and video links stay aligned at every 
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
       const layout = await page.evaluate(() => {
-        const cards = [...document.querySelectorAll('.resource-links > li:not(.resource-primary) .resource-card')];
+        const cards = [...document.querySelectorAll('.onboarding-options a')];
         const panels = [...document.querySelectorAll('.dashboard-previews figure')];
         const videos = [...document.querySelectorAll('.video-links a')];
         return {
@@ -893,7 +909,7 @@ test('Developer Hub remains browsable without JavaScript and reflows at narrow w
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
   const staticPage = await context.newPage();
   await staticPage.goto('/hub/');
-  await expect(staticPage.locator('.resource-links > li, .language-links > li, .cloud-links > li, .featured-samples > li, .reference-links > li, #dashboard, .video-links > li, .blog-links > li')).toHaveCount(30);
+  await expect(staticPage.locator('.onboarding-start, .onboarding-options > li, .language-links > li, .cloud-links > li, .featured-samples > li, .reference-links > li, #dashboard, .video-links > li, .blog-links > li')).toHaveCount(30);
   await expect(staticPage.getByRole('button', { name: 'Search Aspire documentation' })).toBeDisabled();
   await context.close();
   for (const width of [320, 390, 640, 1024, 1440]) {

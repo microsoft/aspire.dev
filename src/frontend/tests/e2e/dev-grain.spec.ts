@@ -30,14 +30,13 @@ function textureStats(pixels: number[], size: number) {
 for (const theme of ['light', 'dark']) {
   for (const [surface, route, selector] of [
     ['Browse', '/hub/browse/?type=guide', '.browse-card-artwork:visible'],
-    ['Quickstart', '/hub/', '.resource-primary .resource-card'],
   ]) {
     test(`${surface} ${theme} grain is fine, irregular, restrained, and edge-biased`, async ({ page }, testInfo) => {
       await page.emulateMedia({ reducedMotion: 'reduce' });
       for (const width of [390, 1440]) {
         await page.setViewportSize({ width, height: 1000 });
         await page.goto(route);
-        if (surface === 'Browse') await expect(page.locator('resource-browser')).toHaveAttribute('data-ready', '');
+        await expect(page.locator('resource-browser')).toHaveAttribute('data-ready', '');
         await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
         await page.evaluate(() => document.fonts.ready);
         const target = page.locator(selector).first();
@@ -61,12 +60,9 @@ for (const theme of ['light', 'dark']) {
           }
           return textureStats(pixels, 64);
         };
-        const edge = (surface === 'Browse'
-          ? [region(16, 16), region(info.width - 80, 16), region(16, info.height - 80), region(info.width - 80, info.height - 80)]
-          : [region(info.width - 80, 16)]).reduce((a, b) => a.mean > b.mean ? a : b);
-        const quiet = surface === 'Browse'
-          ? region(Math.floor(info.width / 2) - 32, Math.floor(info.height / 2) - 32)
-          : region(16, 16);
+        const edge = [region(16, 16), region(info.width - 80, 16), region(16, info.height - 80), region(info.width - 80, info.height - 80)]
+          .reduce((a, b) => a.mean > b.mean ? a : b);
+        const quiet = region(Math.floor(info.width / 2) - 32, Math.floor(info.height / 2) - 32);
         await testInfo.attach(`${width}px texture statistics`, { body: JSON.stringify({ edge, quiet }), contentType: 'application/json' });
         expect(edge.deviation, 'Visible fine speckle, not a flat tint').toBeGreaterThan(0.2);
         expect(edge.mean, 'Decorative grain must remain low contrast').toBeLessThan(12);

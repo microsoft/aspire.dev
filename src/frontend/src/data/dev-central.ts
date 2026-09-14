@@ -5,7 +5,7 @@ import { topics } from '../utils/dev-center/topics';
 
 export const devTitle = 'Dev Hub';
 export const devDescription = 'Find guides, working samples, and reference docs for your next Aspire app.';
-export const gettingStartedDescription = `${aspireProject.description} Start with the Quickstart, or choose a path that fits what you want to do.`;
+export const gettingStartedDescription = aspireProject.description;
 
 const topicDestinations = {
   foundations: { href: '/docs/', description: 'AppHosts, resources, and the concepts behind your app.', action: 'Learn the fundamentals' },
@@ -18,10 +18,10 @@ const topicDestinations = {
 export const topicLinks = topics.map((topic) => ({ ...topic, ...topicDestinations[topic.id] }));
 
 export const resources = [
-  { title: 'Quickstart', description: 'Create and run your first app.', href: '/get-started/first-app/', icon: 'rocket', color: 'var(--sl-color-purple)' },
-  { title: 'Tutorial', description: 'Have an app running locally? Deploy it to the cloud, step by step.', href: '/get-started/deploy-first-app/', icon: 'open-book', color: 'var(--sl-color-orange)' },
-  { title: 'How-to', description: 'Already have a project? Add Aspire without starting over.', href: '/get-started/add-aspire-existing-app/', icon: 'pencil', color: 'var(--sl-color-green)' },
-  { title: 'Glossary', description: 'Learning the vocabulary? Explore key concepts with practical examples.', href: '/hub/glossary/', icon: 'notes', color: 'var(--color-cyan)' },
+  { title: 'Create your first app', format: 'Quickstart', description: 'Run services together and explore them in the Aspire dashboard.', href: '/get-started/first-app/' },
+  { title: 'Add Aspire to your project', format: 'How-to', description: 'Keep your code. Add orchestration and observability.', href: '/get-started/add-aspire-existing-app/' },
+  { title: 'Deploy your app', format: 'Tutorial', description: 'Take your locally running app to the cloud, step by step.', href: '/get-started/deploy-first-app/' },
+  { title: 'Understand the concepts', format: 'Glossary', description: 'Learn the vocabulary with definitions and practical examples.', href: '/hub/glossary/' },
 ] as const;
 
 export const languages = [
