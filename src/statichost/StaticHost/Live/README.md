@@ -281,39 +281,35 @@ dotnet test .\tests\Aspire.Dev.AppHost.Tests\Aspire.Dev.AppHost.Tests.csproj --c
 dotnet test .\tests\StaticHost.Tests\StaticHost.Tests.csproj --configuration Release --filter "Category!=RedisIntegration"
 ```
 
-The real-Redis group has the xUnit trait `Category=RedisIntegration`. Before
-running it, provision a **disposable Redis instance dedicated to this test
-run**, not the AppHost cache, a developer's existing cache, or a production
-service. Set `STATICHOST_TEST_REDIS_CONNECTION` to that instance's explicit
-endpoint. Replace `<published-port>` below with the disposable instance's port:
+The real-Redis group has the xUnit trait `Category=RedisIntegration` and requires
+a running container runtime, such as Docker. Following the
+[Aspire testing pattern](https://aspire.dev/testing/overview/), its shared fixture
+uses `DistributedApplicationTestingBuilder` to run a Redis-only test application.
+It uses the same `AddAzureManagedRedis("cache").RunAsContainer()` hosting
+integration as the site's AppHost, so the default container image follows the
+Aspire package version instead of a separate image pin in CI.
 
 ```powershell
-$env:STATICHOST_TEST_REDIS_CONNECTION = "127.0.0.1:<published-port>,defaultDatabase=15"
-try {
-    dotnet test .\tests\StaticHost.Tests\StaticHost.Tests.csproj --configuration Release --filter "Category=RedisIntegration"
-}
-finally {
-    Remove-Item Env:STATICHOST_TEST_REDIS_CONNECTION
-}
+dotnet test .\tests\StaticHost.Tests\StaticHost.Tests.csproj --configuration Release --filter "Category=RedisIntegration"
 ```
 
-There is no implicit localhost connection, Redis auto-start, in-memory fallback,
-or skipped-test success when the connection is missing or unavailable. An
-unfiltered StaticHost test run includes this group and therefore also requires
-the connection variable.
+Aspire allocates the test resource's port, waits for Redis to become healthy,
+and supplies the connection string. Disposing the fixture tears down its
+application and container. No manually started Redis instance, connection-string
+environment variable, Azure credentials, or frontend build is needed. Startup
+is bounded by a three-minute timeout and fails the tests if Redis cannot start;
+there is no in-memory fallback or skipped-test success. An unfiltered StaticHost
+test run includes this group and therefore also requires a container runtime.
 
-The fixture defaults to database 15, rejects database 0, and refuses databases
-that already contain the feature's fixed production keys. It serializes tests
-in one collection, reserves the database against overlapping integration runs,
-and gives Redis pub/sub a unique run-specific channel prefix (pub/sub is not
-isolated by database). Cleanup deletes only exact keys owned by the fixture;
-it never flushes a database or server. If a process crashes and leaves an
-ownership key, discard and recreate the disposable instance. Do not point
-another run at it or clear unrelated data.
+The fixture serializes tests in one collection, uses two independent Redis
+connections, and gives pub/sub a unique run-specific channel prefix. Between
+cases it deletes only exact keys created by its tests, never flushing a database
+or server. Each run owns its container rather than sharing the AppHost cache or
+a developer's existing Redis instance.
 
 The existing AppHost CI build job restores and builds both backend test
 projects, runs the ordinary suites, and explicitly runs the Redis group
-against its own health-checked Redis service. TRX results and build/test
+with Aspire-managed Redis on the runner's Docker engine. TRX results and build/test
 binlogs are uploaded with a job summary. Changes to either backend test
 project or `Aspire.Dev.slnx` trigger that job.
 

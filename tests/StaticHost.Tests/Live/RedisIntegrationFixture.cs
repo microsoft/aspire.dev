@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using Aspire.Hosting;
+using Aspire.Hosting.Testing;
 using StackExchange.Redis;
 
 namespace StaticHost.Tests.Live;
@@ -6,14 +8,11 @@ namespace StaticHost.Tests.Live;
 [CollectionDefinition(RedisIntegrationCollection.Name, DisableParallelization = true)]
 public sealed class RedisIntegrationCollection : ICollectionFixture<RedisIntegrationFixture>
 {
-    public const string Name = "Disposable Redis integration";
+    public const string Name = "Aspire Redis integration";
 }
 
 public sealed class RedisIntegrationFixture : IAsyncLifetime
 {
-    public const string ConnectionVariable = "STATICHOST_TEST_REDIS_CONNECTION";
-
-    private const string OwnershipKey = "aspiredev:live:integration-test-owner";
     private static readonly RedisKey[] s_productionKeys =
     [
         LiveStatusRedisKeys.State,
@@ -25,8 +24,8 @@ public sealed class RedisIntegrationFixture : IAsyncLifetime
 
     private readonly string _owner = Guid.NewGuid().ToString("N");
     private readonly HashSet<RedisKey> _ownedKeys = [];
-    private bool _ownsDatabase;
-    private bool _ownsLock;
+    private IDistributedApplicationTestingBuilder? _builder;
+    private DistributedApplication? _app;
 
     public ConnectionMultiplexer First { get; private set; } = null!;
     public ConnectionMultiplexer Second { get; private set; } = null!;
@@ -34,52 +33,25 @@ public sealed class RedisIntegrationFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        var connection = Environment.GetEnvironmentVariable(ConnectionVariable);
-        if (string.IsNullOrWhiteSpace(connection))
-        {
-            throw new InvalidOperationException(
-                $"Redis integration tests require {ConnectionVariable} with an explicit disposable Redis endpoint. " +
-                "Use --filter \"Category!=RedisIntegration\" to run without Redis.");
-        }
-
-        var configuration = ConfigurationOptions.Parse(connection);
-        if (configuration.EndPoints.Count == 0)
-        {
-            throw new InvalidOperationException(
-                $"{ConnectionVariable} must specify a disposable Redis endpoint; no localhost default is permitted.");
-        }
-
-        configuration.DefaultDatabase ??= 15;
-        if (configuration.DefaultDatabase <= 0)
-        {
-            throw new InvalidOperationException(
-                $"{ConnectionVariable} must select a nonzero disposable test database (defaultDatabase=15).");
-        }
-
-        configuration.AbortOnConnectFail = true;
-        configuration.ConnectRetry = 0;
-        configuration.ConnectTimeout = 5_000;
-        configuration.AsyncTimeout = 5_000;
-        configuration.ChannelPrefix = RedisChannel.Literal($"statichost-integration:{_owner}:");
-
+        using var startup = new CancellationTokenSource(TimeSpan.FromMinutes(3));
         try
         {
+            _builder = DistributedApplicationTestingBuilder.Create();
+            _builder.AddAzureManagedRedis("cache").RunAsContainer();
+            _app = await _builder.BuildAsync(startup.Token);
+            await _app.StartAsync(startup.Token);
+            await _app.ResourceNotifications.WaitForResourceHealthyAsync("cache", startup.Token);
+            var connection = await _app.GetConnectionStringAsync("cache", startup.Token)
+                ?? throw new InvalidOperationException("Aspire did not provide the test Redis connection string.");
+            var configuration = ConfigurationOptions.Parse(connection);
+            configuration.AbortOnConnectFail = true;
+            configuration.ConnectRetry = 0;
+            configuration.ConnectTimeout = 5_000;
+            configuration.AsyncTimeout = 5_000;
+            configuration.ChannelPrefix = RedisChannel.Literal($"statichost-integration:{_owner}:");
+
             First = await ConnectionMultiplexer.ConnectAsync(configuration);
             await Database.PingAsync();
-            _ownsLock = await Database.StringSetAsync(OwnershipKey, _owner, when: When.NotExists);
-            if (!_ownsLock)
-            {
-                throw new InvalidOperationException(
-                    "Another integration run owns this Redis database. Use a separate disposable Redis instance.");
-            }
-
-            if (await Database.KeyExistsAsync(s_productionKeys) != 0)
-            {
-                throw new InvalidOperationException(
-                    "The selected database contains live-status keys. Refusing to modify them; use a fresh disposable Redis instance.");
-            }
-
-            _ownsDatabase = true;
             _ownedKeys.UnionWith(s_productionKeys);
             Second = await ConnectionMultiplexer.ConnectAsync(configuration);
             await Second.GetDatabase().PingAsync();
@@ -107,7 +79,7 @@ public sealed class RedisIntegrationFixture : IAsyncLifetime
     }
 
     public Task ResetAsync() =>
-        _ownsDatabase && First is not null
+        First is not null
             ? Database.KeyDeleteAsync(_ownedKeys.ToArray())
             : Task.CompletedTask;
 
@@ -115,27 +87,30 @@ public sealed class RedisIntegrationFixture : IAsyncLifetime
     {
         try
         {
-            await ResetAsync();
-            if (_ownsLock && First is not null)
-            {
-                await Database.ScriptEvaluateAsync(
-                    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-                    [(RedisKey)OwnershipKey],
-                    [(RedisValue)_owner]);
-            }
-        }
-        finally
-        {
-            _ownsDatabase = false;
-            _ownsLock = false;
             if (Second is not null)
             {
                 await Second.DisposeAsync();
             }
-
             if (First is not null)
             {
                 await First.DisposeAsync();
+            }
+        }
+        finally
+        {
+            try
+            {
+                if (_app is not null)
+                {
+                    await _app.DisposeAsync();
+                }
+            }
+            finally
+            {
+                if (_builder is not null)
+                {
+                    await _builder.DisposeAsync();
+                }
             }
         }
     }

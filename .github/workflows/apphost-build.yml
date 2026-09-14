@@ -14,16 +14,6 @@ jobs:
       DOTNET_NOLOGO: 1
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
       TEST_RESULTS_DIR: ${{ github.workspace }}/testresults
-    services:
-      redis:
-        image: redis:8.6
-        ports:
-          - 6379/tcp
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -80,8 +70,6 @@ jobs:
 
       - name: Run StaticHost Redis integration tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        env:
-          STATICHOST_TEST_REDIS_CONNECTION: 127.0.0.1:${{ job.services.redis.ports['6379'] }},defaultDatabase=15
         run: >
           dotnet test tests/StaticHost.Tests/StaticHost.Tests.csproj
           --configuration Release
