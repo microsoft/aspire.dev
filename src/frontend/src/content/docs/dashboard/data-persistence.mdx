@@ -72,33 +72,34 @@ See [Aspire dashboard configuration](/dashboard/configuration/#data-persistence)
 
 ## Storage layout
 
-Persistent data is partitioned by application. The application directory name combines a readable, sanitized application-name prefix with a stable hash. The hash prevents distinct names that sanitize to the same prefix from sharing data.
+Every application has a stable application storage key that combines a readable, sanitized application-name prefix with a stable hash. The hash prevents distinct names that sanitize to the same prefix from sharing data.
 
-`Run` mode stores each run in a timestamped directory:
+`Run` mode stores all runs, from every application, directly beneath a shared `runs` directory:
 
 **Run mode data layout**
 
 <FileTree>
 - \<data-root\>/
-  - \<application-directory\>/
-    - runs/
-      - \<run-id\>.lock
-      - \<run-id\>/
-        - dashboard.db
-        - run.json
+  - runs/
+    - \<run-id\>.lock
+    - \<run-id\>/
+      - \<application-storage-key\>
+      - dashboard.db
+      - run.json
 </FileTree>
 
-The metadata in _run.json_ includes the schema version, run ID, start and end times, application name, database file name, pin state, and whether the dashboard shut down cleanly. A run that doesn't shut down cleanly remains available after its process releases the lock.
+Each run directory contains an empty marker file named with the application's storage key. Discovery checks for this marker before opening and deserializing _run.json_, so the dashboard can reject runs that belong to other applications without reading their metadata. The metadata in _run.json_ includes the schema version, run ID, start and end times, application name, database file name, pin state, and whether the dashboard shut down cleanly. A run that doesn't shut down cleanly remains available after its process releases the lock.
 
-`Resume` mode stores one database for the application:
+`Resume` mode stores each application's database under a shared `resumes` directory:
 
 **Resume mode data layout**
 
 <FileTree>
 - \<data-root\>/
-  - \<application-directory\>.lock
-  - \<application-directory\>/
-    - dashboard.db
+  - resumes/
+    - \<application-storage-key\>.lock
+    - \<application-storage-key\>/
+      - dashboard.db
 </FileTree>
 
 SQLite can create _dashboard.db-wal_ and _dashboard.db-shm_ beside a writable database. Include these files when inspecting, protecting, or copying live data.
@@ -139,7 +140,7 @@ Don't modify dashboard databases with non-Aspire tools. Changes made by other ap
 
 Persisted resources and telemetry can contain secrets and other sensitive application data. Resource property values marked as sensitive remain masked in the dashboard UI, but their underlying values are stored without redaction or encryption.
 
-On Unix-like systems, the dashboard sets the application-specific directory to owner-only permissions (`0700`). On Windows, it relies on the directory's inherited ACL. You are responsible for restricting access to the configured data root and to backups, snapshots, and copies.
+On Unix-like systems, the dashboard sets the shared `runs` and `resumes` directories, and `Resume` mode's application directories, to owner-only permissions (`0700`). On Windows, it relies on the directory's inherited ACL. You are responsible for restricting access to the configured data root and to backups, snapshots, and copies.
 
 For complete guidance, see [Protect persisted data](/dashboard/security-considerations/#protect-persisted-data).
 

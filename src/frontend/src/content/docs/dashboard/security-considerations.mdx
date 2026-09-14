@@ -46,11 +46,11 @@ The dashboard stores resources, console logs, structured logs, traces, and metri
 
 Persisted data can contain sensitive application-supplied values, including environment variables, resource properties, console output, log bodies and attributes, trace attributes and events, metric dimensions, and exemplars. Resource property values marked as sensitive are stored without redaction or encryption. The sensitivity marker is retained so the dashboard masks those values in current and historical views, but masking doesn't protect values read directly from the database, write-ahead log files, backups, or copies.
 
-The SQLite database has no independent authorization or encryption layer. Its security boundary is the local file system. Application-name partitioning organizes data but isn't an authorization boundary.
+The SQLite database has no independent authorization or encryption layer. Its security boundary is the local file system. Application-name scoping organizes data but isn't an authorization boundary.
 
 - Configure `ASPIRE_HOME` or `Dashboard:Data:Directory` so only the dashboard's account and authorized administrators can read or modify the entire data directory.
 - Apply equivalent access restrictions to backups, snapshots, and copies of the data directory.
-- On Unix-like systems, the dashboard creates the application-specific directory with owner-only permissions (`0700`) and changes an existing application directory to that mode.
+- On Unix-like systems, the dashboard creates the shared `runs` and `resumes` directories, and `Resume` mode's application directories, with owner-only permissions (`0700`), and repairs an existing directory to that mode.
 - On Windows, the dashboard uses the directory's inherited access control list (ACL) and doesn't set or validate a specific ACL. Verify that the configured data root doesn't grant access to unauthorized users.
 
 Don't modify dashboard data files with non-Aspire tools. The files don't have cryptographic integrity protection, and external changes can display misleading data, prevent runs from opening, or cause unexpected behavior.
