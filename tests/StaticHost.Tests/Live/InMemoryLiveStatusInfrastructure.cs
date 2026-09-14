@@ -25,14 +25,10 @@ internal sealed class InMemoryLiveStatusStore(TimeProvider timeProvider) : ILive
 
         lock (_gate)
         {
-            var next = LiveStatusReducer.Apply(
-                _state.Snapshot,
+            _state = LiveStatusReducer.Apply(
+                _state,
                 update,
                 timeProvider.GetUtcNow());
-            if (next != _state.Snapshot)
-            {
-                _state = new LiveStatusState(_state.Epoch, _state.Version + 1, next);
-            }
 
             return ValueTask.FromResult(_state);
         }

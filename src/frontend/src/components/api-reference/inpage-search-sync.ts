@@ -13,14 +13,14 @@ declare global {
   }
 }
 
-class InpageSearchSync {
+export class InpageSearchSync {
   private input: HTMLInputElement;
   private clearBtn: HTMLElement;
   private onClear: () => void;
 
-  constructor(prefix: string, onClear: () => void) {
-    const input = document.getElementById(`${prefix}-search-input`);
-    const clearBtn = document.getElementById(`${prefix}-search-clear`);
+  constructor(prefix: string, onClear: () => void, root: ParentNode = document, private signal?: AbortSignal) {
+    const input = root.querySelector(`#${prefix}-search-input`);
+    const clearBtn = root.querySelector<HTMLElement>(`#${prefix}-search-clear`);
     if (!(input instanceof HTMLInputElement) || !clearBtn) {
       throw new Error(`InpageSearchSync: missing elements for prefix "${prefix}"`);
     }
@@ -28,13 +28,13 @@ class InpageSearchSync {
     this.clearBtn = clearBtn;
     this.onClear = onClear;
 
-    this.input.addEventListener('input', () => this.updateClearButton());
+    this.input.addEventListener('input', () => this.updateClearButton(), { signal });
     this.clearBtn.addEventListener('click', () => {
       this.input.value = '';
       this.updateClearButton();
       this.input.focus();
       this.onClear();
-    });
+    }, { signal });
   }
 
   readQuery(): string {
@@ -53,6 +53,7 @@ class InpageSearchSync {
   }
 
   writeUrl(query: string, activeKinds: Set<string>): void {
+    if (this.signal?.aborted || !this.input.isConnected) return;
     const url = new URL(window.location.href);
     url.searchParams.delete('q');
     url.searchParams.delete('kinds');

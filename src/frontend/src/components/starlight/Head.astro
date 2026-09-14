@@ -349,6 +349,7 @@ function computeSourceUrl() {
       if (!document.body) return null;
       placeholder = document.createElement('div');
       placeholder.id = id;
+      placeholder.setAttribute('data-astro-transition-persist', id);
       // Dedicated placeholder pinned to the top of the viewport. WCP injects its
       // banner INTO this element in normal flow, so without a top-anchored host the
       // banner lands wherever the host sits. Using document.body dropped it at the
@@ -362,6 +363,70 @@ function computeSourceUrl() {
       placeholder.style.zIndex = '2147483647';
       document.body.insertBefore(placeholder, document.body.firstChild);
       return placeholder;
+    }
+
+    function preserveConsentStyles(nextDocument) {
+      var themeStyle = document.getElementById('ms-consent-banner-theme-styles');
+      if (!themeStyle) return;
+      // WCP's base stylesheet uses generated class names. Its theme stylesheet
+      // targets those same classes, so identify the vendor styles without
+      // hardcoding hashes or retaining unrelated page styles across navigation.
+      var selectors = [];
+      if (themeStyle.sheet) {
+        var rules = themeStyle.sheet.cssRules;
+        for (var i = 0; i < rules.length; i++) {
+          if (rules[i].selectorText) {
+            selectors.push(rules[i].selectorText);
+          }
+        }
+      }
+      document.head.querySelectorAll('style').forEach(function (style) {
+        if (
+          style === themeStyle ||
+          selectors.some(function (selector) {
+            return style.textContent.indexOf(selector) !== -1;
+          })
+        ) {
+          // Astro recognizes equal style content and retains the original node.
+          nextDocument.head.appendChild(style.cloneNode(true));
+        }
+      });
+    }
+
+    function preserveConsentBeforeSwap(event) {
+      var nextDocument = event.newDocument;
+      if (!nextDocument) return;
+      preserveConsentStyles(nextDocument);
+
+      // WCP owns this DOM and retains references/listeners inside it. Supply a
+      // matching destination so ClientRouter moves the actual host, not a clone
+      // of the banner or a newly initialized consent instance.
+      var placeholder = document.getElementById('wcp-cookie-banner');
+      if (placeholder && nextDocument.body) {
+        var nextPlaceholder = nextDocument.getElementById(placeholder.id);
+        if (nextPlaceholder) nextPlaceholder.remove();
+        nextDocument.body.prepend(placeholder.cloneNode(false));
+      }
+
+      // ClientRouter keeps <html> but replaces its attributes. Carry only the
+      // consent-owned state into that swap, leaving the next page's state alone.
+      nextDocument.documentElement.toggleAttribute(
+        'data-consent-not-required',
+        document.documentElement.hasAttribute('data-consent-not-required')
+      );
+      var height = document.documentElement.style.getPropertyValue('--wcp-banner-height');
+      if (height) {
+        nextDocument.documentElement.style.setProperty('--wcp-banner-height', height);
+      }
+    }
+
+    function applyBannerHeight() {
+      var placeholder = document.getElementById('wcp-cookie-banner');
+      if (!placeholder) return;
+      document.documentElement.style.setProperty(
+        '--wcp-banner-height',
+        (placeholder.offsetHeight || 0) + 'px'
+      );
     }
 
     // While WCP's banner is visible it sits in a fixed, full-width strip at the top
@@ -379,14 +444,10 @@ function computeSourceUrl() {
         ) {
           return;
         }
-        var apply = function () {
-          var height = placeholder.offsetHeight || 0;
-          document.documentElement.style.setProperty('--wcp-banner-height', height + 'px');
-        };
-        var observer = new ResizeObserver(apply);
+        var observer = new ResizeObserver(applyBannerHeight);
         observer.observe(placeholder);
         window.__aspireWcpBannerObserver = observer;
-        apply();
+        applyBannerHeight();
       } catch (e) {}
     }
 
@@ -462,6 +523,7 @@ function computeSourceUrl() {
             if (err || !siteConsent) return;
             window.__aspireWcpSiteConsent = siteConsent;
             setConsentRequirementState(!!siteConsent.isConsentRequired);
+            applyWcpTheme();
             // Bridge WCP consent to our inert analytics scripts. onConsentChanged
             // reloads, so a later grant is re-applied by this same path on re-init.
             applyConsentToScripts(siteConsent);
@@ -483,6 +545,8 @@ function computeSourceUrl() {
     }
 
     document.addEventListener('click', openManageConsent);
+    document.addEventListener('astro:before-swap', preserveConsentBeforeSwap);
+    document.addEventListener('astro:after-swap', applyBannerHeight);
     watchThemeChanges();
 
     if (document.readyState === 'loading') {

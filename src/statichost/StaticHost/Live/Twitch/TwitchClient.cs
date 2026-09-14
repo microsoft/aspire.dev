@@ -15,25 +15,45 @@ public sealed class TwitchClient(
     /// <summary>Name of the registered <see cref="HttpClient"/>.</summary>
     public const string HttpClientName = "twitch";
 
-    private async Task<HttpClient> CreateHelixClientAsync(CancellationToken ct)
+    private async Task<HttpResponseMessage> SendHelixAsync(
+        Func<HttpRequestMessage> createRequest,
+        CancellationToken cancellationToken)
     {
         var client = httpFactory.CreateClient(HttpClientName);
         client.BaseAddress ??= new Uri("https://api.twitch.tv/helix/");
 
-        var token = await tokens.GetAsync(ct).ConfigureAwait(false);
+        for (var attempt = 0; ; attempt++)
+        {
+            var token = await tokens.GetAsync(cancellationToken).ConfigureAwait(false);
+            using var request = createRequest();
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Add("Client-Id", options.CurrentValue.Twitch.ClientId);
 
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        client.DefaultRequestHeaders.Remove("Client-Id");
-        client.DefaultRequestHeaders.Add("Client-Id", options.CurrentValue.Twitch.ClientId);
+            var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized)
+            {
+                return response;
+            }
 
-        return client;
+            using (response)
+            {
+                await tokens.InvalidateAsync(token, cancellationToken).ConfigureAwait(false);
+                if (attempt > 0)
+                {
+                    response.EnsureSuccessStatusCode();
+                }
+            }
+
+            logger.LogWarning("Twitch Helix rejected an app token; retrying the request once with a refreshed token.");
+        }
     }
 
     /// <inheritdoc/>
     public async Task<TwitchUser?> GetUserByLoginAsync(string login, CancellationToken cancellationToken)
     {
-        var client = await CreateHelixClientAsync(cancellationToken).ConfigureAwait(false);
-        var response = await client.GetAsync($"users?login={Uri.EscapeDataString(login)}", cancellationToken).ConfigureAwait(false);
+        using var response = await SendHelixAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, $"users?login={Uri.EscapeDataString(login)}"),
+            cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -53,8 +73,9 @@ public sealed class TwitchClient(
     /// <inheritdoc/>
     public async Task<TwitchStreamInfo> GetStreamAsync(string userId, CancellationToken cancellationToken)
     {
-        var client = await CreateHelixClientAsync(cancellationToken).ConfigureAwait(false);
-        var response = await client.GetAsync($"streams?user_id={Uri.EscapeDataString(userId)}", cancellationToken).ConfigureAwait(false);
+        using var response = await SendHelixAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, $"streams?user_id={Uri.EscapeDataString(userId)}"),
+            cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -71,8 +92,9 @@ public sealed class TwitchClient(
     /// <inheritdoc/>
     public async Task<IReadOnlyList<TwitchEventSubSubscription>> ListEventSubAsync(CancellationToken cancellationToken)
     {
-        var client = await CreateHelixClientAsync(cancellationToken).ConfigureAwait(false);
-        var response = await client.GetAsync("eventsub/subscriptions", cancellationToken).ConfigureAwait(false);
+        using var response = await SendHelixAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, "eventsub/subscriptions"),
+            cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -103,8 +125,7 @@ public sealed class TwitchClient(
     /// <inheritdoc/>
     public async Task CreateEventSubAsync(string type, string condition, string callbackUrl, string secret, CancellationToken cancellationToken)
     {
-        var client = await CreateHelixClientAsync(cancellationToken).ConfigureAwait(false);
-        var conditionDoc = JsonDocument.Parse(condition);
+        using var conditionDoc = JsonDocument.Parse(condition);
         var payload = new
         {
             type,
@@ -113,7 +134,12 @@ public sealed class TwitchClient(
             transport = new { method = "webhook", callback = callbackUrl, secret }
         };
 
-        var response = await client.PostAsJsonAsync("eventsub/subscriptions", payload, cancellationToken).ConfigureAwait(false);
+        using var response = await SendHelixAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, "eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(payload),
+            },
+            cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -125,8 +151,9 @@ public sealed class TwitchClient(
     /// <inheritdoc/>
     public async Task DeleteEventSubAsync(string id, CancellationToken cancellationToken)
     {
-        var client = await CreateHelixClientAsync(cancellationToken).ConfigureAwait(false);
-        var response = await client.DeleteAsync($"eventsub/subscriptions?id={Uri.EscapeDataString(id)}", cancellationToken).ConfigureAwait(false);
+        using var response = await SendHelixAsync(
+            () => new HttpRequestMessage(HttpMethod.Delete, $"eventsub/subscriptions?id={Uri.EscapeDataString(id)}"),
+            cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
     }
 }

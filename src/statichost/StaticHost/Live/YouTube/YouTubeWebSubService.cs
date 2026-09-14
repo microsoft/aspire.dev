@@ -27,8 +27,6 @@ public sealed class YouTubeWebSubService(
     private readonly ILiveStatusCoordination _coordination = coordination;
 
     private DateTimeOffset _nextDiscoveryPollAt = DateTimeOffset.MinValue;
-    private int _consecutiveOfflinePolls;
-    private string? _offlineConfirmationVideoId;
     private string? _resolvedChannelHandle;
     private string? _resolvedChannelId;
 
@@ -153,10 +151,10 @@ public sealed class YouTubeWebSubService(
         }
 
         YouTubeLiveResult? live = null;
-        var current = (await broadcaster.GetCurrentAsync(cancellationToken).ConfigureAwait(false)).YouTube;
+        var observed = await broadcaster.GetStateAsync(cancellationToken).ConfigureAwait(false);
+        var current = observed.Snapshot.YouTube;
         if (current.Live && !string.IsNullOrEmpty(current.VideoId))
         {
-            ResetOfflineConfirmationFor(current.VideoId);
             live = await client.GetVideoLiveStatusAsync(current.VideoId, cancellationToken).ConfigureAwait(false);
         }
         else if (now >= _nextDiscoveryPollAt)
@@ -170,49 +168,15 @@ public sealed class YouTubeWebSubService(
             return;
         }
 
-        if (live.Live)
-        {
-            _consecutiveOfflinePolls = 0;
-            _offlineConfirmationVideoId = live.VideoId;
-            await broadcaster.UpdateAsync(
-                new LiveStatusUpdate { YouTube = new YouTubeStatus(true, live.VideoId) },
-                cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            var latest = (await broadcaster.GetCurrentAsync(cancellationToken).ConfigureAwait(false)).YouTube;
-            if (!latest.Live)
+        await broadcaster.UpdateAsync(
+            new LiveStatusUpdate
             {
-                _consecutiveOfflinePolls = 0;
-                _offlineConfirmationVideoId = null;
-                return;
-            }
-
-            if (!string.Equals(_offlineConfirmationVideoId, latest.VideoId, StringComparison.Ordinal))
-            {
-                _consecutiveOfflinePolls = 0;
-                _offlineConfirmationVideoId = latest.VideoId;
-                return;
-            }
-
-            _consecutiveOfflinePolls++;
-            if (_consecutiveOfflinePolls >= youtube.OfflineConfirmationCount)
-            {
-                await broadcaster.UpdateAsync(
-                    new LiveStatusUpdate { YouTube = new YouTubeStatus(false, null) },
-                    cancellationToken).ConfigureAwait(false);
-            }
-        }
-    }
-
-    private void ResetOfflineConfirmationFor(string videoId)
-    {
-        if (string.Equals(_offlineConfirmationVideoId, videoId, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        _offlineConfirmationVideoId = videoId;
-        _consecutiveOfflinePolls = 0;
+                YouTube = new YouTubeStatus(live.Live, live.Live ? live.VideoId : null),
+                YouTubeObservation = new YouTubeObservation(
+                    observed.Epoch,
+                    observed.YouTubeRevision,
+                    youtube.OfflineConfirmationCount),
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 }

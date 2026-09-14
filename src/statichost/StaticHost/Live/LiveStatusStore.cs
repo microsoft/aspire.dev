@@ -3,7 +3,10 @@ using StackExchange.Redis;
 
 namespace StaticHost.Live;
 
-/// <summary>Reads and atomically updates the canonical live-status state.</summary>
+/// <summary>
+/// Reads and atomically updates the canonical live-status state, including
+/// provider observation revisions and shared offline-confirmation counts.
+/// </summary>
 public interface ILiveStatusStore
 {
     ValueTask<LiveStatusState> GetAsync(CancellationToken cancellationToken = default);
@@ -60,23 +63,17 @@ internal sealed class RedisLiveStatusStore(
             var current = payload.IsNull
                 ? LiveStatusState.CreateInitial()
                 : Deserialize(payload);
-            var snapshot = LiveStatusReducer.Apply(
-                current.Snapshot,
+            var next = LiveStatusReducer.Apply(
+                current,
                 update,
                 timeProvider.GetUtcNow());
-            var changed = snapshot != current.Snapshot;
+            var changed = next.Snapshot != current.Snapshot;
 
-            if (!changed && !payload.IsNull)
+            if (next == current && !payload.IsNull)
             {
                 return current;
             }
 
-            var next = changed
-                ? new LiveStatusState(
-                    current.Epoch,
-                    current.Version + 1,
-                    snapshot)
-                : current;
             var nextPayload = Serialize(next);
             var exchange = await redis.CompareExchangeAsync(
                 LiveStatusRedisKeys.State,
@@ -154,6 +151,60 @@ internal sealed class RedisLiveStatusStore(
 
 internal static class LiveStatusReducer
 {
+    public static LiveStatusState Apply(
+        LiveStatusState current,
+        LiveStatusUpdate update,
+        DateTimeOffset updatedAt)
+    {
+        var youTube = update.YouTube;
+        var observation = update.YouTubeObservation;
+        var revision = current.YouTubeRevision;
+        var offlineObservations = current.YouTubeOfflineObservations;
+
+        if (youTube is not null && observation is not null &&
+            (observation.Epoch != current.Epoch || observation.Revision != revision))
+        {
+            youTube = null;
+        }
+
+        if (youTube is not null)
+        {
+            // Same-state observations must also consume their revision: otherwise
+            // overlapping requests can count twice or overwrite a newer observation.
+            revision++;
+            if (observation is not null && !youTube.Live && current.Snapshot.YouTube.Live)
+            {
+                offlineObservations++;
+                youTube = offlineObservations >= Math.Max(1, observation.OfflineConfirmationCount)
+                    ? new YouTubeStatus(false, null)
+                    : current.Snapshot.YouTube;
+            }
+            else
+            {
+                offlineObservations = 0;
+            }
+
+            if (!youTube.Live)
+            {
+                offlineObservations = 0;
+            }
+        }
+
+        var snapshot = Apply(
+            current.Snapshot,
+            new LiveStatusUpdate { Twitch = update.Twitch, YouTube = youTube },
+            updatedAt);
+        return snapshot == current.Snapshot && revision == current.YouTubeRevision
+            ? current
+            : current with
+            {
+                Version = current.Version + 1,
+                Snapshot = snapshot,
+                YouTubeRevision = revision,
+                YouTubeOfflineObservations = offlineObservations,
+            };
+    }
+
     public static LiveStatus Apply(
         LiveStatus current,
         LiveStatusUpdate update,

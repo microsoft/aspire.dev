@@ -5,7 +5,8 @@ namespace StaticHost.Live.YouTube;
 
 /// <summary>
 /// Coordinates asynchronous WebSub subscription requests with verification
-/// callbacks and schedules renewal from the lease granted by the hub.
+/// callbacks and schedules renewal from the lease granted by the hub. Matching
+/// verification retries acknowledge the first confirmation without extending its lease.
 /// </summary>
 public interface IYouTubeWebSubSubscriptionState
 {
@@ -43,13 +44,20 @@ public sealed record YouTubeWebSubSubscriptionRequest(
 internal sealed record YouTubeWebSubSubscriptionData(
     YouTubeWebSubSubscriptionRequest? Pending,
     string? ActiveTopic,
-    DateTimeOffset RenewAt)
+    DateTimeOffset RenewAt,
+    YouTubeWebSubConfirmation? RecentConfirmation = null)
 {
     public static YouTubeWebSubSubscriptionData Empty { get; } = new(
         Pending: null,
         ActiveTopic: null,
         RenewAt: DateTimeOffset.MinValue);
 }
+
+internal sealed record YouTubeWebSubConfirmation(
+    string Topic,
+    string VerifyToken,
+    DateTimeOffset ConfirmedAt,
+    DateTimeOffset RetryUntil);
 
 internal sealed record YouTubeWebSubSubscriptionStateRecord(
     long Version,
@@ -102,7 +110,7 @@ internal static class YouTubeWebSubSubscriptionTransitions
             Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32)),
             now);
 
-        next = current with { Pending = request };
+        next = current with { Pending = request, RecentConfirmation = null };
         return request;
     }
 
@@ -115,7 +123,7 @@ internal static class YouTubeWebSubSubscriptionTransitions
         YouTubeWebSubSubscriptionData current,
         YouTubeWebSubSubscriptionRequest request,
         DateTimeOffset sentAt) =>
-        RequestsMatch(current.Pending, request)
+        RequestsMatch(current.Pending, request) && current.Pending!.SentAt is null
             ? current with { Pending = current.Pending! with { SentAt = sentAt } }
             : current;
 
@@ -128,20 +136,42 @@ internal static class YouTubeWebSubSubscriptionTransitions
         DateTimeOffset now,
         out YouTubeWebSubSubscriptionData next)
     {
-        if (!HasValidConfirmationShape(mode, topic, verifyToken, leaseSeconds) ||
-            current.Pending is null ||
+        next = current;
+        if (!HasValidConfirmationShape(mode, topic, verifyToken, leaseSeconds))
+        {
+            return false;
+        }
+
+        if (current.RecentConfirmation is { } confirmed &&
+            current.Pending is null &&
+            now >= confirmed.ConfirmedAt &&
+            now < confirmed.RetryUntil &&
+            string.Equals(confirmed.Topic, topic, StringComparison.Ordinal) &&
+            TokensEqual(confirmed.VerifyToken, verifyToken))
+        {
+            // The hub can lose our response after Redis commits. Retrying must
+            // acknowledge the original lease, not grant a fresh renewal window.
+            return true;
+        }
+
+        if (current.Pending is null ||
             now - (current.Pending.SentAt ?? current.Pending.RequestedAt) >= s_verificationTimeout ||
+            now < current.Pending.RequestedAt ||
             !string.Equals(current.Pending.Topic, topic, StringComparison.Ordinal) ||
             !TokensEqual(current.Pending.VerifyToken, verifyToken))
         {
-            next = current;
             return false;
         }
 
         next = new YouTubeWebSubSubscriptionData(
             Pending: null,
             ActiveTopic: topic,
-            RenewAt: now.AddSeconds(leaseSeconds * 0.8));
+            RenewAt: now.AddSeconds(leaseSeconds * 0.8),
+            RecentConfirmation: new YouTubeWebSubConfirmation(
+                topic,
+                verifyToken,
+                now,
+                now.AddSeconds(Math.Min(leaseSeconds, s_verificationTimeout.TotalSeconds))));
         return true;
     }
 

@@ -42,8 +42,17 @@ public sealed record LiveStatus(
 /// <summary>An epoch-scoped, monotonically versioned canonical live-status snapshot.</summary>
 public sealed record LiveStatusState(Guid Epoch, long Version, LiveStatus Snapshot)
 {
+    /// <summary>Advances for every accepted YouTube observation, even if its status is unchanged.</summary>
+    public long YouTubeRevision { get; init; }
+
+    /// <summary>Consecutive accepted offline observations of the current YouTube stream.</summary>
+    public int YouTubeOfflineObservations { get; init; }
+
     public static LiveStatusState CreateInitial() => new(Guid.NewGuid(), 0, LiveStatus.Idle);
 }
+
+/// <summary>The authoritative YouTube revision captured before an upstream request.</summary>
+public sealed record YouTubeObservation(Guid Epoch, long Revision, int OfflineConfirmationCount);
 
 /// <summary>Twitch sub-status.</summary>
 public sealed record TwitchStatus(bool Live, string? Channel, string? Title);
@@ -62,6 +71,7 @@ public sealed record YouTubeStatus(bool Live, string? VideoId);
 [JsonSerializable(typeof(YouTube.YouTubeWebSubSubscriptionData))]
 [JsonSerializable(typeof(YouTube.YouTubeWebSubSubscriptionStateRecord))]
 [JsonSerializable(typeof(YouTube.YouTubeWebSubSubscriptionRequest))]
+[JsonSerializable(typeof(YouTube.YouTubeWebSubConfirmation))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.Never,

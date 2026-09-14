@@ -16,6 +16,9 @@ public sealed class LiveStatusUpdate
 
     /// <summary>Set to non-null to overwrite the YouTube sub-status.</summary>
     public YouTubeStatus? YouTube { get; set; }
+
+    /// <summary>When set, applies YouTube only if this provider revision is still current.</summary>
+    public YouTubeObservation? YouTubeObservation { get; set; }
 }
 
 /// <summary>A snapshot and its serialized SSE frame, shared by all subscribers.</summary>
@@ -79,6 +82,10 @@ public sealed class LiveStatusBroadcaster(
     /// <summary>Reads the authoritative distributed snapshot.</summary>
     public async ValueTask<LiveStatus> GetCurrentAsync(CancellationToken cancellationToken = default) =>
         (await _store.GetAsync(cancellationToken).ConfigureAwait(false)).Snapshot;
+
+    /// <summary>Reads authoritative provider revisions before making an upstream request.</summary>
+    public ValueTask<LiveStatusState> GetStateAsync(CancellationToken cancellationToken = default) =>
+        _store.GetAsync(cancellationToken);
 
     /// <summary>
     /// Reloads the authoritative state into this process before an SSE client

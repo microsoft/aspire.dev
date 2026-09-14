@@ -39,6 +39,32 @@ public sealed class TwitchAppTokenProviderTests
     }
 
     [Fact]
+    public async Task InvalidateAsync_DoesNotDiscardNewerTokenAndSharesRefresh()
+    {
+        var tokenCount = 0;
+        var tokenHandler = new RecordingHttpMessageHandler(_ =>
+            LiveTestHelpers.JsonResponse(
+                $$"""{"access_token":"token-{{++tokenCount}}","expires_in":3600}"""));
+        var httpFactory = new TestHttpClientFactory();
+        httpFactory.AddClient(TwitchAppTokenProvider.HttpClientName, tokenHandler);
+        var provider = new TwitchAppTokenProvider(
+            httpFactory,
+            new TestOptionsMonitor<LiveStatusOptions>(new LiveStatusOptions()),
+            NullLogger<TwitchAppTokenProvider>.Instance);
+
+        var first = await provider.GetAsync(CancellationToken.None);
+        await provider.InvalidateAsync(first, CancellationToken.None);
+        var replacements = await Task.WhenAll(
+            Enumerable.Range(0, 10).Select(_ => provider.GetAsync(CancellationToken.None)));
+        await provider.InvalidateAsync(first, CancellationToken.None);
+        var current = await provider.GetAsync(CancellationToken.None);
+
+        Assert.All(replacements, token => Assert.Equal("token-2", token));
+        Assert.Equal("token-2", current);
+        Assert.Equal(2, tokenCount);
+    }
+
+    [Fact]
     public async Task GetAsync_RefreshesTokenNearExpiry()
     {
         var responseIndex = 0;

@@ -259,13 +259,63 @@ must opt in explicitly.
 - **Unit**: webhook handlers (HMAC + parsing), broadcaster mesh + debounce
   using `FakeTimeProvider`, named-HttpClient clients with fake
   `HttpMessageHandler`.
-- **Integration**: `WebApplicationFactory<Program>` + signed webhook
-  POSTs + assertion on SSE events.
+- **HTTP integration**: ASP.NET Core `TestServer` exercises mapped endpoints
+  with signed webhook callbacks, snapshots, and SSE assertions. These backend
+  tests do not build or start the frontend and do not require Redis.
+- **Redis integration**: independent StackExchange.Redis connections exercise
+  production Lua compare-and-set, provider leadership and takeover, Twitch
+  replay/retry leases, pub/sub delivery and periodic recovery, shared YouTube
+  offline evidence, and cross-worker WebSub verification retries.
 - **Frontend unit (vitest)**: SSE-mocked `live-status.ts` + PiP component
   reactions to `aspire:live-change` events.
 - **E2E (Playwright)**: route-mocked `/api/live` + custom SSE handler
   drives the full UX: icon strobing, PiP appearance, tab switching,
   close-to-videos navigation, reconnect after network drop.
+
+### Backend test commands
+
+Run the AppHost tests and ordinary StaticHost tests without Redis:
+
+```powershell
+dotnet test .\tests\Aspire.Dev.AppHost.Tests\Aspire.Dev.AppHost.Tests.csproj --configuration Release
+dotnet test .\tests\StaticHost.Tests\StaticHost.Tests.csproj --configuration Release --filter "Category!=RedisIntegration"
+```
+
+The real-Redis group has the xUnit trait `Category=RedisIntegration`. Before
+running it, provision a **disposable Redis instance dedicated to this test
+run**, not the AppHost cache, a developer's existing cache, or a production
+service. Set `STATICHOST_TEST_REDIS_CONNECTION` to that instance's explicit
+endpoint. Replace `<published-port>` below with the disposable instance's port:
+
+```powershell
+$env:STATICHOST_TEST_REDIS_CONNECTION = "127.0.0.1:<published-port>,defaultDatabase=15"
+try {
+    dotnet test .\tests\StaticHost.Tests\StaticHost.Tests.csproj --configuration Release --filter "Category=RedisIntegration"
+}
+finally {
+    Remove-Item Env:STATICHOST_TEST_REDIS_CONNECTION
+}
+```
+
+There is no implicit localhost connection, Redis auto-start, in-memory fallback,
+or skipped-test success when the connection is missing or unavailable. An
+unfiltered StaticHost test run includes this group and therefore also requires
+the connection variable.
+
+The fixture defaults to database 15, rejects database 0, and refuses databases
+that already contain the feature's fixed production keys. It serializes tests
+in one collection, reserves the database against overlapping integration runs,
+and gives Redis pub/sub a unique run-specific channel prefix (pub/sub is not
+isolated by database). Cleanup deletes only exact keys owned by the fixture;
+it never flushes a database or server. If a process crashes and leaves an
+ownership key, discard and recreate the disposable instance. Do not point
+another run at it or clear unrelated data.
+
+The existing AppHost CI build job restores and builds both backend test
+projects, runs the ordinary suites, and explicitly runs the Redis group
+against its own health-checked Redis service. TRX results and build/test
+binlogs are uploaded with a job summary. Changes to either backend test
+project or `Aspire.Dev.slnx` trigger that job.
 
 ## Resilience
 
@@ -281,6 +331,11 @@ must opt in explicitly.
 - Twitch message IDs use separate processing and completed states. Concurrent
   deliveries receive a retryable response while the owner is still processing;
   failed owners release their reservation, and abandoned reservations expire.
+- Twitch Helix requests normally reuse the cached app access token. A `401`
+  invalidates the cache only if it still contains the rejected token, preserving
+  any replacement another request has already obtained. The request retries
+  once with a current token; a second `401` fails rather than retrying forever.
+  Other response statuses do not invalidate the token cache.
 - A YouTube subscription is marked as awaiting verification only after the hub
   request is sent. A short pre-send reservation lets another leader recover
   quickly if the original worker exits first.

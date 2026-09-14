@@ -402,6 +402,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         ILogger logger,
         CancellationToken cancellationToken)
     {
+        var observed = await broadcaster.GetStateAsync(cancellationToken).ConfigureAwait(false);
         var channelId = youtube.ChannelId;
         if (string.IsNullOrWhiteSpace(channelId))
         {
@@ -416,7 +417,14 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
         var live = await ytClient.GetCurrentLiveAsync(channelId, cancellationToken).ConfigureAwait(false);
         await broadcaster.UpdateAsync(
-            new LiveStatusUpdate { YouTube = new YouTubeStatus(live.Live, live.VideoId) },
+            new LiveStatusUpdate
+            {
+                YouTube = new YouTubeStatus(live.Live, live.Live ? live.VideoId : null),
+                YouTubeObservation = new YouTubeObservation(
+                    observed.Epoch,
+                    observed.YouTubeRevision,
+                    youtube.OfflineConfirmationCount),
+            },
             cancellationToken).ConfigureAwait(false);
     }
 

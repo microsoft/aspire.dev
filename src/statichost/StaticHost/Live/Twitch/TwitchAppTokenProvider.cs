@@ -19,25 +19,28 @@ public sealed class TwitchAppTokenProvider(
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    private string? _token;
-    private DateTimeOffset _expiresAt;
+    private sealed record CachedToken(string Value, DateTimeOffset ExpiresAt);
+
+    private CachedToken? _cachedToken;
 
     /// <summary>Gets a current access token, refreshing if needed.</summary>
     public async Task<string> GetAsync(CancellationToken cancellationToken)
     {
         var now = _time.GetUtcNow();
-        if (_token is { Length: > 0 } && _expiresAt - now > TimeSpan.FromMinutes(5))
+        var cached = Volatile.Read(ref _cachedToken);
+        if (cached is not null && cached.ExpiresAt - now > TimeSpan.FromMinutes(5))
         {
-            return _token;
+            return cached.Value;
         }
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             now = _time.GetUtcNow();
-            if (_token is { Length: > 0 } && _expiresAt - now > TimeSpan.FromMinutes(5))
+            cached = Volatile.Read(ref _cachedToken);
+            if (cached is not null && cached.ExpiresAt - now > TimeSpan.FromMinutes(5))
             {
-                return _token;
+                return cached.Value;
             }
 
             var twitch = options.CurrentValue.Twitch;
@@ -56,13 +59,32 @@ public sealed class TwitchAppTokenProvider(
             using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            _token = doc.RootElement.GetProperty("access_token").GetString();
+            var token = doc.RootElement.GetProperty("access_token").GetString()
+                ?? throw new InvalidOperationException("Twitch returned a null app access token.");
             var expiresIn = doc.RootElement.GetProperty("expires_in").GetInt32();
 
-            _expiresAt = _time.GetUtcNow().AddSeconds(expiresIn);
+            Volatile.Write(ref _cachedToken, new CachedToken(token, _time.GetUtcNow().AddSeconds(expiresIn)));
             logger.LogInformation("Twitch app token refreshed; expires in {ExpiresIn}s.", expiresIn);
 
-            return _token!;
+            return token;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>Invalidates a rejected token without discarding a concurrent replacement.</summary>
+    public async Task InvalidateAsync(string rejectedToken, CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (string.Equals(_cachedToken?.Value, rejectedToken, StringComparison.Ordinal))
+            {
+                Volatile.Write(ref _cachedToken, null);
+                logger.LogDebug("Invalidated a Twitch app token rejected by Helix.");
+            }
         }
         finally
         {
