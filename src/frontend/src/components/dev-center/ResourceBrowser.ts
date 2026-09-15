@@ -3,7 +3,7 @@ import {
   RESOURCE_PAGE_SIZE, writeBrowseState, type ResourceSearchEntry,
 } from '../../utils/dev-center/resource-search';
 
-const checkboxFacetNames = ['type', 'topic', 'platform', 'language'] as const;
+const checkboxFacetNames = ['type', 'topic', 'language'] as const;
 
 class ResourceBrowser extends HTMLElement {
   private controller?: AbortController;
@@ -21,6 +21,13 @@ class ResourceBrowser extends HTMLElement {
     const cards = [...this.querySelectorAll<HTMLLIElement>('[data-resource-entry]')];
     const entries = cards.map((card) => JSON.parse(card.dataset.resourceEntry!) as ResourceSearchEntry);
     const byId = new Map(cards.map((card, index) => [entries[index].id, card]));
+    const materializeImage = (card: HTMLLIElement) => {
+      for (const source of card.querySelectorAll<HTMLElement>('noscript[data-resource-image]')) {
+        const template = document.createElement('template');
+        template.innerHTML = source.textContent ?? '';
+        source.replaceWith(template.content);
+      }
+    };
     const available = resourceFacets(entries);
     const checkboxes = [...filters.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
     const radios = [...filters.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
@@ -54,7 +61,9 @@ class ResourceBrowser extends HTMLElement {
       const visible = matches.slice(start, start + RESOURCE_PAGE_SIZE);
       const visibleIds = new Set(visible.map((entry) => entry.id));
       for (const [id, card] of byId) card.hidden = !visibleIds.has(id);
-      grid.append(...visible.map((entry) => byId.get(entry.id)!));
+      const visibleCards = visible.map((entry) => byId.get(entry.id)!);
+      for (const card of visibleCards) materializeImage(card);
+      grid.append(...visibleCards);
       clearHighlights();
       if (state.q.trim()) {
         for (const entry of visible) {
@@ -209,19 +218,30 @@ class ResourceBrowser extends HTMLElement {
         for (const other of filterGroups) if (other !== group) other.open = false;
         group.querySelector('fieldset')!.scrollTop = 0;
         const panel = group.querySelector<HTMLElement>('.browse-filter-panel')!;
-        panel.style.left = '0';
-        const box = panel.getBoundingClientRect();
-        panel.style.left = `${Math.min(0, viewportWidth - 16 - box.right)}px`;
-        const optionsTop = group.querySelector('fieldset')!.getBoundingClientRect().top;
-        panel.style.setProperty('--browse-options-height', `${Math.max(32, document.documentElement.clientHeight - optionsTop - 24)}px`);
+        panel.style.removeProperty('left');
+        panel.style.removeProperty('--browse-options-height');
+        if (!matchMedia('(max-width: 599px)').matches) {
+          panel.style.left = '0';
+          const box = panel.getBoundingClientRect();
+          panel.style.left = `${Math.min(0, viewportWidth - 16 - box.right)}px`;
+          const optionsTop = group.querySelector('fieldset')!.getBoundingClientRect().top;
+          panel.style.setProperty('--browse-options-height', `${Math.max(32, document.documentElement.clientHeight - optionsTop - 24)}px`);
+        }
       }, { signal });
+      for (const dismiss of group.querySelectorAll<HTMLElement>('[data-filter-dismiss]')) {
+        dismiss.addEventListener('click', () => {
+          group.open = false;
+          group.querySelector<HTMLElement>('summary')!.focus({ preventScroll: true });
+        }, { signal });
+      }
     }
-    document.addEventListener('pointerdown', (event) => {
+    document.addEventListener('click', (event) => {
       if (event.target instanceof Node) {
         for (const group of filterGroups) if (!group.contains(event.target)) group.open = false;
       }
     }, { signal });
     document.addEventListener('focusin', (event) => {
+      if (event.target instanceof Element && event.target.matches('[data-filter-group] summary')) return;
       if (event.target instanceof Node) {
         for (const group of filterGroups) if (!group.contains(event.target)) group.open = false;
       }

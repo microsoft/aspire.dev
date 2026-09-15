@@ -4,7 +4,7 @@ import { topics } from './topics';
 import { tagLabel } from '../sample-tags';
 
 export const RESOURCE_PAGE_SIZE = 24;
-export const facetNames = ['type', 'topic', 'language', 'provider', 'platform'] as const;
+export const facetNames = ['type', 'topic', 'language', 'provider'] as const;
 export type FacetName = (typeof facetNames)[number];
 export type ResourceFacets = Record<FacetName, string[]>;
 export type BrowseSort = 'newest' | 'oldest';
@@ -67,7 +67,6 @@ export function readBrowseState(params: URLSearchParams, available: ResourceFace
     topic: [...new Set(params.getAll('topic'))].filter((value) => available.topic.includes(value)),
     language: [...new Set(params.getAll('language'))].filter((value) => available.language.includes(value)),
     provider: params.getAll('provider').filter((value) => available.provider.includes(value)).slice(0, 1),
-    platform: [...new Set(params.getAll('platform'))].filter((value) => available.platform.includes(value)),
     sort: sort === 'oldest' ? 'oldest' : 'newest',
     titleSort: params.get('title') === 'desc' || (!params.has('title') && sort === 'title-desc') ? 'desc' : 'asc',
     page: Number.isSafeInteger(page) && page > 0 ? page : 1,
@@ -76,7 +75,7 @@ export function readBrowseState(params: URLSearchParams, available: ResourceFace
 
 export function writeBrowseState(url: URL, state: BrowseState): URL {
   const next = new URL(url);
-  for (const key of ['q', 'sort', 'title', 'page', ...facetNames]) next.searchParams.delete(key);
+  for (const key of ['q', 'sort', 'title', 'page', 'platform', ...facetNames]) next.searchParams.delete(key);
   if (state.q.trim()) next.searchParams.set('q', state.q.trim());
   for (const name of facetNames) {
     for (const value of state[name]) next.searchParams.append(name, value);

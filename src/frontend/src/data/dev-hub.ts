@@ -1,12 +1,9 @@
 import samples from './samples.json';
-import { aspireProject } from './aspire-project';
 import { sampleDetailHref } from '../utils/samples';
 import { topics } from '../utils/dev-center/topics';
 
 export const devTitle = 'Dev Hub';
 export const devDescription = 'Find guides, working samples, and reference docs for your next Aspire app.';
-export const gettingStartedDescription = aspireProject.description;
-
 const topicDestinations = {
   foundations: { href: '/docs/', description: 'AppHosts, resources, and the concepts behind your app.', action: 'Learn the fundamentals' },
   integrations: { href: '/integrations/', description: 'Databases, messaging, AI, and services that work together.', action: 'Find an integration' },
@@ -25,12 +22,12 @@ export const resources = [
 ] as const;
 
 export const languages = [
-  { title: 'C# / .NET', description: 'Build your first app', href: '/get-started/first-app/?aspire-lang=csharp', icon: 'seti:c-sharp', color: 'var(--sl-color-purple)' },
-  { title: 'JavaScript / TypeScript', description: 'Connect your frontend and API', href: '/integrations/frameworks/javascript/', icon: 'seti:typescript', color: 'var(--sl-color-blue)' },
-  { title: 'Python', description: 'Run Python apps with Aspire', href: '/integrations/frameworks/python/', icon: 'seti:python', color: 'var(--sl-color-orange)' },
-  { title: 'Go', description: 'Add a Go service', href: '/integrations/frameworks/go/go-get-started/', icon: 'seti:go', color: 'var(--color-cyan)' },
-  { title: 'Java', description: 'Orchestrate your Java app', href: '/integrations/frameworks/java/java-get-started/', icon: 'seti:java', color: 'var(--sl-color-orange)' },
-  { title: 'Rust', description: 'Get started with Rust', href: '/integrations/frameworks/rust/rust-get-started/', icon: 'seti:rust', color: 'var(--color-magenta)' },
+  { title: 'C# / .NET', description: 'Build your first app', href: '/get-started/first-app/?aspire-lang=csharp', icon: 'devicon:csharp', color: 'var(--sl-color-purple)' },
+  { title: 'JavaScript / TypeScript', description: 'Connect your frontend and API', href: '/integrations/frameworks/javascript/', icon: 'devicon:typescript', color: 'var(--sl-color-blue)' },
+  { title: 'Python', description: 'Run Python apps with Aspire', href: '/integrations/frameworks/python/', icon: 'devicon:python', color: 'var(--sl-color-orange)' },
+  { title: 'Go', description: 'Add a Go service', href: '/integrations/frameworks/go/go-get-started/', icon: 'devicon:go-wordmark', color: 'var(--color-cyan)' },
+  { title: 'Java', description: 'Orchestrate your Java app', href: '/integrations/frameworks/java/java-get-started/', icon: 'devicon:java', color: 'var(--sl-color-orange)' },
+  { title: 'Rust', description: 'Get started with Rust', href: '/integrations/frameworks/rust/rust-get-started/', icon: 'rust-theme', color: 'var(--color-magenta)' },
 ] as const;
 
 export const referenceLinks = [
@@ -42,7 +39,7 @@ export const referenceLinks = [
 ] as const;
 
 export const cloudLinks = [
-  { id: 'aws', title: 'AWS', description: 'Connect AWS services, develop Lambda functions, and provision infrastructure.', href: '/integrations/cloud/aws/overview/', color: 'var(--sl-color-orange)' },
+  { id: 'aws', title: 'AWS', description: 'Connect and provision AWS services.', href: '/integrations/cloud/aws/overview/', color: 'var(--sl-color-orange)' },
   { id: 'azure', title: 'Azure', description: 'Model, provision, and connect Azure services.', href: '/integrations/cloud/azure/overview/', color: 'var(--sl-color-blue)' },
   { id: 'kubernetes', title: 'Kubernetes', description: 'Publish Helm charts and deploy to your cluster.', href: '/deployment/kubernetes/', color: 'var(--sl-color-blue)' },
 ] as const;

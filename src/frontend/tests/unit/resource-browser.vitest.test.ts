@@ -3,7 +3,7 @@ import { createGenerator } from 'unocss';
 import unoConfig from '../../uno.config';
 import ResourceBrowser from '../../src/components/dev-center/ResourceBrowser.astro';
 import ResourceCard from '../../src/components/dev-center/ResourceCard.astro';
-import { topicLinks } from '../../src/data/dev-central';
+import { languages, topicLinks } from '../../src/data/dev-hub';
 import { getTopicForEntry } from '../../src/utils/topic-resolver';
 import { RESOURCE_TYPES, type DevResource } from '../../src/utils/dev-center/resource-types';
 import { resourcePresentation } from '../../src/utils/dev-center/resource-presentation';
@@ -16,6 +16,17 @@ const base: DevResource = {
 };
 
 describe('resource browser rendering', () => {
+  it('uses Devicons for Hub languages and local theme-aware Rust artwork', () => {
+    expect(languages.map(({ icon }) => icon)).toEqual([
+      'devicon:csharp',
+      'devicon:typescript',
+      'devicon:python',
+      'devicon:go-wordmark',
+      'devicon:java',
+      'rust-theme',
+    ]);
+  });
+
   it('keeps all Dev Hub topic icons aligned with their sidebar topics', () => {
     for (const topic of topicLinks) {
       const sidebarTopic = getTopicForEntry(topic.href.slice(1, -1));
@@ -114,6 +125,7 @@ describe('resource browser rendering', () => {
     } } });
     expect(html).toContain('src="/feature.png"');
     expect(html).toContain('width="640" height="360"');
+    expect(html).toContain('<noscript data-resource-image>');
     expect(html).not.toContain('class="browse-artwork-symbol');
   });
 
@@ -160,7 +172,16 @@ describe('resource browser rendering', () => {
     expect(html.match(/role="radiogroup"/g)).toHaveLength(2);
     expect(html).toContain('data-sort-selection="date"');
     expect(html).toContain('data-sort-selection="title"');
-    for (const icon of unoConfig.safelist ?? []) expect(html).toContain(icon);
+    for (const icon of [
+      'i-mdi:page-first',
+      'i-mdi:page-last',
+      'i-mdi:sort-calendar-ascending',
+      'i-mdi:sort-calendar-descending',
+      'i-mdi:sort-alphabetical-ascending',
+      'i-mdi:sort-alphabetical-descending',
+    ]) {
+      expect(html).toContain(icon);
+    }
     expect(html).toContain('aria-label="Date order"');
     expect(html).toContain('aria-label="Title order"');
     expect(html).toContain('data-option-label="Date"');
@@ -179,6 +200,10 @@ describe('resource browser rendering', () => {
       'page-first', 'page-last',
       'sort-calendar-ascending', 'sort-calendar-descending',
       'sort-alphabetical-ascending', 'sort-alphabetical-descending',
+      'book-open-page-variant-outline', 'rocket-launch-outline', 'pencil-outline',
+      'laptop', 'puzzle-outline', 'alert-outline', 'notebook-outline',
+      'youtube', 'twitch', 'file-document-outline', 'cog-outline',
+      'console-line', 'docker', 'file-outline', 'open-in-new',
     ]) {
       expect(css).toContain(`.i-mdi\\:${icon}`);
     }

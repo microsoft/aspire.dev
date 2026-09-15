@@ -12,25 +12,27 @@ const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => 
 ---
 
 <glossary-browser class="not-content">
-  <form class="glossary-controls" role="search" aria-label="Search the glossary" hidden>
-    <InpageSearch
-      id="glossary"
-      label="Find a term"
-      placeholder="Search glossary"
-      kinds={availableTopics.map((topic) => topic.title)}
-      kindColors={Object.fromEntries(availableTopics.map((topic) => [topic.title, topic.color]))}
-      defaultStatsText={`${terms.length} terms`}
-    />
-  </form>
+  <div class="glossary-filter-panel">
+    <form class="glossary-controls" role="search" aria-label="Search the glossary" hidden>
+      <InpageSearch
+        id="glossary"
+        label="Find a term"
+        placeholder="Search glossary"
+        kinds={availableTopics.map((topic) => topic.title)}
+        kindColors={Object.fromEntries(availableTopics.map((topic) => [topic.title, topic.color]))}
+        defaultStatsText={`${terms.length} terms`}
+      />
+    </form>
+    <nav class="glossary-alphabet" aria-label="Glossary letters">
+      <a href="#glossary-results" data-letter-filter="" aria-current="true" title="Show all glossary terms">All</a>
+      {Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ').map((letter) =>
+        letters.includes(letter)
+          ? <a href={`#glossary-${letter}`} data-letter-filter={letter} title={`Show glossary terms beginning with ${letter}`}>{letter}</a>
+          : <span aria-label={`No terms beginning with ${letter}`} aria-disabled="true">{letter}</span>
+      )}
+    </nav>
+  </div>
   <noscript><p>Search and filters require JavaScript. All terms and their practical examples are available below; use the letters to jump to a section.</p></noscript>
-  <nav class="glossary-alphabet" aria-label="Glossary letters">
-    <a href="#glossary-results" data-letter-filter="" aria-current="true">All</a>
-    {Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ').map((letter) =>
-      letters.includes(letter)
-        ? <a href={`#glossary-${letter}`} data-letter-filter={letter}>{letter}</a>
-        : <span aria-label={`No terms beginning with ${letter}`} aria-disabled="true">{letter}</span>
-    )}
-  </nav>
   <div id="glossary-results"></div>
   <div data-glossary-empty hidden>
     <div>
@@ -58,6 +60,11 @@ const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => 
 
 <style>
   glossary-browser { display: block; }
+  .glossary-filter-panel {
+    margin-bottom: 1rem; padding: 1rem;
+    border: 1px solid var(--sl-color-gray-5); border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--sl-color-text-accent) 4%, var(--sl-color-bg));
+  }
   .glossary-controls { margin-bottom: 1rem; }
   .glossary-controls :global(.inpage-search) {
     display: grid; grid-template-columns: minmax(0, 32rem) auto; justify-content: start;
@@ -69,7 +76,7 @@ const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => 
     overflow: hidden; clip-path: inset(50%); white-space: nowrap;
   }
   .glossary-controls :global(.inpage-search[data-size] .inpage-search-input) {
-    height: 2.75rem; border-radius: 0.5rem; font-size: 1rem;
+    height: 2.75rem; border-radius: 0.5rem; background-color: var(--dev-control-bg); font-size: 1rem;
   }
   .glossary-controls :global(.inpage-search-input::placeholder) { color: var(--sl-color-gray-2); }
   .glossary-controls :global(.inpage-kind-filters) { grid-column: 1 / -1; grid-row: 2; gap: 0.25rem; margin: 0; }
@@ -79,8 +86,8 @@ const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => 
   }
   .glossary-controls :global(.api-filter-chip[data-colored].active) { border-color: currentColor; font-weight: 400; }
   .glossary-controls :global(.api-filter-chip[data-colored]:not(.active)) {
-    border-color: var(--sl-color-gray-4);
-    background: color-mix(in srgb, var(--sl-color-gray-6) 50%, var(--sl-color-bg));
+    border-color: var(--sl-color-gray-5);
+    background: var(--dev-control-bg);
   }
   .glossary-controls :global(.api-filter-chip[data-colored]:not(.active):hover) {
     border-color: var(--sl-color-gray-3); background: var(--sl-color-gray-6);
@@ -104,17 +111,17 @@ const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => 
   [data-clear-glossary]:focus-visible { outline: 2px solid var(--sl-color-text-accent); outline-offset: 3px; }
   .glossary-alphabet {
     display: grid; grid-template-columns: 2.75rem repeat(26, minmax(1.5rem, 1fr));
-    gap: 0.125rem; padding: 0.75rem 0;
+    gap: 0.125rem; padding: 1rem 0 0;
     border-top: 1px solid var(--sl-color-gray-5);
   }
-  .glossary-alphabet a, .glossary-alphabet span {
+  .glossary-alphabet > a, .glossary-alphabet > span {
     display: inline-flex; align-items: center; justify-content: center; min-width: 0;
     min-height: 2.25rem; border-radius: 0.375rem; font-size: 0.8125rem; text-decoration: none;
   }
-  .glossary-alphabet a { color: var(--sl-color-text); }
-  .glossary-alphabet a:hover { background: var(--sl-color-gray-6); }
-  .glossary-alphabet a[aria-current] { background: var(--sl-color-text-accent); color: var(--sl-color-bg); font-weight: 600; }
-  .glossary-alphabet span { color: var(--sl-color-gray-3); }
+  .glossary-alphabet > a { color: var(--sl-color-text); font-weight: 700; cursor: pointer; }
+  .glossary-alphabet > a:hover { background: var(--sl-color-gray-6); }
+  .glossary-alphabet > a[aria-current] { background: var(--sl-color-text-accent); color: var(--sl-color-bg); font-weight: 600; }
+  .glossary-alphabet > span { color: var(--sl-color-gray-3); opacity: 0.55; cursor: not-allowed; user-select: none; }
   .glossary-group { margin-top: 1rem; }
   #see-also { margin-top: 1.5rem; scroll-margin-top: 7rem; }
   .glossary-group h2 { scroll-margin-top: 7rem; margin-bottom: 1rem; color: var(--sl-color-text-accent); }
@@ -141,7 +148,7 @@ const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => 
     .glossary-controls :global(.inpage-search-stats) { grid-column: 1; grid-row: 3; min-height: 2.25rem; justify-content: space-between; }
     .glossary-controls :global(.api-filter-chip[data-colored]) { min-height: 2.75rem; }
     .glossary-alphabet { grid-template-columns: repeat(9, minmax(0, 1fr)); }
-    .glossary-alphabet a, .glossary-alphabet span { min-height: 2.75rem; }
+    .glossary-alphabet > a, .glossary-alphabet > span { min-height: 2.75rem; }
   }
   @media (max-width: 767px) {
     .glossary-grid { grid-template-columns: 1fr; }

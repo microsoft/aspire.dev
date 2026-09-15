@@ -2,12 +2,11 @@
 import DevLayout from '@components/dev-center/DevLayout.astro';
 import '../../styles/link-underline.css';
 import { Icon } from '@astrojs/starlight/components';
-import { Image } from 'astro:assets';
-import { Zoom } from 'starlight-image-zoom/components';
 import ThemeImage from '@components/ThemeImage.astro';
-import dashboardLight from '@assets/get-started/javascript-aspire-dashboard-light.png';
-import dashboardDark from '@assets/get-started/javascript-aspire-dashboard-dark.png';
-import traceDetails from '@assets/dashboard/explore/trace-span-details.png';
+import resourcesGraphLight from '@assets/dashboard/landing/resources-graph-light.png';
+import resourcesGraphDark from '@assets/dashboard/landing/resources-graph-dark.png';
+import traceDetailLight from '@assets/dashboard/landing/trace-detail-light.png';
+import traceDetailDark from '@assets/dashboard/landing/trace-detail-dark.png';
 import shopLight from '@assets/samples/aspire-shop/aspireshop-frontend-light.png';
 import shopDark from '@assets/samples/aspire-shop/aspireshop-frontend-dark.png';
 import javascriptLight from '@assets/samples/aspire-with-javascript/reactvite-app-light.png';
@@ -23,8 +22,9 @@ import awsDark from '@assets/icons/aws-icon.png';
 import awsLight from '@assets/icons/aws-light-icon.png';
 import azureIcon from '@assets/icons/azure-icon.png';
 import kubernetesIcon from '@assets/icons/kubernetes.svg';
+import rustIcon from '@assets/icons/rust.svg';
 import { tagLabel } from '@utils/sample-tags';
-import { devTitle, devDescription, gettingStartedDescription, topicLinks, resources, languages, cloudLinks, featuredSamples, referenceLinks, dashboardLinks, videos, blogHighlights } from '../../data/dev-central';
+import { devTitle, devDescription, topicLinks, resources, languages, cloudLinks, featuredSamples, referenceLinks, dashboardLinks, videos, blogHighlights } from '../../data/dev-hub';
 
 const sampleImages: Record<string, { light: ImageMetadata; dark: ImageMetadata }> = {
   'aspire-shop': { light: shopLight, dark: shopDark },
@@ -39,44 +39,43 @@ const cloudImages = {
   azure: { light: azureIcon, dark: azureIcon },
   kubernetes: { light: kubernetesIcon, dark: kubernetesIcon },
 };
+const onboardingIcons = ['open-book', 'puzzle', 'rocket', 'notes'] as const;
 const blogDateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
 ---
 
-<DevLayout title={devTitle} description={devDescription} pageActions={false} pagefind={false}>
+<DevLayout title={devTitle} description={devDescription} showDescription={false} pageActions={false} pagefind={false}>
   <div class="dev-home not-content">
-    <div class="dev-discovery">
-      <button class="dev-search" type="button" data-open-site-search aria-haspopup="dialog" disabled>
-        <Icon name="magnifier" size="1.25rem" />
-        <span>Search Aspire documentation</span>
-      </button>
-      <a class="dev-browse-link" href="/hub/browse/" data-underline-trigger><span data-link-underline>Browse all resources</span><Icon name="right-arrow" size="1rem" /></a>
-    </div>
-    <section class="onboarding" aria-labelledby="getting-started-heading">
-      <h2 id="getting-started-heading">New to Aspire?</h2>
-      <p class="section-description">{gettingStartedDescription}</p>
-      <div class="onboarding-start">
-        <div>
-          <h3>Get your first app running.</h3>
-          <p>{resources[0].description}</p>
-        </div>
-        <div class="onboarding-action">
-          <a class="onboarding-cta" href={resources[0].href} data-underline-trigger>
-            <span data-link-underline>{resources[0].title}</span><Icon name="right-arrow" size="1rem" />
-          </a>
-          <span class="onboarding-format">{resources[0].format}</span>
-        </div>
+    <section class="hub-intro" aria-label="Find resources and get started">
+      <div class="dev-discovery">
+        <p class="dev-description">{devDescription}</p>
+        <button class="dev-search" type="button" data-open-site-search aria-haspopup="dialog" disabled>
+          <Icon name="magnifier" size="1.25rem" />
+          <span>Search Aspire documentation</span>
+        </button>
+        <a class="dev-browse-link" href="/hub/browse/" data-underline-trigger><span data-link-underline>Browse all resources</span><Icon name="right-arrow" size="1rem" /></a>
       </div>
-      <ul class="onboarding-options">
-        {resources.slice(1).map((resource) => (
-          <li>
-            <a href={resource.href} data-underline-trigger>
-              <h3><span data-link-underline>{resource.title}</span><Icon name="right-arrow" size="1rem" /></h3>
-              <p>{resource.description}</p>
-              <span class="onboarding-format">{resource.format}</span>
-            </a>
-          </li>
-        ))}
-      </ul>
+      <div class="onboarding" role="region" aria-labelledby="getting-started-heading">
+        <h2 id="getting-started-heading">New to Aspire?</h2>
+        <p class="onboarding-description">Choose the path that matches what you want to do.</p>
+        <ul class="onboarding-options">
+          {resources.map((resource, index) => (
+            <li data-recommended={index === 0 ? '' : undefined}>
+              <a href={resource.href} data-underline-trigger>
+                <span class="onboarding-option-icon"><Icon name={onboardingIcons[index]} size="1.25rem" /></span>
+                <div class="onboarding-option-copy">
+                  <div class="onboarding-option-title">
+                    <h3><span data-link-underline>{resource.title}</span></h3>
+                    {index === 0 && <span class="onboarding-recommended">Recommended</span>}
+                  </div>
+                  <p>{resource.description}</p>
+                </div>
+                <span class="onboarding-format">{resource.format}</span>
+                <Icon name="right-arrow" size="1rem" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
     <nav class="topic-links" aria-labelledby="topics-heading">
       <h2 id="topics-heading">Browse by topic</h2>
@@ -99,7 +98,9 @@ const blogDateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', t
         {languages.map((language) => (
           <li style={`--card-color: ${language.color}`}>
             <a href={language.href} data-underline-trigger>
-              <Icon name={language.icon} size="1.8rem" />
+              {language.icon === 'rust-theme'
+                ? <img class="language-rust-icon" src={rustIcon.src} alt="" width="29" height="29" aria-hidden="true" />
+                : <span class:list={['language-devicon', `i-${language.icon}`]} aria-hidden="true"></span>}
               <div><h3><span data-link-underline>{language.title}</span></h3><p>{language.description}</p></div>
               <Icon name="right-arrow" size="1rem" />
             </a>
@@ -172,30 +173,32 @@ const blogDateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', t
         <h2 id="dashboard-heading">Explore the dashboard</h2>
         <a class="channel-link" href="/dashboard/" data-underline-trigger><span data-link-underline>Dashboard docs</span><Icon name="right-arrow" size="1rem" /></a>
       </div>
-      <p class="section-description">Follow your app from a running resource to the logs, traces, and metrics that explain its behavior.</p>
+      <p class="section-description">Follow your app from a running resource through the OpenTelemetry logs, traces, and metrics that explain its behavior.</p>
       <div class="dashboard-previews">
         <figure>
           <div class="dashboard-preview">
             <ThemeImage
-              light={dashboardLight}
-              dark={dashboardDark}
-              alt="Aspire dashboard showing a JavaScript app and frontend, their running state, and local endpoints."
+              light={traceDetailLight}
+              dark={traceDetailDark}
+              alt="Aspire dashboard trace detail showing an OpenTelemetry request waterfall across services with span attributes."
             />
           </div>
           <figcaption>
-            <a href={dashboardLinks[0].href} data-underline-trigger><span data-link-underline>{dashboardLinks[0].title}</span><Icon name="right-arrow" size="1rem" /></a>
-            <p>Check running services, health, and endpoints.</p>
+            <a href={dashboardLinks[1].href} data-underline-trigger><span data-link-underline>{dashboardLinks[1].title}</span><Icon name="right-arrow" size="1rem" /></a>
+            <p>Follow an OpenTelemetry trace across services and inspect its spans.</p>
           </figcaption>
         </figure>
         <figure>
           <div class="dashboard-preview">
-            <Zoom label="Enlarge the distributed trace screenshot">
-              <Image src={traceDetails} width={1000} loading="lazy" alt="Aspire dashboard trace details showing a request waterfall across the frontend and API, with span attributes." />
-            </Zoom>
+            <ThemeImage
+              light={resourcesGraphLight}
+              dark={resourcesGraphDark}
+              alt="Aspire dashboard resource graph showing connected services and their health."
+            />
           </div>
           <figcaption>
-            <a href={dashboardLinks[1].href} data-underline-trigger><span data-link-underline>{dashboardLinks[1].title}</span><Icon name="right-arrow" size="1rem" /></a>
-            <p>Follow a request across services and inspect its spans.</p>
+            <a href={dashboardLinks[0].href} data-underline-trigger><span data-link-underline>{dashboardLinks[0].title}</span><Icon name="right-arrow" size="1rem" /></a>
+            <p>See how running services connect, then check their health and endpoints.</p>
           </figcaption>
         </figure>
       </div>

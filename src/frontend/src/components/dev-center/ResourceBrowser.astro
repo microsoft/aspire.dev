@@ -1,19 +1,26 @@
 ---
 import { Icon } from '@astrojs/starlight/components';
 import InpageSearch from '../api-reference/InpageSearch.astro';
-import ResourceCard from './ResourceCard.astro';
 import BrowseDropdown from './BrowseDropdown.astro';
 import { RESOURCE_TYPES, type DevResource } from '../../utils/dev-center/resource-types';
+import { resourceImages } from '../../utils/dev-center/resource-image';
+import { resourceCardHtml } from '../../utils/dev-center/resource-card-html';
 import { topics } from '../../utils/dev-center/topics';
 import { RESOURCE_PAGE_SIZE, resourceFacetLabel, resourceFacets, resourceSearchEntry } from '../../utils/dev-center/resource-search';
+import '../../styles/link-underline.css';
+import '../../styles/resource-card.css';
 
 interface Props { resources: DevResource[] }
 const { resources } = Astro.props;
+const cards = await Promise.all(resources.map(async (resource) => ({
+  resource,
+  image: await resourceImages(resource),
+})));
+const cardHtml = cards.map(({ resource, image }) => resourceCardHtml(resource, image)).join('');
 const available = resourceFacets(resources.map(resourceSearchEntry));
 const groups = [
   { name: 'type', label: 'Type', options: RESOURCE_TYPES.filter((type) => available.type.includes(type.id)).map((type) => ({ id: type.id, label: type.label, color: undefined })) },
   { name: 'topic', label: 'Topic', options: topics.filter((topic) => available.topic.includes(topic.id)).map((topic) => ({ id: topic.id, label: topic.title, color: topic.color })) },
-  { name: 'platform', label: 'Platform', options: available.platform.map((id) => ({ id, label: resourceFacetLabel(id), color: undefined })) },
   { name: 'language', label: 'Language', options: available.language.map((id) => ({ id, label: resourceFacetLabel(id), color: undefined })) },
 ];
 ---
@@ -24,6 +31,13 @@ const groups = [
       const browser = document.currentScript.parentElement;
       // Run before the catalog can paint, without hiding links when JavaScript is disabled.
       if (!browser.hasAttribute('data-ready')) {
+        const materialize = (card) => {
+          card.querySelectorAll('noscript[data-resource-image]').forEach((source) => {
+            const template = document.createElement('template');
+            template.innerHTML = source.textContent;
+            source.replaceWith(template.content);
+          });
+        };
         browser.setAttribute('data-loading', '');
         browser.setAttribute('aria-busy', 'true');
         window.addEventListener('load', () => {
@@ -31,7 +45,10 @@ const groups = [
           const note = browser.querySelector('[data-browse-static]');
           note.textContent = 'Interactive browsing could not load. All resource links are listed below.';
           note.hidden = false;
-          browser.querySelectorAll('[data-resource-entry]').forEach((card) => { card.hidden = false; });
+          browser.querySelectorAll('[data-resource-entry]').forEach((card) => {
+            materialize(card);
+            card.hidden = false;
+          });
           browser.removeAttribute('data-loading');
           browser.removeAttribute('aria-busy');
         }, { once: true });
@@ -78,7 +95,7 @@ const groups = [
         <p>Try a broader search or remove a filter.</p>
         <button type="button" data-reset-search>Show all resources</button>
       </div>
-      <ul class="browse-grid">{resources.map((resource) => <ResourceCard resource={resource} />)}</ul>
+      <ul class="browse-grid" set:html={cardHtml} />
       <nav class="browse-pagination" aria-label="Resource pages" hidden>
         <span class="sr-only" data-page-label></span>
         <button type="button" class="browse-page-edge" data-page-first aria-label="First page" title="First page"><span class="i-mdi:page-first" aria-hidden="true"></span></button>
@@ -123,8 +140,13 @@ const groups = [
   .browse-skeleton-copy span { height: 0.875rem; background: var(--sl-color-gray-6); border-radius: 0.2rem; }
   .browse-skeleton-copy span:first-child { width: 75%; height: 1.25rem; margin-bottom: 0.5rem; }
   .browse-skeleton-copy span:last-child { width: 60%; }
-  .browse-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; }
+  .browse-controls {
+    display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem;
+    padding: 1rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--sl-color-text-accent) 4%, var(--sl-color-bg));
+  }
   .browse-search { flex: 1 1 20rem; min-width: 0; }
+  :global(resource-browser .inpage-search-input) { background-color: var(--dev-control-bg); }
   .browse-layout { margin-top: 1.25rem; }
   .browse-filters { min-width: 0; }
   .browse-filter-content { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
@@ -151,6 +173,9 @@ const groups = [
   :global(resource-browser .inpage-search-stats), :global(resource-browser .inpage-kind-filters) { display: none; }
   :global(resource-browser .inpage-search-bar) { margin-bottom: 0; }
   :global(html:has(resource-browser)) { scrollbar-gutter: stable; }
+  @media (max-width: 599px) {
+    :global(body:has(.browse-filter-group[open])) { overflow: hidden; }
+  }
   @media (max-width: 1199px) { .browse-grid, .browse-loading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 1199px) { .browse-search { flex-basis: 100%; } }
   @media (max-width: 767px) { .browse-page-direction span { display: none; } }

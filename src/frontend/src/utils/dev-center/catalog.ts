@@ -4,13 +4,20 @@ import integrations from '@data/aspire-integrations.json';
 import integrationDocs from '@data/integration-docs.json';
 import blogPosts from '@data/aspire-blog-posts.json';
 import { allCommunityVideos } from '@data/community-videos';
-import { blogHighlights, videos } from '@data/dev-central';
+import { blogHighlights, videos } from '@data/dev-hub';
 import { socialConfig } from '../../../config/socials.config';
 import { buildResourceCatalog } from '@utils/dev-center/catalog-normalization';
 import type { DevResource } from '@utils/dev-center/resource-types';
 
 /** Build-time only: the returned records intentionally omit document bodies and sample READMEs. */
-export async function getResourceCatalog(): Promise<DevResource[]> {
+let catalogPromise: Promise<DevResource[]> | undefined;
+
+export function getResourceCatalog(): Promise<DevResource[]> {
+  catalogPromise ??= buildCatalog();
+  return catalogPromise;
+}
+
+async function buildCatalog(): Promise<DevResource[]> {
   const [docs, glossary] = await Promise.all([getCollection('docs'), getCollection('glossary')]);
   return buildResourceCatalog({
     docs,

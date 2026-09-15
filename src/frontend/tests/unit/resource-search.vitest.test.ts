@@ -201,7 +201,7 @@ describe('resource discovery', () => {
     expect(entries).toEqual(original);
   });
 
-  it('filters video platforms independently and round-trips multiple platforms', () => {
+  it('ignores legacy platform filters while retaining platform search metadata', () => {
     const media = [
       resource('youtube', { type: 'video', platform: 'youtube' }),
       resource('twitch', { type: 'video', platform: 'twitch' }),
@@ -209,9 +209,8 @@ describe('resource discovery', () => {
     ].map(resourceSearchEntry);
     const available = resourceFacets(media);
     const selected = readBrowseState(new URLSearchParams('platform=twitch'), available);
-    expect(filterResources(media, selected).map(({ id }) => id)).toEqual(['twitch']);
-    const both = readBrowseState(new URLSearchParams('platform=twitch&platform=youtube'), available);
-    expect(filterResources(media, both)).toHaveLength(2);
-    expect(readBrowseState(writeBrowseState(new URL('https://aspire.dev/hub/browse/'), both).searchParams, available)).toEqual(both);
+    expect(filterResources(media, selected)).toHaveLength(3);
+    expect(filterResources(media, { ...selected, q: 'twitch' }).map(({ id }) => id)).toEqual(['twitch']);
+    expect(writeBrowseState(new URL('https://aspire.dev/hub/browse/?platform=twitch'), selected).search).toBe('');
   });
 });

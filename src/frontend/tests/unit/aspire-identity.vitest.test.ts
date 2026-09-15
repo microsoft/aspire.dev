@@ -3,7 +3,6 @@ import { Response } from 'node-fetch';
 import { expect, test, vi } from 'vitest';
 import { fetchWithProxy } from '../../scripts/fetch-with-proxy';
 import { aspireProject } from '../../src/data/aspire-project';
-import { gettingStartedDescription } from '../../src/data/dev-central';
 import stats from '../../src/data/github-stats.json';
 
 vi.mock('fs', () => ({ default: { writeFileSync: vi.fn() } }));
@@ -15,7 +14,6 @@ test('the Dev Hub and checked-in repository card share the current product ident
     repo: 'https://github.com/microsoft/aspire',
     description: 'Aspire is the tool for code-first, extensible, observable dev and deploy.',
   });
-  expect(gettingStartedDescription).toContain(aspireProject.description);
   expect(stats.find(({ name }) => name === aspireProject.name)).toMatchObject(aspireProject);
   expect(stats.some(({ name, repo }) => name === 'dotnet/aspire' || repo === 'https://github.com/dotnet/aspire')).toBe(false);
 });

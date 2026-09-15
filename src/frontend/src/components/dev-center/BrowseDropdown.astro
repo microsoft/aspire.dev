@@ -22,7 +22,14 @@ const { name, label, multiple = true, options } = Astro.props;
     {multiple && <span class="browse-filter-active" data-filter-active={name} aria-hidden="true" hidden></span>}
     <Icon name="down-caret" size="1rem" />
   </summary>
+  <span class="browse-filter-backdrop" data-filter-dismiss aria-hidden="true"></span>
   <div class="browse-filter-panel">
+    <div class="browse-filter-mobile-header">
+      <strong>{label}</strong>
+      <button type="button" data-filter-dismiss aria-label={`Close ${label}`}>
+        <Icon name="close" size="1.25rem" />
+      </button>
+    </div>
     <fieldset>
       <legend class="sr-only">{label}</legend>
       {options.map((option) => option.directions ? (
@@ -54,7 +61,7 @@ const { name, label, multiple = true, options } = Astro.props;
   summary {
     display: flex; align-items: center; gap: 0.3rem; min-height: 3rem;
     padding: 0.5rem 0.75rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.4rem;
-    background: var(--sl-color-bg); color: var(--sl-color-text); font-size: 0.85rem;
+    background: var(--dev-control-bg); color: var(--sl-color-text); font-size: 0.85rem;
     cursor: pointer; list-style: none; white-space: nowrap;
   }
   summary::-webkit-details-marker { display: none; }
@@ -64,7 +71,7 @@ const { name, label, multiple = true, options } = Astro.props;
   .browse-filter-active { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--sl-color-text-accent); flex-shrink: 0; }
   .browse-filter-group[open] > summary, .browse-filter-group:not([data-filter-group='sort']):has(input:checked:not([value=''])) > summary {
     border-color: var(--sl-color-text-accent);
-    background: color-mix(in srgb, var(--sl-color-text-accent) 7%, var(--sl-color-bg));
+    background: color-mix(in srgb, var(--sl-color-text-accent) 7%, var(--dev-control-bg));
   }
   .browse-filter-panel {
     position: absolute; top: calc(100% + 0.4rem); left: 0; z-index: 2;
@@ -73,6 +80,7 @@ const { name, label, multiple = true, options } = Astro.props;
     border-radius: 0.5rem; background: var(--sl-color-bg);
     box-shadow: 0 0.4rem 1rem color-mix(in srgb, var(--sl-color-gray-1) 12%, transparent);
   }
+  .browse-filter-backdrop, .browse-filter-mobile-header { display: none; }
   fieldset { margin: 0; padding: 0; border: 0; min-width: 0; max-height: min(28rem, var(--browse-options-height, 60dvh)); overflow-y: auto; }
   .browse-filter-option {
     display: flex; align-items: center; gap: 0.45rem; min-height: 2rem; padding: 0.2rem 0.35rem;
@@ -97,5 +105,48 @@ const { name, label, multiple = true, options } = Astro.props;
   .browse-facet-count { margin-left: auto; font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--sl-color-gray-2); }
   .browse-topic-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; flex-shrink: 0; }
   @media (pointer: coarse) { .browse-filter-option, .browse-sort-row { min-height: 2.25rem; } }
-  @media (max-width: 599px) { .browse-filter-group { width: 100%; } }
+  @media (max-width: 599px) {
+    .browse-filter-group { width: 100%; }
+    .browse-filter-group[open] { z-index: 10000; }
+    .browse-filter-group[open] .browse-filter-backdrop {
+      display: block; position: fixed; inset: 0; z-index: 10000;
+      background: color-mix(in srgb, var(--sl-color-black) 55%, transparent);
+      backdrop-filter: blur(2px);
+    }
+    .browse-filter-panel {
+      position: fixed; inset: max(5rem, env(safe-area-inset-top)) 0.75rem auto; z-index: 10001;
+      width: auto; max-width: none; max-height: calc(100dvh - 5.5rem);
+      margin: 0; padding: 0.75rem; border-radius: 0.75rem;
+      box-shadow: 0 1rem 3rem color-mix(in srgb, var(--sl-color-black) 55%, transparent);
+    }
+    .browse-filter-mobile-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      min-height: 3rem; padding: 0 0.25rem 0.65rem 0.5rem;
+      border-bottom: 1px solid var(--sl-color-gray-5);
+      font-size: 1rem;
+    }
+    .browse-filter-mobile-header button {
+      display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0;
+      border: 1px solid var(--sl-color-gray-5); border-radius: 0.5rem;
+      background: var(--dev-control-bg); color: var(--sl-color-text); cursor: pointer;
+    }
+    .browse-filter-mobile-header button:focus-visible {
+      outline: 3px solid var(--aspire-action-focus); outline-offset: 2px;
+    }
+    fieldset {
+      max-height: calc(100dvh - 10rem);
+      padding-top: 0.5rem; overscroll-behavior: contain;
+    }
+    .browse-filter-option {
+      min-height: 2.75rem; padding: 0.45rem 0.75rem;
+      border-radius: 0.5rem; font-size: 0.95rem;
+    }
+    .browse-filter-option input { width: 1.125rem; height: 1.125rem; }
+    .browse-sort-row { min-height: 3.5rem; padding: 0.35rem 0.5rem; font-size: 0.95rem; }
+    .browse-sort-label { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
+    .browse-sort-label small { font-size: 0.75rem; }
+    .browse-sort-choices { gap: 0.5rem; }
+    .browse-sort-choice { width: 2.75rem; height: 2.75rem; border-radius: 0.5rem; }
+    .browse-sort-icon { width: 1.35rem; height: 1.35rem; }
+  }
 </style>

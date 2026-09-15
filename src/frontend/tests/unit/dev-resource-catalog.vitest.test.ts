@@ -8,7 +8,7 @@ import integrations from '../../src/data/aspire-integrations.json';
 import integrationDocs from '../../src/data/integration-docs.json';
 import blogPosts from '../../src/data/aspire-blog-posts.json';
 import { allCommunityVideos, aspireifridays, communityVideos, dotnetConf2025 } from '../../src/data/community-videos';
-import { blogHighlights, videos } from '../../src/data/dev-central';
+import { blogHighlights, videos } from '../../src/data/dev-hub';
 import { locales } from '../../config/locales';
 import { socialConfig } from '../../config/socials.config';
 import { redirects } from '../../config/redirects.mjs';
