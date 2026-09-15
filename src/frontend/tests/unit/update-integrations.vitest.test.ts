@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,6 +10,7 @@ import integrationDocs from '@data/integration-docs.json';
 import {
   DEFAULT_NUGET_ICON_URL,
   getOfficialAspireDefaultIconPackages,
+  reconcileIntegrationDocs,
   resolveIconUrl,
 } from '../../scripts/update-integrations';
 
@@ -106,6 +107,92 @@ describe('update-integrations icon handling', () => {
         },
       ])
     ).toEqual([]);
+  });
+});
+
+describe('integration documentation reconciliation', () => {
+  const official = {
+    match: 'Aspire.Hosting.Redis',
+    href: '/integrations/caching/redis/redis-get-started/',
+  };
+  const community = {
+    match: 'CommunityToolkit.Aspire.Hosting.Dapr',
+    href: '/integrations/compute/dapr/',
+  };
+  const thirdParty = {
+    match: 'Particular.Aspire.Hosting.ServicePlatform',
+    href: 'https://docs.particular.net/platform/aspire/',
+  };
+  const catalog = [official, community].map(({ match }) => ({ title: match }));
+
+  test('leaves the current documentation mappings unchanged', () => {
+    expect(reconcileIntegrationDocs(integrationDocs, aspireIntegrations)).toEqual(
+      integrationDocs
+    );
+  });
+
+  test.each(['Aspire.Hosting.Removed', 'CommunityToolkit.Aspire.Hosting.Bun'])(
+    'removes the stale mapping for %s without changing surviving links or order',
+    (match) => {
+      const docs = [official, { match, href: '/retired/' }, community, thirdParty];
+
+      expect(reconcileIntegrationDocs(docs, catalog)).toEqual([
+        official,
+        community,
+        thirdParty,
+      ]);
+      expect(docs).toHaveLength(4);
+    }
+  );
+
+  test('matches catalog package IDs case-insensitively', () => {
+    const docs = [official, community];
+    const lowercaseCatalog = catalog.map(({ title }) => ({ title: title.toLowerCase() }));
+
+    expect(reconcileIntegrationDocs(docs, lowercaseCatalog)).toEqual(docs);
+  });
+
+  test('preserves third-party mappings outside the managed catalog', () => {
+    expect(reconcileIntegrationDocs([thirdParty], [])).toEqual([thirdParty]);
+  });
+
+  test('does not invent documentation links for newly discovered packages', () => {
+    expect(
+      reconcileIntegrationDocs([official], [
+        ...catalog,
+        { title: 'Aspire.Hosting.NewIntegration' },
+      ])
+    ).toEqual([official]);
+  });
+});
+
+describe('integration update automation', () => {
+  const frontendRoot = path.resolve(testsDir, '..', '..');
+  const script = readFileSync(
+    path.join(frontendRoot, 'scripts', 'update-integration-data.ps1'),
+    'utf8'
+  );
+  const workflow = readFileSync(
+    path.resolve(frontendRoot, '..', '..', '.github', 'workflows', 'update-integration-data.yml'),
+    'utf8'
+  );
+
+  test('allows and stages reconciled documentation mappings', () => {
+    const allowedPaths = script.match(/\$AllowedPaths = @\(([\s\S]*?)\)/)?.[1];
+    const stagedPaths = workflow.match(/git add -- \\[\s\S]*?\r?\n\r?\n/)?.[0];
+
+    expect(allowedPaths).toContain("'src/frontend/src/data/integration-docs.json'");
+    expect(stagedPaths).toContain('src/frontend/src/data/integration-docs.json');
+  });
+
+  test('validates updated mappings before checking for changes or regenerating APIs', () => {
+    const validationIndex = script.indexOf('& pnpm run test:unit:structured-data');
+
+    expect(validationIndex).toBeGreaterThan(script.indexOf('& pnpm run update:all'));
+    expect(validationIndex).toBeLessThan(script.indexOf('if (-not $anyChanges)'));
+    expect(script.slice(validationIndex)).toMatch(
+      /test:unit:structured-data\s+if \(\$LASTEXITCODE -ne 0\) \{[^}]*exit 1/
+    );
   });
 });
 

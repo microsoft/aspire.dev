@@ -1,0 +1,53 @@
+---
+title: Compiler Error ASPIRE009
+seoTitle: 'ASPIRE009: The Aspire CLI bundle could not be resolved · Aspire'
+description: Learn what causes Aspire compiler error ASPIRE009 — the AppHost is configured to use the Aspire CLI bundle, but the bundle could not be resolved — and how to fix it.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> '[ProjectName]' is configured to use the Aspire CLI bundle, but the bundle could not be resolved.
+
+This diagnostic error is reported when an AppHost project opts in to the Aspire CLI bundle (`AspireUseCliBundle=true`) but the SDK can't resolve a usable bundle layout for the developer control plane (DCP) and the Aspire Dashboard.
+
+When neither `AspireCliPath` nor `AspireCliBundlePath` is set, a usable `dnx` host can resolve or prepare the required bundle layout through the selected Aspire CLI package. Therefore, a missing `aspire` command alone doesn't cause `ASPIRE009`. Explicit paths are authoritative: an invalid `AspireCliPath` or `AspireCliBundlePath` causes `ASPIRE009` even when `dnx` is available.
+
+## Example
+
+The following configuration produces `ASPIRE009` when the specified directory isn't a valid Aspire CLI bundle layout:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+  <AspireCliBundlePath>/path/to/missing-or-invalid/bundle</AspireCliBundlePath>
+</PropertyGroup>
+```
+
+## To correct this error
+
+If you set `AspireCliPath` or `AspireCliBundlePath`, correct or remove the invalid property:
+
+```xml title="MyApp.AppHost.csproj" {3-4}
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+  <!-- Executable used for invocation and bundle discovery: -->
+  <AspireCliPath>/usr/local/bin/aspire</AspireCliPath>
+  <!-- Or, for bundle discovery only, use a valid unpacked layout: -->
+  <!-- <AspireCliBundlePath>/path/to/valid/aspire/bundle</AspireCliBundlePath> -->
+</PropertyGroup>
+```
+
+When no explicit path is set, either [install the Aspire CLI](https://get.aspire.dev) so `aspire` and its bundle are available, or install and use .NET SDK 10.0 or later so a usable `dnx` host can run the Aspire CLI package selected by the invocation mode.
+
+If `Dnx` or `DnxPinned` mode can't find `dnx`, the run preflight reports [`ASPIRE011`](/diagnostics/aspire011/). A missing `dnx` command isn't itself an `ASPIRE009` condition, although a separate bundle-resolution failure can still produce `ASPIRE009`.
+
+Alternatively, set `AspireUseCliBundle` to `false` to restore orchestration dependencies from NuGet packages. Doing so reports [`ASPIRE010`](/diagnostics/aspire010/) because some Aspire features require the CLI bundle.
+
+For more information, see [Use the Aspire CLI bundle for orchestration dependencies](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies).

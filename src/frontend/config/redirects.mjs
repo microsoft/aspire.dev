@@ -226,4 +226,7 @@ export const redirects = {
   '/fundamentals/app-lifecycle/': '/deployment/app-lifecycle/',
   '/dashboard/copilot/': '/dashboard/ai-coding-agents/',
   '/dashboard/mcp-server/': '/get-started/aspire-mcp-server/',
+  // Diagnostics: ASPIREDOTNETTOOL reference page migrated to the canonical
+  // numeric-suffixed slug to match the other ASPIRE* diagnostics.
+  '/diagnostics/aspiredotnettool/': '/diagnostics/aspiredotnettool001/',
 };

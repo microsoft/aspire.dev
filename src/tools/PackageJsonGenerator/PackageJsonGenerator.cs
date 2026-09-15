@@ -14,7 +14,7 @@ public static class PackageJsonGenerator
 {
     private const string NewAspireRepositoryUrl = "https://github.com/microsoft/aspire";
 
-    public static void GeneratePackageJson(string? inputAssembly, string[]? references, string? outputFile, string? versionOverride = null, string? packageNameOverride = null, string? sourceRepoOverride = null, string? sourceCommitOverride = null, string? targetFrameworkOverride = null, ConcurrentDictionary<string, PortableExecutableReference>? referenceCache = null)
+    public static bool GeneratePackageJson(string? inputAssembly, string[]? references, string? outputFile, string? versionOverride = null, string? packageNameOverride = null, string? sourceRepoOverride = null, string? sourceCommitOverride = null, string? targetFrameworkOverride = null, ConcurrentDictionary<string, PortableExecutableReference>? referenceCache = null)
     {
         if (string.IsNullOrEmpty(inputAssembly))
         {
@@ -40,20 +40,25 @@ public static class PackageJsonGenerator
             references: resolvedRefs.Concat([inputReference]));
 
         var assemblySymbol = (IAssemblySymbol)compilation.GetAssemblyOrModuleSymbol(inputReference)!;
+        var packageName = !string.IsNullOrEmpty(packageNameOverride)
+            ? packageNameOverride
+            : assemblySymbol.Name;
 
         // Collect all public types from the assembly
         var types = new List<INamedTypeSymbol>();
         CollectTypes(assemblySymbol.GlobalNamespace, types, assemblySymbol);
 
+        ValidateRelevantAttributes(types, packageName);
+        ValidateReferencedAssemblies(compilation, assemblySymbol, packageName);
+        ValidatePublicApiTypes(types, packageName);
+
         if (types.Count == 0)
         {
             Console.WriteLine($"No public types found in assembly: {assemblySymbol.Name}");
-            return;
+            return false;
         }
 
-        var assemblyName = !string.IsNullOrEmpty(packageNameOverride)
-            ? packageNameOverride
-            : assemblySymbol.Name;
+        var assemblyName = packageName;
         var assemblyVersion = !string.IsNullOrEmpty(versionOverride)
             ? versionOverride
             : assemblySymbol.Identity.Version.ToString();
@@ -173,6 +178,7 @@ public static class PackageJsonGenerator
 
         var wroteFile = StableFileWriter.WriteIfChanged(outputFile, schemaJson);
         Console.WriteLine($"{(wroteFile ? "Generated" : "Unchanged")}: {outputFile}");
+        return true;
     }
 
     internal static PortableExecutableReference CreateMetadataReference(string path)
@@ -224,6 +230,271 @@ public static class PackageJsonGenerator
         return type.Name.StartsWith("<") ||
                type.GetAttributes().Any(a =>
                    a.AttributeClass?.Name == "CompilerGeneratedAttribute");
+    }
+
+    private static void ValidateReferencedAssemblies(
+        Compilation compilation,
+        IAssemblySymbol assembly,
+        string packageName)
+    {
+        var missingReferences = assembly.Modules
+            .SelectMany(module => module.ReferencedAssemblySymbols)
+            .Where(reference => compilation.GetMetadataReference(reference) is null)
+            .Select(reference => reference.Identity.ToString())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(identity => identity, StringComparer.Ordinal)
+            .ToArray();
+
+        if (missingReferences.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Package '{packageName}' assembly '{assembly.Name}' has unresolved referenced assemblies: {string.Join(", ", missingReferences)}.");
+        }
+    }
+
+    private static void ValidateRelevantAttributes(IEnumerable<INamedTypeSymbol> types, string packageName)
+    {
+        foreach (var symbol in EnumerateAttributedSymbols(types))
+        {
+            foreach (var attribute in symbol.GetAttributes())
+            {
+                var attributeName = GetRelevantAttributeName(attribute);
+                if (attributeName is null)
+                {
+                    continue;
+                }
+
+                string? problem = null;
+                if (attribute.AttributeClass is null || attribute.AttributeClass.TypeKind == TypeKind.Error)
+                {
+                    problem = "attribute class could not be resolved";
+                }
+                else if (attribute.AttributeConstructor is null ||
+                         attribute.AttributeConstructor.ContainingType.TypeKind == TypeKind.Error)
+                {
+                    problem = "attribute constructor could not be resolved";
+                }
+                else if (attribute.ConstructorArguments.Any(ContainsErrorValue))
+                {
+                    problem = "constructor arguments contain an unresolved value";
+                }
+                else if (attribute.NamedArguments.Any(argument => ContainsErrorValue(argument.Value)))
+                {
+                    problem = "named arguments contain an unresolved value";
+                }
+
+                if (problem is not null)
+                {
+                    throw new InvalidOperationException(
+                        $"Package '{packageName}', symbol '{symbol.ToDisplayString()}', attribute '{attributeName}': {problem}.");
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<ISymbol> EnumerateAttributedSymbols(IEnumerable<INamedTypeSymbol> types)
+    {
+        var seen = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+
+        foreach (var type in types)
+        {
+            if (seen.Add(type))
+            {
+                yield return type;
+            }
+
+            foreach (var member in type.GetMembers())
+            {
+                if (seen.Add(member))
+                {
+                    yield return member;
+                }
+
+                if (member is IMethodSymbol method)
+                {
+                    foreach (var parameter in method.Parameters)
+                    {
+                        if (seen.Add(parameter))
+                        {
+                            yield return parameter;
+                        }
+                    }
+                }
+                else if (member is IPropertySymbol property)
+                {
+                    foreach (var parameter in property.Parameters)
+                    {
+                        if (seen.Add(parameter))
+                        {
+                            yield return parameter;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static string? GetRelevantAttributeName(AttributeData attribute)
+    {
+        string[] relevantAttributeNames =
+        [
+            "AspireExportAttribute",
+            "AspireExportIgnoreAttribute",
+            "AspireDtoAttribute",
+            "AspireUnionAttribute",
+        ];
+
+        var className = attribute.AttributeClass?.Name;
+        if (className is not null && relevantAttributeNames.Contains(className, StringComparer.Ordinal))
+        {
+            return className;
+        }
+
+        var constructorTypeName = attribute.AttributeConstructor?.ContainingType.Name;
+        if (constructorTypeName is not null &&
+            relevantAttributeNames.Contains(constructorTypeName, StringComparer.Ordinal))
+        {
+            return constructorTypeName;
+        }
+
+        var display = attribute.ToString();
+        return relevantAttributeNames.FirstOrDefault(
+            name => display.Contains(name, StringComparison.Ordinal));
+    }
+
+    private static bool ContainsErrorValue(TypedConstant constant)
+    {
+        if (constant.Kind == TypedConstantKind.Error || ContainsErrorType(constant.Type))
+        {
+            return true;
+        }
+
+        if (constant.Kind == TypedConstantKind.Array)
+        {
+            return constant.Values.Any(ContainsErrorValue);
+        }
+
+        if (constant.Value is ITypeSymbol typeValue && ContainsErrorType(typeValue))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void ValidatePublicApiTypes(IEnumerable<INamedTypeSymbol> types, string packageName)
+    {
+        foreach (var type in types)
+        {
+            ValidateTypeReference(type, type.BaseType, "base type", packageName);
+            foreach (var interfaceType in type.Interfaces)
+            {
+                ValidateTypeReference(type, interfaceType, "implemented interface", packageName);
+            }
+            ValidateTypeParameterConstraints(type, type.TypeParameters, packageName);
+
+            if (type.DelegateInvokeMethod is { } delegateInvoke)
+            {
+                ValidateMethodTypes(delegateInvoke, packageName);
+            }
+
+            foreach (var member in type.GetMembers()
+                         .Where(member => member.DeclaredAccessibility == Accessibility.Public &&
+                                          !member.IsImplicitlyDeclared))
+            {
+                switch (member)
+                {
+                    case IMethodSymbol method:
+                        ValidateMethodTypes(method, packageName);
+                        break;
+                    case IPropertySymbol property:
+                        ValidateTypeReference(property, property.Type, "property type", packageName);
+                        foreach (var parameter in property.Parameters)
+                        {
+                            ValidateTypeReference(parameter, parameter.Type, "parameter type", packageName);
+                        }
+                        break;
+                    case IFieldSymbol field:
+                        ValidateTypeReference(field, field.Type, "field type", packageName);
+                        break;
+                    case IEventSymbol eventSymbol:
+                        ValidateTypeReference(eventSymbol, eventSymbol.Type, "event type", packageName);
+                        break;
+                }
+            }
+        }
+    }
+
+    private static void ValidateMethodTypes(IMethodSymbol method, string packageName)
+    {
+        if (method.MethodKind != MethodKind.Constructor &&
+            method.MethodKind != MethodKind.StaticConstructor)
+        {
+            ValidateTypeReference(method, method.ReturnType, "return type", packageName);
+        }
+
+        foreach (var parameter in method.Parameters)
+        {
+            ValidateTypeReference(parameter, parameter.Type, "parameter type", packageName);
+        }
+        ValidateTypeParameterConstraints(method, method.TypeParameters, packageName);
+    }
+
+    private static void ValidateTypeParameterConstraints(
+        ISymbol owner,
+        IEnumerable<ITypeParameterSymbol> typeParameters,
+        string packageName)
+    {
+        foreach (var typeParameter in typeParameters)
+        {
+            foreach (var constraintType in typeParameter.ConstraintTypes)
+            {
+                ValidateTypeReference(
+                    owner,
+                    constraintType,
+                    $"constraint for type parameter '{typeParameter.Name}'",
+                    packageName);
+            }
+        }
+    }
+
+    private static void ValidateTypeReference(
+        ISymbol owner,
+        ITypeSymbol? type,
+        string location,
+        string packageName)
+    {
+        if (type is not null && ContainsErrorType(type))
+        {
+            throw new InvalidOperationException(
+                $"Package '{packageName}', symbol '{owner.ToDisplayString()}', {location} contains unresolved public API type '{type.ToDisplayString()}'.");
+        }
+    }
+
+    private static bool ContainsErrorType(ITypeSymbol? type)
+    {
+        if (type is null)
+        {
+            return false;
+        }
+
+        if (type.TypeKind == TypeKind.Error)
+        {
+            return true;
+        }
+
+        return type switch
+        {
+            IArrayTypeSymbol arrayType => ContainsErrorType(arrayType.ElementType),
+            IPointerTypeSymbol pointerType => ContainsErrorType(pointerType.PointedAtType),
+            IFunctionPointerTypeSymbol functionPointer =>
+                ContainsErrorType(functionPointer.Signature.ReturnType) ||
+                functionPointer.Signature.Parameters.Any(parameter => ContainsErrorType(parameter.Type)),
+            INamedTypeSymbol namedType =>
+                ContainsErrorType(namedType.ContainingType) ||
+                namedType.TypeArguments.Any(ContainsErrorType),
+            _ => false,
+        };
     }
 
     /// <summary>

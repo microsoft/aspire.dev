@@ -1,0 +1,70 @@
+---
+title: Compiler Warning ASPIRETERMINAL001
+seoTitle: 'ASPIRETERMINAL001: Terminal configuration types and members'
+description: Learn what causes the Aspire compiler warning ASPIRETERMINAL001 and how to fix it so your AppHost builds cleanly.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Terminal configuration types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using experimental terminal configuration APIs in Aspire, including:
+
+- `WithTerminal` extension method
+- `TerminalOptions`
+
+`WithTerminal` opts a resource into a per-replica interactive terminal session that's attachable from the Aspire CLI and dashboard.
+
+## Example
+
+The following code generates `ASPIRETERMINAL001`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("cache", "redis")
+    .WithTerminal();
+
+builder.Build().Run();
+```
+
+## To correct this warning
+
+Suppress the warning with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRETERMINAL001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRETERMINAL001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIRETERMINAL001` directive:
+
+  ```csharp title="Suppressing the warning"
+  #pragma warning disable ASPIRETERMINAL001
+  builder.AddContainer("cache", "redis")
+      .WithTerminal();
+  #pragma warning restore ASPIRETERMINAL001
+  ```
+
+## See also
+
+- [Attach a terminal to a resource](/app-host/with-terminal/) - Learn about `WithTerminal`

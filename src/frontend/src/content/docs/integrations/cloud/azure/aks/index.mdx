@@ -108,6 +108,52 @@ await worker.withNodePool(gpuPool);
 </TabItem>
 </Tabs>
 
+## Add a persistent volume
+
+<Aside type="note">
+  Persistent volume APIs are experimental. In C#, suppress the `ASPIRECOMPUTE002` diagnostic to use them.
+</Aside>
+
+Call `AddPersistentVolume` directly on the AKS environment to model durable storage without reaching through to the underlying Kubernetes integration. The call forwards to the AKS environment's Kubernetes publisher, so the same configuration methods and workload-binding APIs described in [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/) apply:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aks = builder.AddAzureKubernetesEnvironment("aks");
+
+var data = aks.AddPersistentVolume("data")
+    .WithCapacity("20Gi");
+
+builder.AddProject<Projects.Api>("api")
+    .WithPersistentVolume(data, "/data");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const aks = await builder.addAzureKubernetesEnvironment("aks");
+
+const data = await aks.addPersistentVolume("data");
+await data.withCapacity("20Gi");
+
+const api = await builder
+    .addNodeApp('api', './api', 'src/index.ts')
+    .withHttpEndpoint({ env: 'PORT' })
+    .withExternalHttpEndpoints()
+    .withKubernetesPersistentVolumeMount(data, "/data");
+```
+</TabItem>
+</Tabs>
+
+When you don't set a storage class, the generated claim omits `spec.storageClassName` so the cluster's default storage class provisions the disk. A standard AKS cluster dynamically provisions an Azure managed disk for such claims. To request Premium SSD storage explicitly, call `WithStorageClass("managed-csi-premium")` in C# or `withStorageClass('managed-csi-premium')` in TypeScript.
+
+<Aside type="note">
+  The APIs that are specific to Azure Files are intentionally deferred until managed-identity mounting can be modeled securely.
+</Aside>
+
+<LearnMore>
+  For the full set of configuration methods (storage class, capacity, access modes, annotations) and how to bind volumes to workloads, see [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/).
+</LearnMore>
+
 ## Publishing and deployment
 
 The AKS integration supports both [`aspire publish`](/reference/cli/commands/aspire-publish/) (generate Helm chart and Bicep artifacts) and [`aspire deploy`](/reference/cli/commands/aspire-deploy/) (provision Azure infrastructure and deploy in a single command).
@@ -119,6 +165,7 @@ For a complete end-to-end walkthrough, see [Deploy to AKS](/deployment/kubernete
 - [Deploy to AKS](/deployment/kubernetes/aks/)
 - [Deploy to Kubernetes](/deployment/kubernetes/)
 - [Kubernetes integration](/integrations/compute/kubernetes/)
+- [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/)
 - [Azure Container Apps integration](/integrations/cloud/azure/configure-container-apps/)
 - [Deploy to Azure](/deployment/azure/)
 - [Azure compute integrations overview](/integrations/cloud/azure/overview/)

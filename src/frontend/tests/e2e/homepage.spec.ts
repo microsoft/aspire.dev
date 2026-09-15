@@ -8,11 +8,46 @@ test.beforeEach(async ({ page }) => {
   await dismissCookieConsentIfVisible(page);
 });
 
+test('links directly to local observability and agent debugging guides', async ({ page }) => {
+  const links = page.locator('.observability-links a');
+  await expect(links).toHaveText([
+    'Explore the Aspire dashboard',
+    'Standalone dashboard',
+    'OpenTelemetry concepts',
+    'Debug with coding agents',
+  ]);
+  expect(
+    await links.evaluateAll((anchors) => anchors.map((anchor) => anchor.getAttribute('href')))
+  ).toEqual([
+    '/dashboard/overview/',
+    '/dashboard/standalone/',
+    '/fundamentals/telemetry/',
+    '/dashboard/ai-coding-agents/',
+  ]);
+});
+
 test('renders a complete semantic landing page without horizontal overflow', async ({ page }) => {
   await expect(page.locator('main h1')).toHaveCount(1);
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Model distributed apps in code.' })
+    page.getByRole('heading', { level: 1, name: 'Compose distributed apps in code.' })
   ).toBeVisible();
+  const heroAccent = page.locator('main h1 > span.accent');
+  await expect(heroAccent).toHaveCount(1);
+  await expect(heroAccent).toHaveText('code.');
+  const heroAccentColor = await heroAccent.evaluate((element) => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--home-purple)';
+    element.append(probe);
+    const purple = getComputedStyle(probe).color;
+    probe.remove();
+    return {
+      accent: getComputedStyle(element).color,
+      heading: element.parentElement ? getComputedStyle(element.parentElement).color : null,
+      purple,
+    };
+  });
+  expect(heroAccentColor.accent).toBe(heroAccentColor.purple);
+  expect(heroAccentColor.accent).not.toBe(heroAccentColor.heading);
   await expect(
     page.getByText(
       'Aspire is an agent-ready, code-first tool for composing, debugging, and deploying distributed applications.'
@@ -246,6 +281,69 @@ test('uses lavender canvases, theme-matched product surfaces, and an inverted ba
   });
   await expect(page.locator('.sl-banner')).toHaveCSS('background-color', 'rgb(220, 213, 246)');
   await expect(page.locator('.sl-banner')).toHaveCSS('color', 'rgb(32, 30, 49)');
+});
+
+test('uses deliberate landing-page tracking across responsive layouts', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium');
+
+  const readTracking = () =>
+    page.evaluate(() => {
+      const letterSpacing = (selector: string) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element) throw new Error(`Missing landing-page typography role: ${selector}`);
+
+        const style = getComputedStyle(element);
+        const px = style.letterSpacing === 'normal' ? 0 : Number.parseFloat(style.letterSpacing);
+        return {
+          px,
+          em: px / Number.parseFloat(style.fontSize),
+        };
+      };
+
+      const wordSpacing = (selector: string) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element) throw new Error(`Missing landing-page typography role: ${selector}`);
+
+        const value = getComputedStyle(element).wordSpacing;
+        return value === 'normal' ? 0 : Number.parseFloat(value);
+      };
+
+      return {
+        heroHeading: letterSpacing('.home-hero-copy h1'),
+        sectionHeading: letterSpacing('.language-heading h2'),
+        heroSummary: letterSpacing('.home-hero-summary'),
+        sectionSummary: letterSpacing('.language-heading > div > p'),
+        heroCode: letterSpacing('.home-hero-product pre'),
+        sectionCode: letterSpacing('.aspire-home pre'),
+        heroCodeWordSpacing: wordSpacing('.home-hero-product pre'),
+        sectionCodeWordSpacing: wordSpacing('.aspire-home pre'),
+      };
+    });
+
+  for (const viewport of [
+    { width: 440, height: 956 },
+    { width: 1024, height: 768 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => localStorage.setItem('starlight-theme', value), theme);
+      await page.reload();
+
+      const metrics = await readTracking();
+      expect(metrics.heroHeading.em).toBeCloseTo(0.01, 3);
+      expect(metrics.sectionHeading.em).toBeCloseTo(0.01, 3);
+      expect(metrics.heroSummary.px).toBeGreaterThan(0);
+      expect(metrics.sectionSummary.px).toBeGreaterThan(0);
+      expect(metrics.heroCode.px).toBe(0);
+      expect(metrics.sectionCode.px).toBe(0);
+      expect(metrics.heroCodeWordSpacing).toBe(0);
+      expect(metrics.sectionCodeWordSpacing).toBe(0);
+    }
+  }
 });
 
 test('serves every internal homepage link successfully', async ({ page, request }, testInfo) => {

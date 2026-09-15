@@ -19,6 +19,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Resolve request casing before any middleware rewrites or matches the static path.
+app.UseCanonicalPathRedirects();
+
 // Agent-readiness middlewares MUST run before UseDefaultFiles + UseRouting:
 //   * UseDefaultFiles rewrites /foo/ -> /foo/index.html, breaking .md-companion mapping.
 //   * MapStaticAssets registers endpoints during UseRouting, so a path rewrite

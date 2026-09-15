@@ -1,0 +1,173 @@
+---
+import { coreTeam, type CoreTeamMember } from '@data/core-team';
+import releaseContributorsData from '@data/release-contributors.json';
+
+interface Props {
+  /** Release version key, e.g. "13.5". Matches the keys in release-contributors.json. */
+  version: string;
+}
+
+const { version } = Astro.props;
+
+const releaseContributors = releaseContributorsData as Record<string, string[]>;
+const contributors = releaseContributors[version] ?? [];
+
+const avatarUrl = (handle: string) => `https://github.com/${handle}.png?size=96`;
+const profileUrl = (member: CoreTeamMember) =>
+  member.social?.url ?? `https://github.com/${member.handle}`;
+
+// Precompute the Oxford-comma separators for the inline contributor list.
+const contributorItems = contributors.map((handle, index) => {
+  let separator = '';
+  if (index < contributors.length - 1) {
+    const isSecondToLast = index === contributors.length - 2;
+    separator = isSecondToLast ? (contributors.length === 2 ? ' and ' : ', and ') : ', ';
+  }
+  return { handle, separator };
+});
+---
+
+<section class="release-community not-content" aria-label="Community">
+  <h3 class="rc-heading">The Aspire core team is</h3>
+  <ul class="rc-team" role="list">
+    {
+      coreTeam.map((member) => (
+        <li class="rc-team-item">
+          <a href={profileUrl(member)} class="rc-team-link">
+            <img
+              class="rc-avatar"
+              src={avatarUrl(member.handle)}
+              alt={member.name}
+              width="48"
+              height="48"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="rc-name">{member.name}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+
+  {
+    contributorItems.length > 0 && (
+      <>
+        <p class="rc-thanks">
+          Special thanks to everyone whose pull requests shipped in Aspire {version}, including:
+        </p>
+        <p class="rc-contributors">
+          {contributorItems.map(({ handle, separator }) => (
+            <>
+              <a class="rc-contributor" href={`https://github.com/${handle}`}>
+                @{handle}
+              </a>
+              {separator}
+            </>
+          ))}
+        </p>
+      </>
+    )
+  }
+
+  <p class="rc-outro">
+    We're always excited to <a href="/community/contributors/">see community contributions</a>! If
+    you'd like to get involved, check out our{' '}
+    <a href="/community/contributor-guide/">contributing guide</a>.
+  </p>
+</section>
+
+<style>
+  .release-community {
+    margin: 1.5rem 0;
+  }
+
+  .rc-heading {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0 0 0.85rem;
+    color: var(--sl-color-white);
+  }
+
+  .rc-team {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .rc-team-item {
+    margin: 0;
+    padding: 0;
+  }
+
+  .rc-team-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 40%, transparent);
+    background: color-mix(in srgb, var(--sl-color-gray-6) 50%, transparent);
+    text-decoration: none;
+    color: var(--sl-color-text);
+    transition:
+      border-color 0.2s ease,
+      background 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .rc-team-link:hover {
+    border-color: color-mix(in srgb, var(--aspire-color-primary) 45%, transparent);
+    background: color-mix(in srgb, var(--aspire-color-primary) 8%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .rc-team-link:focus-visible {
+    outline: 2px solid var(--sl-color-text);
+    outline-offset: 2px;
+  }
+
+  .rc-avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--sl-color-gray-5);
+    flex-shrink: 0;
+  }
+
+  .rc-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .rc-thanks {
+    margin: 0 0 0.6rem;
+  }
+
+  .rc-contributors {
+    margin: 0 0 1.25rem;
+    line-height: 1.9;
+  }
+
+  .rc-contributor {
+    white-space: nowrap;
+  }
+
+  .rc-outro {
+    margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rc-team-link {
+      transition: none;
+    }
+    .rc-team-link:hover {
+      transform: none;
+    }
+  }
+</style>

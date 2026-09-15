@@ -27,7 +27,7 @@ You can output detached startup details as a table or JSON, and you can pass add
 
 ### Startup readiness and failure diagnostics
 
-`aspire start` waits for the AppHost to report that it has reached a stable running state before detaching. This means that early startup failures — such as TypeScript syntax errors in a polyglot AppHost or C# compile errors in a .NET AppHost — are surfaced in the parent terminal instead of being silently lost in the background.
+`aspire start` waits for the AppHost to report that it has reached a stable running state before detaching. This means that early startup failures — such as TypeScript syntax errors in a non-C# AppHost or C# compile errors in a .NET AppHost — are surfaced in the parent terminal instead of being silently lost in the background.
 
 When the AppHost fails to start, `aspire start` displays a curated excerpt of the startup output that filters out noise such as package install logs and highlights the relevant error messages:
 
@@ -59,6 +59,17 @@ Build FAILED.
 The parent log also captures the replayed child output under `DetachedAppHost/...` log categories so the log file is self-contained.
 
 Pressing <Kbd windows="Ctrl+C" mac="⌃+C" linux="Ctrl+C" /> while `aspire start` is waiting for the AppHost to start will terminate the startup process.
+
+### Configuring the startup timeout
+
+`aspire start` waits up to 120 seconds by default for the AppHost to reach a stable running state. If the AppHost build or startup takes longer than that—for example on a slow machine or in a CI environment—set the `ASPIRE_CLI_START_TIMEOUT` environment variable to a higher number of seconds:
+
+```bash title="Aspire CLI"
+export ASPIRE_CLI_START_TIMEOUT=300
+aspire start
+```
+
+If `ASPIRE_CLI_START_TIMEOUT` is set to a value that isn't a positive whole number of seconds, `aspire start` displays an error and exits without starting the AppHost. This behavior also applies to `aspire run`, including `aspire run --detach`.
 
 ## Hot Reload and watch behavior
 

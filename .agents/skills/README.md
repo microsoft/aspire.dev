@@ -22,3 +22,4 @@ there's no central registry to update. Add a new skill by creating `.agents/skil
 | [`twoslash-validator`](./twoslash-validator/SKILL.md) | Validate and fix two-slash TypeScript code samples. |
 | [`update-integrations`](./update-integrations/SKILL.md) | Sync integration docs links and API reference data. |
 | [`update-samples`](./update-samples/SKILL.md) | Refresh the samples data file from `microsoft/aspire-samples`. |
+| [`whatsnew`](./whatsnew/SKILL.md) | Author a "What's new in Aspire N.N" release-notes page through a step-argument lifecycle: `draft/scaffold`, `research`, `critique`, `validate`, `polish`, `review`. |
