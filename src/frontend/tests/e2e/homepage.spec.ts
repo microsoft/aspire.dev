@@ -1422,6 +1422,13 @@ test('keeps the environment frame stable while each topology changes', async ({ 
     const bounds = element.getBoundingClientRect();
     return { top: bounds.top + window.scrollY, height: bounds.height };
   });
+  const nodeOffsets = () =>
+    productionPanel.locator('.topology-node').evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const transform = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+        return Math.hypot(transform.m41, transform.m42);
+      })
+    );
   await page.evaluate(
     ({ top }) => window.scrollTo(0, Math.max(0, top - window.innerHeight + 80)),
     stagePosition
@@ -1433,6 +1440,8 @@ test('keeps the environment frame stable while each topology changes', async ({ 
       )
     )
     .toBeGreaterThan(0.5);
+  // The observer updates the factor before the CSS transform transition renders.
+  await expect.poll(async () => Math.min(...(await nodeOffsets()))).toBeGreaterThan(1);
   const enteringTransforms = await productionPanel
     .locator('.topology-node')
     .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transform));
@@ -1449,6 +1458,7 @@ test('keeps the environment frame stable while each topology changes', async ({ 
       )
     )
     .toBeLessThan(0.1);
+  await expect.poll(async () => Math.max(...(await nodeOffsets()))).toBeLessThan(1);
   const centeredTransforms = await productionPanel
     .locator('.topology-node')
     .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transform));
