@@ -33,8 +33,22 @@ test('production Dev Hub scripts, styles, and Pagefind load from static assets',
   const dialog = page.locator('site-search dialog');
   await dialog.locator('input.pagefind-ui__search-input').fill('AppHost');
   await expect(dialog.locator('.pagefind-ui__result-link').first()).toBeVisible();
-  await expect(dialog.locator('.pagefind-ui__result-link[href="/hub/glossary/apphost/"]')).toBeVisible();
   await expect(dialog.locator('.pagefind-ui__result-link[href^="/dev/"]')).toHaveCount(0);
+  // Index membership must not depend on the first page's ranking for a broad query.
+  const indexedPaths = await page.evaluate(async () => {
+    const pagefind = (await import(
+      /* @vite-ignore */ `${window.location.origin}/pagefind/pagefind.js`
+    )) as {
+      search: (query: string) => Promise<{
+        results: Array<{ data: () => Promise<{ url: string }> }>;
+      }>;
+    };
+    const response = await pagefind.search('"The AppHost runs alongside your services"');
+    return Promise.all(response.results.map(async (result) =>
+      new URL((await result.data()).url, window.location.origin).pathname));
+  });
+  expect(indexedPaths).toContain('/hub/glossary/apphost/');
+  expect(indexedPaths.some((path) => path.startsWith('/dev/'))).toBe(false);
   const sitemapIndex = await request.get('/sitemap-index.xml');
   expect(sitemapIndex.ok()).toBe(true);
   const sitemapPaths = [...(await sitemapIndex.text()).matchAll(/<loc>([^<]+)<\/loc>/g)];
@@ -88,10 +102,23 @@ test('onboarding offers native task links with visible focus in both themes and 
           await expect(link).toHaveCSS('outline-style', 'solid');
           expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
           await expect(link).toHaveCSS('animation-name', 'none');
-          if (reducedMotion === 'reduce') await expect(link.locator('svg')).toHaveCSS('transition-duration', '0s');
+          if (reducedMotion === 'reduce') {
+            for (const icon of await link.locator('svg').all()) await expect(icon).toHaveCSS('transition-duration', '0s');
+          }
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       }
+      const hoverRow = links.nth(1);
+      await page.mouse.move(0, 0);
+      const restingBackground = await hoverRow.evaluate((element) => getComputedStyle(element).backgroundColor);
+      const restingIcon = (await hoverRow.locator('.onboarding-option-icon svg').boundingBox())!;
+      await hoverRow.hover();
+      await expect(hoverRow).not.toHaveCSS('background-color', restingBackground);
+      await expect(hoverRow).not.toHaveCSS('box-shadow', 'none');
+      await expect.poll(async () => (await hoverRow.locator('.onboarding-option-icon svg').boundingBox())!.x).toBeCloseTo(restingIcon.x, 0);
+      const hoverResult = await new AxeBuilder({ page }).include('.onboarding').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+      expect(hoverResult.violations).toEqual([]);
+      await page.mouse.move(0, 0);
       const result = await new AxeBuilder({ page }).include('.onboarding').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
       expect(result.violations).toEqual([]);
     }
@@ -102,18 +129,18 @@ test('onboarding offers native task links with visible focus in both themes and 
     await link.focus();
     await expect(link).toHaveCSS('outline-style', 'solid');
   }
-  await expect(section.locator('.onboarding-cta')).toHaveCSS('border-width', '1px');
+  await expect(section.locator('.onboarding-recommended')).toHaveCSS('border-width', '1px');
   await links.first().press('Enter');
   await expect(page).toHaveURL(/\/get-started\/first-app\/$/);
 });
 
-test('Dev Hub introduction and Markdown use the current Aspire positioning', async ({ page, request }) => {
+test('Dev Hub introduction and Markdown omit repository positioning copy', async ({ page, request }) => {
   const description = 'Aspire is the tool for code-first, extensible, observable dev and deploy.';
   await page.goto('/hub/');
-  await expect(page.locator('section[aria-labelledby="getting-started-heading"]')).toContainText(description);
+  await expect(page.locator('.hub-intro')).not.toContainText(description);
   const markdown = await request.get('/hub.md');
   expect(markdown.ok()).toBe(true);
-  expect(await markdown.text()).toContain(description);
+  expect(await markdown.text()).not.toContain(description);
   await expect(page.locator('a[href="https://github.com/dotnet/aspire"]')).toHaveCount(0);
   await page.goto('/community/contributors/');
   await expect(page.getByRole('link', { name: 'microsoft/aspire', exact: true })).toBeVisible();
@@ -128,7 +155,7 @@ test('Dev Hub links share animated underlines and topic cards use the concept-ca
   for (const link of await page.locator('.dev-home a:not(.dashboard-links a)').all()) {
     await expect(link.locator('[data-link-underline]')).toHaveCount(1);
   }
-  for (const selector of ['.dev-browse-link', '.onboarding-cta', '.onboarding-options a', '.topic-links a', '.language-links a', '.cloud-links a', '.featured-samples a', '.reference-links a', '.dashboard-previews a', '.channel-link', '.video-links a', '.blog-links a']) {
+  for (const selector of ['.dev-browse-link', '.onboarding-options a', '.topic-links a', '.language-links a', '.cloud-links a', '.featured-samples a', '.reference-links a', '.dashboard-previews a', '.channel-link', '.video-links a', '.blog-links a']) {
     const link = page.locator(selector).first();
     const underline = link.locator('[data-link-underline]');
     await link.scrollIntoViewIfNeeded();
@@ -268,64 +295,89 @@ test('Developer Hub links directly to existing resources and the latest featured
     .toHaveAttribute('href', 'https://www.youtube.com/watch?v=pEbo-qKif1U');
 });
 
+test('mobile language rows give icons a stable inset and text gap', async ({ page }) => {
+  await page.goto('/hub/');
+  for (const width of [320, 390, 767, 768]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const rows = page.locator('.language-links > li > a');
+    const cloudIcon = width < 768 ? (await page.locator('.cloud-links img').first().boundingBox())! : undefined;
+    if (cloudIcon) {
+      const firstLanguageIcon = (await rows.first().locator(':scope > .language-devicon, :scope > img.language-rust-icon').boundingBox())!;
+      expect(Math.abs(firstLanguageIcon.x - cloudIcon.x)).toBeLessThanOrEqual(1);
+    }
+    for (const row of await rows.all()) {
+      const geometry = await row.evaluate((link) => {
+        const icon = link.querySelector<HTMLElement>(':scope > .language-devicon, :scope > img.language-rust-icon')!;
+        const text = link.querySelector<HTMLElement>(':scope > div')!;
+        const rowBox = link.getBoundingClientRect();
+        const iconBox = icon.getBoundingClientRect();
+        const textBox = text.getBoundingClientRect();
+        return {
+          inset: iconBox.left - rowBox.left,
+          gap: textBox.left - iconBox.right,
+          overflow: link.scrollWidth > link.clientWidth,
+        };
+      });
+      expect(geometry.overflow).toBe(false);
+      expect(geometry.inset).toBeCloseTo(width < 768 ? 16 : 0, 0);
+      expect(geometry.gap).toBeCloseTo(width < 768 ? 20 : 16, 0);
+    }
+  }
+});
+
 test('newcomer paths precede three-column topic cards with responsive layouts', async ({ page }) => {
   await page.goto('/hub/');
   const newcomers = page.getByRole('region', { name: 'New to Aspire?' });
   const topics = page.getByRole('navigation', { name: 'Browse by topic' });
-  await expect(newcomers.locator('.section-description')).toHaveText('Aspire is the tool for code-first, extensible, observable dev and deploy.');
-  await expect(newcomers.getByRole('heading', { level: 3 })).toHaveText(['Get your first app running.', 'Add Aspire to your project', 'Deploy your app', 'Understand the concepts']);
+  const intro = page.getByRole('region', { name: 'Find resources and get started' });
+  await expect(intro.locator('.dev-description')).toHaveText('Find guides, working samples, and reference docs for your next Aspire app.');
+  await expect(intro).toContainText('Search Aspire documentation');
+  await expect(intro).toContainText('New to Aspire?');
+  await expect(newcomers.locator('.onboarding-option-icon')).toHaveCount(4);
+  await expect(newcomers.locator('[data-recommended]')).toHaveCount(1);
+  await expect(newcomers.getByRole('heading', { level: 3 })).toHaveText(['Create your first app', 'Add Aspire to your project', 'Deploy your app', 'Understand the concepts']);
   await expect(newcomers.locator('.onboarding-format')).toHaveText(['Quickstart', 'How-to', 'Tutorial', 'Glossary']);
-  const descriptions = await newcomers.locator('.onboarding-start p, .onboarding-options p').allTextContents();
+  const descriptions = await newcomers.locator('.onboarding-options p').allTextContents();
   await expect(topics.getByRole('link')).toHaveCount(6);
   const markdown = await (await page.request.get('/hub.md')).text();
   expect(markdown.indexOf('## New to Aspire?')).toBeLessThan(markdown.indexOf('## Browse by topic'));
-  expect(markdown).toContain(await newcomers.locator('.section-description').innerText());
+  expect(markdown).toContain(await intro.locator('.dev-description').innerText());
   for (const description of descriptions) expect(markdown).toContain(description);
   for (const width of [320, 390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     const search = (await page.getByRole('button', { name: 'Search Aspire documentation' }).boundingBox())!;
+    const resourceBrowser = (await page.getByRole('link', { name: 'Browse all resources' }).boundingBox())!;
     const start = (await newcomers.boundingBox())!;
     const browse = (await topics.boundingBox())!;
-    expect(search.y + search.height).toBeLessThan(start.y);
+    const introBox = (await intro.boundingBox())!;
+    expect(search.y).toBeGreaterThan(introBox.y);
+    expect(resourceBrowser.y).toBeGreaterThanOrEqual(search.y + search.height);
+    expect(resourceBrowser.x).toBeCloseTo(search.x, 0);
+    expect(start.y).toBeGreaterThan(search.y + search.height);
+    expect(start.y + start.height).toBeLessThanOrEqual(introBox.y + introBox.height);
     expect(start.y + start.height).toBeLessThan(browse.y);
     const columns = await topics.locator('ul').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
     expect(columns).toBe(width >= 1024 ? 3 : width >= 640 ? 2 : 1);
-    const starterColumns = await newcomers.locator('.onboarding-start').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
-    expect(starterColumns).toBe(width >= 768 ? 2 : 1);
     const optionColumns = await newcomers.locator('ul').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
-    expect(optionColumns).toBe(width >= 768 ? 3 : 1);
-    const startRow = (await newcomers.locator('.onboarding-start').boundingBox())!;
+    expect(optionColumns).toBe(1);
     const primary = (await newcomers.getByRole('link').first().boundingBox())!;
     const existingProject = (await newcomers.getByRole('link').nth(1).boundingBox())!;
     const glossary = (await newcomers.getByRole('link').last().boundingBox())!;
-    expect(startRow.y + startRow.height).toBeLessThan(existingProject.y);
-    expect(primary.width).toBeLessThan(startRow.width);
-    if (width >= 768) {
-      expect(existingProject.x + existingProject.width).toBeLessThan(glossary.x);
-      expect(existingProject.y).toBeCloseTo(glossary.y, 0);
-      const labelLines = await newcomers.locator('.onboarding-cta span').evaluate((element) => {
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        return range.getClientRects().length;
-      });
-      expect(labelLines).toBe(1);
-    } else {
-      expect(existingProject.y + existingProject.height).toBeLessThan(glossary.y);
-    }
-    await expect(newcomers.getByRole('link').first()).toHaveCSS('border-width', '1px');
-    for (const link of (await newcomers.getByRole('link').all()).slice(1)) {
-      await expect(link).toHaveCSS('border-width', '0px');
-    }
+    expect(primary.x).toBeCloseTo(existingProject.x, 0);
+    expect(primary.width).toBeCloseTo(existingProject.width, 0);
+    expect(primary.y + primary.height).toBeLessThanOrEqual(existingProject.y);
+    expect(existingProject.y + existingProject.height).toBeLessThan(glossary.y);
+    for (const link of await newcomers.getByRole('link').all()) await expect(link).toHaveCSS('border-width', '0px');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
   const starter = newcomers.getByRole('link').first();
-  await expect(starter).toHaveText('Create your first app');
+  await expect(starter).toContainText('Create your first app');
   await starter.focus();
   await expect(starter).toBeFocused();
   await expect(starter).not.toHaveCSS('outline-style', 'none');
-  await expect(starter).toHaveCSS('outline-offset', '3px');
+  expect(await starter.evaluate((element) => parseFloat(getComputedStyle(element).outlineOffset))).toBeGreaterThanOrEqual(3);
   await starter.hover();
-  for (const element of [starter, starter.locator('span')]) {
+  for (const element of [starter, starter.locator('[data-link-underline]')]) {
     await expect(element).toHaveCSS('text-decoration-line', 'none');
   }
   const first = topics.getByRole('link').first();
@@ -351,15 +403,12 @@ test('Dev Hub uses consistent heading, body, and action sizes across viewports',
     expect(icon.width).toBeGreaterThan(24);
     expect(icon.x + icon.width).toBeLessThan(label.x);
     expect(icon.y + icon.height / 2).toBeCloseTo(label.y + label.height / 2, 0);
-    for (const heading of await page.locator('.dev-home h3:not(.onboarding-start h3)').all()) {
+    for (const heading of await page.locator('.dev-home h3').all()) {
       await expect(heading).toHaveCSS('font-size', '18px');
     }
-    for (const body of await page.locator('.topic-links p, .onboarding p, .language-links p, .sample-copy p, .cloud-links p, .reference-links p, .blog-copy p, .dashboard-previews figcaption p, .topic-action, .onboarding-cta').all()) {
+    for (const body of await page.locator('.topic-links p, .onboarding p, .language-links p, .sample-copy p, .cloud-links p, .reference-links p, .blog-copy p, .dashboard-previews figcaption p, .topic-action').all()) {
       await expect(body).toHaveCSS('font-size', '16px');
     }
-    const quickstartSize = await page.locator('.onboarding-start h3').evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
-    expect(quickstartSize).toBeGreaterThanOrEqual(22);
-    expect(quickstartSize).toBeLessThanOrEqual(26);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
 });
@@ -509,7 +558,7 @@ test('discovery arrows, dashboard panels, and video links stay aligned at every 
         const videos = [...document.querySelectorAll('.video-links a')];
         return {
           overflow: document.documentElement.scrollWidth > innerWidth,
-          arrowInsets: cards.map((card) => card.getBoundingClientRect().right - card.querySelector('h3 svg')!.getBoundingClientRect().right),
+          arrowInsets: cards.map((card) => card.getBoundingClientRect().right - card.querySelector(':scope > svg')!.getBoundingClientRect().right),
           panels: panels.map((panel) => {
             const rect = panel.getBoundingClientRect();
             return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, captionTop: panel.querySelector('figcaption')!.getBoundingClientRect().top };
@@ -771,12 +820,22 @@ test('discovery cards have working destinations, images, icons, colors, and matc
     await image.scrollIntoViewIfNeeded();
     await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
   }
-  const icons = await page.locator('.language-links svg').evaluateAll((elements) => elements.map((element) => element.innerHTML.trim()));
-  expect(icons.every(Boolean)).toBe(true);
+  await expect(page.locator('.language-devicon')).toHaveCount(5);
+  const icons = await page.locator('.language-devicon').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundImage));
+  expect(icons.every((icon) => icon !== 'none')).toBe(true);
+  await expect(page.locator('.language-rust-icon')).toHaveCount(1);
+  await expect(page.locator('.onboarding-option-icon')).toHaveCount(4);
+  await expect(page.locator('.onboarding-option-icon svg')).toHaveCount(4);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
-    const starterColors = await page.locator('.resource-icon').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor));
-    expect(new Set(starterColors).size).toBe(4);
+    const accent = await page.locator('.dev-browse-link').evaluate((element) => getComputedStyle(element).color);
+    const starterColors = await page.locator('.onboarding-option-icon').evaluateAll((elements) =>
+      elements.map((element) => ({ color: getComputedStyle(element).color, background: getComputedStyle(element).backgroundColor })));
+    expect(starterColors.map(({ color }) => color)).toEqual(Array(4).fill(accent));
+    expect(new Set(starterColors.map(({ background }) => background)).size).toBe(1);
+    expect(starterColors[0].background).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(page.locator('.language-rust-icon')).toHaveCSS('filter', theme === 'dark' ? 'invert(1)' : 'none');
+    await expect.poll(() => page.locator('.language-rust-icon').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
     const colors = await page.locator('.topic-links a').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor));
     expect(new Set(colors).size).toBe(6);
   }
@@ -834,6 +893,28 @@ test('cloud and blog discovery stays readable and responsive', async ({ page }) 
       }
     }
   }
+});
+
+test('Hub search surfaces stay consistent inside tinted control panels', async ({ page }) => {
+  await page.goto('/hub/');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  const hubSearchBackground = await page.locator('.dev-search').evaluate((element) => getComputedStyle(element).backgroundColor);
+
+  await page.goto('/hub/browse/');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await expect(page.locator('.browse-search')).toBeVisible();
+  const browseBackgrounds = await page.locator('.inpage-search-input, .browse-filter-group summary')
+    .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor));
+  expect(browseBackgrounds.every((background) => background === hubSearchBackground)).toBe(true);
+  expect(await page.locator('.browse-controls').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(hubSearchBackground);
+
+  await page.goto('/hub/glossary/');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await expect(page.locator('.glossary-controls')).toBeVisible();
+  const glossaryBackgrounds = await page.locator('.glossary-controls .inpage-search-input, .glossary-controls .api-filter-chip:not(.active)')
+    .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor));
+  expect(glossaryBackgrounds.every((background) => background === hubSearchBackground)).toBe(true);
+  expect(await page.locator('.glossary-filter-panel').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(hubSearchBackground);
 });
 
 test('AWS discovery opens a first-party overview with provider guidance', async ({ page }) => {
@@ -909,7 +990,7 @@ test('Developer Hub remains browsable without JavaScript and reflows at narrow w
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
   const staticPage = await context.newPage();
   await staticPage.goto('/hub/');
-  await expect(staticPage.locator('.onboarding-start, .onboarding-options > li, .language-links > li, .cloud-links > li, .featured-samples > li, .reference-links > li, #dashboard, .video-links > li, .blog-links > li')).toHaveCount(30);
+  await expect(staticPage.locator('.onboarding-options > li, .language-links > li, .cloud-links > li, .featured-samples > li, .reference-links > li, #dashboard, .video-links > li, .blog-links > li')).toHaveCount(30);
   await expect(staticPage.getByRole('button', { name: 'Search Aspire documentation' })).toBeDisabled();
   await context.close();
   for (const width of [320, 390, 640, 1024, 1440]) {

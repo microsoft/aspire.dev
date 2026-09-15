@@ -62,9 +62,12 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
   await page.goto('/hub/glossary/');
   const alphabet = page.getByRole('navigation', { name: 'Glossary letters' });
   const heading = page.getByRole('heading', { name: 'Aspire glossary', level: 1 });
-  await expect(heading.locator('svg')).toBeVisible();
-  await expect(heading.locator('svg')).toHaveAttribute('aria-hidden', 'true');
-  await expect(heading).toHaveCSS('display', 'flex');
+  await expect(heading).toBeVisible();
+  await expect(heading).toHaveText('Aspire glossary');
+  await expect(heading.locator('svg')).toHaveCount(0);
+  const filterPanel = page.locator('.glossary-filter-panel');
+  await expect(filterPanel.getByRole('search', { name: 'Search the glossary' })).toBeVisible();
+  await expect(filterPanel.getByRole('navigation', { name: 'Glossary letters' })).toBeVisible();
   await expect(page.getByRole('searchbox', { name: 'Find a term' })).toHaveAttribute('placeholder', 'Search glossary');
   await expect(page.locator('.dev-description')).toHaveText('Search for a term, or filter by topic and first letter.');
   const label = page.locator('label[for="glossary-search-input"]');
@@ -78,12 +81,19 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
     expect(introductionBox.y).toBeGreaterThanOrEqual(breadcrumbBox.y + breadcrumbBox.height);
     for (const theme of ['light', 'dark']) {
       await page.locator('html').evaluate((html, value) => html.dataset.theme = value, theme);
+      await page.mouse.move(0, 0);
+      const cardBorder = await page.locator('[data-glossary-card]').first().evaluate((element) => getComputedStyle(element).borderTopColor);
+      await expect(filterPanel).toHaveCSS('border-top-color', cardBorder);
       for (const button of await page.locator('.glossary-controls [data-kind]').all()) {
         await expect(button).toHaveCSS('border-top-style', 'solid');
         await expect(button).toHaveCSS('border-top-width', '1px');
+        await expect(button).toHaveCSS('border-top-color', cardBorder);
         expect(await button.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
       }
       const bounds = (await alphabet.boundingBox())!;
+      const panelBounds = (await filterPanel.boundingBox())!;
+      expect(bounds.x - panelBounds.x).toBeGreaterThanOrEqual(16);
+      expect(panelBounds.x + panelBounds.width - bounds.x - bounds.width).toBeGreaterThanOrEqual(16);
       expect(await alphabet.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       await expect(alphabet.locator(':scope > a, :scope > span')).toHaveCount(27);
       for (const item of await alphabet.locator(':scope > a, :scope > span').all()) {
@@ -108,7 +118,7 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
         expect(topics.y).toBeGreaterThanOrEqual(search.y + search.height);
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      const result = await new AxeBuilder({ page }).include('.glossary-controls').include('.glossary-alphabet')
+      const result = await new AxeBuilder({ page }).include('.glossary-filter-panel')
         .withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
       expect(result.violations).toEqual([]);
     }
@@ -199,8 +209,9 @@ test('empty results stay compact and offer one reset action in both themes', asy
       await expect(empty).toBeVisible();
       await expect(page.getByRole('button', { name: 'Clear filters', exact: true })).toBeHidden();
       const bounds = (await empty.boundingBox())!;
-      const alphabet = (await page.locator('.glossary-alphabet').boundingBox())!;
-      expect(bounds.y - (alphabet.y + alphabet.height)).toBeLessThanOrEqual(16);
+      const filterPanel = (await page.locator('.glossary-filter-panel').boundingBox())!;
+      expect(bounds.y - (filterPanel.y + filterPanel.height)).toBeGreaterThanOrEqual(0);
+      expect(bounds.y - (filterPanel.y + filterPanel.height)).toBeLessThanOrEqual(16);
       expect(bounds.height).toBeLessThan(width >= 768 ? 160 : 240);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       const result = await new AxeBuilder({ page }).include('glossary-browser').analyze();

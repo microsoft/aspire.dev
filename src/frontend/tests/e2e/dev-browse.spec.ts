@@ -5,7 +5,10 @@ import blogPosts from '../../src/data/aspire-blog-posts.json' with { type: 'json
 const results = (page: import('@playwright/test').Page) => page.locator('.browse-result:not([hidden])');
 const openFacet = async (page: import('@playwright/test').Page, name: string) => {
   const group = page.locator(`[data-filter-group="${name}"]`);
-  if (await group.getAttribute('open') === null) await group.locator('summary').click();
+  if (await group.getAttribute('open') === null) {
+    await page.keyboard.press('Escape');
+    await group.locator('summary').click();
+  }
 };
 
 test.beforeEach(async ({ page }) => {
@@ -189,7 +192,20 @@ test('resource links remain usable if the browser controller fails to load', asy
   await expect(page.getByText('Interactive browsing could not load. All resource links are listed below.')).toBeVisible();
   await expect(page.locator('.browse-loading')).toBeHidden();
   expect(await page.locator('.browse-result:visible').count()).toBeGreaterThan(100);
+  await expect(page.locator('noscript[data-resource-image]')).toHaveCount(0);
   await expect(page.locator('resource-browser')).not.toHaveAttribute('aria-busy');
+});
+
+test('only displayed resource artwork is materialized on first load', async ({ page }) => {
+  await page.goto('/hub/browse/');
+  await expect(page.locator('resource-browser')).toHaveAttribute('data-ready', '');
+  const cards = page.locator('[data-resource-entry]');
+  const visibleCards = cards.filter({ visible: true });
+  expect(await cards.count()).toBeGreaterThan(100);
+  await expect(visibleCards).toHaveCount(24);
+  await expect(visibleCards.locator('noscript[data-resource-image]')).toHaveCount(0);
+  expect(await cards.filter({ has: page.locator('noscript[data-resource-image]') }).count()).toBeGreaterThan(0);
+  expect(await cards.locator('img').count()).toBeLessThan(75);
 });
 
 test('Dev Hub leads to the complete paginated resource directory', async ({ page }) => {
@@ -464,7 +480,10 @@ for (const width of [390, 768, 1440]) {
       for (const card of (await results(page).all()).slice(0, 3)) {
         const preview = card.locator('.browse-card-preview');
         await expect(preview.locator('.browse-card-kind')).toHaveCount(1);
-        await expect(preview.locator('.browse-card-kind svg')).toHaveCount(1);
+        const kindIcon = preview.locator('.resource-kind-icon');
+        await expect(kindIcon).toHaveCount(1);
+        await expect(kindIcon).toHaveCSS('mask-image', /url/);
+        expect((await kindIcon.boundingBox())!.width).toBeGreaterThanOrEqual(16);
         await expect(card.locator('.browse-card-copy .browse-card-kind')).toHaveCount(0);
         await expect(card.locator('.browse-card-kind')).toHaveCount(1);
         await expect(card.locator('.browse-artwork-brand, .browse-card-topic')).toHaveCount(0);
@@ -477,29 +496,36 @@ for (const width of [390, 768, 1440]) {
   });
 }
 
-test('official YouTube and Twitch filters are shareable and community videos are excluded', async ({ page }) => {
+test('video platforms remain searchable metadata without a dedicated filter', async ({ page }) => {
+  await page.goto('/hub/browse/');
+  const initialResults = await results(page).locator('h3').allTextContents();
+  await expect(page.locator('[data-filter-group="platform"]')).toHaveCount(0);
   await page.goto('/hub/browse/?platform=twitch');
-  await expect(results(page)).toHaveCount(1);
+  expect(await results(page).locator('h3').allTextContents()).toEqual(initialResults);
+  await page.getByRole('searchbox', { name: 'Search resources...' }).fill('twitch');
   await expect(results(page).getByRole('link')).toHaveAttribute('href', 'https://www.twitch.tv/aspiredotdev');
-  await page.reload();
-  await expect(results(page)).toHaveCount(1);
-  await page.goto('/hub/browse/?platform=youtube');
-  expect(await results(page).count()).toBeGreaterThan(1);
-  await expect(page.locator('[data-resource-entry*="video:QvSDRRGv8cs"]')).toHaveCount(0);
-  for (const card of await results(page).all()) {
-    expect(JSON.parse((await card.getAttribute('data-resource-entry'))!).platform).toEqual(['youtube']);
-  }
+  await expect(page).not.toHaveURL(/platform=/);
 });
 
 test('top filters support keyboard dismissal and stay within the viewport', async ({ page }) => {
   await page.goto('/hub/browse/');
+  await expect(page.locator('resource-browser')).toHaveAttribute('data-ready', '');
+  const controls = page.locator('.browse-controls');
+  const controlsBox = (await controls.boundingBox())!;
   const search = await page.locator('.browse-search').boundingBox();
   const filters = await page.locator('.browse-filters').boundingBox();
   const grid = await page.locator('.browse-grid').boundingBox();
   expect(filters!.y + filters!.height).toBeLessThan(grid!.y);
   expect(filters!.y).toBeGreaterThanOrEqual(search!.y);
-  expect(Math.abs(grid!.x - search!.x)).toBeLessThan(2);
-  for (const name of ['type', 'topic', 'platform', 'language', 'provider', 'sort']) {
+  expect(grid!.x).toBeCloseTo(controlsBox.x, 0);
+  expect(grid!.width).toBeCloseTo(controlsBox.width, 0);
+  const inset = await controls.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return parseFloat(style.paddingLeft) + parseFloat(style.borderLeftWidth);
+  });
+  expect(inset).toBeGreaterThanOrEqual(16);
+  expect(search!.x - controlsBox.x).toBeCloseTo(inset, 0);
+  for (const name of ['type', 'topic', 'language', 'provider', 'sort']) {
     const group = page.locator(`[data-filter-group="${name}"]`);
     await group.locator('summary').focus();
     await group.locator('summary').press('Enter');
@@ -513,9 +539,10 @@ test('top filters support keyboard dismissal and stay within the viewport', asyn
     await expect(group.locator('summary')).toBeFocused();
   }
   await openFacet(page, 'type');
-  await openFacet(page, 'language');
+  await page.locator('[data-filter-group="language"] summary').focus();
+  await page.locator('[data-filter-group="language"] summary').press('Enter');
   await expect(page.locator('[data-filter-group="type"]')).not.toHaveAttribute('open');
-  await page.getByRole('searchbox', { name: 'Search resources...' }).click();
+  await page.getByRole('searchbox', { name: 'Search resources...' }).focus();
   await expect(page.locator('[data-filter-group="language"]')).not.toHaveAttribute('open');
   await openFacet(page, 'sort');
   const sort = page.locator('[data-filter-group="sort"]');
@@ -539,17 +566,60 @@ test('top filters support keyboard dismissal and stay within the viewport', asyn
   await expect(sort.getByRole('radio', { name: 'Oldest first', exact: true })).toBeChecked();
 });
 
-test('every dropdown shows compact options without a separate search input', async ({ page }) => {
+test('mobile filters open as readable fixed panels without shifting results', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page.goto('/hub/browse/');
+  const gridTop = (await page.locator('.browse-grid').boundingBox())!.y;
+  const type = page.locator('[data-filter-group="type"]');
+  await type.locator('summary').click();
+  const panel = type.locator('.browse-filter-panel');
+  await expect(panel).toHaveCSS('position', 'fixed');
+  const box = (await panel.boundingBox())!;
+  expect(box.x).toBeLessThanOrEqual(12);
+  expect(box.width).toBeGreaterThanOrEqual(350);
+  expect(box.y).toBeGreaterThanOrEqual(70);
+  expect(box.y).toBeLessThanOrEqual(90);
+  expect(box.y + box.height).toBeLessThanOrEqual(692);
+  await expect(type.getByRole('button', { name: 'Close Type' })).toBeVisible();
+  await expect(type.locator('.browse-filter-mobile-header strong')).toHaveText('Type');
+  const closeBox = (await type.getByRole('button', { name: 'Close Type' }).boundingBox())!;
+  expect(closeBox.width).toBeGreaterThanOrEqual(44);
+  expect(closeBox.height).toBeGreaterThanOrEqual(44);
+  await expect(type.locator('.browse-filter-backdrop')).toBeVisible();
+  for (const option of await type.locator('.browse-filter-option').all()) {
+    expect((await option.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  }
+  expect(await type.locator('fieldset').evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true);
+  expect((await page.locator('.browse-grid').boundingBox())!.y).toBe(gridTop);
+  await type.locator('.browse-filter-backdrop').click({ position: { x: 5, y: 75 } });
+  await expect(type).not.toHaveAttribute('open');
+  await expect(type.locator('summary')).toBeFocused();
+
+  const sort = page.locator('[data-filter-group="sort"]');
+  await sort.locator('summary').click();
+  for (const choice of await sort.locator('.browse-sort-choice').all()) {
+    const choiceBox = (await choice.boundingBox())!;
+    expect(choiceBox.width).toBeGreaterThanOrEqual(44);
+    expect(choiceBox.height).toBeGreaterThanOrEqual(44);
+  }
+  await sort.getByRole('button', { name: 'Close Sort by' }).click();
+  await expect(sort).not.toHaveAttribute('open');
+  await expect(sort.locator('summary')).toBeFocused();
+});
+
+test('every dropdown shows responsive options without a separate search input', async ({ page }) => {
   await page.goto('/hub/browse/?page=2');
   await expect(results(page)).toHaveCount(24);
   await expect(page.locator('.browse-filters select')).toHaveCount(0);
   await expect(page.locator('.dev-description, .browse-search .inpage-search-label')).toHaveCount(0);
   const initialUrl = page.url();
   const initialResults = await results(page).locator('h3').allTextContents();
-  for (const name of ['type', 'topic', 'platform', 'language', 'provider', 'sort']) {
+  const mobile = page.viewportSize()!.width < 600;
+  for (const name of ['type', 'topic', 'language', 'provider', 'sort']) {
     const group = page.locator(`[data-filter-group="${name}"]`);
     await expect(group).toHaveCSS('user-select', 'none');
-    await group.locator('[data-dropdown-label]').dblclick();
+    // A second pointer click would hit the newly opened mobile overlay.
+    if (!mobile) await group.locator('[data-dropdown-label]').dblclick();
     expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('');
     await group.locator('summary').focus();
     await group.locator('summary').press('ArrowDown');
@@ -560,8 +630,12 @@ test('every dropdown shows compact options without a separate search input', asy
     expect(await options.count()).toBeGreaterThan(0);
     await expect(group.locator('[data-option-label][hidden]')).toHaveCount(0);
     const box = await options.first().boundingBox();
-    expect(box!.height).toBeLessThanOrEqual(36);
-    expect(box!.height).toBeGreaterThanOrEqual(24);
+    if (mobile) {
+      expect(box!.height).toBeGreaterThanOrEqual(name === 'sort' ? 56 : 44);
+    } else {
+      expect(box!.height).toBeLessThanOrEqual(36);
+      expect(box!.height).toBeGreaterThanOrEqual(24);
+    }
     expect(page.url()).toBe(initialUrl);
     expect(await results(page).locator('h3').allTextContents()).toEqual(initialResults);
     await firstEnabled.press('Escape');
@@ -569,6 +643,11 @@ test('every dropdown shows compact options without a separate search input', asy
     await expect(group.locator('summary')).toBeFocused();
     await openFacet(page, name);
     await group.locator('summary').press('Tab');
+    if (mobile) {
+      const close = group.getByRole('button', { name: /^Close / });
+      await expect(close).toBeFocused();
+      await close.press('Tab');
+    }
     await expect(group.locator('input:focus')).toHaveCount(1);
     await group.locator('input:focus').press('Escape');
   }
@@ -595,6 +674,7 @@ test('filter changes preserve control and result positions', async ({ page }) =>
   await openFacet(page, 'provider');
   await page.getByRole('radio', { name: 'Azure', exact: true }).check();
   expect(await measure()).toEqual(before);
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Clear all', exact: true }).click();
   expect(await measure()).toEqual(before);
   await page.getByRole('searchbox', { name: 'Search resources...' }).fill('no-results-555');
@@ -665,7 +745,9 @@ test('date and title directions persist across searches, reloads and history', a
   await expect(sort.locator('[data-sort-selection="title"]')).toHaveText('A-Z');
   for (const label of await sort.locator('.browse-sort-label').all()) {
     await expect(label).toHaveCSS('display', 'flex');
-    expect(await label.evaluate((element) => parseFloat(getComputedStyle(element).gap))).toBeGreaterThanOrEqual(6);
+    const mobile = page.viewportSize()!.width < 600;
+    await expect(label).toHaveCSS('flex-direction', mobile ? 'column' : 'row');
+    expect(await label.evaluate((element) => parseFloat(getComputedStyle(element).gap))).toBeGreaterThanOrEqual(mobile ? 1 : 6);
   }
   for (const icon of await sort.locator('.browse-sort-icon').all()) {
     await expect(icon).toBeVisible();
@@ -857,7 +939,8 @@ test('filters and cards remain accessible in both themes', async ({ page }) => {
       await openFacet(page, name);
       const scan = await new AxeBuilder({ page }).include('resource-browser').analyze();
       expect(scan.violations).toEqual([]);
-      await page.locator(`[data-filter-group="${name}"] summary`).click();
+      await page.keyboard.press('Escape');
+      await expect(page.locator(`[data-filter-group="${name}"] summary`)).toBeFocused();
     }
   }
 });
