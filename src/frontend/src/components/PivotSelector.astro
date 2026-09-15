@@ -472,6 +472,12 @@ const renderedOptions =
         const appHostLangLabels = { csharp: 'C#', typescript: 'TypeScript' };
         const label = appHostLangLabels[id];
         if (label) {
+          // This pivot is one of the writers of the site's canonical language
+          // state, so update `<html data-apphost-lang>` in place too. Inline
+          // components that read it with CSS (ApiReference, ContainerImages)
+          // otherwise keep showing the previous language until the next page
+          // load, while the pivot's own code blocks have already switched.
+          document.documentElement.setAttribute('data-apphost-lang', id);
           try {
             localStorage.setItem('starlight-synced-tabs__aspire-lang', label);
           } catch (e) {}

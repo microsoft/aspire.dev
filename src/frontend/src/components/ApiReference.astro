@@ -1,0 +1,91 @@
+---
+import { resolveApiReference } from '@utils/api-reference';
+
+interface Props {
+  /**
+   * Canonical fully qualified C# API member name, including the declaring type.
+   * Example: `Aspire.Hosting.PostgresBuilderExtensions.AddPostgres`.
+   */
+  name: string;
+  /**
+   * Package identity used only when multiple packages declare the same FQN.
+   * Example: `Aspire.Hosting.JavaScript`.
+   */
+  package?: string;
+}
+
+const { name, package: packageName } = Astro.props;
+const resolution = await resolveApiReference(name, packageName, Astro.locals);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const csharpHref = resolution.csharp.path ? `${base}${resolution.csharp.path}` : undefined;
+const typescriptHref = resolution.typescript.path
+  ? `${base}${resolution.typescript.path}`
+  : undefined;
+const diagnosticText = resolution.diagnostics.map((diagnostic) => diagnostic.message).join(' ');
+const csharpDiagnostic = resolution.status === 'resolved' ? undefined : diagnosticText;
+const typescriptDiagnostic = resolution.diagnostics.length > 0 ? diagnosticText : undefined;
+---
+
+<span class="api-reference not-content" data-status={resolution.status}>
+  {
+    csharpHref ? (
+      <a class="ar-lang" data-lang="csharp" href={csharpHref}>
+        <code>{resolution.csharp.label}</code>
+      </a>
+    ) : (
+      <span class="ar-lang" data-lang="csharp" title={csharpDiagnostic}>
+        <code>{resolution.csharp.label}</code>
+      </span>
+    )
+  }
+  {
+    typescriptHref ? (
+      <a class="ar-lang" data-lang="typescript" href={typescriptHref}>
+        <code>{resolution.typescript.label}</code>
+      </a>
+    ) : (
+      <span class="ar-lang" data-lang="typescript" title={typescriptDiagnostic}>
+        <code>{resolution.typescript.label}</code>
+      </span>
+    )
+  }
+</span>
+
+<style>
+  .api-reference {
+    display: inline-flex;
+    vertical-align: middle;
+  }
+
+  .ar-lang {
+    display: none;
+  }
+
+  :global(html[data-apphost-lang='typescript']) .ar-lang[data-lang='typescript'] {
+    display: inline-flex;
+  }
+
+  :global(html:not([data-apphost-lang='typescript'])) .ar-lang[data-lang='csharp'] {
+    display: inline-flex;
+  }
+
+  a.ar-lang {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .ar-lang code {
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: var(--sl-text-body);
+    font-weight: 400;
+    color: var(--aspire-inline-code-text);
+    background-color: var(--aspire-inline-code-bg);
+    border: 1px solid var(--aspire-inline-code-border);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+  }
+
+  a.ar-lang:hover code {
+    border-color: var(--sl-color-text-accent);
+  }
+</style>

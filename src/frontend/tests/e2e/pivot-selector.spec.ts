@@ -139,3 +139,67 @@ test('app host page restores pivot state from the lang query string', async ({ p
   await expect(javaContent).toBeVisible();
   await expect(nodeJsContent).toBeHidden();
 });
+
+test('ApiReference chips follow the language selection through every entry point', async ({
+  page,
+}) => {
+  // ApiReference renders both languages and lets CSS pick one from
+  // `<html data-apphost-lang>` (see ApiReference.astro), so every writer of
+  // that state has to keep the chips in step: the tab strip by pointer and by
+  // keyboard, the PivotSelector, the `?aspire-lang=` query string, and the
+  // persisted preference. The references on both pages below sit in prose,
+  // outside any tab panel or pivot block, so they stay in the DOM no matter
+  // which panel is showing.
+  const reference = page.locator('.api-reference').first();
+  const csharpChip = reference.locator('[data-lang="csharp"]');
+  const typeScriptChip = reference.locator('[data-lang="typescript"]');
+
+  // Query string initialization.
+  await page.goto('/get-started/resource-mcp-servers/?aspire-lang=csharp');
+  await dismissCookieConsentIfVisible(page);
+
+  await expect(csharpChip).toBeVisible();
+  await expect(csharpChip).toHaveText('WithMcpServer()');
+  await expect(typeScriptChip).toBeHidden();
+  await expect(typeScriptChip).toHaveText('withMcpServer()');
+
+  // Pointer: clicking the tab strip.
+  const appHostTabs = page.locator('starlight-tabs[data-sync-key="aspire-lang"]').first();
+  await appHostTabs.getByRole('tab', { name: 'TypeScript' }).click();
+
+  await expect(typeScriptChip).toBeVisible();
+  await expect(csharpChip).toBeHidden();
+
+  // Keyboard: arrowing along the same tab strip.
+  await appHostTabs.locator('[role="tab"][aria-selected="true"]').focus();
+  await page.keyboard.press('ArrowRight');
+
+  await expect(appHostTabs.getByRole('tab', { name: 'C#' })).toHaveAttribute(
+    'aria-selected',
+    'true'
+  );
+  await expect(csharpChip).toBeVisible();
+  await expect(typeScriptChip).toBeHidden();
+
+  // Persisted initialization: the C# choice above was stored, so a fresh load
+  // with no query string has to restore it before paint.
+  await page.goto('/get-started/resource-mcp-servers/');
+
+  await expect(csharpChip).toBeVisible();
+  await expect(typeScriptChip).toBeHidden();
+
+  // PivotSelector. Regression: the pivot wrote the storage keys and the query
+  // string but never `<html data-apphost-lang>`, so the chips stayed on the
+  // old language until the page was reloaded.
+  await page.goto('/get-started/glossary/?aspire-lang=typescript');
+
+  await expect(typeScriptChip).toBeVisible();
+  await expect(typeScriptChip).toHaveText('withReference()');
+
+  await page.locator('#pivot-selector-aspire-lang').getByRole('button', { name: 'C#' }).click();
+
+  await expect(page).toHaveURL(/\?aspire-lang=csharp$/);
+  await expect(csharpChip).toBeVisible();
+  await expect(csharpChip).toHaveText('WithReference()');
+  await expect(typeScriptChip).toBeHidden();
+});
