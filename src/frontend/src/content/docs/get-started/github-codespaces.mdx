@@ -1,6 +1,6 @@
 ---
 title: Use Aspire with GitHub Codespaces
-description: Use Aspire with GitHub Codespaces for cloud-based development — preconfigured containers, port forwarding, dashboard access, and a ready-to-go Aspire CLI experience.
+description: Use Aspire in GitHub Codespaces to build multi-language apps with a preconfigured Dev Container, automatic port forwarding, and dashboard links.
 ---
 
 import { Image } from 'astro:assets';
@@ -12,15 +12,14 @@ import newRepoFromTemplateLight from '@assets/get-started/new-repository-from-te
 import createCodespace from '@assets/get-started/create-codespace-from-repository.png';
 import buildingCodespace from '@assets/get-started/building-codespace-image.png';
 import codespaceTerminal from '@assets/get-started/codespace-terminal.png';
-import codespacesExplorer from '@assets/get-started/codespaces-explorer-panel.png';
-import launchAppHost from '@assets/get-started/codespace-launch-apphost.png';
-import debugConsole from '@assets/get-started/codespaces-debug-console.png';
-import translatedUrls from '@assets/get-started/codespaces-translated-urls.png';
 
-[GitHub Codespaces](https://github.com/features/codespaces) offers a cloud-hosted development environment based on Visual Studio Code. It can be accessed directly from a web browser or through Visual Studio Code locally, where Visual Studio Code acts as a client connecting to a cloud-hosted backend. Aspire works well in GitHub Codespaces and includes support for:
+[GitHub Codespaces](https://github.com/features/codespaces) provides a cloud-hosted development environment based on Visual Studio Code and the Dev Containers specification. You can use it from a browser or connect from Visual Studio Code on your local machine.
 
-- Automatically configuring port forwarding with the correct protocol.
-- Automatically translating URLs in the Aspire dashboard.
+The maintained Aspire template provides a polyglot environment with Aspire, Docker-in-Docker, Node.js, Python and uv, .NET, and PowerShell installed as peer tooling. Aspire support in Codespaces also includes:
+
+- Automatic port forwarding with the correct protocol.
+- Dashboard links translated to Codespaces URLs.
+- GitHub identity protection for forwarded endpoints.
 
 ## GitHub Codespaces vs. Dev Containers
 
@@ -28,150 +27,113 @@ GitHub Codespaces builds upon Visual Studio Code and the [Dev Containers specifi
 
 ## Quick start using template repository
 
-To configure GitHub Codespaces for Aspire, use the `.devcontainer/devcontainer.json` file in your repository. The simplest way to get started is by creating a new repository from the [Aspire Dev Container template](https://github.com/microsoft/aspire-devcontainer). Consider the following steps:
+To configure GitHub Codespaces for Aspire, use the `.devcontainer/devcontainer.json` file in your repository. The simplest way to get started is by creating a new repository from the [Aspire Dev Container template](https://github.com/microsoft/aspire-devcontainer). Follow these steps:
 
 <Steps>
 
 1. [Create a new repository](https://github.com/new?template_name=aspire-devcontainer&template_owner=microsoft) using our template.
 
-    <ThemeImage
-      dark={newRepoFromTemplateDark}
-      light={newRepoFromTemplateLight}
-      alt="Screenshot showing how to create a new repository from the Aspire devcontainer template on GitHub."
-    />
+   <ThemeImage
+     dark={newRepoFromTemplateDark}
+     light={newRepoFromTemplateLight}
+     alt="Screenshot showing how to create a new repository from the Aspire devcontainer template on GitHub."
+   />
 
-    Once you provide the details and select **Create repository**, the repository is created and shown in GitHub.
+   Once you provide the details and select **Create repository**, the repository is created and shown in GitHub.
 
 1. From the new repository, select the **Code** button, open the **Codespaces** tab, and then select **Create codespace on main**.
 
-    <Image
-      src={createCodespace}
-      alt="Screenshot showing how to create a new codespace from the repository on GitHub."
-    />
+   <Image
+     src={createCodespace}
+     alt="Screenshot showing how to create a new codespace from the repository on GitHub."
+   />
 
-    After you select **Create codespace on main**, you navigate to a web-based version of Visual Studio Code. Before you use the Codespace, the containerized development environment needs to be prepared. This process happens automatically on the server and you can review progress by selecting the **Building codespace** link on the notification in the bottom right of the browser window.
+   After you select **Create codespace on main**, you navigate to a web-based version of Visual Studio Code. Before you use the Codespace, the containerized development environment needs to be prepared. This process happens automatically on the server and you can review progress by selecting the **Building codespace** link on the notification in the bottom right of the browser window.
 
-    <Image
-      src={buildingCodespace}
-      alt="Screenshot showing the building codespace notification in VS Code."
-    />
+   <Image
+     src={buildingCodespace}
+     alt="Screenshot showing the building codespace notification in VS Code."
+   />
 
-    When the container image has finished being built the **Terminal** prompt appears which signals that the environment is ready to be interacted with.
+   When the container image finishes building, the **Terminal** prompt appears to indicate that the environment is ready.
 
-    <Image
-      src={codespaceTerminal}
-      alt="Screenshot showing the terminal prompt ready for use in the codespace."
-    />
+   <Image
+     src={codespaceTerminal}
+     alt="Screenshot showing the terminal prompt ready for use in the codespace."
+   />
 
-    At this point, the Aspire CLI has been installed and the local HTTPS development certificate for .NET apps has been created and trusted inside the Codespace. You can use `aspire new` right away without manually installing `Aspire.ProjectTemplates`.
+   At this point, the Aspire CLI and the template's language tooling are ready. The template doesn't choose an application language or restore app-specific dependencies for you.
 
-1. Create a new Aspire project using the starter template.
+1. Start the interactive project creator:
 
-    ```bash title="Aspire CLI — Create an Aspire starter app"
-    aspire new aspire-starter --name HelloAspire
-    ```
+   ```bash title="Choose an Aspire starter"
+   aspire new
+   ```
 
-    This results in many files and folders being created in the repository, which are visible in the **Explorer** panel on the left side of the window.
+   Choose the TypeScript, Python, C#, or mixed-language starter that fits your app, then provide a name when prompted. For this walkthrough, use `aspire-app` as the output directory.
 
-    <Image
-      src={codespacesExplorer}
-      alt="Screenshot of the VS Code Explorer panel showing the newly created Aspire project structure."
-    />
+1. Change to the generated app directory and start dev-time orchestration:
 
-1. Launch the AppHost via the `HelloAspire.AppHost/AppHost.cs` file, by selecting the **Run project** button near the top-right corner of the **Tab bar**.
+   ```bash title="Run the Aspire app"
+   cd ./aspire-app
+   aspire run
+   ```
 
-    <Image
-      src={launchAppHost}
-      alt="Screenshot showing how to launch the AppHost using the Run project button in VS Code."
-    />
+1. Open the dashboard by selecting the URL printed by `aspire run`. Codespaces opens the forwarded dashboard in a separate browser tab.
 
-    After a few moments the **Debug Console** panel is displayed, and it includes a link to the Aspire dashboard exposed on a GitHub Codespaces endpoint with the authentication token.
+   The dashboard translates resource endpoints from their container-local addresses to unique subdomains on the `app.github.dev` domain.
 
-    <Image
-      src={debugConsole}
-      alt="Screenshot of the Debug Console showing the Aspire dashboard URL with authentication token."
-    />
+   Traffic to each of these endpoints is automatically forwarded to the underlying process or container running within the Codespace. This includes development time tools such as PgAdmin and Redis Insight.
 
-1. Open the Aspire dashboard by selecting the dashboard URL in the **Debug Console**. This opens the Aspire dashboard in a separate tab within your browser.
-
-    You notice on the dashboard that all HTTP/HTTPS endpoints defined on resources have had their typical `localhost` address translated to a unique fully qualified subdomain on the `app.github.dev` domain.
-
-    <Image
-      src={translatedUrls}
-      alt="Screenshot of the Aspire dashboard showing translated URLs using GitHub Codespaces domains."
-    />
-
-    Traffic to each of these endpoints is automatically forwarded to the underlying process or container running within the Codespace. This includes development time tools such as PgAdmin and Redis Insight.
-
-    :::note
-    In addition to the authentication token embedded within the URL of the dashboard link of the **Debug Console**, endpoints also require authentication via your GitHub identity to avoid port forwarded endpoints being accessible to everyone. For more information on port forwarding in GitHub Codespaces, see [Forwarding ports in your codespace](https://docs.github.com/codespaces/developing-in-a-codespace/forwarding-ports-in-your-codespace?tool=webui).
-    :::
+   :::note
+   The dashboard URL includes its Aspire authentication token. Codespaces also requires your GitHub identity for private forwarded ports so those endpoints aren't accessible to everyone. For more information, see [Forwarding ports in your codespace](https://docs.github.com/codespaces/developing-in-a-codespace/forwarding-ports-in-your-codespace?tool=webui).
+   :::
 
 1. Commit changes to the GitHub repository.
 
-    GitHub Codespaces doesn't automatically commit your changes to the branch you're working on in GitHub. You have to use the **Source Control** panel to stage and commit the changes and push them back to the repository.
+   GitHub Codespaces doesn't automatically commit your changes to the branch you're working on in GitHub. You have to use the **Source Control** panel to stage and commit the changes and push them back to the repository.
 
-    Working in a GitHub Codespace is similar to working with Visual Studio Code on your own machine. You can checkout different branches and push changes just like you normally would. In addition, you can easily spin up multiple Codespaces simultaneously if you want to quickly work on another branch without disrupting your existing debug session. For more information, see [Developing in a codespace](https://docs.github.com/codespaces/developing-in-a-codespace/developing-in-a-codespace?tool=webui).
+   Working in a GitHub Codespace is similar to working with Visual Studio Code on your own machine. You can check out different branches and push changes just like you normally would. You can also create multiple Codespaces when you want to work on another branch without disrupting a running app. For more information, see [Developing in a codespace](https://docs.github.com/codespaces/developing-in-a-codespace/developing-in-a-codespace?tool=webui).
 
 1. Clean up your Codespace.
 
-    GitHub Codespaces are temporary development environments and while you might use one for an extended period of time, they should be considered a disposable resource that you recreate as needed (with all of the customization/setup contained within the `devcontainer.json` and associated configuration files).
+   Treat GitHub Codespaces as disposable development environments that you can recreate as needed. Keep environment setup in `devcontainer.json` and related configuration files, and commit your source changes before deleting a Codespace.
 
-    To delete your GitHub Codespace, visit the GitHub Codespaces page. This shows you a list of all of your Codespaces. From here you can perform management operations on each Codespace, including deleting them.
+   To delete a Codespace, visit the [GitHub Codespaces page](https://github.com/codespaces) and open its management menu.
 
-    GitHub charges for the use of Codespaces. For more information, see [Managing the cost of GitHub Codespaces in your organization](https://docs.github.com/codespaces/managing-codespaces-for-your-organization/choosing-who-owns-and-pays-for-codespaces-in-your-organization).
+   GitHub charges for the use of Codespaces. For more information, see [Managing the cost of GitHub Codespaces in your organization](https://docs.github.com/codespaces/managing-codespaces-for-your-organization/choosing-who-owns-and-pays-for-codespaces-in-your-organization).
 
-    :::note
-    Aspire supports the use of Dev Containers in Visual Studio Code independent of GitHub Codespaces. For more information on how to use Dev Containers locally, see [Aspire and Dev Containers in Visual Studio Code](/get-started/dev-containers/).
-    :::
+   :::note
+   Aspire supports the use of Dev Containers in Visual Studio Code independent of GitHub Codespaces. For more information on how to use Dev Containers locally, see [Aspire and Dev Containers in Visual Studio Code](/get-started/dev-containers/).
+   :::
 
 </Steps>
 
-## Manually configuring devcontainer.json
+## Use Aspire in an existing Codespaces repository
 
-The preceding walkthrough demonstrates the streamlined process of creating a GitHub Codespace using the Aspire Dev Container template. If you already have an existing repository and want to use Codespaces with Aspire, add a `devcontainer.json` file to the `.devcontainer` folder within your repository:
+If your repository already exists, add a `devcontainer.json` file to its `.devcontainer` folder:
 
 <FileTree>
+
 - .devcontainer
   - devcontainer.json
+
 </FileTree>
 
-The [template repository](https://github.com/microsoft/aspire-devcontainer) contains a copy of the `devcontainer.json` file that you can use as a starting point, which should be sufficient for Aspire.
+Use the maintained [Aspire template configuration](https://github.com/microsoft/aspire-devcontainer/blob/main/.devcontainer/devcontainer.json) as your starting point. Linking to the source file keeps your Codespace aligned with the tested feature versions, lifecycle commands, and host requirements as they change.
 
-The following `devcontainer.json` matches the current template repository and works well for most Aspire solutions in Codespaces:
+The template starts from Ubuntu and layers Aspire, Docker-in-Docker, Node.js, Python and uv, .NET, and PowerShell as independent Dev Container Features. Keep the runtimes and editor extensions your repository needs and remove the rest. Aspire can run a TypeScript AppHost and orchestrate app resources without a separately installed .NET SDK.
 
-```json title=".devcontainer/devcontainer.json"
-{
-  "name": "Aspire",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-    "ghcr.io/devcontainers/features/powershell:1": {},
-    "ghcr.io/devcontainers/features/node:1": {},
-    "ghcr.io/devcontainers/features/python:1": {},
-    "ghcr.io/devcontainers-extra/features/uv:1": {}
-  },
-  "hostRequirements": {
-    "cpus": 8,
-    "memory": "32gb",
-    "storage": "64gb"
-  },
-  "onCreateCommand": "curl -sSL https://aspire.dev/install.sh | bash",
-  "postStartCommand": "dotnet dev-certs https --trust",
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-dotnettools.csdevkit",
-        "GitHub.copilot-chat",
-        "GitHub.copilot"
-      ]
-    }
-  }
-}
-```
+The template requests 8 CPUs, 32 GB of memory, and 64 GB of storage because it supports several language toolchains and nested containers. Adjust those requirements for your app and Codespaces budget.
 
-This configuration installs the Aspire CLI during Codespace creation, so `aspire new` is ready to use as soon as the Codespace finishes building.
+:::note
+The template doesn't run an application-specific restore command. Restore dependencies with the package manager your app uses, such as `npm install`, `uv sync`, or `dotnet restore`.
+:::
+
+The template runs `aspire certs trust --non-interactive` whenever the Codespace starts and adds the .NET development certificate trust directory (`~/.aspnet/dev-certs/trust`) to `SSL_CERT_DIR`. This lets OpenSSL-based tools inside the Codespace verify Aspire HTTPS endpoints without making certificate setup language-specific.
 
 ## Speed up Codespace creation
 
-Creating a GitHub Codespace can take some time as it prepares the underlying container image. To expedite this process, you can utilize _prebuilds_ to significantly reduce the creation time to approximately 30-60 seconds (exact timing might vary). For more information on GitHub Codespaces prebuilds, see [GitHub Codespaces prebuilds](https://docs.github.com/codespaces/prebuilding-your-codespaces/about-github-codespaces-prebuilds).
+Creating a Codespace can take time while GitHub builds the Dev Container and installs its features. Configure _prebuilds_ to prepare that environment before a developer opens it. Startup lifecycle commands, including Aspire certificate trust, still run when a prebuilt Codespace starts or resumes.
+
+For more information, see [GitHub Codespaces prebuilds](https://docs.github.com/codespaces/prebuilding-your-codespaces/about-github-codespaces-prebuilds).
