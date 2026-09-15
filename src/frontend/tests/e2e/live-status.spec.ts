@@ -799,7 +799,7 @@ test.describe('live status', () => {
       .toContain('player.twitch.tv/?channel=aspiredotdev');
   });
 
-  test('videos page loads channel embeds while idle', async ({ page }) => {
+  test('videos page loads uploads and the Twitch channel while idle', async ({ page }) => {
     await page.route(snapshotEndpoint, (r) =>
       r.fulfill({
         status: 200,
@@ -815,7 +815,7 @@ test.describe('live status', () => {
       Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
         ...src,
         set(value: string) {
-          if (this.closest('.live-embed-wrapper')) srcWrites++;
+          if (this.closest('.live-embed-wrapper[data-source="youtube"]')) srcWrites++;
           src.set!.call(this, value);
         },
       });
@@ -831,9 +831,12 @@ test.describe('live status', () => {
     const twitchFrame = page.locator('.live-embed-wrapper[data-source="twitch"] iframe');
     await expect(youtubeFrame).toHaveAttribute(
       'src',
-      /\/embed\/live_stream\?.*channel=UC8Hyt2P1u3KKnBgRf-Iv6_Q/
+      /\/embed\/videoseries\?.*list=UUW_UJkc7RhM_NPcDXnOCfrQ/
     );
     await expect(twitchFrame).toHaveAttribute('src', /player\.twitch\.tv\/\?channel=aspiredotdev/);
+    expect(new URL((await twitchFrame.getAttribute('src'))!).searchParams.get('parent')).toBe(
+      new URL(page.url()).hostname
+    );
     await expect(youtubeFrame).not.toHaveAttribute('title');
     await expect(twitchFrame).not.toHaveAttribute('title');
     await expect(youtubeFrame).toHaveAttribute('aria-label', 'Aspire on YouTube');
@@ -869,6 +872,7 @@ test.describe('live status', () => {
     await dismissCookieConsentIfVisible(page);
 
     const youtubeFrame = page.locator('.live-embed-wrapper[data-source="youtube"] iframe');
+    await expect(youtubeFrame).toHaveAttribute('src', /\/embed\/video-123\?/);
     await expect(youtubeFrame).toHaveAttribute('src', /[?&]autoplay=1(?:&|$)/);
     await expect(youtubeFrame).toHaveAttribute('src', /[?&]mute=1(?:&|$)/);
     await expect(page.locator('[role="tab"][aria-selected="true"]')).toContainText('YouTube');

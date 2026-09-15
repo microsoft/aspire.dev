@@ -200,10 +200,14 @@ Each worker's local broadcaster:
 - Reloads canonical state before seeding a new SSE subscriber and every 30
   seconds, recovering updates missed during a Redis reconnect.
 
-The videos page autoplays only the selected provider. Idle embeds are not
-reloaded when the initial snapshot arrives, and an unchanged PiP source reuses
-its existing iframe. Chooser event listeners are removed before client-side
-page swaps so repeated navigation does not retain old dialogs.
+The videos page shows the YouTube channel's uploads playlist without autoplay
+while offline, then switches to the broadcast's video ID when live. Only the
+selected live provider autoplays. Twitch uses the browser's current hostname
+for its embed `parent`, so the same static files work on staging and production.
+Idle YouTube embeds are not reloaded when the initial snapshot arrives, and an
+unchanged PiP source reuses its existing iframe. Chooser event listeners are
+removed before client-side page swaps so repeated navigation does not retain
+old dialogs.
 
 ## Local testing
 

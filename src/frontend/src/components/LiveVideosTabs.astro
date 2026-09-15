@@ -5,21 +5,28 @@ import TwitchEmbed from '@components/TwitchEmbed.astro';
 
 export interface Props {
   youtubeChannelId: string;
+  youtubePlaylistId: string;
   twitchChannel: string;
 }
 
-const { youtubeChannelId, twitchChannel } = Astro.props;
+const { youtubeChannelId, youtubePlaylistId, twitchChannel } = Astro.props;
 ---
 
-<div id="aspire-live-tabs" data-active-source="none">
+<div
+  id="aspire-live-tabs"
+  data-active-source="none"
+  data-youtube-channel-id={youtubeChannelId}
+  data-youtube-playlist-id={youtubePlaylistId}
+>
   <Tabs syncKey="stream-source">
     <TabItem label="YouTube" icon="youtube">
       <div class="live-embed-wrapper" data-source="youtube" data-live="false">
-        <YouTubeEmbed channelId={youtubeChannelId} title="Aspire on YouTube" />
+        <YouTubeEmbed playlistId={youtubePlaylistId} title="Aspire on YouTube" />
       </div>
       <p class="muted">
-        When we&rsquo;re not live, this shows the channel placeholder. Browse all past streams on <a
-          href="https://youtube.com/@aspiredotdev">youtube.com/@aspiredotdev</a
+        When we&rsquo;re not live, browse our latest uploads here. Videos play when you select Play.
+        Browse all past streams on <a href="https://youtube.com/@aspiredotdev"
+          >youtube.com/@aspiredotdev</a
         >.
       </p>
     </TabItem>
@@ -38,6 +45,7 @@ const { youtubeChannelId, twitchChannel } = Astro.props;
 
 <script>
   import { subscribe, type LiveSnapshot } from '@components/live-status.ts';
+  import { initializeTwitchEmbed, youtubeEmbedUrl } from '@components/stream-embeds';
 
   const PAGE_SELECTOR = '#aspire-live-tabs';
   let userSticky = false;
@@ -58,21 +66,6 @@ const { youtubeChannelId, twitchChannel } = Astro.props;
     if (tabBtn?.getAttribute('aria-selected') !== 'true') tabBtn?.click();
   }
 
-  function refreshEmbed(wrapper: HTMLElement, source: 'youtube' | 'twitch', live: boolean): void {
-    const iframe = wrapper.querySelector<HTMLIFrameElement>('iframe');
-    if (!iframe) return;
-
-    const url = new URL(iframe.src);
-    if (source === 'youtube') {
-      url.searchParams.set('autoplay', live ? '1' : '0');
-      url.searchParams.set('mute', live ? '1' : '0');
-    } else {
-      url.searchParams.set('autoplay', live ? 'true' : 'false');
-      url.searchParams.set('muted', live ? 'true' : 'false');
-    }
-    iframe.src = url.toString();
-  }
-
   function setEmbedLive(
     source: 'youtube' | 'twitch',
     live: boolean,
@@ -82,16 +75,30 @@ const { youtubeChannelId, twitchChannel } = Astro.props;
     if (!root) return;
     const wrapper = root.querySelector<HTMLElement>(`.live-embed-wrapper[data-source="${source}"]`);
     if (!wrapper) return;
+    const iframe = wrapper.querySelector<HTMLIFrameElement>('iframe');
+    if (!iframe) return;
     const autoplay = live && wrapper.closest<HTMLElement>('[role="tabpanel"]')?.hidden === false;
-    const nextStreamId = live ? (streamId ?? '') : '';
-    const playbackChanged = (wrapper.dataset.autoplay === 'true') !== autoplay;
-    const streamChanged = (wrapper.dataset.streamId ?? '') !== nextStreamId;
     wrapper.dataset.live = live ? 'true' : 'false';
-    wrapper.dataset.streamId = nextStreamId;
+    wrapper.dataset.streamId = live ? (streamId ?? '') : '';
     wrapper.dataset.autoplay = autoplay ? 'true' : 'false';
-    if (playbackChanged || (autoplay && streamChanged)) {
-      refreshEmbed(wrapper, source, autoplay);
+
+    let nextUrl: string;
+    if (source === 'youtube') {
+      nextUrl = youtubeEmbedUrl({
+        videoId: live && streamId ? streamId : undefined,
+        channelId: live && !streamId ? root.dataset.youtubeChannelId : undefined,
+        playlistId: live ? undefined : root.dataset.youtubePlaylistId,
+        autoplay,
+      });
+    } else {
+      initializeTwitchEmbed(iframe);
+      const url = new URL(iframe.src);
+      if (live && streamId) url.searchParams.set('channel', streamId);
+      url.searchParams.set('autoplay', autoplay ? 'true' : 'false');
+      url.searchParams.set('muted', autoplay ? 'true' : 'false');
+      nextUrl = url.toString();
     }
+    if (iframe.src !== nextUrl) iframe.src = nextUrl;
   }
 
   function updateEmbeds(snap: LiveSnapshot): void {

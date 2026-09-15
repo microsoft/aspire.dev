@@ -1,9 +1,13 @@
 ---
+import { youtubeEmbedUrl } from '@components/stream-embeds';
+
 export interface Props {
   /** YouTube video or live stream ID (the ?v= value) */
   videoId?: string;
   /** YouTube channel ID for the channel live-stream embed */
   channelId?: string;
+  /** YouTube playlist ID, such as the channel's uploads playlist */
+  playlistId?: string;
   /** Accessible label for the iframe */
   title?: string | null;
   /** Aspect ratio — default 16/9 */
@@ -17,30 +21,14 @@ export interface Props {
 const {
   videoId,
   channelId,
+  playlistId,
   title = 'YouTube video player',
   aspectRatio = '16 / 9',
   autoplay = false,
   maxWidth = '100%',
 } = Astro.props;
 
-if (!videoId && !channelId) {
-  throw new Error('YouTubeEmbed requires either a `videoId` or `channelId` prop.');
-}
-
-const params = new URLSearchParams({
-  rel: '0',
-  modestbranding: '1',
-  playsinline: '1',
-});
-if (channelId) {
-  params.set('channel', channelId);
-}
-if (autoplay) {
-  params.set('autoplay', '1');
-  params.set('mute', '1');
-}
-const embedPath = channelId ? 'live_stream' : encodeURIComponent(videoId!);
-const src = `https://www.youtube-nocookie.com/embed/${embedPath}?${params.toString()}`;
+const src = youtubeEmbedUrl({ videoId, channelId, playlistId, autoplay });
 ---
 
 <div

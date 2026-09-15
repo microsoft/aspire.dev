@@ -714,6 +714,10 @@ const validYouTubeEmbedProps = {
   autoplay: true,
   title: 'Video player',
 } satisfies PropsOf<typeof YouTubeEmbed>;
+const validYouTubePlaylistProps = {
+  playlistId: 'UUW_UJkc7RhM_NPcDXnOCfrQ',
+  autoplay: false,
+} satisfies PropsOf<typeof YouTubeEmbed>;
 // @ts-expect-error YouTubeEmbed should reject unknown props.
 const invalidYouTubeEmbedProps: PropsOf<typeof YouTubeEmbed> = {
   videoId: 'dQw4w9WgXcQ',
@@ -824,6 +828,7 @@ void [
   validYouTubeCardProps,
   invalidYouTubeCardProps,
   validYouTubeEmbedProps,
+  validYouTubePlaylistProps,
   invalidYouTubeEmbedProps,
   validYouTubeGridProps,
   invalidYouTubeGridProps,
