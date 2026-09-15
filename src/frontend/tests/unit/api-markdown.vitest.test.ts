@@ -7,8 +7,12 @@
 */
 import { describe, expect, it, vi } from 'vitest';
 
-import { renderCSharpDocMarkdown } from '@utils/csharp-api-markdown';
-import { memberKindSlugs } from '@utils/packages';
+import {
+  renderCSharpDocMarkdown,
+  renderCSharpMemberKindMarkdown,
+  renderCSharpTypeMarkdown,
+} from '@utils/csharp-api-markdown';
+import { memberKindSlugs, resolveMemberAnchors } from '@utils/packages';
 import { tsSlugify } from '@utils/ts-modules';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import type { TsApiDocument, TsHandleType } from '@utils/ts-modules';
@@ -293,6 +297,52 @@ describe('API markdown helpers', () => {
     const markdown = renderTypeScriptItemMarkdown(pkg, item, 'handle', '');
 
     expect(markdown).toContain('[GitHub](https://github.com/microsoft/aspire/tree/abc123)');
+  });
+
+  it('uses resolved exact anchors for colliding C# member links and crefs', () => {
+    const members = [
+      {
+        name: 'Run',
+        kind: 'method',
+        signature: 'public void Widget.Run(int value)',
+        parameters: [{ name: 'value', type: 'System.Int32' }],
+        returnType: 'void',
+      },
+      {
+        name: 'Run',
+        kind: 'method',
+        signature: 'public void Widget.Run(params int[] values)',
+        parameters: [{ name: 'values', type: 'System.Int32[]', modifier: 'params' }],
+        returnType: 'void',
+      },
+    ];
+    const type = {
+      name: 'Widget',
+      fullName: 'Sample.Widget',
+      namespace: 'Sample',
+      kind: 'class',
+      members,
+    };
+    const pkg = {
+      package: { name: 'Sample.Package', version: '1.0.0' },
+      types: [type],
+    };
+    const anchors = resolveMemberAnchors(members);
+
+    const typeMarkdown = renderCSharpTypeMarkdown(pkg, type, [type], '');
+    expect(typeMarkdown).toContain(`methods.md#${anchors[0].exact}`);
+    expect(typeMarkdown).toContain(`methods.md#${anchors[1].exact}`);
+
+    const memberMarkdown = renderCSharpMemberKindMarkdown(pkg, type, 'method', [type], '');
+    expect(memberMarkdown).toContain(`<a id="${anchors[0].exact}"></a>`);
+    expect(memberMarkdown).toContain(`<a id="${anchors[1].exact}"></a>`);
+    expect(memberMarkdown).toContain(`<a id="${anchors[0].aliases[0]}"></a>`);
+
+    const crefMarkdown = renderCSharpDocMarkdown(
+      [{ kind: 'cref', value: 'M:Sample.Widget.Run(System.Int32)' }],
+      { allTypes: [type], base: '', packageName: pkg.package.name }
+    );
+    expect(crefMarkdown).toContain(`methods.md#${anchors[0].exact}`);
   });
 });
 

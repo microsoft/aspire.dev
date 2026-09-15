@@ -17,9 +17,9 @@ import {
   memberDisplayName,
   memberKindLabels,
   memberKindSlugs,
-  memberSlug,
   packageSlug,
   parseSeeAlso,
+  resolveMemberAnchorMap,
   shortTypeName,
   slugify,
   typeDisplayName,
@@ -320,6 +320,7 @@ export function renderCSharpMemberKindMarkdown(
   };
 
   const members = (type.members ?? []).filter((member: any) => member.kind === kind);
+  const anchorByMember = resolveMemberAnchorMap(type.members ?? []);
   const displayName = typeDisplayName(type);
 
   return finalizeMarkdown([
@@ -334,9 +335,20 @@ export function renderCSharpMemberKindMarkdown(
       { label: 'Members', value: inlineCode(String(members.length)) },
     ]),
     renderCSharpDocMarkdown(type.docs?.summary, context),
-    ...members.map((member: any) =>
-      section(getCSharpMemberHeading(member, type.name), renderCSharpMemberMarkdown(member, type, context, pkg), 2)
-    ),
+    ...members.map((member: any) => {
+      const anchors = anchorByMember.get(member)!;
+      const explicitAnchors = [...anchors.aliases, anchors.exact]
+        .map((anchor) => `<a id="${anchor}"></a>`)
+        .join('\n');
+      return [
+        explicitAnchors,
+        section(
+          getCSharpMemberHeading(member, type.name),
+          renderCSharpMemberMarkdown(member, type, context, pkg),
+          2
+        ),
+      ].join('\n\n');
+    }),
   ]);
 }
 
@@ -511,7 +523,9 @@ function renderEnumMembersMarkdown(enumMembers: any[], hasFlags: boolean): strin
 }
 
 function renderTypeMemberOverview(type: any, packageName: string, allTypes: any[], base: string): string {
-  const groups = groupMembersByKind(type.members ?? []);
+  const members: any[] = type.members ?? [];
+  const groups = groupMembersByKind(members);
+  const anchorByMember = resolveMemberAnchorMap(members);
   const nestedTypes: string[] = Array.isArray(type.nestedTypes) ? type.nestedTypes : [];
 
   if (groups.size === 0 && nestedTypes.length === 0) {
@@ -528,7 +542,7 @@ function renderTypeMemberOverview(type: any, packageName: string, allTypes: any[
     const lines = members.map((member: any) => {
       const rawDisplayName = memberDisplayName(member);
       const displayName = member.name === '.ctor' ? rawDisplayName.replace('.ctor', type.name) : rawDisplayName;
-      const href = `${csharpMemberKindMdHref(base, packageName, type.name, genericArity(type), kind)}#${memberSlug(member)}`;
+      const href = `${csharpMemberKindMdHref(base, packageName, type.name, genericArity(type), kind)}#${anchorByMember.get(member)!.exact}`;
       const returnType = member.returnType && member.returnType !== 'void'
         ? ` : ${formatCSharpTypeReferenceMarkdown(member.returnType, context)}`
         : '';
@@ -821,7 +835,8 @@ function resolveCrefMarkdown(cref: string, context: CSharpDocContext): { href: s
             : 'method';
 
     const memberParams = paramStart >= 0 ? splitCrefParams(fullName.slice(paramStart + 1, fullName.lastIndexOf(')'))) : [];
-    const candidateMembers = (ownerType.members ?? []).filter((member: any) => {
+    const ownerMembers: any[] = ownerType.members ?? [];
+    const candidateMembers = ownerMembers.filter((member: any) => {
       if (memberName === '.ctor') {
         return member.name === '.ctor';
       }
@@ -845,7 +860,9 @@ function resolveCrefMarkdown(cref: string, context: CSharpDocContext): { href: s
       genericArity(ownerType),
       matchedMember?.kind ?? memberKind
     );
-    const anchor = matchedMember ? `#${memberSlug(matchedMember)}` : '';
+    const anchor = matchedMember
+      ? `#${resolveMemberAnchorMap(ownerMembers).get(matchedMember)!.exact}`
+      : '';
     const label = matchedMember
       ? `${ownerType.name}.${getCSharpMemberHeading(matchedMember, ownerType.name)}`
       : cleanCrefLabel(cref);

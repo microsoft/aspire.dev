@@ -6,6 +6,7 @@ import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
 import CapabilityGrid from '@components/CapabilityGrid.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
+import ContainerImages from '@components/ContainerImages.astro';
 import Expand from '@components/Expand.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
@@ -227,6 +228,17 @@ const validCodespacesButtonProps = {
 const invalidCodespacesButtonProps: PropsOf<typeof CodespacesButton> = {
   owner: 42,
   repo: 'aspire',
+};
+
+const validContainerImagesProps = {
+  package: 'Aspire.Hosting.PostgreSQL',
+  only: ['PostgreSQL', 'pgAdmin'],
+  title: 'Container images',
+} satisfies PropsOf<typeof ContainerImages>;
+// @ts-expect-error ContainerImages should reject unknown props.
+const invalidContainerImagesProps: PropsOf<typeof ContainerImages> = {
+  package: 'Aspire.Hosting.PostgreSQL',
+  unexpected: true,
 };
 
 const validExpandProps = {
@@ -730,6 +742,8 @@ void [
   invalidCapabilityGridProps,
   validCodespacesButtonProps,
   invalidCodespacesButtonProps,
+  validContainerImagesProps,
+  invalidContainerImagesProps,
   validExpandProps,
   invalidExpandProps,
   validFeatureShowcaseProps,

@@ -1,0 +1,69 @@
+---
+title: Compiler Warning ASPIRERADIUS057
+seoTitle: 'ASPIRERADIUS057: Radius WithContainerImage is for evaluation'
+description: Learn what causes the Aspire compiler warning ASPIRERADIUS057 and how to fix it so your AppHost builds cleanly.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Radius WithContainerImage is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using the experimental `WithContainerImage` extension method from the `Aspire.Hosting.Radius` integration. It associates a pre-built container image reference (in `[registry/]image[:tag]` form) with a project resource so the Radius publisher can emit a valid container manifest for it.
+
+## Example
+
+The following code generates `ASPIRERADIUS057`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRadiusEnvironment("radius");
+
+builder.AddProject<Projects.ApiService>("apiservice")
+    .WithContainerImage("localhost:5001/apiservice:latest");
+
+builder.Build().Run();
+```
+
+## To correct this warning
+
+Suppress the warning with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRERADIUS057.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRERADIUS057</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIRERADIUS057` directive:
+
+  ```csharp title="Suppressing the warning"
+  #pragma warning disable ASPIRERADIUS057
+  builder.AddProject<Projects.ApiService>("apiservice")
+      .WithContainerImage("localhost:5001/apiservice:latest");
+  #pragma warning restore ASPIRERADIUS057
+  ```
+
+## See also
+
+- [ASPIRERADIUS003](/diagnostics/aspireradius003/) - Radius cloud provider APIs
+- [ASPIRERADIUS004](/diagnostics/aspireradius004/) - Radius infrastructure customization APIs
+- [ASPIRERADIUS006](/diagnostics/aspireradius006/) - Radius secret store APIs

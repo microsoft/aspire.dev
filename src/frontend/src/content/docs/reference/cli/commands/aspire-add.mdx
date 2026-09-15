@@ -26,6 +26,10 @@ The `aspire add` command searches for an integration package and adds it to the 
 
 <Include relativePath="reference/cli/includes/project-search-logic-description.md" />
 
+:::note[Integration discovery on prerelease CLI builds]
+When you're running a `staging` or `dev` quality CLI (see [`-Quality|--quality`](/reference/cli/install-script/#options)), `aspire add` discovers both stable and prerelease integration packages, because some integrations — such as `Aspire.Hosting.Azure.Kubernetes` — intentionally ship as prerelease even during a stable-shaped staging build. A `release` quality CLI continues to search stable packages only, but can still add a specific prerelease integration version with the `--version` option.
+:::
+
 ## Arguments
 
 The following arguments are available:
@@ -73,11 +77,17 @@ The following options are available:
 - Finds an AppHost project and adds the **kafka** (Aspire.Hosting.Kafka) integration package:
 
   ```bash title="Aspire CLI"
-  aspire add kafka --version 13.3.0
+  aspire add kafka --version %ASPIRE_VERSION%
   ```
 
 - Add the **redis** integration to a TypeScript AppHost and regenerate `.aspire/modules/`:
 
   ```bash title="Aspire CLI"
   aspire add redis --apphost './apphost.mts'
+  ```
+
+- Add the **azure-kubernetes** integration from a stable-shaped `staging` quality CLI, where the integration remains prerelease even though most other packages are stable:
+
+  ```bash title="Aspire CLI"
+  aspire add azure-kubernetes
   ```

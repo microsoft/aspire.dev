@@ -31,6 +31,19 @@ public sealed class AtsJsonGeneratorTests
                     AtsTypeId = "Contoso.Assembly/Contoso.Builder",
                     ExposeMethods = true,
                     ExposeProperties = true,
+                    BaseTypeHierarchy =
+                    [
+                        new AtsDumpTypeRef
+                        {
+                            TypeId = "Contoso.Assembly/Contoso.BaseBuilder",
+                            Category = "Type",
+                        },
+                        new AtsDumpTypeRef
+                        {
+                            TypeId = "Contoso.Assembly/Contoso.RootBuilder",
+                            Category = "Type",
+                        },
+                    ],
                 },
             ],
             Capabilities =
@@ -129,6 +142,7 @@ public sealed class AtsJsonGeneratorTests
                         new AtsDumpDtoProperty
                         {
                             Name = "Names",
+                            IsOptional = true,
                             Type = new AtsDumpTypeRef
                             {
                                 TypeId = "string",
@@ -138,6 +152,16 @@ public sealed class AtsJsonGeneratorTests
                                     TypeId = "string",
                                     Category = "Primitive",
                                 },
+                            },
+                        },
+                        new AtsDumpDtoProperty
+                        {
+                            Name = "Region",
+                            IsOptional = false,
+                            Type = new AtsDumpTypeRef
+                            {
+                                TypeId = "string",
+                                Category = "Primitive",
                             },
                         },
                     ],
@@ -225,12 +249,28 @@ public sealed class AtsJsonGeneratorTests
 
         var handle = Assert.Single(result.HandleTypes);
         Assert.Equal("Contoso.Builder", handle.FullName);
+        Assert.Equal(
+            ["Contoso.BaseBuilder", "Contoso.RootBuilder"],
+            handle.BaseTypeHierarchy);
         var handleCapability = Assert.Single(handle.Capabilities);
         Assert.Equal("unique-capability", handleCapability.CapabilityId);
 
         var dto = Assert.Single(result.DtoTypes);
         Assert.Equal("Contoso.UniqueOptions", dto.FullName);
-        Assert.Equal("string[]", Assert.Single(dto.Fields).Type);
+        Assert.Collection(
+            dto.Fields,
+            field =>
+            {
+                Assert.Equal("Names", field.Name);
+                Assert.Equal("string[]", field.Type);
+                Assert.True(field.IsOptional);
+            },
+            field =>
+            {
+                Assert.Equal("Region", field.Name);
+                Assert.Equal("string", field.Type);
+                Assert.True(field.IsOptional);
+            });
 
         var enumType = Assert.Single(result.EnumTypes);
         Assert.Equal("Contoso.UniqueMode", enumType.FullName);

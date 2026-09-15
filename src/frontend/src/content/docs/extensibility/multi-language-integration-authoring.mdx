@@ -119,7 +119,7 @@ XML doc comments are the primary source for generated SDK API documentation. The
 
 Use `ats-*` override tags when the standard C# XML documentation doesn't translate well to generated SDK docs — for example, when a `<summary>` references C#-specific types or language constructs that have no direct equivalent in TypeScript. The supported overrides are:
 
-- `<ats-summary>` — overrides `<summary>` in polyglot docs
+- `<ats-summary>` — overrides `<summary>` in [polyglot](/get-started/glossary/#polyglot) docs
 - `<ats-param name="...">` — overrides `<param>` for a specific parameter
 - `<ats-returns>` — overrides `<returns>`
 - `<ats-remarks>` — overrides `<remarks>`
@@ -440,6 +440,8 @@ DTOs are input objects, not live resource handles. Keep `[AspireDto]` types JSON
 
 For an API with one optional options DTO, prefer a flat generated call shape such as `addMyResource('name', { port: 5432 })` instead of requiring `{ options: { port: 5432 } }`. If an existing C# API uses a rich model type that doesn't serialize cleanly, add a small DTO or options type for the exported API.
 
+Both generators flatten the call shape when a method's optional parameters reduce to a single DTO named options. The Go generator applies this as of Aspire 13.5 and only when there's no coexisting cancellation token or callback. TypeScript has flattened single options DTOs since Aspire 13.3; it additionally still flattens when a trailing cancellation token is present, rendering the token as its own parameter.
+
 ```csharp title="Flat options DTO"
 [AspireDto]
 public sealed class AddMyWorkerOptions
@@ -463,11 +465,18 @@ public static IResourceBuilder<MyWorkerResource> AddMyWorker(
 }
 ```
 
-```typescript title="Flat generated call shape"
+```typescript title="Flat generated call shape (TypeScript)"
 const worker = await builder.addMyWorker('worker', {
   imageTag: '1.2.3',
   args: ['--verbose'],
 });
+```
+
+```go title="Flat generated call shape (Go)"
+worker, err := builder.AddMyWorker("worker", &aspire.AddMyWorkerOptions{
+    ImageTag: aspire.StringPtr("1.2.3"),
+    Args:     []string{"--verbose"},
+})
 ```
 
 Collection-valued DTO inputs should also feel like plain JSON in the generated SDK:
@@ -1093,7 +1102,7 @@ You can test your integration locally without publishing to a NuGet feed. In you
     "language": "typescript/nodejs"
   },
   "packages": {
-    "Aspire.Hosting.Redis": "13.3.0",
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%",
     "MyCompany.Hosting.MyDatabase": "../src/MyCompany.Hosting.MyDatabase/MyCompany.Hosting.MyDatabase.csproj"
   }
 }

@@ -107,6 +107,8 @@ dotnet run --project ../PackageJsonGenerator/PackageJsonGenerator.csproj -- \
 - Output is deterministically formatted (alphabetically sorted) for version control friendliness
 - Only `public` types and members are included in the output
 - Compiler-generated types (e.g., closure classes) are automatically filtered out
-- The emitted `targetFramework` should match the selected `lib/<tfm>` folder for the analyzed package
-- The companion `generate-package-json.ps1` script resolves official `Aspire.*` packages from a branch-specific Azure Artifacts feed on `release/*` branches and uses nuget.org elsewhere
+- The emitted `targetFramework` matches the compile/runtime asset selected by NuGet for the analyzed package
+- The companion `generate-package-json.ps1` script restores every package independently, uses catalog-pinned versions, and reads `project.assets.json` for exact direct and transitive package references
+- Metadata loading includes the matching .NET and ASP.NET Core reference packs; official `Aspire.*` packages resolve from a branch-specific Azure Artifacts feed on `release/*` branches and use nuget.org elsewhere
+- Generation fails when input references or Aspire export attribute metadata cannot be resolved, rather than emitting incomplete attribute payloads
 - When the matching `microsoft/aspire` release branch is not publicly reachable yet, set `ASPIRE_RELEASE_FEED_URL`, `ASPIRE_RELEASE_FEED_NAME`, or `ASPIRE_RELEASE_COMMIT` before running the script

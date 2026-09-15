@@ -24,9 +24,12 @@ AppHost configuration is provided through launch profiles:
   ]}
 />
 <Pivot id="csharp">
-In C# AppHosts, profiles live in `launchSettings.json`:
+C# AppHosts come in two forms, and each stores launch profiles differently:
 
-```json title="launchSettings.json"
+- **Project-based AppHost** (the default `dotnet new aspire-apphost` template): profiles live in `Properties/launchSettings.json`.
+- **File-based AppHost** (created with `aspire new` using the empty C# template): profiles live in `apphost.run.json`. In this template, `aspire.config.json` only points at the entry file — it does **not** contain a `profiles` block.
+
+```json title="Project-based AppHost — Properties/launchSettings.json"
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
@@ -45,6 +48,36 @@ In C# AppHosts, profiles live in `launchSettings.json`:
   }
 }
 ```
+
+```json title="File-based AppHost — apphost.run.json"
+{
+  "profiles": {
+    "https": {
+      "applicationUrl": "https://localhost:17134;http://localhost:15170",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21030",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22057"
+      }
+    }
+  }
+}
+```
+
+```json title="File-based AppHost — aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.cs"
+  }
+}
+```
+
+<Aside type="note">
+  `aspire run`, `dotnet run apphost.cs`, and C# Dev Kit all read `apphost.run.json`
+  for launch profiles when it is present. In the `aspire new` empty C# template,
+  `aspire.config.json` intentionally omits `profiles` to avoid duplicating that data.
+</Aside>
 </Pivot>
 <Pivot id="typescript">
 In TypeScript AppHosts, profiles live in `aspire.config.json`:
@@ -126,10 +159,9 @@ By default, the dashboard is automatically started by the AppHost. The dashboard
 | `ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL`        | `http://localhost:18889` if no gRPC endpoint is configured. | Configures the dashboard <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> gRPC address. Used by the dashboard to receive telemetry over OTLP. Set on resources as the `OTEL_EXPORTER_OTLP_ENDPOINT` env var. The `OTEL_EXPORTER_OTLP_PROTOCOL` env var is `grpc`. Automatically generated with _launchSettings.json_ to have a random port on localhost.   |
 | `ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL`   | `null`                                                      | Configures the dashboard OTLP HTTP address. Used by the dashboard to receive telemetry over OTLP. If only `ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL` is configured then it is set on resources as the `OTEL_EXPORTER_OTLP_ENDPOINT` env var. The `OTEL_EXPORTER_OTLP_PROTOCOL` env var is `http/protobuf`.      |
 | `ASPIRE_DASHBOARD_CORS_ALLOWED_ORIGINS`     | `null`                                                      | Overrides the CORS allowed origins configured in the dashboard. This setting replaces the default behavior of calculating allowed origins based on resource endpoints.                                                                                                                                         |
-| `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS`| `false`                                                     | Configures the dashboard to not use authentication and accept anonymous access. Sets frontend, OTLP, <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr>, and API auth modes to `Unsecured`.                                                                                                                                                                  |
+| `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS`| `false`                                                     | Configures the dashboard to not use authentication and accept anonymous access. Sets frontend, OTLP, <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr>, and API auth modes to `Unsecured`. See [Dashboard security considerations](/dashboard/security-considerations/#anonymous-access) for the security implications.                                                                                              |
 | `ASPIRE_DASHBOARD_FRONTEND_BROWSERTOKEN`    | Automatically generated 128-bit entropy token.              | Configures the frontend browser token. This is the value that must be entered to access the dashboard when the auth mode is BrowserToken. If no browser token is specified then a new token is generated each time the AppHost is launched.                                                                    |
 | `ASPIRE_DASHBOARD_TELEMETRY_OPTOUT`         | `false`                                                     | Configures the dashboard to never send [usage telemetry](/dashboard/microsoft-collected-dashboard-telemetry/).                                                                                                                                                                                                 |
-| `ASPIRE_DASHBOARD_AI_DISABLED`              | `true`                                                      | Reserved for future use. The in-dashboard GitHub Copilot UI was removed in Aspire 13.3. AI coding agents can still access telemetry data via the [Aspire CLI and MCP server](/dashboard/ai-coding-agents/). |
 | `ASPIRE_DASHBOARD_API_ENABLED`              | `true`                                                      | Enables the dashboard [telemetry API](/dashboard/configuration/#api) (`/api/telemetry/*`) endpoints. The AppHost always sets this to `true`.                                                                                                                                                                   |
 | `ASPIRE_DASHBOARD_FORWARDEDHEADERS_ENABLED` | `false`                                                     | Enables the Forwarded headers middleware that replaces the scheme and host values on the Request context with the values coming from the `X-Forwarded-Proto` and `X-Forwarded-Host` headers.                                                                                                                   |
 

@@ -151,6 +151,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'deployment/kubernetes/helm-charts',
         },
         {
+          label: 'Persistent volumes',
+          slug: 'deployment/kubernetes/persistent-volumes',
+        },
+        {
           label: 'Ingress & Gateway API',
           slug: 'deployment/kubernetes-ingress',
         },

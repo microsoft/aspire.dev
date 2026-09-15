@@ -15,7 +15,7 @@ import DocContent from '@components/api-reference/DocContent.astro';
 import AnchorHeading from '@components/api-reference/AnchorHeading.astro';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import PolyglotAttributePanel from '@components/api-reference/PolyglotAttributePanel.astro';
-import { findAttribute, hasAttribute } from '@utils/api-attributes';
+import { findAttribute, hasAttribute, resolveDiagnosticSlug } from '@utils/api-attributes';
 import {
   slugify,
   genericArity,
@@ -131,8 +131,7 @@ const diagnosticSlugs = new Set(
     return filename ? filename.replace('.mdx', '').toLowerCase() : '';
   })
 );
-const typeExperimentalSlug = typeExperimentalId ? typeExperimentalId.toLowerCase() : null;
-const hasTypeDiagnosticsPage = typeExperimentalSlug ? diagnosticSlugs.has(typeExperimentalSlug) : false;
+const typeDiagnosticSlug = resolveDiagnosticSlug(typeExperimentalId, diagnosticSlugs);
 
 // Delegate info
 const isDelegate = type.kind === 'delegate';
@@ -325,7 +324,7 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
     obsolete={isTypeObsolete ? { message: typeObsoleteMessage } : undefined}
     experimental={isTypeExperimental ? {
       id: typeExperimentalId,
-      diagnosticsHref: hasTypeDiagnosticsPage ? `${base}/diagnostics/${typeExperimentalSlug}/` : null,
+      diagnosticsHref: typeDiagnosticSlug ? `${base}/diagnostics/${typeDiagnosticSlug}/` : null,
     } : undefined}
     inheritChain={inheritChain}
     interfaces={resolvedInterfaces}

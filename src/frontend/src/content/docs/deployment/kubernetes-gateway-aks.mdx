@@ -806,6 +806,37 @@ If the certificate stays in a `Pending` state:
    ```
    Look for `--enable-gateway-api-routes=true` in the args. If missing, upgrade the Helm release with `--set config.enableGatewayAPI=true`.
 
+### Gateway has no routes configured
+
+If you deploy a Gateway that has no calls to `WithRoute(...)`, Aspire skips it
+entirely — the Gateway, its routes, TLS certificate, and load-balancer
+frontend are never created. `aspire deploy` logs a warning instead of
+registering deployment steps for the skipped Gateway:
+
+```text
+warn: Gateway 'public' has no routes configured. The Gateway, routes, TLS certificate, and load-balancer frontend will not be created.
+```
+
+Add at least one `WithRoute(...)` call to the Gateway so Aspire materializes
+it. A route-less Gateway is intentionally excluded from deployment — earlier
+versions of Aspire re-selected these Gateways at several points in the
+deployment pipeline, which caused `aspire deploy` to poll `kubectl get gateway`
+for up to 15 minutes waiting for an address that would never appear.
+
+If the Gateway is also annotated with a `clusterIssuer` via `WithTls(issuer)`,
+you may additionally see:
+
+```text
+warn: ClusterIssuer 'letsencrypt' has an HTTP-01 solver but no Gateway in environment 'env' is both annotated with
+      cert-manager.io/cluster-issuer=letsencrypt and configured with at least one route. cert-manager will not be able
+      to satisfy ACME challenges until at least one routed Gateway adopts this issuer (e.g. via WithRoute(...) and
+      WithTls(issuer)).
+```
+
+This means the `ClusterIssuer`'s HTTP-01 solver has no eligible Gateway to
+attach to. Add `WithRoute(...)` to a Gateway that also calls `WithTls(issuer)`
+with the same cluster issuer to resolve this.
+
 ### Certificate order stuck in "errored" state
 
 If a cert-manager `Order` resource shows `state: errored`, delete the `Certificate` to trigger a fresh ACME flow:

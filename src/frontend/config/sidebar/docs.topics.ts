@@ -91,6 +91,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       collapsed: true,
       items: [
         {
+          label: 'Aspire 13.5',
+          slug: 'whats-new/aspire-13-5',
+        },
+        {
           label: 'Aspire 13.4',
           slug: 'whats-new/aspire-13-4',
         },
@@ -625,6 +629,27 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'fundamentals/service-discovery',
             },
             {
+              label: 'Environment variables',
+              slug: 'fundamentals/environment-variables',
+              translations: {
+                da: 'Miljøvariabler',
+                de: 'Umgebungsvariablen',
+                en: 'Environment variables',
+                es: 'Variables de entorno',
+                fr: "Variables d'environnement",
+                hi: 'पर्यावरण चर',
+                id: 'Variabel lingkungan',
+                it: 'Variabili di ambiente',
+                ja: '環境変数',
+                ko: '환경 변수',
+                'pt-BR': 'Variáveis de ambiente',
+                ru: 'Переменные среды',
+                tr: 'Ortam değişkenleri',
+                uk: 'Змінні середовища',
+                'zh-CN': '环境变量',
+              },
+            },
+            {
               label: 'Networking overview',
               slug: 'fundamentals/networking-overview',
               translations: {
@@ -935,6 +960,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
                 en: 'Executable resources',
                 ja: '実行可能リソース',
               },
+            },
+            {
+              label: 'Interactive terminals',
+              slug: 'app-host/with-terminal',
             },
           ],
         },

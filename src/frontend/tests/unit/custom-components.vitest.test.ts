@@ -9,6 +9,7 @@ import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
 import CapabilityGrid from '@components/CapabilityGrid.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
+import ContainerImages from '@components/ContainerImages.astro';
 import ContainerRuntimeChoices from '@components/ContainerRuntimeChoices.astro';
 import CustomSelect from '@components/CustomSelect.astro';
 import Expand from '@components/Expand.astro';
@@ -36,6 +37,7 @@ import Pivot from '@components/Pivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import Placeholder from '@components/Placeholder.astro';
 import QuickStartJourney from '@components/QuickStartJourney.astro';
+import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 import SampleCard from '@components/SampleCard.astro';
 import SampleDetail from '@components/SampleDetail.astro';
 import SampleGrid from '@components/SampleGrid.astro';
@@ -209,6 +211,35 @@ const basicRenderCases: BasicRenderCase[] = [
     ],
   },
   {
+    name: 'ContainerImages renders primary and companion images for a package',
+    Component: ContainerImages,
+    props: { package: 'Aspire.Hosting.Redis' },
+    includes: [
+      'Container images for Aspire.Hosting.Redis',
+      'Redis Commander',
+      'RedisInsight',
+      'Companion',
+      'ghcr.io',
+      'Copy to clipboard',
+      'Source',
+    ],
+  },
+  {
+    name: 'ContainerImages filters to a single image and renders a title',
+    Component: ContainerImages,
+    props: {
+      package: 'Aspire.Hosting.Redis',
+      only: 'Redis Commander',
+      title: 'Container image',
+    },
+    includes: [
+      'Container image',
+      'Redis Commander',
+      'Companion',
+      'data-code="ghcr.io/joeferner/redis-commander:latest"',
+    ],
+  },
+  {
     name: 'Expand renders summary and slot content',
     Component: Expand,
     props: { summary: 'Expandable summary' },
@@ -285,6 +316,19 @@ const basicRenderCases: BasicRenderCase[] = [
     Component: CapabilityGrid,
     props: { capabilities: capabilityItems, columns: 2 },
     includes: ['Model distributed apps', 'Learn more', '/get-started/app-host/', '--cap-cols: 2'],
+  },
+  {
+    name: 'ReleaseCommunity renders the core team roster and release contributors',
+    Component: ReleaseCommunity,
+    props: { version: '13.4' },
+    includes: [
+      'The Aspire core team is',
+      '.png?size=96',
+      'Special thanks to everyone whose pull requests shipped in Aspire 13.4',
+      'https://github.com/edmondshtogu',
+      '/community/contributors/',
+      '/community/contributor-guide/',
+    ],
   },
   {
     name: 'Breadcrumb renders current location and links',
@@ -521,7 +565,7 @@ const basicRenderCases: BasicRenderCase[] = [
     name: 'SimpleAppHostCode renders both AppHost tabs',
     Component: SimpleAppHostCode,
     props: { lang: 'nodejs', mark: '3-5', collapse: '7-8' },
-    includes: ['C# AppHost', 'TypeScript AppHost', 'builder.Build().Run'],
+    includes: ['C#', 'TypeScript', 'builder.Build().Run'],
   },
   {
     name: 'CustomSelect renders a themed combobox and listbox',
@@ -582,6 +626,7 @@ const basicRenderCases: BasicRenderCase[] = [
       'data-editor-caret',
       'data-editor-motion-toggle',
       'data-disable-copy',
+      'data-pagefind-ignore',
       'data-toggle="database"',
     ],
   },
@@ -829,6 +874,61 @@ describe('custom Astro component render coverage', () => {
       }
     });
   }
+
+  it('pairs Aspire map palette variants with their matching themes', async () => {
+    const html = normalizeHtml(await renderComponent(AspireMap));
+
+    expect(html).toMatch(/data-light="[^"]*map-lightdots\.svg/);
+    expect(html).toMatch(/data-dark="[^"]*map-darkdots\.svg/);
+  });
+
+  it('renders TypeScript first for Aspire language pivots only', async () => {
+    const appHostHtml = normalizeHtml(
+      await renderComponent(PivotSelector, {
+        props: {
+          key: 'aspire-lang',
+          options: [
+            { id: 'csharp', title: 'C#' },
+            { id: 'typescript', title: 'TypeScript' },
+          ],
+        },
+      })
+    );
+    const genericHtml = normalizeHtml(
+      await renderComponent(PivotSelector, {
+        props: {
+          key: 'language',
+          options: [
+            { id: 'csharp', title: 'C#' },
+            { id: 'typescript', title: 'TypeScript' },
+          ],
+        },
+      })
+    );
+
+    const typeScriptOption = 'data-pivot-option="typescript"';
+    const csharpOption = 'data-pivot-option="csharp"';
+
+    expect(appHostHtml).toContain(typeScriptOption);
+    expect(appHostHtml).toContain(csharpOption);
+    expect(genericHtml).toContain(csharpOption);
+    expect(genericHtml).toContain(typeScriptOption);
+    expect(appHostHtml.indexOf(typeScriptOption)).toBeLessThan(appHostHtml.indexOf(csharpOption));
+    expect(genericHtml.indexOf(csharpOption)).toBeLessThan(genericHtml.indexOf(typeScriptOption));
+  });
+
+  it('renders the canonical TypeScript tab and apphost.mts before C#', async () => {
+    const html = normalizeHtml(
+      await renderComponent(SimpleAppHostCode, {
+        props: { lang: 'nodejs' },
+      })
+    );
+
+    expect(html).toContain('TypeScript');
+    expect(html).toContain('C#');
+    expect(html.indexOf('TypeScript')).toBeLessThan(html.indexOf('C#'));
+    expect(html).toContain('apphost.mts');
+  });
 
   it('AppHostBuilder omits invalid npm package installation APIs from every code variant', async () => {
     const html = normalizeHtml(await renderComponent(AppHostBuilder));
@@ -1316,7 +1416,7 @@ describe('custom Astro component render coverage', () => {
         data: {
           title: 'Aspire',
           hero: {
-            title: 'Model distributed apps in code.',
+            title: 'Compose distributed apps in code.',
             tagline:
               'Model, run, observe, and deploy distributed applications from one code-first control plane.',
             image: {
@@ -1358,7 +1458,7 @@ describe('custom Astro component render coverage', () => {
           title: 'Aspire',
           hero: {
             title: 'Aspire',
-            tagline: 'Model distributed apps in code.',
+            tagline: 'Compose distributed apps in code.',
             image: {
               alt: 'Aspire logo',
               file: heroImage,
@@ -1379,7 +1479,7 @@ describe('custom Astro component render coverage', () => {
     );
 
     expect(html).toContain('home-hero-story');
-    expect(html).toContain('Model distributed apps in');
+    expect(html).toContain('Compose distributed apps in');
     expect(html).toContain('code.');
     expect(html).toContain('home-hero-product');
     expect(html).toContain('The AppHost defines how your resources connect.');

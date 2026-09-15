@@ -34,7 +34,13 @@ describe('normalizeApiJsonText — C# API (pkgs) shape', () => {
     `        "text": "${APP_HOST}"`,
     '      }',
     '    ]',
-    '  }',
+    '  },',
+    '  "attributes": [{',
+    '    "name": "Aspire.Hosting.AspireExportIgnoreAttribute",',
+    '    "arguments": {',
+    `      "Reason": "Use the direct export in polyglot ${APP_HOST}s."`,
+    '    }',
+    '  }]',
     '}',
   ]);
 
@@ -43,9 +49,14 @@ describe('normalizeApiJsonText — C# API (pkgs) shape', () => {
     expect(text).toContain('"text": " relative to the AppHost project directory. "');
   });
 
-  test('leaves plural "app hosts" untouched (matches the forbidden-words boundary)', () => {
+  test('normalizes the plural form in triple-slash prose', () => {
     const { text } = normalizeApiJsonText(doc);
-    expect(text).toContain(`"text": "Not available in polyglot ${APP_HOST}s."`);
+    expect(text).toContain('"text": "Not available in polyglot AppHosts."');
+  });
+
+  test('normalizes export-ignore reason prose', () => {
+    const { text } = normalizeApiJsonText(doc);
+    expect(text).toContain('"Reason": "Use the direct export in polyglot AppHosts."');
   });
 
   test('never rewrites the text of code-bearing nodes (code, cref)', () => {
@@ -57,7 +68,7 @@ describe('normalizeApiJsonText — C# API (pkgs) shape', () => {
   });
 
   test('counts exactly the changed occurrences', () => {
-    expect(normalizeApiJsonText(doc).changes).toBe(1);
+    expect(normalizeApiJsonText(doc).changes).toBe(3);
   });
 });
 

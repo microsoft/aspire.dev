@@ -1,0 +1,62 @@
+---
+title: Compiler Warning ASPIREPROJECTS001
+seoTitle: "ASPIREPROJECTS001: Project launch defaults APIs are for"
+description: Learn what causes the Aspire compiler warning ASPIREPROJECTS001 and how to fix it so your AppHost builds cleanly.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Project launch defaults types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using experimental project launch defaults APIs in Aspire, including:
+
+- `WithProjectDefaults<T>` extension method
+- `ProjectLaunchDefaultsAnnotation`
+- `ProjectLaunchArgsOverrideAnnotation`
+
+These APIs let a resource opt into the same launch-profile, Kestrel endpoint, and `ASPNETCORE_URLS` wiring that Aspire applies to `AddProject` resources. The resource must carry `IProjectMetadata`. They exist primarily so language integration packages (such as `Aspire.Hosting.Dotnet`) can reuse this behavior for resources that are launched through the .NET SDK.
+
+## Example
+
+The following code generates `ASPIREPROJECTS001`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var options = new ProjectResourceOptions();
+
+builder.AddResource(new MyDotnetResource("resource"))
+    .WithProjectDefaults(options);
+```
+
+## To correct this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREPROJECTS001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREPROJECTS001</NoWarn>
+  </PropertyGroup>
+  ```
+
+## See also
+
+- [ASPIREEXTENSION001](/diagnostics/aspireextension001/) - Related experimental debug support APIs
+- [Custom hosting integrations](/integrations/custom-integrations/hosting-integrations/) - Learn about creating custom integrations

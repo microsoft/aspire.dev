@@ -1,0 +1,69 @@
+---
+title: Compiler Warning ASPIREDOTNETPROJECT001
+seoTitle: 'ASPIREDOTNETPROJECT001: AddDotnetProject types and members'
+description: Learn what causes the Aspire compiler warning ASPIREDOTNETPROJECT001 and how to fix it so your AppHost builds cleanly.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> AddDotnetProject types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using experimental `AddDotnetProject` APIs from the `Aspire.Hosting.Dotnet` integration, including:
+
+- `AddDotnetProject` extension methods
+- `DotnetProjectResource`
+
+These APIs add a C# project or file-based C# app to the application model as an `ExecutableResource` that's launched through the .NET SDK.
+
+## Example
+
+The following code generates `ASPIREDOTNETPROJECT001`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDotnetProject("inventoryservice", @"..\InventoryService.cs");
+
+builder.Build().Run();
+```
+
+## To correct this warning
+
+Suppress the warning with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREDOTNETPROJECT001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREDOTNETPROJECT001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREDOTNETPROJECT001` directive:
+
+  ```csharp title="Suppressing the warning"
+  #pragma warning disable ASPIREDOTNETPROJECT001
+  builder.AddDotnetProject("inventoryservice", @"..\InventoryService.cs");
+  #pragma warning restore ASPIREDOTNETPROJECT001
+  ```
+
+## See also
+
+- [ASPIRECSHARPAPPS001](/diagnostics/aspirecsharpapps001/) - Related experimental C# app API
+- [ASPIREPROJECTS001](/diagnostics/aspireprojects001/) - Related experimental project launch defaults APIs
