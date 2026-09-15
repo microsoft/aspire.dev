@@ -30,30 +30,61 @@ const packageCode = `<PackageReference Include="${packageName}" Version="*" />`;
 
 const appHostTitle = `C# — AppHost.cs`;
 const appHostCode = `#:package ${packageName}@*`;
+const integrationId = packageName.toLowerCase();
+const publisher = integrationId.startsWith('aspire.') ? 'official' : 'community';
 ---
 
-<Tabs syncKey="aspire-install">
-  <TabItem label="Aspire CLI">
-    <Code lang="bash" frame="terminal" title={cliCommandTitle} code={cliCode} />
-    <p>{Astro.locals.t('package.interactiveCli')}</p>
-    <Code
-      lang="bash"
-      frame="terminal"
-      title={Astro.locals.t('package.exampleCliOutput')}
-      code={cliPromptCode}
-    />
-    <Aside type="note">
-      {Astro.locals.t('package.autoCliSelection')}
-    </Aside>
-  </TabItem>
-  <TabItem label="apphost.cs (C# file-based app)">
-    <Code lang="csharp" title={appHostTitle} code={appHostCode} />
-  </TabItem>
-  {
-    !omitPackageReference && (
-      <TabItem label="PackageReference (*.csproj)">
-        <Code lang="xml" title={packageReferenceTitle} code={packageCode} />
-      </TabItem>
-    )
-  }
-</Tabs>
+<div
+  data-integration-context
+  data-funnel="integration_adoption"
+  data-funnel-surface="integration_page"
+  data-funnel-integration={integrationId}
+  data-funnel-publisher={publisher}
+  data-funnel-integration-kind="hosting"
+>
+  <Tabs syncKey="aspire-install">
+    <TabItem label="Aspire CLI">
+      <div
+        data-funnel-step="install_command_copied"
+        data-funnel-trigger="copy"
+        data-funnel-method="aspire_cli"
+      >
+        <Code lang="bash" frame="terminal" title={cliCommandTitle} code={cliCode} />
+      </div>
+      <p>{Astro.locals.t('package.interactiveCli')}</p>
+      <Code
+        lang="bash"
+        frame="terminal"
+        title={Astro.locals.t('package.exampleCliOutput')}
+        code={cliPromptCode}
+      />
+      <Aside type="note">
+        {Astro.locals.t('package.autoCliSelection')}
+      </Aside>
+    </TabItem>
+    <TabItem label="apphost.cs (C# file-based app)">
+      <div
+        data-funnel-step="install_command_copied"
+        data-funnel-trigger="copy"
+        data-funnel-method="file_directive"
+        data-funnel-language="csharp"
+      >
+        <Code lang="csharp" title={appHostTitle} code={appHostCode} />
+      </div>
+    </TabItem>
+    {
+      !omitPackageReference && (
+        <TabItem label="PackageReference (*.csproj)">
+          <div
+            data-funnel-step="install_command_copied"
+            data-funnel-trigger="copy"
+            data-funnel-method="package_reference"
+            data-funnel-language="csharp"
+          >
+            <Code lang="xml" title={packageReferenceTitle} code={packageCode} />
+          </div>
+        </TabItem>
+      )
+    }
+  </Tabs>
+</div>

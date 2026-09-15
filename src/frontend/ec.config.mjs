@@ -5,6 +5,7 @@ import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers';
 import ecTwoSlash from 'expressive-code-twoslash';
 import { tsImport } from 'tsx/esm/api';
 import { pluginDisableCopy } from './src/expressive-code-plugins/disable-copy.mjs';
+import { pluginFunnelMetadata } from './src/expressive-code-plugins/funnel-metadata.mjs';
 import {
   TWOSLASH_ENABLED,
   TWOSLASH_LANGUAGES,
@@ -47,6 +48,7 @@ export default {
     pluginLineNumbers(),
     pluginIcon(),
     pluginDisableCopy(),
+    pluginFunnelMetadata(),
     ...(TWOSLASH_ENABLED
       ? [
           ecTwoSlash({
