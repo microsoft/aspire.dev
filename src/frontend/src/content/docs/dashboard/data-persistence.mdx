@@ -42,6 +42,8 @@ The dashboard header displays a run selector with the live run followed by compl
 
 You can pin runs that you want to keep. The dashboard retains up to 10 unpinned runs for an application and prunes the oldest unpinned runs after a new run starts. Pinned runs don't count toward this limit. A run currently selected by another dashboard session or owned by another dashboard process isn't pruned until its lock is released.
 
+Runs created with an incompatible dashboard schema version remain visible in the selector but are disabled. Hover over a disabled run to see why it can't be viewed. You can still pin or unpin an incompatible run; an incompatible, unpinned run participates in normal retention.
+
 ### Resume
 
 `Resume` reopens one persistent database when the dashboard restarts. It doesn't create separate run records or show the run selector. Use it for a standalone dashboard that should continue from its previous data:
@@ -72,7 +74,7 @@ See [Aspire dashboard configuration](/dashboard/configuration/#data-persistence)
 
 ## Storage layout
 
-Persistent data is partitioned by application. The application directory name combines a readable, sanitized application-name prefix with a stable hash. The hash prevents distinct names that sanitize to the same prefix from sharing data.
+Persistent data uses an application storage key that combines a readable, sanitized application-name prefix with a stable hash. The hash prevents distinct names that sanitize to the same prefix from sharing data.
 
 `Run` mode stores each run in a timestamped directory:
 
@@ -80,13 +82,15 @@ Persistent data is partitioned by application. The application directory name co
 
 <FileTree>
 - \<data-root\>/
-  - \<application-directory\>/
-    - runs/
-      - \<run-id\>.lock
-      - \<run-id\>/
-        - dashboard.db
-        - run.json
+  - runs/
+    - \<run-id\>.lock
+    - \<run-id\>/
+      - \<application-storage-key\>
+      - dashboard.db
+      - run.json
 </FileTree>
+
+All applications store run directories under the shared _runs_ directory. Each run directory contains an empty file named with its application storage key. The dashboard checks for this marker before reading _run.json_, so it only discovers runs for the current application.
 
 The metadata in _run.json_ includes the schema version, run ID, start and end times, application name, database file name, pin state, and whether the dashboard shut down cleanly. A run that doesn't shut down cleanly remains available after its process releases the lock.
 
@@ -96,9 +100,10 @@ The metadata in _run.json_ includes the schema version, run ID, start and end ti
 
 <FileTree>
 - \<data-root\>/
-  - \<application-directory\>.lock
-  - \<application-directory\>/
-    - dashboard.db
+  - resumes/
+    - \<application-storage-key\>.lock
+    - \<application-storage-key\>/
+      - dashboard.db
 </FileTree>
 
 SQLite can create _dashboard.db-wal_ and _dashboard.db-shm_ beside a writable database. Include these files when inspecting, protecting, or copying live data.
@@ -128,7 +133,7 @@ For long-running `Resume` databases, keep finite attribute and span-event limits
 The database has a versioned schema and doesn't run migrations between incompatible versions:
 
 - `None` always creates a new temporary database.
-- `Run` creates a new database and omits incompatible historical runs from the selector.
+- `Run` creates a new database. Historical runs with incompatible schema versions remain visible in the selector but are disabled and can't be opened. They can still be pinned or unpinned.
 - `Resume` replaces an incompatible database after successfully reading its schema version. If the compatibility check itself fails, startup fails and leaves the existing files in place.
 
 The dashboard uses exclusive lock files to prevent two processes from writing to the same run or resumed database. It also locks a historical run while that run is selected so background pruning can't remove it.
@@ -139,7 +144,7 @@ Don't modify dashboard databases with non-Aspire tools. Changes made by other ap
 
 Persisted resources and telemetry can contain secrets and other sensitive application data. Resource property values marked as sensitive remain masked in the dashboard UI, but their underlying values are stored without redaction or encryption.
 
-On Unix-like systems, the dashboard sets the application-specific directory to owner-only permissions (`0700`). On Windows, it relies on the directory's inherited ACL. You are responsible for restricting access to the configured data root and to backups, snapshots, and copies.
+On Unix-like systems, the dashboard sets the shared _runs_ and _resumes_ directories and resume application directories to owner-only permissions (`0700`). Existing directories are repaired to that mode. On Windows, directories use inherited ACLs. You are responsible for restricting access to the configured data root and to backups, snapshots, and copies.
 
 For complete guidance, see [Protect persisted data](/dashboard/security-considerations/#protect-persisted-data).
 
