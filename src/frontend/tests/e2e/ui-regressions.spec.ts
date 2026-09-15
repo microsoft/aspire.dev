@@ -1259,6 +1259,74 @@ test('sidebar collapse toggle stays visible without overlapping the H1 on no-TOC
   ).toBe(true);
 });
 
+test('mobile TOC replaces the right TOC across zoom levels and display sizes', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'The responsive TOC zoom matrix is covered once from the desktop project.'
+  );
+
+  await page.goto('/app-host/certificate-configuration/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForTopicSidebarReady(page);
+
+  const cdp = await page.context().newCDPSession(page);
+  const mobileToc = page.locator('#starlight__on-this-page--mobile');
+  const rightToc = page.locator('.right-sidebar-panel');
+  const cases = [
+    { resolution: '1366x768', width: 1366, height: 768, zoom: 1, mobile: true },
+    { resolution: '1440x900', width: 1440, height: 900, zoom: 1.25, mobile: true },
+    { resolution: '1920x1080', width: 1920, height: 1080, zoom: 1.25, mobile: true },
+    { resolution: '2560x1440', width: 2560, height: 1440, zoom: 1.75, mobile: true },
+    { resolution: '3840x2160', width: 3840, height: 2160, zoom: 3, mobile: true },
+    { resolution: '1920x1080', width: 1920, height: 1080, zoom: 1, mobile: false },
+    { resolution: '2560x1440', width: 2560, height: 1440, zoom: 1.5, mobile: false },
+    { resolution: '3840x2160', width: 3840, height: 2160, zoom: 2, mobile: false },
+  ];
+
+  try {
+    for (const testCase of cases) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {
+        width: Math.floor(testCase.width / testCase.zoom),
+        height: Math.floor(testCase.height / testCase.zoom),
+        deviceScaleFactor: testCase.zoom,
+        mobile: false,
+        screenWidth: testCase.width,
+        screenHeight: testCase.height,
+      });
+
+      const label = `${testCase.resolution} at ${testCase.zoom * 100}% zoom`;
+
+      if (testCase.mobile) {
+        await expect(mobileToc, `${label} should show the mobile TOC`).toBeVisible();
+        await expect(rightToc, `${label} should hide the right TOC`).toBeHidden();
+      } else {
+        await expect(mobileToc, `${label} should hide the mobile TOC`).toBeHidden();
+        await expect(rightToc, `${label} should show the right TOC`).toBeVisible();
+      }
+
+      const layout = await page.locator('.main-pane').evaluate((mainPane) => {
+        const bounds = mainPane.getBoundingClientRect();
+        return {
+          documentOverflows:
+            document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          rightEdge: bounds.right,
+          viewportWidth: window.innerWidth,
+        };
+      });
+
+      expect(layout.documentOverflows, `${label} should not overflow horizontally`).toBe(false);
+      if (testCase.mobile) {
+        expect(
+          Math.abs(layout.rightEdge - layout.viewportWidth),
+          `${label} should release the hidden right TOC column`
+        ).toBeLessThanOrEqual(1);
+      }
+    }
+  } finally {
+    await cdp.send('Emulation.clearDeviceMetricsOverride');
+  }
+});
+
 test('Aspire 13.5 preserves published section anchors', async ({ page }) => {
   test.skip(
     page.viewportSize()?.width !== 1440,

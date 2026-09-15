@@ -28,6 +28,7 @@ const EXCLUDED_PACKAGES = [
   'CommunityToolkit.Aspire.EventStore',
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
+const DOCS_OUTPUT_PATH = './src/data/integration-docs.json';
 export const DEFAULT_NUGET_ICON_URL =
   'https://www.nuget.org/Content/gallery/img/default-package-icon.svg';
 
@@ -110,6 +111,11 @@ export interface IntegrationOutput {
   tags: string[];
   downloads?: number;
   version?: string;
+}
+
+interface IntegrationDoc {
+  match: string;
+  href: string;
 }
 
 type PrereleaseIdentifier = { n: number } | { s: string };
@@ -268,6 +274,22 @@ export function getOfficialAspireDefaultIconPackages(output: IntegrationOutput[]
   return output
     .filter((pkg) => isOfficialAspirePackage(pkg.title) && pkg.icon === DEFAULT_NUGET_ICON_URL)
     .map((pkg) => `${pkg.title}@${pkg.version ?? 'unknown'}`);
+}
+
+export function reconcileIntegrationDocs(
+  docs: IntegrationDoc[],
+  integrations: Pick<IntegrationOutput, 'title'>[]
+): IntegrationDoc[] {
+  const catalogPackages = new Set(integrations.map(({ title }) => title.toLowerCase()));
+
+  return docs.filter(({ match }) => {
+    const packageId = match.toLowerCase();
+    // Other publishers are curated manually, outside this updater's package sources.
+    if (!isOfficialAspirePackage(packageId) && !packageId.startsWith('communitytoolkit.aspire')) {
+      return true;
+    }
+    return catalogPackages.has(packageId);
+  });
 }
 
 function filterAndTransform(pkgs: PackageRecord[]): IntegrationOutput[] {
@@ -732,8 +754,17 @@ export async function updateIntegrations(): Promise<void> {
       `⚠️ Official Aspire packages resolved to the default NuGet icon: ${defaultIconPackages.join(', ')}`
     );
   }
+  const docs = JSON.parse(fs.readFileSync(DOCS_OUTPUT_PATH, 'utf8')) as IntegrationDoc[];
+  const reconciledDocs = reconcileIntegrationDocs(docs, output);
+
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2));
   console.log(`✅ Saved ${output.length} packages to ${OUTPUT_PATH}`);
+  if (reconciledDocs.length !== docs.length) {
+    fs.writeFileSync(DOCS_OUTPUT_PATH, `${JSON.stringify(reconciledDocs, null, 2)}\n`);
+    console.log(
+      `Removed ${docs.length - reconciledDocs.length} stale documentation mapping(s) from ${DOCS_OUTPUT_PATH}`
+    );
+  }
 }
 
 const isMainModule = process.argv[1]

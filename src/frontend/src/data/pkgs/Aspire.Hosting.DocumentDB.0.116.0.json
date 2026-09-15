@@ -1,10 +1,10 @@
 {
   "package": {
     "name": "Aspire.Hosting.DocumentDB",
-    "version": "0.114.1",
+    "version": "0.116.0",
     "targetFramework": "net10.0",
     "sourceRepository": "https://github.com/microsoft/azure-databases-aspire",
-    "sourceCommit": "7d948a308f8171d6b5c088c11250cd6e47c5c034"
+    "sourceCommit": "99fc80904e966e99fc461295b325ae623be347da"
   },
   "types": [
     {
@@ -31,7 +31,7 @@
         ]
       },
       "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-      "sourceLines": "66-66",
+      "sourceLines": "24-24",
       "members": [
         {
           "name": "AddDatabase",
@@ -137,7 +137,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "223-252"
+          "sourceLines": "1390-1420"
         },
         {
           "name": "AddDocumentDB",
@@ -242,7 +242,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "66-66"
+          "sourceLines": "664-664"
         },
         {
           "name": "AddDocumentDB",
@@ -360,7 +360,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "95-131"
+          "sourceLines": "693-736"
         },
         {
           "name": "AllowInsecureTls",
@@ -488,7 +488,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "925-928"
+          "sourceLines": "5522-5525"
         },
         {
           "name": "UseTls",
@@ -624,7 +624,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "896-899"
+          "sourceLines": "5493-5496"
         },
         {
           "name": "WithDataBindMount",
@@ -660,48 +660,189 @@
             ],
             "remarks": [
               {
-                "kind": "text",
-                "text": " Prefer "
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " Prefer "
+                  },
+                  {
+                    "kind": "cref",
+                    "value": "M:Aspire.Hosting.DocumentDBBuilderExtensions.WithDataVolume(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.DocumentDBServerResource},System.String,System.Boolean,System.String)"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " for most cases. Bind mounts are useful when you need direct access to the data files on the host filesystem, but the host directory has to be writable by the container's "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "documentdb"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " runtime user, which the entrypoint enforces by taking ownership of the directory's contents. "
+                  }
+                ]
               },
               {
-                "kind": "cref",
-                "value": "M:Aspire.Hosting.DocumentDBBuilderExtensions.WithDataVolume(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.DocumentDBServerResource},System.String,System.Boolean,System.String)"
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " The bare DocumentDB container defaults "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "DATA_PATH"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " to "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "/data"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ". This helper mounts the directory at "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "/data"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " — the container default, and the path DocumentDB v0.116-0 and later declare as an image volume, so no anonymous volume is created — and sets "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "DATA_PATH"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " to the same value so DocumentDB writes to the mounted directory. On those images the directory is also claimed with an exclusive "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "flock"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " and can back only one running container at a time. "
+                  }
+                ]
               },
               {
-                "kind": "text",
-                "text": " for most cases. Bind mounts are useful when you need direct access to the data files on the host filesystem. The bare DocumentDB container defaults "
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " Point the mount at a directory that is empty or holds an existing DocumentDB cluster. A directory that contains anything else (a stray "
+                  },
+                  {
+                    "kind": "code",
+                    "text": ".gitkeep"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " or "
+                  },
+                  {
+                    "kind": "code",
+                    "text": ".DS_Store"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " is enough) is refused, not cleaned: the container logs "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "Directory /data exists but doesn't\n            appear to contain a valid PostgreSQL data directory"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", never starts PostgreSQL, and exits non-zero a minute later behind the \"PostgreSQL failed to start within 60 seconds\" banner. "
+                  }
+                ]
               },
               {
-                "kind": "code",
-                "text": "DATA_PATH"
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "paramref",
+                    "value": "isReadOnly"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " is rejected: PostgreSQL cannot initialise or run against a read-only data directory, and the container would otherwise spend a minute failing with a misleading \"PostgreSQL failed to start within 60 seconds\" banner. "
+                  }
+                ]
               },
               {
-                "kind": "text",
-                "text": " to "
-              },
-              {
-                "kind": "code",
-                "text": "/data"
-              },
-              {
-                "kind": "text",
-                "text": ". This helper mounts the directory at "
-              },
-              {
-                "kind": "code",
-                "text": "/data"
-              },
-              {
-                "kind": "text",
-                "text": " (the container default) and sets "
-              },
-              {
-                "kind": "code",
-                "text": "DATA_PATH"
-              },
-              {
-                "kind": "text",
-                "text": " to the same value so DocumentDB writes to the mounted directory. "
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " A bind mount only carries a PostgreSQL data directory on a container runtime that applies ownership changes to the mounted host path immediately. PostgreSQL refuses to start unless the data directory is already owned by the user starting the postmaster, and the container entrypoint establishes that by running "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "chown"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " on "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "DATA_PATH"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " milliseconds before starting it. Docker Desktop applies that "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "chown"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " asynchronously — measured on macOS with VirtioFS, and expected on its Windows and Linux hosts, which share the same file-sharing design — so the postmaster reads the previous owner and aborts with "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "data directory \"/data\" has wrong ownership"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ". A first run hides this behind the seconds "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "initdb"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " spends between the two steps, so the container comes up once and then fails every restart, with the data intact on the host but unreadable. Nothing in the application model can order that runtime's "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "chown"
+                  },
+                  {
+                    "kind": "text",
+                    "text": "; use "
+                  },
+                  {
+                    "kind": "cref",
+                    "value": "M:Aspire.Hosting.DocumentDBBuilderExtensions.WithDataVolume(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.DocumentDBServerResource},System.String,System.Boolean,System.String)"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " there, whose storage lives inside the runtime's own filesystem and is unaffected. A bind mount on a native container engine is an ordinary mount and restarts normally. "
+                  }
+                ]
               }
             ],
             "returns": [
@@ -728,7 +869,15 @@
               "isReadOnly": [
                 {
                   "kind": "text",
-                  "text": "A flag that indicates if this is a read-only mount."
+                  "text": "Unsupported. DocumentDB requires a writable data directory; passing "
+                },
+                {
+                  "kind": "langword",
+                  "value": "true"
+                },
+                {
+                  "kind": "text",
+                  "text": " throws."
                 }
               ],
               "source": [
@@ -738,6 +887,29 @@
                 }
               ]
             },
+            "exceptions": [
+              {
+                "type": "T:System.ArgumentException",
+                "description": [
+                  {
+                    "kind": "paramref",
+                    "value": "isReadOnly"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " is "
+                  },
+                  {
+                    "kind": "langword",
+                    "value": "true"
+                  },
+                  {
+                    "kind": "text",
+                    "text": "."
+                  }
+                ]
+              }
+            ],
             "examples": [
               {
                 "code": "\n            var server = builder.AddDocumentDB(\"documentdb\")\n                                .WithDataBindMount(\"./data/documentdb\");\n            ",
@@ -746,7 +918,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "521-531"
+          "sourceLines": "1913-1928"
         },
         {
           "name": "WithDataVolume",
@@ -790,40 +962,127 @@
             ],
             "remarks": [
               {
-                "kind": "text",
-                "text": " Without a volume, all data is stored inside the container and lost when it stops. The bare DocumentDB container defaults "
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " The bare DocumentDB container defaults "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "DATA_PATH"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " to "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "/data"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ". Up to and including DocumentDB v0.114-0 an unmounted "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "/data"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " is an ordinary directory in the container's writable layer, discarded when the container is removed. From v0.116-0 the image declares that path as a container "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "VOLUME"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", so a run that mounts nothing there instead gets a fresh anonymous volume whose lifetime the container runtime controls (and which container removal can strand). On those images, mounting at the default "
+                  },
+                  {
+                    "kind": "paramref",
+                    "value": "targetPath"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " is what suppresses the anonymous volume: neither Docker nor Aspire can un-declare an image volume, so a non-default "
+                  },
+                  {
+                    "kind": "paramref",
+                    "value": "targetPath"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " leaves an unused anonymous volume behind at "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "/data"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " and the resource logs a warning at start. "
+                  }
+                ]
               },
               {
-                "kind": "code",
-                "text": "DATA_PATH"
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " This helper mounts the volume at "
+                  },
+                  {
+                    "kind": "paramref",
+                    "value": "targetPath"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " and sets "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "DATA_PATH"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " to the same value so DocumentDB writes to the mounted directory. From v0.116-0 the container claims the directory with an exclusive "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "flock"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", so a persisted data directory may back only one running container at a time; a second container that mounts it exits immediately with an explicit refusal instead of corrupting the directory. Earlier images have no such interlock, so concurrent use has to be avoided by construction. "
+                  }
+                ]
               },
               {
-                "kind": "text",
-                "text": " to "
-              },
-              {
-                "kind": "code",
-                "text": "/data"
-              },
-              {
-                "kind": "text",
-                "text": ". This helper mounts the volume at "
-              },
-              {
-                "kind": "paramref",
-                "value": "targetPath"
-              },
-              {
-                "kind": "text",
-                "text": " and sets "
-              },
-              {
-                "kind": "code",
-                "text": "DATA_PATH"
-              },
-              {
-                "kind": "text",
-                "text": " to the same value so DocumentDB writes to the mounted directory. "
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " The data directory must be writable. The entrypoint takes ownership of it (the container's "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "documentdb"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " runtime user) and PostgreSQL initialises and writes WAL there, so "
+                  },
+                  {
+                    "kind": "paramref",
+                    "value": "isReadOnly"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " is rejected rather than being allowed to fail a minute into startup behind a misleading \"PostgreSQL failed to start within 60 seconds\" banner. "
+                  }
+                ]
               }
             ],
             "returns": [
@@ -850,7 +1109,15 @@
               "isReadOnly": [
                 {
                   "kind": "text",
-                  "text": "A flag that indicates if this is a read-only volume."
+                  "text": "Unsupported. DocumentDB requires a writable data directory; passing "
+                },
+                {
+                  "kind": "langword",
+                  "value": "true"
+                },
+                {
+                  "kind": "text",
+                  "text": " throws."
                 }
               ],
               "name": [
@@ -862,10 +1129,81 @@
               "targetPath": [
                 {
                   "kind": "text",
-                  "text": "The target path inside the container. Defaults to /data to match the container default when this helper is used."
+                  "text": "The target path inside the container. Defaults to /data to match the container default (and the path the image declares as a volume) when this helper is used. Canonicalized the way the container runtime resolves a path, so repeated separators and "
+                },
+                {
+                  "kind": "code",
+                  "text": "."
+                },
+                {
+                  "kind": "text",
+                  "text": "/"
+                },
+                {
+                  "kind": "code",
+                  "text": ".."
+                },
+                {
+                  "kind": "text",
+                  "text": " segments are collapsed before the mount is created."
                 }
               ]
             },
+            "exceptions": [
+              {
+                "type": "T:System.ArgumentException",
+                "description": [
+                  {
+                    "kind": "paramref",
+                    "value": "isReadOnly"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " is "
+                  },
+                  {
+                    "kind": "langword",
+                    "value": "true"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", or "
+                  },
+                  {
+                    "kind": "paramref",
+                    "value": "targetPath"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " is not an absolute container path below the root — including one that only resolves to the root, such as "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "/data/.."
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", and one that reaches above it, such as "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "/../data"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", which the container runtime silently clamps onto "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "/data"
+                  },
+                  {
+                    "kind": "text",
+                    "text": "."
+                  }
+                ]
+              }
+            ],
             "examples": [
               {
                 "code": "\n            var server = builder.AddDocumentDB(\"documentdb\")\n                                .WithDataVolume();\n            ",
@@ -874,7 +1212,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "487-496"
+          "sourceLines": "1835-1851"
         },
         {
           "name": "WithDocumentDBVersion",
@@ -1084,7 +1422,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "973-976"
+          "sourceLines": "5570-5573"
         },
         {
           "name": "WithHostPort",
@@ -1157,7 +1495,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "269-274"
+          "sourceLines": "1553-1558"
         },
         {
           "name": "WithInitData",
@@ -1196,7 +1534,7 @@
               },
               {
                 "kind": "text",
-                "text": ", and the built-in sample data initialization is implicitly disabled so the mounted scripts are the only initialization source. "
+                "text": ", and the built-in sample data initialization is implicitly disabled so the mounted scripts are the only initialization source. DocumentDB v0.116-0 records initialization attempts in the data directory. Scripts run once for a new volume and are not reapplied when their contents change. A failed partial attempt is also not automatically retried; use a fresh or reset volume after correcting the scripts. "
               }
             ],
             "returns": [
@@ -1229,7 +1567,7 @@
             }
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "562-571"
+          "sourceLines": "4183-4193"
         },
         {
           "name": "WithLogLevel",
@@ -1255,6 +1593,68 @@
               {
                 "kind": "text",
                 "text": " Configures the DocumentDB Local container log level. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Starting with DocumentDB "
+              },
+              {
+                "kind": "code",
+                "text": "0.114.0"
+              },
+              {
+                "kind": "text",
+                "text": ", the gateway reads "
+              },
+              {
+                "kind": "code",
+                "text": "DOCUMENTDB_LOG_LEVEL"
+              },
+              {
+                "kind": "text",
+                "text": " as a tracing filter. This makes the API observably effective on the current default image. The legacy "
+              },
+              {
+                "kind": "code",
+                "text": "LOG_LEVEL"
+              },
+              {
+                "kind": "text",
+                "text": " variable is also set because the Local image entrypoint validates that contract, although no Local image uses it to select gateway verbosity. Images through "
+              },
+              {
+                "kind": "code",
+                "text": "0.113.0"
+              },
+              {
+                "kind": "text",
+                "text": " therefore treat this API as a verbosity no-op. "
+              },
+              {
+                "kind": "cref",
+                "value": "F:Aspire.Hosting.DocumentDBLogLevel.Quiet"
+              },
+              {
+                "kind": "text",
+                "text": " remains mapped to "
+              },
+              {
+                "kind": "code",
+                "text": "quiet"
+              },
+              {
+                "kind": "text",
+                "text": " for API compatibility. It is not a tracing level: on "
+              },
+              {
+                "kind": "code",
+                "text": "0.114.0"
+              },
+              {
+                "kind": "text",
+                "text": " and later it becomes newly effective because the gateway parses it as an unmatched target directive, which suppresses gateway output but depends on upstream filter semantics. "
               }
             ],
             "returns": [
@@ -1287,7 +1687,7 @@
             }
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "542-547"
+          "sourceLines": "4158-4165"
         },
         {
           "name": "WithOpenTelemetryMetrics",
@@ -1353,7 +1753,7 @@
                 "children": [
                   {
                     "kind": "text",
-                    "text": " Requires container image v0.112-0 or later. Only metrics are exported today; traces and logs are not yet supported by the gateway. "
+                    "text": " Requires container image v0.112-0 or later. This API configures metrics only. The gateway also supports tracing in v0.116-0 and later, but this package does not yet expose a typed tracing API. "
                   }
                 ]
               },
@@ -1403,6 +1803,202 @@
                   {
                     "kind": "text",
                     "text": ". "
+                  }
+                ]
+              },
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " Starting with DocumentDB v0.116-0, the gateway resolves telemetry settings as "
+                  },
+                  {
+                    "kind": "text",
+                    "text": "JSON > environment variable > default"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", reading them from "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "SetupConfiguration.json"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", and the shipped file pins metrics off. Whenever this method is called against an official "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "documentdb-local"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " image of that version or later, it therefore wraps the container entrypoint so the container starts from a copy of that configuration with the shadowing keys removed. The copy is derived from the same directory the image's own entrypoint would read: an explicit "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "CONFIG_DIR"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", else the packaged "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "/etc/documentdb/gateway"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " layout when present, else "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "$GATEWAY_HOME/pg_documentdb_gw"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ". "
+                  }
+                ]
+              },
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " The wrapper is applied for "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "enabled: false"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " as well, because a caller-supplied configuration file can turn metrics on from JSON and an explicit "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "enabled: false"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " has to win. The "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "TelemetryOptions.Metrics"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " object is removed whole, since this API owns that signal and any surviving key - including one a later gateway release adds - would re-pin a setting ahead of the environment precedence documented below, such as the "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "OTEL_EXPORTER_OTLP_ENDPOINT"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " fallback. The shared identity keys are removed only when the corresponding parameter was explicitly supplied on some call, and "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "TelemetryOptions.Tracing"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " is never touched, so the stock image keeps its shipped service identity and its disabled tracing. "
+                  }
+                ]
+              },
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " Because the gateway builds one OpenTelemetry "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "Resource"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " for all signals, supplying "
+                  },
+                  {
+                    "kind": "paramref",
+                    "value": "serviceName"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " or "
+                  },
+                  {
+                    "kind": "paramref",
+                    "value": "serviceVersion"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " removes the shared JSON identity and therefore changes the identity of exported traces too, not only metrics. Omit them to keep the identity the configuration file specifies. "
+                  }
+                ]
+              },
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " The wrapper is expressed purely as the container "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "entrypoint"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " and "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "args"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", both of which round-trip through the Aspire manifest, so publish mode, "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "azd"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " and direct run mode all execute the same thing. Custom images, tags outside the "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "pg{NN}-X.Y.Z"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " grammar and resources built from your own Dockerfile are left completely untouched — the last of those even when the resource's image annotation names the official image and a recognised tag, because what runs is the build output; private mirrors of the official image are not, because only the registry differs. Pinning the official image by digest throws, because the digest makes the version opaque and both applying and skipping the wrapper on a guess are silently wrong. Supplying your own container entrypoint on the same resource also throws, because the two cannot both own the container command. The wrapper needs "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "bash"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " and "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "jq"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", which the official image provides; it fails the container start with a diagnostic rather than starting without the override if either is missing. "
                   }
                 ]
               },
@@ -1618,7 +2214,7 @@
               "serviceName": [
                 {
                   "kind": "text",
-                  "text": " Logical service name attached to the metrics. When provided, sets "
+                  "text": " Logical service name attached to the telemetry. When provided, sets "
                 },
                 {
                   "kind": "code",
@@ -1626,13 +2222,21 @@
                 },
                 {
                   "kind": "text",
-                  "text": ". "
+                  "text": " and, on affected images, removes the shared "
+                },
+                {
+                  "kind": "code",
+                  "text": "TelemetryOptions.ServiceName"
+                },
+                {
+                  "kind": "text",
+                  "text": " so this value wins for every signal. "
                 }
               ],
               "serviceVersion": [
                 {
                   "kind": "text",
-                  "text": " Logical service version attached to the metrics. When provided, sets "
+                  "text": " Logical service version attached to the telemetry. When provided, sets "
                 },
                 {
                   "kind": "code",
@@ -1640,7 +2244,15 @@
                 },
                 {
                   "kind": "text",
-                  "text": ". "
+                  "text": " and, on affected images, removes the shared "
+                },
+                {
+                  "kind": "code",
+                  "text": "TelemetryOptions.ServiceVersion"
+                },
+                {
+                  "kind": "text",
+                  "text": " so this value wins for every signal. "
                 }
               ],
               "timeout": [
@@ -1739,7 +2351,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "792-849"
+          "sourceLines": "4473-4535"
         },
         {
           "name": "WithoutExtendedRum",
@@ -1817,7 +2429,7 @@
             }
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "601-606"
+          "sourceLines": "4228-4233"
         },
         {
           "name": "WithoutSampleData",
@@ -1839,6 +2451,20 @@
               {
                 "kind": "text",
                 "text": " Disables the built-in sample data initialization performed by the DocumentDB Local container. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Custom scripts configured through "
+              },
+              {
+                "kind": "cref",
+                "value": "M:Aspire.Hosting.DocumentDBBuilderExtensions.WithInitData(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.DocumentDBServerResource},System.String)"
+              },
+              {
+                "kind": "text",
+                "text": " are unaffected and still run for a new data volume. "
               }
             ],
             "returns": [
@@ -1865,7 +2491,7 @@
             }
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "581-586"
+          "sourceLines": "4207-4213"
         },
         {
           "name": "WithoutUserCreation",
@@ -1900,31 +2526,15 @@
             "remarks": [
               {
                 "kind": "text",
-                "text": " Use only after a previous run has already created the user in persisted storage ("
-              },
-              {
-                "kind": "cref",
-                "value": "M:Aspire.Hosting.DocumentDBBuilderExtensions.WithDataVolume(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.DocumentDBServerResource},System.String,System.Boolean,System.String)"
-              },
-              {
-                "kind": "text",
-                "text": " / "
-              },
-              {
-                "kind": "cref",
-                "value": "M:Aspire.Hosting.DocumentDBBuilderExtensions.WithDataBindMount(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.DocumentDBServerResource},System.String,System.Boolean)"
-              },
-              {
-                "kind": "text",
-                "text": "). Setting "
+                "text": " For curated images "
               },
               {
                 "kind": "code",
-                "text": "CREATE_USER=false"
+                "text": "0.112.0"
               },
               {
                 "kind": "text",
-                "text": " on a fresh container will cause init-data steps to fail authentication and the container entrypoint to exit non-zero. To avoid spurious init-data runs on subsequent starts, also call "
+                "text": " and older, built-in sample initialization is enabled by default. On a fresh container, this method must be paired with "
               },
               {
                 "kind": "cref",
@@ -1932,18 +2542,55 @@
               },
               {
                 "kind": "text",
-                "text": ". "
+                "text": " so the default initialization does not require the skipped credentials. "
               },
               {
                 "kind": "para",
                 "children": [
                   {
                     "kind": "text",
-                    "text": "Important:"
+                    "text": " For images from "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "0.113.0"
                   },
                   {
                     "kind": "text",
-                    "text": " The container's init-data scripts (both built-in sample data and custom scripts mounted via "
+                    "text": " onward, including "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "0.116.0"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", built-in sample initialization does not run unless requested. A fresh container can therefore remain running with user creation disabled when no initialization requiring those credentials is requested. The generated connection strings still will not authenticate unless the user already exists, typically in persisted storage created through "
+                  },
+                  {
+                    "kind": "cref",
+                    "value": "M:Aspire.Hosting.DocumentDBBuilderExtensions.WithDataVolume(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.DocumentDBServerResource},System.String,System.Boolean,System.String)"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " or "
+                  },
+                  {
+                    "kind": "cref",
+                    "value": "M:Aspire.Hosting.DocumentDBBuilderExtensions.WithDataBindMount(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.DocumentDBServerResource},System.String,System.Boolean)"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ". "
+                  }
+                ]
+              },
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " On every version, requested built-in sample initialization and custom scripts mounted through "
                   },
                   {
                     "kind": "cref",
@@ -1951,7 +2598,7 @@
                   },
                   {
                     "kind": "text",
-                    "text": ") authenticate using the configured credentials. If the user does not exist because creation was skipped, these scripts will fail and the container will exit. Always pair this method with "
+                    "text": " authenticate using the configured credentials. If the skipped user does not already exist, that initialization can fail and cause the container to exit. "
                   },
                   {
                     "kind": "cref",
@@ -1959,7 +2606,7 @@
                   },
                   {
                     "kind": "text",
-                    "text": " and ensure the user already exists in the persisted data. "
+                    "text": " disables only the built-in sample data; it does not disable custom initialization scripts. "
                   }
                 ]
               }
@@ -1988,7 +2635,7 @@
             }
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "631-636"
+          "sourceLines": "4265-4270"
         },
         {
           "name": "WithOwner",
@@ -2013,7 +2660,29 @@
             "summary": [
               {
                 "kind": "text",
-                "text": " Configures the owner used by the DocumentDB Local container. "
+                "text": " Configures the PostgreSQL owner role used by the DocumentDB Local container. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " The bundled PostgreSQL instance creates the default "
+              },
+              {
+                "kind": "code",
+                "text": "documentdb"
+              },
+              {
+                "kind": "text",
+                "text": " role. A custom value must name a role that already exists, such as the owner of an externally managed PostgreSQL instance. DocumentDB "
+              },
+              {
+                "kind": "code",
+                "text": "0.116.0"
+              },
+              {
+                "kind": "text",
+                "text": " aborts explicitly while creating the DocumentDB admin user when the configured role does not exist. Earlier images also fail startup, but only later while waiting for the gateway to start. "
               }
             ],
             "returns": [
@@ -2040,13 +2709,13 @@
               "owner": [
                 {
                   "kind": "text",
-                  "text": "The owner value to configure."
+                  "text": "The existing PostgreSQL role used for DocumentDB database operations."
                 }
               ]
             }
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "861-867"
+          "sourceLines": "5458-5464"
         },
         {
           "name": "WithPostgresEndpoint",
@@ -2220,7 +2889,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "315-340"
+          "sourceLines": "1599-1624"
         },
         {
           "name": "WithPostgresVersion",
@@ -2408,7 +3077,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "1014-1030"
+          "sourceLines": "5611-5627"
         },
         {
           "name": "WithTelemetry",
@@ -2511,7 +3180,7 @@
             }
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "692-697"
+          "sourceLines": "4326-4331"
         },
         {
           "name": "WithTlsCertificate",
@@ -2585,7 +3254,7 @@
             }
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBBuilderExtensions.cs",
-          "sourceLines": "652-666"
+          "sourceLines": "4286-4300"
         }
       ]
     },
@@ -2607,7 +3276,7 @@
         {
           "name": "Quiet",
           "value": 0,
-          "description": "Suppresses all log output."
+          "description": "Suppresses gateway output. This becomes effective on DocumentDB 0.114.0 and later, where the preserved quiet value is parsed as an unmatched tracing target rather than a native tracing level."
         },
         {
           "name": "Error",
@@ -2941,7 +3610,7 @@
             }
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBServerResource.cs",
-          "sourceLines": "12-195"
+          "sourceLines": "12-257"
         },
         {
           "name": ".ctor",
@@ -3017,10 +3686,41 @@
                 "kind": "text",
                 "text": " Gets the connection string for the DocumentDB server. "
               }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " The user name and password are percent-encoded into the URI userinfo component. Aspire applies RFC 3986 escaping ("
+              },
+              {
+                "kind": "cref",
+                "value": "M:System.Uri.EscapeDataString(System.String)"
+              },
+              {
+                "kind": "text",
+                "text": ") when it resolves this reference, so MongoDB clients decode the original values back. In a published manifest the escaping is instead performed by the downstream publisher, which does not necessarily match RFC 3986; see "
+              },
+              {
+                "kind": "href",
+                "text": "Credential\n            encoding",
+                "value": "https://github.com/microsoft/azure-databases-aspire/blob/main/docs/configuration.md#credential-encoding"
+              },
+              {
+                "kind": "text",
+                "text": " for publisher-specific behavior, including the "
+              },
+              {
+                "kind": "code",
+                "text": "azd"
+              },
+              {
+                "kind": "text",
+                "text": " limitation for credentials containing spaces. "
+              }
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBServerResource.cs",
-          "sourceLines": "96-96"
+          "sourceLines": "155-155"
         },
         {
           "name": "Databases",
@@ -3038,7 +3738,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBServerResource.cs",
-          "sourceLines": "200-200"
+          "sourceLines": "262-262"
         },
         {
           "name": "PasswordParameter",
@@ -3160,7 +3860,15 @@
                   },
                   {
                     "kind": "text",
-                    "text": " used by the MongoDB gateway because the container creates a single admin user shared by both surfaces. "
+                    "text": " used by the MongoDB gateway because the container creates a single admin user shared by both surfaces, and they are percent-encoded exactly as they are in "
+                  },
+                  {
+                    "kind": "cref",
+                    "value": "P:Aspire.Hosting.ApplicationModel.DocumentDBServerResource.ConnectionStringExpression"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", with the same publisher-specific behavior when the model is published. "
                   }
                 ]
               },
@@ -3208,7 +3916,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBServerResource.cs",
-          "sourceLines": "124-124"
+          "sourceLines": "186-186"
         },
         {
           "name": "PostgresEndpoint",
@@ -3417,6 +4125,11 @@
           "name": "V0_114_0",
           "value": 6,
           "description": "DocumentDB 0.114.0."
+        },
+        {
+          "name": "V0_116_0",
+          "value": 7,
+          "description": "DocumentDB 0.116.0."
         }
       ],
       "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBVersion.cs",
@@ -3476,7 +4189,7 @@
         ]
       },
       "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBVersion.cs",
-      "sourceLines": "122-122",
+      "sourceLines": "128-128",
       "members": [
         {
           "name": "V0_109_0",
@@ -3635,6 +4348,32 @@
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBVersion.cs"
         },
         {
+          "name": "V0_116_0",
+          "kind": "field",
+          "accessibility": "public",
+          "signature": "public const static string DocumentDBVersions.V0_116_0",
+          "returnType": "string",
+          "isStatic": true,
+          "isConst": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": "DocumentDB version string "
+              },
+              {
+                "kind": "code",
+                "text": "0.116.0"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ]
+          },
+          "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBVersion.cs"
+        },
+        {
           "name": "All",
           "kind": "property",
           "accessibility": "public",
@@ -3673,7 +4412,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBVersion.cs",
-          "sourceLines": "122-122"
+          "sourceLines": "128-128"
         },
         {
           "name": "Latest",
@@ -3722,7 +4461,7 @@
             ]
           },
           "sourceFile": "/home/runner/work/azure-databases-aspire/azure-databases-aspire/src/Aspire.Hosting.DocumentDB/DocumentDBVersion.cs",
-          "sourceLines": "146-146"
+          "sourceLines": "153-153"
         }
       ]
     }

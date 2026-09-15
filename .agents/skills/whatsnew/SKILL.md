@@ -77,7 +77,7 @@ infer from context — e.g. a fresh release with no page → `draft`).
 | What | Path |
 |------|------|
 | What's-new pages | `src/frontend/src/content/docs/whats-new/aspire-N-N.mdx` (JA under `.../ja/whats-new/`) |
-| Version constants | `src/frontend/config/aspire-versions.mjs` (`currentAspireMajorMinorVersion`, `currentAspireVersion`) |
+| Version constants | `src/frontend/config/aspire-versions.mjs` (`currentAspireMajorMinorVersion`, `currentAspireVersion`, `currentAspirePreviewVersion`) |
 | Sidebar | `src/frontend/config/sidebar/docs.topics.ts` (What's-new `items`) |
 | Announcement banner | `banner:` frontmatter on `src/frontend/src/content/docs/index.mdx`, `src/frontend/src/content/docs/docs.mdx`, `src/frontend/src/content/docs/community/index.mdx`, and each `src/frontend/src/content/docs/{locale}/index.mdx` (+ `.../ja/docs.mdx`); rendered by `src/frontend/src/components/starlight/Banner.astro` |
 | Assets | `src/frontend/src/assets/whats-new/aspire-<version>/` |

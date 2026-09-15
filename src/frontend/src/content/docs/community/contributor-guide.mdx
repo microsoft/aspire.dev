@@ -247,9 +247,9 @@ Third-party links are appropriate when they help readers complete a task or unde
 - **Disclose affiliations** - In the **Third-party links and affiliations** section of the pull request description, disclose any material affiliation with a linked organization, such as employment, sponsorship, or ownership. An affiliation doesn't automatically disqualify a link, but the link and surrounding content must meet the same editorial standards as any other contribution.
 - **Review generated content** - Automated updates and generated catalogs aren't exempt. They may reproduce upstream metadata when that's the catalog's explicit purpose, but the reviewing maintainer must apply the same editorial standards to the surrounding content and linked destinations.
 
-### AppHost-specific C# and TypeScript content
+### AppHost-specific TypeScript and C# content
 
-When you are documenting AppHost-specific content that changes between C# and TypeScript, use synced `Tabs` and `TabItem` blocks with `syncKey='aspire-lang'`. Each code snippet should have its own C# and TypeScript selector, and the shared sync key keeps the selected language consistent across the page.
+When you are documenting AppHost-specific content that changes between TypeScript and C#, use synced `Tabs` and `TabItem` blocks with `syncKey='aspire-lang'`. Put TypeScript first so `apphost.mts` is the default for readers without a saved preference. Each code snippet should have its own TypeScript and C# selector, and the shared sync key keeps the selected language consistent across the page.
 
 Use `Tabs` for other choices such as package managers, deployment targets, IDEs, or CLI variants.
 
@@ -799,7 +799,7 @@ Here's an example of using the `LearnMore` component:
 
 ### Aspire language selectors
 
-Use synced `Tabs` and `TabItem` blocks for AppHost content that switches between C# and TypeScript. Each AppHost code snippet should have its own selector, and every AppHost language selector on the page should share `syncKey='aspire-lang'` so a reader's language choice applies to the whole page.
+Use synced `Tabs` and `TabItem` blocks for AppHost content that switches between TypeScript and C#. Put TypeScript first so the `apphost.mts` tab appears on the left and is selected by default. Each AppHost code snippet should have its own selector, and every AppHost language selector on the page should share `syncKey='aspire-lang'` so a reader's language choice applies to the whole page.
 
 Keep shared section headings outside the tabs. For example, write `## Add a Redis resource` before the `Tabs` block, then place the language-specific code inside the `csharp` and `typescript` tab items. This helps the **On this page** navigation stay accurate.
 
@@ -811,20 +811,6 @@ title: Example MDX Page
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var cache = builder.AddRedis("cache");
-
-builder.AddProject<Projects.Api>("api")
-    .WithReference(cache);
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts" twoslash
@@ -838,6 +824,20 @@ const api = await builder.addProject("api", "../Api/Api.csproj");
 await api.withReference(cache);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache);
+
+builder.Build().Run();
 ```
 
 </TabItem>

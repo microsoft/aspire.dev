@@ -868,6 +868,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         { label: 'Docker', slug: 'integrations/compute/docker' },
+        { label: 'Floci', slug: 'integrations/compute/floci' },
         { label: 'K3s', slug: 'integrations/compute/k3s' },
         { label: 'Kubernetes', slug: 'integrations/compute/kubernetes' },
       ],
@@ -1329,6 +1330,14 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': 'C# 和 .NET',
           },
           items: [
+            {
+              label: 'Get started with the .NET / C# app integration',
+              slug: 'integrations/frameworks/dotnet/dotnet-get-started',
+            },
+            {
+              label: 'Set up C# apps by path in the AppHost',
+              slug: 'integrations/frameworks/dotnet/dotnet-host',
+            },
             { label: 'Project resources', slug: 'integrations/dotnet/project-resources' },
             { label: 'C# file-based apps', slug: 'integrations/dotnet/csharp-file-based-apps' },
             { label: 'Launch profiles', slug: 'integrations/dotnet/launch-profiles' },
@@ -1338,8 +1347,14 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               collapsed: true,
               items: [
                 { label: 'Get started', slug: 'integrations/dotnet/blazor-get-started' },
-                { label: 'Set up Blazor hosting in the AppHost', slug: 'integrations/dotnet/blazor-hosting' },
-                { label: 'Connect Blazor apps and APIs', slug: 'integrations/dotnet/blazor-connect' },
+                {
+                  label: 'Set up Blazor hosting in the AppHost',
+                  slug: 'integrations/dotnet/blazor-hosting',
+                },
+                {
+                  label: 'Connect Blazor apps and APIs',
+                  slug: 'integrations/dotnet/blazor-connect',
+                },
               ],
             },
             { label: '.NET MAUI', slug: 'integrations/dotnet/maui' },
@@ -1362,20 +1377,6 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Connect to Dapr',
               slug: 'integrations/frameworks/dapr/dapr-connect',
-            },
-          ],
-        },
-        {
-          label: '.NET / C#',
-          collapsed: true,
-          items: [
-            {
-              label: 'Get started',
-              slug: 'integrations/frameworks/dotnet/dotnet-get-started',
-            },
-            {
-              label: 'Set up .NET / C# apps in the AppHost',
-              slug: 'integrations/frameworks/dotnet/dotnet-host',
             },
           ],
         },

@@ -8,6 +8,24 @@ test.beforeEach(async ({ page }) => {
   await dismissCookieConsentIfVisible(page);
 });
 
+test('links directly to local observability and agent debugging guides', async ({ page }) => {
+  const links = page.locator('.observability-links a');
+  await expect(links).toHaveText([
+    'Explore the Aspire dashboard',
+    'Standalone dashboard',
+    'OpenTelemetry concepts',
+    'Debug with coding agents',
+  ]);
+  expect(
+    await links.evaluateAll((anchors) => anchors.map((anchor) => anchor.getAttribute('href')))
+  ).toEqual([
+    '/dashboard/overview/',
+    '/dashboard/standalone/',
+    '/fundamentals/telemetry/',
+    '/dashboard/ai-coding-agents/',
+  ]);
+});
+
 test('renders a complete semantic landing page without horizontal overflow', async ({ page }) => {
   await expect(page.locator('main h1')).toHaveCount(1);
   await expect(
