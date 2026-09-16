@@ -370,14 +370,14 @@ public sealed class YouTubeWebSubServiceTests
         if (failureKind == "unexpected")
         {
             Assert.Equal(LogLevel.Error, report.Level);
-            Assert.Same(failure, report.Exception);
+            Assert.Null(report.Exception);
         }
         else
         {
             Assert.Equal(LogLevel.Warning, report.Level);
             Assert.Null(report.Exception);
             Assert.Contains("Next subscription attempt", report.Message, StringComparison.Ordinal);
-            Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Debug && entry.Exception == failure);
+            Assert.DoesNotContain(logger.Entries, entry => entry.Exception is not null);
         }
 
         time.Advance(TimeSpan.FromMinutes(2));
