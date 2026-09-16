@@ -153,26 +153,6 @@ Without the blank lines between steps, the inner content won't render correctly.
 
 </Aside>
 
-### Client-side navigation and JavaScript
-
-The site uses Astro's `<ClientRouter fallback="swap" />` to keep native Picture-in-Picture playback running while readers browse. Navigation replaces page content, not the running JavaScript environment. Follow the [official Astro router and lifecycle APIs](https://docs.astro.build/en/guides/view-transitions/#router-control) when adding interactive components.
-
-| Lifetime | Examples | Initialization and cleanup |
-| --- | --- | --- |
-| Document | Live status, PiP state, consent, delegated global handlers | Initialize once in a bundled module. Keep persistent state separate from page controls. |
-| Page | Diagram rendering, page-bound observers, layout work | Initialize on `astro:page-load`; dispose outgoing work on `astro:before-swap`. Check that the relevant elements exist. |
-| Element | Search dialogs, selectors, code hovers | Make mounting idempotent. Use custom-element connection callbacks or an explicit cleanup function for resources owned by the element. |
-
-Use an `AbortController` for event subscriptions and explicitly cancel timers, animation frames, observers, and asynchronous work when its owner leaves. A delayed import must not initialize a detached element. Reserve `astro:after-swap` for work needed before paint, such as restoring theme state. Do not tear down the current page at `astro:before-preparation`: loading can fail or be canceled while that page remains visible.
-
-The site renders Mermaid fences through a small remark transform and the `mermaid` library directly. Its shared runtime owns lazy loading, theme changes, and page disposal. The scroll-to-top button is a native site component with element-owned listeners; neither feature requires a third-party lifecycle patch.
-
-Preserve `history.state` when updating query parameters so Back and Forward retain Astro's navigation metadata. The shared head copies the effective theme into the incoming document during `astro:before-swap`; static HTML must not overwrite the reader's theme selection. Avoid blanket script reruns or global console suppression; both hide ownership problems.
-
-The deployment guard compares incoming build metadata before swapping. A changed deployment uses Astro's full-navigation fallback to replace the running code safely, even if that closes PiP. Same-deployment browsing stays client-side. Tabs opened before the guard was deployed need one full reload to adopt it.
-
-Test interactive changes against a production build using real link clicks, repeated visits, and Back/Forward. Include pages without the component and navigation while asynchronous work is pending. A direct `page.goto()` for every assertion can hide lifecycle failures.
-
 ## ➡️ Git workflow
 
 <Steps>
