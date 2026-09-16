@@ -30,7 +30,11 @@ async function navigateClient(page: Page, href: string) {
 
 for (const fallback of [false, true]) {
   test.describe(fallback ? 'site UI swap fallback' : 'site UI native transitions', () => {
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async ({ page, isMobile }) => {
+      test.skip(
+        isMobile && !fallback,
+        'Chromium touch emulation aborts native transitions; touch projects cover the swap fallback.'
+      );
       // These runtime tests must never submit analytics events.
       await page.route('**/scripts/analytics/*.js', (route) =>
         route.fulfill({

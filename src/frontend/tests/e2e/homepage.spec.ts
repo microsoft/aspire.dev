@@ -417,6 +417,9 @@ test('presents the application model as a live polyglot topology', async ({ page
   await terminalWindow.scrollIntoViewIfNeeded();
   await expect(story).toHaveAttribute('data-story-playing', 'true', { timeout: 10_000 });
   await expect(story).toHaveAttribute('data-story-focus', 'stage', { timeout: 10_000 });
+  // Center the whole stage so clicking its tab does not scroll the terminal out of view.
+  await story.locator('[data-model-story-surface]').scrollIntoViewIfNeeded();
+  await expect(story).toHaveAttribute('data-story-viewport-active', '');
   await topologyStage.click();
   await expect(story).toHaveAttribute('data-story-playing', 'false');
   await expect(story).toHaveAttribute('data-story-stage', 'topology');
@@ -1433,6 +1436,16 @@ test('keeps the environment frame stable while each topology changes', async ({ 
       )
     )
     .toBeGreaterThan(0.5);
+  await expect
+    .poll(() =>
+      productionPanel.locator('.topology-node').evaluateAll((nodes) =>
+        nodes.every((node) => {
+          const transform = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+          return Math.abs(transform.m41) > 1 || Math.abs(transform.m42) > 1;
+        })
+      )
+    )
+    .toBe(true);
   const enteringTransforms = await productionPanel
     .locator('.topology-node')
     .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transform));
@@ -1449,12 +1462,14 @@ test('keeps the environment frame stable while each topology changes', async ({ 
       )
     )
     .toBeLessThan(0.1);
-  const centeredTransforms = await productionPanel
-    .locator('.topology-node')
-    .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transform));
-  expect(
-    enteringTransforms.some((transform, index) => transform !== centeredTransforms[index])
-  ).toBe(true);
+  await expect
+    .poll(async () => {
+      const centeredTransforms = await productionPanel
+        .locator('.topology-node')
+        .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transform));
+      return enteringTransforms.some((transform, index) => transform !== centeredTransforms[index]);
+    })
+    .toBe(true);
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(
     false
