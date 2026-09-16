@@ -1,6 +1,112 @@
 import { expect, test } from '@playwright/test';
 
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import { deferAppHostExamples } from '../../config/apphost-examples.mjs';
+
+test.describe('deferred AppHost examples', () => {
+  test.beforeEach(async ({ page, request, baseURL }) => {
+    // Exercise the production transformation locally without a full site build.
+    const response = await request.get('/');
+    const html = await response.text();
+    if (!html.includes('data-apphost-examples=')) {
+      const deferred = deferAppHostExamples(html);
+      await page.route(new URL('/', baseURL).href, (route) =>
+        route.fulfill({ response, body: deferred.html })
+      );
+      await page.route(`**/_astro/${deferred.filename}`, (route) =>
+        route.fulfill({ contentType: 'text/html', body: deferred.examples })
+      );
+    }
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+  });
+
+  test('loads examples once on interaction and keeps the initial default useful', async ({
+    page,
+  }) => {
+    const exampleRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/\/_astro\/apphost-examples\./.test(request.url())) {
+        exampleRequests.push(request.url());
+      }
+    });
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+    const builder = page.locator('[data-apphost-builder]').first();
+    const stage = builder.locator('[data-code-stage]');
+    await expect(stage).toHaveAttribute('data-code-variant', 'frontend');
+    await expect(stage).toContainText('.addViteApp("frontend"');
+    await expect(builder.locator('.code-variant')).toHaveCount(1);
+    expect(exampleRequests).toHaveLength(0);
+
+    await builder.locator('[data-toggle="database"]').click();
+    await expect(stage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+    await builder.locator('[data-lang="csharp"]').click();
+    await expect(stage).toHaveAttribute('data-code-lang', 'csharp');
+    await expect(stage).toContainText('AddPostgres("db")');
+    expect(exampleRequests).toHaveLength(1);
+  });
+
+  for (const failure of ['unavailable', 'invalid content']) {
+    test(`keeps the last preview and allows retry after ${failure}`, async ({ page }) => {
+      let requests = 0;
+      await page.route('**/_astro/apphost-examples.*.html', async (route) => {
+        requests++;
+        if (requests === 1) {
+          await route.fulfill({
+            status: failure === 'unavailable' ? 503 : 200,
+            contentType: 'text/html',
+            body: '<html>Examples unavailable</html>',
+          });
+        } else {
+          await route.fallback();
+        }
+      });
+      await page.goto('/');
+      await dismissCookieConsentIfVisible(page);
+      const builder = page.locator('[data-apphost-builder]').first();
+      const stage = builder.locator('[data-code-stage]');
+      const status = builder.locator('[data-code-status]');
+      await builder.locator('[data-lang="csharp"]').click();
+      await expect(status).toBeVisible();
+      await expect(status).toContainText('Select an option to try again.');
+      await expect(stage).toHaveAttribute('data-code-lang', 'typescript');
+      await expect(stage).toContainText('.addViteApp("frontend"');
+      await expect(builder.locator('[data-apphost-code-display]')).toHaveAttribute(
+        'aria-busy',
+        'false'
+      );
+
+      await builder.locator('[data-lang="csharp"]').click();
+      await expect(stage).toHaveAttribute('data-code-lang', 'csharp');
+      await expect(status).not.toContainText('Could not load');
+      expect(requests).toBe(2);
+    });
+  }
+
+  test('uses the latest selection when controls change during loading', async ({ page }) => {
+    const gate = Promise.withResolvers<void>();
+    await page.route('**/_astro/apphost-examples.*.html', async (route) => {
+      await gate.promise;
+      await route.fallback();
+    });
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+    const builder = page.locator('[data-apphost-builder]').first();
+    await builder.locator('[data-toggle="database"]').click();
+    await expect(builder.locator('[data-apphost-code-display]')).toHaveAttribute(
+      'aria-busy',
+      'true'
+    );
+    await builder.locator('[data-toggle="api"]').click();
+    await builder.locator('[data-lang="csharp"]').click();
+    gate.resolve();
+
+    const stage = builder.locator('[data-code-stage]');
+    await expect(stage).toHaveAttribute('data-code-lang', 'csharp');
+    await expect(stage).toHaveAttribute('data-code-variant', 'databaseApiFrontend');
+    await expect(stage).toContainText('AddPostgres("db")');
+  });
+});
 
 test('app host builder swaps visible code when toggles and language change', async ({ page }) => {
   await page.goto('/');

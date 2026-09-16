@@ -3,12 +3,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { replaceAspireVersionPlaceholders } from './remark-aspire-version-placeholders.mjs';
 import { orderTypeScriptFirstAppHostTabsInMarkdown } from './remark-typescript-first-apphost-tabs.mjs';
+import { renderHomepageMarkdown } from './homepage-markdown.mjs';
+import { locales } from './locales.ts';
+import { deferAppHostExamples } from './apphost-examples.mjs';
 
 // Per-page Markdown copies emitted by `starlight-page-actions` bypass the
 // remark transforms that replace Aspire version placeholders and order AppHost
 // language tabs:
 // that plugin `viteStaticCopy`s `src/content/docs/**/*.{md,mdx}` straight to
-// `dist/**/*.md` through a regex-only transform, so it never runs through the
+// `dist/**/*.md` through source cleanup, so it never runs through the
 // configured remark pipeline.
 //
 // Everything else is already handled before it reaches `dist`:
@@ -17,10 +20,9 @@ import { orderTypeScriptFirstAppHostTabsInMarkdown } from './remark-typescript-f
 //   - `llms*.txt`     -> `starlight-llms-txt` sources rendered HTML (`render(entry)`)
 //   - `reference/**.md` -> generated from API/sample data, not docs content
 //
-// So this post-build pass only needs to touch `.md` files. Scoping it this way
-// (instead of walking every `.html`/`.txt` in `dist`) avoids re-reading the bulk
-// of the output — including the large `llms-full.txt` assets — which is what
-// previously exhausted the Node heap.
+// Version normalization only walks `.md` files. The homepage finalization
+// below also reads the known homepage HTML files, not every `.html`/`.txt`
+// asset in `dist`, which previously exhausted the Node heap.
 const markdownCopyExtensions = new Set(['.md']);
 
 // Process the Markdown copies through a small worker pool rather than a single
@@ -33,7 +35,23 @@ export function aspireVersionPlaceholdersIntegration() {
     name: 'aspire-version-placeholders',
     hooks: {
       'astro:build:done': async ({ dir }) => {
-        await replaceAspireVersionPlaceholdersInDirectory(fileURLToPath(dir));
+        const directory = fileURLToPath(dir);
+        // Page-actions copies raw MDX, so component-only homepages need their
+        // rendered content instead. Ordinary documentation keeps its existing path.
+        for (const locale of Object.keys(locales)) {
+          const localePath = locale === 'root' ? '' : locale;
+          const html = await readFile(path.join(directory, localePath, 'index.html'), 'utf8');
+          const markdown = await renderHomepageMarkdown(html);
+          await writeFile(path.join(directory, `${localePath || 'index'}.md`), markdown, 'utf8');
+          const deferred = deferAppHostExamples(html);
+          await writeFile(
+            path.join(directory, '_astro', deferred.filename),
+            deferred.examples,
+            'utf8'
+          );
+          await writeFile(path.join(directory, localePath, 'index.html'), deferred.html, 'utf8');
+        }
+        await replaceAspireVersionPlaceholdersInDirectory(directory);
       },
     },
   };

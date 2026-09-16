@@ -1,14 +1,15 @@
 ---
-title: Telemetry
-seoTitle: 'Aspire telemetry: OpenTelemetry logs, traces, and metrics'
-description: Learn the essential Aspire telemetry concepts — logging, distributed tracing, and metrics with OpenTelemetry, and how the Aspire dashboard surfaces them in real time.
+title: OpenTelemetry and distributed tracing in Aspire
+description: Correlate application logs, distributed traces, and metrics across local services. Learn how Aspire receives OpenTelemetry and makes it available to coding agents.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
 
-One of the primary objectives of Aspire is to ensure that apps are straightforward to debug and diagnose. Aspire integrations automatically set up logging, tracing, and metrics configurations—sometimes known as the pillars of observability—using the [.NET OpenTelemetry SDK](https://github.com/open-telemetry/opentelemetry-dotnet).
+Aspire uses OpenTelemetry to make distributed applications easier to debug. Instrumented services send logs, traces, and metrics to the [Aspire dashboard](/dashboard/overview/), where you can follow a request across local services and correlate errors with the work that produced them.
+
+Telemetry depends on each application's instrumentation and exporter configuration. .NET service defaults and client integrations configure the .NET OpenTelemetry SDK; [Python](/dashboard/standalone-for-python/) and [JavaScript on Node.js](/dashboard/standalone-for-nodejs/) use their own SDKs. Running a service through Aspire doesn't automatically instrument every language or library.
 
 ## The three pillars of observability
 
@@ -20,11 +21,17 @@ One of the primary objectives of Aspire is to ensure that apps are straightforwa
 
 Together, these types of telemetry allow you to gain insights into your application's behavior and performance using various monitoring and analysis tools. Depending on the backing service, some integrations may only support some of these features.
 
+### Follow a request across local services
+
+A distributed trace groups spans from one request under a shared trace ID. Instrument the incoming request handlers and outgoing clients in each service so they propagate trace context across HTTP calls or other supported transports. The dashboard can then show which service or dependency failed, how long each operation took, and logs that carry the same trace ID.
+
+Resource health and request success answer different questions. A process can be running and pass its health check while a particular request returns an error. Inspect the failed request's trace and correlated logs, not only the resource's health indicator.
+
 ## Aspire OpenTelemetry integration
 
 The [.NET OpenTelemetry SDK](https://github.com/open-telemetry/opentelemetry-dotnet) includes features for gathering data from several .NET APIs, including `ILogger`, `Activity`, `Meter`, and `Instrument<T>`. These APIs correspond to telemetry features like logging, tracing, and metrics.
 
-Aspire projects define OpenTelemetry SDK configurations in the service defaults project. By default, the `ConfigureOpenTelemetry` method enables logging, tracing, and metrics for the app. It also adds exporters for these data points so they can be collected by other monitoring tools.
+.NET projects using service defaults define OpenTelemetry SDK configuration there. By default, the `ConfigureOpenTelemetry` method enables logging, tracing, and metrics for the app. It also configures exporters so other monitoring tools can collect these signals.
 
 <LearnMore>
 For more information, see [Service defaults](/get-started/csharp-service-defaults/).
@@ -74,7 +81,7 @@ All of these steps happen internally, so in most cases you simply need to run th
 
 ### Use telemetry with AI coding agents
 
-AI coding agents can access Aspire telemetry to diagnose issues, inspect app behavior, and monitor resources without requiring you to manually copy data from the dashboard. The Aspire CLI is built for agent-driven workflows—commands support non-interactive execution and `--format Json` for structured output that agents can parse.
+AI coding agents can access the same application telemetry you inspect in the dashboard to diagnose failures and verify fixes. This is observability of your application for coding agents, not monitoring of the agents' reasoning or token usage. [Aspire skills](/get-started/aspire-skills/) teach CLI-first workflows, including non-interactive commands and `--format Json` output.
 
 When running an Aspire AppHost, agents use CLI commands like `aspire otel logs`, `aspire otel traces`, and `aspire describe` to fetch structured logs, distributed traces, and resource status directly from the dashboard. A typical agent workflow starts the app with `aspire start`, waits for resources with `aspire wait`, then queries telemetry to diagnose issues and verify fixes.
 
@@ -83,6 +90,7 @@ When using a standalone dashboard, agents pass `--dashboard-url` to point CLI co
 <LearnMore>
 
 - [AI coding agents and Aspire](/get-started/ai-coding-agents/) — using AI agents with an Aspire AppHost
+- [Debug application failures with AI coding agents](/dashboard/ai-coding-agents/) — investigate the same logs and traces as a human
 - [AI coding agents and the Aspire Dashboard](/dashboard/ai-coding-agents/#standalone-mode) — using AI agents with a standalone dashboard
 
 </LearnMore>

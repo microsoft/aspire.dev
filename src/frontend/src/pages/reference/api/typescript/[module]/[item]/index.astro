@@ -272,7 +272,8 @@ if (itemKind === 'handle') {
 
     {/* ── Type-scoped search (for complex types) ──────────────── */}
     {hasSearchableMembers && (
-      <div class="type-search-section not-content">
+      <div class="type-search-section not-content" data-api-search-language="typescript" data-api-search-kind="item" data-member-count={memberCount}>
+        <script is:inline type="application/json" data-api-search-index set:html={typeIndexJson.replace(/</g, '\\u003c')} />
         <InpageSearch
           id="type"
           placeholder={`Search members of ${item.name}…`}
@@ -424,16 +425,9 @@ if (itemKind === 'handle') {
   </div>{/* close not-content kind-tint */}
 </StarlightPage>
 
-{hasSearchableMembers && (
-  <script define:vars={{ typeIndexJson, memberCount }}>
-    window.__typeSearchIndex = JSON.parse(typeIndexJson);
-    window.__typeMemberCount = memberCount;
-  </script>
-)}
-
-{hasSearchableMembers && (
   <script>
-    import '@components/api-reference/inpage-search-sync';
+    import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
+    import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
 
     interface TypeIndexEntry {
       n: string;
@@ -466,34 +460,38 @@ if (itemKind === 'handle') {
       private memberCount: number;
       private activeKinds = new Set<string>();
       private debounceTimer: number | null = null;
+      private highlightTimers = new Set<number>();
       private lastScored: { entry: TypeIndexEntry; score: number }[] = [];
       private lastTokens: string[] = [];
       private visibleCount = 0;
-      private sync: any;
+      private sync: InpageSearchSync;
 
-      constructor() {
-        this.input = document.getElementById('type-search-input') as HTMLInputElement;
-        this.resultsEl = document.getElementById('type-search-results') as HTMLElement;
-        this.status = document.getElementById('type-search-status') as HTMLElement;
-        this.countEl = document.getElementById('type-search-count') as HTMLElement;
-        this.filtersEl = document.getElementById('type-kind-filters') as HTMLElement;
-        this.clearFiltersBtn = document.getElementById('type-clear-filters') as HTMLElement;
-        this.index = (window as any).__typeSearchIndex ?? [];
-        this.memberCount = (window as any).__typeMemberCount ?? 0;
+      constructor(root: HTMLElement, private signal: AbortSignal) {
+        this.input = root.querySelector<HTMLInputElement>('#type-search-input')!;
+        this.resultsEl = root.querySelector<HTMLElement>('#type-search-results')!;
+        this.status = root.querySelector<HTMLElement>('#type-search-status')!;
+        this.countEl = root.querySelector<HTMLElement>('#type-search-count')!;
+        this.filtersEl = root.querySelector<HTMLElement>('#type-kind-filters')!;
+        this.clearFiltersBtn = root.querySelector<HTMLElement>('#type-clear-filters')!;
+        this.index = readApiSearchIndex<TypeIndexEntry>(root);
+        this.memberCount = Number(root.dataset.memberCount ?? 0);
 
-        if (!this.input || !this.resultsEl) return;
-
-        this.sync = new (window as any).InpageSearchSync('type', () => this.clear());
+        this.sync = new InpageSearchSync('type', () => this.clear(), root, signal);
+        signal.addEventListener('abort', () => {
+          if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+          this.highlightTimers.forEach(timer => clearTimeout(timer));
+          this.highlightTimers.clear();
+        }, { once: true });
 
         this.init();
         this.restoreFromUrl();
       }
 
       private init(): void {
-        this.input.addEventListener('input', () => this.handleInput());
+        this.input.addEventListener('input', () => this.handleInput(), { signal: this.signal });
         this.input.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') this.clear();
-        });
+        }, { signal: this.signal });
 
         this.filtersEl?.querySelectorAll('.api-filter-chip').forEach(chip => {
           chip.addEventListener('click', () => {
@@ -510,7 +508,7 @@ if (itemKind === 'handle') {
             this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
             this.syncUrl();
             this.applySearch();
-          });
+          }, { signal: this.signal });
         });
 
         this.clearFiltersBtn?.addEventListener('click', () => {
@@ -522,7 +520,7 @@ if (itemKind === 'handle') {
           this.clearFiltersBtn.style.display = 'none';
           this.syncUrl();
           this.applySearch();
-        });
+        }, { signal: this.signal });
 
         this.resultsEl.addEventListener('click', (e) => {
           const link = (e.target as HTMLElement).closest('a.api-search-result');
@@ -534,10 +532,14 @@ if (itemKind === 'handle') {
           if (target) {
             target.scrollIntoView({ behavior: 'smooth', block: 'start' });
             target.classList.add('search-highlight');
-            setTimeout(() => target.classList.remove('search-highlight'), 1500);
+            const timer = window.setTimeout(() => {
+              target.classList.remove('search-highlight');
+              this.highlightTimers.delete(timer);
+            }, 1500);
+            this.highlightTimers.add(timer);
             history.replaceState(null, '', href);
           }
-        });
+        }, { signal: this.signal });
       }
 
       private clear(): void {
@@ -706,7 +708,7 @@ if (itemKind === 'handle') {
           btn.type = 'button';
           const nextCount = Math.min(remaining, PAGE_SIZE);
           btn.textContent = `Show ${fmtNum(nextCount)} more of ${fmtNum(remaining)} remaining`;
-          btn.addEventListener('click', () => this.loadMore());
+          btn.addEventListener('click', () => this.loadMore(), { signal: this.signal });
           this.resultsEl.appendChild(btn);
         }
       }
@@ -751,11 +753,8 @@ if (itemKind === 'handle') {
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      new TypeSearchController();
-    });
+    registerApiSearch('typescript', 'item', (root, signal) => new TypeSearchController(root, signal));
   </script>
-)}
 
 <style>
   /* Kind-tinted page wrapper — sets --kind-tint for the top border accent */

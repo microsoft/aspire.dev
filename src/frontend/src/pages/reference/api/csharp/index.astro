@@ -134,7 +134,8 @@ const indexJson = JSON.stringify(index);
     { label: 'Search C# APIs' },
   ]} />
 
-  <div class="api-ref-landing not-content">
+  <div class="api-ref-landing not-content" data-api-search-language="csharp" data-api-search-kind="landing" data-base={base} data-type-count={typeCount} data-member-count={memberCount}>
+    <script is:inline type="application/json" data-api-search-index set:html={indexJson.replace(/</g, '\\u003c')} />
     <p class="csharp-api-intro">
       Browse the C# API reference for Aspire packages, including <a href={`${base}/integrations/overview/#hosting-integrations`}>hosting integrations</a>,
       <a href={`${base}/integrations/overview/#client-integrations`}>client integrations</a>, and the <a href={`${base}/integrations/gallery/?official=false`}>Community Toolkit</a>.
@@ -166,16 +167,9 @@ const indexJson = JSON.stringify(index);
   </div>
 </StarlightPage>
 
-<!-- Embed the search index -->
-<script is:inline define:vars={{ indexJson, base, typeCount, memberCount }}>
-  window.__apiSearchIndex = JSON.parse(indexJson);
-  window.__apiBase = base;
-  window.__apiTypeCount = typeCount;
-  window.__apiMemberCount = memberCount;
-</script>
-
 <script>
-  import '@components/api-reference/inpage-search-sync';
+  import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
+  import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
 
   interface IndexEntry {
     n: string;
@@ -248,23 +242,26 @@ const indexJson = JSON.stringify(index);
     private lastScored: { entry: IndexEntry; score: number }[] = [];
     private lastTokens: string[] = [];
     private visibleCount = 0;
-    private sync: any;
+    private sync: InpageSearchSync;
 
-    constructor() {
-      this.input = document.getElementById('api-search-input') as HTMLInputElement;
-      this.resultsEl = document.getElementById('api-search-results') as HTMLElement;
-      this.packageList = document.getElementById('api-package-list') as HTMLElement;
-      this.status = document.getElementById('api-search-status') as HTMLElement;
-      this.countEl = document.getElementById('api-search-count') as HTMLElement;
-      this.filtersEl = document.getElementById('api-kind-filters') as HTMLElement;
-      this.clearFiltersBtn = document.getElementById('api-clear-filters') as HTMLElement;
-      this.index = (window as any).__apiSearchIndex ?? [];
-      this.base = (window as any).__apiBase ?? '';
-      this.typeCount = (window as any).__apiTypeCount ?? 0;
-      this.memberCount = (window as any).__apiMemberCount ?? 0;
+    constructor(private root: HTMLElement, private signal: AbortSignal) {
+      this.input = root.querySelector<HTMLInputElement>('#api-search-input')!;
+      this.resultsEl = root.querySelector<HTMLElement>('#api-search-results')!;
+      this.packageList = root.querySelector<HTMLElement>('#api-package-list')!;
+      this.status = root.querySelector<HTMLElement>('#api-search-status')!;
+      this.countEl = root.querySelector<HTMLElement>('#api-search-count')!;
+      this.filtersEl = root.querySelector<HTMLElement>('#api-kind-filters')!;
+      this.clearFiltersBtn = root.querySelector<HTMLElement>('#api-clear-filters')!;
+      this.index = readApiSearchIndex<IndexEntry>(root);
+      this.base = root.dataset.base ?? '';
+      this.typeCount = Number(root.dataset.typeCount ?? 0);
+      this.memberCount = Number(root.dataset.memberCount ?? 0);
       this.packageCount = new Set(this.index.map(e => e.p)).size;
 
-      this.sync = new (window as any).InpageSearchSync('api', () => this.clear());
+      this.sync = new InpageSearchSync('api', () => this.clear(), root, signal);
+      signal.addEventListener('abort', () => {
+        if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      }, { once: true });
 
       this.init();
       this.restoreFromUrl();
@@ -292,11 +289,11 @@ const indexJson = JSON.stringify(index);
         }
 
         this.applySearch();
-      });
+      }, { signal });
     }
 
     private syncVersionStateFromDom(): void {
-      const vfContainer = document.querySelector('.version-filter');
+      const vfContainer = this.root.querySelector('.version-filter');
       if (!vfContainer) {
         this.activeVersions = null;
         return;
@@ -329,10 +326,10 @@ const indexJson = JSON.stringify(index);
     }
 
     private init(): void {
-      this.input.addEventListener('input', () => this.handleInput());
+      this.input.addEventListener('input', () => this.handleInput(), { signal: this.signal });
       this.input.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') this.clear();
-      });
+      }, { signal: this.signal });
 
       // Kind filter chips
       this.filtersEl.querySelectorAll('.api-filter-chip').forEach(chip => {
@@ -350,7 +347,7 @@ const indexJson = JSON.stringify(index);
           this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
           this.syncUrl();
           this.applySearch();
-        });
+        }, { signal: this.signal });
       });
 
       // Clear filters (kinds + versions)
@@ -363,7 +360,7 @@ const indexJson = JSON.stringify(index);
 
         // Reset version filter — check all checkboxes
         this.activeVersions = null;
-        const vfContainer = document.querySelector('.version-filter');
+        const vfContainer = this.root.querySelector('.version-filter');
         if (vfContainer) {
           vfContainer.querySelectorAll<HTMLInputElement>('.version-filter-cb').forEach(cb => { cb.checked = true; });
           const allCb = vfContainer.querySelector<HTMLInputElement>('.version-filter-cb[data-version="__all__"]');
@@ -379,7 +376,7 @@ const indexJson = JSON.stringify(index);
         this.clearFiltersBtn.style.display = 'none';
         this.syncUrl();
         this.applySearch();
-      });
+      }, { signal: this.signal });
     }
 
     private clear(): void {
@@ -606,7 +603,7 @@ const indexJson = JSON.stringify(index);
         btn.type = 'button';
         const nextCount = Math.min(remaining, PAGE_SIZE);
         btn.textContent = `Show ${fmtNum(nextCount)} more of ${fmtNum(remaining)} remaining`;
-        btn.addEventListener('click', () => this.loadMore());
+        btn.addEventListener('click', () => this.loadMore(), { signal: this.signal });
         this.resultsEl.appendChild(btn);
       }
     }
@@ -669,9 +666,9 @@ const indexJson = JSON.stringify(index);
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    new ApiSearchController();
-    const input = document.getElementById('api-search-input') as HTMLInputElement | null;
+  registerApiSearch('csharp', 'landing', (root, signal) => {
+    new ApiSearchController(root, signal);
+    const input = root.querySelector<HTMLInputElement>('#api-search-input');
     input?.focus();
   });
 </script>
