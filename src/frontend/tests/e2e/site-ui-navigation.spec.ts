@@ -4,9 +4,13 @@ import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 async function navigateClient(page: Page, href: string) {
   await page.evaluate((destination) => {
     Reflect.set(window, '__dependencyPageLoaded', false);
-    document.addEventListener('astro:page-load', () => {
-      Reflect.set(window, '__dependencyPageLoaded', true);
-    }, { once: true });
+    document.addEventListener(
+      'astro:page-load',
+      () => {
+        Reflect.set(window, '__dependencyPageLoaded', true);
+      },
+      { once: true }
+    );
     const link = document.createElement('a');
     link.id = 'dependency-navigation-link';
     link.href = destination;
@@ -15,45 +19,58 @@ async function navigateClient(page: Page, href: string) {
     document.body.append(link);
   }, href);
   await page.locator('#dependency-navigation-link').click();
-  await expect.poll(() => page.evaluate(() => Reflect.get(window, '__dependencyPageLoaded'))).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => Reflect.get(window, '__dependencyPageLoaded')), {
+      timeout: 30000,
+    })
+    .toBe(true);
   await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
   expect(await page.evaluate(() => Reflect.get(window, '__dependencySession'))).toBe(true);
 }
 
 for (const fallback of [false, true]) {
-  test.describe(fallback ? 'dependency swap fallback' : 'dependency native transitions', () => {
+  test.describe(fallback ? 'site UI swap fallback' : 'site UI native transitions', () => {
     test.beforeEach(async ({ page }) => {
       // These runtime tests must never submit analytics events.
-      await page.route('**/scripts/analytics/*.js', (route) => route.fulfill({
-        contentType: 'application/javascript', body: '',
-      }));
+      await page.route('**/scripts/analytics/*.js', (route) =>
+        route.fulfill({
+          contentType: 'application/javascript',
+          body: '',
+        })
+      );
       await page.addInitScript((swap) => {
         localStorage.setItem('starlight-theme', 'light');
         if (swap) {
           Object.defineProperty(document, 'startViewTransition', {
-            configurable: true, value: undefined,
+            configurable: true,
+            value: undefined,
           });
         }
         const renders = new WeakMap<Element, number>();
         new MutationObserver((mutations) => {
           for (const { target } of mutations) {
-            if (!(target instanceof Element) || !target.matches('pre.mermaid[data-processed]')) continue;
+            if (!(target instanceof Element) || !target.matches('pre.mermaid[data-processed]'))
+              continue;
             const count = (renders.get(target) ?? 0) + 1;
             renders.set(target, count);
             target.setAttribute('data-test-render-count', String(count));
           }
         }).observe(document, {
-          subtree: true, attributes: true, attributeFilter: ['data-processed'],
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['data-processed'],
         });
       }, fallback);
     });
 
-    test('renders two diagrams once per page/theme across repeat visits and history', async ({ page }) => {
+    test('renders two diagrams once per page/theme across repeat visits and history', async ({
+      page,
+    }) => {
       test.setTimeout(120000);
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       page.on('console', (message) => {
-        if (/\[astro-mermaid\]/.test(message.text())) errors.push(message.text());
+        if (/\[(?:astro-)?mermaid\]/.test(message.text())) errors.push(message.text());
       });
       await page.goto('/docs/');
       await dismissCookieConsentIfVisible(page);
@@ -77,7 +94,10 @@ for (const fallback of [false, true]) {
           html.setAttribute('data-theme', theme);
         });
         await expectRenders(1);
-        for (const [theme, count] of [['dark', 2], ['light', 3]] as const) {
+        for (const [theme, count] of [
+          ['dark', 2],
+          ['light', 3],
+        ] as const) {
           await page.locator(`#footer-theme-toggle [data-theme-option="${theme}"]`).click();
           await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
           await expectRenders(count);
@@ -92,7 +112,8 @@ for (const fallback of [false, true]) {
     });
 
     test('activates scroll once per mouse, touch, Enter and Space after repeated swaps', async ({
-      page, isMobile,
+      page,
+      isMobile,
     }) => {
       test.setTimeout(120000);
       await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -118,8 +139,13 @@ for (const fallback of [false, true]) {
         for (const activation of ['pointer', 'Enter', 'Space']) {
           await page.evaluate(() => window.scrollTo({ top: 800, behavior: 'instant' }));
           await expect(button).toBeVisible();
-          await page.evaluate(() => Reflect.set(window, '__dependencyScrollCountBefore',
-            Reflect.get(window, '__dependencyScrolls').length));
+          await page.evaluate(() =>
+            Reflect.set(
+              window,
+              '__dependencyScrollCountBefore',
+              Reflect.get(window, '__dependencyScrolls').length
+            )
+          );
           if (activation === 'pointer') {
             if (isMobile) await button.tap();
             else await button.click();
@@ -128,11 +154,13 @@ for (const fallback of [false, true]) {
             await page.keyboard.press(activation);
           }
           await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-          expect(await page.evaluate(() => {
-            const scrolls: ScrollToOptions[] = Reflect.get(window, '__dependencyScrolls');
-            const before: number = Reflect.get(window, '__dependencyScrollCountBefore');
-            return scrolls.slice(before);
-          })).toEqual([{ top: 0, behavior: 'auto' }]);
+          expect(
+            await page.evaluate(() => {
+              const scrolls: ScrollToOptions[] = Reflect.get(window, '__dependencyScrolls');
+              const before: number = Reflect.get(window, '__dependencyScrollCountBefore');
+              return scrolls.slice(before);
+            })
+          ).toEqual([{ top: 0, behavior: 'auto' }]);
         }
         await navigateClient(page, '/docs/');
       }

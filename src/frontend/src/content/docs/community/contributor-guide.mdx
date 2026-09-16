@@ -165,6 +165,8 @@ The site uses Astro's `<ClientRouter fallback="swap" />` to keep native Picture-
 
 Use an `AbortController` for event subscriptions and explicitly cancel timers, animation frames, observers, and asynchronous work when its owner leaves. A delayed import must not initialize a detached element. Reserve `astro:after-swap` for work needed before paint, such as restoring theme state. Do not tear down the current page at `astro:before-preparation`: loading can fail or be canceled while that page remains visible.
 
+The site renders Mermaid fences through a small remark transform and the `mermaid` library directly. Its shared runtime owns lazy loading, theme changes, and page disposal. The scroll-to-top button is a native site component with element-owned listeners; neither feature requires a third-party lifecycle patch.
+
 Preserve `history.state` when updating query parameters so Back and Forward retain Astro's navigation metadata. The shared head copies the effective theme into the incoming document during `astro:before-swap`; static HTML must not overwrite the reader's theme selection. Avoid blanket script reruns or global console suppression; both hide ownership problems.
 
 The deployment guard compares incoming build metadata before swapping. A changed deployment uses Astro's full-navigation fallback to replace the running code safely, even if that closes PiP. Same-deployment browsing stays client-side. Tabs opened before the guard was deployed need one full reload to adopt it.

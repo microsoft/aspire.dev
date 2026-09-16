@@ -1,0 +1,184 @@
+---
+const labels: Record<string, string> = {
+  da: 'Rul op',
+  de: 'Nach oben scrollen',
+  en: 'Scroll to top',
+  es: 'Ir arriba',
+  fr: 'Retour en haut',
+  hi: 'ऊपर स्क्रॉल करें',
+  id: 'Gulir ke atas',
+  it: 'Torna su',
+  ja: 'トップへ戻る',
+  ko: '맨 위로',
+  'pt-br': 'Voltar ao topo',
+  ru: 'Наверх',
+  tr: 'Başa dön',
+  uk: 'Прокрутити вгору',
+  'zh-cn': '回到顶部',
+};
+const language = (Astro.locals.starlightRoute?.lang ?? 'en').toLowerCase();
+const label = labels[language] ?? labels[language.split('-')[0]] ?? labels.en;
+---
+
+<aspire-scroll-to-top>
+  <button id="scroll-to-top-button" class="scroll-to-top-button" type="button" aria-label={label}>
+    <svg
+      width="35"
+      height="35"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 16L12 8L20 16"></path>
+    </svg>
+    <span class="tooltip" aria-hidden="true">{label}</span>
+  </button>
+</aspire-scroll-to-top>
+
+<script>
+  class ScrollToTop extends HTMLElement {
+    private controller?: AbortController;
+    private frame?: number;
+
+    connectedCallback() {
+      if (this.controller) return;
+      // Escape content containers that establish a containing block for fixed controls.
+      if (this.parentElement !== document.body) {
+        document.body.append(this);
+        return;
+      }
+      this.controller = new AbortController();
+      const { signal } = this.controller;
+      const button = this.querySelector('button')!;
+      const update = () => {
+        this.frame = undefined;
+        button.classList.toggle(
+          'visible',
+          window.scrollY > 10 && window.outerWidth / window.innerWidth <= 3
+        );
+      };
+      const schedule = () => {
+        this.frame ??= window.requestAnimationFrame(update);
+      };
+      button.addEventListener(
+        'click',
+        () => {
+          window.scrollTo({
+            top: 0,
+            behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+              ? 'auto'
+              : 'smooth',
+          });
+        },
+        { signal }
+      );
+      window.addEventListener('scroll', schedule, { passive: true, signal });
+      window.addEventListener('resize', schedule, { signal });
+      schedule();
+    }
+
+    disconnectedCallback() {
+      this.controller?.abort();
+      this.controller = undefined;
+      if (this.frame !== undefined) window.cancelAnimationFrame(this.frame);
+      this.frame = undefined;
+    }
+  }
+  customElements.define('aspire-scroll-to-top', ScrollToTop);
+</script>
+
+<style>
+  aspire-scroll-to-top {
+    display: contents;
+  }
+  button {
+    position: fixed;
+    bottom: 40px;
+    right: 35px;
+    width: 47px;
+    height: 47px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--sl-color-accent);
+    border-radius: 15%;
+    background: var(--sl-color-accent);
+    color: white;
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 4%),
+      0 4px 8px rgb(0 0 0 / 20%);
+    cursor: pointer;
+    touch-action: manipulation;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0);
+    transition:
+      opacity 0.3s,
+      visibility 0.3s,
+      transform 0.3s,
+      background-color 0.3s;
+  }
+  button.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+  }
+  button:hover {
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-accent);
+  }
+  button:focus-visible {
+    outline: 2px solid var(--sl-color-text);
+    outline-offset: 2px;
+  }
+  button.visible:active {
+    transform: scale(0.95);
+  }
+  .tooltip {
+    position: absolute;
+    right: -22px;
+    bottom: calc(100% + 12px);
+    padding: 5px 10px;
+    border-radius: 4px;
+    background: var(--sl-color-gray-7);
+    color: var(--sl-color-text);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.4;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 0.2s,
+      visibility 0.2s;
+  }
+  .tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom: 0;
+    border-top-color: var(--sl-color-gray-7);
+  }
+  button:hover .tooltip,
+  button:focus-visible .tooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    button,
+    .tooltip {
+      transition: none;
+    }
+  }
+</style>

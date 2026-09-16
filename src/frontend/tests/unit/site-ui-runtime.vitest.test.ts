@@ -1,14 +1,24 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getEventListeners } from 'node:events';
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
+import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
+import type { AsyncIconLoader } from 'mermaid';
 
-const mermaidSource = readFileSync(fileURLToPath(import.meta.resolve('astro-mermaid')), 'utf8');
-const scrollSource = readFileSync(join(
-  dirname(fileURLToPath(import.meta.resolve('starlight-scroll-to-top'))), 'libs', 'scroll-to-top.js',
-), 'utf8');
+const mermaidSource = readFileSync(
+  new URL('../../src/scripts/mermaid.ts', import.meta.url),
+  'utf8'
+);
+const scrollComponent = readFileSync(
+  new URL('../../src/components/ScrollToTop.astro', import.meta.url),
+  'utf8'
+);
+const scrollSource = scrollComponent.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+if (!scrollSource) throw new Error('Scroll-to-top runtime not found.');
+const compile = (source: string) =>
+  transpileModule(source, {
+    compilerOptions: { target: ScriptTarget.ES2022, module: ModuleKind.ESNext },
+  }).outputText.replace(/^import .*;\r?\n/gm, '');
 
 class Element extends EventTarget {
   id = '';
@@ -20,22 +30,51 @@ class Element extends EventTarget {
   scrollHeight = 2000;
   style: Record<string, string> = {};
   attributes = new Map<string, string>();
+  dataset: Record<string, string | undefined> = {};
   classes = new Set<string>();
   classList = {
     add: (...names: string[]) => names.forEach((name) => this.classes.add(name)),
     remove: (...names: string[]) => names.forEach((name) => this.classes.delete(name)),
     contains: (name: string) => this.classes.has(name),
+    toggle: (name: string, force = !this.classes.has(name)) => {
+      if (force) this.classes.add(name);
+      else this.classes.delete(name);
+      return force;
+    },
   };
   parentNode: Element | null = null;
   children: Element[] = [];
   root = false;
-  constructor(readonly tagName: string) { super(); }
-  get isConnected(): boolean { return this.root || Boolean(this.parentNode?.isConnected); }
-  setAttribute(name: string, value: string) { this.attributes.set(name, value); }
-  getAttribute(name: string) { return this.attributes.get(name) ?? null; }
-  hasAttribute(name: string) { return this.attributes.has(name); }
-  removeAttribute(name: string) { this.attributes.delete(name); }
-  appendChild(child: Element) {
+  constructor(readonly tagName = 'div') {
+    super();
+  }
+  get parentElement() {
+    return this.parentNode;
+  }
+  get isConnected(): boolean {
+    return this.root || Boolean(this.parentNode?.isConnected);
+  }
+  setAttribute(name: string, value: string) {
+    this.attributes.set(name, value);
+    if (name.startsWith('data-')) this.dataset[name.slice(5)] = value;
+  }
+  getAttribute(name: string) {
+    return name.startsWith('data-')
+      ? (this.dataset[name.slice(5)] ?? null)
+      : (this.attributes.get(name) ?? null);
+  }
+  hasAttribute(name: string) {
+    return this.getAttribute(name) !== null;
+  }
+  removeAttribute(name: string) {
+    this.attributes.delete(name);
+    if (name.startsWith('data-')) delete this.dataset[name.slice(5)];
+  }
+  append(child: Element) {
+    child.remove();
+    this.appendChild(child);
+  }
+  appendChild<T extends Element>(child: T) {
     child.parentNode = this;
     this.children.push(child);
     return child;
@@ -44,11 +83,15 @@ class Element extends EventTarget {
     this.children = this.children.filter((element) => element !== child);
     child.parentNode = null;
   }
-  remove() { this.parentNode?.removeChild(this); }
+  remove() {
+    this.parentNode?.removeChild(this);
+  }
   contains(element: Element): boolean {
     return this === element || this.children.some((child) => child.contains(element));
   }
-  all(): Element[] { return this.children.flatMap((child) => [child, ...child.all()]); }
+  all(): Element[] {
+    return this.children.flatMap((child) => [child, ...child.all()]);
+  }
   querySelectorAll(selector: string) {
     return this.all().filter((element) => {
       if (selector.startsWith('#')) return element.id === selector.slice(1);
@@ -56,10 +99,12 @@ class Element extends EventTarget {
         return element.tagName === 'pre' && element.classList.contains('mermaid');
       }
       if (selector.startsWith('.')) return element.classList.contains(selector.slice(1));
-      return false;
+      return element.tagName === selector;
     });
   }
-  querySelector(selector: string): Element | null { return this.querySelectorAll(selector)[0] ?? null; }
+  querySelector(selector: string): Element | null {
+    return this.querySelectorAll(selector)[0] ?? null;
+  }
 }
 
 class Document extends EventTarget {
@@ -72,11 +117,21 @@ class Document extends EventTarget {
     this.documentElement.root = true;
     this.documentElement.setAttribute('data-theme', 'light');
   }
-  createElement(tag: string) { return new Element(tag); }
-  querySelectorAll(selector: string) { return this.documentElement.querySelectorAll(selector); }
-  querySelector(selector: string) { return this.documentElement.querySelector(selector); }
-  getElementById(id: string) { return this.querySelector(`#${id}`); }
-  emit(name: string) { this.dispatchEvent(new Event(name)); }
+  createElement(tag: string) {
+    return new Element(tag);
+  }
+  querySelectorAll(selector: string) {
+    return this.documentElement.querySelectorAll(selector);
+  }
+  querySelector(selector: string) {
+    return this.documentElement.querySelector(selector);
+  }
+  getElementById(id: string) {
+    return this.querySelector(`#${id}`);
+  }
+  emit(name: string) {
+    this.dispatchEvent(new Event(name));
+  }
   replaceBody(sources: string[] = []) {
     this.body.remove();
     this.body = this.documentElement.appendChild(new Element('body'));
@@ -93,15 +148,22 @@ function observers() {
   const instances: Observer[] = [];
   class Observer {
     targets = new Set<Element>();
-    constructor(readonly callback: () => void) { instances.push(this); }
-    observe(target: Element) { this.targets.add(target); }
-    disconnect() { this.targets.clear(); }
+    constructor(readonly callback: () => void) {
+      instances.push(this);
+    }
+    observe(target: Element) {
+      this.targets.add(target);
+    }
+    disconnect() {
+      this.targets.clear();
+    }
   }
   return {
     Observer,
     instances,
     notify: (target: Element) => {
-      instances.filter((observer) => observer.targets.has(target))
+      instances
+        .filter((observer) => observer.targets.has(target))
         .forEach((observer) => observer.callback());
     },
   };
@@ -110,7 +172,10 @@ function observers() {
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
-  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
   return { promise, resolve, reject };
 }
 
@@ -119,29 +184,12 @@ const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 async function mermaidRuntime({
   sources = ['graph TD; A-->B', 'graph TD; C-->D'],
   loading = false,
-  autoTheme = true,
 } = {}) {
-  const scripts: string[] = [];
+  const { iconPacks } = await import('../../config/icon-packs.mjs');
   const icons = { prefix: 'test', icons: { app: { body: '<path />' } } };
-  // Execute the installed integration's setup hook, not a copy of its browser logic.
-  await runInNewContext(
-    mermaidSource.replace(/^import .*from 'import-meta-resolve';/m, '')
-      .replace('export default function', 'function') +
-      '\nastroMermaid(options).hooks["astro:config:setup"](setup);',
-    {
-      resolve: () => { throw new Error('Optional ELK layout is not installed in this fixture'); },
-      options: {
-        enableLog: false, autoTheme, theme: 'forest',
-        iconPacks: [{ name: 'test', icons }],
-      },
-      setup: {
-        config: { root: new URL('file:///fixture/'), markdown: {} },
-        updateConfig: () => {},
-        injectScript: (_stage: string, script: string) => scripts.push(script),
-        logger: { info: vi.fn(), warn: vi.fn() },
-      },
-    },
-  );
+  const fetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(icons))));
   const document = new Document();
   const diagrams = document.replaceBody(sources);
   if (loading) document.readyState = 'loading';
@@ -149,20 +197,36 @@ async function mermaidRuntime({
   const logger = { log: vi.fn(), error: vi.fn() };
   const mermaid = {
     initialize: vi.fn<(config: { theme: string }) => void>(),
-    registerIconPacks: vi.fn(),
-    render: vi.fn<(id: string, source: string) => Promise<{ svg: string }>>()
+    registerIconPacks: vi.fn<(packs: AsyncIconLoader[]) => void>(),
+    render: vi
+      .fn<(id: string, source: string) => Promise<{ svg: string }>>()
       .mockImplementation((_id, source) => Promise.resolve({ svg: `<svg>${source}</svg>` })),
   };
   const imported = deferred<{ default: typeof mermaid }>();
   const importMermaid = vi.fn(() => imported.promise);
-  const runtime = scripts.find((script) => script.includes("import('mermaid')"));
-  expect(runtime).toBeDefined();
-  // VM modules require experimental flags; replace only the import boundary.
-  runInNewContext(runtime!.replace("import('mermaid')", 'importMermaid()'), {
-    document, MutationObserver: mutation.Observer, console: logger, queueMicrotask, importMermaid,
+  // Replace only the module boundary; execute the actual site runtime.
+  runInNewContext(compile(mermaidSource).replace("import('mermaid')", 'importMermaid()'), {
+    document,
+    MutationObserver: mutation.Observer,
+    console: logger,
+    queueMicrotask,
+    importMermaid,
+    iconPacks,
+    fetch,
+    Error,
   });
+  if (!loading) document.emit('astro:page-load');
   return {
-    document, diagrams, mutation, mermaid, imported, importMermaid, logger, icons,
+    document,
+    diagrams,
+    mutation,
+    mermaid,
+    imported,
+    importMermaid,
+    logger,
+    icons,
+    iconPacks,
+    fetch,
     theme(value: string, target = document.documentElement) {
       target.setAttribute('data-theme', value);
       mutation.notify(target);
@@ -177,7 +241,7 @@ async function mermaidRuntime({
   };
 }
 
-describe('patched Mermaid runtime', () => {
+describe('site-owned Mermaid runtime', () => {
   it('coalesces readiness, page-load and same-theme notifications before and during rendering', async () => {
     const fixture = await mermaidRuntime({ loading: true });
     const { document, mermaid, imported, diagrams, importMermaid, logger } = fixture;
@@ -200,8 +264,14 @@ describe('patched Mermaid runtime', () => {
     await flush();
     expect(mermaid.render).toHaveBeenCalledTimes(2);
     expect(mermaid.initialize).toHaveBeenCalledTimes(1);
-    expect(diagrams.map((diagram) => diagram.getAttribute('data-processed'))).toEqual(['true', 'true']);
-    expect(mermaid.registerIconPacks).toHaveBeenCalledExactlyOnceWith([{ name: 'test', icons: fixture.icons }]);
+    expect(diagrams.map((diagram) => diagram.getAttribute('data-processed'))).toEqual([
+      'true',
+      'true',
+    ]);
+    expect(mermaid.registerIconPacks).toHaveBeenCalledOnce();
+    expect(mermaid.registerIconPacks.mock.calls[0][0].map((pack) => pack.name)).toEqual(
+      fixture.iconPacks.map((pack) => pack.name)
+    );
     expect(logger.log).not.toHaveBeenCalled();
     expect(logger.error).not.toHaveBeenCalled();
   });
@@ -233,9 +303,15 @@ describe('patched Mermaid runtime', () => {
     fixture.theme('dark');
     await flush();
     expect(fixture.mermaid.render).toHaveBeenCalledTimes(4);
-    expect(fixture.mermaid.initialize.mock.calls.map(([config]) => config.theme)).toEqual(['default', 'dark']);
+    expect(fixture.mermaid.initialize.mock.calls.map(([config]) => config.theme)).toEqual([
+      'default',
+      'dark',
+    ]);
     expect(fixture.mermaid.render.mock.calls.map(([, source]) => source)).toEqual([
-      'graph TD; A-->B', 'graph TD; C-->D', 'graph TD; A-->B', 'graph TD; C-->D',
+      'graph TD; A-->B',
+      'graph TD; C-->D',
+      'graph TD; A-->B',
+      'graph TD; C-->D',
     ]);
   });
 
@@ -256,7 +332,10 @@ describe('patched Mermaid runtime', () => {
     render.resolve({ svg: '<svg>obsolete light</svg>' });
     await flush();
     expect(fixture.diagrams[0].innerHTML).toBe('');
-    expect(fixture.mermaid.initialize.mock.calls.map(([config]) => config.theme)).toEqual(['default', 'dark']);
+    expect(fixture.mermaid.initialize.mock.calls.map(([config]) => config.theme)).toEqual([
+      'default',
+      'dark',
+    ]);
     latest.resolve({ svg: '<svg>latest dark</svg>' });
     await flush();
     expect(fixture.diagrams[0].innerHTML).toBe('<svg>latest dark</svg>');
@@ -269,35 +348,40 @@ describe('patched Mermaid runtime', () => {
     const next = fixture.swap(['graph TD; New-->Page']);
     fixture.imported.resolve({ default: fixture.mermaid });
     await flush();
-    expect(fixture.mermaid.render).toHaveBeenCalledExactlyOnceWith(expect.any(String), 'graph TD; New-->Page');
+    expect(fixture.mermaid.render).toHaveBeenCalledExactlyOnceWith(
+      expect.any(String),
+      'graph TD; New-->Page'
+    );
     expect(fixture.diagrams.every((diagram) => diagram.innerHTML === '')).toBe(true);
     expect(fixture.mutation.instances[0].targets.has(oldBody)).toBe(false);
-    fixture.document.documentElement.removeAttribute('data-theme');
-    fixture.theme('dark', fixture.document.body);
+    fixture.theme('dark');
     await flush();
     expect(fixture.mermaid.render).toHaveBeenCalledTimes(2);
     expect(next[0].getAttribute('data-processed')).toBe('true');
   });
 
-  it.each(['resolve', 'reject'] as const)('does not write stale %s completions after a swap', async (outcome) => {
-    const fixture = await mermaidRuntime();
-    const render = deferred<{ svg: string }>();
-    fixture.mermaid.render.mockReturnValueOnce(render.promise);
-    fixture.imported.resolve({ default: fixture.mermaid });
-    await flush();
-    const next = fixture.swap(['graph TD; New-->Page']);
-    await flush();
-    expect(fixture.mermaid.initialize).toHaveBeenCalledOnce();
-    if (outcome === 'resolve') render.resolve({ svg: '<svg>stale</svg>' });
-    else render.reject(new Error('obsolete render failed'));
-    await flush();
-    expect(fixture.diagrams[0].innerHTML).toBe('');
-    expect(fixture.diagrams[0].children).toHaveLength(0);
-    expect(fixture.diagrams[0].hasAttribute('data-processed')).toBe(false);
-    expect(next[0].innerHTML).toContain('New-->Page');
-    expect(fixture.mermaid.render).toHaveBeenCalledTimes(2);
-    expect(fixture.logger.error).toHaveBeenCalledTimes(outcome === 'reject' ? 1 : 0);
-  });
+  it.each(['resolve', 'reject'] as const)(
+    'does not write stale %s completions after a swap',
+    async (outcome) => {
+      const fixture = await mermaidRuntime();
+      const render = deferred<{ svg: string }>();
+      fixture.mermaid.render.mockReturnValueOnce(render.promise);
+      fixture.imported.resolve({ default: fixture.mermaid });
+      await flush();
+      const next = fixture.swap(['graph TD; New-->Page']);
+      await flush();
+      expect(fixture.mermaid.initialize).toHaveBeenCalledOnce();
+      if (outcome === 'resolve') render.resolve({ svg: '<svg>stale</svg>' });
+      else render.reject(new Error('obsolete render failed'));
+      await flush();
+      expect(fixture.diagrams[0].innerHTML).toBe('');
+      expect(fixture.diagrams[0].children).toHaveLength(0);
+      expect(fixture.diagrams[0].hasAttribute('data-processed')).toBe(false);
+      expect(next[0].innerHTML).toContain('New-->Page');
+      expect(fixture.mermaid.render).toHaveBeenCalledTimes(2);
+      expect(fixture.logger.error).toHaveBeenCalledTimes(outcome === 'reject' ? 1 : 0);
+    }
+  );
 
   it('keeps current work alive when navigation preparation is canceled', async () => {
     const fixture = await mermaidRuntime();
@@ -318,7 +402,8 @@ describe('patched Mermaid runtime', () => {
     const [diagram] = fixture.diagrams;
     expect(fixture.logger.error).toHaveBeenCalledOnce();
     expect(diagram.getAttribute('data-diagram')).toBe('invalid <diagram>');
-    expect(diagram.children[0].children[1].textContent).toBe(' <img src=x onerror=alert(1)>');
+    expect(diagram.textContent).toBe('Unable to render diagram: <img src=x onerror=alert(1)>');
+    expect(diagram.classList.contains('mermaid-error')).toBe(true);
     expect(diagram.innerHTML).toBe('');
     fixture.document.emit('astro:page-load');
     await flush();
@@ -340,40 +425,60 @@ describe('patched Mermaid runtime', () => {
     expect(fixture.mermaid.render).toHaveBeenCalledTimes(2);
   });
 
-  it('preserves fixed themes when auto-theme is disabled', async () => {
-    const fixture = await mermaidRuntime({ autoTheme: false });
+  it('loads configured icon packs lazily and reports failed responses', async () => {
+    const fixture = await mermaidRuntime();
     fixture.imported.resolve({ default: fixture.mermaid });
     await flush();
-    fixture.theme('dark');
-    fixture.document.emit('astro:page-load');
-    await flush();
-    expect(fixture.mermaid.initialize).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ theme: 'forest' }));
-    expect(fixture.mermaid.render).toHaveBeenCalledTimes(2);
+    expect(fixture.fetch).not.toHaveBeenCalled();
+    const pack = fixture.mermaid.registerIconPacks.mock.calls[0][0][0];
+    await expect(pack.loader()).resolves.toEqual(fixture.icons);
+    expect(fixture.fetch).toHaveBeenCalledWith(fixture.iconPacks[0].url);
+    fixture.fetch.mockResolvedValueOnce(new Response('', { status: 503 }));
+    await expect(pack.loader()).rejects.toThrow('HTTP 503');
   });
 });
 
-function scrollRuntime({ loading = false, reducedMotion = false } = {}) {
+function scrollRuntime({ reducedMotion = false } = {}) {
   vi.useFakeTimers();
   const document = new Document();
-  if (loading) document.readyState = 'loading';
   const window = Object.assign(new EventTarget(), {
-    scrollY: 500, innerHeight: 900, innerWidth: 1440, outerWidth: 1440,
-    scrollTo: vi.fn(), matchMedia: () => ({ matches: reducedMotion }),
+    scrollY: 500,
+    innerHeight: 900,
+    innerWidth: 1440,
+    outerWidth: 1440,
+    scrollTo: vi.fn(),
+    matchMedia: () => ({ matches: reducedMotion }),
+    requestAnimationFrame: (callback: () => void) => setTimeout(callback, 16),
+    cancelAnimationFrame: clearTimeout,
   });
-  const mutation = observers();
-  runInNewContext(
-    scrollSource.replace('export default initScrollToTop;', '') +
-    '\ninitScrollToTop({ showTooltip: true, tooltipText: { en: "Top", fr: "Haut" } });',
-    { document, window, MutationObserver: mutation.Observer, setTimeout, clearTimeout },
-  );
-  return { document, window, mutation, button: () => document.getElementById('scroll-to-top-button')! };
+  type ScrollElement = Element & { connectedCallback(): void; disconnectedCallback(): void };
+  let Constructor: (new () => ScrollElement) | undefined;
+  runInNewContext(compile(scrollSource!), {
+    document,
+    window,
+    HTMLElement: Element,
+    AbortController,
+    customElements: {
+      define: (_name: string, value: new () => ScrollElement) => {
+        Constructor = value;
+      },
+    },
+  });
+  if (!Constructor) throw new Error('Scroll-to-top custom element was not registered.');
+  const root = document.body.appendChild(new Constructor());
+  const button = root.appendChild(new Element('button'));
+  button.id = 'scroll-to-top-button';
+  button.type = 'button';
+  root.connectedCallback();
+  return { document, window, root, button: () => button };
 }
 
-describe('patched scroll-to-top runtime', () => {
+describe('site-owned scroll-to-top control', () => {
   afterEach(() => vi.useRealTimers());
 
-  it('coalesces readiness and page-load even when the second notification follows the init timer', () => {
-    const fixture = scrollRuntime({ loading: true });
+  it('mounts once per connection without document readiness or keyboard handlers', () => {
+    const fixture = scrollRuntime();
+    fixture.root.connectedCallback();
     fixture.document.emit('DOMContentLoaded');
     fixture.document.emit('astro:page-load');
     expect(vi.getTimerCount()).toBe(1);
@@ -383,78 +488,71 @@ describe('patched scroll-to-top runtime', () => {
     vi.runAllTimers();
     expect(fixture.button()).toBe(button);
     expect(fixture.document.querySelectorAll('#scroll-to-top-button')).toHaveLength(1);
-    expect(getEventListeners(fixture.document, 'keydown')).toHaveLength(1);
+    expect(getEventListeners(fixture.document, 'keydown')).toHaveLength(0);
     expect(getEventListeners(fixture.document, 'DOMContentLoaded')).toHaveLength(0);
   });
 
-  it.each([false, true])('uses only native click activation (reduced motion: %s)', (reducedMotion) => {
-    const fixture = scrollRuntime({ reducedMotion });
-    vi.runAllTimers();
-    const button = fixture.button();
-    expect(button.type).toBe('button');
-    for (const name of ['touchstart', 'touchend', 'keydown']) {
-      expect(getEventListeners(button, name)).toHaveLength(0);
+  it.each([false, true])(
+    'uses only native click activation (reduced motion: %s)',
+    (reducedMotion) => {
+      const fixture = scrollRuntime({ reducedMotion });
+      vi.runAllTimers();
+      const button = fixture.button();
+      expect(button.type).toBe('button');
+      for (const name of ['touchstart', 'touchend', 'keydown']) {
+        expect(getEventListeners(button, name)).toHaveLength(0);
+      }
+      const click = new Event('click', { cancelable: true });
+      button.dispatchEvent(click);
+      expect(click.defaultPrevented).toBe(false);
+      expect(fixture.window.scrollTo).toHaveBeenCalledExactlyOnceWith({
+        top: 0,
+        behavior: reducedMotion ? 'auto' : 'smooth',
+      });
+      expect(scrollComponent).toContain('button:focus-visible');
     }
-    const click = new Event('click', { cancelable: true });
-    button.dispatchEvent(click);
-    expect(click.defaultPrevented).toBe(false);
-    expect(fixture.window.scrollTo).toHaveBeenCalledExactlyOnceWith({
-      top: 0, behavior: reducedMotion ? 'auto' : 'smooth',
-    });
-    fixture.document.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Tab' }));
-    button.dispatchEvent(new Event('focus'));
-    expect(button.classList.contains('keyboard-focus')).toBe(true);
-    button.dispatchEvent(new Event('pointerdown'));
-    expect(button.classList.contains('keyboard-focus')).toBe(false);
-  });
+  );
 
-  it('disposes document handlers, observers, initialization and throttle work at the swap boundary', () => {
+  it('disposes element/window handlers and pending frames when disconnected', () => {
     const fixture = scrollRuntime();
-    fixture.document.emit('astro:before-swap');
+    fixture.root.disconnectedCallback();
     expect(vi.getTimerCount()).toBe(0);
     vi.runAllTimers();
-    expect(fixture.button()).toBeNull();
     for (let visit = 0; visit < 3; visit++) {
-      fixture.document.replaceBody();
-      fixture.document.emit('astro:page-load');
+      fixture.root.connectedCallback();
       vi.runAllTimers();
-      expect(getEventListeners(fixture.document, 'keydown')).toHaveLength(1);
+      expect(getEventListeners(fixture.document, 'keydown')).toHaveLength(0);
       expect(getEventListeners(fixture.window, 'scroll')).toHaveLength(1);
       fixture.window.dispatchEvent(new Event('scroll'));
       expect(vi.getTimerCount()).toBe(1);
-      fixture.document.emit('astro:before-swap');
+      fixture.root.disconnectedCallback();
       expect(vi.getTimerCount()).toBe(0);
       expect(getEventListeners(fixture.document, 'keydown')).toHaveLength(0);
       expect(getEventListeners(fixture.window, 'scroll')).toHaveLength(0);
       expect(getEventListeners(fixture.window, 'resize')).toHaveLength(0);
-      expect(fixture.mutation.instances.every((observer) => observer.targets.size === 0)).toBe(true);
-      expect(fixture.document.getElementById('scroll-to-top-styles')).toBeNull();
+      expect(getEventListeners(fixture.button(), 'click')).toHaveLength(0);
     }
   });
 
-  it('survives canceled preparations and preserves zoom, trailing scroll updates and locale changes', () => {
+  it('survives canceled preparation and updates scroll/zoom visibility in one frame', () => {
     const fixture = scrollRuntime();
     vi.runAllTimers();
     const button = fixture.button();
     fixture.document.emit('astro:before-preparation');
     expect(fixture.button()).toBe(button);
-    expect(getEventListeners(fixture.document, 'keydown')).toHaveLength(1);
+    expect(getEventListeners(fixture.document, 'keydown')).toHaveLength(0);
     fixture.window.outerWidth = 6000;
     fixture.window.dispatchEvent(new Event('resize'));
-    expect(button.style.display).toBe('none');
+    vi.runAllTimers();
+    expect(button.classList.contains('visible')).toBe(false);
     fixture.window.outerWidth = 1440;
     fixture.window.dispatchEvent(new Event('resize'));
-    expect(button.style.display).toBe('flex');
+    vi.runAllTimers();
+    expect(button.classList.contains('visible')).toBe(true);
     fixture.window.dispatchEvent(new Event('scroll'));
     fixture.window.scrollY = 0;
     fixture.window.dispatchEvent(new Event('scroll'));
     vi.runAllTimers();
     expect(button.classList.contains('visible')).toBe(false);
-    fixture.document.emit('astro:before-swap');
-    fixture.document.replaceBody();
-    fixture.document.documentElement.lang = 'fr';
-    fixture.document.emit('astro:page-load');
-    vi.runAllTimers();
-    expect(fixture.button().ariaLabel).toBe('Haut');
   });
 });

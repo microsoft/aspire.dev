@@ -41,6 +41,7 @@ import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 import SampleCard from '@components/SampleCard.astro';
 import SampleDetail from '@components/SampleDetail.astro';
 import SampleGrid from '@components/SampleGrid.astro';
+import ScrollToTop from '@components/ScrollToTop.astro';
 import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
@@ -81,6 +82,20 @@ type BasicRenderCase = {
   includes: string[];
   requestUrl?: string;
 };
+
+it.each([
+  ['en', 'Scroll to top'], ['fr', 'Retour en haut'], ['pt-BR', 'Voltar ao topo'],
+  ['zh-CN', '回到顶部'], ['es-ES', 'Ir arriba'], ['unknown', 'Scroll to top'],
+])('ScrollToTop renders the existing label for %s', async (lang, label) => {
+  const route = {
+    lang, editUrl: '',
+    entry: { id: 'docs/test', slug: 'docs/test', filePath: '', data: {} },
+  };
+  const html = await renderComponent(ScrollToTop, { locals: { starlightRoute: route } });
+  expect(html).toContain(`aria-label="${label}"`);
+  expect(html).toContain('id="scroll-to-top-button"');
+  expect(html).toContain('type="button"');
+});
 
 const statementPlayerTranslations = {
   da: daTranslations.landing.statementPlayer,

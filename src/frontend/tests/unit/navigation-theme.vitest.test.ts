@@ -10,7 +10,7 @@ const source = head.match(
   /<script>\s*import '@scripts\/deployment-guard';([\s\S]*?)<\/script>/,
 )?.[1];
 if (!source) throw new Error('Shared navigation theme script not found.');
-const script = transpileModule(source, {
+const script = transpileModule(source.replace("import '@scripts/mermaid';", ''), {
   compilerOptions: { target: ScriptTarget.ES2022 },
 }).outputText;
 
