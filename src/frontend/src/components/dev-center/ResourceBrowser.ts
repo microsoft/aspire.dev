@@ -319,6 +319,13 @@ class ResourceBrowser extends HTMLElement {
       }
     }, { signal });
     window.addEventListener('popstate', restore, { signal });
+    document.addEventListener('astro:before-swap', (event) => {
+      // Query-only history is restored locally; swapping the page would discard focus.
+      if (event.navigationType === 'traverse' && event.from.pathname === event.to.pathname) {
+        event.swap = () => {};
+      }
+    }, { signal });
+    document.addEventListener('astro:page-load', restore, { signal });
     restore();
     this.setAttribute('data-ready', '');
     this.removeAttribute('data-loading');

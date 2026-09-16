@@ -110,8 +110,8 @@ test('homepage header matches the compact mobile action geometry at reflow width
   const expectedCompactHeaderOrder = [
     'Aspire',
     'Search',
-    'Dev',
     'Watch Aspire live streams',
+    'Dev',
     'Docs',
     'Try',
   ];
@@ -301,7 +301,7 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
     const controlBoxes = await Promise.all(
       [searchButton, liveLink, hubLink, tryLink, menuButton].map((control) => control.boundingBox())
     );
-    const menuButtonBox = controlBoxes[3];
+    const menuButtonBox = await menuButton.boundingBox();
     expect(headerBox).not.toBeNull();
     expect(controlBoxes.every((box) => box !== null)).toBe(true);
     expect(

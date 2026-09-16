@@ -133,6 +133,8 @@ class GlossaryBrowser extends HTMLElement {
       }, { signal });
     }
     window.addEventListener('popstate', restore, { signal });
+    // Reconnected elements see the previous URL until Astro finishes swapping.
+    document.addEventListener('astro:page-load', restore, { signal });
 
     const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
     for (const card of cards) {
