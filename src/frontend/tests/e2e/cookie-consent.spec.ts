@@ -22,6 +22,23 @@ type WcpStubOptions = {
   analyticsGranted: boolean;
 };
 
+type WcpStubState = {
+  initCalls: number;
+  swaps: number;
+  host: HTMLElement | null;
+  consent: unknown;
+  consentChanged: (() => void) | undefined;
+};
+
+declare global {
+  interface Window {
+    __wcpStub?: WcpStubState;
+    __aspireWcpSiteConsent?: unknown;
+    __aspireWcpBannerObserver?: ResizeObserver;
+    __aspireWcpThemeObserver?: MutationObserver;
+  }
+}
+
 // WCP is a consent-collection API loaded from Microsoft's CDN; it exposes a
 // global `window.WcpConsent` whose `init` hands our bootstrap a `siteConsent`
 // object. Production behavior (does analytics load? do the manage buttons open
@@ -41,12 +58,42 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
   await page.route(/\/scripts\/analytics\//, (route) =>
     route.fulfill({ contentType: 'application/javascript', body: '' })
   );
+  await page.route(/\/api\/live\/?$/, (route) =>
+    route.fulfill({
+      json: {
+        isLive: false,
+        primarySource: null,
+        twitch: { live: false, channel: null },
+        youtube: { live: false, videoId: null },
+        updatedAt: new Date(0).toISOString(),
+      },
+    })
+  );
+  await page.route(/\/api\/live\/stream\/?$/, (route) => route.abort());
+  await page.route(
+    /https:\/\/(?:www\.youtube-nocookie\.com\/embed\/|player\.twitch\.tv\/)/,
+    (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: '<!doctype html><html lang="en"><head><title>Player test frame</title></head><body></body></html>',
+      })
+  );
 
   await page.addInitScript((opts: WcpStubOptions) => {
     // WCP v2 is key-based: `siteConsent.applyTheme(name)` looks the theme up in
     // this map and throws on a miss, and `WcpConsent.themes` is a string-keyed
     // record of theme objects.
     const themes: Record<string, unknown> = { dark: {}, light: {}, 'high-contrast': {} };
+    const state: WcpStubState = {
+      initCalls: 0,
+      swaps: 0,
+      host: null,
+      consent: null,
+      consentChanged: undefined,
+    };
+    window.__wcpStub = state;
+    document.addEventListener('astro:after-swap', () => state.swaps++);
+    let preferences: HTMLElement;
 
     const siteConsent = {
       isConsentRequired: opts.consentRequired,
@@ -61,6 +108,8 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
       manageConsent() {
         const w = window as unknown as { __wcpManageConsentCalls?: number };
         w.__wcpManageConsentCalls = (w.__wcpManageConsentCalls ?? 0) + 1;
+        preferences.hidden = false;
+        preferences.querySelector('button')?.focus();
       },
       applyTheme(themeKey: unknown) {
         // Mirror the real API exactly: only a valid string key is accepted;
@@ -70,6 +119,12 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
         if (typeof themeKey !== 'string' || !(themeKey in themes)) {
           throw new Error('Theme not found error');
         }
+        const themeStyle = document.getElementById('ms-consent-banner-theme-styles');
+        if (!themeStyle) throw new Error('WCP theme stylesheet was removed');
+        themeStyle.textContent =
+          themeKey === 'dark'
+            ? '.wcp-test-banner { background-color: rgb(32, 32, 32); color: white; }'
+            : '.wcp-test-banner { background-color: rgb(255, 255, 255); color: black; }';
         const w = window as unknown as {
           __wcpApplyThemeCalls?: number;
           __wcpLastAppliedTheme?: string;
@@ -84,10 +139,60 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
       themes,
       init(
         _culture: string,
-        _host: unknown,
+        host: HTMLElement,
         initCallback: (err: unknown, consent: typeof siteConsent) => void,
         onConsentChanged?: () => void
       ) {
+        state.initCalls++;
+        state.host = host;
+        state.consent = siteConsent;
+        state.consentChanged = onConsentChanged;
+
+        // Render into the actual host and bind real controls to this instance's
+        // callback. An API-only stub misses banners orphaned by a body swap.
+        const banner = document.createElement('section');
+        banner.id = 'wcpConsentBannerCtrl';
+        banner.setAttribute('aria-label', 'Cookie consent');
+        banner.className = 'wcp-test-banner';
+        const baseStyle = document.createElement('style');
+        baseStyle.dataset.wcpTestBase = '';
+        baseStyle.textContent = '.wcp-test-banner { padding: 16px; min-height: 96px; }';
+        const themeStyle = document.createElement('style');
+        themeStyle.id = 'ms-consent-banner-theme-styles';
+        document.head.append(baseStyle, themeStyle);
+        banner.hidden = !opts.consentRequired;
+        const message = document.createElement('p');
+        message.textContent = 'Choose whether to allow optional cookies.';
+        banner.append(message);
+        for (const label of ['Accept all', 'Reject all']) {
+          const action = document.createElement('button');
+          action.type = 'button';
+          action.textContent = label;
+          action.addEventListener('click', () => {
+            sessionStorage.setItem('wcp-test-choice', label);
+            sessionStorage.setItem(
+              'wcp-test-changes',
+              String(Number(sessionStorage.getItem('wcp-test-changes') ?? '0') + 1)
+            );
+            banner.hidden = true;
+            onConsentChanged?.();
+          });
+          banner.append(action);
+        }
+        preferences = document.createElement('section');
+        preferences.setAttribute('role', 'dialog');
+        preferences.setAttribute('aria-label', 'Cookie preferences');
+        preferences.style.cssText = 'background: white; color: black; padding: 16px';
+        preferences.hidden = true;
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.textContent = 'Close cookie preferences';
+        close.addEventListener('click', () => {
+          preferences.hidden = true;
+        });
+        preferences.append(close);
+        host.append(banner, preferences);
+
         // Expose WCP's own consent-changed callback (init's 4th argument) so a
         // test can drive the consent-*changed* path, which the bootstrap handles
         // by reloading. Then mirror WCP: invoke the init callback once consent is
@@ -119,14 +224,159 @@ async function waitForConsentBootstrap(page: Page): Promise<void> {
     .poll(
       () =>
         safeEvaluate(page, () =>
-          Boolean((window as unknown as { __aspireWcpSiteConsent?: unknown }).__aspireWcpSiteConsent)
+          Boolean(
+            (window as unknown as { __aspireWcpSiteConsent?: unknown }).__aspireWcpSiteConsent
+          )
         ),
       { timeout: POLL_TIMEOUT }
     )
     .toBe(true);
 }
 
+async function navigateWithConsent(page: Page, destination: 'videos' | 'home'): Promise<void> {
+  const swaps = await page.evaluate(() => {
+    if (!window.__wcpStub) throw new Error('WCP stub has not initialized');
+    return window.__wcpStub.swaps;
+  });
+  const link =
+    destination === 'videos'
+      ? page.locator('.live-btn:visible').first()
+      : page.locator('.header .site-title');
+  await link.click();
+  await expect(page).toHaveURL(
+    destination === 'videos' ? /\/community\/videos\/$/ : /^https?:\/\/[^/]+\/$/
+  );
+  // A page.goto or full reload would reset this counter, masking the regression.
+  await expect.poll(() => page.evaluate(() => window.__wcpStub?.swaps)).toBe(swaps + 1);
+}
+
 test.describe('WCP cookie consent bridge', () => {
+  test('keeps an unanswered banner and its original callbacks usable across client navigation', async ({
+    page,
+  }) => {
+    await installWcpStub(page, { consentRequired: true, analyticsGranted: false });
+    await page.goto('/');
+    await waitForConsentBootstrap(page);
+    const banner = page.getByRole('region', { name: 'Cookie consent', exact: true });
+    await expect(banner).toBeVisible();
+    const originalHost = await page.locator('#wcp-cookie-banner').elementHandle();
+    const originalRuntime = await page.evaluateHandle(() => {
+      const w = window;
+      return {
+        consent: w.__aspireWcpSiteConsent,
+        bannerObserver: w.__aspireWcpBannerObserver,
+        themeObserver: w.__aspireWcpThemeObserver,
+        callback: w.__wcpStub?.consentChanged,
+      };
+    });
+
+    for (const destination of ['videos', 'home', 'videos'] as const) {
+      await navigateWithConsent(page, destination);
+      await expect(banner).toBeVisible();
+      await expect(page.locator('#wcp-cookie-banner')).toHaveCount(1);
+      await expect(page.locator('style[data-wcp-test-base]')).toHaveCount(1);
+      await expect(page.locator('#ms-consent-banner-theme-styles')).toHaveCount(1);
+      await expect(banner).toHaveCSS('min-height', '96px');
+      expect(
+        await page
+          .locator('#wcp-cookie-banner')
+          .evaluate((host, original) => host === original, originalHost)
+      ).toBe(true);
+      expect(
+        await page.evaluate((original) => {
+          const w = window;
+          return (
+            w.__wcpStub?.initCalls === 1 &&
+            w.__aspireWcpSiteConsent === original.consent &&
+            w.__aspireWcpBannerObserver === original.bannerObserver &&
+            w.__aspireWcpThemeObserver === original.themeObserver &&
+            w.__wcpStub.consentChanged === original.callback
+          );
+        }, originalRuntime)
+      ).toBe(true);
+      await expect(page.locator('html')).not.toHaveAttribute('data-consent-not-required');
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const height = document.getElementById('wcp-cookie-banner')!.offsetHeight;
+            return (
+              height > 0 &&
+              document.documentElement.style.getPropertyValue('--wcp-banner-height') ===
+                `${height}px`
+            );
+          })
+        )
+        .toBe(true);
+      await expect(page.locator(EXECUTABLE_ANALYTICS_SELECTOR)).toHaveCount(0);
+      await expect(page.locator(INERT_ANALYTICS_SELECTOR).first()).toBeAttached();
+    }
+
+    const themeCalls = await page.evaluate(() => {
+      document.documentElement.setAttribute('data-theme', 'light');
+      return (window as unknown as { __wcpApplyThemeCalls: number }).__wcpApplyThemeCalls;
+    });
+    await expect
+      .poll(() =>
+        page.locator('#ms-consent-banner-theme-styles').evaluate((style) => style.textContent)
+      )
+      .toContain('background-color: rgb(255, 255, 255)');
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as unknown as { __wcpApplyThemeCalls: number }).__wcpApplyThemeCalls
+        )
+      )
+      .toBe(themeCalls + 1);
+
+    await page.locator(`${MANAGE_TRIGGER_SELECTOR}:visible`).first().click();
+    const preferences = page.getByRole('dialog', { name: 'Cookie preferences', exact: true });
+    await expect(preferences).toBeVisible();
+    await navigateWithConsent(page, 'home');
+    await expect(preferences).toBeVisible();
+    await preferences.getByRole('button', { name: 'Close cookie preferences' }).click();
+    await expect(preferences).toBeHidden();
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __wcpManageConsentCalls: number }).__wcpManageConsentCalls
+      )
+    ).toBe(1);
+
+    // Answer the persisted banner, not a replacement. Its original WCP callback
+    // must still run exactly once and trigger the application's reload path.
+    await banner.getByRole('button', { name: 'Reject all', exact: true }).click();
+    await expect
+      .poll(() =>
+        safeEvaluate(page, () => ({
+          choice: sessionStorage.getItem('wcp-test-choice'),
+          changes: sessionStorage.getItem('wcp-test-changes'),
+          swaps: window.__wcpStub?.swaps,
+        }))
+      )
+      .toEqual({ choice: 'Reject all', changes: '1', swaps: 0 });
+    await waitForConsentBootstrap(page);
+  });
+
+  test('preserves the no-consent region state across client navigation', async ({ page }) => {
+    await installWcpStub(page, { consentRequired: false, analyticsGranted: false });
+    await page.goto('/');
+    await waitForConsentBootstrap(page);
+
+    for (const destination of ['videos', 'home'] as const) {
+      await navigateWithConsent(page, destination);
+      await expect(page.locator('html')).toHaveAttribute('data-consent-not-required', '');
+      await expect(page.locator(`${MANAGE_TRIGGER_SELECTOR}:visible`)).toHaveCount(0);
+      await expect(page.getByRole('region', { name: 'Cookie consent', exact: true })).toBeHidden();
+      expect(await page.evaluate(() => window.__wcpStub?.initCalls)).toBe(1);
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            document.documentElement.style.getPropertyValue('--wcp-banner-height')
+          )
+        )
+        .toBe('0px');
+    }
+  });
+
   test('promotes inert analytics scripts once Analytics consent is granted', async ({ page }) => {
     await installWcpStub(page, { consentRequired: false, analyticsGranted: true });
     await page.goto('/');
@@ -275,7 +525,8 @@ test.describe('WCP cookie consent bridge', () => {
           safeEvaluate(
             page,
             () =>
-              (window as unknown as { __wcpLastAppliedTheme?: string }).__wcpLastAppliedTheme ?? null
+              (window as unknown as { __wcpLastAppliedTheme?: string }).__wcpLastAppliedTheme ??
+              null
           ),
         { timeout: POLL_TIMEOUT }
       )
@@ -288,7 +539,8 @@ test.describe('WCP cookie consent bridge', () => {
           safeEvaluate(
             page,
             () =>
-              (window as unknown as { __wcpLastAppliedTheme?: string }).__wcpLastAppliedTheme ?? null
+              (window as unknown as { __wcpLastAppliedTheme?: string }).__wcpLastAppliedTheme ??
+              null
           ),
         { timeout: POLL_TIMEOUT }
       )

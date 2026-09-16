@@ -1,6 +1,19 @@
 import { expect, test, type Page } from '@playwright/test';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
+// Exercise native transitions on desktop and the supported swap fallback on
+// touch projects, matching the other client-navigation regression suites.
+test.beforeEach(async ({ page, isMobile }) => {
+  if (isMobile) {
+    await page.addInitScript(() => {
+      Object.defineProperty(document, 'startViewTransition', {
+        configurable: true,
+        value: undefined,
+      });
+    });
+  }
+});
+
 /**
  * Opens the Pagefind/Starlight search dialog and waits for either the
  * Pagefind input or the dev-mode warning to appear.
@@ -33,7 +46,142 @@ async function typeSearchQuery(page: Page, query: string): Promise<void> {
   await input.fill(query);
 }
 
+async function navigateClient(page: Page, navigate: () => Promise<unknown>): Promise<void> {
+  await page.evaluate(() => {
+    Reflect.set(window, '__siteSearchPageLoaded', false);
+    document.addEventListener('astro:page-load', () => {
+      Reflect.set(window, '__siteSearchPageLoaded', true);
+    }, { once: true });
+  });
+  await navigate();
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, '__siteSearchPageLoaded'))).toBe(true);
+  await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
+}
+
 test.describe('site search dialog', () => {
+  for (const openWith of ['button', 'shortcut'] as const) {
+    test(`docs search survives client navigation and history when opened by ${openWith}`, async ({
+      page,
+    }) => {
+      const errors: string[] = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      await page.goto('/');
+      await dismissCookieConsentIfVisible(page);
+      await page.evaluate(() => Reflect.set(window, '__siteSearchSession', true));
+
+      const assertSearch = async () => {
+        if (openWith === 'shortcut') {
+          await page.keyboard.press('Control+k');
+        } else {
+          await page.locator('site-search button[data-open-modal]').click();
+        }
+        const dialog = page.locator('site-search dialog[open]');
+        await expect(dialog).toBeVisible();
+        const input = dialog.locator('input.pagefind-ui__search-input');
+        const devWarning = dialog.getByText(/Search is only available in production builds/i);
+        await expect(input.or(devWarning)).toBeVisible({ timeout: 15000 });
+        if (await input.isVisible()) {
+          await expect(input).toHaveCount(1);
+          await expect(input).toBeFocused();
+          await input.fill('redis');
+          const results = dialog.locator('.pagefind-ui__result-link');
+          await expect(results.first()).toBeVisible({ timeout: 15000 });
+          const hrefs = await results.evaluateAll((links) =>
+            links.map((link) => link.getAttribute('href')),
+          );
+          expect(hrefs.some((href) => href?.includes('/integrations/'))).toBe(true);
+          expect(hrefs.every((href) => !href?.includes('/reference/api/'))).toBe(true);
+        }
+        await page.keyboard.press('Escape');
+        await expect(dialog).toBeHidden();
+        await expect(page.locator('body')).not.toHaveAttribute('data-search-modal-open');
+        expect(errors).toEqual([]);
+      };
+
+      await assertSearch();
+      // Use the real links, not page.goto: a hard reload hides the regression.
+      for (const path of ['/docs/', '/get-started/first-app/']) {
+        await navigateClient(page, () => page.locator(`header a[href="${path}"]:visible`).click());
+        await expect(page).toHaveURL((url) => url.pathname === path);
+        expect(await page.evaluate(() => Reflect.get(window, '__siteSearchSession'))).toBe(true);
+        await assertSearch();
+      }
+      await navigateClient(page, () => page.goBack());
+      await expect(page).toHaveURL(/\/docs\/$/);
+      expect(await page.evaluate(() => Reflect.get(window, '__siteSearchSession'))).toBe(true);
+      await assertSearch();
+      await navigateClient(page, () => page.goForward());
+      await expect(page).toHaveURL((url) => url.pathname === '/get-started/first-app/');
+      expect(await page.evaluate(() => Reflect.get(window, '__siteSearchSession'))).toBe(true);
+      await assertSearch();
+    });
+  }
+
+  test('search initializes when entering from API pages and cleans up when leaving for them', async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto('/reference/api/csharp/');
+    await dismissCookieConsentIfVisible(page);
+    await expect(page.locator('site-search')).toHaveCount(0);
+    await page.evaluate(() => Reflect.set(window, '__siteSearchSession', true));
+
+    for (let visit = 0; visit < 2; visit++) {
+      await navigateClient(page, () => page.locator('header a[href="/"]:visible').click());
+      await expect(page).toHaveURL((url) => url.pathname === '/');
+      expect(await page.evaluate(() => Reflect.get(window, '__siteSearchSession'))).toBe(true);
+      const ready = await openSearchDialog(page);
+      if (ready) {
+        await typeSearchQuery(page, 'redis');
+        await expect(page.locator('.pagefind-ui__result-link').first()).toBeVisible();
+        await typeSearchQuery(page, '');
+      }
+      await page.locator('site-search a[data-api-lang="csharp"]').click();
+      await expect(page).toHaveURL(/\/reference\/api\/csharp\/$/);
+      await expect(page.locator('site-search')).toHaveCount(0);
+      await page.keyboard.press('Control+k');
+      await expect(page.locator('body')).not.toHaveAttribute('data-search-modal-open');
+      expect(errors).toEqual([]);
+    }
+  });
+
+  test('navigation during the lazy UI import mounts only the current search instance', async ({
+    page,
+  }) => {
+    test.skip(!process.env.CI, 'Pagefind is generated by the production build.');
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    let releaseImport!: () => void;
+    const importGate = new Promise<void>((resolve) => { releaseImport = resolve; });
+    let markRequested!: () => void;
+    const importRequested = new Promise<void>((resolve) => { markRequested = resolve; });
+    await page.route('**/_astro/ui-core.*.js', async (route) => {
+      markRequested();
+      await importGate;
+      await route.continue();
+    });
+    try {
+      await page.goto('/');
+      await dismissCookieConsentIfVisible(page);
+      await importRequested;
+      await navigateClient(page, () => page.locator('header a[href="/docs/"]:visible').click());
+      await expect(page).toHaveURL(/\/docs\/$/);
+      await page.keyboard.press('Control+k');
+      releaseImport();
+      const input = page.locator('site-search dialog input.pagefind-ui__search-input');
+      await expect(input).toBeVisible();
+      await expect(input).toHaveCount(1);
+      await expect(input).toBeFocused();
+      await input.fill('redis');
+      await expect(page.locator('.pagefind-ui__result-link').first()).toBeVisible();
+      await expect(input).toHaveCount(1);
+      expect(errors).toEqual([]);
+    } finally {
+      releaseImport();
+    }
+  });
+
   test('does not index AppHost examples deferred from the homepage', async ({ page }) => {
     test.skip(!process.env.CI, 'Pagefind is generated by the production build.');
     await page.goto('/');

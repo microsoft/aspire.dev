@@ -405,10 +405,29 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['youtube-nocookie.com/embed/dQw4w9WgXcQ', 'autoplay=1', 'mute=1', 'Video player'],
   },
   {
-    name: 'TwitchEmbed uses the request host for the parent parameter',
+    name: 'YouTubeEmbed renders a non-autoplaying playlist',
+    Component: YouTubeEmbed,
+    props: { playlistId: 'UUW_UJkc7RhM_NPcDXnOCfrQ', title: 'Aspire uploads' },
+    includes: ['youtube-nocookie.com/embed/videoseries', 'list=UUW_UJkc7RhM_NPcDXnOCfrQ', 'autoplay=0', 'Aspire uploads'],
+  },
+  {
+    name: 'TwitchEmbed defers its URL until the browser hostname is known',
     Component: TwitchEmbed,
-    props: { channel: 'aspiredotdev', title: 'Twitch stream' },
-    includes: ['player.twitch.tv/?channel=aspiredotdev', 'parent=aspire.dev', 'Twitch stream'],
+    props: { channel: 'aspiredotdev', autoplay: true, title: 'Twitch stream' },
+    includes: [
+      'player.twitch.tv/?channel=aspiredotdev',
+      'data-twitch-src=',
+      'autoplay=true',
+      'muted=true',
+      'picture-in-picture',
+      'Twitch stream',
+    ],
+  },
+  {
+    name: 'TwitchEmbed preserves an explicitly supplied parent',
+    Component: TwitchEmbed,
+    props: { channel: 'aspiredotdev', parent: 'embedded.example.com' },
+    includes: ['src="https://player.twitch.tv/', 'parent=embedded.example.com'],
   },
   {
     name: 'IconLinkCard renders title, description and href',
@@ -887,6 +906,19 @@ const integrationsFixture = [
 ];
 
 describe('custom Astro component render coverage', () => {
+  it('does not request Twitch with a build-time hostname before client initialization', async () => {
+    const html = await renderComponent(TwitchEmbed, {
+      props: { channel: 'aspiredotdev' },
+      requestUrl: 'https://aspire.dev/community/videos/',
+    });
+    const iframe = html.match(/<iframe\b[^>]*>/)?.[0];
+    expect(iframe).toBeDefined();
+    expect(iframe).toContain('data-twitch-src="https://player.twitch.tv/');
+    expect(iframe).not.toMatch(/\ssrc=/);
+    expect(iframe).not.toContain('parent=');
+    expect(html).toContain('<noscript>');
+  });
+
   for (const testCase of basicRenderCases) {
     it(testCase.name, async () => {
       const html = normalizeHtml(

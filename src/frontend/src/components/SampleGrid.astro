@@ -196,10 +196,18 @@ const tagCounts = new Map(
 <!-- is:inline is required so the filter/search logic runs synchronously in the
      page rather than being bundled and deferred by Astro's script processing.
      This ensures the grid is interactive immediately on page load. -->
-<script is:inline>
-  (function () {
+<script is:inline data-astro-rerun>
+  (function initializeSampleGrid() {
     const browser = document.querySelector('[data-samples-browser]');
     if (!browser) return;
+    if (browser.dataset.samplesInitialized) return;
+    browser.dataset.samplesInitialized = 'true';
+    const controller = new AbortController();
+    const { signal } = controller;
+    document.addEventListener('astro:before-swap', () => {
+      controller.abort();
+      delete browser.dataset.samplesInitialized;
+    }, { once: true });
 
     const searchInput = browser.querySelector('[data-search-input]');
     const clearBtn = browser.querySelector('[data-clear-btn]');
@@ -334,14 +342,14 @@ const tagCounts = new Map(
     searchInput.addEventListener('input', (e) => {
       searchQuery = e.target.value;
       applyFilters();
-    });
+    }, { signal });
 
     clearBtn.addEventListener('click', () => {
       searchInput.value = '';
       searchQuery = '';
       applyFilters();
       searchInput.focus();
-    });
+    }, { signal });
 
     // Tag chips
     tagChips.forEach((chip) => {
@@ -357,7 +365,7 @@ const tagCounts = new Map(
           chip.setAttribute('aria-pressed', 'true');
         }
         applyFilters();
-      });
+      }, { signal });
     });
 
     // Clear all
@@ -372,8 +380,8 @@ const tagCounts = new Map(
       applyFilters();
     }
 
-    if (clearAllBtn) clearAllBtn.addEventListener('click', resetAll);
-    if (resetBtn) resetBtn.addEventListener('click', resetAll);
+    if (clearAllBtn) clearAllBtn.addEventListener('click', resetAll, { signal });
+    if (resetBtn) resetBtn.addEventListener('click', resetAll, { signal });
 
     // Mobile "Show all N tags" expander — only meaningful when there are
     // enough tags that the wall would feel overwhelming. The toggle button
@@ -402,7 +410,7 @@ const tagCounts = new Map(
             : `Show all ${tagChips.length} tags`;
         }
         tagToggle.setAttribute('aria-expanded', collapsed ? 'true' : 'false');
-      });
+      }, { signal });
     }
 
     // Initialize

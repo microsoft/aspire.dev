@@ -442,8 +442,20 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   }
 </style>
 
-<script is:inline define:vars={{ showClientIntegrations }}>
+<script is:inline data-astro-rerun define:vars={{ showClientIntegrations }}>
+(function initializeIntegrations() {
   const searchBox = document.querySelector('.search-box');
+  if (!document.querySelector('.integration-stats') || !searchBox) return;
+  if (searchBox.dataset.integrationsInitialized) return;
+  searchBox.dataset.integrationsInitialized = 'true';
+  const controller = new AbortController();
+  const { signal } = controller;
+  let filterTimer;
+  document.addEventListener('astro:before-swap', () => {
+    controller.abort();
+    clearTimeout(filterTimer);
+    delete searchBox.dataset.integrationsInitialized;
+  }, { once: true });
   const clearButton = document.querySelector('.clear-button');
   const officialToggle = document.querySelector('.type-toggle[data-type="official"]');
   const communityToggle = document.querySelector('.type-toggle[data-type="community"]');
@@ -511,7 +523,7 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
       if (!showClient) params.set('client', 'false');
     }
     const newUrl = `${window.location.pathname}?${params.toString()}`;
-    history.pushState({}, '', newUrl);
+    history.pushState(history.state, '', newUrl);
   }
 
   function clearSearch() {
@@ -633,10 +645,9 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
 
   // Debounce helper
   function debounce(fn, delay) {
-    let timer;
     return (...args) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), delay);
+      clearTimeout(filterTimer);
+      filterTimer = setTimeout(() => fn(...args), delay);
     };
   }
 
@@ -646,42 +657,42 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   searchBox.addEventListener('input', () => {
     updateClearButton();
     debouncedFilterCards();
-  });
+  }, { signal });
 
-  clearButton.addEventListener('click', clearSearch);
+  clearButton.addEventListener('click', clearSearch, { signal });
 
   officialToggle.addEventListener('click', () => {
     showOfficial = !showOfficial;
     officialToggle.classList.toggle('active', showOfficial);
     filterCards();
-  });
+  }, { signal });
 
   communityToggle.addEventListener('click', () => {
     showCommunity = !showCommunity;
     communityToggle.classList.toggle('active', showCommunity);
     filterCards();
-  });
+  }, { signal });
 
   hostingToggle &&
     hostingToggle.addEventListener('click', () => {
       showHosting = !showHosting;
       hostingToggle.classList.toggle('active', showHosting);
       filterCards();
-    });
+    }, { signal });
 
   clientToggle &&
     clientToggle.addEventListener('click', () => {
       showClient = !showClient;
       clientToggle.classList.toggle('active', showClient);
       filterCards();
-    });
+    }, { signal });
 
   // Also clear when user presses Escape in the search box
   searchBox.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       clearSearch();
     }
-  });
+  }, { signal });
 
   window.addEventListener('popstate', () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -704,9 +715,10 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
     }
     updateClearButton();
     filterCards(false);
-  });
+  }, { signal });
 
-  filterCards(); // Initial render
+  filterCards(false); // Initial render must not create another history entry.
   updateClearButton();
   searchBox.focus();
+})();
 </script>

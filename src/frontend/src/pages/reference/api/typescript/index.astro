@@ -51,7 +51,8 @@ const indexJson = JSON.stringify(index);
     { label: 'Search TypeScript APIs' },
   ]} />
 
-  <div class="api-ref-landing not-content">
+  <div class="api-ref-landing not-content" data-api-search-language="typescript" data-api-search-kind="landing">
+    <script is:inline type="application/json" data-api-search-index set:html={indexJson.replace(/</g, '\\u003c')} />
     <p class="ts-api-intro">
       Browse the TypeScript APIs available when writing an
       <a href={`${base}/get-started/first-app/?lang=typescript`}>Aspire TypeScript AppHost</a>.
@@ -94,13 +95,9 @@ const indexJson = JSON.stringify(index);
   </div>
 </StarlightPage>
 
-<!-- Embed the search index -->
-<script is:inline define:vars={{ indexJson }}>
-  window.__tsApiSearchIndex = JSON.parse(indexJson);
-</script>
-
 <script>
-  import '@components/api-reference/inpage-search-sync';
+  import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
+  import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
   import { formatTsApiSearchStats, getTsApiSearchStats } from '@utils/ts-api-search-stats';
 
   interface IndexEntry {
@@ -144,19 +141,22 @@ const indexJson = JSON.stringify(index);
     private lastScored: { entry: IndexEntry; score: number }[] = [];
     private lastTokens: string[] = [];
     private visibleCount = 0;
-    private sync: any;
+    private sync: InpageSearchSync;
 
-    constructor() {
-      this.input = document.getElementById('ts-api-search-input') as HTMLInputElement;
-      this.resultsEl = document.getElementById('ts-api-search-results') as HTMLElement;
-      this.packageList = document.getElementById('ts-api-package-list') as HTMLElement;
-      this.status = document.getElementById('ts-api-search-status') as HTMLElement;
-      this.countEl = document.getElementById('ts-api-search-count') as HTMLElement;
-      this.filtersEl = document.getElementById('ts-api-kind-filters') as HTMLElement;
-      this.clearFiltersBtn = document.getElementById('ts-api-clear-filters') as HTMLElement;
-      this.index = (window as any).__tsApiSearchIndex ?? [];
+    constructor(private root: HTMLElement, private signal: AbortSignal) {
+      this.input = root.querySelector<HTMLInputElement>('#ts-api-search-input')!;
+      this.resultsEl = root.querySelector<HTMLElement>('#ts-api-search-results')!;
+      this.packageList = root.querySelector<HTMLElement>('#ts-api-package-list')!;
+      this.status = root.querySelector<HTMLElement>('#ts-api-search-status')!;
+      this.countEl = root.querySelector<HTMLElement>('#ts-api-search-count')!;
+      this.filtersEl = root.querySelector<HTMLElement>('#ts-api-kind-filters')!;
+      this.clearFiltersBtn = root.querySelector<HTMLElement>('#ts-api-clear-filters')!;
+      this.index = readApiSearchIndex<IndexEntry>(root);
 
-      this.sync = new (window as any).InpageSearchSync('ts-api', () => this.clear());
+      this.sync = new InpageSearchSync('ts-api', () => this.clear(), root, signal);
+      signal.addEventListener('abort', () => {
+        if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      }, { once: true });
 
       this.init();
       this.restoreFromUrl();
@@ -184,11 +184,11 @@ const indexJson = JSON.stringify(index);
         }
 
         this.applySearch();
-      });
+      }, { signal });
     }
 
     private syncVersionStateFromDom(): void {
-      const vfContainer = document.querySelector('.version-filter');
+      const vfContainer = this.root.querySelector('.version-filter');
       if (!vfContainer) {
         this.activeVersions = null;
         return;
@@ -213,10 +213,10 @@ const indexJson = JSON.stringify(index);
     }
 
     private init(): void {
-      this.input.addEventListener('input', () => this.handleInput());
+      this.input.addEventListener('input', () => this.handleInput(), { signal: this.signal });
       this.input.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') this.clear();
-      });
+      }, { signal: this.signal });
 
       this.filtersEl.querySelectorAll('.api-filter-chip').forEach(chip => {
         chip.addEventListener('click', () => {
@@ -233,7 +233,7 @@ const indexJson = JSON.stringify(index);
           this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
           this.syncUrl();
           this.applySearch();
-        });
+        }, { signal: this.signal });
       });
 
       // Clear filters (kinds + versions)
@@ -246,7 +246,7 @@ const indexJson = JSON.stringify(index);
 
         // Reset version filter
         this.activeVersions = null;
-        const vfContainer = document.querySelector('.version-filter');
+        const vfContainer = this.root.querySelector('.version-filter');
         if (vfContainer) {
           vfContainer.querySelectorAll<HTMLInputElement>('.version-filter-cb').forEach(cb => { cb.checked = true; });
           const allCb = vfContainer.querySelector<HTMLInputElement>('.version-filter-cb[data-version="__all__"]');
@@ -262,7 +262,7 @@ const indexJson = JSON.stringify(index);
         this.clearFiltersBtn.style.display = 'none';
         this.syncUrl();
         this.applySearch();
-      });
+      }, { signal: this.signal });
     }
 
     private clear(): void {
@@ -450,7 +450,7 @@ const indexJson = JSON.stringify(index);
         btn.className = 'api-load-more';
         btn.type = 'button';
         btn.textContent = `Show ${fmtNum(Math.min(remaining, PAGE_SIZE))} more of ${fmtNum(remaining)} remaining`;
-        btn.addEventListener('click', () => this.loadMore());
+        btn.addEventListener('click', () => this.loadMore(), { signal: this.signal });
         this.resultsEl.appendChild(btn);
       }
     }
@@ -494,9 +494,9 @@ const indexJson = JSON.stringify(index);
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    new TsApiSearchController();
-    const input = document.getElementById('ts-api-search-input') as HTMLInputElement | null;
+  registerApiSearch('typescript', 'landing', (root, signal) => {
+    new TsApiSearchController(root, signal);
+    const input = root.querySelector<HTMLInputElement>('#ts-api-search-input');
     input?.focus();
   });
 </script>
