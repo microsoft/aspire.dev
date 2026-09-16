@@ -146,6 +146,38 @@ test.describe('site search dialog', () => {
     }
   });
 
+  test('API search result navigation restores homepage hero typography', async ({ page }) => {
+    await page.setViewportSize({ width: 2000, height: 1001 });
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const hero = page.getByRole('heading', {
+      level: 1,
+      name: 'Compose distributed apps in code.',
+    });
+    const expectedFontSize = await hero.evaluate((element) => getComputedStyle(element).fontSize);
+
+    await page.goto('/reference/api/csharp/');
+    await page.evaluate(() => {
+      const result = document.createElement('a');
+      result.className = 'pagefind-ui__result-link';
+      result.href = '/';
+      result.textContent = 'Home';
+      result.style.cssText =
+        'position:fixed;inset-block-start:0;inset-inline-start:0;z-index:2147483647';
+      document.body.append(result);
+    });
+
+    await navigateClient(page, () =>
+      page.locator('.pagefind-ui__result-link', { hasText: 'Home' }).click()
+    );
+    await expect(page).toHaveURL((url) => url.pathname === '/');
+    await expect(hero).not.toHaveClass(/api-page-title/);
+    await expect.poll(() => hero.evaluate((element) => getComputedStyle(element).fontSize)).toBe(
+      expectedFontSize
+    );
+  });
+
   test('navigation during the lazy UI import mounts only the current search instance', async ({
     page,
   }) => {
