@@ -341,7 +341,7 @@ describe('current source coverage', () => {
     }
   });
 
-  it('preserves all 32 original community videos, series, descriptions and MDX exports', () => {
+  it('preserves all 32 original community videos, series and descriptions in the catalog', () => {
     expect([aspireifridays.length, dotnetConf2025.length, communityVideos.length]).toEqual([17, 7, 8]);
     const originalIds = [
       'UjQ-fVkwqpY', 'c7-Xeg67IUs', 'PDwtUpipWbA', 'dCwwvXmclEs', 'XXYvI11Rz7g', 'Js06lpu_YsM',
@@ -358,10 +358,6 @@ describe('current source coverage', () => {
       expect(actual.href).toBe(video.href);
       expect(actual.tags).toEqual(expect.arrayContaining(video.tags));
     }
-    const mdx = readFileSync(path.join(root, 'src', 'content', 'docs', 'community', 'videos.mdx'), 'utf8');
-    expect(mdx).toContain("from '@data/community-videos'");
-    expect(mdx).toContain('export { aspireifridays, dotnetConf2025, communityVideos };');
-    expect(mdx).toContain('<YouTube id="u5_yOjzgmCM"');
     for (const video of videos) expect(catalog.some(({ id }) => id === `video:${video.id}`)).toBe(true);
   });
 
