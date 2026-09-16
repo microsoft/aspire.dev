@@ -42,9 +42,22 @@ for (const theme of ['light', 'dark']) {
         const target = page.locator(selector).first();
         await target.scrollIntoViewIfNeeded();
         await page.mouse.move(0, 0);
-        const options = { scale: 'css', animations: 'disabled' } as const;
+        // Lazy language icons are part of the capture, but not the texture under test.
+        await target.evaluate((element) =>
+          Promise.all([...element.querySelectorAll('img')].map((image) => image.decode())));
+        // Fractional-width rounded borders can rasterize differently between captures.
+        const options = {
+          scale: 'css',
+          animations: 'disabled',
+          style: `${selector.replace(':visible', '')} { border-radius: 0 !important; }`,
+        } as const;
         const image = await target.screenshot(options);
-        expect(await target.screenshot(options), 'Texture must not animate or reshuffle').toEqual(image);
+        const nextImage = await target.screenshot(options);
+        if (!image.equals(nextImage)) {
+          await testInfo.attach(`${width}px first capture`, { body: image, contentType: 'image/png' });
+          await testInfo.attach(`${width}px second capture`, { body: nextImage, contentType: 'image/png' });
+        }
+        expect(image.equals(nextImage), 'Texture must not animate or reshuffle').toBe(true);
         const hidden = await page.addStyleTag({ content: `${selector.replace(':visible', '')}::before { opacity: 0 !important; }` });
         const withoutTexture = await target.screenshot(options);
         await hidden.evaluate((element) => element.remove());
