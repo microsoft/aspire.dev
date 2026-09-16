@@ -277,6 +277,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
     private static async Task<IResult> YouTubeVerify(
         HttpContext context,
         IYouTubeWebSubSubscriptionState subscriptions,
+        IOptions<LiveStatusOptions> options,
         TimeProvider time,
         ILoggerFactory loggerFactory)
     {
@@ -291,6 +292,19 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         var challenge = query["hub.challenge"].ToString();
         var verifyToken = query["hub.verify_token"].ToString();
         var logger = loggerFactory.CreateLogger("StaticHost.Live.YouTube.WebSub");
+
+        if (string.Equals(mode, "denied", StringComparison.Ordinal))
+        {
+            var channelId = options.Value.YouTube.ChannelId;
+            bool? matchesConfiguredTopic = string.IsNullOrEmpty(channelId)
+                ? null
+                : string.Equals(topic, YouTubeWebSubSubscriptionTransitions.TopicFor(channelId), StringComparison.Ordinal);
+            YouTubeDiagnostics.LogUntrustedDenial(
+                logger, query["hub.reason"].ToString(), !string.IsNullOrEmpty(topic), matchesConfiguredTopic);
+            return string.IsNullOrEmpty(topic)
+                ? Results.BadRequest("Invalid WebSub denial report.")
+                : Results.Ok();
+        }
 
         if (!int.TryParse(query["hub.lease_seconds"], out var leaseSeconds) ||
             string.IsNullOrEmpty(challenge))
@@ -367,8 +381,8 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         var signature = context.Request.Headers["X-Hub-Signature"].ToString();
         if (!YouTubeWebhookHandler.IsValidSignature(youtube.WebhookSecret, bodyBytes, signature))
         {
-            logger.LogWarning("YouTube WebSub signature mismatch.");
-            return Results.Unauthorized();
+            logger.LogWarning("YouTube WebSub signature missing or invalid; acknowledging and discarding the notification without processing.");
+            return Results.Ok();
         }
 
         if (env.IsDevelopment() && options.Value.EnableDevEndpoint && !youtube.IsConfigured)

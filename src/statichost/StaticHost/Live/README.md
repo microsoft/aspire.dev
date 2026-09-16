@@ -81,6 +81,7 @@ logging HTTP request bodies is not required.
 | `KnownVideoStatus` | Low-cost `videos.list` check of the currently known live video. |
 | `WebSubSubscribe` | Subscription POST accepted or failed; acceptance does **not** prove callback verification. |
 | `WebSubVerification` | A matching callback verified the subscription or renewal, with the granted `LeaseSeconds`. |
+| `WebSubDenialReport` | An untrusted, unauthenticated `hub.mode=denied` report; not proof that Google denied a subscription. No state or polling changes. |
 | `NotificationChannelResolution` / `NotificationConfirmation` | Resolve the channel or run the confirming search after a signed notification. |
 | `BackgroundTick` | A failure outside the provider calls, such as state coordination. |
 
@@ -101,13 +102,35 @@ failure, not an inbound website 503. Duration and status alone cannot establish
 the underlying provider cause.
 
 `ProviderDetail` contains only a fixed classification, such as temporary
-unavailability, invalid topic, or callback verification failure. Unknown or
+unavailability, transient error, invalid topic, or callback verification failure. Unknown or
 malformed bodies are omitted; `BodyTruncated` indicates the diagnostic read
 exceeded 4,096 characters. No raw HTML, provider message, API key, webhook
 secret, verification token, authorization header, or subscription form is
 logged by these diagnostics. Subscription failures also expose `FailureCount`
-and `RetryAt`; a hub 503 does not stop polling or prove why a broadcast was
-missed.
+and `RetryAt`. A valid provider `Retry-After` header is recorded as typed
+`RetryAfterSeconds` or `RetryAfterDate`, never as raw header text. These fields
+are diagnostic only and do not change the persisted retry schedule. For
+example, a 503 with `Transient error; please try again later` and
+`Retry-After: 120` reports a transient error and 120 seconds; it does not stop
+polling or prove why a broadcast was missed.
+
+The callback acknowledges notifications with missing, invalid, or mismatched
+signatures with HTTP 200, as required by PubSubHubbub authenticated content
+distribution, but discards them before parsing, state updates, coordination,
+or confirmation queuing. A warning explicitly records the discard. HTTP 200
+does not mean that a notification was authenticated or processed. Development
+overrides still require both a valid signature and the dev command secret.
+
+A denial GET requires `hub.topic`, but not a challenge, lease, or verification
+token. The static callback cannot authenticate these reports, so it logs only
+topic presence, a nullable comparison with the configured channel's topic,
+reason presence/length, and a bounded fixed classification. If only a channel
+handle is configured, topic correlation is unavailable. Even a matching topic
+does not authenticate the sender. Denials never confirm, revoke, clear, or
+otherwise change subscription state, live status, backoff, or polling.
+Subscribe verification still requires the matching `hub.verify_token`,
+challenge, and valid lease; repeated matching verifications retain the original
+renewal deadline.
 
 Successful discovery logs `LastSuccessfulDiscoveryAt`, `LastDiscoveryLive`,
 and `NextDiscoveryAt`. The worker includes its last successful discovery time
@@ -383,11 +406,11 @@ dotnet test .\tests\Aspire.Dev.AppHost.Tests\Aspire.Dev.AppHost.Tests.csproj --c
 dotnet test .\tests\StaticHost.Tests\StaticHost.Tests.csproj --configuration Release --filter "Category!=RedisIntegration"
 ```
 
-For the focused YouTube diagnostics and polling regressions, explicitly keep
+For the focused YouTube diagnostics, callback authorization, and polling regressions, explicitly keep
 frontend build scripts and package installation disabled:
 
 ```powershell
-dotnet test .\tests\StaticHost.Tests\StaticHost.Tests.csproj --configuration Release --filter "FullyQualifiedName~YouTube&Category!=RedisIntegration" -p:ShouldRunBuildScript=false -p:ShouldRunNpmInstall=false
+dotnet test .\tests\StaticHost.Tests\StaticHost.Tests.csproj --configuration Release --filter "(FullyQualifiedName~YouTube|FullyQualifiedName~LiveEndpointsTests)&Category!=RedisIntegration" -p:ShouldRunBuildScript=false -p:ShouldRunNpmInstall=false
 ```
 
 The real-Redis group has the xUnit trait `Category=RedisIntegration` and requires

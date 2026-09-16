@@ -13,6 +13,7 @@ public sealed class YouTubeDiagnosticsTests
     [InlineData("""{"error":[]}""", null, null, false)]
     [InlineData("""{"error":""", null, null, false)]
     [InlineData("<html>Temporarily unavailable api-key secret verify-token</html>", null, null, false)]
+    [InlineData("Transient error; please try again later api-key secret verify-token", null, null, false)]
     [InlineData("oversized", null, null, true)]
     public async Task HttpFailure_ReportsOnlyBoundedSafeDiagnostics(
         string body, string? reason, string? domain, bool truncated)
@@ -46,6 +47,53 @@ public sealed class YouTubeDiagnosticsTests
         Assert.True(entry.Message.Length < 1000);
         if (body.StartsWith("<html>", StringComparison.Ordinal))
             Assert.Equal("Provider reports temporary unavailability", entry.Fields["ProviderDetail"]);
+        if (body.StartsWith("Transient error", StringComparison.Ordinal))
+            Assert.Equal("Provider reports a transient error", entry.Fields["ProviderDetail"]);
+    }
+
+    [Theory]
+    [InlineData(null, null, null)]
+    [InlineData("120", 120d, null)]
+    [InlineData("Wed, 16 Sep 2026 21:00:00 GMT", null, "2026-09-16T21:00:00Z")]
+    [InlineData("api-key secret verify-token", null, null)]
+    [InlineData("-120", null, null)]
+    [InlineData("oversized", null, null)]
+    public async Task HttpFailure_ReportsTypedRetryAfterWithoutRawHeaders(
+        string? header, double? seconds, string? date)
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+        {
+            Content = new StringContent("Transient error; please try again later"),
+        };
+        if (header == "oversized") header = new string('9', 5000) + "api-key secret verify-token";
+        if (header is not null) response.Headers.TryAddWithoutValidation("Retry-After", header);
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            YouTubeDiagnostics.EnsureSuccessAsync(response, CancellationToken.None, "api-key", "secret", "verify-token"));
+        var logger = new YouTubeRecordingLogger<YouTubeClient>();
+
+        YouTubeDiagnostics.LogFailure(logger, exception, "WebSubSubscribe", YouTubeDiagnostics.SubscribeEndpoint);
+
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(seconds, entry.Fields["RetryAfterSeconds"]);
+        Assert.Equal(date is null ? (DateTimeOffset?)null : DateTimeOffset.Parse(date), entry.Fields["RetryAfterDate"]);
+        Assert.Equal("Provider reports a transient error", entry.Fields["ProviderDetail"]);
+        Assert.DoesNotContain("api-key", entry.Message);
+        Assert.DoesNotContain("secret", entry.Message);
+        Assert.DoesNotContain("verify-token", entry.Message);
+        Assert.True(entry.Message.Length < 1000);
+    }
+
+    [Fact]
+    public void DenialClassification_DoesNotReadBeyondDiagnosticLimit()
+    {
+        var logger = new YouTubeRecordingLogger<YouTubeClient>();
+
+        YouTubeDiagnostics.LogUntrustedDenial(
+            logger, new string('x', 4096) + "Transient error", topicPresent: true, matchesConfiguredTopic: null);
+
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(true, entry.Fields["BodyTruncated"]);
+        Assert.Equal("Unrecognized provider response; body omitted", entry.Fields["ProviderDetail"]);
     }
 
     [Fact]
@@ -55,6 +103,7 @@ public sealed class YouTubeDiagnosticsTests
         {
             Content = new StreamContent(new UnreadableStream()),
         };
+        response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(120));
         var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
             YouTubeDiagnostics.EnsureSuccessAsync(response, CancellationToken.None));
         var logger = new YouTubeRecordingLogger<YouTubeClient>();
@@ -62,6 +111,7 @@ public sealed class YouTubeDiagnosticsTests
         Assert.Equal(HttpStatusCode.BadGateway, exception.StatusCode);
         Assert.Equal("Response body could not be read; body omitted",
             Assert.Single(logger.Entries).Fields["ProviderDetail"]);
+        Assert.Equal(120d, Assert.Single(logger.Entries).Fields["RetryAfterSeconds"]);
     }
 
     [Theory]

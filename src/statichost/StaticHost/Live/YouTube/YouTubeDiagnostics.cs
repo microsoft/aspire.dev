@@ -16,7 +16,11 @@ internal static class YouTubeDiagnostics
     private const string LoggedKey = "YouTube.FailureLogged";
     private const int BodyLimit = 4096;
 
-    private sealed record ResponseDetails(string? Reason, string? Domain, string Detail, bool Truncated);
+    private sealed record ResponseDetails(string? Reason, string? Domain, string Detail, bool Truncated)
+    {
+        public double? RetryAfterSeconds { get; init; }
+        public DateTimeOffset? RetryAfterDate { get; init; }
+    }
 
     internal static async Task EnsureSuccessAsync(
         HttpResponseMessage response, CancellationToken cancellationToken, params string[] secrets)
@@ -38,6 +42,13 @@ internal static class YouTubeDiagnostics
             // Diagnostic decoding must never replace the original HTTP failure.
             details = new(null, null, "Response body could not be read; body omitted", false);
         }
+
+        var retryAfter = response.Headers.RetryAfter;
+        details = details with
+        {
+            RetryAfterSeconds = retryAfter?.Delta?.TotalSeconds,
+            RetryAfterDate = retryAfter?.Date,
+        };
 
         try
         {
@@ -70,16 +81,35 @@ internal static class YouTubeDiagnostics
         }
         catch (JsonException) { }
 
+        return new(null, null, ClassifyProviderText(body), truncated);
+    }
+
+    internal static void LogUntrustedDenial(
+        ILogger logger, string reason, bool topicPresent, bool? matchesConfiguredTopic)
+    {
+        var truncated = reason.Length > BodyLimit;
+        logger.LogWarning(
+            "YouTube {Operation}: untrusted, unauthenticated denial report; not proof of a hub decision. " +
+            "Topic present {TopicPresent}, matches configured topic {MatchesConfiguredTopic}; " +
+            "reason present {ReasonPresent}, length {ReasonLength}, detail {ProviderDetail}, truncated {BodyTruncated}. " +
+            "Subscription state and live-status polling are unchanged.",
+            "WebSubDenialReport", topicPresent, matchesConfiguredTopic, reason.Length > 0, reason.Length,
+            ClassifyProviderText(truncated ? reason[..BodyLimit] : reason), truncated);
+    }
+
+    private static string ClassifyProviderText(string text)
+    {
         // Only fixed classifications leave this boundary, never echoed HTML, URLs,
         // callback values or arbitrary provider messages.
-        var detail = body.Contains("temporarily unavailable", StringComparison.OrdinalIgnoreCase)
+        return text.Contains("temporarily unavailable", StringComparison.OrdinalIgnoreCase)
             ? "Provider reports temporary unavailability"
-            : body.Contains("invalid topic", StringComparison.OrdinalIgnoreCase)
-                ? "Provider reports an invalid topic"
-                : body.Contains("verification failed", StringComparison.OrdinalIgnoreCase)
-                    ? "Provider reports callback verification failure"
-                    : "Unrecognized provider response; body omitted";
-        return new(null, null, detail, truncated);
+            : text.Contains("transient error", StringComparison.OrdinalIgnoreCase)
+                ? "Provider reports a transient error"
+                : text.Contains("invalid topic", StringComparison.OrdinalIgnoreCase)
+                    ? "Provider reports an invalid topic"
+                    : text.Contains("verification failed", StringComparison.OrdinalIgnoreCase)
+                        ? "Provider reports callback verification failure"
+                        : "Unrecognized provider response; body omitted";
     }
 
     private static string? ReadCode(JsonElement error, string name, string[] secrets)
@@ -121,6 +151,7 @@ internal static class YouTubeDiagnostics
         var message =
             "YouTube {Operation} failed at {Endpoint} after {ElapsedMs} ms: {FailureType}, HTTP {StatusCode} {StatusReason}; " +
             "provider reason {ProviderReason}, domain {ProviderDomain}, detail {ProviderDetail}, truncated {BodyTruncated}; " +
+            "provider Retry-After seconds {RetryAfterSeconds}, date {RetryAfterDate}; " +
             "timeout {IsTimeout}, network {HttpRequestError}, socket {SocketError}, inner failure {InnerFailureType}. " +
             "Last successful discovery {LastSuccessfulDiscoveryAt}, live {LastDiscoveryLive}. Failure is not an offline observation.";
         List<object?> fields =
@@ -128,6 +159,7 @@ internal static class YouTubeDiagnostics
             operation, endpoint, elapsedMs, exception.GetType().Name, status,
             status is { } number ? ReasonPhrases.GetReasonPhrase(number) : null,
             details?.Reason, details?.Domain, details?.Detail, details?.Truncated,
+            details?.RetryAfterSeconds, details?.RetryAfterDate,
             timeout, http?.HttpRequestError, socket?.SocketErrorCode, exception.InnerException?.GetType().Name,
             lastSuccessfulDiscoveryAt, lastDiscoveryLive,
         ];
