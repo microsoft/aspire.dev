@@ -130,8 +130,12 @@ test('onboarding offers native task links with visible focus in both themes and 
     await expect(link).toHaveCSS('outline-style', 'solid');
   }
   await expect(section.locator('.onboarding-recommended')).toHaveCSS('border-width', '1px');
+  await expect(links.first()).toHaveAttribute('href', '/get-started/first-app/');
   await links.first().press('Enter');
-  await expect(page).toHaveURL(/\/get-started\/first-app\/$/);
+  await expect(page).toHaveURL((url) =>
+    url.pathname === '/get-started/first-app/' && url.searchParams.get('aspire-lang') === 'typescript');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Build your first Aspire app');
+  await expect(page.locator('#pivot-selector-aspire-lang [data-pivot-option="typescript"]')).toHaveClass(/\bactive\b/);
 });
 
 test('Dev Hub introduction and Markdown omit repository positioning copy', async ({ page, request }) => {
