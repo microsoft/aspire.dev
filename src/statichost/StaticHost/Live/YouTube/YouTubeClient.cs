@@ -114,8 +114,8 @@ public sealed class YouTubeClient(
         var c = httpFactory.CreateClient(PubSubHttpClientName);
         c.BaseAddress ??= new Uri("https://pubsubhubbub.appspot.com/");
 
-        var topic = $"https://www.youtube.com/xml/feeds/videos.xml?channel_id={channelId}";
-        var form = new FormUrlEncodedContent(
+        var topic = YouTubeWebSubSubscriptionTransitions.TopicFor(channelId);
+        using var form = new FormUrlEncodedContent(
         [
             new KeyValuePair<string,string>("hub.callback", callbackUrl),
             new KeyValuePair<string,string>("hub.topic", topic),
@@ -130,7 +130,7 @@ public sealed class YouTubeClient(
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogWarning("YouTube WebSub subscribe failed: {Status} {Body}", response.StatusCode, body);
+            logger.LogDebug("YouTube WebSub subscribe failed: {Status} {Body}", response.StatusCode, body);
             response.EnsureSuccessStatusCode();
         }
     }

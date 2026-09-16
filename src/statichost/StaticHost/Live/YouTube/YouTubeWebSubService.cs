@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Polly.Timeout;
 
 namespace StaticHost.Live.YouTube;
 
@@ -128,17 +129,32 @@ public sealed class YouTubeWebSubService(
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                await _subscriptions.MarkRequestFailedAsync(
-                    request,
-                    CancellationToken.None).ConfigureAwait(false);
+                // Let the short send reservation expire on shutdown or leadership loss.
                 throw;
             }
             catch (Exception ex)
             {
-                await _subscriptions.MarkRequestFailedAsync(
+                var retry = await _subscriptions.MarkRequestFailedAsync(
                     request,
                     CancellationToken.None).ConfigureAwait(false);
-                logger.LogWarning(ex, "YouTube WebSub subscribe failed; will retry next tick.");
+                if (ex is HttpRequestException or OperationCanceledException or TimeoutRejectedException)
+                {
+                    if (retry is not null)
+                    {
+                        logger.LogWarning(
+                            "YouTube WebSub subscribe failed ({FailureType}, HTTP {StatusCode}); attempt {FailureCount}. " +
+                            "Next subscription attempt no earlier than {RetryAt}. Live-status polling continues.",
+                            ex.GetType().Name,
+                            (ex as HttpRequestException)?.StatusCode,
+                            retry.FailureCount,
+                            retry.RetryAt);
+                    }
+                    logger.LogDebug(ex, "YouTube WebSub subscription request failure details.");
+                }
+                else
+                {
+                    logger.LogError(ex, "Unexpected YouTube WebSub subscription failure.");
+                }
             }
 
             if (requestSent)

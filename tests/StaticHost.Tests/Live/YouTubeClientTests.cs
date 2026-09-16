@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Hosting;
+
 namespace StaticHost.Tests.Live;
 
 public sealed class YouTubeClientTests
@@ -117,7 +119,27 @@ public sealed class YouTubeClientTests
         Assert.Contains("hub.secret=webhook-secret", request.Content, StringComparison.Ordinal);
         Assert.Contains("hub.lease_seconds=432000", request.Content, StringComparison.Ordinal);
         Assert.Contains("hub.callback=https%3A%2F%2Fexample.com%2Fapi%2Flive%2Fyoutube%2Fwebhook", request.Content, StringComparison.Ordinal);
-        Assert.Contains("hub.topic=https%3A%2F%2Fwww.youtube.com%2Fxml%2Ffeeds%2Fvideos.xml%3Fchannel_id%3Dchannel-123", request.Content, StringComparison.Ordinal);
+        Assert.Contains("hub.topic=https%3A%2F%2Fwww.youtube.com%2Ffeeds%2Fvideos.xml%3Fchannel_id%3Dchannel-123", request.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PubSubHttpClient_HasBoundedTimeoutAndDoesNotRetryPosts()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.AddLiveStatus();
+        var handler = new RecordingHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        builder.Services.AddHttpClient(YouTubeClient.PubSubHttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => handler);
+        using var host = builder.Build();
+        var client = host.Services.GetRequiredService<IHttpClientFactory>()
+            .CreateClient(YouTubeClient.PubSubHttpClientName);
+        using var form = new FormUrlEncodedContent([]);
+
+        using var response = await client.PostAsync("https://pubsubhubbub.appspot.com/subscribe", form);
+
+        Assert.Equal(TimeSpan.FromSeconds(30), client.Timeout);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Single(handler.Requests);
     }
 
     private static YouTubeClient CreateClient(

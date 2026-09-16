@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Logging;
+using Polly.Timeout;
+
 namespace StaticHost.Tests.Live;
 
 public sealed class YouTubeWebSubServiceTests
@@ -330,6 +333,108 @@ public sealed class YouTubeWebSubServiceTests
         Assert.Equal(["channel-123"], client.LiveLookups);
     }
 
+    [Theory]
+    [InlineData("polly-timeout")]
+    [InlineData("http-timeout")]
+    [InlineData("http-error")]
+    [InlineData("unexpected")]
+    public async Task TickAsync_BacksOffSubscriptionsWithoutStoppingLivePolling(string failureKind)
+    {
+        Exception failure = failureKind switch
+        {
+            "polly-timeout" => new TimeoutRejectedException("timed out"),
+            "http-timeout" => new TaskCanceledException("timed out"),
+            "http-error" => new HttpRequestException("unavailable", null, HttpStatusCode.ServiceUnavailable),
+            _ => new InvalidOperationException("unexpected"),
+        };
+        var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        var client = new TestYouTubeClient { SubscriptionException = failure };
+        client.LiveResults.Enqueue(new YouTubeLiveResult(true, "video"));
+        client.VideoResults.Enqueue(new YouTubeLiveResult(true, "video"));
+        client.VideoResults.Enqueue(new YouTubeLiveResult(true, "video"));
+        using var broadcaster = LiveTestHelpers.CreateBroadcaster(timeProvider: time);
+        var logger = new RecordingLogger();
+        using var service = new YouTubeWebSubService(
+            client, broadcaster,
+            new TestOptionsMonitor<LiveStatusOptions>(new LiveStatusOptions
+            {
+                YouTube = new YouTubeOptions
+                {
+                    ApiKey = "api-key", ChannelId = "channel", WebhookSecret = "secret",
+                },
+            }),
+            logger, time, new YouTubeWebSubSubscriptionState(time), new SingleInstanceLiveStatusCoordination());
+
+        await service.TickAsync(CancellationToken.None);
+        var report = Assert.Single(logger.Entries, entry => entry.Level >= LogLevel.Warning);
+        if (failureKind == "unexpected")
+        {
+            Assert.Equal(LogLevel.Error, report.Level);
+            Assert.Same(failure, report.Exception);
+        }
+        else
+        {
+            Assert.Equal(LogLevel.Warning, report.Level);
+            Assert.Null(report.Exception);
+            Assert.Contains("Next subscription attempt", report.Message, StringComparison.Ordinal);
+            Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Debug && entry.Exception == failure);
+        }
+
+        time.Advance(TimeSpan.FromMinutes(2));
+        await service.TickAsync(CancellationToken.None);
+        Assert.Equal(2, client.Subscriptions.Count);
+        time.Advance(TimeSpan.FromMinutes(2));
+        await service.TickAsync(CancellationToken.None);
+
+        Assert.Equal(2, client.Subscriptions.Count);
+        Assert.Equal(2, logger.Entries.Count(entry => entry.Level >= LogLevel.Warning));
+        Assert.Single(client.LiveLookups);
+        Assert.Equal(2, client.VideoLookups.Count);
+        Assert.True(broadcaster.Current.YouTube.Live);
+    }
+
+    [Fact]
+    public async Task TickAsync_LeadershipCancellationDoesNotLogOrCountAsSubscriptionFailure()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        var state = new YouTubeWebSubSubscriptionState(time);
+        var client = new TestYouTubeClient
+        {
+            OnSubscribe = cancellation.Cancel,
+            SubscriptionException = new OperationCanceledException(cancellation.Token),
+        };
+        var logger = new RecordingLogger();
+        using var broadcaster = LiveTestHelpers.CreateBroadcaster();
+        using var service = new YouTubeWebSubService(
+            client, broadcaster,
+            new TestOptionsMonitor<LiveStatusOptions>(new LiveStatusOptions
+            {
+                YouTube = new YouTubeOptions
+                {
+                    ApiKey = "api-key", ChannelId = "channel", WebhookSecret = "secret",
+                },
+            }),
+            logger, time, state, new SingleInstanceLiveStatusCoordination());
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => service.TickAsync(cancellation.Token));
+
+        Assert.Empty(logger.Entries);
+        Assert.Empty(client.LiveLookups);
+        time.Advance(TimeSpan.FromSeconds(30));
+        Assert.NotNull(await state.TryBeginSubscriptionAsync("channel", time.GetUtcNow()));
+    }
+
+    private sealed class RecordingLogger : ILogger<YouTubeWebSubService>
+    {
+        public List<(LogLevel Level, Exception? Exception, string Message)> Entries { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, exception, formatter(state, exception)));
+    }
+
     private sealed class TestYouTubeClient : IYouTubeClient
     {
         public string? ResolvedChannelId { get; set; } = "channel-123";
@@ -339,6 +444,10 @@ public sealed class YouTubeWebSubServiceTests
         public Queue<YouTubeLiveResult> VideoResults { get; } = [];
 
         public Exception? LiveLookupException { get; set; }
+
+        public Exception? SubscriptionException { get; set; }
+
+        public Action? OnSubscribe { get; set; }
 
         public List<Subscription> Subscriptions { get; } = [];
 
@@ -380,7 +489,8 @@ public sealed class YouTubeWebSubServiceTests
             CancellationToken cancellationToken)
         {
             Subscriptions.Add(new Subscription(channelId, callbackUrl, secret, verifyToken, lease));
-            return Task.CompletedTask;
+            OnSubscribe?.Invoke();
+            return SubscriptionException is null ? Task.CompletedTask : Task.FromException(SubscriptionException);
         }
     }
 

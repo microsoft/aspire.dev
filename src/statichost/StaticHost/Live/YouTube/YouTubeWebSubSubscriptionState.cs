@@ -15,7 +15,7 @@ public interface IYouTubeWebSubSubscriptionState
         DateTimeOffset now,
         CancellationToken cancellationToken = default);
 
-    ValueTask MarkRequestFailedAsync(
+    ValueTask<YouTubeWebSubRetryState?> MarkRequestFailedAsync(
         YouTubeWebSubSubscriptionRequest request,
         CancellationToken cancellationToken = default);
 
@@ -41,12 +41,19 @@ public sealed record YouTubeWebSubSubscriptionRequest(
     DateTimeOffset RequestedAt,
     DateTimeOffset? SentAt = null);
 
+public sealed record YouTubeWebSubRetryState(
+    string Topic,
+    int FailureCount,
+    DateTimeOffset RetryAt);
+
 internal sealed record YouTubeWebSubSubscriptionData(
     YouTubeWebSubSubscriptionRequest? Pending,
     string? ActiveTopic,
     DateTimeOffset RenewAt,
     YouTubeWebSubConfirmation? RecentConfirmation = null)
 {
+    public YouTubeWebSubRetryState? Retry { get; init; }
+
     public static YouTubeWebSubSubscriptionData Empty { get; } = new(
         Pending: null,
         ActiveTopic: null,
@@ -79,6 +86,14 @@ internal static class YouTubeWebSubSubscriptionTransitions
         out YouTubeWebSubSubscriptionData next)
     {
         var topic = TopicFor(channelId);
+        if (current.Retry is { } retry &&
+            string.Equals(retry.Topic, topic, StringComparison.Ordinal) &&
+            now < retry.RetryAt)
+        {
+            next = current;
+            return null;
+        }
+
         var pending = current.Pending;
 
         if (pending is not null)
@@ -110,14 +125,41 @@ internal static class YouTubeWebSubSubscriptionTransitions
             Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32)),
             now);
 
-        next = current with { Pending = request, RecentConfirmation = null };
+        next = current with
+        {
+            Pending = request,
+            RecentConfirmation = null,
+            Retry = string.Equals(current.Retry?.Topic, topic, StringComparison.Ordinal) ? current.Retry : null,
+        };
         return request;
     }
 
     public static YouTubeWebSubSubscriptionData MarkRequestFailed(
         YouTubeWebSubSubscriptionData current,
-        YouTubeWebSubSubscriptionRequest request) =>
-        RequestsMatch(current.Pending, request) ? current with { Pending = null } : current;
+        YouTubeWebSubSubscriptionRequest request,
+        DateTimeOffset failedAt)
+    {
+        if (!RequestsMatch(current.Pending, request))
+        {
+            return current;
+        }
+
+        var failures = (int)Math.Min((long)(current.Retry?.FailureCount ?? 0) + 1, int.MaxValue);
+        var minutes = failures switch
+        {
+            1 => 2,
+            2 => 5,
+            3 => 15,
+            4 => 30,
+            _ => 60,
+        };
+        var delay = TimeSpan.FromMinutes(minutes * (0.9 + Random.Shared.NextDouble() * 0.1));
+        return current with
+        {
+            Pending = null,
+            Retry = new YouTubeWebSubRetryState(request.Topic, failures, failedAt.Add(delay)),
+        };
+    }
 
     public static YouTubeWebSubSubscriptionData MarkRequestSent(
         YouTubeWebSubSubscriptionData current,
@@ -185,8 +227,8 @@ internal static class YouTubeWebSubSubscriptionTransitions
         !string.IsNullOrEmpty(verifyToken) &&
         leaseSeconds > 0;
 
-    private static string TopicFor(string channelId) =>
-        $"https://www.youtube.com/xml/feeds/videos.xml?channel_id={channelId}";
+    internal static string TopicFor(string channelId) =>
+        $"https://www.youtube.com/feeds/videos.xml?channel_id={channelId}";
 
     private static bool RequestsMatch(
         YouTubeWebSubSubscriptionRequest? current,

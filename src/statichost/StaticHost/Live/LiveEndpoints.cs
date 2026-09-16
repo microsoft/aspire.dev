@@ -334,6 +334,8 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             return Results.NotFound();
         }
 
+        logger.LogInformation("YouTube WebSub subscription verified for {Topic}; granted lease {LeaseSeconds}s.",
+            topic, leaseSeconds);
         return Results.Text(challenge, "text/plain");
     }
 

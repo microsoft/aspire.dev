@@ -12,7 +12,7 @@ public static class LiveStatusServiceCollectionExtensions
     /// Registers Redis-backed canonical state, a per-process
     /// <see cref="LiveStatusBroadcaster"/>, named
     /// <see cref="HttpClient"/> instances (<c>"twitch"</c>, <c>"twitch-id"</c>,
-    /// <c>"youtube"</c>, <c>"youtube-pubsub"</c>) with standard resilience, the
+    /// <c>"youtube"</c>, <c>"youtube-pubsub"</c>), the
     /// Twitch token provider + Helix client, the YouTube Data + WebSub client,
     /// and the two <see cref="BackgroundService"/> workers
     /// (<see cref="TwitchEventSubService"/> and <see cref="YouTubeWebSubService"/>).
@@ -49,8 +49,9 @@ public static class LiveStatusServiceCollectionExtensions
             .AddStandardResilienceHandler();
         builder.Services.AddHttpClient(YouTubeClient.HttpClientName)
             .AddStandardResilienceHandler();
-        builder.Services.AddHttpClient(YouTubeClient.PubSubHttpClientName)
-            .AddStandardResilienceHandler();
+        // Subscription POST retries are scheduled in Redis, not inside the HTTP request.
+        builder.Services.AddHttpClient(YouTubeClient.PubSubHttpClientName,
+            client => client.Timeout = TimeSpan.FromSeconds(30));
 
         builder.Services.AddSingleton<TwitchAppTokenProvider>();
         builder.Services.AddSingleton<ITwitchClient, TwitchClient>();

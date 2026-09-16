@@ -33,9 +33,35 @@ Two `BackgroundService` workers keep the state current:
 | `YouTubeWebSubService`    | PubSubHubbub `videos.xml` push   | `videos.list` every 2 min while live; `search.list` every 30 min while idle |
 
 Webhook signature and parsing logic remains separate and unit-testable.
-Outgoing HTTP is performed by named, resilient
-`HttpClient` instances (`twitch`, `twitch-id`, `youtube`,
-`youtube-pubsub`) registered with `AddStandardResilienceHandler`.
+The `twitch`, `twitch-id`, and `youtube` named HTTP clients use
+`AddStandardResilienceHandler`. The `youtube-pubsub` client instead uses a
+30-second timeout without in-request retries. Redis schedules subscription
+retries separately from live-status polling.
+
+### YouTube subscription failures
+
+Both subscription requests and verification use Google's documented topic:
+`https://www.youtube.com/feeds/videos.xml?channel_id=CHANNEL_ID`.
+
+Failed subscription requests back off on a 2, 5, 15, 30, then 60-minute schedule,
+with each delay jittered between 90% and 100% of that duration. The worker
+retries on its first normal tick at or after the persisted deadline. Failure
+counts and deadlines are shared in Redis so restarts or leader changes do not
+restart the retry sequence. Successful verification resets the backoff;
+acceptance of the subscription POST alone does not. A channel change starts a
+fresh sequence.
+
+Each failed attempt logs one concise warning for expected HTTP errors or
+timeouts, including the failure count and next retry deadline. Exception
+details and hub error response bodies are available at Debug; unexpected
+exceptions remain Error-level with their stack traces. Successful verification
+is logged at Information. Shutdown or leadership cancellation does not count
+as an upstream failure.
+
+The live and idle polling intervals remain unchanged during subscription
+backoff. Google documents feed notifications for uploads and video
+title/description updates, not guaranteed broadcast start/stop events, so
+fallback polling is still necessary.
 
 ## Configuration
 
@@ -345,8 +371,11 @@ project or `Aspire.Dev.slnx` trigger that job.
 - Existing SSE connections retain the last local snapshot during a temporary
   Redis interruption. New snapshot and SSE requests require canonical Redis
   state.
-- Provider loops log failures and retry on their configured intervals.
-- Standard resilience pipeline on every named `HttpClient`.
+- Provider loops log failures and retry on their configured intervals, with
+  separate shared backoff for failed YouTube subscription requests.
+- Standard resilience pipelines protect Data API and Twitch requests;
+  YouTube subscription POSTs use the bounded timeout and shared retry schedule
+  described above.
 - Reconciliation timers are the safety net for missed individual webhooks.
 - SSE heartbeats every 15 s defeat proxy idle-timeouts; the client uses
   exponential backoff with a `visibilitychange`-aware reconnect.
