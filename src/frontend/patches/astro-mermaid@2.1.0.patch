@@ -1,0 +1,224 @@
+diff --git a/astro-mermaid-integration.js b/astro-mermaid-integration.js
+index abe6745522039b0a3087fe01d2178f2c80153955..01366256eed784f20cb31db69b62eceb3770c3ab 100644
+--- a/astro-mermaid-integration.js
++++ b/astro-mermaid-integration.js
+@@ -422,14 +422,8 @@ export default function astroMermaid(options = {}) {
+ const log = ${enableLog} ? (...args) => console.log('[astro-mermaid]', ...args) : () => {};
+ const logError = (...args) => console.error('[astro-mermaid]', ...args);
+ 
+-// Check if page has mermaid diagrams
+-const hasMermaidDiagrams = () => {
+-  return document.querySelectorAll('pre.mermaid').length > 0;
+-};
+-
+ // Shared mermaid initialization function
+ let mermaidPromise = null;
+-let mermaidInstance = null;
+ 
+ async function loadMermaid() {
+   if (mermaidPromise) return mermaidPromise;
+@@ -463,7 +457,6 @@ if (elkModule?.default) {
+ }
+ ` : ``}
+ 
+-    mermaidInstance = mermaid;
+     return mermaid;
+   }).catch(error => {
+     logError('Failed to load mermaid:', error);
+@@ -487,36 +480,64 @@ const themeMap = {
+   'dark': 'dark'
+ };
+ 
+-// Initialize all mermaid diagrams
+-async function initMermaid() {
+-  log('Initializing mermaid diagrams...');
+-  const diagrams = document.querySelectorAll('pre.mermaid');
+-
+-  log('Found', diagrams.length, 'mermaid diagrams');
+-
+-  if (diagrams.length === 0) {
+-    return;
+-  }
+-
+-  // Load mermaid if not already loaded
+-  const mermaid = await loadMermaid();
+-
+-  // Get current theme from multiple sources
+-  let currentTheme = defaultConfig.theme;
+-
++function getTheme() {
+   if (${autoTheme}) {
+-    // Check both html and body for data-theme attribute
+     const htmlTheme = document.documentElement.getAttribute('data-theme');
+     const bodyTheme = document.body.getAttribute('data-theme');
+-    const dataTheme = htmlTheme || bodyTheme;
+-    currentTheme = themeMap[dataTheme] || defaultConfig.theme;
+-    log('Using theme:', currentTheme, 'from', htmlTheme ? 'html' : 'body');
++    return themeMap[htmlTheme || bodyTheme] || defaultConfig.theme;
+   }
++  return defaultConfig.theme;
++}
++
++let pageBody = null;
++let currentTheme;
++let epoch = 0;
++let pending = false;
++let running = false;
++const renderedThemes = new WeakMap();
++
++// One queue owns both initialize and render: Mermaid's configuration is global.
++function requestRender() {
++  if (!pageBody) return;
++  const theme = getTheme();
++  if (theme !== currentTheme) {
++    currentTheme = theme;
++    epoch++;
++  }
++  pending = true;
++  if (running) return;
++  running = true;
++  queueMicrotask(async () => {
++    try {
++      while (pending && pageBody) {
++        pending = false;
++        try {
++          await initMermaid(pageBody, currentTheme, epoch);
++        } catch (error) {
++          logError('Failed to initialize mermaid:', error);
++        }
++      }
++    } finally {
++      running = false;
++    }
++  });
++}
++
++async function initMermaid(body, theme, generation) {
++  const isCurrent = () => pageBody === body && document.body === body &&
++    epoch === generation && getTheme() === theme;
++  const ownsDiagram = diagram => isCurrent() && diagram.isConnected && body.contains(diagram);
++  const diagrams = Array.from(body.querySelectorAll('pre.mermaid'))
++    .filter(diagram => renderedThemes.get(diagram) !== theme);
++  if (diagrams.length === 0) return;
++
++  const mermaid = await loadMermaid();
++  if (!isCurrent()) return;
+ 
+   // Configure mermaid with gitGraph support
+   mermaid.initialize({
+     ...defaultConfig,
+-    theme: currentTheme,
++    theme,
+     gitGraph: {
+       mainBranchName: 'main',
+       showCommitLabel: true,
+@@ -527,8 +548,8 @@ async function initMermaid() {
+ 
+   // Render each diagram
+   for (const diagram of diagrams) {
+-    // Skip if already processed
+-    if (diagram.hasAttribute('data-processed')) continue;
++    if (!isCurrent()) break;
++    if (!ownsDiagram(diagram)) continue;
+ 
+     // Store original content
+     if (!diagram.hasAttribute('data-diagram')) {
+@@ -548,11 +569,14 @@ async function initMermaid() {
+       }
+ 
+       const { svg } = await mermaid.render(id, diagramDefinition);
++      if (!ownsDiagram(diagram)) continue;
+       diagram.innerHTML = svg;
+       diagram.setAttribute('data-processed', 'true');
++      renderedThemes.set(diagram, theme);
+       log('Successfully rendered diagram:', id);
+     } catch (error) {
+       logError('Mermaid rendering error for diagram:', id, error);
++      if (!ownsDiagram(diagram)) continue;
+       // Build error UI safely — use textContent to prevent XSS via error messages
+       const errorDiv = document.createElement('div');
+       errorDiv.style.cssText = 'color: red; padding: 1rem; border: 1px solid red; border-radius: 0.5rem;';
+@@ -565,52 +589,44 @@ async function initMermaid() {
+       diagram.textContent = '';
+       diagram.appendChild(errorDiv);
+       diagram.setAttribute('data-processed', 'true');
++      renderedThemes.set(diagram, theme);
++    } finally {
++      // Mermaid can leave its temporary error SVG/iframe behind on rejection.
++      document.getElementById('d' + id)?.remove();
++      document.getElementById('i' + id)?.remove();
+     }
+   }
+ }
+ 
+-// Initialize on first load if there are diagrams
+-if (hasMermaidDiagrams()) {
+-  log('Mermaid diagrams detected on initial load');
+-  initMermaid();
+-} else {
+-  log('No mermaid diagrams found on initial load');
+-}
+-
+-// Re-render on theme change if auto-theme is enabled
+-if (${autoTheme}) {
+-  const observer = new MutationObserver((mutations) => {
+-    for (const mutation of mutations) {
+-      if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+-        // Reset processed state and re-render
+-        document.querySelectorAll('pre.mermaid[data-processed]').forEach(diagram => {
+-          diagram.removeAttribute('data-processed');
+-        });
+-        initMermaid();
+-      }
+-    }
+-  });
+-
+-  // Observe both html and body for data-theme changes
+-  observer.observe(document.documentElement, {
+-    attributes: true,
+-    attributeFilter: ['data-theme']
+-  });
+-  observer.observe(document.body, {
+-    attributes: true,
+-    attributeFilter: ['data-theme']
+-  });
++const observer = ${autoTheme} ? new MutationObserver(() => {
++  if (pageBody && getTheme() !== currentTheme) requestRender();
++}) : null;
++
++function mountPage() {
++  if (pageBody !== document.body) {
++    observer?.disconnect();
++    pageBody = document.body;
++    epoch++;
++    const options = { attributes: true, attributeFilter: ['data-theme'] };
++    observer?.observe(document.documentElement, options);
++    observer?.observe(pageBody, options);
++  }
++  requestRender();
+ }
+ 
+-// Handle view transitions (for Astro View Transitions API)
+-// This is registered ALWAYS, not just when initial page has diagrams
+-document.addEventListener('astro:after-swap', () => {
+-  log('View transition detected');
+-  // Check if new page has diagrams
+-  if (hasMermaidDiagrams()) {
+-    initMermaid();
+-  }
++// A failed or canceled preparation still owns the old page.
++document.addEventListener('astro:before-swap', () => {
++  epoch++;
++  pageBody = null;
++  pending = false;
++  observer?.disconnect();
+ });
++document.addEventListener('astro:page-load', mountPage);
++if (document.readyState === 'loading') {
++  document.addEventListener('DOMContentLoaded', mountPage, { once: true });
++} else {
++  mountPage();
++}
+ `;
+ 
+         injectScript('page', mermaidScriptContent);

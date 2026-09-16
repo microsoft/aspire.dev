@@ -233,6 +233,7 @@ export default defineConfig({
     mermaid({
       theme: 'forest',
       autoTheme: true,
+      enableLog: false,
       iconPacks,
     }),
     mdx({

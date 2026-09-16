@@ -40,6 +40,16 @@ function computeSourceUrl() {
 <meta name="git-source-url" content={computeSourceUrl()} />
 
 <DefaultHead {...Astro.props} />
+<script>
+  import '@scripts/deployment-guard';
+
+  document.addEventListener('astro:before-swap', (event) => {
+    const theme = document.documentElement.dataset.theme;
+    if (theme === 'light' || theme === 'dark') {
+      event.newDocument.documentElement.dataset.theme = theme;
+    }
+  });
+</script>
 <ClientRouter fallback="swap" />
 
 {
@@ -100,7 +110,7 @@ function computeSourceUrl() {
 
       var url = new URL(window.location);
       url.searchParams.set('aspire-lang', normalized);
-      window.history.replaceState({}, '', url);
+      window.history.replaceState(window.history.state, '', url);
     }
 
     function persistAppHostLang(value) {
