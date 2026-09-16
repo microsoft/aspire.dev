@@ -77,7 +77,7 @@ logging HTTP request bodies is not required.
 | `Operation` | Meaning |
 | --- | --- |
 | `ChannelResolution` | Resolve the configured handle through `channels.list`. A missing channel means detection is unavailable, not offline. |
-| `OfflineDiscovery` | Quota-limited `search.list` check for a broadcast while no live video is known. |
+| `OfflineDiscovery` | Interval-limited `search.list` check for a broadcast while no live video is known; not a daily quota guard. |
 | `KnownVideoStatus` | Low-cost `videos.list` check of the currently known live video. |
 | `WebSubSubscribe` | Subscription POST accepted or failed; acceptance does **not** prove callback verification. |
 | `WebSubVerification` | A matching callback verified the subscription or renewal, with the granted `LeaseSeconds`. |
@@ -148,15 +148,33 @@ does not bypass the configured two-check confirmation rule.
 
 Without a useful notification, a new broadcast may take up to the configured
 30-minute discovery interval (plus request/tick delays) to be detected.
-Failures can extend that delay. `search.list` costs 100 quota units: the
-default idle schedule makes at most 48 scheduled searches per day (4,800
-units) for a continuously running leader. Known-video checks cost one unit
-every two minutes (up to 720 per day while continuously live). Channel
-resolution, notification confirmation searches, request retries, and
-restarts/leader changes can add usage; the usual 10,000-unit daily project
-budget is shared with other callers. These logging changes do not alter
-polling intervals, retry policies, leader coordination, or quota usage, and
-do not fix the upstream subscription failure.
+Failures can extend that delay. Google's current
+[quota guide](https://developers.google.com/youtube/v3/determine_quota_cost) and
+[`search.list` reference](https://developers.google.com/youtube/v3/docs/search/list)
+describe a separate Search Queries bucket: one unit per search call, with a
+default limit of 100 calls per day. Other endpoints used here (`channels.list`
+and `videos.list`) each cost one unit in the general bucket, whose default daily
+allocation is 10,000 units. Actual project limits and usage must be checked in
+Google Cloud; daily quotas reset at midnight Pacific Time.
+
+The default idle schedule permits approximately 48 scheduled searches per
+24 hours for a continuously running leader before retries. Known-video checks
+can make 720 calls per 24 hours while continuously live. A Pacific calendar day
+can be 23 or 25 hours at daylight-saving transitions.
+
+These intervals are **not project-wide daily quota enforcement**. Notification
+confirmation searches use a separate Redis gate that admits a confirmation
+every 30 seconds, not the discovery interval. Data API resilience retries,
+restarts/leader changes (the next discovery timestamp is process-local), and
+other clients sharing the Google Cloud project can add usage. A budget must
+account for each outbound attempt across these paths and all replicas, not just
+successful worker ticks. The current implementation does not maintain such a
+shared daily budget.
+
+The WebSub subscription POST does not use a Data API key. Its Retry-After and
+subscription backoff are separate from Data API quota accounting; the observed
+hub 503 does not establish quota exhaustion. These diagnostic changes do not
+alter polling intervals, retry policies, or leader coordination.
 
 ## Configuration
 
