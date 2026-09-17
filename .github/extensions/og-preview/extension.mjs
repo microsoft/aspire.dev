@@ -362,7 +362,7 @@ function rewriteBrowseDoc(html, finalUrl, appOrigin) {
     );
 
     // Inline <script type="module">…</script> (no src) → rewrite import specifiers
-    out = out.replace(/<script\b((?:[^"'<>]|"[^"]*"|'[^']*')*)>([\s\S]*?)<\/script\s*>/gi, (m, attrs, body) => {
+    out = out.replace(/<script(?=[\t\n\f\r />])((?:[^"'<>]|"[^"]*"|'[^']*')*)>([\s\S]*?)<\/script(?=[\t\n\f\r />])(?:[^"'<>]|"[^"]*"|'[^']*')*>/gi, (m, attrs, body) => {
         if (/\ssrc\s*=/i.test(attrs)) return m; // external handled above
         if (!/type\s*=\s*["']?module/i.test(attrs)) return m; // classic scripts unaffected
         return `<script${attrs}>${rewriteJs(body, finalUrl, appOrigin)}</script>`;

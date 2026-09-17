@@ -36,6 +36,8 @@ before(async () => {
         }
         res.end(`<!doctype html><head><title>Local preview</title>
 <SCRIPT data-note=">" TYPE="module">import "/module.js";</SCRIPT >
+<script type="module">import "/end-attributes.js";</script\t\n bar=">">
+<script type="module">import "/end-slash.js";</script/>
 <script src="/external.js">leave classic alone</script>
 <script>const classic = "/plain.js";</script></head><body>Hello</body>`);
     });
@@ -89,6 +91,8 @@ test("rewrites mixed-case inline modules with quoted delimiters and closing whit
     const html = await browse();
     assert.match(html, /import "http:\/\/127\.0\.0\.1:\d+\/browse\/[a-f0-9]+\/api\/proxy\/http\/127\.0\.0\.1:\d+\/module\.js"/);
     assert.match(html, /const classic = "\/plain\.js"/);
+    assert.match(html, /import "http:\/\/127\.0\.0\.1:\d+\/browse\/[a-f0-9]+\/api\/proxy\/http\/127\.0\.0\.1:\d+\/end-attributes\.js"/);
+    assert.match(html, /import "http:\/\/127\.0\.0\.1:\d+\/browse\/[a-f0-9]+\/api\/proxy\/http\/127\.0\.0\.1:\d+\/end-slash\.js"/);
 });
 
 test("browse capability cannot authorize origins, send actions, or read events", async () => {

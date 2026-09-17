@@ -280,6 +280,22 @@ describe('API markdown helpers', () => {
     );
   });
 
+  it('encodes repeated prose backslashes and pipes once, without changing plain code spans', async () => {
+    const value = 'a\\|b\\\\|c | `C:\\src\\app` | `left|right`';
+    expect(escapeTableCell(value)).toBe(
+      'a\\\\\\|b\\\\\\\\\\|c \\| `C:\\src\\app` \\| `left\\|right`'
+    );
+    expect(await renderCell(value)).toBe(
+      '<td>a\\|b\\\\|c | <code>C:\\src\\app</code> | <code>left|right</code></td>'
+    );
+  });
+
+  it('preserves code backslashes when a pipe occurs elsewhere in the same span', async () => {
+    expect(await renderCell('before\r\n`C:\\src | D:\\data` after\\|end')).toBe(
+      '<td>before<br><code>C:\\src | D:\\data</code> after\\|end</td>'
+    );
+  });
+
   it('handles multi-backtick delimiters, embedded backticks and unmatched runs', async () => {
     expect(await renderCell('``a`b\\|c`` and `unclosed\\|tail')).toBe(
       '<td><code>a`b\\|c</code> and `unclosed\\|tail</td>'
